@@ -46,6 +46,14 @@ namespace Opc.Ua.Wot
         public const string ProjectionType = "uav:NodeModel";
         public const string ProfileVersion = "1.0";
 
+        internal static bool HasUnsupportedProfile(JsonElement projection)
+        {
+            return projection.ValueKind == JsonValueKind.Object &&
+                string.Equals(GetString(projection, "@type"), ProjectionType, StringComparison.Ordinal) &&
+                GetString(projection, "profileVersion") is { Length: > 0 } version &&
+                !string.Equals(version, ProfileVersion, StringComparison.Ordinal);
+        }
+
         public static byte[] Write(
             UANodeSet nodeSet,
             WotNodeSetConverterOptions options,
@@ -614,7 +622,7 @@ namespace Opc.Ua.Wot
             }
             if (variable.MinimumSamplingInterval != 0D)
             {
-                writer.WriteNumber("minimumSamplingInterval", variable.MinimumSamplingInterval);
+                WotJsonCanonicalizer.WriteNumber(writer, "minimumSamplingInterval", variable.MinimumSamplingInterval);
             }
             if (variable.Historizing)
             {

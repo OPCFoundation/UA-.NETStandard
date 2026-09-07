@@ -347,7 +347,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(HasThingModelTypeMismatchDiagnostic(result), Is.False);
             Assert.That(TypeDefinitionOf(result.Value!), Is.EqualTo("ns=1;i=1042"));
-            Assert.That(ExtendsTargetOf(result.Value!), Is.EqualTo(TankTypeId));
+            Assert.That(ExtendsTargetOf(result.Value!), Is.EqualTo("ns=1;i=1042"));
         }
 
         [Test]
@@ -363,7 +363,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(HasThingModelTypeMismatchDiagnostic(result), Is.False);
             Assert.That(TypeDefinitionOf(result.Value!), Is.EqualTo(WotVocabulary.BaseObjectType));
-            Assert.That(ExtendsTargetOf(result.Value!), Is.EqualTo(TankTypeId));
+            Assert.That(ExtendsTargetOf(result.Value!), Is.EqualTo("ns=1;i=1042"));
         }
 
         private static WotResolvedNode Node(string nodeId)

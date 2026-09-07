@@ -23,16 +23,26 @@
   ],
   "pinnedTo": {
     "repository": "https://github.com/OPCF-Members/spec-drafts.git",
-    "commit": "25db507121b503fd31c8816fbfae67a6822e813b",
+    "commit": "82620d9e313f35386dfc7477f7875cd47d2fd268",
     "bindingRevision": "1.1"
   },
   "clauses": [
     {
-      "clause": "12",
-      "title": "Exact preservation and the native projection",
+      "clause": "10",
+      "title": "Native projection, residue, and exceptional envelope formats",
       "tests": [
         "Opc.Ua.Types.Tests.Wot.WotEnvelopeFailClosedTests",
-        "Opc.Ua.Types.Tests.Wot.WotNativeProjectionScalarKindTests"
+        "Opc.Ua.Types.Tests.Wot.WotNativeProjectionScalarKindTests",
+        "Opc.Ua.Types.Tests.Wot.WotNativeProjectionTests",
+        "Opc.Ua.Types.Tests.Wot.WotArchiveConsistencyTests"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "9.5",
+      "title": "Round-trip invariants for linked document sets",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotVerifiedDocumentSetTests"
       ],
       "assembly": "Opc.Ua.Types.Tests"
     },

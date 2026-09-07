@@ -21,6 +21,9 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.WotCon.Samples.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="Documents\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

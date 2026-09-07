@@ -54,7 +54,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             IHost aggregationHost,
             AggregationClientOptions clientOptions,
             FlatTagValues sourceAValues,
-            FlatTagValues sourceBValues)
+            FlatTagValues sourceBValues,
+            FlatTagValues sourceAPump2Values,
+            FlatTagValues sourceBPump2Values)
         {
             Root = root;
             SourceAHost = sourceAHost;
@@ -63,6 +65,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
             ClientOptions = clientOptions;
             SourceAValues = sourceAValues;
             SourceBValues = sourceBValues;
+            SourceAPump2Values = sourceAPump2Values;
+            SourceBPump2Values = sourceBPump2Values;
         }
 
         public string Root { get; }
@@ -78,6 +82,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
         public FlatTagValues SourceAValues { get; }
 
         public FlatTagValues SourceBValues { get; }
+
+        public FlatTagValues SourceAPump2Values { get; }
+
+        public FlatTagValues SourceBPump2Values { get; }
 
         public string DocumentsDirectory => FindDocumentsDirectory();
 
@@ -126,6 +134,26 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 NumberOfStarts = 23,
                 MotorOverheat = true
             };
+            var sourceAPump2Values = new FlatTagValues
+            {
+                SerialNumber = "SN-002",
+                ProductInstanceUri = "urn:simdevice:SimPump:PumpX-2000:SN-002",
+                DifferentialPressure = 211.25,
+                FluidTemperature = 304.15,
+                MassFlow = 0.52,
+                Level = 4.75,
+                Cavitation = false
+            };
+            var sourceBPump2Values = new FlatTagValues
+            {
+                SerialNumber = "SN-002",
+                ProductInstanceUri = "urn:simdevice:SimPump:PumpX-2000:SN-002",
+                BearingTemperature = 337.15,
+                PumpPowerInput = 19.75,
+                PumpEfficiency = 89.5,
+                NumberOfStarts = 31,
+                MotorOverheat = false
+            };
 
             IHost sourceAHost = FlatTagServerHost.Build(new FlatTagServerOptions
             {
@@ -134,7 +162,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 ApplicationName = $"FlatTagServerSourceA{id}",
                 InstanceName = "SourceA",
                 PkiRoot = Path.Combine(root, "SourceA", "pki"),
-                Values = sourceAValues
+                Values = sourceAValues,
+                Pump2Values = sourceAPump2Values
             });
             IHost sourceBHost = FlatTagServerHost.Build(new FlatTagServerOptions
             {
@@ -143,7 +172,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 ApplicationName = $"FlatTagServerSourceB{id}",
                 InstanceName = "SourceB",
                 PkiRoot = Path.Combine(root, "SourceB", "pki"),
-                Values = sourceBValues
+                Values = sourceBValues,
+                Pump2Values = sourceBPump2Values
             });
             IHost aggregationHost = AggregationServerHost.Build(
                 new AggregationServerOptions
@@ -169,7 +199,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 aggregationHost,
                 clientOptions,
                 sourceAValues,
-                sourceBValues);
+                sourceBValues,
+                sourceAPump2Values,
+                sourceBPump2Values);
             try
             {
                 await sourceAHost.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -220,13 +252,25 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 cancellationToken);
         }
 
+        public Task<OpcUaClientConnection> ConnectSourceBAsync(
+            CancellationToken cancellationToken)
+        {
+            return OpcUaClientConnection.CreateAsync(
+                Root,
+                ClientOptions.SourceBEndpoint,
+                ClientOptions.ApplicationName + ".SourceB" + Guid.NewGuid().ToString("N"),
+                cancellationToken);
+        }
+
         public string CreateDocumentsCopy()
         {
             string target = Path.Combine(Root, "Documents", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(target);
-            foreach (string source in Directory.EnumerateFiles(DocumentsDirectory))
+            foreach (string source in Directory.EnumerateFiles(DocumentsDirectory, "*", SearchOption.AllDirectories))
             {
-                File.Copy(source, Path.Combine(target, Path.GetFileName(source)));
+                string destination = Path.Combine(target, Path.GetRelativePath(DocumentsDirectory, source));
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                File.Copy(source, destination);
             }
             return target;
         }

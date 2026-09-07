@@ -67,7 +67,6 @@ namespace Opc.Ua.Types.Tests.Wot
             "urn:demo:measurement"
         ];
 
-        // ---- uav:eventType (Section 5.2) -----------------------------------
 
         [Test]
         public void EventAffordanceEmitsEventTypeAnnotationOnly()
@@ -154,7 +153,6 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
-        // ---- Portable identity (Section 5.1.1) -----------------------------
 
         [Test]
         public void ForwardIdentityTermsArePortableExpandedNodeIds()
@@ -385,7 +383,6 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value, Is.Not.Null);
         }
 
-        // ---- HasComponent subtypes (Section 5.3) ---------------------------
 
         [Test]
         public void HasComponentSubtypeEmitsDiscoveryAndReferenceTypeRelation()
@@ -425,7 +422,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             UAObjectType root = nodeSet.Items!.OfType<UAObjectType>().Single();
             var toTarget = root.References!
-                .Where(r => r.Value == "nsu=urn:demo:pump;i=2001").ToArray();
+                .Where(r => r.Value == WotTestData.LocalNodeId(nodeSet, "nsu=urn:demo:pump;i=2001")).ToArray();
             Assert.That(toTarget, Has.Length.EqualTo(1),
                 "The pinned component must not be emitted twice.");
             Assert.That(toTarget[0].ReferenceType, Is.EqualTo("i=49"));
@@ -448,7 +445,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             UAObjectType root = nodeSet.Items!.OfType<UAObjectType>().Single();
             Reference reference = root.References!
-                .Single(r => r.Value == "nsu=urn:demo:pump;i=2001");
+                .Single(r => r.Value == WotTestData.LocalNodeId(nodeSet, "nsu=urn:demo:pump;i=2001"));
             Assert.That(reference.ReferenceType, Is.EqualTo("i=49"));
         }
 
@@ -469,7 +466,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             UAObjectType root = nodeSet.Items!.OfType<UAObjectType>().Single();
             Reference reference = root.References!
-                .Single(r => r.Value == "nsu=urn:demo:pump;i=2001" &&
+                .Single(r => r.Value == WotTestData.LocalNodeId(nodeSet, "nsu=urn:demo:pump;i=2001") &&
                     r.ReferenceType != "HasComponent");
 
             // The relation is recreated with the exact ReferenceType the
@@ -636,7 +633,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             UAObjectType root = nodeSet.Items!.OfType<UAObjectType>().Single();
             Reference reference = root.References!
-                .Single(r => r.Value == "nsu=urn:demo:pump;i=2001");
+                .Single(r => r.Value == WotTestData.LocalNodeId(nodeSet, "nsu=urn:demo:pump;i=2001"));
             Assert.That(reference.ReferenceType, Is.EqualTo("HasComponent"));
             Assert.That(reference.IsForward, Is.True);
         }
