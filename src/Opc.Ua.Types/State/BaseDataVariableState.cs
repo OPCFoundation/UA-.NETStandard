@@ -184,6 +184,20 @@ namespace Opc.Ua
                 context, browseName, createOrReplace, replacement, assignInstanceNodeIds);
         }
 
+        /// <inheritdoc/>
+        protected override void RemoveExplicitlyDefinedChild(BaseInstanceState child)
+        {
+            if (ReferenceEquals(EnumStrings, child))
+            {
+                EnumStrings = null;
+                if (ReferenceEquals(child.Parent, this))
+                {
+                    child.Parent = null;
+                }
+            }
+            base.RemoveExplicitlyDefinedChild(child);
+        }
+
         /// <summary>
         /// Create or replace enum strings
         /// </summary>

@@ -1791,7 +1791,7 @@ namespace Opc.Ua.SourceGeneration
             /// <remarks>
             /// The returned node graph has not completed its create lifecycle.
             /// Node manager registration completes it automatically. Call
-            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode"/>
+            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode(global::Opc.Ua.ISystemContext)"/>
             /// before registration when configuration depends on
             /// <c>OnBeforeCreate</c> or <c>OnAfterCreate</c>.
             /// </remarks>
@@ -1903,7 +1903,7 @@ namespace Opc.Ua.SourceGeneration
             /// <remarks>
             /// The returned node graph has not completed its create lifecycle.
             /// Node manager registration completes it automatically. Call
-            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode"/>
+            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode(global::Opc.Ua.ISystemContext)"/>
             /// before registration when configuration depends on
             /// <c>OnBeforeCreate</c> or <c>OnAfterCreate</c>.
             /// </remarks>
@@ -1968,7 +1968,7 @@ namespace Opc.Ua.SourceGeneration
             /// <remarks>
             /// The returned node graph has not completed its create lifecycle.
             /// Node manager registration completes it automatically. Call
-            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode"/>
+            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode(global::Opc.Ua.ISystemContext)"/>
             /// before registration when configuration depends on
             /// <c>OnBeforeCreate</c> or <c>OnAfterCreate</c>.
             /// </remarks>
