@@ -168,7 +168,11 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
             }
 
-            return null;
+            // returning null here would surface as a NullReferenceException
+            // somewhere in the caller's assertions rather than as the real
+            // failure, which is that the property was never registered.
+            Assert.Fail($"No registered property named '{browseName}'.");
+            return null!;
         }
 
         private static Harness CreateHarness()

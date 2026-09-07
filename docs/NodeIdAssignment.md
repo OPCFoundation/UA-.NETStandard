@@ -319,8 +319,11 @@ created after it:
 builder.WithNodeIdAssignment(NodeIdAssignmentMode.Guid);
 ```
 
-A builder whose NodeManager is not an `AsyncCustomNodeManager` (the
-mock-backed unit tests) keeps the older concatenated shape.
+Every builder mints through the owning NodeManager's `New`, so there is no
+second identifier shape to fall back to. `WithNodeIdAssignment` needs the
+factory itself, which only an `AsyncCustomNodeManager` carries, so on any
+other NodeManager it raises `BadConfigurationError` rather than quietly
+doing nothing.
 
 ## Configuring the factory
 

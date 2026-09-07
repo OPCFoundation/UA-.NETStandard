@@ -154,8 +154,10 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="mode">The identifier type to mint.</param>
         /// <param name="defaultNamespaceIndex">
-        /// The namespace index a root node is minted into. A child inherits
-        /// its parent's namespace instead.
+        /// The namespace index every minted NodeId belongs to, root and child
+        /// alike. A parent's namespace is never inherited: it can belong to a
+        /// companion-specification model whose NodeIds are fixed by its
+        /// NodeSet, or to another NodeManager.
         /// </param>
         /// <param name="detectCollisions">
         /// Whether to refuse an identifier already given to a different

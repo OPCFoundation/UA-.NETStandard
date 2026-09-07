@@ -104,6 +104,11 @@ namespace MemoryBuffer
                 namespaceIndex = Server.NamespaceUris
                     .GetIndexOrAppend(Namespaces.MemoryBuffer + "/Instance");
 
+                // the buffers live in the instance namespace, so their
+                // children are minted there too rather than in the model
+                // namespace the base class would otherwise have adopted.
+                NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(namespaceIndex);
+
                 if (m_configuration != null && !m_configuration.Buffers.IsNull)
                 {
                     for (int ii = 0; ii < m_configuration.Buffers.Count; ii++)

@@ -320,6 +320,18 @@ namespace Opc.Ua.Sample
                         .GetIndexOrAppend(m_namespaceUris[ii]);
                 }
 
+                // A factory still pointing at namespace 0 adopts the first
+                // namespace this manager owns. Namespace 0 is the OPC UA
+                // namespace, so minting there would hand out identifiers in
+                // a namespace no NodeManager owns. A subclass that wants a
+                // different one of its namespaces rebases the factory itself,
+                // as BoilerNodeManager and MemoryBufferNodeManager do.
+                if (NodeIdFactory.DefaultNamespaceIndex == 0 && m_namespaceIndexes.Length > 0)
+                {
+                    NodeIdFactory = NodeIdFactory
+                        .WithDefaultNamespaceIndex(m_namespaceIndexes[0]);
+                }
+
                 LoadPredefinedNodes(SystemContext, externalReferences);
             }
         }
