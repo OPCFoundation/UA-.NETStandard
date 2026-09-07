@@ -805,13 +805,15 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// <summary>
             /// The certificate handles the asymmetric header parser allocated
             /// for the sender chain during the most recent
-            /// <see cref="CallReadAsymmetricMessageHeader"/>. Captured through
-            /// the channel's test hook because the parser disposes the chain
-            /// and clears the out parameter when validation fails, leaving the
-            /// caller no other way to reach those handles. The handles are
-            /// copied out of the collection (which empties itself on disposal)
-            /// without taking a reference, so the snapshot observes their
-            /// release rather than preventing it.
+            /// <see cref="CallReadAsymmetricMessageHeader"/>, or <c>null</c>
+            /// when that call parsed no chain because the header carried no
+            /// sender certificate data. Captured through the channel's test
+            /// hook because the parser disposes the chain and clears the out
+            /// parameter when validation fails, leaving the caller no other way
+            /// to reach those handles. The handles are copied out of the
+            /// collection (which empties itself on disposal) without taking a
+            /// reference, so the snapshot observes their release rather than
+            /// preventing it.
             /// </summary>
             public IReadOnlyList<Certificate>? ParsedSenderChain { get; private set; }
 
@@ -888,6 +890,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 CallReadAsymmetricMessageHeader(
                     ArraySegment<byte> buffer, Certificate? receiverCertificate)
             {
+                // Cleared up front so the property always describes THIS call:
+                // the hook only fires when the header actually carries sender
+                // certificate data, and a stale chain from an earlier call
+                // would otherwise be asserted against.
+                ParsedSenderChain = null;
+
                 using var decoder = new BinaryDecoder(buffer, Quotas.MessageContext);
                 Certificate? receiver = receiverCertificate;
                 ReadAsymmetricMessageHeader(
