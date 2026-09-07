@@ -40,7 +40,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>Resources\%(Filename)%(Extension)</Link>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\..\src\Opc.Ua.Gds.Common\Design\OpcUaGdsModel.*">
+    <EmbeddedResource Include="..\..\src\Opc.Ua.Gds\Design\OpcUaGdsModel.*">
       <Link>Resources\%(Filename)%(Extension)</Link>
     </EmbeddedResource>
   </ItemGroup>
