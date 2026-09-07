@@ -355,65 +355,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Restores a required notification and its protection, adding the
-        /// notification when a restored queue snapshot does not contain it.
-        /// </summary>
-        internal void EnsureRequiredValue(
-            in DataValue value,
-            ServiceResult error)
-        {
-            var existingValues = new List<DataValue>(
-                m_dataValueQueue.ItemsInQueue);
-            var existingErrors = new List<ServiceResult>(
-                existingValues.Capacity);
-            int requiredIndex = -1;
-            while (PublishSingleValue(
-                out DataValue existingValue,
-                out ServiceResult existingError,
-                out _,
-                noEventLog: true,
-                retryOnEmpty: true))
-            {
-                if (requiredIndex < 0 &&
-                    AreEquivalentRequiredValues(existingValue, value))
-                {
-                    requiredIndex = existingValues.Count;
-                }
-                existingValues.Add(existingValue);
-                existingErrors.Add(existingError);
-            }
-
-            for (int ii = 0; ii < existingValues.Count; ii++)
-            {
-                if (ii == requiredIndex)
-                {
-                    DataValue requiredValue = value;
-                    ServiceResult requiredError = error;
-                    if (existingValues[ii].StatusCode.Overflow ||
-                        requiredValue.StatusCode.Overflow)
-                    {
-                        SetOverflowBit(
-                            ref requiredValue,
-                            ref requiredError);
-                    }
-                    EnqueueRequired(
-                        requiredValue,
-                        requiredError,
-                        replaceExisting: false);
-                }
-                else
-                {
-                    Enqueue(existingValues[ii], existingErrors[ii]);
-                }
-            }
-
-            if (requiredIndex < 0)
-            {
-                EnqueueRequired(value, error, replaceExisting: false);
-            }
-        }
-
-        /// <summary>
         /// Deques the last item
         /// </summary>
         public bool PublishSingleValue(
@@ -482,6 +423,7 @@ namespace Opc.Ua.Server
         /// Enque value
         /// </summary>
         /// <returns>true of overflow occured</returns>
+        /// <exception cref="ServiceResultException">A full queue cannot discard its oldest value.</exception>
         private bool Enqueue(DataValue value, ServiceResult error)
         {
             // check for empty queue.
@@ -713,7 +655,6 @@ namespace Opc.Ua.Server
             return false;
         }
 
-
         /// <summary>
         /// Sets the overflow bit in the value and error.
         /// </summary>
@@ -791,10 +732,8 @@ namespace Opc.Ua.Server
             long now,
             long nextSampleTime);
 
-
         [LoggerMessage(EventId = ServerEventIds.DataChangeQueueHandler + 1, Level = LogLevel.Trace,
             Message = "ENQUEUE VALUE: Value={Value}")]
         public static partial void ENQUEUEVALUEValueValue(this ILogger logger, Variant value);
     }
-
 }

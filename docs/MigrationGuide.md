@@ -541,6 +541,26 @@ Deriving from `SessionManager` requires no change beyond renaming any
 `Shutdown` override: `ShutdownAsync` is `virtual` and the base
 implementation already awaits the monitor loop.
 
+## Migrating SamplingGroupManager create/modify overrides
+
+The public virtual `SamplingGroupManager.CreateMonitoredItem` and
+`ModifyMonitoredItem` entry points, and the protected virtual creation
+factory, have been removed. They did not accept a separate server-revised
+filter, so preserving their dispatch required request-local state merely to
+carry that filter through existing overrides.
+
+Use the node manager's `IMonitoredItemManager` pipeline for creation and
+modification. For custom item construction, return
+`MonitoredItemCreateDecision.Use(factory)` from `OnCreateMonitoredItem` or
+`AsyncCustomNodeManager.OnCreatingMonitoredItemAsync`; the stack registers
+and owns the returned item. See
+[monitored-item creation and lifecycle](NodeManagers.md#monitored-item-creation-and-lifecycle).
+
+Sampling-group creation/modification now receives the original request and
+revised filter directly through internal, nonvirtual methods. The request is
+not rewritten, and the unrelated monitoring/lifecycle hooks are unchanged.
+This is an intentional API removal, not an obsolete forwarding shim.
+
 ## Migrating callers of the synchronous MonitoredNode2 notification wrappers
 
 `MonitoredNode2.OnReportEvent` and `MonitoredNode2.OnMonitoredNodeChanged`

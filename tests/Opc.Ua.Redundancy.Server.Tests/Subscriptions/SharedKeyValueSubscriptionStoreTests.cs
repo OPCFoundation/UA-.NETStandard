@@ -50,6 +50,7 @@ using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
+using TestAsyncEnumerable = Opc.Ua.PubSub.Tests.TestAsyncEnumerable;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -148,7 +149,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task StoreAndRestoreRoundTripsRequiredNotificationAsync()
+        public async Task StoreAndRestorePreservesRawErrorWithoutTransientNotificationMetadataAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
             SharedKeyValueSubscriptionStore active = CreateStore(kv);
@@ -156,11 +157,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             StoredSubscription expected = NewSubscription(106, 16);
             var expectedItem =
                 (StoredMonitoredItem)expected.MonitoredItems.Single();
-            expectedItem.RequiredValuePending = true;
-            expectedItem.RequiredValue = new DataValue(
+            expectedItem.LastValue = new DataValue(
                 Variant.Null,
                 StatusCodes.BadCommunicationError);
-            expectedItem.RequiredError =
+            expectedItem.LastError =
                 new ServiceResult(StatusCodes.BadCommunicationError);
 
             await active.StoreSubscriptionsAsync([expected])
@@ -171,13 +171,49 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(result.Success, Is.True);
             var actual = (StoredMonitoredItem)result.Subscriptions!
                 .Single().MonitoredItems.Single();
-            Assert.That(actual.RequiredValuePending, Is.True);
+            Assert.That(actual.LastValue, Is.EqualTo(expectedItem.LastValue));
             Assert.That(
-                actual.RequiredValue.StatusCode.Code,
+                actual.LastError.StatusCode,
                 Is.EqualTo(StatusCodes.BadCommunicationError));
-            Assert.That(
-                actual.RequiredError.StatusCode,
-                Is.EqualTo(StatusCodes.BadCommunicationError));
+            using var decoder = new BinaryDecoder(EncodeDefinition(active, expected).ToArray(), CreateContext());
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(3),
+                "New definitions must not include the version-four live notification metadata.");
+        }
+
+        [Test]
+        public async Task RestoreVersionFourDefinitionIgnoresTransientNotificationStateAsync()
+        {
+            using var keyValueStore = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore store = CreateStore(keyValueStore);
+            StoredSubscription expected = NewSubscription(106, 16);
+            var item = (StoredMonitoredItem)expected.MonitoredItems.Single();
+            item.LastValue = new DataValue(Variant.From(42), StatusCodes.Good);
+            item.FilteredRetainConditionIds = [.. s_filteredRetainConditionIds];
+            ServiceMessageContext context = CreateContext();
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteInt32(null, 4);
+            encoder.WriteStringArray(null, context.NamespaceUris.ToArrayOf());
+            encoder.WriteStringArray(null, context.ServerUris.ToArrayOf());
+            GetPrivateMethod(
+                "EncodeSubscription",
+                typeof(BinaryEncoder),
+                typeof(StoredSubscription),
+                typeof(int)).Invoke(null, [encoder, expected, 3]);
+            encoder.WriteBoolean(null, true);
+            encoder.WriteDataValue(null, new DataValue(Variant.Null, StatusCodes.BadCommunicationError));
+            encoder.WriteStatusCode(null, StatusCodes.BadCommunicationError);
+            await keyValueStore.SetAsync(
+                SharedKeyValueSubscriptionStore.KeyFor(expected.Id),
+                ByteString.From(encoder.CloseAndReturnBuffer())).ConfigureAwait(false);
+
+            RestoreSubscriptionResult result = await store.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True);
+            var actual = (StoredMonitoredItem)result.Subscriptions!.Single().MonitoredItems.Single();
+            Assert.That(actual.Id, Is.EqualTo(item.Id));
+            Assert.That(actual.LastValue, Is.EqualTo(item.LastValue));
+            Assert.That(ServiceResult.IsGood(actual.LastError), Is.True);
+            Assert.That(actual.FilteredRetainConditionIds.Memory.ToArray(), Is.EqualTo(s_filteredRetainConditionIds));
         }
 
         [Test]
@@ -591,7 +627,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await kv
                 .SetAsync(
                     SharedKeyValueSubscriptionStore.SnapshotManifestKey(),
-                    ByteString.From(new byte[] { 9, 9, 9 }))
+                    ByteString.From(0xFF, 0xFE, 0xFD))
                 .ConfigureAwait(false);
 
             ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
@@ -1604,10 +1640,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }
 
             private readonly ISharedKeyValueStore m_inner;
+
             private readonly TaskCompletionSource<bool> m_blocked =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private readonly TaskCompletionSource<bool> m_release =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private int m_manifestBlocked;
         }
 
@@ -1708,18 +1747,18 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 return WaitForDeleteCancellationAsync(ct);
             }
 
-            public async IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
+            public IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
                 string keyPrefix,
-                [EnumeratorCancellation] CancellationToken ct = default)
+                CancellationToken ct = default)
             {
-                yield break;
+                return TestAsyncEnumerable.Empty<KeyValuePair<string, ByteString>>();
             }
 
-            public async IAsyncEnumerable<KeyValueChange> WatchAsync(
+            public IAsyncEnumerable<KeyValueChange> WatchAsync(
                 string keyPrefix,
-                [EnumeratorCancellation] CancellationToken ct = default)
+                CancellationToken ct = default)
             {
-                yield break;
+                return TestAsyncEnumerable.Empty<KeyValueChange>();
             }
 
             public ValueTask DisposeAsync()

@@ -326,9 +326,6 @@ namespace Opc.Ua.Server
             m_lastError = storedMonitoredItem.LastError;
             m_lastValue = storedMonitoredItem.LastValue;
             MonitoredItemType = storedMonitoredItem.TypeMask;
-            var notificationState =
-                storedMonitoredItem as IStoredMonitoredItemNotificationState;
-
             // without this the first transition out of filter scope after a restart is
             // dropped, because the item would not know the client had been told about the
             // condition.
@@ -363,30 +360,6 @@ namespace Opc.Ua.Server
                 MonitoringMode);
 
             RestoreQueue();
-
-            if (notificationState?.RequiredValuePending == true)
-            {
-                ServiceResult requiredError =
-                    notificationState.RequiredError ??
-                    new ServiceResult(
-                        notificationState.RequiredValue.StatusCode);
-                if (m_dataChangeQueueHandler != null)
-                {
-                    m_dataChangeQueueHandler.EnsureRequiredValue(
-                        notificationState.RequiredValue,
-                        requiredError);
-                }
-                else
-                {
-                    m_requiredLastValue = notificationState.RequiredValue;
-                    m_requiredLastError = requiredError;
-                    m_requiredLastValuePending = true;
-                    m_lastValue = notificationState.RequiredValue;
-                    m_lastError = requiredError;
-                }
-                m_readyToPublish = true;
-                m_readyToTrigger = true;
-            }
 
             m_isDeleted = storedMonitoredItem.IsDeleted;
             m_isDetached = storedMonitoredItem.IsDetached;
@@ -2263,18 +2236,6 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                DataValue requiredValue = default;
-                ServiceResult? requiredError = null;
-                bool requiredValuePending =
-                    m_dataChangeQueueHandler?.TryGetRequiredValue(
-                        out requiredValue,
-                        out requiredError) == true;
-                if (!requiredValuePending && m_requiredLastValuePending)
-                {
-                    requiredValuePending = true;
-                    requiredValue = m_requiredLastValue;
-                    requiredError = m_requiredLastError!;
-                }
                 return new StoredMonitoredItem
                 {
                     SamplingInterval = m_samplingInterval,
@@ -2295,9 +2256,6 @@ namespace Opc.Ua.Server
                     IndexRange = m_indexRange!,
                     LastError = m_lastError!,
                     LastValue = m_lastValue,
-                    RequiredValuePending = requiredValuePending,
-                    RequiredValue = requiredValue,
-                    RequiredError = requiredError!,
                     MonitoringMode = MonitoringMode,
                     NodeId = NodeId,
                     OriginalFilter = Filter!,

@@ -110,7 +110,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(2u, false, false)]
         [TestCase(2u, true, false)]
         [TestCase(2u, true, true)]
-        public void RestorePreservesRequiredNotificationProtection(
+        public void RestoreDoesNotReinstateRequiredNotificationProtection(
             uint queueSize,
             bool restoreQueue,
             bool queueContainsRequired)
@@ -128,14 +128,10 @@ namespace Opc.Ua.Server.Tests
                 StatusCodes.BadCommunicationError,
                 timestamp,
                 timestamp);
-            StoredMonitoredItem stored = CreateStoredItem(
-                queueSize: queueSize);
-            stored.LastValue = requiredValue;
-            stored.LastError =
-                new ServiceResult(StatusCodes.BadCommunicationError);
-            stored.RequiredValuePending = true;
-            stored.RequiredValue = requiredValue;
-            stored.RequiredError = stored.LastError;
+            StoredMonitoredItem stored = StoreItemWithPendingHistoryFailure(
+                serverMock.Object,
+                queueSize,
+                requiredValue);
             if (restoreQueue)
             {
                 IDataChangeMonitoredItemQueue preHydrated =
@@ -144,9 +140,9 @@ namespace Opc.Ua.Server.Tests
                 preHydrated.Enqueue(
                     queueContainsRequired
                         ? requiredValue
-                        : new DataValue(new Variant(7), StatusCodes.Good),
+                        : new DataValue(Variant.From(7), StatusCodes.Good),
                     queueContainsRequired
-                        ? stored.RequiredError
+                        ? stored.LastError
                         : ServiceResult.Good);
                 stored.RestoredDataChangeQueue = preHydrated;
             }
@@ -157,7 +153,10 @@ namespace Opc.Ua.Server.Tests
                 new object(),
                 stored);
             item.QueueValue(
-                new DataValue(new Variant(42), StatusCodes.Good),
+                new DataValue(Variant.From(42), StatusCodes.Good),
+                ServiceResult.Good);
+            item.QueueValue(
+                new DataValue(Variant.From(43), StatusCodes.Good),
                 ServiceResult.Good);
             var notifications = new Queue<MonitoredItemNotification>();
             var diagnostics = new Queue<DiagnosticInfo>();
@@ -173,7 +172,58 @@ namespace Opc.Ua.Server.Tests
                 notifications.Any(value =>
                     value.Value.StatusCode.Code ==
                         StatusCodes.BadCommunicationError),
+                Is.False,
+                "A restored error value follows ordinary queue replacement, not live priming protection.");
+            Assert.That(notifications, Has.Count.EqualTo(queueSize));
+            Assert.That(
+                notifications.Last().Value.WrappedValue.TryGetValue(out int lastValue),
                 Is.True);
+            Assert.That(lastValue, Is.EqualTo(43));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RestoreKeepsRawErrorValuesWithoutSynthesizingMissingNotifications(bool queueContainsError)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> server = CreateServerMock(
+                telemetry,
+                queueFactory,
+                Mock.Of<ISubscriptionStore>());
+            var errorValue = new DataValue(Variant.Null, StatusCodes.BadCommunicationError);
+            StoredMonitoredItem stored = StoreItemWithPendingHistoryFailure(server.Object, 2, errorValue);
+            IDataChangeMonitoredItemQueue queue = queueFactory.CreateDataChangeQueue(false, stored.Id);
+            queue.ResetQueue(2, false);
+            queue.Enqueue(
+                queueContainsError ? errorValue : new DataValue(Variant.From(7)),
+                queueContainsError ? stored.LastError : ServiceResult.Good);
+            stored.RestoredDataChangeQueue = queue;
+            using var item = new MonitoredItem(
+                server.Object,
+                Mock.Of<IAsyncNodeManager>(),
+                new object(),
+                stored);
+
+            item.QueueValue(new DataValue(Variant.From(42)), ServiceResult.Good);
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+            _ = item.Publish(
+                new OperationContext(item),
+                notifications,
+                diagnostics,
+                10,
+                telemetry.CreateLogger<MonitoredItemQueueRestoreTests>());
+
+            Assert.That(notifications, Has.Count.EqualTo(2));
+            Assert.That(
+                notifications.Any(value => value.Value.StatusCode.Code == StatusCodes.BadCommunicationError),
+                Is.EqualTo(queueContainsError),
+                "Only values actually present in the restored raw queue should be delivered.");
+            Assert.That(
+                notifications.Last().Value.WrappedValue.TryGetValue(out int lastValue),
+                Is.True);
+            Assert.That(lastValue, Is.EqualTo(42));
         }
 
         [Test]
@@ -214,6 +264,26 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 loggerProvider.Messages,
                 Has.Some.Contains("Failed to pre-hydrate queue for monitored item with id 3"));
+        }
+
+        private static StoredMonitoredItem StoreItemWithPendingHistoryFailure(
+            IServerInternal server,
+            uint queueSize,
+            in DataValue failure)
+        {
+            StoredMonitoredItem initialState = CreateStoredItem(queueSize: queueSize);
+            initialState.SamplingInterval = 0;
+            using var original = new MonitoredItem(
+                server,
+                Mock.Of<IAsyncNodeManager>(),
+                new object(),
+                initialState);
+            ((IInitialValueMonitoredItem)original).QueueInitialValue(
+                failure,
+                new ServiceResult(failure.StatusCode),
+                ignoreFilters: true);
+
+            return (StoredMonitoredItem)original.ToStorableMonitoredItem();
         }
 
         private static StoredMonitoredItem CreateStoredItem(uint id = 2, uint queueSize = 10)

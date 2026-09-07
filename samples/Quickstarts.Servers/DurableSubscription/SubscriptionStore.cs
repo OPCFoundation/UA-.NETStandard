@@ -48,7 +48,8 @@ namespace Quickstarts.Servers
         private const string kFilename = "subscriptionsStore.bin";
         private const uint kStoreMagic = 0x44535541;
         private const uint kLegacyStoreVersion = 1;
-        private const uint kStoreVersion = 2;
+        private const uint kStoreVersion = 1;
+        private const uint kTransientNotificationStoreVersion = 2;
         private readonly DurableMonitoredItemQueueFactory? m_durableMonitoredItemQueueFactory;
         private readonly ILogger m_logger;
         private readonly IServiceMessageContext m_messageContext;
@@ -238,7 +239,7 @@ namespace Quickstarts.Servers
             }
 
             uint version = decoder.ReadUInt32(null);
-            if (version < kLegacyStoreVersion || version > kStoreVersion)
+            if (version is < kLegacyStoreVersion or > kTransientNotificationStoreVersion)
             {
                 throw new InvalidDataException(
                     $"Unsupported durable subscription store version {version}.");
@@ -318,11 +319,6 @@ namespace Quickstarts.Servers
             encoder.WriteStatusCode(null,
                 item.LastError?.StatusCode ?? StatusCodes.Good);
             encoder.WriteString(null, item.ParsedIndexRange.ToString());
-            encoder.WriteBoolean(null, item.RequiredValuePending);
-            encoder.WriteDataValue(null, item.RequiredValue);
-            encoder.WriteStatusCode(
-                null,
-                item.RequiredError?.StatusCode ?? StatusCodes.Good);
         }
 
         public static StoredSubscription DecodeSubscription(
@@ -460,16 +456,12 @@ namespace Quickstarts.Servers
             string? rangeStr = decoder.ReadString(null);
             item.ParsedIndexRange = string.IsNullOrEmpty(rangeStr)
                 ? NumericRange.Null : NumericRange.Parse(rangeStr!);
-            if (version >= 2)
+            if (version == kTransientNotificationStoreVersion)
             {
-                item.RequiredValuePending = decoder.ReadBoolean(null);
-                item.RequiredValue = decoder.ReadDataValue(null)!;
-                StatusCode requiredErrorStatus =
-                    decoder.ReadStatusCode(null);
-                item.RequiredError =
-                    requiredErrorStatus == StatusCodes.Good
-                        ? null!
-                        : new ServiceResult(requiredErrorStatus);
+                // Older records included live delivery protection; only their raw queue is restored.
+                _ = decoder.ReadBoolean(null);
+                _ = decoder.ReadDataValue(null);
+                _ = decoder.ReadStatusCode(null);
             }
 
             return item;
@@ -493,5 +485,4 @@ namespace Quickstarts.Servers
             Message = "Failed to cleanup files for stored subscsription")]
         public static partial void FailedToCleanupStoredSubscriptionFiles(this ILogger logger, Exception exception);
     }
-
 }

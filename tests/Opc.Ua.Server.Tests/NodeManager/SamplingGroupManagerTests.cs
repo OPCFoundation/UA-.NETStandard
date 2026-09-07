@@ -63,15 +63,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 samplingRates ?? []);
         }
 
-        private static TrackingSamplingGroupManager CreateTrackingManager()
-        {
-            Mock<IServerInternal> mockServer =
-                DeterministicServerMock.Create(out _);
-            return new TrackingSamplingGroupManager(
-                mockServer.Object,
-                new Mock<IAsyncNodeManager>().Object);
-        }
-
         private static OperationContext SessionlessContext()
         {
             return new OperationContext(
@@ -133,6 +124,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public void CreateMonitoredItemWithEventFilterCreatesExceptionBasedItem()
         {
             using SamplingGroupManager manager = CreateManager(out _);
+            var filter = new EventFilter();
 
             var itemToCreate = new MonitoredItemCreateRequest
             {
@@ -144,7 +136,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     SamplingInterval = 1000,
                     QueueSize = 5,
                     DiscardOldest = true,
-                    Filter = new ExtensionObject(new EventFilter())
+                    Filter = new ExtensionObject(filter)
                 }
             };
             ISampledDataChangeMonitoredItem item = manager.CreateMonitoredItem(
@@ -155,6 +147,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 7,
                 null!,
                 itemToCreate,
+                filter,
                 new Range(),
                 0,
                 false);
@@ -168,6 +161,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public void StopMonitoringRemovesExceptionBasedItem()
         {
             using SamplingGroupManager manager = CreateManager(out _);
+            var filter = new EventFilter();
 
             var itemToCreate = new MonitoredItemCreateRequest
             {
@@ -179,7 +173,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     SamplingInterval = 1000,
                     QueueSize = 5,
                     DiscardOldest = true,
-                    Filter = new ExtensionObject(new EventFilter())
+                    Filter = new ExtensionObject(filter)
                 }
             };
             ISampledDataChangeMonitoredItem item = manager.CreateMonitoredItem(
@@ -190,13 +184,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 8,
                 null!,
                 itemToCreate,
+                filter,
                 new Range(),
                 0,
                 false);
 
-            Assert.DoesNotThrow(() => manager.StopMonitoring(item));
+            Assert.That(() => manager.StopMonitoring(item), Throws.Nothing);
             // second stop is a no-op because the item is no longer tracked.
-            Assert.DoesNotThrow(() => manager.StopMonitoring(item));
+            Assert.That(() => manager.StopMonitoring(item), Throws.Nothing);
         }
 
         [Test]
@@ -216,10 +211,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void RevisedFiltersUseExistingVirtualCreateAndModifySeams()
+        public void RevisedFiltersPreserveOriginalFiltersAndRequests()
         {
-            using TrackingSamplingGroupManager manager =
-                CreateTrackingManager();
+            using SamplingGroupManager manager = CreateManager(out _);
             var originalCreateFilter = new DataChangeFilter
             {
                 DeadbandType = (uint)DeadbandType.Absolute,
@@ -247,7 +241,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Filter = new ExtensionObject(originalCreateFilter)
                 }
             };
-            OperationContext context = SessionContext();
+            MonitoringParameters createParameters = itemToCreate.RequestedParameters;
+            using OperationContext context = SessionContext();
 
             ISampledDataChangeMonitoredItem item = manager.CreateMonitoredItem(
                 context,
@@ -262,10 +257,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 0,
                 false);
 
-            Assert.That(manager.CreateOverrideCalled, Is.True);
             IStoredMonitoredItem stored = item.ToStorableMonitoredItem();
             Assert.That(stored.OriginalFilter, Is.SameAs(originalCreateFilter));
             Assert.That(stored.FilterToUse, Is.SameAs(revisedCreateFilter));
+            Assert.That(itemToCreate.RequestedParameters, Is.SameAs(createParameters));
+            Assert.That(
+                createParameters.Filter.TryGetValue(out MonitoringFilter createRequestFilter),
+                Is.True);
+            Assert.That(createRequestFilter, Is.SameAs(originalCreateFilter));
+            Assert.That(originalCreateFilter.DeadbandType, Is.EqualTo((uint)DeadbandType.Absolute));
+            Assert.That(originalCreateFilter.DeadbandValue, Is.EqualTo(1));
+            Assert.That(createParameters.ClientHandle, Is.EqualTo(1));
+            Assert.That(createParameters.SamplingInterval, Is.EqualTo(1000));
+            Assert.That(createParameters.QueueSize, Is.EqualTo(5));
+            Assert.That(createParameters.DiscardOldest, Is.True);
 
             var originalModifyFilter = new DataChangeFilter
             {
@@ -288,6 +293,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Filter = new ExtensionObject(originalModifyFilter)
                 }
             };
+            MonitoringParameters modifyParameters = itemToModify.RequestedParameters;
 
             ServiceResult result = manager.ModifyMonitoredItem(
                 context,
@@ -298,66 +304,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new Range());
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
-            Assert.That(manager.ModifyOverrideCalled, Is.True);
             stored = item.ToStorableMonitoredItem();
             Assert.That(stored.OriginalFilter, Is.SameAs(originalModifyFilter));
             Assert.That(stored.FilterToUse, Is.SameAs(revisedModifyFilter));
-        }
-
-        private sealed class TrackingSamplingGroupManager : SamplingGroupManager
-        {
-            public TrackingSamplingGroupManager(
-                IServerInternal server,
-                IAsyncNodeManager nodeManager)
-                : base(server, nodeManager, 100, 200, [])
-            {
-            }
-
-            public bool CreateOverrideCalled { get; private set; }
-
-            public bool ModifyOverrideCalled { get; private set; }
-
-            public override ISampledDataChangeMonitoredItem CreateMonitoredItem(
-                OperationContext context,
-                uint subscriptionId,
-                double publishingInterval,
-                TimestampsToReturn timestampsToReturn,
-                uint monitoredItemId,
-                object managerHandle,
-                MonitoredItemCreateRequest itemToCreate,
-                Range range,
-                double minimumSamplingInterval,
-                bool createDurable)
-            {
-                CreateOverrideCalled = true;
-                return base.CreateMonitoredItem(
-                    context,
-                    subscriptionId,
-                    publishingInterval,
-                    timestampsToReturn,
-                    monitoredItemId,
-                    managerHandle,
-                    itemToCreate,
-                    range,
-                    minimumSamplingInterval,
-                    createDurable);
-            }
-
-            public override ServiceResult ModifyMonitoredItem(
-                OperationContext context,
-                TimestampsToReturn timestampsToReturn,
-                ISampledDataChangeMonitoredItem monitoredItem,
-                MonitoredItemModifyRequest itemToModify,
-                Range range)
-            {
-                ModifyOverrideCalled = true;
-                return base.ModifyMonitoredItem(
-                    context,
-                    timestampsToReturn,
-                    monitoredItem,
-                    itemToModify,
-                    range);
-            }
+            Assert.That(itemToModify.RequestedParameters, Is.SameAs(modifyParameters));
+            Assert.That(
+                modifyParameters.Filter.TryGetValue(out MonitoringFilter modifyRequestFilter),
+                Is.True);
+            Assert.That(modifyRequestFilter, Is.SameAs(originalModifyFilter));
+            Assert.That(originalModifyFilter.DeadbandType, Is.EqualTo((uint)DeadbandType.Absolute));
+            Assert.That(originalModifyFilter.DeadbandValue, Is.EqualTo(3));
+            Assert.That(modifyParameters.ClientHandle, Is.EqualTo(2));
+            Assert.That(modifyParameters.SamplingInterval, Is.EqualTo(1000));
+            Assert.That(modifyParameters.QueueSize, Is.EqualTo(5));
+            Assert.That(modifyParameters.DiscardOldest, Is.True);
         }
     }
 }

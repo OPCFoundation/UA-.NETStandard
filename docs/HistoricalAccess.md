@@ -380,8 +380,10 @@ current-value initialization. Provider read failures queue a visible error
 notification and leave the monitored item active for later live values rather
 than silently falling back. A live-value buffer overflow fails creation because
 the history-to-live ordering can no longer be guaranteed. Required priming-error
-notifications remain protected across queue resizing and durable subscription
-restore.
+notifications remain protected across live queue resizing. That protection is
+transient queue state: durable restore retains the monitored-item definition,
+last value/error, and stored raw queue values, but does not reinstate priming
+protection or synthesize a notification absent from the stored queue.
 
 Modifying an existing monitored item to a past-start aggregate uses the same
 history-before-live handoff whenever the aggregate calculator changes.

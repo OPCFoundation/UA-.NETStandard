@@ -112,13 +112,6 @@ namespace Opc.Ua.Server.Tests
             mi.IsDurable = true;
             mi.LastValue = new DataValue(
                 new Variant(42), StatusCodes.Good, DateTime.UtcNow);
-            mi.RequiredValuePending = true;
-            mi.RequiredValue = new DataValue(
-                Variant.Null,
-                StatusCodes.BadCommunicationError,
-                DateTime.UtcNow);
-            mi.RequiredError =
-                new ServiceResult(StatusCodes.BadCommunicationError);
             original.MonitoredItems =
                 [mi];
 
@@ -140,13 +133,59 @@ namespace Opc.Ua.Server.Tests
             Assert.That(restored.LastValue.IsNull, Is.False);
             Assert.That((int)restored.LastValue.WrappedValue,
                 Is.EqualTo(42));
-            Assert.That(restored.RequiredValuePending, Is.True);
-            Assert.That(
-                restored.RequiredValue.StatusCode.Code,
-                Is.EqualTo(StatusCodes.BadCommunicationError));
-            Assert.That(
-                restored.RequiredError.StatusCode,
-                Is.EqualTo(StatusCodes.BadCommunicationError));
+            Assert.That(restored.LastValue, Is.EqualTo(mi.LastValue));
+        }
+
+        [Test]
+        public void DecodeVersionTwoSubscriptionsIgnoresTransientNotificationState()
+        {
+            StoredMonitoredItem first = CreateMonitoredItem(id: 7, subscriptionId: 1);
+            first.LastValue = new DataValue(Variant.From(42), StatusCodes.Good);
+            StoredMonitoredItem second = CreateMonitoredItem(id: 8, subscriptionId: 2);
+            second.LastValue = new DataValue(Variant.From(43), StatusCodes.Good);
+            using var encoder = new BinaryEncoder(m_context);
+            foreach (StoredMonitoredItem item in new[] { first, second })
+            {
+                StoredSubscription subscription = CreateMinimalSubscription(item.SubscriptionId);
+                subscription.MonitoredItems = [item];
+                SubscriptionStore.EncodeSubscription(encoder, subscription);
+                encoder.WriteBoolean(null, true);
+                encoder.WriteDataValue(null, new DataValue(Variant.Null, StatusCodes.BadCommunicationError));
+                encoder.WriteStatusCode(null, StatusCodes.BadCommunicationError);
+            }
+            byte[] bytes = encoder.CloseAndReturnBuffer();
+            using var decoder = new BinaryDecoder(bytes, m_context);
+
+            IStoredMonitoredItem restoredFirst = SubscriptionStore.DecodeSubscription(decoder, version: 2)
+                .MonitoredItems.Single();
+            IStoredMonitoredItem restoredSecond = SubscriptionStore.DecodeSubscription(decoder, version: 2)
+                .MonitoredItems.Single();
+
+            Assert.That(restoredFirst.Id, Is.EqualTo(first.Id));
+            Assert.That(restoredFirst.LastValue, Is.EqualTo(first.LastValue));
+            Assert.That(restoredSecond.Id, Is.EqualTo(second.Id));
+            Assert.That(restoredSecond.LastValue, Is.EqualTo(second.LastValue));
+            Assert.That(decoder.Position, Is.EqualTo(bytes.Length));
+        }
+
+        [Test]
+        public void NewSubscriptionRecordContainsOnlyRawMonitoredItemState()
+        {
+            StoredSubscription subscription = CreateMinimalSubscription(id: 1);
+            StoredMonitoredItem item = CreateMonitoredItem(id: 7, subscriptionId: 1);
+            item.LastValue = new DataValue(Variant.From(42), StatusCodes.Good);
+            subscription.MonitoredItems = [item];
+            using var encoder = new BinaryEncoder(m_context);
+            SubscriptionStore.EncodeSubscription(encoder, subscription);
+            byte[] bytes = encoder.CloseAndReturnBuffer();
+            using var decoder = new BinaryDecoder(bytes, m_context);
+
+            IStoredMonitoredItem restored = SubscriptionStore.DecodeSubscription(decoder, version: 1)
+                .MonitoredItems.Single();
+
+            Assert.That(restored.Id, Is.EqualTo(item.Id));
+            Assert.That(restored.LastValue, Is.EqualTo(item.LastValue));
+            Assert.That(decoder.Position, Is.EqualTo(bytes.Length));
         }
 
         [Test]
