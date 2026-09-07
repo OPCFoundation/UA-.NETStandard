@@ -186,6 +186,10 @@ namespace Quickstarts
         /// </summary>
         private ITransportBindingRegistry CreateTransportBindings()
         {
+            // Guard against leaking a previously built provider if Create()/StartAsync()
+            // are invoked again without an intervening StopAsync().
+            m_transportServices?.Dispose();
+
             var services = new ServiceCollection();
             services.AddOpcUa()
                 .AddOpcTcpTransport()
