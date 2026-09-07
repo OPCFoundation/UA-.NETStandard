@@ -36,6 +36,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 #if NET10_0_OR_GREATER
 using Opc.Ua.Pcap.Capture;
@@ -143,6 +144,11 @@ namespace Quickstarts
             {
                 // create the server.
                 Server = m_factory(m_telemetry);
+                // The reference server configuration files list opc.https / opc.wss
+                // base addresses. Register the matching transport bindings (this
+                // project references Opc.Ua.Bindings.Https) so those endpoints
+                // resolve to a registered listener instead of failing to start.
+                Server.TransportBindings = CreateTransportBindings();
                 foreach (INodeManagerFactory factory in nodeManagerFactories)
                 {
                     Server.AddNodeManager(factory);
@@ -155,6 +161,29 @@ namespace Quickstarts
         }
 
         /// <summary>
+        /// Builds the transport binding registry used by the server. Seeds
+        /// the mandatory <c>opc.tcp</c> listener/channel factories and adds
+        /// the HTTPS/WSS listener/channel factories from
+        /// <c>Opc.Ua.Bindings.Https</c> so base addresses configured with
+        /// the <c>opc.https</c>/<c>https</c>/<c>opc.wss</c>/<c>wss</c>
+        /// schemes resolve to a registered transport.
+        /// </summary>
+        private static DefaultTransportBindingRegistry CreateTransportBindings()
+        {
+            DefaultTransportBindingRegistry registry = DefaultTransportBindingRegistry.WithDefaultTcp();
+            registry.RegisterListenerFactory(new HttpsTransportListenerFactory());
+            registry.RegisterListenerFactory(new OpcHttpsTransportListenerFactory());
+            registry.RegisterListenerFactory(new WssTransportListenerFactory());
+            registry.RegisterListenerFactory(new OpcWssTransportListenerFactory());
+            registry.RegisterChannelFactory(new HttpsTransportChannelFactory());
+            registry.RegisterChannelFactory(new OpcHttpsTransportChannelFactory());
+            registry.RegisterChannelFactory(new WssTransportChannelFactory());
+            registry.RegisterChannelFactory(new OpcWssTransportChannelFactory());
+            registry.RegisterChannelFactory(new WssJsonTransportChannelFactory());
+            return registry;
+        }
+
+        /// <summary>
         /// Start the server.
         /// </summary>
         /// <exception cref="ErrorExitException"></exception>
@@ -163,7 +192,12 @@ namespace Quickstarts
             try
             {
                 // create the server.
+                bool serverCreated = Server is null;
                 Server ??= m_factory(m_telemetry);
+                if (serverCreated)
+                {
+                    Server.TransportBindings = CreateTransportBindings();
+                }
 
 #if NET10_0_OR_GREATER
                 // Opt-in diagnostics: when OPCUA_PCAP_FILE / OPCUA_KEYLOGFILE are
