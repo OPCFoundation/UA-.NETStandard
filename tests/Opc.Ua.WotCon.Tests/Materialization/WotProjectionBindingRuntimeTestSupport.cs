@@ -91,11 +91,19 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public Func<DataValue, CancellationToken, ValueTask<WotWriteResult>>? OnWrite { get; set; }
 
+        public Func<IReadOnlyList<Variant>, CancellationToken, ValueTask<WotInvokeResult>>? OnInvoke { get; set; }
+
+        public Func<Action<WotNotification>, CancellationToken, ValueTask<IWotSubscription>>? OnSubscribeEvent { get; set; }
+
         public Func<ValueTask>? OnDispose { get; set; }
 
         public int ReadCount { get; private set; }
 
         public int WriteCount { get; private set; }
+
+        public int InvokeCount { get; private set; }
+
+        public int SubscribeEventCount { get; private set; }
 
         public int DisposeCount { get; private set; }
 
@@ -116,7 +124,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public ValueTask<WotInvokeResult> InvokeAsync(
             IReadOnlyList<Variant> inputs, CancellationToken cancellationToken = default)
         {
-            throw new NotSupportedException();
+            InvokeCount++;
+            return OnInvoke?.Invoke(inputs, cancellationToken)
+                ?? throw new NotSupportedException();
         }
 
         public ValueTask<IWotSubscription> ObserveAsync(
@@ -128,7 +138,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public ValueTask<IWotSubscription> SubscribeEventAsync(
             Action<WotNotification> onEvent, CancellationToken cancellationToken = default)
         {
-            throw new NotSupportedException();
+            SubscribeEventCount++;
+            return OnSubscribeEvent?.Invoke(onEvent, cancellationToken)
+                ?? throw new NotSupportedException();
         }
 
         public async ValueTask DisposeAsync()
@@ -409,6 +421,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public BaseDataVariableState StructVar { get; }
 
+        public BaseObjectState Root { get; }
+
         public FakeWotBindingChannelFactory ChannelFactory { get; } = new();
 
         /// <summary>
@@ -440,9 +454,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     .Commit();
             }
 
-            var ctx = new SystemContext(telemetry: null!)
+            var ctx = new SystemContext(TelemetryExtensions.InternalOnly__TelemetryHook())
             {
                 NamespaceUris = namespaceUris,
+                TypeTable = new TypeTable(namespaceUris),
+                NodeIdFactory = new TestNodeIdFactory(Ns),
                 EncodeableFactory = factory
             };
 
@@ -452,6 +468,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 BrowseName = new QualifiedName("Root", Ns),
                 DisplayName = new LocalizedText("Root")
             };
+            Root = root;
 
             ScalarVar = new BaseDataVariableState(root)
             {
@@ -483,13 +500,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 [ScalarVar.NodeId] = ScalarVar,
                 [StructVar.NodeId] = StructVar
             };
+            m_nodes = byId;
 
             Builder = new NodeManagerBuilder(
                 ctx,
                 Mock.Of<IAsyncNodeManager>(),
                 Ns,
                 rootResolver: q => q == root.BrowseName ? root : null!,
-                nodeIdResolver: id => byId.TryGetValue(id, out NodeState? n) ? n : null!,
+                nodeIdResolver: FindNode,
                 typeIdResolver: _ => [],
                 dataTypeIdResolver: dataTypeId =>
                 {
@@ -510,6 +528,95 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public string StructNodeIdText => $"ns={Ns};s=Struct";
 
         public string StructTypeNodeIdText => $"ns={Ns};i={TestRootType.NumericId}";
+
+        public MethodState AddMethod(
+            string name, ArrayOf<Argument> inputs, ArrayOf<Argument> outputs, BaseObjectState? parent = null)
+        {
+            parent ??= Root;
+            var method = new MethodState(parent)
+            {
+                NodeId = new NodeId(name, Ns),
+                BrowseName = new QualifiedName(name, Ns),
+                DisplayName = new LocalizedText(name),
+                Executable = true,
+                UserExecutable = true
+            };
+            method.CreateOrReplaceInputArguments(Builder.Context, null).Value = inputs;
+            method.CreateOrReplaceOutputArguments(Builder.Context, null).Value = outputs;
+            parent.AddChild(method);
+            m_nodes.Add(method.NodeId, method);
+            return method;
+        }
+
+        public BaseObjectTypeState AddEventType(string name, NodeId superTypeId)
+        {
+            var type = new BaseObjectTypeState
+            {
+                NodeId = new NodeId(name, Ns),
+                BrowseName = new QualifiedName(name, Ns),
+                SuperTypeId = superTypeId,
+                IsAbstract = false
+            };
+            m_nodes.Add(type.NodeId, type);
+            return type;
+        }
+
+        public BaseObjectState AddDetachedObject(string name)
+        {
+            var node = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(name, Ns),
+                BrowseName = new QualifiedName(name, Ns)
+            };
+            m_nodes.Add(node.NodeId, node);
+            return node;
+        }
+
+        private NodeState FindNode(NodeId id)
+        {
+            if (m_nodes.TryGetValue(id, out NodeState? found))
+            {
+                return found;
+            }
+            foreach (NodeState root in m_nodes.Values)
+            {
+                NodeState node = FindNode(root, id);
+                if (node is not null)
+                {
+                    return node;
+                }
+            }
+            return null!;
+        }
+
+        private NodeState FindNode(NodeState root, NodeId id)
+        {
+            if (root.NodeId == id)
+            {
+                return root;
+            }
+            var children = new List<BaseInstanceState>();
+            root.GetChildren(Builder.Context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                NodeState node = FindNode(child, id);
+                if (node is not null)
+                {
+                    return node;
+                }
+            }
+            return null!;
+        }
+
+        private sealed class TestNodeIdFactory(ushort namespaceIndex) : INodeIdFactory
+        {
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                return new NodeId((uint)Interlocked.Increment(ref m_nextId), namespaceIndex);
+            }
+
+            private int m_nextId = 10000;
+        }
 
         public static WotCompiledForm Form(
             WoTBindingCapabilityEnum operation,
@@ -550,5 +657,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         [],
                         []);
         }
+
+        private readonly Dictionary<NodeId, NodeState> m_nodes;
     }
 }

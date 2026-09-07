@@ -138,7 +138,10 @@ namespace Opc.Ua.WotCon.Bindings
             }
             if (request.Forms.IsEmpty)
             {
-                return WotBindingPlan.Empty;
+                return request.ProjectedAffordances.IsEmpty && !request.IsDeclarationContext ? WotBindingPlan.Empty :
+                    new WotBindingPlan(request.ResourceXid, [], [], [], [])
+                        .WithProjectedAffordances(request.ProjectedAffordances)
+                        .WithDeclarationContext(request.IsDeclarationContext);
             }
 
             WotBindingPlanContext context = request.CreateContext(m_codecs, m_bounds);
@@ -150,6 +153,13 @@ namespace Opc.Ua.WotCon.Bindings
 
             foreach (WotAffordanceForm form in request.Forms)
             {
+                if (form.AffordanceElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                    !form.AffordanceElement.TryGetProperty("forms", out _) &&
+                    (request.IsDeclarationContext ||
+                        form.Kind == WotAffordanceKind.Property && request.IsLocalProperty(form.AffordanceElement)))
+                {
+                    continue;
+                }
                 var mappingDiagnostics = new List<WotBindingDiagnostic>();
                 bool mappingValid = ValidateTargetMapping(form, mappingDiagnostics);
                 diagnostics.AddRange(mappingDiagnostics);
@@ -204,7 +214,9 @@ namespace Opc.Ua.WotCon.Bindings
                 [.. participating.Values],
                 compiled.ToImmutable(),
                 unsupported.ToImmutable(),
-                diagnostics.ToImmutable());
+                diagnostics.ToImmutable())
+                .WithProjectedAffordances(request.ProjectedAffordances)
+                .WithDeclarationContext(request.IsDeclarationContext);
         }
 
         /// <inheritdoc/>

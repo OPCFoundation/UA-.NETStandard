@@ -48,7 +48,7 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string BindingNamespace = "urn:test:binding";
 
         [Test]
-        public async Task EnvelopeWithAmbiguousBindingRestoresWithoutBindingErrorAsync()
+        public async Task EnvelopeWithContradictoryBindingReportsArchiveConflictAsync()
         {
             byte[] json = BuildRestoreDocument(WotNodeSetPreservationMode.Always);
 
@@ -56,7 +56,32 @@ namespace Opc.Ua.Types.Tests.Wot
                 .ConfigureAwait(false);
 
             Assert.That(result.Value, Is.Not.Null);
-            Assert.That(result.HasErrors, Is.False);
+            Assert.That(result.HasErrors, Is.True);
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
+                Is.True);
+            Assert.That(result.Value!.Items![0], Is.TypeOf<UAObjectType>());
+            Assert.That(result.Diagnostics.Any(IsTypeBindingError), Is.False);
+        }
+
+        [Test]
+        public async Task EnvelopeWithTypeHintsDoesNotResolveTheBindingAsync()
+        {
+            using WotDocument original = WotNodeSetConverter.FromNodeSet(
+                WotTestData.CreateReconstructableNodeSet(),
+                options: new WotNodeSetConverterOptions
+                {
+                    PreservationMode = WotNodeSetPreservationMode.Always
+                });
+            JsonObject root = JsonNode.Parse(original.Utf8Json.Span)!.AsObject();
+            root["@context"]![1]!["pump"] = BindingNamespace;
+            root["@type"]!.AsArray().Add("pump:FirstType");
+            root["@type"]!.AsArray().Add("pump:SecondType");
+
+            WotConversionResult<UANodeSet> result = await ConvertWithHeldNamespaceAsync(
+                Encoding.UTF8.GetBytes(root.ToJsonString())).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True);
             Assert.That(result.Diagnostics.Any(IsTypeBindingError), Is.False);
         }
 

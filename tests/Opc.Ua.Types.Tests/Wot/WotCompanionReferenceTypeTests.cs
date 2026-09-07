@@ -649,7 +649,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 result.Value!,
                 result.Value!.Items!
                     .OfType<UAObjectType>().Single()
-                    .References!.Single(r => r.Value == LinkTarget));
+                    .References!.Single(r => r.Value == LocalReferenceType(result.Value!, LinkTarget)));
         }
 
         private static async Task<IReadOnlyList<WotDiagnostic>> ConvertLinkDiagnosticsAsync(
