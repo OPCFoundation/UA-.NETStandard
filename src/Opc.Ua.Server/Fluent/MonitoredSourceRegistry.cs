@@ -164,6 +164,63 @@ namespace Opc.Ua.Server.Fluent
                 monitoringMode) ?? default;
         }
 
+        /// <summary>
+        /// Releases every registration on the async teardown path.
+        /// </summary>
+        /// <remarks>
+        /// The synchronous <see cref="Dispose"/> never awaits the poller and never runs
+        /// the last-subscriber handlers, so it cannot release what a source acquired.
+        /// The behavior mechanism calls this instead.
+        /// </remarks>
+        internal async ValueTask ReleaseAsync()
+        {
+            List<MonitoredSourceRegistration> registrations = TakeRegistrations();
+            if (registrations.Count == 0)
+            {
+                m_managerCts.Dispose();
+                return;
+            }
+
+            ISystemContext context = m_owner.SystemContext;
+            foreach (MonitoredSourceRegistration registration in registrations)
+            {
+                try
+                {
+                    await registration.ReleaseAsync(context).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    m_logger?.MonitoredSourceReleaseFailed(ex);
+                }
+            }
+
+            m_managerCts.Dispose();
+        }
+
+        private List<MonitoredSourceRegistration> TakeRegistrations()
+        {
+            List<MonitoredSourceRegistration> registrations;
+            lock (m_registrationLock)
+            {
+                if (m_disposed)
+                {
+                    return [];
+                }
+                m_disposed = true;
+                m_managerCts.Cancel();
+                registrations = [.. m_exact.Values, .. m_virtualTemplates.Values];
+                foreach (Dictionary<NodeId, MonitoredSourceRegistration> instances
+                    in m_virtualInstances.Values)
+                {
+                    registrations.AddRange(instances.Values);
+                }
+                m_exact.Clear();
+                m_virtualTemplates.Clear();
+                m_virtualInstances.Clear();
+            }
+            return registrations;
+        }
+
         public void Dispose()
         {
             List<MonitoredSourceRegistration> registrations;
@@ -290,6 +347,24 @@ namespace Opc.Ua.Server.Fluent
             VirtualNodeRegistration,
             Dictionary<NodeId, MonitoredSourceRegistration>> m_virtualInstances = [];
         private bool m_disposed;
+    }
+
+    /// <summary>
+    /// Releases the monitored sources when the owning node manager tears down.
+    /// </summary>
+    internal sealed class MonitoredSourceLifetime : IAsyncDisposable
+    {
+        public MonitoredSourceLifetime(MonitoredSourceRegistry registry)
+        {
+            m_registry = registry;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return m_registry.ReleaseAsync();
+        }
+
+        private readonly MonitoredSourceRegistry m_registry;
     }
 
     internal sealed class MonitoredSourceRegistration :
@@ -451,6 +526,50 @@ namespace Opc.Ua.Server.Fluent
                 CancellationToken.None,
                 TaskContinuationOptions.ExecuteSynchronously,
                 TaskScheduler.Default);
+        }
+
+        /// <summary>
+        /// Releases the source: runs the last-subscriber handler when the source is
+        /// still active, then disposes.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="DisposeAsync"/> alone is not enough. The last-subscriber handler
+        /// runs only from the reconcile path's Deactivate arm, and server shutdown
+        /// never reaches it — subscriptions are disposed locally without deleting their
+        /// monitored items. Anything acquired on the first subscriber would otherwise
+        /// survive the server.
+        /// </remarks>
+        public async ValueTask ReleaseAsync(ISystemContext context)
+        {
+            MonitoredSourceLifecycleHandler? lastSubscriber = null;
+            NodeState? source = null;
+
+            await m_updateLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (m_disposeStarted == 0 && HasActiveItems())
+                {
+                    lastSubscriber = m_lastSubscriber;
+                    source = m_desiredSource;
+                    m_items.Clear();
+                }
+            }
+            finally
+            {
+                m_updateLock.Release();
+            }
+
+            if (lastSubscriber != null && source != null)
+            {
+                await InvokeLifecycleAsync(
+                        lastSubscriber,
+                        context,
+                        source,
+                        "OnLastSubscriber")
+                    .ConfigureAwait(false);
+            }
+
+            await DisposeAsync().ConfigureAwait(false);
         }
 
         public async ValueTask DisposeAsync()
@@ -967,6 +1086,14 @@ namespace Opc.Ua.Server.Fluent
 
     internal static partial class MonitoredSourceRegistryLog
     {
+        [LoggerMessage(
+            EventId = ServerEventIds.MonitoredSourceRegistry + 20,
+            Level = LogLevel.Warning,
+            Message = "Monitored source release failed.")]
+        public static partial void MonitoredSourceReleaseFailed(
+            this ILogger logger,
+            Exception exception);
+
         [LoggerMessage(
             EventId = ServerEventIds.MonitoredSourceRegistry + 0,
             Level = LogLevel.Error,

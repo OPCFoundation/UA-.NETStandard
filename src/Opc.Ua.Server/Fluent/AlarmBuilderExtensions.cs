@@ -28,9 +28,77 @@
  * ======================================================================*/
 
 using System;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.Fluent
 {
+    /// <summary>
+    /// Undoes everything attaching an alarm changed in the address space.
+    /// </summary>
+    /// <remarks>
+    /// Held by the node manager as a behavior, so release runs in exact reverse order
+    /// with every other behavior and is aggregated with their failures rather than
+    /// being lost.
+    /// </remarks>
+    internal sealed class AlarmRelease : IAsyncDisposable
+    {
+        public AlarmRelease(
+            ConditionState alarm,
+            ISystemContext context,
+            AlarmEventSourceRegistration eventSource,
+            NodeManagerBuilder builder)
+        {
+            m_alarm = alarm;
+            m_context = context;
+            m_eventSource = eventSource;
+            m_builder = builder;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (m_released)
+            {
+                return;
+            }
+            m_released = true;
+
+            if (m_eventSource.RootNotifier != null &&
+                m_builder.NodeManager is FluentNodeManagerBase manager)
+            {
+                try
+                {
+                    await manager
+                        .RemoveRootNotifierFromFluentAsync(
+                            m_eventSource.RootNotifier,
+                            System.Threading.CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    // Teardown is best effort for the notifier registration; the
+                    // condition itself is still disabled below.
+                }
+            }
+
+            foreach (BaseObjectState notifier in m_eventSource.PromotedNotifiers)
+            {
+                notifier.EventNotifier = (byte)(notifier.EventNotifier &
+                    unchecked((byte)~EventNotifiers.SubscribeToEvents));
+            }
+
+            // The OnAcknowledge/OnConfirm slots are plain delegates on a node that is
+            // being deleted, so they are left alone: they hold nothing to release, and
+            // the fields are not nullable.
+            m_alarm.SetEnableState(m_context, enabled: false);
+        }
+
+        private readonly ConditionState m_alarm;
+        private readonly ISystemContext m_context;
+        private readonly AlarmEventSourceRegistration m_eventSource;
+        private readonly NodeManagerBuilder m_builder;
+        private bool m_released;
+    }
+
     /// <summary>
     /// Strongly-typed fluent builder for an alarm/condition state
     /// instance. Returned by the <c>CreateLimitAlarm</c> /
@@ -203,7 +271,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(factory));
             }
-            if (parent.Node is not BaseObjectState parentObject)
+            if (parent.Node is not BaseObjectState)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTypeMismatch,
@@ -236,8 +304,10 @@ namespace Opc.Ua.Server.Fluent
             parent.Node.AddChild(alarm);
             InitializeAlarmSource(parent.Node, alarm);
 
-            parentObject.EventNotifier |= EventNotifiers.SubscribeToEvents;
-
+            // The parent's EventNotifier is promoted by RegisterAlarmEventSource below,
+            // which walks the whole notifier chain starting at this very node and
+            // records what it changed so teardown can undo it. Promoting here as well
+            // would set the bit first and leave that record empty.
             parent.Node.AddReference(
                 ReferenceTypeIds.HasEventSource,
                 isInverse: false,
@@ -252,7 +322,29 @@ namespace Opc.Ua.Server.Fluent
             // source as a root notifier so clients subscribing on the
             // Server Object receive the condition events.
             FluentNodeRegistration.RegisterCreatedNode(parent.Builder, alarm);
-            FluentNodeRegistration.RegisterAlarmEventSource(parent.Builder, parent.Node);
+            AlarmEventSourceRegistration eventSource =
+                FluentNodeRegistration.RegisterAlarmEventSource(parent.Builder, parent.Node);
+
+            // Hand release to the behavior mechanism. Everything above mutates the
+            // address space and, until now, nothing undid any of it: an alarm survived
+            // its own node manager's teardown as an enabled condition with a promoted
+            // notifier chain and a root-notifier registration still in place.
+            // Alarms work on any node manager, so a manager that has not opted into the
+            // fluent surface keeps the behavior it always had: it simply gets no
+            // automatic release.
+            NodeManagerBuilder? concrete =
+                FluentNodeManagerBase.TryResolveAttachedBuilder(parent.Builder);
+            concrete?.RegisterNodeAttachment(
+                NodeAttachRegistration.ForNode(
+                    alarm,
+                    static (_, _, _, state) => new ValueTask<IAsyncDisposable?>(
+                        (AlarmRelease)state),
+                    new AlarmRelease(
+                        alarm,
+                        parent.Builder.Context,
+                        eventSource,
+                        concrete)));
+
             return alarm;
         }
 

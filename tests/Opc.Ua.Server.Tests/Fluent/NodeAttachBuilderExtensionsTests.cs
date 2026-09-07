@@ -351,6 +351,54 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(log, Is.Empty, "method nodes must not match a type registration");
         }
 
+        [Test]
+        public async Task AlarmWiringIsUndoneOnTeardownAsync()
+        {
+            using var manager = new TestBehaviorManager();
+            manager.SeedSiblings(1);
+
+            NodeManagerBuilder builder = manager.NewBuilder();
+            INodeBuilder parent = builder.Node(new NodeId(100u, 1));
+            var parentObject = (BaseObjectState)parent.Node;
+
+            Assert.That(
+                parentObject.EventNotifier & EventNotifiers.SubscribeToEvents,
+                Is.Zero,
+                "precondition: the parent starts without SubscribeToEvents");
+
+            NonExclusiveLimitAlarmState alarm = parent
+                .CreateLimitAlarm(new QualifiedName("Level", 1))
+                .Alarm;
+
+            await manager.ActivateAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    alarm.EnabledState?.Id?.Value,
+                    Is.True,
+                    "attaching an alarm enables it");
+                Assert.That(
+                    parentObject.EventNotifier & EventNotifiers.SubscribeToEvents,
+                    Is.Not.Zero,
+                    "attaching an alarm promotes the parent notifier");
+            });
+
+            await manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    alarm.EnabledState?.Id?.Value,
+                    Is.False,
+                    "teardown must disable the condition");
+                Assert.That(
+                    parentObject.EventNotifier & EventNotifiers.SubscribeToEvents,
+                    Is.Zero,
+                    "teardown must clear the notifier bit it set");
+            });
+        }
+
         private static ValueTask<IAsyncDisposable?> Record(List<string> log, string label)
         {
             log.Add($"activate {label}");

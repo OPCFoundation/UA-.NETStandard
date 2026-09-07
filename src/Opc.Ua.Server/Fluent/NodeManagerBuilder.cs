@@ -367,6 +367,60 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Registers the manager-scoped behavior that releases the event sources,
+        /// once per builder.
+        /// </summary>
+        internal void EnsureEventSourceLifecycleRegistered()
+        {
+            EventSourceRegistry? registry = EventSources;
+            if (registry == null)
+            {
+                return;
+            }
+
+            lock (m_nodeAttachmentsLock)
+            {
+                if (m_eventSourceLifecycleRegistered)
+                {
+                    return;
+                }
+                m_eventSourceLifecycleRegistered = true;
+                m_nodeAttachments.Add(
+                    NodeAttachRegistration.ForManager(
+                        static (_, _, _, state) => new ValueTask<IAsyncDisposable?>(
+                            new EventSourceLifetime((EventSourceRegistry)state)),
+                        registry));
+            }
+        }
+
+        /// <summary>
+        /// Registers the manager-scoped behavior that releases the monitored sources,
+        /// once per builder.
+        /// </summary>
+        internal void EnsureMonitoredSourceLifecycleRegistered()
+        {
+            MonitoredSourceRegistry? registry = MonitoredSources;
+            if (registry == null)
+            {
+                return;
+            }
+
+            lock (m_nodeAttachmentsLock)
+            {
+                if (m_monitoredSourceLifecycleRegistered)
+                {
+                    return;
+                }
+                m_monitoredSourceLifecycleRegistered = true;
+                m_nodeAttachments.Add(
+                    NodeAttachRegistration.ForManager(
+                        static (_, _, _, state) => new ValueTask<IAsyncDisposable?>(
+                            new MonitoredSourceLifetime((MonitoredSourceRegistry)state)),
+                        registry));
+            }
+        }
+
+        /// <summary>
         /// Records a pending behavior registration.
         /// </summary>
         internal void RegisterNodeAttachment(NodeAttachRegistration registration)
@@ -1144,6 +1198,8 @@ namespace Opc.Ua.Server.Fluent
         private readonly List<NodeAttachRegistration> m_nodeAttachments = [];
         private readonly Lock m_nodeAttachmentsLock = new();
         private bool m_simulationLifecycleRegistered;
+        private bool m_eventSourceLifecycleRegistered;
+        private bool m_monitoredSourceLifecycleRegistered;
         private MonitoredItemsBatchHandler? m_monitoredItemsCreated;
         private MonitoredItemsBatchHandler? m_monitoredItemsDeleted;
     }

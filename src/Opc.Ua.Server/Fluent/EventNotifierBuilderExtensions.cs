@@ -181,6 +181,9 @@ namespace Opc.Ua.Server.Fluent
                     managerTypeName);
             }
 
+            // Registration promotes EventNotifier and may add a root notifier. Hand
+            // release of both to the behavior mechanism, once per builder.
+            concrete.EnsureEventSourceLifecycleRegistered();
             return concrete.EventSources;
         }
     }

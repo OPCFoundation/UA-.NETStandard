@@ -289,6 +289,37 @@ namespace Opc.Ua.Server.Fluent
                 throw new System.ArgumentNullException(nameof(builder));
             }
 
+            NodeManagerBuilder? resolved = TryResolveAttachedBuilder(builder);
+            if (resolved != null)
+            {
+                return resolved;
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadConfigurationError,
+                "{0} requires the node manager to derive from FluentNodeManagerBase " +
+                "and attach its builder before Configure runs. Manager type '{1}' does not opt in.",
+                feature,
+                builder.NodeManager?.GetType().FullName ?? "(unknown)");
+        }
+
+        /// <summary>
+        /// Resolves the attached builder, or <c>null</c> when the manager does not opt
+        /// into the fluent surface.
+        /// </summary>
+        /// <remarks>
+        /// Used by features that work on any node manager but gain something extra on a
+        /// fluent one — behavior-owned release, for instance — so that opting out costs
+        /// the extra rather than the feature.
+        /// </remarks>
+        internal static NodeManagerBuilder? TryResolveAttachedBuilder(
+            INodeManagerBuilder builder)
+        {
+            if (builder == null)
+            {
+                return null;
+            }
+
             if (builder is NodeManagerBuilder concreteBuilder &&
                 concreteBuilder.FluentOwner != null)
             {
@@ -301,12 +332,7 @@ namespace Opc.Ua.Server.Fluent
                 return concrete;
             }
 
-            throw ServiceResultException.Create(
-                StatusCodes.BadConfigurationError,
-                "{0} requires the node manager to derive from FluentNodeManagerBase " +
-                "and attach its builder before Configure runs. Manager type '{1}' does not opt in.",
-                feature,
-                builder.NodeManager?.GetType().FullName ?? "(unknown)");
+            return null;
         }
 
         internal VirtualNodeRegistration? FindVirtualNodeRegistration(
@@ -1160,6 +1186,17 @@ namespace Opc.Ua.Server.Fluent
             CancellationToken cancellationToken)
         {
             return AddRootNotifierAsync(notifier, cancellationToken).AsTask();
+        }
+
+        /// <summary>
+        /// Internal trampoline used by <see cref="EventSourceRegistry"/> to undo a root
+        /// notifier registration when the manager tears down.
+        /// </summary>
+        internal Task RemoveRootNotifierFromFluentAsync(
+            NodeState notifier,
+            CancellationToken cancellationToken)
+        {
+            return RemoveRootNotifierAsync(notifier, cancellationToken).AsTask();
         }
 
         private NodeManagerBuilder[] GetAttachedBuilders()

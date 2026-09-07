@@ -189,6 +189,75 @@ namespace Opc.Ua.Server.Fluent
             return builder;
         }
 
+        /// <summary>
+        /// Acquires a resource while the node has at least one subscriber, and releases
+        /// it on the last subscriber — and at server shutdown.
+        /// </summary>
+        /// <remarks>
+        /// This is the demand verb: it replaces writing
+        /// <c>OnFirstSubscriber</c>/<c>OnLastSubscriber</c> by hand and storing the
+        /// handle somewhere yourself. Release also runs when the node manager tears
+        /// down with a live subscription, which the raw handler pair does not do.
+        /// </remarks>
+        /// <typeparam name="TValue">The variable's value type.</typeparam>
+        /// <param name="builder">The variable builder.</param>
+        /// <param name="acquire">
+        /// Invoked on the first subscriber. The returned handle is disposed on the last
+        /// subscriber or at teardown, whichever comes first.
+        /// </param>
+        public static IVariableBuilder<TValue> AcquireWhileMonitored<TValue>(
+            this IVariableBuilder<TValue> builder,
+            Func<ISystemContext, NodeState, CancellationToken, ValueTask<IAsyncDisposable>> acquire)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (acquire == null)
+            {
+                throw new ArgumentNullException(nameof(acquire));
+            }
+
+            var held = new HeldResource();
+
+            builder.OnFirstSubscriber(async (context, source, cancellationToken) =>
+            {
+                IAsyncDisposable handle = await acquire(context, source, cancellationToken)
+                    .ConfigureAwait(false);
+                held.Set(handle);
+            });
+
+            builder.OnLastSubscriber(async (context, source, cancellationToken) =>
+            {
+                _ = context;
+                _ = source;
+                _ = cancellationToken;
+                await held.ReleaseAsync().ConfigureAwait(false);
+            });
+
+            return builder;
+        }
+
+        /// <summary>
+        /// Holds the handle an <c>AcquireWhileMonitored</c> source acquired, so that
+        /// exactly one release happens however teardown is reached.
+        /// </summary>
+        private sealed class HeldResource
+        {
+            public void Set(IAsyncDisposable handle)
+            {
+                Interlocked.Exchange(ref m_handle, handle);
+            }
+
+            public ValueTask ReleaseAsync()
+            {
+                IAsyncDisposable? handle = Interlocked.Exchange(ref m_handle, null);
+                return handle?.DisposeAsync() ?? default;
+            }
+
+            private IAsyncDisposable? m_handle;
+        }
+
         private static MonitoredSourceRegistration GetRegistration(
             INodeBuilder builder)
         {
@@ -200,6 +269,10 @@ namespace Opc.Ua.Server.Fluent
                 FluentNodeManagerBase.ResolveAttachedBuilder(
                     builder.Builder,
                     "monitored source");
+
+            // Hand release of the monitored sources to the behavior mechanism, so the
+            // last-subscriber handlers also run when the manager tears down.
+            concrete.EnsureMonitoredSourceLifecycleRegistered();
             return concrete.MonitoredSources!.Register(builder.Node);
         }
 

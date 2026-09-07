@@ -288,6 +288,83 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public async Task AcquireWhileMonitoredReleasesOnLastSubscriberAsync()
+        {
+            int acquired = 0;
+            int released = 0;
+
+            using var harness = await MonitoredItemHarness.CreateAsync(builder =>
+            {
+                builder.Variable<int>("Value")
+                    .AcquireWhileMonitored((context, node, cancellationToken) =>
+                    {
+                        acquired++;
+                        return new ValueTask<IAsyncDisposable>(
+                            new ReleaseTracker(() => released++));
+                    });
+            }).ConfigureAwait(false);
+
+            Assert.That(acquired, Is.Zero);
+
+            (_, IMonitoredItem? item) = await harness
+                .CreateAsync(CreateRequest())
+                .ConfigureAwait(false);
+            await DrainAsync().ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(acquired, Is.EqualTo(1));
+                Assert.That(released, Is.Zero);
+            });
+
+            await harness.DeleteAsync(item!).ConfigureAwait(false);
+            await DrainAsync().ConfigureAwait(false);
+            Assert.That(released, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task AcquireWhileMonitoredReleasesAtShutdownWithALiveSubscriptionAsync()
+        {
+            int released = 0;
+
+            using var harness = await MonitoredItemHarness.CreateAsync(builder =>
+            {
+                builder.Variable<int>("Value")
+                    .AcquireWhileMonitored((context, node, cancellationToken) =>
+                        new ValueTask<IAsyncDisposable>(
+                            new ReleaseTracker(() => released++)));
+            }).ConfigureAwait(false);
+
+            await harness.CreateAsync(CreateRequest()).ConfigureAwait(false);
+            await DrainAsync().ConfigureAwait(false);
+            Assert.That(released, Is.Zero);
+
+            // Shutdown never deletes the monitored item, so the reconcile path's
+            // Deactivate arm never runs. Release has to come from teardown itself.
+            await harness.Manager.ReleaseAddressSpaceAsync().ConfigureAwait(false);
+
+            Assert.That(
+                released,
+                Is.EqualTo(1),
+                "a resource held by a live subscription must be released at shutdown");
+        }
+
+        private sealed class ReleaseTracker : IAsyncDisposable
+        {
+            public ReleaseTracker(Action onRelease)
+            {
+                m_onRelease = onRelease;
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                m_onRelease();
+                return default;
+            }
+
+            private readonly Action m_onRelease;
+        }
+
+        [Test]
         public async Task FirstSubscriberCanReenterMonitoringOperationsAsync()
         {
             MonitoredItemHarness harness = null!;
@@ -742,7 +819,16 @@ namespace Opc.Ua.Server.Tests.Fluent
 
                 NodeManagerBuilder builder = CreateFluentBuilder(namespaceIndex);
                 configure(builder);
+
+                // Same order the generated managers use: activate behaviors after
+                // Configure and before Seal.
+                await ActivateNodeBehaviorsAsync().ConfigureAwait(false);
                 builder.Seal();
+            }
+
+            public ValueTask ReleaseAddressSpaceAsync()
+            {
+                return DeleteAddressSpaceAsync();
             }
 
             private static ApplicationConfiguration CreateConfiguration()
