@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!--
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,13 +28,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2022-11-03T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2025-11-15T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://opcfoundation.org/UA/DI/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/DI/" XmlSchemaUri="http://opcfoundation.org/UA/DI/Types.xsd" Version="1.04.0" PublicationDate="2022-11-03T00:00:00Z">
-      <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.01" PublicationDate="2022-02-24T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/DI/" XmlSchemaUri="http://opcfoundation.org/UA/DI/Types.xsd" Version="1.05.0" PublicationDate="2025-11-15T00:00:00Z" ModelVersion="1.5.0">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.04" PublicationDate="2025-01-08T00:00:00Z" ModelVersion="1.5.4" />
     </Model>
   </Models>
   <Aliases>
@@ -84,10 +84,16 @@
     <Alias Alias="HasGuard">i=15112</Alias>
     <Alias Alias="HasAddIn">i=17604</Alias>
     <Alias Alias="HasInterface">i=17603</Alias>
+    <Alias Alias="GeneratesEvent">i=41</Alias>
+    <Alias Alias="AlwaysGeneratesEvent">i=3065</Alias>
+    <Alias Alias="HasOrderedComponent">i=49</Alias>
+    <Alias Alias="HasAlarmSuppressionGroup">i=16361</Alias>
+    <Alias Alias="AlarmGroupMember">i=16362</Alias>
+    <Alias Alias="AlarmSuppressionGroupMember">i=32059</Alias>
   </Aliases>
   <UAObject NodeId="ns=1;i=15001" BrowseName="1:http://opcfoundation.org/UA/DI/" SymbolicName="OPCUADINamespaceMetadata">
     <DisplayName>http://opcfoundation.org/UA/DI/</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/12.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/12.1</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=15002</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=15003</Reference>
@@ -99,6 +105,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=15031</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=15032</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=15033</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=489</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">i=11715</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=11616</Reference>
     </References>
@@ -120,7 +127,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=15001</Reference>
     </References>
     <Value>
-      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.04.0</String>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.05.0</String>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=15004" BrowseName="NamespacePublicationDate" ParentNodeId="ns=1;i=15001" DataType="DateTime">
@@ -130,7 +137,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=15001</Reference>
     </References>
     <Value>
-      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2022-11-03T00:00:00Z</DateTime>
+      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2025-11-15T00:00:00Z</DateTime>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=15005" BrowseName="IsNamespaceSubset" ParentNodeId="ns=1;i=15001" DataType="Boolean">
@@ -198,39 +205,63 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=15001</Reference>
     </References>
   </UAVariable>
+  <UAVariable NodeId="ns=1;i=489" BrowseName="ModelVersion" ParentNodeId="ns=1;i=15001" DataType="String">
+    <DisplayName>ModelVersion</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=15001</Reference>
+    </References>
+    <Value>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.5.0</String>
+    </Value>
+  </UAVariable>
   <UAReferenceType NodeId="ns=1;i=6030" BrowseName="1:ConnectsTo" Symmetric="true">
     <DisplayName>ConnectsTo</DisplayName>
-    <Description>Used to indicate that source and target Node have a topological connection.</Description>
     <Category>DI ConnectsTo</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/5.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/5.5</Documentation>
     <References>
-      <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
   </UAReferenceType>
   <UAReferenceType NodeId="ns=1;i=6467" BrowseName="1:ConnectsToParent" Symmetric="true">
     <DisplayName>ConnectsToParent</DisplayName>
-    <Description>Defines the parent (i.e. the communication Device) of a Network.</Description>
     <Category>DI ConnectsTo</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/5.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/5.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=6030</Reference>
     </References>
   </UAReferenceType>
   <UAReferenceType NodeId="ns=1;i=6031" BrowseName="1:IsOnline">
     <DisplayName>IsOnline</DisplayName>
-    <Description>Used to bind the offline representation of a Device to the online representation.</Description>
     <Category>DI Offline</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/6.3.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/6.3.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=44</Reference>
     </References>
     <InverseName>OnlineOf</InverseName>
   </UAReferenceType>
+  <UAReferenceType NodeId="ns=1;i=96" BrowseName="1:UpdateParent">
+    <DisplayName>UpdateParent</DisplayName>
+    <Category>DI SU UpdateParent reference</Category>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.6.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+    </References>
+    <InverseName>UpdateChild</InverseName>
+  </UAReferenceType>
+  <UAReferenceType NodeId="ns=1;i=97" BrowseName="1:CanUpdate">
+    <DisplayName>CanUpdate</DisplayName>
+    <Category>DI SU CanUpdate reference</Category>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.6.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+    </References>
+    <InverseName>CanBeUpdatedBy</InverseName>
+  </UAReferenceType>
   <UAObject NodeId="ns=1;i=5001" BrowseName="1:DeviceSet">
     <DisplayName>DeviceSet</DisplayName>
-    <Description>Contains all instances of devices</Description>
     <Category>DI DeviceSet</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.9</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.9</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
@@ -239,7 +270,7 @@
   <UAObject NodeId="ns=1;i=15034" BrowseName="1:DeviceFeatures">
     <DisplayName>DeviceFeatures</DisplayName>
     <Category>DI DeviceSet</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.10</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.10</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;i=5001</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
@@ -247,9 +278,8 @@
   </UAObject>
   <UAObject NodeId="ns=1;i=6078" BrowseName="1:NetworkSet">
     <DisplayName>NetworkSet</DisplayName>
-    <Description>Contains all instances of communication networks</Description>
     <Category>DI NetworkSet</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/5.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/5.6</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
@@ -257,9 +287,8 @@
   </UAObject>
   <UAObject NodeId="ns=1;i=6094" BrowseName="1:DeviceTopology">
     <DisplayName>DeviceTopology</DisplayName>
-    <Description>Starting point of the configured device topology.</Description>
     <Category>DI DeviceTopology</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/6.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/6.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6095</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
@@ -268,7 +297,6 @@
   </UAObject>
   <UAVariable NodeId="ns=1;i=6095" BrowseName="1:OnlineAccess" ParentNodeId="ns=1;i=6094" DataType="Boolean">
     <DisplayName>OnlineAccess</DisplayName>
-    <Description>Hint of whether the Server is currently able to communicate to Devices in the topology.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6094</Reference>
@@ -276,9 +304,8 @@
   </UAVariable>
   <UAObjectType NodeId="ns=1;i=1001" BrowseName="1:TopologyElementType" IsAbstract="true">
     <DisplayName>TopologyElementType</DisplayName>
-    <Description>Defines the basic information components for all configurable elements in a device topology</Description>
     <Category>DI Information Model</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.3</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=5002</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=5003</Reference>
@@ -290,7 +317,6 @@
   </UAObjectType>
   <UAObject NodeId="ns=1;i=5002" BrowseName="1:ParameterSet" ParentNodeId="ns=1;i=1001">
     <DisplayName>ParameterSet</DisplayName>
-    <Description>Flat list of Parameters</Description>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=6017</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
@@ -300,7 +326,6 @@
   </UAObject>
   <UAVariable NodeId="ns=1;i=6017" BrowseName="1:&lt;ParameterIdentifier&gt;" SymbolicName="ParameterIdentifier" ParentNodeId="ns=1;i=5002">
     <DisplayName>&lt;ParameterIdentifier&gt;</DisplayName>
-    <Description>A parameter which belongs to the topology element.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="HasModellingRule">i=11510</Reference>
@@ -309,7 +334,6 @@
   </UAVariable>
   <UAObject NodeId="ns=1;i=5003" BrowseName="1:MethodSet" ParentNodeId="ns=1;i=1001">
     <DisplayName>MethodSet</DisplayName>
-    <Description>Flat list of Methods</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -318,7 +342,6 @@
   </UAObject>
   <UAObject NodeId="ns=1;i=6567" BrowseName="1:&lt;GroupIdentifier&gt;" SymbolicName="GroupIdentifier" ParentNodeId="ns=1;i=1001">
     <DisplayName>&lt;GroupIdentifier&gt;</DisplayName>
-    <Description>An application specific functional group used to organize parameters and methods.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
       <Reference ReferenceType="HasModellingRule">i=11508</Reference>
@@ -327,7 +350,6 @@
   </UAObject>
   <UAObject NodeId="ns=1;i=6014" BrowseName="1:Identification" ParentNodeId="ns=1;i=1001">
     <DisplayName>Identification</DisplayName>
-    <Description>Used to organize parameters for identification of this TopologyElement</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -336,7 +358,6 @@
   </UAObject>
   <UAObject NodeId="ns=1;i=6161" BrowseName="1:Lock" ParentNodeId="ns=1;i=1001">
     <DisplayName>Lock</DisplayName>
-    <Description>Used to lock the topology element.</Description>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6468</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=6163</Reference>
@@ -385,7 +406,6 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=6166" BrowseName="1:InitLock" ParentNodeId="ns=1;i=6161" MethodDeclarationId="ns=1;i=6393">
     <DisplayName>InitLock</DisplayName>
-    <Category>DI Locking</Category>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6167</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=6168</Reference>
@@ -414,7 +434,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -442,7 +461,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -451,7 +469,6 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=6169" BrowseName="1:RenewLock" ParentNodeId="ns=1;i=6161" MethodDeclarationId="ns=1;i=6396">
     <DisplayName>RenewLock</DisplayName>
-    <Category>DI Locking</Category>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6170</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -479,7 +496,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -488,7 +504,6 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=6171" BrowseName="1:ExitLock" ParentNodeId="ns=1;i=6161" MethodDeclarationId="ns=1;i=6398">
     <DisplayName>ExitLock</DisplayName>
-    <Category>DI Locking</Category>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6172</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -516,7 +531,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -525,7 +539,6 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=6173" BrowseName="1:BreakLock" ParentNodeId="ns=1;i=6161" MethodDeclarationId="ns=1;i=6400">
     <DisplayName>BreakLock</DisplayName>
-    <Category>DI Locking</Category>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6174</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -553,7 +566,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -563,7 +575,7 @@
   <UAObjectType NodeId="ns=1;i=15035" BrowseName="1:IVendorNameplateType" IsAbstract="true">
     <DisplayName>IVendorNameplateType</DisplayName>
     <Category>DI Nameplate</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.5.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.5.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=15036</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=15037</Reference>
@@ -697,7 +709,7 @@
   <UAObjectType NodeId="ns=1;i=15048" BrowseName="1:ITagNameplateType" IsAbstract="true">
     <DisplayName>ITagNameplateType</DisplayName>
     <Category>DI TagNameplate</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.5.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.5.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=15049</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=15050</Reference>
@@ -723,7 +735,7 @@
   <UAObjectType NodeId="ns=1;i=15051" BrowseName="1:IDeviceHealthType" IsAbstract="true">
     <DisplayName>IDeviceHealthType</DisplayName>
     <Category>DI DeviceHealth</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.5.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.5.4</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=15052</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=15053</Reference>
@@ -749,7 +761,7 @@
   <UAObjectType NodeId="ns=1;i=15054" BrowseName="1:ISupportInfoType" IsAbstract="true">
     <DisplayName>ISupportInfoType</DisplayName>
     <Category>DI DeviceSupportInfo</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.5.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.5.6</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=15055</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=15057</Reference>
@@ -882,7 +894,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -910,7 +921,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -946,7 +956,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -983,7 +992,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -999,7 +1007,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1027,7 +1034,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1063,7 +1069,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1079,7 +1084,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1116,7 +1120,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1144,7 +1147,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1180,7 +1182,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1196,7 +1197,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -1237,10 +1237,91 @@
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=15061</Reference>
     </References>
   </UAVariable>
+  <UAObjectType NodeId="ns=1;i=118" BrowseName="1:IAssetLocationIndicationType" IsAbstract="true">
+    <DisplayName>IAssetLocationIndicationType</DisplayName>
+    <Category>DI AssetLocationIndication</Category>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.5.7</Documentation>
+    <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=119</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=121</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=154</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=155</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=156</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=17602</Reference>
+    </References>
+  </UAObjectType>
+  <UAMethod NodeId="ns=1;i=119" BrowseName="1:StartLocationIndication" ParentNodeId="ns=1;i=118">
+    <DisplayName>StartLocationIndication</DisplayName>
+    <Category>DI AssetLocationIndication</Category>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.5.7/#4.5.7.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=413</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=118</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=413" BrowseName="InputArguments" ParentNodeId="ns=1;i=119" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=119</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>IndicationDuration</Name>
+              <DataType>
+                <Identifier>i=290</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=121" BrowseName="1:StopLocationIndication" ParentNodeId="ns=1;i=118">
+    <DisplayName>StopLocationIndication</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=118</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=154" BrowseName="1:IsIndicating" ParentNodeId="ns=1;i=118" DataType="Boolean">
+    <DisplayName>IsIndicating</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=118</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=155" BrowseName="1:UsedIndicationType" ParentNodeId="ns=1;i=118" DataType="ns=1;i=410">
+    <DisplayName>UsedIndicationType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=118</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=156" BrowseName="1:SupportedIndicationTypes" ParentNodeId="ns=1;i=118" DataType="ns=1;i=410">
+    <DisplayName>SupportedIndicationTypes</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=118</Reference>
+    </References>
+  </UAVariable>
   <UAObjectType NodeId="ns=1;i=15063" BrowseName="1:ComponentType" IsAbstract="true">
     <DisplayName>ComponentType</DisplayName>
     <Category>DI Information Model</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=15086</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=15087</Reference>
@@ -1375,9 +1456,8 @@
   </UAVariable>
   <UAObjectType NodeId="ns=1;i=1002" BrowseName="1:DeviceType" IsAbstract="true">
     <DisplayName>DeviceType</DisplayName>
-    <Description>Defines the basic information components for all configurable elements in a device topology</Description>
     <Category>DI DeviceType</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.7</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.7</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6003</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=15100</Reference>
@@ -1405,7 +1485,6 @@
   </UAObjectType>
   <UAVariable NodeId="ns=1;i=6003" BrowseName="1:Manufacturer" ParentNodeId="ns=1;i=1002" DataType="LocalizedText">
     <DisplayName>Manufacturer</DisplayName>
-    <Description>Name of the company that manufactured the device</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1422,7 +1501,6 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6004" BrowseName="1:Model" ParentNodeId="ns=1;i=1002" DataType="LocalizedText">
     <DisplayName>Model</DisplayName>
-    <Description>Model name of the device</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1431,7 +1509,6 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6008" BrowseName="1:HardwareRevision" ParentNodeId="ns=1;i=1002" DataType="String">
     <DisplayName>HardwareRevision</DisplayName>
-    <Description>Revision level of the hardware of the device</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1440,7 +1517,6 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6007" BrowseName="1:SoftwareRevision" ParentNodeId="ns=1;i=1002" DataType="String">
     <DisplayName>SoftwareRevision</DisplayName>
-    <Description>Revision level of the software/firmware of the device</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1449,7 +1525,6 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6006" BrowseName="1:DeviceRevision" ParentNodeId="ns=1;i=1002" DataType="String">
     <DisplayName>DeviceRevision</DisplayName>
-    <Description>Overall revision level of the device</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1466,7 +1541,6 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6005" BrowseName="1:DeviceManual" ParentNodeId="ns=1;i=1002" DataType="String">
     <DisplayName>DeviceManual</DisplayName>
-    <Description>Address (pathname in the file system or a URL | Web address) of user manual for the device</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1483,7 +1557,6 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6001" BrowseName="1:SerialNumber" ParentNodeId="ns=1;i=1002" DataType="String">
     <DisplayName>SerialNumber</DisplayName>
-    <Description>Identifier that uniquely identifies, within a manufacturer, a device instance</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1500,7 +1573,6 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6002" BrowseName="1:RevisionCounter" ParentNodeId="ns=1;i=1002" DataType="Int32">
     <DisplayName>RevisionCounter</DisplayName>
-    <Description>An incremental counter indicating the number of times the static data within the Device has been modified</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1511,6 +1583,7 @@
     <DisplayName>&lt;CPIdentifier&gt;</DisplayName>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=6592</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6499</Reference>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=6308</Reference>
       <Reference ReferenceType="HasModellingRule">i=11508</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1002</Reference>
@@ -1518,7 +1591,6 @@
   </UAObject>
   <UAObject NodeId="ns=1;i=6592" BrowseName="1:NetworkAddress" ParentNodeId="ns=1;i=6571">
     <DisplayName>NetworkAddress</DisplayName>
-    <Description>The address of the device on this network.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1543,7 +1615,6 @@
   </UAObject>
   <UAObject NodeId="ns=1;i=6209" BrowseName="1:DeviceTypeImage" ParentNodeId="ns=1;i=1002">
     <DisplayName>DeviceTypeImage</DisplayName>
-    <Description>Organizes pictures of the device.</Description>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=6210</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
@@ -1553,7 +1624,6 @@
   </UAObject>
   <UAVariable NodeId="ns=1;i=6210" BrowseName="1:&lt;ImageIdentifier&gt;" SymbolicName="ImageIdentifier" ParentNodeId="ns=1;i=6209" DataType="i=30">
     <DisplayName>&lt;ImageIdentifier&gt;</DisplayName>
-    <Description>An image of the device.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="HasModellingRule">i=11510</Reference>
@@ -1562,7 +1632,6 @@
   </UAVariable>
   <UAObject NodeId="ns=1;i=6211" BrowseName="1:Documentation" ParentNodeId="ns=1;i=1002">
     <DisplayName>Documentation</DisplayName>
-    <Description>Organizes documents for the device.</Description>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=6212</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
@@ -1572,7 +1641,6 @@
   </UAObject>
   <UAVariable NodeId="ns=1;i=6212" BrowseName="1:&lt;DocumentIdentifier&gt;" SymbolicName="DocumentIdentifier" ParentNodeId="ns=1;i=6211" DataType="ByteString">
     <DisplayName>&lt;DocumentIdentifier&gt;</DisplayName>
-    <Description>A document for the device.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="HasModellingRule">i=11510</Reference>
@@ -1581,7 +1649,6 @@
   </UAVariable>
   <UAObject NodeId="ns=1;i=6213" BrowseName="1:ProtocolSupport" ParentNodeId="ns=1;i=1002">
     <DisplayName>ProtocolSupport</DisplayName>
-    <Description>Protocol-specific files for the device.</Description>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=6214</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
@@ -1591,7 +1658,6 @@
   </UAObject>
   <UAVariable NodeId="ns=1;i=6214" BrowseName="1:&lt;ProtocolSupportIdentifier&gt;" SymbolicName="ProtocolSupportIdentifier" ParentNodeId="ns=1;i=6213" DataType="ByteString">
     <DisplayName>&lt;ProtocolSupportIdentifier&gt;</DisplayName>
-    <Description>A protocol-specific file for the device.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="HasModellingRule">i=11510</Reference>
@@ -1600,7 +1666,6 @@
   </UAVariable>
   <UAObject NodeId="ns=1;i=6215" BrowseName="1:ImageSet" ParentNodeId="ns=1;i=1002">
     <DisplayName>ImageSet</DisplayName>
-    <Description>Organizes images that are used within UIElements.</Description>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=6216</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
@@ -1610,7 +1675,6 @@
   </UAObject>
   <UAVariable NodeId="ns=1;i=6216" BrowseName="1:&lt;ImageIdentifier&gt;" SymbolicName="ImageIdentifier" ParentNodeId="ns=1;i=6215" DataType="i=30">
     <DisplayName>&lt;ImageIdentifier&gt;</DisplayName>
-    <Description>An image for a UIElement.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="HasModellingRule">i=11510</Reference>
@@ -1620,7 +1684,7 @@
   <UAObjectType NodeId="ns=1;i=15106" BrowseName="1:SoftwareType">
     <DisplayName>SoftwareType</DisplayName>
     <Category>DI Software Component</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.8</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.8</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=15129</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=15131</Reference>
@@ -1654,9 +1718,8 @@
   </UAVariable>
   <UAObjectType NodeId="ns=1;i=1003" BrowseName="1:BlockType" IsAbstract="true">
     <DisplayName>BlockType</DisplayName>
-    <Description>Adds the concept of Blocks needed for block-oriented FieldDevices</Description>
     <Category>DI Blocks</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.11</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.11</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6009</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=6010</Reference>
@@ -1668,7 +1731,6 @@
   </UAObjectType>
   <UAVariable NodeId="ns=1;i=6009" BrowseName="1:RevisionCounter" ParentNodeId="ns=1;i=1003" DataType="Int32">
     <DisplayName>RevisionCounter</DisplayName>
-    <Description>Incremental counter indicating the number of times the static data within the Block has been modified</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -1677,7 +1739,6 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6010" BrowseName="1:ActualMode" ParentNodeId="ns=1;i=1003" DataType="LocalizedText">
     <DisplayName>ActualMode</DisplayName>
-    <Description>Current mode of operation the Block is able to achieve</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -1686,7 +1747,6 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6011" BrowseName="1:PermittedMode" ParentNodeId="ns=1;i=1003" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>PermittedMode</DisplayName>
-    <Description>Modes of operation that are allowed for the Block based on application requirements</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -1695,7 +1755,6 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6012" BrowseName="1:NormalMode" ParentNodeId="ns=1;i=1003" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>NormalMode</DisplayName>
-    <Description>Mode the Block should be set to during normal operating conditions</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -1704,7 +1763,6 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6013" BrowseName="1:TargetMode" ParentNodeId="ns=1;i=1003" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
     <DisplayName>TargetMode</DisplayName>
-    <Description>Mode of operation that is desired for the Block</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -1714,7 +1772,7 @@
   <UAObjectType NodeId="ns=1;i=15143" BrowseName="1:DeviceHealthDiagnosticAlarmType" IsAbstract="true">
     <DisplayName>DeviceHealthDiagnosticAlarmType</DisplayName>
     <Category>DI HealthDiagnosticsAlarm</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.12.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.12.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18347</Reference>
     </References>
@@ -1722,7 +1780,7 @@
   <UAObjectType NodeId="ns=1;i=15292" BrowseName="1:FailureAlarmType">
     <DisplayName>FailureAlarmType</DisplayName>
     <Category>DI HealthDiagnosticsAlarm</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.12.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.12.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=15143</Reference>
     </References>
@@ -1730,7 +1788,7 @@
   <UAObjectType NodeId="ns=1;i=15441" BrowseName="1:CheckFunctionAlarmType">
     <DisplayName>CheckFunctionAlarmType</DisplayName>
     <Category>DI HealthDiagnosticsAlarm</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.12.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.12.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=15143</Reference>
     </References>
@@ -1738,7 +1796,7 @@
   <UAObjectType NodeId="ns=1;i=15590" BrowseName="1:OffSpecAlarmType">
     <DisplayName>OffSpecAlarmType</DisplayName>
     <Category>DI HealthDiagnosticsAlarm</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.12.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.12.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=15143</Reference>
     </References>
@@ -1746,16 +1804,15 @@
   <UAObjectType NodeId="ns=1;i=15739" BrowseName="1:MaintenanceRequiredAlarmType">
     <DisplayName>MaintenanceRequiredAlarmType</DisplayName>
     <Category>DI HealthDiagnosticsAlarm</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.12.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.12.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=15143</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=1004" BrowseName="1:ConfigurableObjectType">
     <DisplayName>ConfigurableObjectType</DisplayName>
-    <Description>Defines a general pattern to expose and configure modular components</Description>
     <Category>DI Information Model</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/9.2.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/9.2.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=5004</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=6026</Reference>
@@ -1764,7 +1821,6 @@
   </UAObjectType>
   <UAObject NodeId="ns=1;i=5004" BrowseName="1:SupportedTypes" ParentNodeId="ns=1;i=1004">
     <DisplayName>SupportedTypes</DisplayName>
-    <Description>Folder maintaining the set of (sub-types of) BaseObjectTypes that can be instantiated in the ConfigurableComponent</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -1783,7 +1839,7 @@
     <DisplayName>LifetimeVariableType</DisplayName>
     <Description>Remaining lifetime</Description>
     <Category>DI LT Lifetime Base</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/10.2.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/10.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=469</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=470</Reference>
@@ -1819,9 +1875,9 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=468</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=472" BrowseName="1:WarningValues" ParentNodeId="ns=1;i=468" DataType="Number" ValueRank="-3" ArrayDimensions="0">
+  <UAVariable NodeId="ns=1;i=472" BrowseName="1:WarningValues" ParentNodeId="ns=1;i=468" DataType="Number" ValueRank="-3">
     <DisplayName>WarningValues</DisplayName>
-    <Description>WarningValues indicates one or more levels when the end of lifetime is reached soon and may be used to inform the user when reached.</Description>
+    <Description>WarningValues indicates one or more levels when the end of lifetime is reached soon and can be used to inform the user when reached.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -1832,7 +1888,7 @@
     <DisplayName>BaseLifetimeIndicationType</DisplayName>
     <Description>Base indication type not further defining a semantic</Description>
     <Category>DI LT Lifetime Base</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/10.3.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/10.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
@@ -1841,7 +1897,7 @@
     <DisplayName>TimeIndicationType</DisplayName>
     <Description>Indicates the time the entity has been in use or can still be used</Description>
     <Category>DI LT Time Indication</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/10.4.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/10.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=473</Reference>
     </References>
@@ -1850,7 +1906,7 @@
     <DisplayName>NumberOfPartsIndicationType</DisplayName>
     <Description>Indicates the total number of parts that have been produced or can still be produced.</Description>
     <Category>DI LT Nb Of Parts Indication</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/10.5.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/10.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=473</Reference>
     </References>
@@ -1859,7 +1915,7 @@
     <DisplayName>NumberOfUsagesIndicationType</DisplayName>
     <Description>Indicates counting the process steps the entity has been used or can still be used for (for example usages of a punching tool).</Description>
     <Category>DI LT Nb Of Usages Indication</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/10.6.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/10.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=473</Reference>
     </References>
@@ -1868,7 +1924,7 @@
     <DisplayName>LengthIndicationType</DisplayName>
     <Description>Indicates the abraded length, for example of a drill.</Description>
     <Category>DI LT Length Indication</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/10.7.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/10.7</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=473</Reference>
     </References>
@@ -1877,7 +1933,7 @@
     <DisplayName>DiameterIndicationType</DisplayName>
     <Description>Indicates the abraded diameter, for example of a drill.</Description>
     <Category>DI LT Diameter Indication</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/10.8.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/10.8</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=473</Reference>
     </References>
@@ -1886,16 +1942,15 @@
     <DisplayName>SubstanceVolumeIndicationType</DisplayName>
     <Description>Indicates the volume of a substance, for example of a liquid.</Description>
     <Category>DI LT Substance Volume Indication</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/10.9.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/10.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=473</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="ns=1;i=1005" BrowseName="1:FunctionalGroupType">
     <DisplayName>FunctionalGroupType</DisplayName>
-    <Description>FolderType is used to organize the Parameters and Methods from the complete set (ParameterSet, MethodSet) with regard to their application</Description>
     <Category>DI Information Model</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.4.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.4.1</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=6027</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=6243</Reference>
@@ -1904,7 +1959,6 @@
   </UAObjectType>
   <UAObject NodeId="ns=1;i=6027" BrowseName="1:&lt;GroupIdentifier&gt;" SymbolicName="GroupIdentifier" ParentNodeId="ns=1;i=1005">
     <DisplayName>&lt;GroupIdentifier&gt;</DisplayName>
-    <Description>An application specific functional group used to organize parameters and methods.</Description>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=6242</Reference>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
@@ -1914,7 +1968,6 @@
   </UAObject>
   <UAVariable NodeId="ns=1;i=6242" BrowseName="1:UIElement" ParentNodeId="ns=1;i=6027">
     <DisplayName>UIElement</DisplayName>
-    <Description>A user interface element assigned to this group.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=6246</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -1923,19 +1976,71 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6243" BrowseName="1:UIElement" ParentNodeId="ns=1;i=1005">
     <DisplayName>UIElement</DisplayName>
-    <Description>A user interface element assigned to this group.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=6246</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1005</Reference>
     </References>
   </UAVariable>
+  <UAObject NodeId="ns=1;i=73" BrowseName="1:Configuration" DesignToolOnly="true">
+    <DisplayName>Configuration</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=74" BrowseName="1:Tuning" DesignToolOnly="true">
+    <DisplayName>Tuning</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=75" BrowseName="1:Maintenance" DesignToolOnly="true">
+    <DisplayName>Maintenance</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=90" BrowseName="1:Diagnostics" DesignToolOnly="true">
+    <DisplayName>Diagnostics</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=91" BrowseName="1:Statistics" DesignToolOnly="true">
+    <DisplayName>Statistics</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=92" BrowseName="1:Status" DesignToolOnly="true">
+    <DisplayName>Status</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=93" BrowseName="1:Operational" DesignToolOnly="true">
+    <DisplayName>Operational</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=94" BrowseName="1:OperationCounters" DesignToolOnly="true">
+    <DisplayName>OperationCounters</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=95" BrowseName="1:Identification" DesignToolOnly="true">
+    <DisplayName>Identification</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+    </References>
+  </UAObject>
   <UAObjectType NodeId="ns=1;i=1006" BrowseName="1:ProtocolType">
     <DisplayName>ProtocolType</DisplayName>
-    <Description>General structure of a Protocol ObjectType</Description>
     <Category>DI Network</Category>
     <Category>DI Protocol</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/5.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/5.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
@@ -1943,7 +2048,7 @@
   <UADataType NodeId="ns=1;i=6244" BrowseName="1:DeviceHealthEnumeration">
     <DisplayName>DeviceHealthEnumeration</DisplayName>
     <Category>DI DeviceHealth</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.5.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.5.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6450</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
@@ -1996,7 +2101,7 @@
     <DisplayName>IOperationCounterType</DisplayName>
     <Description>Interface defining counters for the duration of operation</Description>
     <Category>DI OperationCounter Interface</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.5.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.5.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=481</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=482</Reference>
@@ -2006,7 +2111,7 @@
   </UAObjectType>
   <UAVariable NodeId="ns=1;i=481" BrowseName="1:PowerOnDuration" ParentNodeId="ns=1;i=480" DataType="i=290">
     <DisplayName>PowerOnDuration</DisplayName>
-    <Description>PowerOnDuration is the duration the Device has been powered. The main purpose is to determine the time in which degradation of the Device occurred. The details, when the time is counted, is implementation-specific. Companion specifications might define specific rules. Typically, when the Device has supply voltage and the main CPU is running, the time is counted. This may include any kind of sleep mode, but may not include pure Wake on LAN. This value shall only increase during the lifetime of the Device and shall not be reset when the Device is restarted. The PowerOnDuration is provided as Duration, i.e., in milliseconds or even fractions of a millisecond. However, the Server is not expected to update the value in such a high frequency, but maybe once a minute or once an hour, depending on the application.</Description>
+    <Description>PowerOnDuration is the duration the Device has been powered. The main purpose is to determine the time in which degradation of the Device occurred. The details, when the time is counted, is implementation-specific. Companion specifications can define specific rules. Typically, when the Device has supply voltage and the main CPU is running, the time is counted. This can include any kind of sleep mode, but cannot include pure Wake on LAN. This value shall only increase during the lifetime of the Device and shall not be reset when the Device is restarted. The PowerOnDuration is provided as Duration, i.e., in milliseconds or even fractions of a millisecond. However, the Server is not expected to update the value in such a high frequency, but possibly once a minute or once an hour, depending on the application.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -2015,7 +2120,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=482" BrowseName="1:OperationDuration" ParentNodeId="ns=1;i=480" DataType="i=290">
     <DisplayName>OperationDuration</DisplayName>
-    <Description>OperationDuration is the duration the Device has been powered and performing an activity. This counter is intended for Devices where a distinction is made between switched on and in operation. For example, a drive might be powered on but not operating. It is not intended for Devices always performing an activity like sensors always measuring data. This value shall only increase during the lifetime of the Device and shall not be reset when the Device is restarted. The OperationDuration is provided as Duration, i.e., in milliseconds or even fractions of a millisecond. However, the Server is not expected to update the value in such a high frequency, but maybe once a minute or once an hour, depending on the application.</Description>
+    <Description>OperationDuration is the duration the Device has been powered and performing an activity. This counter is intended for Devices where a distinction is made between switched on and in operation. For example, a drive can be powered on but not operating. It is not intended for Devices always performing an activity like sensors always measuring data. This value shall only increase during the lifetime of the Device and shall not be reset when the Device is restarted. The OperationDuration is provided as Duration, i.e., in milliseconds or even fractions of a millisecond. However, the Server is not expected to update the value in such a high frequency, but possibly once a minute or once an hour, depending on the application.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -2033,18 +2138,16 @@
   </UAVariable>
   <UAVariableType NodeId="ns=1;i=6246" BrowseName="1:UIElementType" IsAbstract="true">
     <DisplayName>UIElementType</DisplayName>
-    <Description>The base type for all UI Element Types.</Description>
     <Category>DI Information Model</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/4.4.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.4.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
     </References>
   </UAVariableType>
   <UAObjectType NodeId="ns=1;i=6247" BrowseName="1:NetworkType">
     <DisplayName>NetworkType</DisplayName>
-    <Description>Represents the communication means for Devices that are connected to it.</Description>
     <Category>DI Network</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/5.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/5.3</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=6596</Reference>
       <Reference ReferenceType="ns=1;i=6030">ns=1;i=6248</Reference>
@@ -2062,9 +2165,9 @@
   </UAObject>
   <UAObject NodeId="ns=1;i=6248" BrowseName="1:&lt;CPIdentifier&gt;" SymbolicName="CPIdentifier" ParentNodeId="ns=1;i=6247">
     <DisplayName>&lt;CPIdentifier&gt;</DisplayName>
-    <Description>The ConnectionPoint(s) that have been configured for this Network.</Description>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=6292</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6499</Reference>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=6308</Reference>
       <Reference ReferenceType="HasModellingRule">i=11508</Reference>
       <Reference ReferenceType="ns=1;i=6030" IsForward="false">ns=1;i=6247</Reference>
@@ -2072,7 +2175,6 @@
   </UAObject>
   <UAObject NodeId="ns=1;i=6292" BrowseName="1:NetworkAddress" ParentNodeId="ns=1;i=6248">
     <DisplayName>NetworkAddress</DisplayName>
-    <Description>The address of the device on this network.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -2081,7 +2183,6 @@
   </UAObject>
   <UAObject NodeId="ns=1;i=6294" BrowseName="1:Lock" ParentNodeId="ns=1;i=6247">
     <DisplayName>Lock</DisplayName>
-    <Description>Used to lock the Network.</Description>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6497</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=6296</Reference>
@@ -2130,7 +2231,6 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=6299" BrowseName="1:InitLock" ParentNodeId="ns=1;i=6294" MethodDeclarationId="ns=1;i=6393">
     <DisplayName>InitLock</DisplayName>
-    <Category>DI Locking</Category>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6300</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=6301</Reference>
@@ -2159,7 +2259,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2187,7 +2286,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2196,7 +2294,6 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=6302" BrowseName="1:RenewLock" ParentNodeId="ns=1;i=6294" MethodDeclarationId="ns=1;i=6396">
     <DisplayName>RenewLock</DisplayName>
-    <Category>DI Locking</Category>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6303</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -2224,7 +2321,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2233,7 +2329,6 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=6304" BrowseName="1:ExitLock" ParentNodeId="ns=1;i=6294" MethodDeclarationId="ns=1;i=6398">
     <DisplayName>ExitLock</DisplayName>
-    <Category>DI Locking</Category>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6305</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -2261,7 +2356,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2270,7 +2364,6 @@
   </UAVariable>
   <UAMethod NodeId="ns=1;i=6306" BrowseName="1:BreakLock" ParentNodeId="ns=1;i=6294" MethodDeclarationId="ns=1;i=6400">
     <DisplayName>BreakLock</DisplayName>
-    <Category>DI Locking</Category>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6307</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -2298,7 +2391,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2307,9 +2399,8 @@
   </UAVariable>
   <UAObjectType NodeId="ns=1;i=6308" BrowseName="1:ConnectionPointType" IsAbstract="true">
     <DisplayName>ConnectionPointType</DisplayName>
-    <Description>Represents the interface (interface card) of a Device to a Network.</Description>
     <Category>DI ConnectionPoint</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/5.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/5.4</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=6354</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=6499</Reference>
@@ -2319,7 +2410,6 @@
   </UAObjectType>
   <UAObject NodeId="ns=1;i=6354" BrowseName="1:NetworkAddress" ParentNodeId="ns=1;i=6308">
     <DisplayName>NetworkAddress</DisplayName>
-    <Description>The address of the device on this network.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -2337,6 +2427,7 @@
   <UAObject NodeId="ns=1;i=6599" BrowseName="1:&lt;NetworkIdentifier&gt;" SymbolicName="NetworkIdentifier" ParentNodeId="ns=1;i=6308">
     <DisplayName>&lt;NetworkIdentifier&gt;</DisplayName>
     <References>
+      <Reference ReferenceType="HasComponent">ns=1;i=6596</Reference>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=6247</Reference>
       <Reference ReferenceType="HasModellingRule">i=11508</Reference>
       <Reference ReferenceType="ns=1;i=6030" IsForward="false">ns=1;i=6308</Reference>
@@ -2345,7 +2436,7 @@
   <UADataType NodeId="ns=1;i=6522" BrowseName="1:FetchResultDataType" IsAbstract="true">
     <DisplayName>FetchResultDataType</DisplayName>
     <Category>DI Offline</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/6.4.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/6.4.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -2354,7 +2445,7 @@
   <UADataType NodeId="ns=1;i=15888" BrowseName="1:TransferResultErrorDataType">
     <DisplayName>TransferResultErrorDataType</DisplayName>
     <Category>DI Offline</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/6.4.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/6.4.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=6522</Reference>
     </References>
@@ -2366,7 +2457,7 @@
   <UADataType NodeId="ns=1;i=15889" BrowseName="1:TransferResultDataDataType">
     <DisplayName>TransferResultDataDataType</DisplayName>
     <Category>DI Offline</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/6.4.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/6.4.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=6522</Reference>
     </References>
@@ -2378,7 +2469,7 @@
   </UADataType>
   <UADataType NodeId="ns=1;i=6525" BrowseName="1:ParameterResultDataType">
     <DisplayName>ParameterResultDataType</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/6.4.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/6.4.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -2391,7 +2482,7 @@
   <UAObjectType NodeId="ns=1;i=6526" BrowseName="1:TransferServicesType">
     <DisplayName>TransferServicesType</DisplayName>
     <Category>DI Offline</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/6.4.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/6.4.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=6527</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=6529</Reference>
@@ -2402,7 +2493,7 @@
   <UAMethod NodeId="ns=1;i=6527" BrowseName="1:TransferToDevice" ParentNodeId="ns=1;i=6526">
     <DisplayName>TransferToDevice</DisplayName>
     <Category>DI Offline</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/6.4.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/6.4.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6528</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -2430,7 +2521,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2446,7 +2536,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2456,7 +2545,7 @@
   <UAMethod NodeId="ns=1;i=6529" BrowseName="1:TransferFromDevice" ParentNodeId="ns=1;i=6526">
     <DisplayName>TransferFromDevice</DisplayName>
     <Category>DI Offline</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/6.4.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/6.4.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6530</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -2484,7 +2573,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2500,7 +2588,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2510,7 +2597,7 @@
   <UAMethod NodeId="ns=1;i=6531" BrowseName="1:FetchTransferResultData" ParentNodeId="ns=1;i=6526">
     <DisplayName>FetchTransferResultData</DisplayName>
     <Category>DI Offline</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/6.4.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/6.4.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6532</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=6533</Reference>
@@ -2539,7 +2626,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2555,7 +2641,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2571,7 +2656,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2587,7 +2671,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2615,7 +2698,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2624,7 +2706,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6387" BrowseName="1:MaxInactiveLockTime" DataType="i=290">
     <DisplayName>MaxInactiveLockTime</DisplayName>
-    <Description>Server-specific period of time in milliseconds until the Server will revoke a lock.</Description>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/7.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">i=2268</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2632,9 +2714,8 @@
   </UAVariable>
   <UAObjectType NodeId="ns=1;i=6388" BrowseName="1:LockingServicesType">
     <DisplayName>LockingServicesType</DisplayName>
-    <Description>An interface for Locking.</Description>
     <Category>DI Locking</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/7.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/7.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=15890</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=6534</Reference>
@@ -2696,7 +2777,7 @@
   <UAMethod NodeId="ns=1;i=6393" BrowseName="1:InitLock" ParentNodeId="ns=1;i=6388">
     <DisplayName>InitLock</DisplayName>
     <Category>DI Locking</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/7.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/7.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6394</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=6395</Reference>
@@ -2725,7 +2806,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2753,7 +2833,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2763,7 +2842,7 @@
   <UAMethod NodeId="ns=1;i=6396" BrowseName="1:RenewLock" ParentNodeId="ns=1;i=6388">
     <DisplayName>RenewLock</DisplayName>
     <Category>DI Locking</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/7.7</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/7.7</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6397</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -2791,7 +2870,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2801,7 +2879,7 @@
   <UAMethod NodeId="ns=1;i=6398" BrowseName="1:ExitLock" ParentNodeId="ns=1;i=6388">
     <DisplayName>ExitLock</DisplayName>
     <Category>DI Locking</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/7.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/7.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6399</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -2829,7 +2907,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2839,7 +2916,7 @@
   <UAMethod NodeId="ns=1;i=6400" BrowseName="1:BreakLock" ParentNodeId="ns=1;i=6388">
     <DisplayName>BreakLock</DisplayName>
     <Category>DI Locking</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/7.8</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/7.8</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=6401</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
@@ -2867,7 +2944,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -2877,7 +2953,7 @@
   <UAObjectType NodeId="ns=1;i=1" BrowseName="1:SoftwareUpdateType">
     <DisplayName>SoftwareUpdateType</DisplayName>
     <Category>DI SU Software Update</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.4.1/#8.4.1.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.1/#8.4.1.1</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=2</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=4</Reference>
@@ -2886,6 +2962,10 @@
       <Reference ReferenceType="HasComponent">ns=1;i=98</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=122</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=133</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=352</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=353</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=354</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=355</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=402</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=134</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
@@ -3094,7 +3174,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3122,7 +3201,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3138,7 +3216,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3154,7 +3231,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3191,7 +3267,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3219,7 +3294,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3235,7 +3309,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3272,7 +3345,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3300,7 +3372,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3313,6 +3384,38 @@
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=352" BrowseName="1:SoftwareClass" ParentNodeId="ns=1;i=1" DataType="ns=1;i=408">
+    <DisplayName>SoftwareClass</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=353" BrowseName="1:SoftwareSubclass" ParentNodeId="ns=1;i=1" DataType="String">
+    <DisplayName>SoftwareSubclass</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=354" BrowseName="1:SoftwareName" ParentNodeId="ns=1;i=1" DataType="String">
+    <DisplayName>SoftwareName</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=355" BrowseName="1:UnsignedPackageAllowed" ParentNodeId="ns=1;i=1" DataType="Boolean">
+    <DisplayName>UnsignedPackageAllowed</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1</Reference>
     </References>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=402" BrowseName="1:VendorErrorCode" ParentNodeId="ns=1;i=1" DataType="Int32">
@@ -3339,7 +3442,7 @@
   <UAObjectType NodeId="ns=1;i=135" BrowseName="1:SoftwareLoadingType" IsAbstract="true">
     <DisplayName>SoftwareLoadingType</DisplayName>
     <Category>DI SU Software Update</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.4.2/#8.4.2.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.2/#8.4.2.1</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=136</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
@@ -3356,7 +3459,7 @@
   <UAObjectType NodeId="ns=1;i=137" BrowseName="1:PackageLoadingType" IsAbstract="true">
     <DisplayName>PackageLoadingType</DisplayName>
     <Category>DI SU Software Update</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.4.3/#8.4.3.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.3/#8.4.3.1</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=139</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=140</Reference>
@@ -3450,7 +3553,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3478,7 +3580,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3494,7 +3595,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3510,7 +3610,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3547,7 +3646,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3575,7 +3673,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3591,7 +3688,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3628,7 +3724,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3656,7 +3751,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3682,7 +3776,7 @@
   <UAObjectType NodeId="ns=1;i=153" BrowseName="1:DirectLoadingType">
     <DisplayName>DirectLoadingType</DisplayName>
     <Category>DI SU DirectLoading</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.4.4/#8.4.4.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.4/#8.4.4.1</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=169</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=170</Reference>
@@ -3708,7 +3802,7 @@
   <UAObjectType NodeId="ns=1;i=171" BrowseName="1:CachedLoadingType">
     <DisplayName>CachedLoadingType</DisplayName>
     <Category>DI SU CachedLoading</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.4.5/#8.4.5.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.5/#8.4.5.1</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=187</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=188</Reference>
@@ -3789,7 +3883,7 @@
   <UAMethod NodeId="ns=1;i=189" BrowseName="1:GetUpdateBehavior" ParentNodeId="ns=1;i=171">
     <DisplayName>GetUpdateBehavior</DisplayName>
     <Category>DI SU CachedLoading</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.4.5/#8.4.5.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.5/#8.4.5.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=190</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=191</Reference>
@@ -3818,7 +3912,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3834,7 +3927,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3852,7 +3944,6 @@
               <ArrayDimensions>
                 <UInt32>0</UInt32>
               </ArrayDimensions>
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3880,7 +3971,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3890,7 +3980,7 @@
   <UAObjectType NodeId="ns=1;i=192" BrowseName="1:FileSystemLoadingType">
     <DisplayName>FileSystemLoadingType</DisplayName>
     <Category>DI SU FileSystem Loading</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.4.6/#8.4.6.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.6/#8.4.6.1</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=194</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=206</Reference>
@@ -3940,7 +4030,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -3968,7 +4057,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4005,7 +4093,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4021,7 +4108,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4049,7 +4135,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4065,7 +4150,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4101,7 +4185,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4138,7 +4221,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4154,7 +4236,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4170,7 +4251,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4186,7 +4266,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4214,7 +4293,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4224,7 +4302,7 @@
   <UAMethod NodeId="ns=1;i=206" BrowseName="1:GetUpdateBehavior" ParentNodeId="ns=1;i=192">
     <DisplayName>GetUpdateBehavior</DisplayName>
     <Category>DI SU FileSystem Loading</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.4.6/#8.4.6.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.6/#8.4.6.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=207</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=208</Reference>
@@ -4255,7 +4333,6 @@
               <ArrayDimensions>
                 <UInt32>0</UInt32>
               </ArrayDimensions>
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4283,7 +4360,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4293,7 +4369,7 @@
   <UAMethod NodeId="ns=1;i=209" BrowseName="1:ValidateFiles" ParentNodeId="ns=1;i=192">
     <DisplayName>ValidateFiles</DisplayName>
     <Category>DI SU FileSystem Loading</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.4.6/#8.4.6.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.6/#8.4.6.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=210</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=211</Reference>
@@ -4324,7 +4400,6 @@
               <ArrayDimensions>
                 <UInt32>0</UInt32>
               </ArrayDimensions>
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4352,7 +4427,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4368,7 +4442,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4378,7 +4451,7 @@
   <UAObjectType NodeId="ns=1;i=212" BrowseName="1:SoftwareVersionType">
     <DisplayName>SoftwareVersionType</DisplayName>
     <Category>DI SU Software Update</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.4.7/#8.4.7.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.7/#8.4.7.1</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=380</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=381</Reference>
@@ -4387,6 +4460,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=384</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=385</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=386</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=359</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
@@ -4446,10 +4520,125 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=212</Reference>
     </References>
   </UAVariable>
+  <UAMethod NodeId="ns=1;i=359" BrowseName="1:Clear" ParentNodeId="ns=1;i=212">
+    <DisplayName>Clear</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=212</Reference>
+    </References>
+  </UAMethod>
+  <UAObjectType NodeId="ns=1;i=364" BrowseName="1:SoftwareFolderType">
+    <DisplayName>SoftwareFolderType</DisplayName>
+    <Category>DI SU SoftwareFolder</Category>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.12</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=365</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=403</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=405</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=365" BrowseName="1:SoftwareClass" ParentNodeId="ns=1;i=364" DataType="ns=1;i=408">
+    <DisplayName>SoftwareClass</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=364</Reference>
+    </References>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=403" BrowseName="1:Add" ParentNodeId="ns=1;i=364">
+    <DisplayName>Add</DisplayName>
+    <Category>DI SU SoftwareFolder</Category>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.12/#8.4.12.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=404</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=364</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=404" BrowseName="InputArguments" ParentNodeId="ns=1;i=403" DataType="i=296" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=403</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Subclass</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Name</Name>
+              <DataType>
+                <Identifier>i=12</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=405" BrowseName="1:Delete" ParentNodeId="ns=1;i=364">
+    <DisplayName>Delete</DisplayName>
+    <Category>DI SU SoftwareFolder</Category>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.12/#8.4.12.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=406</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=364</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=406" BrowseName="InputArguments" ParentNodeId="ns=1;i=405" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=405</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>ObjectToDelete</Name>
+              <DataType>
+                <Identifier>i=17</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
   <UAObjectType NodeId="ns=1;i=213" BrowseName="1:PrepareForUpdateStateMachineType">
     <DisplayName>PrepareForUpdateStateMachineType</DisplayName>
     <Category>DI SU PrepareForUpdate</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.4.8/#8.4.8.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.8/#8.4.8.1</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=227</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=228</Reference>
@@ -4478,6 +4667,7 @@
   <UAMethod NodeId="ns=1;i=228" BrowseName="1:Prepare" ParentNodeId="ns=1;i=213">
     <DisplayName>Prepare</DisplayName>
     <References>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=239</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=213</Reference>
     </References>
@@ -4485,6 +4675,8 @@
   <UAMethod NodeId="ns=1;i=229" BrowseName="1:Abort" ParentNodeId="ns=1;i=213">
     <DisplayName>Abort</DisplayName>
     <References>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=241</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=247</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=213</Reference>
     </References>
@@ -4492,6 +4684,7 @@
   <UAMethod NodeId="ns=1;i=230" BrowseName="1:Resume" ParentNodeId="ns=1;i=213">
     <DisplayName>Resume</DisplayName>
     <References>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=245</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=213</Reference>
     </References>
@@ -4588,6 +4781,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=240</Reference>
       <Reference ReferenceType="FromState">ns=1;i=231</Reference>
       <Reference ReferenceType="ToState">ns=1;i=233</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=228</Reference>
       <Reference ReferenceType="HasEffect">i=2311</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=213</Reference>
@@ -4608,8 +4802,9 @@
     <DisplayName>PreparingToIdle</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=242</Reference>
-      <Reference ReferenceType="ToState">ns=1;i=231</Reference>
       <Reference ReferenceType="FromState">ns=1;i=233</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=231</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=229</Reference>
       <Reference ReferenceType="HasEffect">i=2311</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=213</Reference>
@@ -4654,6 +4849,7 @@
       <Reference ReferenceType="HasProperty">ns=1;i=246</Reference>
       <Reference ReferenceType="FromState">ns=1;i=235</Reference>
       <Reference ReferenceType="ToState">ns=1;i=237</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=230</Reference>
       <Reference ReferenceType="HasEffect">i=2311</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=213</Reference>
@@ -4674,8 +4870,9 @@
     <DisplayName>ResumingToIdle</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=248</Reference>
-      <Reference ReferenceType="ToState">ns=1;i=231</Reference>
       <Reference ReferenceType="FromState">ns=1;i=237</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=231</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=229</Reference>
       <Reference ReferenceType="HasEffect">i=2311</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=213</Reference>
@@ -4695,12 +4892,13 @@
   <UAObjectType NodeId="ns=1;i=249" BrowseName="1:InstallationStateMachineType">
     <DisplayName>InstallationStateMachineType</DisplayName>
     <Category>DI SU Software Update</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.4.9/#8.4.9.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.9/#8.4.9.1</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=263</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=264</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=265</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=268</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=407</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=270</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=271</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=273</Reference>
@@ -4731,9 +4929,10 @@
   <UAMethod NodeId="ns=1;i=265" BrowseName="1:InstallSoftwarePackage" ParentNodeId="ns=1;i=249">
     <DisplayName>InstallSoftwarePackage</DisplayName>
     <Category>DI SU Software Update</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.4.9/#8.4.9.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.9/#8.4.9.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=266</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=277</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=249</Reference>
     </References>
@@ -4759,7 +4958,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4775,7 +4973,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4793,7 +4990,6 @@
               <ArrayDimensions>
                 <UInt32>0</UInt32>
               </ArrayDimensions>
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4809,7 +5005,6 @@
               </DataType>
               <ValueRank>-1</ValueRank>
               <ArrayDimensions />
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
@@ -4819,9 +5014,10 @@
   <UAMethod NodeId="ns=1;i=268" BrowseName="1:InstallFiles" ParentNodeId="ns=1;i=249">
     <DisplayName>InstallFiles</DisplayName>
     <Category>DI SU Software Update</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.4.9/#8.4.9.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.9/#8.4.9.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=269</Reference>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=277</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=249</Reference>
     </References>
@@ -4849,16 +5045,24 @@
               <ArrayDimensions>
                 <UInt32>0</UInt32>
               </ArrayDimensions>
-              <Description />
             </Argument>
           </Body>
         </ExtensionObject>
       </ListOfExtensionObject>
     </Value>
   </UAVariable>
+  <UAMethod NodeId="ns=1;i=407" BrowseName="1:Uninstall" ParentNodeId="ns=1;i=249">
+    <DisplayName>Uninstall</DisplayName>
+    <References>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=277</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=249</Reference>
+    </References>
+  </UAMethod>
   <UAMethod NodeId="ns=1;i=270" BrowseName="1:Resume" ParentNodeId="ns=1;i=249">
     <DisplayName>Resume</DisplayName>
     <References>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=283</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=249</Reference>
     </References>
@@ -4934,6 +5138,9 @@
       <Reference ReferenceType="HasProperty">ns=1;i=387</Reference>
       <Reference ReferenceType="FromState">ns=1;i=271</Reference>
       <Reference ReferenceType="ToState">ns=1;i=273</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=265</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=268</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=407</Reference>
       <Reference ReferenceType="HasEffect">i=2311</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=249</Reference>
@@ -4954,8 +5161,8 @@
     <DisplayName>InstallingToIdle</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=280</Reference>
-      <Reference ReferenceType="ToState">ns=1;i=271</Reference>
       <Reference ReferenceType="FromState">ns=1;i=273</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=271</Reference>
       <Reference ReferenceType="HasEffect">i=2311</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=249</Reference>
@@ -4998,8 +5205,9 @@
     <DisplayName>ErrorToIdle</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=284</Reference>
-      <Reference ReferenceType="ToState">ns=1;i=271</Reference>
       <Reference ReferenceType="FromState">ns=1;i=275</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=271</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=270</Reference>
       <Reference ReferenceType="HasEffect">i=2311</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=249</Reference>
@@ -5019,7 +5227,7 @@
   <UAObjectType NodeId="ns=1;i=285" BrowseName="1:PowerCycleStateMachineType">
     <DisplayName>PowerCycleStateMachineType</DisplayName>
     <Category>DI SU Manual Power Cycle</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.4.10</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.10</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=299</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=301</Reference>
@@ -5096,8 +5304,8 @@
     <DisplayName>WaitingForPowerCycleToNotWaitingForPowerCycle</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=306</Reference>
-      <Reference ReferenceType="ToState">ns=1;i=299</Reference>
       <Reference ReferenceType="FromState">ns=1;i=301</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=299</Reference>
       <Reference ReferenceType="HasEffect">i=2311</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=285</Reference>
@@ -5117,7 +5325,7 @@
   <UAObjectType NodeId="ns=1;i=307" BrowseName="1:ConfirmationStateMachineType">
     <DisplayName>ConfirmationStateMachineType</DisplayName>
     <Category>DI SU Update Confirmation</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.4.11/#8.4.11.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.4.11/#8.4.11.1</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=321</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=322</Reference>
@@ -5131,6 +5339,7 @@
   <UAMethod NodeId="ns=1;i=321" BrowseName="1:Confirm" ParentNodeId="ns=1;i=307">
     <DisplayName>Confirm</DisplayName>
     <References>
+      <Reference ReferenceType="HasCause" IsForward="false">ns=1;i=329</Reference>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=307</Reference>
     </References>
@@ -5211,8 +5420,9 @@
     <DisplayName>WaitingForConfirmToNotWaitingForConfirm</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=330</Reference>
-      <Reference ReferenceType="ToState">ns=1;i=323</Reference>
       <Reference ReferenceType="FromState">ns=1;i=325</Reference>
+      <Reference ReferenceType="ToState">ns=1;i=323</Reference>
+      <Reference ReferenceType="HasCause">ns=1;i=321</Reference>
       <Reference ReferenceType="HasEffect">i=2311</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=2310</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=307</Reference>
@@ -5229,10 +5439,89 @@
       <UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">21</UInt32>
     </Value>
   </UAVariable>
+  <UADataType NodeId="ns=1;i=408" BrowseName="1:SoftwareClass">
+    <DisplayName>SoftwareClass</DisplayName>
+    <Category>DI SU Software Update</Category>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.5.3</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=409</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+    <Definition Name="1:SoftwareClass">
+      <Field Name="Firmware" Value="0">
+        <Description>The software update is used for the firmware of a physical device.</Description>
+      </Field>
+      <Field Name="Application" Value="1">
+        <Description>The software update is used for an executable software.</Description>
+      </Field>
+      <Field Name="Configuration" Value="2">
+        <Description>The software update is used for the configuration of a device or application.</Description>
+      </Field>
+      <Field Name="Solution" Value="3">
+        <Description>The software update is used to install a solution with several software package to several components.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=409" BrowseName="EnumStrings" ParentNodeId="ns=1;i=408" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=408</Reference>
+    </References>
+    <Value>
+      <ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <LocalizedText>
+          <Text>Firmware</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Text>Application</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Text>Configuration</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Text>Solution</Text>
+        </LocalizedText>
+      </ListOfLocalizedText>
+    </Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=410" BrowseName="1:LocationIndicationType">
+    <DisplayName>LocationIndicationType</DisplayName>
+    <Category>DI AssetLocationIndication</Category>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/4.5.8</Documentation>
+    <References>
+      <Reference ReferenceType="HasProperty">ns=1;i=411</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=5</Reference>
+    </References>
+    <Definition Name="1:LocationIndicationType" IsOptionSet="true">
+      <Field Name="Visual" Value="0">
+        <Description>Location indication through optical signals, such as blinking LEDs, if supported by the device.</Description>
+      </Field>
+      <Field Name="Audible" Value="1">
+        <Description>Location indication through auditory signals, such as sounds or beeps, if supported by the device.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=411" BrowseName="OptionSetValues" ParentNodeId="ns=1;i=410" DataType="LocalizedText" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>OptionSetValues</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=410</Reference>
+    </References>
+    <Value>
+      <ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <LocalizedText>
+          <Text>Visual</Text>
+        </LocalizedText>
+        <LocalizedText>
+          <Text>Audible</Text>
+        </LocalizedText>
+      </ListOfLocalizedText>
+    </Value>
+  </UAVariable>
   <UADataType NodeId="ns=1;i=331" BrowseName="1:SoftwareVersionFileType">
     <DisplayName>SoftwareVersionFileType</DisplayName>
-    <Category>DI SU Software Update</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.5.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.5.1</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=332</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
@@ -5272,7 +5561,7 @@
   <UADataType NodeId="ns=1;i=333" BrowseName="1:UpdateBehavior">
     <DisplayName>UpdateBehavior</DisplayName>
     <Category>DI SU Software Update</Category>
-    <Documentation>https://reference.opcfoundation.org/DI/v104/docs/8.5.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/DI/v105/docs/8.5.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=388</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
@@ -5401,19 +5690,30 @@ YW1lIiBMZW5ndGhGaWVsZD0iTm9PZk5vZGVQYXRoIiAvPg0KICAgIDxvcGM6RmllbGQgTmFtZT0i
 U3RhdHVzQ29kZSIgVHlwZU5hbWU9InVhOlN0YXR1c0NvZGUiIC8+DQogICAgPG9wYzpGaWVsZCBO
 YW1lPSJEaWFnbm9zdGljcyIgVHlwZU5hbWU9InVhOkRpYWdub3N0aWNJbmZvIiAvPg0KICA8L29w
 YzpTdHJ1Y3R1cmVkVHlwZT4NCg0KICA8b3BjOkVudW1lcmF0ZWRUeXBlIE5hbWU9IlNvZnR3YXJl
-VmVyc2lvbkZpbGVUeXBlIiBMZW5ndGhJbkJpdHM9IjMyIj4NCiAgICA8b3BjOkVudW1lcmF0ZWRW
-YWx1ZSBOYW1lPSJDdXJyZW50IiBWYWx1ZT0iMCIgLz4NCiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1
-ZSBOYW1lPSJQZW5kaW5nIiBWYWx1ZT0iMSIgLz4NCiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBO
-YW1lPSJGYWxsYmFjayIgVmFsdWU9IjIiIC8+DQogIDwvb3BjOkVudW1lcmF0ZWRUeXBlPg0KDQog
-IDxvcGM6RW51bWVyYXRlZFR5cGUgTmFtZT0iVXBkYXRlQmVoYXZpb3IiIExlbmd0aEluQml0cz0i
-MzIiIElzT3B0aW9uU2V0PSJ0cnVlIj4NCiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJO
-b25lIiBWYWx1ZT0iMCIgLz4NCiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJLZWVwc1Bh
-cmFtZXRlcnMiIFZhbHVlPSIxIiAvPg0KICAgIDxvcGM6RW51bWVyYXRlZFZhbHVlIE5hbWU9Ildp
-bGxEaXNjb25uZWN0IiBWYWx1ZT0iMiIgLz4NCiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1l
-PSJSZXF1aXJlc1Bvd2VyQ3ljbGUiIFZhbHVlPSI0IiAvPg0KICAgIDxvcGM6RW51bWVyYXRlZFZh
-bHVlIE5hbWU9IldpbGxSZWJvb3QiIFZhbHVlPSI4IiAvPg0KICAgIDxvcGM6RW51bWVyYXRlZFZh
-bHVlIE5hbWU9Ik5lZWRzUHJlcGFyYXRpb24iIFZhbHVlPSIxNiIgLz4NCiAgPC9vcGM6RW51bWVy
-YXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
+Q2xhc3MiIExlbmd0aEluQml0cz0iMzIiPg0KICAgIDxvcGM6RW51bWVyYXRlZFZhbHVlIE5hbWU9
+IkZpcm13YXJlIiBWYWx1ZT0iMCIgLz4NCiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJB
+cHBsaWNhdGlvbiIgVmFsdWU9IjEiIC8+DQogICAgPG9wYzpFbnVtZXJhdGVkVmFsdWUgTmFtZT0i
+Q29uZmlndXJhdGlvbiIgVmFsdWU9IjIiIC8+DQogICAgPG9wYzpFbnVtZXJhdGVkVmFsdWUgTmFt
+ZT0iU29sdXRpb24iIFZhbHVlPSIzIiAvPg0KICA8L29wYzpFbnVtZXJhdGVkVHlwZT4NCg0KICA8
+b3BjOkVudW1lcmF0ZWRUeXBlIE5hbWU9IkxvY2F0aW9uSW5kaWNhdGlvblR5cGUiIExlbmd0aElu
+Qml0cz0iMTYiIElzT3B0aW9uU2V0PSJ0cnVlIj4NCiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBO
+YW1lPSJOb25lIiBWYWx1ZT0iMCIgLz4NCiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJW
+aXN1YWwiIFZhbHVlPSIxIiAvPg0KICAgIDxvcGM6RW51bWVyYXRlZFZhbHVlIE5hbWU9IkF1ZGli
+bGUiIFZhbHVlPSIyIiAvPg0KICA8L29wYzpFbnVtZXJhdGVkVHlwZT4NCg0KICA8b3BjOkVudW1l
+cmF0ZWRUeXBlIE5hbWU9IlNvZnR3YXJlVmVyc2lvbkZpbGVUeXBlIiBMZW5ndGhJbkJpdHM9IjMy
+Ij4NCiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJDdXJyZW50IiBWYWx1ZT0iMCIgLz4N
+CiAgICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJQZW5kaW5nIiBWYWx1ZT0iMSIgLz4NCiAg
+ICA8b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJGYWxsYmFjayIgVmFsdWU9IjIiIC8+DQogIDwv
+b3BjOkVudW1lcmF0ZWRUeXBlPg0KDQogIDxvcGM6RW51bWVyYXRlZFR5cGUgTmFtZT0iVXBkYXRl
+QmVoYXZpb3IiIExlbmd0aEluQml0cz0iMzIiIElzT3B0aW9uU2V0PSJ0cnVlIj4NCiAgICA8b3Bj
+OkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJOb25lIiBWYWx1ZT0iMCIgLz4NCiAgICA8b3BjOkVudW1l
+cmF0ZWRWYWx1ZSBOYW1lPSJLZWVwc1BhcmFtZXRlcnMiIFZhbHVlPSIxIiAvPg0KICAgIDxvcGM6
+RW51bWVyYXRlZFZhbHVlIE5hbWU9IldpbGxEaXNjb25uZWN0IiBWYWx1ZT0iMiIgLz4NCiAgICA8
+b3BjOkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJSZXF1aXJlc1Bvd2VyQ3ljbGUiIFZhbHVlPSI0IiAv
+Pg0KICAgIDxvcGM6RW51bWVyYXRlZFZhbHVlIE5hbWU9IldpbGxSZWJvb3QiIFZhbHVlPSI4IiAv
+Pg0KICAgIDxvcGM6RW51bWVyYXRlZFZhbHVlIE5hbWU9Ik5lZWRzUHJlcGFyYXRpb24iIFZhbHVl
+PSIxNiIgLz4NCiAgPC9vcGM6RW51bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5
+Pg==</ByteString>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6437" BrowseName="NamespaceUri" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6435" DataType="String">
@@ -5527,8 +5827,8 @@ c2QiDQogIHhtbG5zOnRucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0RJL1R5cGVzLnhz
 ZCINCiAgdGFyZ2V0TmFtZXNwYWNlPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvREkvVHlw
 ZXMueHNkIg0KICBlbGVtZW50Rm9ybURlZmF1bHQ9InF1YWxpZmllZCINCj4NCiAgPHhzOmFubm90
 YXRpb24+DQogICAgPHhzOmFwcGluZm8+DQogICAgICA8dWE6TW9kZWwgTW9kZWxVcmk9Imh0dHA6
-Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS9ESS8iIFZlcnNpb249IjEuMDQuMCIgUHVibGljYXRpb25E
-YXRlPSIyMDIyLTExLTAzVDAwOjAwOjAwWiIgLz4NCiAgICA8L3hzOmFwcGluZm8+DQogIDwveHM6
+Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS9ESS8iIFZlcnNpb249IjEuMDUuMCIgUHVibGljYXRpb25E
+YXRlPSIyMDI1LTExLTE1VDAwOjAwOjAwWiIgLz4NCiAgICA8L3hzOmFwcGluZm8+DQogIDwveHM6
 YW5ub3RhdGlvbj4NCiAgDQogIDx4czppbXBvcnQgbmFtZXNwYWNlPSJodHRwOi8vb3BjZm91bmRh
 dGlvbi5vcmcvVUEvMjAwOC8wMi9UeXBlcy54c2QiIC8+DQoNCiAgPHhzOnNpbXBsZVR5cGUgIG5h
 bWU9IkRldmljZUhlYWx0aEVudW1lcmF0aW9uIj4NCiAgICA8eHM6cmVzdHJpY3Rpb24gYmFzZT0i
@@ -5604,28 +5904,51 @@ T2NjdXJzPSIwIiBtYXhPY2N1cnM9InVuYm91bmRlZCIgbmlsbGFibGU9InRydWUiIC8+DQogICAg
 PC94czpzZXF1ZW5jZT4NCiAgPC94czpjb21wbGV4VHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0i
 TGlzdE9mUGFyYW1ldGVyUmVzdWx0RGF0YVR5cGUiIHR5cGU9InRuczpMaXN0T2ZQYXJhbWV0ZXJS
 ZXN1bHREYXRhVHlwZSIgbmlsbGFibGU9InRydWUiPjwveHM6ZWxlbWVudD4NCg0KICA8eHM6c2lt
-cGxlVHlwZSAgbmFtZT0iU29mdHdhcmVWZXJzaW9uRmlsZVR5cGUiPg0KICAgIDx4czpyZXN0cmlj
-dGlvbiBiYXNlPSJ4czpzdHJpbmciPg0KICAgICAgPHhzOmVudW1lcmF0aW9uIHZhbHVlPSJDdXJy
-ZW50XzAiIC8+DQogICAgICA8eHM6ZW51bWVyYXRpb24gdmFsdWU9IlBlbmRpbmdfMSIgLz4NCiAg
-ICAgIDx4czplbnVtZXJhdGlvbiB2YWx1ZT0iRmFsbGJhY2tfMiIgLz4NCiAgICA8L3hzOnJlc3Ry
-aWN0aW9uPg0KICA8L3hzOnNpbXBsZVR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9IlNvZnR3YXJl
-VmVyc2lvbkZpbGVUeXBlIiB0eXBlPSJ0bnM6U29mdHdhcmVWZXJzaW9uRmlsZVR5cGUiIC8+DQoN
-CiAgPHhzOmNvbXBsZXhUeXBlIG5hbWU9Ikxpc3RPZlNvZnR3YXJlVmVyc2lvbkZpbGVUeXBlIj4N
-CiAgICA8eHM6c2VxdWVuY2U+DQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJTb2Z0d2FyZVZlcnNp
-b25GaWxlVHlwZSIgdHlwZT0idG5zOlNvZnR3YXJlVmVyc2lvbkZpbGVUeXBlIiBtaW5PY2N1cnM9
-IjAiIG1heE9jY3Vycz0idW5ib3VuZGVkIiAvPg0KICAgIDwveHM6c2VxdWVuY2U+DQogIDwveHM6
-Y29tcGxleFR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9Ikxpc3RPZlNvZnR3YXJlVmVyc2lvbkZp
-bGVUeXBlIiB0eXBlPSJ0bnM6TGlzdE9mU29mdHdhcmVWZXJzaW9uRmlsZVR5cGUiIG5pbGxhYmxl
-PSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCiAgPHhzOnNpbXBsZVR5cGUgIG5hbWU9IlVwZGF0ZUJl
-aGF2aW9yIj4NCiAgICA8eHM6cmVzdHJpY3Rpb24gYmFzZT0ieHM6dW5zaWduZWRJbnQiPg0KICAg
-IDwveHM6cmVzdHJpY3Rpb24+DQogIDwveHM6c2ltcGxlVHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFt
-ZT0iVXBkYXRlQmVoYXZpb3IiIHR5cGU9InRuczpVcGRhdGVCZWhhdmlvciIgLz4NCg0KICA8eHM6
-Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mVXBkYXRlQmVoYXZpb3IiPg0KICAgIDx4czpzZXF1ZW5j
-ZT4NCiAgICAgIDx4czplbGVtZW50IG5hbWU9IlVwZGF0ZUJlaGF2aW9yIiB0eXBlPSJ0bnM6VXBk
-YXRlQmVoYXZpb3IiIG1pbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIC8+DQogICAg
+cGxlVHlwZSAgbmFtZT0iU29mdHdhcmVDbGFzcyI+DQogICAgPHhzOnJlc3RyaWN0aW9uIGJhc2U9
+InhzOnN0cmluZyI+DQogICAgICA8eHM6ZW51bWVyYXRpb24gdmFsdWU9IkZpcm13YXJlXzAiIC8+
+DQogICAgICA8eHM6ZW51bWVyYXRpb24gdmFsdWU9IkFwcGxpY2F0aW9uXzEiIC8+DQogICAgICA8
+eHM6ZW51bWVyYXRpb24gdmFsdWU9IkNvbmZpZ3VyYXRpb25fMiIgLz4NCiAgICAgIDx4czplbnVt
+ZXJhdGlvbiB2YWx1ZT0iU29sdXRpb25fMyIgLz4NCiAgICA8L3hzOnJlc3RyaWN0aW9uPg0KICA8
+L3hzOnNpbXBsZVR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9IlNvZnR3YXJlQ2xhc3MiIHR5cGU9
+InRuczpTb2Z0d2FyZUNsYXNzIiAvPg0KDQogIDx4czpjb21wbGV4VHlwZSBuYW1lPSJMaXN0T2ZT
+b2Z0d2FyZUNsYXNzIj4NCiAgICA8eHM6c2VxdWVuY2U+DQogICAgICA8eHM6ZWxlbWVudCBuYW1l
+PSJTb2Z0d2FyZUNsYXNzIiB0eXBlPSJ0bnM6U29mdHdhcmVDbGFzcyIgbWluT2NjdXJzPSIwIiBt
+YXhPY2N1cnM9InVuYm91bmRlZCIgLz4NCiAgICA8L3hzOnNlcXVlbmNlPg0KICA8L3hzOmNvbXBs
+ZXhUeXBlPg0KICA8eHM6ZWxlbWVudCBuYW1lPSJMaXN0T2ZTb2Z0d2FyZUNsYXNzIiB0eXBlPSJ0
+bnM6TGlzdE9mU29mdHdhcmVDbGFzcyIgbmlsbGFibGU9InRydWUiPjwveHM6ZWxlbWVudD4NCg0K
+ICA8eHM6c2ltcGxlVHlwZSAgbmFtZT0iTG9jYXRpb25JbmRpY2F0aW9uVHlwZSI+DQogICAgPHhz
+OnJlc3RyaWN0aW9uIGJhc2U9InhzOnVuc2lnbmVkU2hvcnQiPg0KICAgIDwveHM6cmVzdHJpY3Rp
+b24+DQogIDwveHM6c2ltcGxlVHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0iTG9jYXRpb25JbmRp
+Y2F0aW9uVHlwZSIgdHlwZT0idG5zOkxvY2F0aW9uSW5kaWNhdGlvblR5cGUiIC8+DQoNCiAgPHhz
+OmNvbXBsZXhUeXBlIG5hbWU9Ikxpc3RPZkxvY2F0aW9uSW5kaWNhdGlvblR5cGUiPg0KICAgIDx4
+czpzZXF1ZW5jZT4NCiAgICAgIDx4czplbGVtZW50IG5hbWU9IkxvY2F0aW9uSW5kaWNhdGlvblR5
+cGUiIHR5cGU9InRuczpMb2NhdGlvbkluZGljYXRpb25UeXBlIiBtaW5PY2N1cnM9IjAiIG1heE9j
+Y3Vycz0idW5ib3VuZGVkIiAvPg0KICAgIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29tcGxleFR5
+cGU+DQogIDx4czplbGVtZW50IG5hbWU9Ikxpc3RPZkxvY2F0aW9uSW5kaWNhdGlvblR5cGUiIHR5
+cGU9InRuczpMaXN0T2ZMb2NhdGlvbkluZGljYXRpb25UeXBlIiBuaWxsYWJsZT0idHJ1ZSI+PC94
+czplbGVtZW50Pg0KDQogIDx4czpzaW1wbGVUeXBlICBuYW1lPSJTb2Z0d2FyZVZlcnNpb25GaWxl
+VHlwZSI+DQogICAgPHhzOnJlc3RyaWN0aW9uIGJhc2U9InhzOnN0cmluZyI+DQogICAgICA8eHM6
+ZW51bWVyYXRpb24gdmFsdWU9IkN1cnJlbnRfMCIgLz4NCiAgICAgIDx4czplbnVtZXJhdGlvbiB2
+YWx1ZT0iUGVuZGluZ18xIiAvPg0KICAgICAgPHhzOmVudW1lcmF0aW9uIHZhbHVlPSJGYWxsYmFj
+a18yIiAvPg0KICAgIDwveHM6cmVzdHJpY3Rpb24+DQogIDwveHM6c2ltcGxlVHlwZT4NCiAgPHhz
+OmVsZW1lbnQgbmFtZT0iU29mdHdhcmVWZXJzaW9uRmlsZVR5cGUiIHR5cGU9InRuczpTb2Z0d2Fy
+ZVZlcnNpb25GaWxlVHlwZSIgLz4NCg0KICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mU29m
+dHdhcmVWZXJzaW9uRmlsZVR5cGUiPg0KICAgIDx4czpzZXF1ZW5jZT4NCiAgICAgIDx4czplbGVt
+ZW50IG5hbWU9IlNvZnR3YXJlVmVyc2lvbkZpbGVUeXBlIiB0eXBlPSJ0bnM6U29mdHdhcmVWZXJz
+aW9uRmlsZVR5cGUiIG1pbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIC8+DQogICAg
 PC94czpzZXF1ZW5jZT4NCiAgPC94czpjb21wbGV4VHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0i
-TGlzdE9mVXBkYXRlQmVoYXZpb3IiIHR5cGU9InRuczpMaXN0T2ZVcGRhdGVCZWhhdmlvciIgbmls
-bGFibGU9InRydWUiPjwveHM6ZWxlbWVudD4NCg0KPC94czpzY2hlbWE+</ByteString>
+TGlzdE9mU29mdHdhcmVWZXJzaW9uRmlsZVR5cGUiIHR5cGU9InRuczpMaXN0T2ZTb2Z0d2FyZVZl
+cnNpb25GaWxlVHlwZSIgbmlsbGFibGU9InRydWUiPjwveHM6ZWxlbWVudD4NCg0KICA8eHM6c2lt
+cGxlVHlwZSAgbmFtZT0iVXBkYXRlQmVoYXZpb3IiPg0KICAgIDx4czpyZXN0cmljdGlvbiBiYXNl
+PSJ4czp1bnNpZ25lZEludCI+DQogICAgPC94czpyZXN0cmljdGlvbj4NCiAgPC94czpzaW1wbGVU
+eXBlPg0KICA8eHM6ZWxlbWVudCBuYW1lPSJVcGRhdGVCZWhhdmlvciIgdHlwZT0idG5zOlVwZGF0
+ZUJlaGF2aW9yIiAvPg0KDQogIDx4czpjb21wbGV4VHlwZSBuYW1lPSJMaXN0T2ZVcGRhdGVCZWhh
+dmlvciI+DQogICAgPHhzOnNlcXVlbmNlPg0KICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iVXBkYXRl
+QmVoYXZpb3IiIHR5cGU9InRuczpVcGRhdGVCZWhhdmlvciIgbWluT2NjdXJzPSIwIiBtYXhPY2N1
+cnM9InVuYm91bmRlZCIgLz4NCiAgICA8L3hzOnNlcXVlbmNlPg0KICA8L3hzOmNvbXBsZXhUeXBl
+Pg0KICA8eHM6ZWxlbWVudCBuYW1lPSJMaXN0T2ZVcGRhdGVCZWhhdmlvciIgdHlwZT0idG5zOkxp
+c3RPZlVwZGF0ZUJlaGF2aW9yIiBuaWxsYWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQo8L3hz
+OnNjaGVtYT4=</ByteString>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=6425" BrowseName="NamespaceUri" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6423" DataType="String">

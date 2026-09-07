@@ -1,0 +1,28 @@
+<Project>
+  <!--
+    Sources and identity of the OPC UA stack source generator, shared by every
+    Roslyn variant. The primary project lives in this folder and picks the
+    sources up through the SDK's default globs; variants live in a sibling
+    folder and glob-link them, so a new source file never needs a project edit.
+  -->
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).SourceGeneration.Stack</AssemblyName>
+    <StackSourceGeneratorDirectory>$(MSBuildThisFileDirectory)</StackSourceGeneratorDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Stack.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="$(StackSourceGeneratorDirectory)..\Opc.Ua.SourceGeneration\SourceGeneratorTelemetry.cs" />
+    <Compile Include="$(StackSourceGeneratorDirectory)..\Opc.Ua.SourceGeneration\SourceGeneratorHelpers.cs" />
+    <Compile Include="$(StackSourceGeneratorDirectory)..\Opc.Ua.SourceGeneration\CompilationOptions.cs" />
+    <Compile Include="$(StackSourceGeneratorDirectory)..\Opc.Ua.SourceGeneration\Extensions.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectDirectory)\' != '$(StackSourceGeneratorDirectory)'">
+    <Compile Include="$(StackSourceGeneratorDirectory)**\*.cs"
+             Exclude="$(StackSourceGeneratorDirectory)bin\**\*.cs;$(StackSourceGeneratorDirectory)obj\**\*.cs"
+             LinkBase="Shared" />
+    <AdditionalFiles Include="$(StackSourceGeneratorDirectory)AnalyzerReleases.*.md" />
+  </ItemGroup>
+  <Import Project="$(MSBuildThisFileDirectory)..\SourceGeneratorVariant.targets" />
+</Project>

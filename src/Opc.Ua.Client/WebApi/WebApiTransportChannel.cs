@@ -199,7 +199,8 @@ namespace Opc.Ua.Client.WebApi
                 MaxMessageSize = settings.Configuration.MaxMessageSize,
                 ChannelLifetime = settings.Configuration.ChannelLifetime,
                 SecurityTokenLifetime = settings.Configuration.SecurityTokenLifetime,
-                CertificateValidator = settings.CertificateValidator
+                CertificateValidator = settings.CertificateValidator,
+                SecurityPolicyRegistry = settings.SecurityPolicyRegistry
             };
 
             WebApiClientOptions clientOptions = BuildClientOptions(settings);
@@ -583,20 +584,8 @@ namespace Opc.Ua.Client.WebApi
         {
             try
             {
-                var validationChain = new X509Certificate2Collection();
-                if (chain != null && chain.ChainElements != null)
-                {
-                    foreach (X509ChainElement element in chain.ChainElements)
-                    {
-                        validationChain.Add(element.Certificate);
-                    }
-                }
-                else if (certificate != null)
-                {
-                    validationChain.Add(certificate);
-                }
-
-                using var validationCollection = CertificateCollection.From(validationChain);
+                using CertificateCollection validationCollection = CertificateValidationHelpers
+                    .BuildValidationCertificateCollection(certificate, chain);
                 ICertificateValidatorEx? validator = m_quotas?.CertificateValidator;
                 if (validator != null)
                 {
@@ -641,6 +630,7 @@ namespace Opc.Ua.Client.WebApi
                 return false;
             }
         }
+
 
         private static Uri NormalizeUrl(Uri url)
         {

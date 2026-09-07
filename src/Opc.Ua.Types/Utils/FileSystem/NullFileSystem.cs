@@ -78,6 +78,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void Replace(string sourcePath, string destinationPath)
+        {
+            throw new FileNotFoundException(
+                "The null file system does not provide access to any path.", sourcePath);
+        }
+
+        /// <inheritdoc/>
         public System.DateTime GetLastWriteTime(string path)
         {
             throw new FileNotFoundException(

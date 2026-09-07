@@ -48,8 +48,8 @@ namespace Opc.Ua.Redundancy.Samples.Tests
     /// <para>
     /// The multi-replica leader-election failover topologies (strong Raft and eventual
     /// active/active) that require DNS-based endpoint indirection are demonstrated by the
-    /// docker-compose setups under <c>samples/RedundantServer</c> and
-    /// <c>samples/RedundantClient</c>; these process-level soak tests focus on the
+    /// docker-compose setups under <c>samples/Redundancy/RedundantServer</c> and
+    /// <c>samples/Redundancy/RedundantClient</c>; these process-level soak tests focus on the
     /// failover and data-loss-visibility behavior that runs deterministically inside a CI
     /// runner without container networking.
     /// </para>
@@ -109,7 +109,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
 
             await using var client = new SampleAppProcess(
                 "client",
-                "RedundantClient",
+                "Redundancy/RedundantClient",
                 "RedundantClient",
                 [
                     "--server", cluster.BootstrapServerUrl,
@@ -157,10 +157,10 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         {
             await using var demo = new SampleAppProcess(
                 "pubsub-demo-" + mode,
-                "RedundantPubSub",
+                "Redundancy/RedundantPubSub",
                 "RedundantPubSub",
                 ["--role", "demo", "--ha-mode", mode],
-                SampleTestEnvironment.FastDemo);
+                SampleTestEnvironment.BuildFastDemo());
 
             await demo.WaitForLineAsync(
                 "FAILOVER: stopping publisher-a; publisher-b is promoted.",

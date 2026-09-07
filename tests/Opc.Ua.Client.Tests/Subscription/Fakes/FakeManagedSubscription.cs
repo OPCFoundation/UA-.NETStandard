@@ -49,7 +49,9 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// ISubscription / IMessageProcessor settable state
         /// </summary>
         public uint Id { get; set; }
+
         public uint ServerId => Id;
+
         public bool Created { get; set; }
         public TimeSpan CurrentPublishingInterval { get; set; }
         public byte CurrentPriority { get; set; }

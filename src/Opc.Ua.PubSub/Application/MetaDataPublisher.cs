@@ -33,7 +33,9 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Connections;
+using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Json;
@@ -85,9 +87,11 @@ namespace Opc.Ua.PubSub.Application
         private readonly IReadOnlyDictionary<string, INetworkMessageEncoder> m_encoders;
         private readonly IPubSubDiagnostics m_diagnostics;
         private readonly ITelemetryContext m_telemetry;
+        private readonly BackgroundTaskScope m_backgroundWork;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger<MetaDataPublisher> m_logger;
         private readonly Lock m_gate = new();
+        private readonly List<DataSetSubscription> m_dataSetSubscriptions = [];
 
         private long m_messageIdSeed;
         private int m_disposed;
@@ -145,6 +149,7 @@ namespace Opc.Ua.PubSub.Application
             m_encoders = encoders;
             m_diagnostics = diagnostics;
             m_telemetry = telemetry;
+            m_backgroundWork = new BackgroundTaskScope(nameof(MetaDataPublisher), telemetry);
             m_timeProvider = timeProvider;
             m_logger = telemetry.CreateLogger<MetaDataPublisher>();
         }
@@ -172,28 +177,195 @@ namespace Opc.Ua.PubSub.Application
                     return;
                 }
                 m_registry.MetaDataChanged += OnMetaDataChanged;
+                m_application.ConfigurationChanged += OnConfigurationChanged;
                 m_subscribed = true;
             }
+            SubscribeToDataSets();
             await PublishInitialAsync(cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Re-subscribe when the configuration is replaced.
+        /// </summary>
+        /// <remarks>
+        /// Per-dataset subscriptions were taken once, from
+        /// <see cref="StartAsync"/>. An application that is configured after it
+        /// starts therefore never subscribed to anything: at start there were
+        /// no writers to walk, and nothing looked again when they arrived. A
+        /// dataset added later was in the same position even on an application
+        /// configured up front.
+        /// </remarks>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void OnConfigurationChanged(object? sender,
+            PubSubConfigurationChangedEventArgs e)
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                return;
+            }
+            SubscribeToDataSets();
+        }
+
         /// <inheritdoc/>
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             if (Interlocked.Exchange(ref m_disposed, 1) != 0)
             {
-                return default;
+                return;
             }
             lock (m_gate)
             {
                 if (m_subscribed)
                 {
                     m_registry.MetaDataChanged -= OnMetaDataChanged;
+                    m_application.ConfigurationChanged -= OnConfigurationChanged;
                     m_subscribed = false;
                 }
             }
-            return default;
+            UnsubscribeFromDataSets();
+
+            // A metadata publish already scheduled still writes through the
+            // connection, so it must not outlive this publisher.
+            await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// Subscribes to every writer's PublishedDataSet so a dataset that
+        /// resolves its metadata after startup is announced again.
+        /// </summary>
+        /// <remarks>
+        /// A source whose fields are only known once data has flowed - one fed
+        /// by a live subscription, say - has no fields at all when the initial
+        /// announcement goes out. <see cref="DataSets.PublishedDataSet"/>
+        /// rebuilds and raises <c>MetaDataChanged</c> when the source signals,
+        /// but nothing carried that into the registry this publisher watches,
+        /// so the empty announcement was the only one a consumer ever saw.
+        ///
+        /// This runs again whenever the configuration changes. Rather than
+        /// reconcile, it drops every existing subscription and takes them
+        /// afresh: a subscription belongs to a
+        /// (connection, writer group, writer) triple, because that is what the
+        /// handler announces for, and a configuration change can add, remove
+        /// or move writers between groups. Reattaching is cheap and a dropped
+        /// subscription cannot outlive the writer it was taken for.
+        /// </remarks>
+        private void SubscribeToDataSets()
+        {
+            UnsubscribeFromDataSets();
+            for (int connectionIndex = 0;
+                connectionIndex < m_application.Connections.Count;
+                connectionIndex++)
+            {
+                if (m_application.Connections[connectionIndex] is not PubSubConnection runtime)
+                {
+                    continue;
+                }
+                for (int writerGroupIndex = 0;
+                    writerGroupIndex < runtime.WriterGroups.Count;
+                    writerGroupIndex++)
+                {
+                    IWriterGroup writerGroup = runtime.WriterGroups[writerGroupIndex];
+                    for (int writerIndex = 0;
+                        writerIndex < writerGroup.DataSetWriters.Count;
+                        writerIndex++)
+                    {
+                        IDataSetWriter writer = writerGroup.DataSetWriters[writerIndex];
+                        IPublishedDataSet dataSet = writer.PublishedDataSet;
+                        PubSubConnection connection = runtime;
+                        IWriterGroup group = writerGroup;
+                        IDataSetWriter target = writer;
+                        //
+                        // One handler per writer, not per dataset. Several
+                        // writers may share a PublishedDataSet - the same
+                        // DataSetName used from different groups or
+                        // connections - and each announces to its own
+                        // destination, so each needs its own subscription.
+                        //
+                        void Handler(object? sender, DataSetMetaDataChangedEventArgs e)
+                        {
+                            OnDataSetMetaDataChanged(connection, group, target, e);
+                        }
+                        lock (m_gate)
+                        {
+                            if (Volatile.Read(ref m_disposed) != 0)
+                            {
+                                return;
+                            }
+                        }
+                        dataSet.MetaDataChanged += Handler;
+                        bool keepSubscription;
+                        lock (m_gate)
+                        {
+                            keepSubscription = Volatile.Read(ref m_disposed) == 0;
+                            if (keepSubscription)
+                            {
+                                m_dataSetSubscriptions.Add(
+                                    new DataSetSubscription(dataSet, Handler));
+                            }
+                        }
+                        if (!keepSubscription)
+                        {
+                            dataSet.MetaDataChanged -= Handler;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Drops every per-dataset subscription currently held.
+        /// </summary>
+        private void UnsubscribeFromDataSets()
+        {
+            DataSetSubscription[] taken;
+            lock (m_gate)
+            {
+                if (m_dataSetSubscriptions.Count == 0)
+                {
+                    return;
+                }
+                taken = m_dataSetSubscriptions.ToArray();
+                m_dataSetSubscriptions.Clear();
+            }
+            for (int index = 0; index < taken.Length; index++)
+            {
+                taken[index].DataSet.MetaDataChanged -= taken[index].Handler;
+            }
+        }
+
+        private void OnDataSetMetaDataChanged(
+            PubSubConnection connection,
+            IWriterGroup writerGroup,
+            IDataSetWriter writer,
+            DataSetMetaDataChangedEventArgs e)
+        {
+            if (Volatile.Read(ref m_disposed) != 0 || e.Current is null)
+            {
+                return;
+            }
+            // Scheduled on the thread pool for the same reason as the registry
+            // handler: the caller may still hold a lock.
+            m_backgroundWork.Run("PublishMetaDataChange", async _ =>
+            {
+                try
+                {
+                    await PublishMetaDataAsync(
+                        connection, writerGroup, writer, e.Current, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.FailedToPublishMetadataChange(
+                        ex, writer.DataSetWriterId, writerGroup.WriterGroupId);
+                }
+            });
+        }
+
+        private sealed record class DataSetSubscription(
+            IPublishedDataSet DataSet,
+            EventHandler<DataSetMetaDataChangedEventArgs> Handler);
 
         private async ValueTask PublishInitialAsync(CancellationToken cancellationToken)
         {
@@ -252,7 +424,7 @@ namespace Opc.Ua.PubSub.Application
             // Schedule on the thread pool to avoid running async work
             // on the registry caller's thread; the caller may still be
             // holding the registry write lock.
-            _ = Task.Run(async () =>
+            m_backgroundWork.Run("PublishMetaDataChange", async _ =>
             {
                 try
                 {
@@ -347,6 +519,13 @@ namespace Opc.Ua.PubSub.Application
                     WriterGroupId = writerGroup.WriterGroupId,
                     DataSetWriterId = writer.DataSetWriterId,
                     DataSetClassId = classId,
+                    //
+                    // The payload is documented as available on both accessors,
+                    // so both are populated. A consumer, transform or encoder
+                    // hook that reads the base property would otherwise see an
+                    // announcement as a message carrying nothing.
+                    //
+                    MetaData = metaData,
                     MetaDataPayload = metaData
                 };
                 var context = new PubSubNetworkMessageContext(

@@ -54,7 +54,8 @@ namespace Opc.Ua.Server
         INodeIdFactory,
         IDisposable,
         ILocalAddressSpaceSource,
-        IPredefinedNodeSubtypeReplacer
+        IPredefinedNodeSubtypeReplacer,
+        INodeManagerMonitoredItemLifecycle
     {
         /// <summary>
         /// Initializes the node manager.
@@ -136,6 +137,7 @@ namespace Opc.Ua.Server
                 MaxQueueSize = (uint)configuration.ServerConfiguration.MaxNotificationQueueSize;
                 MaxDurableQueueSize = (uint)configuration.ServerConfiguration
                     .MaxDurableNotificationQueueSize;
+                MinSupportedSamplingInterval = configuration.ServerConfiguration.MinSupportedSamplingInterval;
             }
 
             // save a reference to the UA server instance that owns the node manager.
@@ -199,8 +201,9 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && !m_disposed)
             {
+                m_disposed = true;
                 m_writeSemaphore.Wait(500);
                 try
                 {
@@ -289,6 +292,18 @@ namespace Opc.Ua.Server
         public uint MaxDurableQueueSize { get; set; }
 
         /// <summary>
+        /// Gets or sets the minimum sampling interval supported by the server (in milliseconds).
+        /// </summary>
+        /// <value>The minimum supported sampling interval.</value>
+        /// <remarks>
+        /// Applied as a lower bound when the sampling interval of a monitored item is revised.
+        /// Nodes that declare a MinimumSamplingInterval of
+        /// <see cref="MinimumSamplingIntervals.Continuous"/> report by exception and are not
+        /// bound by this value.
+        /// </remarks>
+        public double MinSupportedSamplingInterval { get; set; }
+
+        /// <summary>
         /// The root for the alias assigned to the node manager.
         /// </summary>
         public string AliasRoot { get; set; } = null!;
@@ -314,6 +329,520 @@ namespace Opc.Ua.Server
         /// </summary>
         protected ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems
             => m_monitoredItemManager.MonitoredItems;
+
+        /// <inheritdoc/>
+        async ValueTask<IReadOnlyList<IMonitoredItem>>
+            INodeManagerMonitoredItemLifecycle.GetMonitoredItemsSnapshotAsync(
+                IReadOnlyCollection<NodeId>? nodeIds,
+                CancellationToken cancellationToken)
+        {
+            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+                {
+                    if (!MonitoredItems.IsEmpty)
+                    {
+                        throw new NotSupportedException(
+                            "The configured monitored-item manager does not support lifecycle transitions.");
+                    }
+                    return [];
+                }
+                return lifecycle.GetMonitoredItemsSnapshot(nodeIds);
+            }
+            finally
+            {
+                m_monitoredItemSemaphore.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.CanAttachMonitoredItemAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            return ValidateMonitoredItemForLifecycleAsync(monitoredItem, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        async ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.DetachMonitoredItemAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
+                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
+            NodeHandle? handle = sampledMonitoredItem.ManagerHandle as NodeHandle;
+            ServiceResult result;
+            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                result = await DetachMonitoredItemForLifecycleLockedAsync(
+                    context,
+                    sampledMonitoredItem,
+                    lifecycle,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_monitoredItemSemaphore.Release();
+            }
+
+            if (ServiceResult.IsGood(result) && handle != null)
+            {
+                await OnMonitoredItemDetachedAsync(
+                    context,
+                    handle,
+                    sampledMonitoredItem,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            return result;
+        }
+
+        /// <inheritdoc/>
+        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.AttachMonitoredItemAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            return AttachMonitoredItemAndNotifyAsync(
+                monitoredItem,
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.RecoverMonitoredItemAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            return AttachMonitoredItemAndNotifyAsync(
+                monitoredItem,
+                cancellationToken);
+        }
+
+        private async ValueTask<ServiceResult> AttachMonitoredItemAndNotifyAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            ServiceResult result = await AttachMonitoredItemForLifecycleAsync(
+                monitoredItem,
+                cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsGood(result) &&
+                monitoredItem is ISampledDataChangeMonitoredItem sampled &&
+                sampled.ManagerHandle is NodeHandle handle)
+            {
+                ServerSystemContext context =
+                    SystemContext.Copy(new OperationContext(monitoredItem));
+                await OnMonitoredItemAttachedAsync(
+                    context,
+                    handle,
+                    sampled,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Called after an existing monitored item attaches to this manager.
+        /// </summary>
+        protected virtual ValueTask OnMonitoredItemAttachedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
+        {
+            return default;
+        }
+
+        /// <summary>
+        /// Called after an existing monitored item detaches from this manager.
+        /// </summary>
+        protected virtual ValueTask OnMonitoredItemDetachedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
+        {
+            return default;
+        }
+
+        private async ValueTask<ServiceResult> ValidateMonitoredItemForLifecycleAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
+                m_monitoredItemManager is not IMonitoredItemManagerLifecycle)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
+            NodeHandle handle = await GetManagerHandleAsync(
+                context,
+                monitoredItem.NodeId,
+                null!,
+                cancellationToken).ConfigureAwait(false);
+            if (handle == null)
+            {
+                return StatusCodes.BadNodeIdUnknown;
+            }
+
+            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                NodeState source = await ValidateNodeAsync(
+                    context,
+                    handle,
+                    null!,
+                    cancellationToken).ConfigureAwait(false);
+                if (source == null)
+                {
+                    return StatusCodes.BadNodeIdUnknown;
+                }
+
+                bool isEvent =
+                    (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
+                if (isEvent)
+                {
+                    return CanSubscribeToEvents(source)
+                        ? ServiceResult.Good
+                        : new ServiceResult(StatusCodes.BadNotSupported);
+                }
+
+                ServiceResult validationResult = await ValidateMonitoredItemForAttachAsync(
+                    context,
+                    handle,
+                    sampledMonitoredItem,
+                    cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(validationResult))
+                {
+                    return validationResult;
+                }
+
+                DateTime utcNow = ((Server as ITimeProviderProvider)?.TimeProvider ??
+                    TimeProvider.System).GetUtcNow().UtcDateTime;
+                var initialValue = new DataValue(
+                    Variant.Null,
+                    StatusCodes.BadWaitingForInitialData,
+                    DateTimeUtc.MinValue,
+                    utcNow);
+                ServiceResult readResult = handle.Node.ReadAttribute(
+                    context,
+                    sampledMonitoredItem.AttributeId,
+                    sampledMonitoredItem.IndexRange,
+                    sampledMonitoredItem.DataEncoding,
+                    ref initialValue);
+                return IsFatalInitialReadError(readResult)
+                    ? readResult
+                    : ServiceResult.Good;
+            }
+            finally
+            {
+                m_monitoredItemSemaphore.Release();
+            }
+        }
+
+        private async ValueTask<ServiceResult> DetachMonitoredItemForLifecycleLockedAsync(
+            ServerSystemContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            IMonitoredItemManagerLifecycle lifecycle,
+            CancellationToken cancellationToken)
+        {
+            MonitoredNode2? monitoredNode = null;
+            NodeState? eventSource = null;
+            bool isEvent =
+                (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
+            if (isEvent &&
+                monitoredItem.ManagerHandle is NodeHandle eventHandle)
+            {
+                monitoredNode = eventHandle.MonitoredNode;
+                eventSource = eventHandle.Node;
+            }
+
+            (ServiceResult result, bool changed) = lifecycle.DetachMonitoredItem(
+                context,
+                monitoredItem,
+                RemoveNodeFromComponentCache);
+            if (ServiceResult.IsGood(result) &&
+                changed &&
+                isEvent &&
+                monitoredNode is not null &&
+                eventSource is not null)
+            {
+                try
+                {
+                    eventSource.SetAreEventsMonitored(context, false, true);
+                    await OnSubscribeToEventsAsync(
+                        context,
+                        monitoredNode,
+                        true,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    var compensationFailures = new List<Exception>();
+                    NodeHandle compensationHandle =
+                        (NodeHandle)monitoredItem.ManagerHandle;
+                    (ServiceResult restoreResult, bool restored) =
+                        lifecycle.AttachMonitoredItem(
+                            context,
+                            compensationHandle,
+                            monitoredItem,
+                            AddNodeToComponentCache,
+                            RemoveNodeFromComponentCache);
+                    if (ServiceResult.IsBad(restoreResult))
+                    {
+                        compensationFailures.Add(new ServiceResultException(restoreResult));
+                    }
+                    else if (restored && compensationHandle.MonitoredNode is not null)
+                    {
+                        try
+                        {
+                            eventSource.SetAreEventsMonitored(context, true, true);
+                            await OnSubscribeToEventsAsync(
+                                context,
+                                compensationHandle.MonitoredNode,
+                                false,
+                                CancellationToken.None).ConfigureAwait(false);
+                        }
+                        catch (Exception compensationException) when (
+                            compensationException is not OutOfMemoryException)
+                        {
+                            compensationFailures.Add(compensationException);
+                        }
+                    }
+
+                    if (compensationFailures.Count > 0)
+                    {
+                        compensationFailures.Insert(0, ex);
+                        throw new AggregateException(
+                            "Event monitored-item detachment and compensation both failed.",
+                            compensationFailures);
+                    }
+                    throw;
+                }
+            }
+            if (ServiceResult.IsGood(result) && changed)
+            {
+                ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
+            }
+            return result;
+        }
+
+        private async ValueTask<ServiceResult> AttachMonitoredItemForLifecycleAsync(
+            IMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
+                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
+            NodeHandle handle = await GetManagerHandleAsync(
+                context,
+                monitoredItem.NodeId,
+                null!,
+                cancellationToken).ConfigureAwait(false);
+            if (handle == null)
+            {
+                return StatusCodes.BadNodeIdUnknown;
+            }
+
+            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                NodeState source = await ValidateNodeAsync(
+                    context,
+                    handle,
+                    null!,
+                    cancellationToken).ConfigureAwait(false);
+                if (source == null)
+                {
+                    return StatusCodes.BadNodeIdUnknown;
+                }
+
+                bool isEvent = (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
+                DataValue initialValue = default;
+                ServiceResult readResult = ServiceResult.Good;
+                if (isEvent)
+                {
+                    if (!CanSubscribeToEvents(source))
+                    {
+                        return StatusCodes.BadNotSupported;
+                    }
+                }
+                else
+                {
+                    ServiceResult validationResult = await ValidateMonitoredItemForAttachAsync(
+                        context,
+                        handle,
+                        sampledMonitoredItem,
+                        cancellationToken).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(validationResult))
+                    {
+                        return validationResult;
+                    }
+
+                    initialValue = new DataValue(
+                        Variant.Null,
+                        StatusCodes.BadWaitingForInitialData,
+                        DateTimeUtc.MinValue,
+                        ((Server as ITimeProviderProvider)?.TimeProvider ??
+                            TimeProvider.System).GetUtcNow().UtcDateTime);
+                    readResult = handle.Node.ReadAttribute(
+                        context,
+                        sampledMonitoredItem.AttributeId,
+                        sampledMonitoredItem.IndexRange,
+                        sampledMonitoredItem.DataEncoding,
+                        ref initialValue);
+                    if (IsFatalInitialReadError(readResult))
+                    {
+                        return readResult;
+                    }
+                }
+
+                (ServiceResult result, bool changed) = lifecycle.AttachMonitoredItem(
+                    context,
+                    handle,
+                    sampledMonitoredItem,
+                    AddNodeToComponentCache,
+                    RemoveNodeFromComponentCache);
+                if (ServiceResult.IsGood(result) && changed && !isEvent)
+                {
+                    sampledMonitoredItem.QueueValue(initialValue, readResult, true);
+                }
+                else if (ServiceResult.IsGood(result) &&
+                    changed &&
+                    handle.MonitoredNode is not null)
+                {
+                    try
+                    {
+                        source.SetAreEventsMonitored(context, true, true);
+                        await OnSubscribeToEventsAsync(
+                            context,
+                            handle.MonitoredNode,
+                            false,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        var compensationFailures = new List<Exception>();
+                        try
+                        {
+                            source.SetAreEventsMonitored(context, false, true);
+                            await OnSubscribeToEventsAsync(
+                                context,
+                                handle.MonitoredNode,
+                                true,
+                                CancellationToken.None).ConfigureAwait(false);
+                        }
+                        catch (Exception compensationException) when (
+                            compensationException is not OutOfMemoryException)
+                        {
+                            compensationFailures.Add(compensationException);
+                        }
+
+                        (ServiceResult detachResult, _) = lifecycle.DetachMonitoredItem(
+                            context,
+                            sampledMonitoredItem,
+                            RemoveNodeFromComponentCache);
+                        if (ServiceResult.IsBad(detachResult))
+                        {
+                            compensationFailures.Add(new ServiceResultException(detachResult));
+                        }
+                        else
+                        {
+                            try
+                            {
+                                ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
+                            }
+                            catch (Exception compensationException) when (
+                                compensationException is not OutOfMemoryException)
+                            {
+                                compensationFailures.Add(compensationException);
+                            }
+                        }
+
+                        if (compensationFailures.Count > 0)
+                        {
+                            compensationFailures.Insert(0, ex);
+                            throw new AggregateException(
+                                "Event monitored-item attachment and compensation both failed.",
+                                compensationFailures);
+                        }
+                        throw;
+                    }
+                }
+
+                return result;
+            }
+            finally
+            {
+                m_monitoredItemSemaphore.Release();
+            }
+        }
+
+        private async ValueTask<ServiceResult> ValidateMonitoredItemForAttachAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            if (!Attributes.IsValid(handle.Node.NodeClass, monitoredItem.AttributeId))
+            {
+                return StatusCodes.BadAttributeIdInvalid;
+            }
+
+            IStoredMonitoredItem storedItem = monitoredItem.ToStorableMonitoredItem();
+            ExtensionObject filter = storedItem.OriginalFilter == null
+                ? default
+                : new ExtensionObject(storedItem.OriginalFilter);
+            ValidateMonitoringFilterResult result = await ValidateMonitoringFilterAsync(
+                context,
+                handle,
+                monitoredItem.AttributeId,
+                monitoredItem.SamplingInterval,
+                monitoredItem.QueueSize,
+                filter,
+                cancellationToken).ConfigureAwait(false);
+            return result.StatusCode;
+        }
+
+        private static bool CanSubscribeToEvents(NodeState source)
+        {
+            return source switch
+            {
+                BaseObjectState instance =>
+                    (instance.EventNotifier & EventNotifiers.SubscribeToEvents) != 0,
+                ViewState view =>
+                    (view.EventNotifier & EventNotifiers.SubscribeToEvents) != 0,
+                _ => false
+            };
+        }
+
+        private static bool IsFatalInitialReadError(ServiceResult error)
+        {
+            return error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
+                error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
+                error.StatusCode == StatusCodes.BadDataEncodingUnsupported;
+        }
+
+        internal bool SuppressExistingEventSubscriptions { get; set; }
+
+        internal List<LocalReference> GetRemovedExternalReferences()
+        {
+            return m_removedExternalReferences;
+        }
+
+        internal void ClearRemovedExternalReferences()
+        {
+            m_removedExternalReferences = [];
+        }
 
         /// <inheritdoc/>
         public INodeManager SyncNodeManager => m_syncNodeManager;
@@ -503,8 +1032,12 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Add a created instance and its children to the NodeManagers AddressSpace. Assigns NodeIds if needed and fixes ReferenceTargets after assigning NodeIds.
+        /// Adds an instance and its children to the NodeManager address space.
         /// </summary>
+        /// <remarks>
+        /// Assigns NodeIds if needed, updates reference targets, and completes
+        /// the create lifecycle before indexing the subtree.
+        /// </remarks>
         /// <param name="context">The operation context.</param>
         /// <param name="parentId">An optional parent identifier.</param>
         /// <param name="instance">The instance to create.</param>
@@ -573,6 +1106,11 @@ namespace Opc.Ua.Server
         /// children are kept verbatim and used as PredefinedNodes keys.
         /// </para>
         /// <para>
+        /// Registration completes the create lifecycle for nodes which have
+        /// not already passed through
+        /// <see cref="NodeState.CreateAsPredefinedNode"/>.
+        /// </para>
+        /// <para>
         /// The supplied <paramref name="node"/> should already be attached to
         /// its parent (via <c>parent.AddChild</c>) when invoked, if a parent
         /// linkage is required for browse references.
@@ -583,14 +1121,87 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException">
         /// <paramref name="node"/> is null.
         /// </exception>
-        public async ValueTask AddPredefinedNodeAsync(NodeState node, CancellationToken cancellationToken = default)
+        public ValueTask AddPredefinedNodeAsync(
+            NodeState node,
+            CancellationToken cancellationToken = default)
         {
             if (node == null)
             {
                 throw new ArgumentNullException(nameof(node));
             }
 
-            await AddPredefinedNodeAsync(SystemContext, node, cancellationToken).ConfigureAwait(false);
+            return AddPredefinedNodeAsync(SystemContext, node, cancellationToken);
+        }
+
+        /// <summary>
+        /// Assigns final instance NodeIds to a subtree before a fluent
+        /// builder exposes it for callback wiring, so callbacks keyed by
+        /// NodeId stay valid once the node is registered.
+        /// </summary>
+        /// <remarks>
+        /// This pass assigns an id to every node that still lacks one, pulls
+        /// namespace-0 children into the root's namespace, and rebases nodes
+        /// whose id collides with a type declaration. That last case covers a
+        /// subtree materialised with <c>NodeState.Create(..., assignNodeIds:
+        /// false)</c>, whose children keep their declaration ids: they are
+        /// neither null nor in namespace 0, so only the collision check
+        /// catches them. Rebasing here rather than at registration is what
+        /// keeps the ids the fluent builder hands back final — the same
+        /// repair <c>PrepareInstanceNodeIdsForRegistration</c> would
+        /// otherwise apply later, silently invalidating them.
+        /// It is idempotent: a second call over an already prepared subtree
+        /// assigns nothing.
+        /// </remarks>
+        /// <param name="node">The root of the subtree to prepare.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="node"/> is null.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// The system context carries no NodeId factory.
+        /// </exception>
+        internal void PrepareAuthoredNodeIdsForRegistration(NodeState node)
+        {
+            if (node == null)
+            {
+                throw new ArgumentNullException(nameof(node));
+            }
+
+            if (SystemContext.NodeIdFactory == null)
+            {
+                throw new InvalidOperationException(
+                    "The system context does not provide a NodeId factory.");
+            }
+
+            var nodes = new List<NodeState> { node };
+            var children = new List<BaseInstanceState>();
+            var mappingTable = new Dictionary<NodeId, NodeId>();
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                NodeState candidate = nodes[i];
+                if (candidate.NodeId.IsNull ||
+                    HasDeclarationNodeIdCollision(candidate) ||
+                    (i > 0 &&
+                        node.NodeId.NamespaceIndex != 0 &&
+                        candidate.NodeId.NamespaceIndex == 0))
+                {
+                    NodeId previousNodeId = SystemContext.AssignInstanceNodeId(candidate);
+                    if (!previousNodeId.IsNull &&
+                        !candidate.NodeId.IsNull &&
+                        previousNodeId != candidate.NodeId)
+                    {
+                        mappingTable[previousNodeId] = candidate.NodeId;
+                    }
+                }
+
+                children.Clear();
+                candidate.GetChildren(SystemContext, children);
+                nodes.AddRange(children);
+            }
+
+            if (mappingTable.Count > 0)
+            {
+                node.UpdateReferenceTargets(SystemContext, mappingTable);
+            }
         }
 
         /// <summary>
@@ -809,7 +1420,18 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes a node and all of its children.
         /// </summary>
-        public async ValueTask<bool> DeleteNodeAsync(ServerSystemContext context, NodeId nodeId, CancellationToken cancellationToken = default)
+        public ValueTask<bool> DeleteNodeAsync(
+            ServerSystemContext context,
+            NodeId nodeId,
+            CancellationToken cancellationToken = default)
+        {
+            return DeleteNodeCoreAsync(context, nodeId, cancellationToken);
+        }
+
+        private async ValueTask<bool> DeleteNodeCoreAsync(
+            ServerSystemContext context,
+            NodeId nodeId,
+            CancellationToken cancellationToken)
         {
             ServerSystemContext contextToUse = SystemContext.Copy(context);
 
@@ -822,17 +1444,61 @@ namespace Opc.Ua.Server
 
             NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
+            IReadOnlyList<IMonitoredItem> detachedItems =
+                await DetachMonitoredItemsForNodeDeletionAsync(
+                    contextToUse,
+                    node,
+                    cancellationToken).ConfigureAwait(false);
+            bool addressSpaceRemovalStarted = false;
+            bool addressSpaceRemovalCompleted = false;
 
-            await RemovePredefinedNodeAsync(contextToUse, node!, referencesToRemove, cancellationToken).ConfigureAwait(false);
-            await RemoveRootNotifierAsync(node!, cancellationToken).ConfigureAwait(false);
-
-            // Refresh the parent's cached component view so a Browse issued
-            // after this runtime delete no longer reflects the removed child.
-            await RefreshParentComponentCacheAsync(parentId, cancellationToken).ConfigureAwait(false);
-
-            if (referencesToRemove.Count > 0)
+            try
             {
-                await Server.NodeManager.RemoveReferencesAsync(referencesToRemove, cancellationToken).ConfigureAwait(false);
+                addressSpaceRemovalStarted = true;
+                await RemovePredefinedNodeAsync(
+                    contextToUse,
+                    node!,
+                    referencesToRemove,
+                    cancellationToken).ConfigureAwait(false);
+                addressSpaceRemovalCompleted = true;
+                await RemoveRootNotifierAsync(node!, cancellationToken).ConfigureAwait(false);
+
+                // Refresh the parent's cached component view so a Browse issued
+                // after this runtime delete no longer reflects the removed child.
+                await RefreshParentComponentCacheAsync(
+                    parentId,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (referencesToRemove.Count > 0)
+                {
+                    await Server.NodeManager
+                        .RemoveReferencesAsync(referencesToRemove, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                bool nodeStillExists = PredefinedNodes.ContainsKey(node.NodeId);
+                if (!addressSpaceRemovalStarted ||
+                    (!addressSpaceRemovalCompleted && nodeStillExists))
+                {
+                    await RestoreDetachedMonitoredItemsAsync(
+                        detachedItems,
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+                else
+                {
+                    foreach (IMonitoredItem monitoredItem in detachedItems)
+                    {
+                        ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
+                    }
+                }
+                throw;
+            }
+
+            foreach (IMonitoredItem monitoredItem in detachedItems)
+            {
+                ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
             }
 
             if (ModelChangeEmissionEnabled)
@@ -853,10 +1519,18 @@ namespace Opc.Ua.Server
         public virtual bool AllowNodeManagement => false;
 
         /// <inheritdoc/>
-        public virtual async ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(
+        public virtual ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(
             OperationContext context,
             AddNodesItem item,
             CancellationToken cancellationToken = default)
+        {
+            return AddNodeCoreAsync(context, item, cancellationToken);
+        }
+
+        private async ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeCoreAsync(
+            OperationContext context,
+            AddNodesItem item,
+            CancellationToken cancellationToken)
         {
             if (item == null)
             {
@@ -1004,10 +1678,18 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask<ServiceResult> DeleteNodeAsync(
+        public virtual ValueTask<ServiceResult> DeleteNodeAsync(
             OperationContext context,
             DeleteNodesItem item,
             CancellationToken cancellationToken = default)
+        {
+            return DeleteNodeCoreAsync(context, item, cancellationToken);
+        }
+
+        private async ValueTask<ServiceResult> DeleteNodeCoreAsync(
+            OperationContext context,
+            DeleteNodesItem item,
+            CancellationToken cancellationToken)
         {
             if (item == null)
             {
@@ -1028,20 +1710,63 @@ namespace Opc.Ua.Server
 
             NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
+            IReadOnlyList<IMonitoredItem> detachedItems =
+                await DetachMonitoredItemsForNodeDeletionAsync(
+                    systemContext,
+                    node,
+                    cancellationToken).ConfigureAwait(false);
 
             var referencesToRemove = new List<LocalReference>();
-            await RemovePredefinedNodeAsync(systemContext, node!, referencesToRemove, cancellationToken)
-                .ConfigureAwait(false);
-            await RemoveRootNotifierAsync(node!, cancellationToken).ConfigureAwait(false);
-
-            // Refresh the parent's cached component view so a Browse issued
-            // after this runtime delete no longer reflects the removed child.
-            await RefreshParentComponentCacheAsync(parentId, cancellationToken).ConfigureAwait(false);
-
-            if (item.DeleteTargetReferences && referencesToRemove.Count > 0)
+            bool addressSpaceRemovalStarted = false;
+            bool addressSpaceRemovalCompleted = false;
+            try
             {
-                await Server.NodeManager.RemoveReferencesAsync(referencesToRemove, cancellationToken)
+                addressSpaceRemovalStarted = true;
+                await RemovePredefinedNodeAsync(
+                    systemContext,
+                    node!,
+                    referencesToRemove,
+                    cancellationToken)
                     .ConfigureAwait(false);
+                addressSpaceRemovalCompleted = true;
+                await RemoveRootNotifierAsync(node!, cancellationToken).ConfigureAwait(false);
+
+                // Refresh the parent's cached component view so a Browse issued
+                // after this runtime delete no longer reflects the removed child.
+                await RefreshParentComponentCacheAsync(
+                    parentId,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (item.DeleteTargetReferences && referencesToRemove.Count > 0)
+                {
+                    await Server.NodeManager
+                        .RemoveReferencesAsync(referencesToRemove, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                bool nodeStillExists = PredefinedNodes.ContainsKey(node.NodeId);
+                if (!addressSpaceRemovalStarted ||
+                    (!addressSpaceRemovalCompleted && nodeStillExists))
+                {
+                    await RestoreDetachedMonitoredItemsAsync(
+                        detachedItems,
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+                else
+                {
+                    foreach (IMonitoredItem monitoredItem in detachedItems)
+                    {
+                        ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
+                    }
+                }
+                throw;
+            }
+
+            foreach (IMonitoredItem monitoredItem in detachedItems)
+            {
+                ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
             }
 
             if (ModelChangeEmissionEnabled)
@@ -1051,6 +1776,105 @@ namespace Opc.Ua.Server
             }
 
             return ServiceResult.Good;
+        }
+
+        private async ValueTask<IReadOnlyList<IMonitoredItem>>
+            DetachMonitoredItemsForNodeDeletionAsync(
+                ISystemContext context,
+                NodeState node,
+                CancellationToken cancellationToken)
+        {
+            var detachedItems = new List<IMonitoredItem>();
+            Exception? failure = null;
+            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+                {
+                    if (!MonitoredItems.IsEmpty)
+                    {
+                        throw new NotSupportedException(
+                            "The configured monitored-item manager does not support node deletion.");
+                    }
+                    return [];
+                }
+
+                var nodeIds = new List<NodeId>();
+                var nodes = new List<NodeState> { node };
+                for (int ii = 0; ii < nodes.Count; ii++)
+                {
+                    NodeState current = nodes[ii];
+                    nodeIds.Add(current.NodeId);
+                    var children = new List<BaseInstanceState>();
+                    current.GetChildren(context, children);
+                    nodes.AddRange(children);
+                }
+
+                IReadOnlyList<IMonitoredItem> monitoredItems =
+                    lifecycle.GetMonitoredItemsSnapshot(nodeIds);
+                detachedItems.Capacity = monitoredItems.Count;
+                foreach (IMonitoredItem monitoredItem in monitoredItems)
+                {
+                    if (monitoredItem is not ISampledDataChangeMonitoredItem sampledItem)
+                    {
+                        failure = new NotSupportedException(
+                            "The monitored item does not support lifecycle transitions.");
+                        break;
+                    }
+
+                    try
+                    {
+                        ServerSystemContext itemContext =
+                            SystemContext.Copy(new OperationContext(monitoredItem));
+                        ServiceResult result =
+                            await DetachMonitoredItemForLifecycleLockedAsync(
+                                itemContext,
+                                sampledItem,
+                                lifecycle,
+                                cancellationToken).ConfigureAwait(false);
+                        if (ServiceResult.IsBad(result))
+                        {
+                            failure = new ServiceResultException(result);
+                            break;
+                        }
+                        detachedItems.Add(monitoredItem);
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        failure = ex;
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                m_monitoredItemSemaphore.Release();
+            }
+
+            if (failure is not null)
+            {
+                await RestoreDetachedMonitoredItemsAsync(
+                    detachedItems,
+                    CancellationToken.None).ConfigureAwait(false);
+                throw failure;
+            }
+            return detachedItems;
+        }
+
+        private async ValueTask RestoreDetachedMonitoredItemsAsync(
+            IReadOnlyList<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken)
+        {
+            for (int ii = monitoredItems.Count - 1; ii >= 0; ii--)
+            {
+                ServiceResult result = await AttachMonitoredItemForLifecycleAsync(
+                    monitoredItems[ii],
+                    cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(result))
+                {
+                    throw new ServiceResultException(result);
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -1360,8 +2184,14 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken cancellationToken = default)
         {
+            PrepareInstanceNodeIdsForRegistration(context, node);
+            CompleteCreateLifecycleForRegistration(context, node);
             NodeState activeNode = await AddBehaviourToPredefinedNodeAsync(context, node, cancellationToken).ConfigureAwait(false);
-            PrepareInstanceNodeIdsForRegistration(context, activeNode);
+            if (!ReferenceEquals(activeNode, node))
+            {
+                PrepareInstanceNodeIdsForRegistration(context, activeNode);
+                CompleteCreateLifecycleForRegistration(context, activeNode);
+            }
             IndexPredefinedNode(activeNode);
 
             var children = new List<BaseInstanceState>();
@@ -1376,6 +2206,14 @@ namespace Opc.Ua.Server
                 }
 
                 await AddPredefinedNodeAsync(context, children[ii], cancellationToken).ConfigureAwait(false);
+            }
+
+            if (Server.NodeManager is IDynamicNodeManagerHost recovery)
+            {
+                await recovery.RecoverDetachedMonitoredItemsAsync(
+                    this,
+                    [activeNode.NodeId],
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -1416,8 +2254,8 @@ namespace Opc.Ua.Server
                 node.NodeId.IsNull ||
                 children.Any(child =>
                     child.NodeId.IsNull ||
-                    (node.NodeId.NamespaceIndex != 0 &&
-                        child.NodeId.NamespaceIndex == 0) ||
+                    (IsNodeIdInNamespace(node.NodeId) &&
+                        !IsNodeIdInNamespace(child.NodeId)) ||
                     HasDeclarationNodeIdCollision(child));
             if (!requiresRebase)
             {
@@ -1425,32 +2263,52 @@ namespace Opc.Ua.Server
             }
 
             var subtree = new List<NodeState> { node };
+            var mappingTable = new Dictionary<NodeId, NodeId>();
             for (int ii = 0; ii < subtree.Count; ii++)
             {
+                NodeState candidate = subtree[ii];
+                if (candidate.IsPartOfTypeHierarchy)
+                {
+                    continue;
+                }
+
+                if (RequiresInstanceNodeIdRepair(candidate))
+                {
+                    if (!candidate.NodeId.IsNull &&
+                        PredefinedNodes.TryGetValue(
+                            candidate.NodeId,
+                            out NodeState? indexedNode) &&
+                        ReferenceEquals(indexedNode, candidate))
+                    {
+                        PredefinedNodes.TryRemove(candidate.NodeId, out _);
+                    }
+
+                    NodeId previousNodeId = context.AssignInstanceNodeId(candidate);
+                    if (!previousNodeId.IsNull &&
+                        !candidate.NodeId.IsNull &&
+                        !previousNodeId.Equals(candidate.NodeId))
+                    {
+                        mappingTable[previousNodeId] = candidate.NodeId;
+                    }
+                }
+
                 children.Clear();
-                subtree[ii].GetChildren(context, children);
+                candidate.GetChildren(context, children);
                 subtree.AddRange(children);
             }
 
-            foreach (NodeState candidate in subtree)
+            if (mappingTable.Count > 0)
             {
-                if (!candidate.NodeId.IsNull &&
-                    PredefinedNodes.TryGetValue(
-                        candidate.NodeId,
-                        out NodeState? indexedNode) &&
-                    ReferenceEquals(indexedNode, candidate))
-                {
-                    PredefinedNodes.TryRemove(candidate.NodeId, out _);
-                }
+                (instance.Parent ?? node).UpdateReferenceTargets(context, mappingTable);
             }
+        }
 
-            NodeId previousNodeId = node.NodeId.IsNull || rootCollision
-                ? context.AssignInstanceNodeId(node)
-                : NodeId.Null;
-            context.AssignInstanceChildNodeIds(
-                node,
-                previousNodeId,
-                instance.Parent ?? node);
+        private bool RequiresInstanceNodeIdRepair(NodeState node)
+        {
+            return !node.IsPartOfTypeHierarchy &&
+                (node.NodeId.IsNull ||
+                    !IsNodeIdInNamespace(node.NodeId) ||
+                    HasDeclarationNodeIdCollision(node));
         }
 
         private bool HasDeclarationNodeIdCollision(NodeState node)
@@ -1514,8 +2372,9 @@ namespace Opc.Ua.Server
         /// this path does not invoke
         /// <see cref="AddBehaviourToPredefinedNodeAsync"/> — it is intended
         /// for plain instance nodes that carry no asynchronous behaviour
-        /// wiring. Registration is idempotent, so a subsequent tree
-        /// registration that includes the same node is safe.
+        /// wiring. It completes the create lifecycle before indexing.
+        /// Registration is idempotent, so a subsequent tree registration
+        /// that includes the same node is safe.
         /// </remarks>
         /// <param name="node">The node subtree to register.</param>
         /// <exception cref="ArgumentNullException">
@@ -1533,6 +2392,7 @@ namespace Opc.Ua.Server
 
         private void AddPredefinedNodeSynchronously(ISystemContext context, NodeState node)
         {
+            CompleteCreateLifecycleForRegistration(context, node);
             IndexPredefinedNode(node);
 
             var children = new List<BaseInstanceState>();
@@ -1547,6 +2407,24 @@ namespace Opc.Ua.Server
                 }
 
                 AddPredefinedNodeSynchronously(context, children[ii]);
+            }
+        }
+
+        private void CompleteCreateLifecycleForRegistration(
+            ISystemContext context,
+            NodeState node)
+        {
+            if (node.IsCreated)
+            {
+                return;
+            }
+
+            node.CreateAsPredefinedNode(context);
+            if (m_logger != null)
+            {
+                m_logger.PredefinedNodeLifecycleCompletedAtRegistration(
+                    node.NodeId,
+                    node.BrowseName);
             }
         }
 
@@ -1588,21 +2466,12 @@ namespace Opc.Ua.Server
                 // need to prevent recursion with the server object.
                 if (activeNode.NodeId != ObjectIds.Server)
                 {
-                    lock (activeNode)
-                    {
-                        activeNode.OnReportEventAsync = OnReportEventAsync;
+                    activeNode.OnReportEventAsync = OnReportEventAsync;
 
-                        if (!activeNode.ReferenceExists(
-                            ReferenceTypeIds.HasNotifier,
-                            true,
-                            ObjectIds.Server))
-                        {
-                            activeNode.AddReference(
-                                ReferenceTypeIds.HasNotifier,
-                                true,
-                                ObjectIds.Server);
-                        }
-                    }
+                    activeNode.AddReferenceIfMissing(
+                        ReferenceTypeIds.HasNotifier,
+                        true,
+                        ObjectIds.Server);
                 }
             }
         }
@@ -1651,7 +2520,8 @@ namespace Opc.Ua.Server
 
             // remove from type table.
 
-            if (node is BaseTypeState type)
+            if (node is BaseTypeState type &&
+                !IsTypeOwnedByAnotherNodeManager(type.NodeId))
             {
                 Server.TypeTree.Remove(type.NodeId);
             }
@@ -1688,6 +2558,23 @@ namespace Opc.Ua.Server
             return new ValueTask();
         }
 
+        private bool IsTypeOwnedByAnotherNodeManager(NodeId typeId)
+        {
+            foreach (IAsyncNodeManager nodeManager in Server.NodeManager.AsyncNodeManagers)
+            {
+                if (ReferenceEquals(nodeManager, this) ||
+                    ReferenceEquals(nodeManager.SyncNodeManager, SyncNodeManager))
+                {
+                    continue;
+                }
+                if (nodeManager.SyncNodeManager.GetManagerHandle(typeId) is not null)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>
         /// Ensures that all reverse references exist.
         /// </summary>
@@ -1701,10 +2588,7 @@ namespace Opc.Ua.Server
             {
                 NodeState source = kvp.Value;
                 var references = new List<IReference>();
-                lock (source)
-                {
-                    source.GetReferences(SystemContext, references);
-                }
+                source.GetReferences(SystemContext, references);
 
                 for (int ii = 0; ii < references.Count; ii++)
                 {
@@ -1734,19 +2618,10 @@ namespace Opc.Ua.Server
                     // add inverse reference to internal targets.
                     if (PredefinedNodes.TryGetValue(targetId, out NodeState? target))
                     {
-                        lock (target)
-                        {
-                            if (!target.ReferenceExists(
+                        target.AddReferenceIfMissing(
                             reference.ReferenceTypeId,
                             !reference.IsInverse,
-                            source.NodeId))
-                            {
-                                target.AddReference(
-                                    reference.ReferenceTypeId,
-                                    !reference.IsInverse,
-                                    source.NodeId);
-                            }
-                        }
+                            source.NodeId);
 
                         continue;
                     }
@@ -1776,7 +2651,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Adds an external reference to the dictionary.
+        /// Adds an external reference to the dictionary if it is not
+        /// already present. The if-missing semantics keep the dictionary
+        /// clean when the collection pass runs more than once for the
+        /// same manager (e.g. after fluent <c>Configure</c> callbacks
+        /// register additional nodes).
         /// </summary>
         protected void AddExternalReference(
             NodeId sourceId,
@@ -1789,6 +2668,18 @@ namespace Opc.Ua.Server
             if (!externalReferences.TryGetValue(sourceId, out IList<IReference>? referencesToAdd))
             {
                 externalReferences[sourceId] = referencesToAdd = [];
+            }
+
+            for (int ii = 0; ii < referencesToAdd.Count; ii++)
+            {
+                IReference existingReference = referencesToAdd[ii];
+                if (existingReference.ReferenceTypeId == referenceTypeId &&
+                    existingReference.IsInverse == isInverse &&
+                    !existingReference.TargetId.IsAbsolute &&
+                    (NodeId)existingReference.TargetId == targetId)
+                {
+                    return;
+                }
             }
 
             // add reserve reference from external node.
@@ -1838,6 +2729,36 @@ namespace Opc.Ua.Server
             }
 
             AddTypesToTypeTree(type);
+        }
+
+        internal void RebuildTypeTree()
+        {
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                if (node is BaseTypeState type)
+                {
+                    AddTypesToTypeTree(type);
+                }
+            }
+
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                var references = new List<IReference>();
+                node.GetReferences(SystemContext, references);
+                foreach (IReference reference in references)
+                {
+                    if (reference.IsInverse &&
+                        reference.ReferenceTypeId == ReferenceTypeIds.HasEncoding &&
+                        !reference.TargetId.IsAbsolute)
+                    {
+                        var dataTypeId = (NodeId)reference.TargetId;
+                        if (!Server.TypeTree.IsEncodingOf(node.NodeId, dataTypeId))
+                        {
+                            Server.TypeTree.AddEncoding(dataTypeId, node.NodeId);
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -1920,10 +2841,13 @@ namespace Opc.Ua.Server
         /// are children of another predefined node are skipped because they are deleted
         /// recursively by their parent (avoiding duplicate callbacks).
         /// </remarks>
-        public virtual ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
+        public virtual async ValueTask DeleteAddressSpaceAsync(
+            CancellationToken cancellationToken = default)
         {
             NodeState[] nodes = [.. PredefinedNodes.Values];
             ISystemContext context = SystemContext;
+            List<LocalReference> referencesToRemove =
+                m_removedExternalReferences;
             foreach (NodeState node in nodes)
             {
                 if (node is BaseInstanceState instance &&
@@ -1933,10 +2857,44 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
+
                 node.Delete(context);
+                await RemoveRootNotifierAsync(node, cancellationToken).ConfigureAwait(false);
             }
-            PredefinedNodes.Clear();
-            return default;
+
+            foreach (NodeState node in nodes)
+            {
+                if (!PredefinedNodes.TryRemove(node.NodeId, out _))
+                {
+                    continue;
+                }
+
+                await OnNodeRemovedAsync(node, cancellationToken).ConfigureAwait(false);
+                if (node is BaseTypeState type &&
+                    !IsTypeOwnedByAnotherNodeManager(type.NodeId))
+                {
+                    Server.TypeTree.Remove(type.NodeId);
+                }
+
+                var references = new List<IReference>();
+                node.GetReferences(context, references);
+                foreach (IReference reference in references)
+                {
+                    if (!reference.TargetId.IsAbsolute)
+                    {
+                        referencesToRemove.Add(new LocalReference(
+                            (NodeId)reference.TargetId,
+                            reference.ReferenceTypeId,
+                            !reference.IsInverse,
+                            node.NodeId));
+                    }
+                }
+            }
+
+            foreach (NodeState notifier in RootNotifiers.Values)
+            {
+                await RemoveRootNotifierAsync(notifier, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -2003,19 +2961,10 @@ namespace Opc.Ua.Server
                 // add reference to external target.
                 foreach (IReference reference in current.Value)
                 {
-                    lock (source.Node)
-                    {
-                        if (!source.Node.ReferenceExists(
-                                reference.ReferenceTypeId,
-                                reference.IsInverse,
-                                reference.TargetId))
-                        {
-                            source.Node.AddReference(
-                                reference.ReferenceTypeId,
-                                reference.IsInverse,
-                                reference.TargetId);
-                        }
-                    }
+                    source.Node.AddReferenceIfMissing(
+                        reference.ReferenceTypeId,
+                        reference.IsInverse,
+                        reference.TargetId);
                 }
             }
         }
@@ -2046,10 +2995,7 @@ namespace Opc.Ua.Server
             }
 
             // only support references to Source Areas.
-            lock (source.Node)
-            {
-                source.Node.RemoveReference(referenceTypeId, isInverse, targetId);
-            }
+            source.Node.RemoveReference(referenceTypeId, isInverse, targetId);
 
             if (deleteBidirectional)
             {
@@ -2060,10 +3006,7 @@ namespace Opc.Ua.Server
 
                     if (target != null && target.Validated && target.Node != null)
                     {
-                        lock (target.Node)
-                        {
-                            target.Node.RemoveReference(referenceTypeId, !isInverse, source.NodeId);
-                        }
+                        target.Node.RemoveReference(referenceTypeId, !isInverse, source.NodeId);
                     }
                 }
             }
@@ -2120,14 +3063,11 @@ namespace Opc.Ua.Server
 
             var nodeMetadataValues = new Variant[s_nodeMetaDataAttributes.Length];
 
-            // read the attributes.
-            lock (target)
-            {
-                target.ReadAttributes(
-                    systemContext,
-                    ref nodeMetadataValues,
-                    s_nodeMetaDataAttributes);
-            }
+            // read the attributes. Each attribute read guards itself on the node.
+            target.ReadAttributes(
+                systemContext,
+                ref nodeMetadataValues,
+                s_nodeMetaDataAttributes);
 
             // construct the meta-data object.
             var metadata = new NodeMetadata(target, target.NodeId)
@@ -2259,15 +3199,12 @@ namespace Opc.Ua.Server
             // This is the list of attributes to be populated by GetNodeMetadata from CustomNodeManagers.
             // The are originating from services in the context of AccessRestrictions and RolePermission validation.
             // For such calls the other attributes are ignored since reading them might trigger unnecessary callbacks
-            lock (target)
-            {
-                target.ReadAttributes(
-                    systemContext,
-                    ref values,
-                    Attributes.AccessRestrictions,
-                    Attributes.RolePermissions,
-                    Attributes.UserRolePermissions);
-            }
+            target.ReadAttributes(
+                systemContext,
+                ref values,
+                Attributes.AccessRestrictions,
+                Attributes.RolePermissions,
+                Attributes.UserRolePermissions);
         }
 
         /// <summary>
@@ -2314,20 +3251,16 @@ namespace Opc.Ua.Server
             // fetch list of references.
             if (continuationPoint.Data is not BrowserContext browserContext)
             {
-                INodeBrowser browser;
-                lock (source)
-                {
-                    // create a new browser.
-                    browser = source.CreateBrowser(
-                        systemContext,
-                        continuationPoint.View,
-                        continuationPoint.ReferenceTypeId,
-                        continuationPoint.IncludeSubtypes,
-                        continuationPoint.BrowseDirection,
-                        default,
-                        null,
-                        false);
-                }
+                // create a new browser. The node guards the browser build itself.
+                INodeBrowser browser = source.CreateBrowser(
+                    systemContext,
+                    continuationPoint.View,
+                    continuationPoint.ReferenceTypeId,
+                    continuationPoint.IncludeSubtypes,
+                    continuationPoint.BrowseDirection,
+                    default,
+                    null,
+                    false);
 
                 continuationPoint.Data = browserContext = new BrowserContext(browser);
             }
@@ -2590,11 +3523,8 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            INodeBrowser browser;
-            // get list of references that relative path.
-            lock (source)
-            {
-                browser = source.CreateBrowser(
+            // get list of references that relative path. The node guards the browser build itself.
+            INodeBrowser browser = source.CreateBrowser(
                 systemContext,
                 null,
                 relativePath.ReferenceTypeId,
@@ -2603,7 +3533,6 @@ namespace Opc.Ua.Server
                 relativePath.TargetName,
                 null,
                 false);
-            }
 
             // check the browse names.
             try
@@ -2828,11 +3757,9 @@ namespace Opc.Ua.Server
                 if (!string.IsNullOrEmpty(handle.ComponentPath) &&
                     cache.TryGetValue(rootId, out target))
                 {
-                    NodeState? child;
-                    lock (target)
-                    {
-                        child = target.FindChildBySymbolicName(context, handle.ComponentPath);
-                    }
+                    NodeState? child = target.FindChildBySymbolicName(
+                        context,
+                        handle.ComponentPath);
 
                     // component exists.
                     if (child != null)
@@ -3243,15 +4170,12 @@ namespace Opc.Ua.Server
 
                         var value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
 
-                        lock (node)
-                        {
-                            node.ReadAttribute(
-                                systemContext,
-                                Attributes.Value,
-                                monitoredItem.IndexRange,
-                                default,
-                                ref value);
-                        }
+                        node.ReadAttribute(
+                            systemContext,
+                            Attributes.Value,
+                            monitoredItem.IndexRange,
+                            default,
+                            ref value);
 
                         monitoredItem.QueueValue(value, ServiceResult.Good, true);
 
@@ -3679,9 +4603,157 @@ namespace Opc.Ua.Server
             return null;
         }
 
+        /// <summary>
+        /// Allows a derived manager to handle a history read before the
+        /// historian provider pipeline is consulted.
+        /// </summary>
+        protected virtual bool TryHandleHistoryRead(
+            ISystemContext context,
+            NodeState source,
+            HistoryReadDetails details,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            HistoryReadValueId nodeToRead,
+            HistoryReadResult result,
+            out ServiceResult status)
+        {
+            status = ServiceResult.Good;
+            return false;
+        }
+
+        /// <summary>
+        /// Allows a derived manager to handle a history update before the
+        /// historian provider pipeline is consulted.
+        /// </summary>
+        protected virtual bool TryHandleHistoryUpdate(
+            ISystemContext context,
+            NodeState source,
+            HistoryUpdateDetails nodeToUpdate,
+            HistoryUpdateResult result,
+            out ServiceResult status)
+        {
+            status = ServiceResult.Good;
+            return false;
+        }
+
         private IHistorianProvider? ResolveHistorianProvider(NodeState node)
         {
             return HistorianDispatcher.ResolveProvider(Server, node, GetHistorianProvider(node));
+        }
+
+        /// <summary>
+        /// Returns whether history services are wired for the specified node.
+        /// </summary>
+        /// <remarks>
+        /// The default implementation honors the node-manager override and the
+        /// server-wide historian registry. Subclasses can override this when
+        /// history is provided by an implementation-specific route that is not
+        /// visible through either provider model.
+        /// </remarks>
+        protected virtual bool HasHistorianProvider(NodeState node)
+        {
+            NodeState? providerNode = node;
+            if (HistorianDispatcher.IsAnnotationsProperty(node))
+            {
+                providerNode = HistorianDispatcher.GetAnnotationsParent(node);
+            }
+
+            return providerNode != null && ResolveHistorianProvider(providerNode) != null;
+        }
+
+        /// <summary>
+        /// Clears historical-access advertisement from variables that do not
+        /// have a historian wired.
+        /// </summary>
+        internal void ReconcileHistoricalAccessAdvertisement()
+        {
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                ReconcileHistoricalAccessAdvertisement(node);
+            }
+        }
+
+        private void ReconcileHistoricalAccessAdvertisement(NodeState node)
+        {
+            if (node is not BaseVariableState variable ||
+                !HasHistoricalAccessAdvertisement(variable) ||
+                HasHistorianProvider(variable))
+            {
+                return;
+            }
+
+            byte accessLevel = variable.AccessLevel;
+            byte userAccessLevel = variable.UserAccessLevel;
+            variable.Historizing = false;
+            variable.AccessLevel = ClearHistoryAccess(accessLevel);
+            variable.UserAccessLevel = ClearHistoryAccess(userAccessLevel);
+            MaskHistoricalAccessReadCallbacks(variable);
+
+            m_logger.HistoryAdvertisementCleared(variable.NodeId);
+        }
+
+        private static void MaskHistoricalAccessReadCallbacks(BaseVariableState variable)
+        {
+            NodeAttributeEventHandler<byte>? onReadAccessLevel = variable.OnReadAccessLevel;
+            variable.OnReadAccessLevel = (ISystemContext context, NodeState node, ref byte value) =>
+            {
+                ServiceResult result = onReadAccessLevel?.Invoke(context, node, ref value) ?? ServiceResult.Good;
+                if (ServiceResult.IsGood(result))
+                {
+                    value = ClearHistoryAccess(value);
+                }
+                return result;
+            };
+
+            NodeAttributeEventHandler<byte>? onReadUserAccessLevel = variable.OnReadUserAccessLevel;
+            variable.OnReadUserAccessLevel = (ISystemContext context, NodeState node, ref byte value) =>
+            {
+                ServiceResult result = onReadUserAccessLevel?.Invoke(context, node, ref value) ?? ServiceResult.Good;
+                if (ServiceResult.IsGood(result))
+                {
+                    value = ClearHistoryAccess(value);
+                }
+                return result;
+            };
+
+            NodeAttributeEventHandler<uint>? onReadAccessLevelEx = variable.OnReadAccessLevelEx;
+            variable.OnReadAccessLevelEx = (ISystemContext context, NodeState node, ref uint value) =>
+            {
+                ServiceResult result = onReadAccessLevelEx?.Invoke(context, node, ref value) ?? ServiceResult.Good;
+                if (ServiceResult.IsGood(result))
+                {
+                    value = ClearHistoryAccess(value);
+                }
+                return result;
+            };
+
+            NodeAttributeEventHandler<bool>? onReadHistorizing = variable.OnReadHistorizing;
+            variable.OnReadHistorizing = (ISystemContext context, NodeState node, ref bool value) =>
+            {
+                ServiceResult result = onReadHistorizing?.Invoke(context, node, ref value) ?? ServiceResult.Good;
+                if (ServiceResult.IsGood(result))
+                {
+                    value = false;
+                }
+                return result;
+            };
+        }
+
+        private static bool HasHistoricalAccessAdvertisement(BaseVariableState variable)
+        {
+            return variable.Historizing ||
+                (variable.AccessLevel & kHistoryAccessMask) != 0 ||
+                (variable.UserAccessLevel & kHistoryAccessMask) != 0;
+        }
+
+        private static byte ClearHistoryAccess(byte accessLevel)
+        {
+            return (byte)(accessLevel & ~kHistoryAccessMask);
+        }
+
+        private static uint ClearHistoryAccess(uint accessLevel)
+        {
+            return accessLevel & ~(uint)kHistoryAccessMask;
         }
 
         /// <summary>
@@ -3733,6 +4805,20 @@ namespace Opc.Ua.Server
                 NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
                 if (source == null)
                 {
+                    continue;
+                }
+
+                if (TryHandleHistoryRead(
+                    context,
+                    source,
+                    details,
+                    timestampsToReturn,
+                    false,
+                    nodesToRead[handle.Index],
+                    results[handle.Index],
+                    out ServiceResult status))
+                {
+                    errors[handle.Index] = status;
                     continue;
                 }
 
@@ -3815,6 +4901,20 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                if (TryHandleHistoryRead(
+                    context,
+                    source,
+                    details,
+                    timestampsToReturn,
+                    false,
+                    nodesToRead[handle.Index],
+                    results[handle.Index],
+                    out ServiceResult status))
+                {
+                    errors[handle.Index] = status;
+                    continue;
+                }
+
                 if (source is not BaseVariableState)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -3871,6 +4971,20 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                if (TryHandleHistoryRead(
+                    context,
+                    source,
+                    details,
+                    timestampsToReturn,
+                    false,
+                    nodesToRead[handle.Index],
+                    results[handle.Index],
+                    out ServiceResult status))
+                {
+                    errors[handle.Index] = status;
+                    continue;
+                }
+
                 if (source is not BaseVariableState)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -3920,6 +5034,20 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                if (TryHandleHistoryRead(
+                    context,
+                    source,
+                    details,
+                    timestampsToReturn,
+                    false,
+                    nodesToRead[handle.Index],
+                    results[handle.Index],
+                    out ServiceResult status))
+                {
+                    errors[handle.Index] = status;
+                    continue;
+                }
+
                 IHistorianProvider? provider = ResolveHistorianProvider(source);
                 if (provider == null)
                 {
@@ -3953,13 +5081,47 @@ namespace Opc.Ua.Server
             // check if continuation points are being released.
             if (releaseContinuationPoints)
             {
-                await HistoryReleaseContinuationPointsAsync(
-                    context,
-                    nodesToRead,
-                    errors,
-                    nodesToProcess,
-                    cache,
-                    cancellationToken).ConfigureAwait(false);
+                var providerNodes = new List<NodeHandle>(nodesToProcess.Count);
+                foreach (NodeHandle handle in nodesToProcess)
+                {
+                    NodeState source = await ValidateNodeAsync(
+                        context,
+                        handle,
+                        cache,
+                        cancellationToken).ConfigureAwait(false);
+                    if (source == null)
+                    {
+                        continue;
+                    }
+
+                    if (TryHandleHistoryRead(
+                        context,
+                        source,
+                        details,
+                        timestampsToReturn,
+                        true,
+                        nodesToRead[handle.Index],
+                        results[handle.Index],
+                        out ServiceResult status))
+                    {
+                        errors[handle.Index] = status;
+                    }
+                    else
+                    {
+                        providerNodes.Add(handle);
+                    }
+                }
+
+                if (providerNodes.Count > 0)
+                {
+                    await HistoryReleaseContinuationPointsAsync(
+                        context,
+                        nodesToRead,
+                        errors,
+                        providerNodes,
+                        cache,
+                        cancellationToken).ConfigureAwait(false);
+                }
 
                 return;
             }
@@ -4390,6 +5552,17 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                if (TryHandleHistoryUpdate(
+                    context,
+                    source,
+                    nodesToUpdate[handle.Index],
+                    results[handle.Index],
+                    out ServiceResult status))
+                {
+                    errors[handle.Index] = status;
+                    continue;
+                }
+
                 if (source is not BaseVariableState)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -4433,6 +5606,17 @@ namespace Opc.Ua.Server
                 NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
                 if (source == null)
                 {
+                    continue;
+                }
+
+                if (TryHandleHistoryUpdate(
+                    context,
+                    source,
+                    nodesToUpdate[handle.Index],
+                    results[handle.Index],
+                    out ServiceResult status))
+                {
+                    errors[handle.Index] = status;
                     continue;
                 }
 
@@ -4488,6 +5672,17 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                if (TryHandleHistoryUpdate(
+                    context,
+                    source,
+                    nodesToUpdate[handle.Index],
+                    results[handle.Index],
+                    out ServiceResult status))
+                {
+                    errors[handle.Index] = status;
+                    continue;
+                }
+
                 IHistorianProvider? provider = ResolveHistorianProvider(source);
                 if (provider == null)
                 {
@@ -4520,6 +5715,17 @@ namespace Opc.Ua.Server
                 NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
                 if (source == null)
                 {
+                    continue;
+                }
+
+                if (TryHandleHistoryUpdate(
+                    context,
+                    source,
+                    nodesToUpdate[handle.Index],
+                    results[handle.Index],
+                    out ServiceResult status))
+                {
+                    errors[handle.Index] = status;
                     continue;
                 }
 
@@ -4568,6 +5774,17 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                if (TryHandleHistoryUpdate(
+                    context,
+                    source,
+                    nodesToUpdate[handle.Index],
+                    results[handle.Index],
+                    out ServiceResult status))
+                {
+                    errors[handle.Index] = status;
+                    continue;
+                }
+
                 if (source is not BaseVariableState)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
@@ -4610,6 +5827,17 @@ namespace Opc.Ua.Server
                 NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
                 if (source == null)
                 {
+                    continue;
+                }
+
+                if (TryHandleHistoryUpdate(
+                    context,
+                    source,
+                    nodesToUpdate[handle.Index],
+                    results[handle.Index],
+                    out ServiceResult status))
+                {
+                    errors[handle.Index] = status;
                     continue;
                 }
 
@@ -4661,10 +5889,7 @@ namespace Opc.Ua.Server
             }
 
             MethodState? method;
-            lock (source)
-            {
-                method = source.FindMethod(systemContext, methodToCall.MethodId);
-            }
+            method = source.FindMethod(systemContext, methodToCall.MethodId);
 
             if (method != null)
             {
@@ -4672,13 +5897,10 @@ namespace Opc.Ua.Server
             }
 
             bool referenceExists;
-            lock (source)
-            {
-                referenceExists = source.ReferenceExists(
-                    ReferenceTypeIds.HasComponent,
-                    false,
-                    methodToCall.MethodId);
-            }
+            referenceExists = source.ReferenceExists(
+                ReferenceTypeIds.HasComponent,
+                false,
+                methodToCall.MethodId);
 
             if (referenceExists)
             {
@@ -4944,27 +6166,13 @@ namespace Opc.Ua.Server
         /// </remarks>
         protected virtual async ValueTask AddRootNotifierAsync(NodeState notifier, CancellationToken cancellationToken = default)
         {
-            RootNotifiers.AddOrUpdate(notifier.NodeId, notifier, (key, _) => notifier);
-
-            // need to prevent recursion with the server object.
-            if (notifier.NodeId != ObjectIds.Server)
-            {
-                lock (notifier)
-                {
-                    notifier.OnReportEventAsync = OnReportEventAsync;
-
-                    if (!notifier.ReferenceExists(
-                        ReferenceTypeIds.HasNotifier,
-                        true,
-                        ObjectIds.Server))
-                    {
-                        notifier.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
-                    }
-                }
-            }
+            AddRootNotifierSynchronously(notifier);
+            await PublishRootNotifierReferenceAsync(notifier, cancellationToken)
+                .ConfigureAwait(false);
 
             // subscribe to existing events.
-            if (Server.EventManager != null)
+            if (!SuppressExistingEventSubscriptions &&
+                Server.EventManager != null)
             {
                 IList<IEventMonitoredItem> monitoredItems = Server.EventManager
                     .GetMonitoredItems();
@@ -4973,10 +6181,89 @@ namespace Opc.Ua.Server
                 {
                     if (monitoredItems[ii].MonitoringAllEvents)
                     {
-                        await SubscribeToEventsAsync(SystemContext, notifier, monitoredItems[ii], true, cancellationToken).ConfigureAwait(false);
+                        await SubscribeToEventsAsync(
+                            SystemContext,
+                            notifier,
+                            monitoredItems[ii],
+                            false,
+                            cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Synchronously registers a root event notifier owned by this node manager.
+        /// </summary>
+        protected internal void AddRootNotifierSynchronously(NodeState notifier)
+        {
+            if (notifier == null)
+            {
+                throw new ArgumentNullException(nameof(notifier));
+            }
+
+            RootNotifiers.AddOrUpdate(notifier.NodeId, notifier, (key, _) => notifier);
+
+            // need to prevent recursion with the server object.
+            if (notifier.NodeId != ObjectIds.Server)
+            {
+                notifier.OnReportEventAsync = OnReportEventAsync;
+
+                notifier.AddReferenceIfMissing(
+                    ReferenceTypeIds.HasNotifier,
+                    true,
+                    ObjectIds.Server);
+
+                // The matching forward reference on the Server Object belongs
+                // to whichever node manager owns it, so it is published
+                // through PublishRootNotifierReferenceAsync rather than being
+                // written into the shared ServerObjectState from here.
+            }
+        }
+
+        internal async ValueTask PublishRootNotifierReferencesAsync(
+            CancellationToken cancellationToken = default)
+        {
+            foreach (NodeState notifier in RootNotifiers.Values)
+            {
+                await PublishRootNotifierReferenceAsync(notifier, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask PublishRootNotifierReferenceAsync(
+            NodeState notifier,
+            CancellationToken cancellationToken)
+        {
+            if (notifier.NodeId == ObjectIds.Server)
+            {
+                return;
+            }
+
+            ServerObjectState? serverObject = Server.ServerObject;
+            if (serverObject != null &&
+                serverObject.ReferenceExists(
+                    ReferenceTypeIds.HasNotifier,
+                    false,
+                    notifier.NodeId))
+            {
+                return;
+            }
+
+            IList<IReference> references =
+            [
+                new ReferenceNode
+                {
+                    ReferenceTypeId = ReferenceTypeIds.HasNotifier,
+                    IsInverse = false,
+                    TargetId = notifier.NodeId
+                }
+            ];
+
+            await Server.NodeManager.AddReferencesAsync(
+                ObjectIds.Server,
+                references,
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -4990,20 +6277,24 @@ namespace Opc.Ua.Server
         {
             if (RootNotifiers.TryRemove(notifier.NodeId, out notifier!))
             {
-                lock (notifier)
-                {
-                    notifier.OnReportEventAsync = null;
+                notifier.OnReportEventAsync = null;
 
-                    if (notifier.ReferenceExists(
+                notifier.RemoveReference(
+                    ReferenceTypeIds.HasNotifier,
+                    true,
+                    ObjectIds.Server);
+
+                ServerObjectState? serverObject = Server.ServerObject;
+                if (serverObject != null &&
+                    serverObject.ReferenceExists(
                         ReferenceTypeIds.HasNotifier,
-                        true,
-                        ObjectIds.Server))
-                    {
-                        notifier.RemoveReference(
-                            ReferenceTypeIds.HasNotifier,
-                            true,
-                            ObjectIds.Server);
-                    }
+                        false,
+                        notifier.NodeId))
+                {
+                    serverObject.RemoveReference(
+                        ReferenceTypeIds.HasNotifier,
+                        false,
+                        notifier.NodeId);
                 }
             }
             return default;
@@ -5057,6 +6348,11 @@ namespace Opc.Ua.Server
             await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                bool wasSubscribed = m_monitoredItemManager.MonitoredNodes.TryGetValue(
+                    source.NodeId,
+                    out MonitoredNode2? existingMonitoredNode) &&
+                    existingMonitoredNode.EventMonitoredItems.ContainsKey(
+                        monitoredItem.Id);
                 (MonitoredNode2? monitoredNode, ServiceResult serviceResult) = m_monitoredItemManager!
                     .SubscribeToEvents(
                         context,
@@ -5067,7 +6363,8 @@ namespace Opc.Ua.Server
                 // This call recursively updates a reference count all nodes in the notifier
                 // hierarchy below the area. Sources with a reference count of 0 do not have
                 // any active subscriptions so they do not need to report events.
-                lock (source)
+                if (ServiceResult.IsGood(serviceResult) &&
+                    wasSubscribed == unsubscribe)
                 {
                     source.SetAreEventsMonitored(context, !unsubscribe, true);
                 }
@@ -5209,6 +6506,7 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext = SystemContext.Copy();
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
             var nodesToValidate = new List<NodeHandle>();
+            var restoredItems = new List<IMonitoredItem>();
 
             for (int ii = 0; ii < itemsToRestore.Count; ii++)
             {
@@ -5282,6 +6580,7 @@ namespace Opc.Ua.Server
 
                         // save the monitored item.
                         monitoredItems[handle.Index] = monitoredItem!;
+                        restoredItems.Add(monitoredItem!);
                         monitoredItem = null; // ownership transferred
                     }
                     finally
@@ -5299,6 +6598,10 @@ namespace Opc.Ua.Server
 
             // do any post processing.
             OnCreateMonitoredItemsComplete(systemContext, monitoredItems);
+            await OnCreateMonitoredItemsCompleteAsync(
+                systemContext,
+                restoredItems,
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -5329,7 +6632,7 @@ namespace Opc.Ua.Server
 
             bool success = m_monitoredItemManager.RestoreMonitoredItem(
                 Server,
-                m_syncNodeManager.ToAsyncNodeManager(),
+                this,
                 context,
                 handle,
                 storedMonitoredItem,
@@ -5465,6 +6768,10 @@ namespace Opc.Ua.Server
 
             // do any post processing.
             OnCreateMonitoredItemsComplete(systemContext, createdItems);
+            await OnCreateMonitoredItemsCompleteAsync(
+                systemContext,
+                createdItems,
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -5475,6 +6782,31 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems)
         {
             // defined by the sub-class
+        }
+
+        /// <summary>
+        /// Called asynchronously after a batch of monitored items has been
+        /// created and committed to the monitored-item manager.
+        /// </summary>
+        protected virtual ValueTask OnCreateMonitoredItemsCompleteAsync(
+            ServerSystemContext context,
+            IList<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
+        {
+            // defined by the sub-class
+            return default;
+        }
+
+        /// <summary>
+        /// Called before the stack creates a data-change monitored item.
+        /// </summary>
+        protected virtual ValueTask<MonitoredItemCreateDecision>
+            OnCreatingMonitoredItemAsync(
+                MonitoredItemCreateContext context,
+                CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<MonitoredItemCreateDecision>(
+                MonitoredItemCreateDecision.UseDefault());
         }
 
         /// <summary>
@@ -5498,6 +6830,24 @@ namespace Opc.Ua.Server
             MonitoringFilterResult? filterResult = null;
             IMonitoredItem? monitoredItem = null;
 
+            var createContext = new MonitoredItemCreateContext(
+                context,
+                handle,
+                subscriptionId,
+                publishingInterval,
+                diagnosticsMasks,
+                timestampsToReturn,
+                itemToCreate,
+                createDurable);
+            MonitoredItemCreateDecision decision =
+                await OnCreatingMonitoredItemAsync(
+                    createContext,
+                    cancellationToken).ConfigureAwait(false);
+            if (decision.Kind == MonitoredItemCreateDecisionKind.Refuse)
+            {
+                return (decision.Error!, filterResult, monitoredItem);
+            }
+
             // validate parameters.
             MonitoringParameters parameters = itemToCreate.RequestedParameters;
 
@@ -5508,26 +6858,12 @@ namespace Opc.Ua.Server
             }
 
             // determine the sampling interval.
-            double samplingInterval = itemToCreate.RequestedParameters.SamplingInterval;
-
-            if (samplingInterval < 0)
-            {
-                samplingInterval = publishingInterval;
-            }
-
-            // ensure minimum sampling interval is not exceeded.
-            if (itemToCreate.ItemToMonitor.AttributeId == Attributes.Value &&
-                handle.Node is BaseVariableState variable &&
-                samplingInterval < variable.MinimumSamplingInterval)
-            {
-                samplingInterval = variable.MinimumSamplingInterval;
-            }
-
-            // put a large upper limit on sampling.
-            if (samplingInterval == double.MaxValue)
-            {
-                samplingInterval = 365 * 24 * 3600 * 1000.0;
-            }
+            double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                itemToCreate.RequestedParameters.SamplingInterval,
+                publishingInterval,
+                handle.Node,
+                itemToCreate.ItemToMonitor.AttributeId,
+                MinSupportedSamplingInterval);
 
             // put an upper limit on queue size.
             uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(
@@ -5551,10 +6887,39 @@ namespace Opc.Ua.Server
                 return (validateMonitoringFilterResult.StatusCode, filterResult, monitoredItem);
             }
 
-            ISampledDataChangeMonitoredItem dataChangeMonitoredItem =
-                m_monitoredItemManager.CreateMonitoredItem(
+            ISampledDataChangeMonitoredItem dataChangeMonitoredItem;
+            if (decision.Kind == MonitoredItemCreateDecisionKind.Custom)
+            {
+                if (m_monitoredItemManager is not ICustomMonitoredItemManager customManager)
+                {
+                    return (StatusCodes.BadNotSupported, filterResult, monitoredItem);
+                }
+
+                dataChangeMonitoredItem = customManager.CreateCustomMonitoredItem(
                     Server,
-                    m_syncNodeManager.ToAsyncNodeManager(),
+                    this,
+                    context,
+                    handle,
+                    subscriptionId,
+                    publishingInterval,
+                    diagnosticsMasks,
+                    timestampsToReturn,
+                    itemToCreate,
+                    validateMonitoringFilterResult.Range,
+                    validateMonitoringFilterResult.FilterToUse,
+                    samplingInterval,
+                    revisedQueueSize,
+                    createDurable,
+                    monitoredItemId,
+                    AddNodeToComponentCache,
+                    RemoveNodeFromComponentCache,
+                    decision.Factory!);
+            }
+            else
+            {
+                dataChangeMonitoredItem = m_monitoredItemManager.CreateMonitoredItem(
+                    Server,
+                    this,
                     context,
                     handle,
                     subscriptionId,
@@ -5569,20 +6934,31 @@ namespace Opc.Ua.Server
                     createDurable,
                     monitoredItemId,
                     AddNodeToComponentCache);
+            }
 
             monitoredItem = dataChangeMonitoredItem;
 
             // report the initial value.
-            ServiceResult error = ReadInitialValue(context, handle, dataChangeMonitoredItem);
-            if (ServiceResult.IsBad(error))
+            ServiceResult error = ServiceResult.Good;
+            if (decision.Kind != MonitoredItemCreateDecisionKind.Custom ||
+                decision.QueueInitialValue)
             {
-                if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
-                    error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
-                    error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
+                error = ReadInitialValue(context, handle, dataChangeMonitoredItem);
+                if (ServiceResult.IsBad(error))
                 {
-                    return (error, filterResult, monitoredItem);
+                    if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
+                        error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
+                        error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
+                    {
+                        _ = m_monitoredItemManager.DeleteMonitoredItem(
+                            context,
+                            dataChangeMonitoredItem,
+                            handle);
+                        monitoredItem = null;
+                        return (error, filterResult, monitoredItem);
+                    }
+                    error = StatusCodes.Good;
                 }
-                error = StatusCodes.Good;
             }
 
             // report change.
@@ -5673,7 +7049,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates if the specified event monitored item has enough permissions to receive the specified event
         /// </summary>
-        public ValueTask<ServiceResult> ValidateEventRolePermissionsAsync(
+        public async ValueTask<ServiceResult> ValidateEventRolePermissionsAsync(
             IEventMonitoredItem monitoredItem,
             IFilterTarget filterTarget,
             CancellationToken cancellationToken = default)
@@ -5694,13 +7070,13 @@ namespace Opc.Ua.Server
                 sourceNodeId = baseEventState.SourceNode?.Value ?? default;
             }
 
-            var operationContext = new OperationContext(monitoredItem);
+            using var operationContext = new OperationContext(monitoredItem);
 
-            return ValidateEventReceivePermissionsAsync(
+            return await ValidateEventReceivePermissionsAsync(
                 operationContext,
                 eventTypeId,
                 sourceNodeId,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -5882,30 +7258,26 @@ namespace Opc.Ua.Server
             // need to look up the EU range if a percent filter is requested.
             if (deadbandFilter.DeadbandType == (uint)DeadbandType.Percent)
             {
-                lock (handle.Node)
+                // FindChild and the property value read each guard themselves on the node.
+                if (handle.Node.FindChild(
+                    context,
+                    QualifiedName.From(BrowseNames.EURange)) is not PropertyState property)
                 {
-                    if (handle.Node.FindChild(
-                        context,
-                        QualifiedName.From(BrowseNames.EURange)) is not PropertyState property)
-                    {
-                        result.StatusCode = StatusCodes.BadMonitoredItemFilterUnsupported;
-                        return result;
-                    }
-
-                    Range tmpRange;
-                    bool gotRange = property.Value.TryGetStructure(out tmpRange!);
-                    if (!gotRange)
-                    {
-                        result.StatusCode = StatusCodes.BadMonitoredItemFilterUnsupported;
-                        return result;
-                    }
-                    Range range = tmpRange;
-
-                    result.FilterToUse = deadbandFilter;
-                    result.Range = range!;
-                    result.StatusCode = StatusCodes.Good;
+                    result.StatusCode = StatusCodes.BadMonitoredItemFilterUnsupported;
                     return result;
                 }
+
+                Range tmpRange;
+                if (!property.Value.TryGetStructure(out tmpRange!))
+                {
+                    result.StatusCode = StatusCodes.BadMonitoredItemFilterUnsupported;
+                    return result;
+                }
+
+                result.FilterToUse = deadbandFilter;
+                result.Range = tmpRange;
+                result.StatusCode = StatusCodes.Good;
+                return result;
             }
 
             // no other type of filter supported.
@@ -6076,26 +7448,12 @@ namespace Opc.Ua.Server
             double previousSamplingInterval = datachangeItem!.SamplingInterval;
 
             // check if the variable needs to be sampled.
-            double samplingInterval = itemToModify.RequestedParameters.SamplingInterval;
-
-            if (samplingInterval < 0)
-            {
-                samplingInterval = previousSamplingInterval;
-            }
-
-            // ensure minimum sampling interval is not exceeded.
-            if (datachangeItem.AttributeId == Attributes.Value &&
-                handle.Node is BaseVariableState variable &&
-                samplingInterval < variable.MinimumSamplingInterval)
-            {
-                samplingInterval = variable.MinimumSamplingInterval;
-            }
-
-            // put a large upper limit on sampling.
-            if (samplingInterval == double.MaxValue)
-            {
-                samplingInterval = 365 * 24 * 3600 * 1000.0;
-            }
+            double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                itemToModify.RequestedParameters.SamplingInterval,
+                previousSamplingInterval,
+                handle.Node,
+                datachangeItem.AttributeId,
+                MinSupportedSamplingInterval);
 
             // put an upper limit on queue size.
             uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(
@@ -6290,7 +7648,8 @@ namespace Opc.Ua.Server
         /// <param name="processedItems">The list of bool with items that were already processed.</param>
         /// <param name="errors">Any errors.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        public virtual async ValueTask TransferMonitoredItemsAsync(
+        [Obsolete("Use TransferMonitoredItemsAsync with MonitoredItemTransferOptions.")]
+        public virtual ValueTask TransferMonitoredItemsAsync(
             OperationContext context,
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
@@ -6298,8 +7657,38 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
+            return TransferMonitoredItemsAsync(
+                context,
+                sendInitialValues,
+                monitoredItems,
+                processedItems,
+                errors,
+                new MonitoredItemTransferOptions(),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="sendInitialValues">Whether the subscription should send initial values after transfer.</param>
+        /// <param name="monitoredItems">The set of monitoring items to update.</param>
+        /// <param name="processedItems">The list of bool with items that were already processed.</param>
+        /// <param name="errors">Any errors.</param>
+        /// <param name="transferOptions">Options that describe the transfer execution.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public virtual async ValueTask TransferMonitoredItemsAsync(
+            OperationContext context,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems,
+            IList<ServiceResult> errors,
+            MonitoredItemTransferOptions transferOptions,
+            CancellationToken cancellationToken = default)
+        {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             var transferredItems = new List<IMonitoredItem>();
+            bool deferInitialValues = transferOptions.DeferInitialValues;
 
             await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -6322,7 +7711,8 @@ namespace Opc.Ua.Server
                     // owned by this node manager.
                     processedItems[ii] = true;
                     transferredItems.Add(monitoredItems[ii]);
-                    if (sendInitialValues)
+                    if (sendInitialValues &&
+                        !deferInitialValues)
                     {
                         monitoredItems[ii].SetupResendDataTrigger();
                     }
@@ -6537,7 +7927,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns true if a node is in a view.
         /// </summary>
-        public virtual async ValueTask<bool> IsNodeInViewAsync(
+        /// <remarks>
+        /// Delegates to <see cref="IsNodeInView(ServerSystemContext, NodeId, NodeState)"/>,
+        /// which sub-classes override to implement view membership.
+        /// </remarks>
+        public virtual ValueTask<bool> IsNodeInViewAsync(
             OperationContext context,
             NodeId viewId,
             object nodeHandle,
@@ -6545,15 +7939,16 @@ namespace Opc.Ua.Server
         {
             if (nodeHandle is not NodeHandle handle)
             {
-                return false;
+                return new ValueTask<bool>(false);
             }
 
             if (handle.Node != null)
             {
-                return await IsNodeInViewAsync(context, viewId, handle.Node, cancellationToken).ConfigureAwait(false);
+                return new ValueTask<bool>(
+                    IsNodeInView(SystemContext.Copy(context), viewId, handle.Node));
             }
 
-            return false;
+            return new ValueTask<bool>(false);
         }
 
         /// <summary>
@@ -6989,7 +8384,8 @@ namespace Opc.Ua.Server
         /// the monitored item manager of the NodeManager
         /// </summary>
         protected IMonitoredItemManager m_monitoredItemManager;
-
+        private List<LocalReference> m_removedExternalReferences = [];
+        private bool m_disposed;
         /// <summary>
         /// the sync NodeManager adapter
         /// </summary>
@@ -7016,5 +8412,7 @@ namespace Opc.Ua.Server
         /// Counter for the NodeIdFactory.New Method
         /// </summary>
         private uint m_lastUsedNodeId;
+
+        private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
     }
 }

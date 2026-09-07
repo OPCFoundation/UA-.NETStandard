@@ -42,6 +42,11 @@ namespace Opc.Ua.Server.Fluent
     ///   <item><description><see cref="Organizes(INodeBuilder, NodeId)"/>
     ///     — adds an <c>Organizes</c> reference (DI uses this to gather
     ///     unrelated variables under a FunctionalGroup).</description></item>
+    ///   <item><description><see cref="OrganizedBy(INodeBuilder, NodeId)"/>
+    ///     / <see cref="UnderObjectsFolder(INodeBuilder)"/>
+    ///     — the inverse direction: places the node under an organizing
+    ///     parent, including parents owned by another node manager such
+    ///     as the Objects folder.</description></item>
     ///   <item><description><see cref="HasComponent(INodeBuilder, NodeId)"/>
     ///     / <see cref="HasProperty(INodeBuilder, NodeId)"/>
     ///     — common hierarchical references.</description></item>
@@ -55,13 +60,11 @@ namespace Opc.Ua.Server.Fluent
     /// </list>
     /// <para>
     /// Newly created child objects are attached to the parent via
-    /// <see cref="NodeState.AddChild"/>; their NodeIds are generated from
-    /// the parent's NodeId by appending the child browse name (matching
-    /// the pattern used by the generated state classes and the
-    /// PumpDeviceIntegrationServer NodeIdFactory). Direct NodeId lookup on a newly
-    /// created child requires the owning node manager to index the new
-    /// node via <c>AddPredefinedNodeAsync</c>; until then the child is
-    /// reachable through navigation from the parent.
+    /// <see cref="NodeState.AddChild"/> and registered with the owning
+    /// node manager. Their NodeIds are generated from the parent's
+    /// NodeId by appending the child browse name (matching the pattern
+    /// used by the generated state classes and the
+    /// PumpDeviceIntegrationServer NodeIdFactory).
     /// </para>
     /// </remarks>
     public static class ReferenceBuilderExtensions
@@ -94,6 +97,46 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentNullException(nameof(target));
             }
             return builder.Organizes(target.NodeId);
+        }
+
+        /// <summary>
+        /// Adds an inverse <see cref="ReferenceTypeIds.Organizes"/>
+        /// reference from the current node to
+        /// <paramref name="parentId"/>, declaring that the node is
+        /// organized by that parent.
+        /// </summary>
+        /// <remarks>
+        /// When the parent is owned by another node manager (e.g. the
+        /// Objects folder managed by the CoreNodeManager), the matching
+        /// forward reference is published automatically at the end of
+        /// <c>Configure</c> by the
+        /// <c>FluentNodeManagerBase.CompleteConfigureAsync</c> pass —
+        /// the same mechanism that places NodeSet-declared nodes.
+        /// </remarks>
+        /// <param name="builder">The owning node builder.</param>
+        /// <param name="parentId">NodeId of the organizing parent.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        public static INodeBuilder OrganizedBy(
+            this INodeBuilder builder,
+            NodeId parentId)
+        {
+            return builder.AddReference(ReferenceTypeIds.Organizes, isInverse: true, parentId);
+        }
+
+        /// <summary>
+        /// Places the current node under the standard Objects folder by
+        /// adding an inverse <see cref="ReferenceTypeIds.Organizes"/>
+        /// reference to <see cref="ObjectIds.ObjectsFolder"/>. Shorthand
+        /// for <c>OrganizedBy(ObjectIds.ObjectsFolder)</c>; see
+        /// <see cref="OrganizedBy(INodeBuilder, NodeId)"/> for how the
+        /// forward edge reaches the CoreNodeManager.
+        /// </summary>
+        /// <param name="builder">The owning node builder.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        public static INodeBuilder UnderObjectsFolder(
+            this INodeBuilder builder)
+        {
+            return builder.OrganizedBy(ObjectIds.ObjectsFolder);
         }
 
         /// <summary>
@@ -200,6 +243,7 @@ namespace Opc.Ua.Server.Fluent
                 BrowseName = browseName,
                 DisplayName = new LocalizedText(symbolicName),
                 SymbolicName = symbolicName,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
                 TypeDefinitionId = typeDef
             };
 
@@ -212,6 +256,7 @@ namespace Opc.Ua.Server.Fluent
                 parent.Node.NodeId.NamespaceIndex);
 
             parent.Node.AddChild(child);
+            FluentNodeRegistration.RegisterCreatedNode(parent.Builder, child);
 
             // Return a typed builder pointing at the new child. Reuse the
             // existing NodeManagerBuilder.AsTyped path by going through a
@@ -344,6 +389,46 @@ namespace Opc.Ua.Server.Fluent
 
             public INodeBuilder OnMonitoredItemCreated(MonitoredItemCreatedHandler handler)
             {
+                if (Builder is NodeManagerBuilder nodeManagerBuilder)
+                {
+                    nodeManagerBuilder.RegisterMonitoredItemCreated(Node, handler);
+                }
+                return this;
+            }
+
+            public INodeBuilder OnCreateMonitoredItem(MonitoredItemCreatingHandler handler)
+            {
+                if (Builder is NodeManagerBuilder nodeManagerBuilder)
+                {
+                    nodeManagerBuilder.RegisterMonitoredItemCreating(Node, handler);
+                }
+                return this;
+            }
+
+            public INodeBuilder OnMonitoredItemModified(MonitoredItemModifiedHandler handler)
+            {
+                if (Builder is NodeManagerBuilder nodeManagerBuilder)
+                {
+                    nodeManagerBuilder.RegisterMonitoredItemModified(Node, handler);
+                }
+                return this;
+            }
+
+            public INodeBuilder OnMonitoredItemDeleted(MonitoredItemDeletedHandler handler)
+            {
+                if (Builder is NodeManagerBuilder nodeManagerBuilder)
+                {
+                    nodeManagerBuilder.RegisterMonitoredItemDeleted(Node, handler);
+                }
+                return this;
+            }
+
+            public INodeBuilder OnMonitoringModeChanged(MonitoringModeChangedHandler handler)
+            {
+                if (Builder is NodeManagerBuilder nodeManagerBuilder)
+                {
+                    nodeManagerBuilder.RegisterMonitoringModeChanged(Node, handler);
+                }
                 return this;
             }
 
@@ -355,9 +440,9 @@ namespace Opc.Ua.Server.Fluent
 
             public INodeBuilder AllowMultipleEventConsumers(bool enable = true)
             {
-                if (Builder is NodeManagerBuilder nmb)
+                if (Builder is NodeManagerBuilder nodeManagerBuilder)
                 {
-                    nmb.RegisterMultiConsumerNode(Node, enable);
+                    nodeManagerBuilder.RegisterMultiConsumerNode(Node, enable);
                 }
                 return this;
             }

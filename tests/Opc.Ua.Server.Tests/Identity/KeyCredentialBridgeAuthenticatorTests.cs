@@ -32,6 +32,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.Versioning;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -178,15 +180,41 @@ namespace Opc.Ua.Server.Tests.Identity
         [Test]
         public void ExperimentalAttributeIsPresent()
         {
-#if NET8_0_OR_GREATER
+            // The [Experimental] attribute is only emitted when Opc.Ua.Server is
+            // compiled for .NET 8 or later (the attribute type does not exist in
+            // the netstandard2.1 / .NET Framework BCL). This test assembly is
+            // always compiled for net8.0, so a compile-time #if would reflect the
+            // TEST target framework, not the STACK's. Probe the actual compiled
+            // target framework of the Opc.Ua.Server assembly under test instead.
+            string frameworkName = typeof(KeyCredentialBridgeAuthenticator).Assembly
+                .GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName;
+
+            // frameworkName looks like ".NETCoreApp,Version=v8.0",
+            // ".NETStandard,Version=v2.1" or ".NETFramework,Version=v4.8".
+            bool stackIsNet8OrGreater = false;
+            if (frameworkName != null &&
+                frameworkName.StartsWith(".NETCoreApp", StringComparison.Ordinal))
+            {
+                string[] parts = frameworkName.Split('=');
+                string versionText = parts.Length > 1
+                    ? parts[parts.Length - 1].TrimStart('v', 'V')
+                    : string.Empty;
+                stackIsNet8OrGreater =
+                    Version.TryParse(versionText, out Version version) && version.Major >= 8;
+            }
+
+            if (!stackIsNet8OrGreater)
+            {
+                Assert.Ignore(
+                    "ExperimentalAttribute is only emitted when Opc.Ua.Server is compiled for " +
+                    ".NET 8 or later.");
+            }
+
             object attribute = typeof(KeyCredentialBridgeAuthenticator)
                 .GetCustomAttributes(false)
                 .SingleOrDefault(a => a.GetType().FullName ==
                     "System.Diagnostics.CodeAnalysis.ExperimentalAttribute");
             Assert.That(attribute, Is.Not.Null);
-#else
-            Assert.Pass("ExperimentalAttribute is emitted on net8.0 and greater only.");
-#endif
         }
 
         private static async Task<InMemoryKeyCredentialStore> CreateStoreAsync(DateTime expiration)

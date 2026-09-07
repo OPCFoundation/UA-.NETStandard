@@ -40,6 +40,10 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 
+// This fixture intentionally exercises the obsolete synchronous
+// StartService/Dispose compatibility wrappers as part of its coverage.
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Client.Tests.ClientBuilder
 {
     /// <summary>

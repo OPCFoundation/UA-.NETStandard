@@ -205,8 +205,8 @@ namespace Opc.Ua.Gds.Tests
             }
             finally
             {
-                authStore.Close();
-                store.Close();
+                authStore.Dispose();
+                store.Dispose();
             }
         }
 

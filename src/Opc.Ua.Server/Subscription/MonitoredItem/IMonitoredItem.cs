@@ -76,7 +76,7 @@ namespace Opc.Ua.Server
         uint ClientHandle { get; }
 
         /// <summary>
-        /// The object to call when item is ready to publish.
+        /// The subscription that owns the monitored item.
         /// </summary>
         ISubscription SubscriptionCallback { get; set; }
 
@@ -344,6 +344,18 @@ namespace Opc.Ua.Server
         /// Updates the sampling interval for an item.
         /// </summary>
         void SetSamplingInterval(double samplingInterval);
+    }
+
+    /// <summary>
+    /// Restores monitored item transient state when a prepared subscription transfer is rolled back.
+    /// </summary>
+    internal interface IMonitoredItemTransferState
+    {
+        /// <summary>
+        /// Restores the resend-data trigger to the value captured before transfer preparation.
+        /// </summary>
+        /// <param name="resendData">The original resend-data trigger state.</param>
+        void RestoreResendDataTrigger(bool resendData);
     }
 
     /// <summary>

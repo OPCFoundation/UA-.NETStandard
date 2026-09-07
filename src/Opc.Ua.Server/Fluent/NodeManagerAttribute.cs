@@ -82,5 +82,22 @@ namespace Opc.Ua.Server.Fluent
         /// author the factory by hand.
         /// </summary>
         public bool GenerateFactory { get; set; } = true;
+
+        /// <summary>
+        /// Additional namespace URIs the manager owns beyond the model's
+        /// own namespace — typically a separate instance namespace (e.g.
+        /// <c>"http://opcfoundation.org/UA/Boiler/Instance"</c>).
+        /// </summary>
+        /// <remarks>
+        /// The generated constructor passes these to the base node
+        /// manager together with the model namespace, so the master node
+        /// manager routes requests for them to this manager from the
+        /// moment it is built. Reporting an extra namespace later via
+        /// <c>SetNamespaces</c> is not sufficient, because the master
+        /// builds its namespace routing from what the manager reported
+        /// at construction. The generated factory advertises the same
+        /// set through <c>NamespacesUris</c>.
+        /// </remarks>
+        public string[] AdditionalNamespaceUris { get; set; } = null!;
     }
 }

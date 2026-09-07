@@ -89,12 +89,16 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             ITransportChannelBindings? channelFactory = null,
             ChannelManagerOptions? options = null)
+            : this(
+                configuration,
+                GetConfigurationTelemetry(configuration),
+                channelFactory,
+                reconnectPolicy: null,
+                timeProvider: null,
+                options,
+                securityPolicies: null,
+                enableGeneralTelemetry: false)
         {
-            Configuration = configuration;
-            ChannelBindings = channelFactory;
-            m_options = options ?? new ChannelManagerOptions();
-            m_certRotation = new ClientChannelManagerCertRotation(this);
-            WireCertificateRotation();
         }
 
         /// <summary>
@@ -134,6 +138,7 @@ namespace Opc.Ua
                     clientCertificateChain,
                     context,
                     ChannelBindings,
+                    SecurityPolicyRegistry,
                     ct).ConfigureAwait(false);
             }
             else
@@ -146,6 +151,7 @@ namespace Opc.Ua
                     clientCertificateChain,
                     context,
                     ChannelBindings,
+                    SecurityPolicyRegistry,
                     ct).ConfigureAwait(false);
             }
             if (channel is ISecureChannel secureChannel)
@@ -182,6 +188,7 @@ namespace Opc.Ua
             CertificateCollection? clientCertificateChain,
             IServiceMessageContext messageContext,
             ITransportChannelBindings? transportChannelBindings = null,
+            ISecurityPolicyRegistry? securityPolicies = null,
             CancellationToken ct = default)
         {
             // initialize the channel which will be created with the server.
@@ -208,7 +215,8 @@ namespace Opc.Ua
                 Description = description,
                 Configuration = endpointConfiguration,
                 ClientCertificate = clientCertificate,
-                ClientCertificateChain = clientCertificateChain
+                ClientCertificateChain = clientCertificateChain,
+                SecurityPolicyRegistry = securityPolicies
             };
 
             try
@@ -252,6 +260,9 @@ namespace Opc.Ua
         /// <param name="clientCertificateChain">The client certificate chain.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
         /// <param name="transportChannelBindings">Optional bindings to use</param>
+        /// <param name="securityPolicies">Optional security policy registry the
+        /// channel negotiates against. Defaults to
+        /// <see cref="SecurityPolicies.Default"/>.</param>
         /// <param name="ct">The cancellation token</param>
         /// <exception cref="ServiceResultException"></exception>
         /// <exception cref="ArgumentException"></exception>
@@ -263,6 +274,7 @@ namespace Opc.Ua
             CertificateCollection? clientCertificateChain,
             IServiceMessageContext messageContext,
             ITransportChannelBindings? transportChannelBindings = null,
+            ISecurityPolicyRegistry? securityPolicies = null,
             CancellationToken ct = default)
         {
             var endpointUrl = new Uri(description.EndpointUrl
@@ -301,7 +313,8 @@ namespace Opc.Ua
                 Description = description,
                 Configuration = endpointConfiguration,
                 ClientCertificate = clientCertificate,
-                ClientCertificateChain = clientCertificateChain
+                ClientCertificateChain = clientCertificateChain,
+                SecurityPolicyRegistry = securityPolicies
             };
 
             try
@@ -450,23 +463,69 @@ namespace Opc.Ua
         /// <param name="timeProvider">Optional time provider for backoff
         /// timing. Defaults to <see cref="TimeProvider.System"/>.</param>
         /// <param name="options">Optional channel manager options.</param>
+        /// <param name="securityPolicies">Optional security policy registry the
+        /// channels this manager creates negotiate against. Defaults to
+        /// <see cref="SecurityPolicies.Default"/>.</param>
         public ClientChannelManager(
             ApplicationConfiguration configuration,
             ITelemetryContext telemetry,
             ITransportChannelBindings? channelFactory = null,
             IChannelReconnectPolicy? reconnectPolicy = null,
             TimeProvider? timeProvider = null,
-            ChannelManagerOptions? options = null)
-            : this(configuration, channelFactory, options)
+            ChannelManagerOptions? options = null,
+            ISecurityPolicyRegistry? securityPolicies = null)
+            : this(
+                configuration,
+                telemetry,
+                channelFactory,
+                reconnectPolicy,
+                timeProvider,
+                options,
+                securityPolicies,
+                enableGeneralTelemetry: true)
         {
-            Logger = telemetry?.CreateLogger<ClientChannelManager>();
-            m_meter = telemetry?.CreateMeter();
-            m_metrics = m_meter != null
-                ? new ClientChannelManagerMetrics(this, m_meter)
-                : null;
+        }
+
+        private ClientChannelManager(
+            ApplicationConfiguration configuration,
+            ITelemetryContext? telemetry,
+            ITransportChannelBindings? channelFactory,
+            IChannelReconnectPolicy? reconnectPolicy,
+            TimeProvider? timeProvider,
+            ChannelManagerOptions? options,
+            ISecurityPolicyRegistry? securityPolicies,
+            bool enableGeneralTelemetry)
+        {
+            Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            ChannelBindings = channelFactory;
+            SecurityPolicyRegistry = securityPolicies;
+            m_options = options ?? new ChannelManagerOptions();
+            m_diagnostics = new ClientChannelManagerDiagnostics(
+                TelemetryExtensions.CreateLogger(
+                    telemetry,
+                    CoreEventIds.ChannelManagerCompatibilityCategory));
+            if (enableGeneralTelemetry)
+            {
+                Logger = TelemetryExtensions.CreateLogger<ClientChannelManager>(telemetry);
+                m_meter = telemetry?.CreateMeter();
+                m_metrics = m_meter != null
+                    ? new ClientChannelManagerMetrics(this, m_meter)
+                    : null;
+            }
             ReconnectPolicy = reconnectPolicy ?? new ExponentialBackoffChannelReconnectPolicy();
             TimeProvider = timeProvider ?? TimeProvider.System;
+            BackgroundWork = new BackgroundTaskScope(nameof(ClientChannelManager), telemetry);
+            m_certRotation = new ClientChannelManagerCertRotation(this);
+            WireCertificateRotation();
         }
+
+        /// <summary>
+        /// Owns the background work the channel internals start but cannot await
+        /// inline, so it is drained before the manager goes away.
+        /// </summary>
+        internal BackgroundTaskScope BackgroundWork { get; }
+
+        BackgroundTaskScope IChannelEntryHost.BackgroundWork => BackgroundWork;
 
         /// <inheritdoc/>
         public ValueTask<IManagedTransportChannel> GetAsync(
@@ -643,6 +702,12 @@ namespace Opc.Ua
 
         internal ITransportChannelBindings? ChannelBindings { get; }
 
+        /// <summary>
+        /// The security policies the channels this manager creates negotiate
+        /// against, or <c>null</c> for <see cref="SecurityPolicies.Default"/>.
+        /// </summary>
+        internal ISecurityPolicyRegistry? SecurityPolicyRegistry { get; }
+
         internal IChannelReconnectPolicy ReconnectPolicy { get; } = new ExponentialBackoffChannelReconnectPolicy();
 
         internal TimeProvider TimeProvider { get; } = TimeProvider.System;
@@ -710,14 +775,68 @@ namespace Opc.Ua
                 entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
             }
 
-            Task<bool> reconnectTask = entry.RequestReconnectAsync(budget, ct);
+            Task<bool> reconnectTask;
+            try
+            {
+                reconnectTask = entry.RequestReconnectAsync(budget, ct);
+            }
+            catch (ServiceResultException sre) when (IsTerminalReconnectRace(entry, sre, ct))
+            {
+                entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
+                reconnectTask = entry.RequestReconnectAsync(budget, ct);
+            }
+
             if (throwOnReconnectFailure)
             {
-                await AwaitReconnectResultAsync(reconnectTask).ConfigureAwait(false);
+                try
+                {
+                    await AwaitReconnectResultAsync(reconnectTask).ConfigureAwait(false);
+                }
+                catch (ServiceResultException sre) when (IsTerminalReconnectRace(entry, sre, ct))
+                {
+                    entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
+                    await AwaitReconnectResultAsync(entry.RequestReconnectAsync(budget, ct))
+                        .ConfigureAwait(false);
+                }
                 return;
             }
 
-            _ = await reconnectTask.ConfigureAwait(false);
+            try
+            {
+                _ = await reconnectTask.ConfigureAwait(false);
+            }
+            catch (ServiceResultException sre) when (IsTerminalReconnectRace(entry, sre, ct))
+            {
+                entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
+                _ = await entry.RequestReconnectAsync(budget, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Whether a terminal reconnect failure is a lost race against a
+        /// concurrent close, in which case retrying on a freshly swapped entry
+        /// recovers transparently.
+        /// </summary>
+        /// <remarks>
+        /// A reconnect cycle that stopped because the reconnect policy ran out of
+        /// attempts, or because the caller's retry budget ran out of time, is a
+        /// deliberate terminal outcome rather than a race. It leaves the entry
+        /// <see cref="ChannelState.Faulted"/> with
+        /// <see cref="StatusCodes.BadSecureChannelClosed"/> - indistinguishable from a
+        /// lost race by state and status code alone - so the entry is asked directly.
+        /// Swapping and reconnecting after a deliberate stop would run a second,
+        /// unbudgeted cycle behind the swap back-off and defeat the very limit that
+        /// ended the first one.
+        /// </remarks>
+        private static bool IsTerminalReconnectRace(
+            ChannelEntry entry,
+            ServiceResultException sre,
+            CancellationToken ct)
+        {
+            return !ct.IsCancellationRequested &&
+                !entry.ReconnectStoppedByRetryPolicy &&
+                sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
+                entry.State is ChannelState.Closed or ChannelState.Faulted;
         }
 
         private async ValueTask<ChannelEntry> SwapFaultedEntryAsync(
@@ -944,7 +1063,7 @@ namespace Opc.Ua
             }
 
             m_shutdownCts.Cancel();
-            DisposeCertificateRotation();
+            m_certRotation.Dispose();
 
             Certificate? clientCertificate;
             CertificateCollection? clientCertificateChain;
@@ -970,6 +1089,11 @@ namespace Opc.Ua
                 await entry.DisposeAsync(ChannelCloseReason.ManagerDisposed)
                     .ConfigureAwait(false);
             }
+
+            // Drain last: releasing a lease or tearing down an entry can still
+            // schedule background work, and none of it may outlive the manager
+            // whose state it touches.
+            await BackgroundWork.DisposeAsync().ConfigureAwait(false);
 
             m_meter?.Dispose();
             m_shutdownCts.Dispose();
@@ -1046,11 +1170,6 @@ namespace Opc.Ua
         private void WireCertificateRotation()
         {
             m_certRotation.WireCertificateRotation();
-        }
-
-        private void DisposeCertificateRotation()
-        {
-            m_certRotation.DisposeCertificateRotation();
         }
 
         ApplicationConfiguration IChannelCertRotationHost.Configuration => Configuration;
@@ -1264,6 +1383,14 @@ namespace Opc.Ua
             return s_defaultBindings.Value;
         }
 
+        private static ITelemetryContext? GetConfigurationTelemetry(
+            ApplicationConfiguration configuration)
+        {
+            return (configuration ?? throw new ArgumentNullException(nameof(configuration)))
+                .CreateMessageContext()
+                .Telemetry;
+        }
+
         [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(
             "Trimming", "IL2026",
             Justification = "Pre-DI fallback path only; DI consumers receive an explicit registry.")]
@@ -1276,7 +1403,7 @@ namespace Opc.Ua
             CreateDefaultBindingsRegistry,
             LazyThreadSafetyMode.ExecutionAndPublication);
 
-        private readonly ClientChannelManagerDiagnostics m_diagnostics = new();
+        private readonly ClientChannelManagerDiagnostics m_diagnostics;
     }
 
     /// <summary>

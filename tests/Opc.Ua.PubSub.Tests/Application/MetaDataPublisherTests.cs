@@ -28,15 +28,18 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.Encoding.Json;
 using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Transports;
@@ -194,9 +197,151 @@ namespace Opc.Ua.PubSub.Tests.Application
                 "Disposed publisher must not respond to MetaDataChanged events.");
         }
 
+        [Test]
+        public async Task DataSetMetaDataChangeRepublishesAndDisposeUnsubscribesAsync()
+        {
+            DataSetMetaDataType currentMetaData = NewMeta();
+            var source = new Mock<IPublishedDataSetSource>();
+            source
+                .Setup(s => s.BuildMetaData())
+                .Returns(() => currentMetaData);
+            Mock<IMetaDataChangeNotifier> notifier = source.As<IMetaDataChangeNotifier>();
+            var messages = new ConcurrentQueue<JsonMetaDataMessage>();
+            var encoder = new Mock<INetworkMessageEncoder>();
+            encoder
+                .SetupGet(e => e.TransportProfileUri)
+                .Returns(JsonMqttProfile);
+            encoder
+                .Setup(e => e.EncodeAsync(
+                    It.IsAny<PubSubNetworkMessage>(),
+                    It.IsAny<PubSubNetworkMessageContext>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((
+                    PubSubNetworkMessage message,
+                    PubSubNetworkMessageContext _,
+                    CancellationToken _) =>
+                {
+                    if (message is JsonMetaDataMessage metaDataMessage)
+                    {
+                        messages.Enqueue(metaDataMessage);
+                    }
+                    return new ValueTask<ReadOnlyMemory<byte>>(new byte[] { 1 });
+                });
+            var factory = new RecordingTransportFactory(JsonMqttProfile, supportsTopics: true);
+            await using IPubSubApplication app = BuildApp(
+                JsonMqttProfile,
+                factory,
+                source.Object,
+                encoder.Object);
+
+            await app.StartAsync(CancellationToken.None).ConfigureAwait(false);
+            await WaitUntilAsync(
+                () => messages.Count == 1,
+                TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+
+            DataSetMetaDataType updated = NewMeta(majorVersion: 2);
+            updated.Name = "updated-pds";
+            currentMetaData = updated;
+            notifier.Raise(n => n.MetaDataChanged += null, EventArgs.Empty);
+
+            await WaitUntilAsync(
+                () => messages.Count == 2,
+                TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+
+            JsonMetaDataMessage republished = messages.Last();
+            Assert.Multiple(() =>
+            {
+                Assert.That(republished.MetaData, Is.SameAs(updated));
+                Assert.That(republished.MetaDataPayload, Is.SameAs(updated));
+                Assert.That(republished.WriterGroupId, Is.EqualTo(WriterGroupIdValue));
+                Assert.That(republished.DataSetWriterId, Is.EqualTo(DataSetWriterIdValue));
+            });
+
+            await app.DisposeAsync().ConfigureAwait(false);
+            int countAfterDispose = messages.Count;
+
+            currentMetaData = NewMeta(majorVersion: 3);
+            notifier.Raise(n => n.MetaDataChanged += null, EventArgs.Empty);
+
+            await Task.Delay(150).ConfigureAwait(false);
+            Assert.That(
+                messages,
+                Has.Count.EqualTo(countAfterDispose),
+                "Disposed publisher must remove the per-dataset metadata subscription.");
+        }
+
+        [Test]
+        public async Task EveryWriterSharingADataSetIsAnnouncedAsync()
+        {
+            //
+            // Several writers may publish the same PublishedDataSet - the same
+            // DataSetName referenced from different writers, groups or
+            // connections - and each announces to its own destination. A
+            // subscription taken per dataset rather than per writer would
+            // watch only the first of them, and the rest would never
+            // re-announce.
+            //
+            const ushort secondWriterId = 43;
+            DataSetMetaDataType currentMetaData = NewMeta();
+            var source = new Mock<IPublishedDataSetSource>();
+            source
+                .Setup(s => s.BuildMetaData())
+                .Returns(() => currentMetaData);
+            Mock<IMetaDataChangeNotifier> notifier = source.As<IMetaDataChangeNotifier>();
+            var messages = new ConcurrentQueue<JsonMetaDataMessage>();
+            var encoder = new Mock<INetworkMessageEncoder>();
+            encoder
+                .SetupGet(e => e.TransportProfileUri)
+                .Returns(JsonMqttProfile);
+            encoder
+                .Setup(e => e.EncodeAsync(
+                    It.IsAny<PubSubNetworkMessage>(),
+                    It.IsAny<PubSubNetworkMessageContext>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((
+                    PubSubNetworkMessage message,
+                    PubSubNetworkMessageContext _,
+                    CancellationToken _) =>
+                {
+                    if (message is JsonMetaDataMessage metaDataMessage)
+                    {
+                        messages.Enqueue(metaDataMessage);
+                    }
+                    return new ValueTask<ReadOnlyMemory<byte>>(new byte[] { 1 });
+                });
+            var factory = new RecordingTransportFactory(JsonMqttProfile, supportsTopics: true);
+            await using IPubSubApplication app = BuildApp(
+                JsonMqttProfile,
+                factory,
+                source.Object,
+                encoder.Object,
+                secondWriterId);
+
+            await app.StartAsync(CancellationToken.None).ConfigureAwait(false);
+            await WaitUntilAsync(
+                () => messages.Count >= 2,
+                TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+            messages.Clear();
+
+            currentMetaData = NewMeta(majorVersion: 2);
+            notifier.Raise(n => n.MetaDataChanged += null, EventArgs.Empty);
+
+            await WaitUntilAsync(
+                () => messages.Count >= 2,
+                TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+
+            Assert.That(
+                messages.Select(m => m.DataSetWriterId).Distinct(),
+                Is.EquivalentTo(new[] { DataSetWriterIdValue, secondWriterId }),
+                "Both writers of a shared data set must re-announce.");
+        }
+
         private static IPubSubApplication BuildApp(
             string transportProfileUri,
-            RecordingTransportFactory factory)
+            RecordingTransportFactory factory,
+            IPublishedDataSetSource? source = null,
+            INetworkMessageEncoder? encoder = null,
+            ushort? secondWriterId = null)
         {
             string addressUrl = transportProfileUri == JsonMqttProfile
                 ? "mqtt://localhost:1883"
@@ -218,15 +363,32 @@ namespace Opc.Ua.PubSub.Tests.Application
                         Name = "wg-1",
                         WriterGroupId = WriterGroupIdValue,
                         PublishingInterval = 600_000,
-                        DataSetWriters = new ArrayOf<DataSetWriterDataType>(new[]
-                        {
-                            new DataSetWriterDataType
+                        DataSetWriters = new ArrayOf<DataSetWriterDataType>(
+                            secondWriterId is null
+                            ? new[]
                             {
-                                Name = "writer-1",
-                                DataSetWriterId = DataSetWriterIdValue,
-                                DataSetName = "pds-1"
+                                new DataSetWriterDataType
+                                {
+                                    Name = "writer-1",
+                                    DataSetWriterId = DataSetWriterIdValue,
+                                    DataSetName = "pds-1"
+                                }
                             }
-                        })
+                            : new[]
+                            {
+                                new DataSetWriterDataType
+                                {
+                                    Name = "writer-1",
+                                    DataSetWriterId = DataSetWriterIdValue,
+                                    DataSetName = "pds-1"
+                                },
+                                new DataSetWriterDataType
+                                {
+                                    Name = "writer-2",
+                                    DataSetWriterId = secondWriterId.Value,
+                                    DataSetName = "pds-1"
+                                }
+                            })
                     }
                 })
             };
@@ -244,7 +406,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                     }
                 }
             };
-            return new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+            var builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
                 .WithApplicationId("metadata-tests")
                 .UseConfiguration(new PubSubConfigurationDataType
                 {
@@ -252,10 +414,19 @@ namespace Opc.Ua.PubSub.Tests.Application
                     PublishedDataSets =
                         new ArrayOf<PublishedDataSetDataType>(new[] { pds })
                 })
-                .AddDataSetSource("pds-1", new MetaDataOnlySource(pds.DataSetMetaData))
-                .UseAllStandardEncoders()
-                .AddTransportFactory(factory)
-                .Build();
+                .AddDataSetSource(
+                    "pds-1",
+                    source ?? new MetaDataOnlySource(pds.DataSetMetaData))
+                .AddTransportFactory(factory);
+            if (encoder is null)
+            {
+                builder.UseAllStandardEncoders();
+            }
+            else
+            {
+                builder.AddEncoder(encoder);
+            }
+            return builder.Build();
         }
 
         private static DataSetMetaDataKey NewKey()

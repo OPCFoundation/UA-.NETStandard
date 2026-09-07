@@ -42,11 +42,6 @@ using ISession = Opc.Ua.Client.ISession;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 using ServerRedundancyInfo = Opc.Ua.Client.ServerRedundancyInfo;
 
-// CA2016: integration tests intentionally call cleanup in finally without forwarding the test
-// cancellation token. The test CT may already be cancelled (the [CancelAfter] timeout), which
-// would prevent cleanup from running. CloseAsync/DisposeAsync must complete regardless.
-#pragma warning disable CA2016
-
 namespace Opc.Ua.Sessions.Tests
 {
     /// <summary>
@@ -69,6 +64,12 @@ namespace Opc.Ua.Sessions.Tests
     public class ManagedSessionReconnectIntegrationTests
         : ClientTestFramework
     {
+        private static readonly StatusCode[] s_permanentReactivationFailures =
+        [
+            StatusCodes.BadSecurityChecksFailed,
+            StatusCodes.BadIdentityChangeNotSupported
+        ];
+
         [OneTimeSetUp]
         public override Task OneTimeSetUpAsync()
         {
@@ -183,8 +184,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.CloseAsync().ConfigureAwait(false);
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -267,8 +267,77 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.CloseAsync().ConfigureAwait(false);
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
+            }
+        }
+
+        [TestCaseSource(nameof(s_permanentReactivationFailures))]
+        [Order(250)]
+        [CancelAfter(120_000)]
+        public async Task ManagedSessionRecreatesAfterPermanentReactivationFailureAsync(
+            StatusCode statusCode,
+            CancellationToken ct)
+        {
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .ConfigureAwait(false);
+            ManagedSessionType session = await new ManagedSessionBuilder(
+                    ClientFixture.Config, Telemetry)
+                .UseEndpoint(endpoint)
+                .WithSessionName(
+                    nameof(ManagedSessionRecreatesAfterPermanentReactivationFailureAsync))
+                .WithReconnectPolicy(p => p with
+                {
+                    Strategy = BackoffStrategy.Constant,
+                    InitialDelay = TimeSpan.Zero,
+                    MaxRetries = 3,
+                    JitterFactor = 0.0
+                })
+                .ConnectAsync(ct)
+                .ConfigureAwait(false);
+            IServiceResponseMutator? originalResponseMutator = ReferenceServer.ResponseMutator;
+            var mockController = new MockResponseController();
+            NodeId originalSessionId = session.SessionId;
+            var reconnected = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            session.ConnectionStateChanged += (_, e) =>
+            {
+                if (e.PreviousState == ConnectionState.Reconnecting &&
+                    e.NewState == ConnectionState.Connected)
+                {
+                    reconnected.TrySetResult(true);
+                }
+            };
+
+            try
+            {
+                ReferenceServer.ResponseMutator = mockController;
+                using IDisposable expectation = mockController
+                    .ExpectNextResponse<ActivateSessionResponse>(
+                        response => response.ResponseHeader.ServiceResult = statusCode);
+
+                session.StateMachine.TriggerReconnect();
+
+                Assert.That(
+                    await WaitOrCanceledAsync(
+                        reconnected.Task,
+                        TimeSpan.FromSeconds(60),
+                        ct).ConfigureAwait(false),
+                    Is.True,
+                    "The managed session should recreate after permanent reactivation failure.");
+                Assert.That(session.SessionId, Is.Not.EqualTo(originalSessionId));
+                Assert.That(session.Connected, Is.True);
+
+                DataValue value = await session
+                    .ReadValueAsync(VariableIds.Server_ServerStatus_State, ct)
+                    .ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(value.StatusCode), Is.True);
+            }
+            finally
+            {
+                ReferenceServer.ResponseMutator = originalResponseMutator;
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -360,7 +429,7 @@ namespace Opc.Ua.Sessions.Tests
 
                 Assert.That(session.Connected, Is.True);
 
-                await session.CloseAsync().ConfigureAwait(false);
+                await session.CloseAsync(ct).ConfigureAwait(false);
 
                 // After Close we expect at least: Connected -> Closing
                 // and Closing -> Closed.
@@ -413,7 +482,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -530,8 +599,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.CloseAsync().ConfigureAwait(false);
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -624,7 +692,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -753,8 +821,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.CloseAsync().ConfigureAwait(false);
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -905,8 +972,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.CloseAsync().ConfigureAwait(false);
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -1088,8 +1154,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.CloseAsync().ConfigureAwait(false);
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -1123,6 +1188,10 @@ namespace Opc.Ua.Sessions.Tests
                     MaxRetries = 1,
                     JitterFactor = 0.0
                 })
+                // A cross-Session anonymous transfer is forbidden on a None
+                // channel. Use the same authenticated ClientUserId on both
+                // sides of the recreation so transfer is expected to succeed.
+                .WithUserIdentity(new UserIdentity("user1", "password"u8))
                 .WithServerRedundancy(fakeHandler)
                 .WithTransferSubscriptionsOnRecreate()
                 .ConnectAsync(ct)
@@ -1233,8 +1302,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             finally
             {
-                await session.CloseAsync().ConfigureAwait(false);
-                await session.DisposeAsync().ConfigureAwait(false);
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
             }
         }
 
@@ -1395,6 +1463,27 @@ namespace Opc.Ua.Sessions.Tests
                 return await waitTask.ConfigureAwait(false);
             }
             return false;
+        }
+
+        private static async Task CloseAndDisposeAsync(ManagedSessionType session)
+        {
+            using var closeCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            try
+            {
+                await session.CloseAsync(closeCancellation.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is OperationCanceledException or ServiceResultException)
+            {
+            }
+
+            Task disposeTask = session.DisposeAsync().AsTask();
+            Task completedTask = await Task.WhenAny(
+                disposeTask,
+                Task.Delay(TimeSpan.FromSeconds(30))).ConfigureAwait(false);
+            if (completedTask == disposeTask)
+            {
+                await disposeTask.ConfigureAwait(false);
+            }
         }
 
         private static async Task<bool> WaitForAsync(

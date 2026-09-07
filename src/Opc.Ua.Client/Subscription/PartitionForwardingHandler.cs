@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -177,6 +178,8 @@ namespace Opc.Ua.Client.Subscriptions
             await m_serialise.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                publishStateMask = AggregatePublishState(
+                    subscription, state, publishStateMask);
                 await m_userHandler.OnSubscriptionStateChangedAsync(logical,
                     state, publishStateMask, ct).ConfigureAwait(false);
             }
@@ -184,6 +187,34 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 m_serialise.Release();
             }
+        }
+
+        private PublishState AggregatePublishState(ISubscription subscription,
+            SubscriptionState state, PublishState publishStateMask)
+        {
+            bool wasStopped = m_stoppedSubscriptions.Count != 0;
+            if (publishStateMask.HasFlag(PublishState.Stopped))
+            {
+                m_stoppedSubscriptions.Add(subscription);
+            }
+            if (publishStateMask.HasFlag(PublishState.Recovered) ||
+                publishStateMask.HasFlag(PublishState.Completed) ||
+                state is SubscriptionState.Created or SubscriptionState.Deleted)
+            {
+                m_stoppedSubscriptions.Remove(subscription);
+            }
+
+            bool isStopped = m_stoppedSubscriptions.Count != 0;
+            publishStateMask &= ~(PublishState.Stopped | PublishState.Recovered);
+            if (isStopped)
+            {
+                publishStateMask |= PublishState.Stopped;
+            }
+            else if (wasStopped)
+            {
+                publishStateMask |= PublishState.Recovered;
+            }
+            return publishStateMask;
         }
 
         /// <inheritdoc/>
@@ -194,6 +225,7 @@ namespace Opc.Ua.Client.Subscriptions
 
         private readonly ISubscriptionNotificationHandler m_userHandler;
         private readonly SemaphoreSlim m_serialise = new(1, 1);
+        private readonly HashSet<ISubscription> m_stoppedSubscriptions = [];
         private ISubscription? m_logical;
     }
 }

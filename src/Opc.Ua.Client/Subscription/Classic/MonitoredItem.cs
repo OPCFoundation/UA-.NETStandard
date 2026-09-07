@@ -564,7 +564,9 @@ namespace Opc.Ua.Client
                             {
                                 m_logger.ReceivedServerTimestampServerTimestampFutureMonitoredItemIdMonitoredItemId(
                                     datachange.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
-                                    ClientHandle);
+                                    ClientHandle,
+                                    Subscription?.Id ?? 0,
+                                    Subscription?.Session?.SessionId);
                             }
 
                             // validate SourceTimestamp of the notification.
@@ -572,7 +574,9 @@ namespace Opc.Ua.Client
                             {
                                 m_logger.ReceivedSourceTimestampSourceTimestampFutureMonitoredItemIdMonitoredItemId(
                                     datachange.Value.SourceTimestamp.ToDateTime().ToLocalTime(),
-                                    ClientHandle);
+                                    ClientHandle,
+                                    Subscription?.Id ?? 0,
+                                    Subscription?.Session?.SessionId);
                             }
                         }
 
@@ -581,7 +585,9 @@ namespace Opc.Ua.Client
                             m_logger.OverflowBitSetDataChangeServerTimestamp(
                                 datachange.Value.ServerTimestamp.ToDateTime().ToLocalTime(),
                                 datachange.Value.WrappedValue,
-                                ClientHandle);
+                                ClientHandle,
+                                Subscription?.Id ?? 0,
+                                Subscription?.Session?.SessionId);
                         }
                     }
 
@@ -1124,6 +1130,7 @@ namespace Opc.Ua.Client
         {
             QueueSize = queueSize;
             m_logger = telemetry.CreateLogger<MonitoredItemDataCache>();
+            m_eventLogger = telemetry.CreateLogger(ClientEventIds.LegacyCategoryName);
             if (queueSize > 1)
             {
                 m_values = new ConcurrentQueue<DataValue>();
@@ -1176,17 +1183,12 @@ namespace Opc.Ua.Client
         {
             LastValue = notification.Value;
 
-            if (CoreClientUtils.EventLog.IsEnabled())
+            if (m_eventLogger.IsEnabled(LogLevel.Trace))
             {
-                CoreClientUtils.EventLog.Notification(
+                m_eventLogger.ClientEventNotification(
                     (int)notification.ClientHandle,
                     LastValue.WrappedValue.ToString());
             }
-
-            m_logger.NotificationClientHandleClientHandleValueValueSourceTime(
-                notification.ClientHandle,
-                notification.Value.WrappedValue,
-                notification.Value.SourceTimestamp);
 
             if (m_values != null)
             {
@@ -1245,6 +1247,7 @@ namespace Opc.Ua.Client
 
         private ConcurrentQueue<DataValue>? m_values;
         private readonly ILogger m_logger;
+        private readonly ILogger m_eventLogger;
     }
 
     /// <summary>
@@ -1333,36 +1336,45 @@ namespace Opc.Ua.Client
     {
         [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 0, Level = LogLevel.Warning,
             Message = "Received ServerTimestamp {ServerTimestamp} is in the future for MonitoredItemId" +
-                " {MonitoredItemId}")]
+                " {MonitoredItemId}, SubscriptionId={SubscriptionId}, SessionId={SessionId}")]
         public static partial void ReceivedServerTimestampServerTimestampFutureMonitoredItemIdMonitoredItemId(
             this ILogger logger,
             DateTime serverTimestamp,
-            uint monitoredItemId);
+            uint monitoredItemId,
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 1, Level = LogLevel.Warning,
             Message = "Received SourceTimestamp {SourceTimestamp} is in the future for MonitoredItemId" +
-                " {MonitoredItemId}")]
+                " {MonitoredItemId}, SubscriptionId={SubscriptionId}, SessionId={SessionId}")]
         public static partial void ReceivedSourceTimestampSourceTimestampFutureMonitoredItemIdMonitoredItemId(
             this ILogger logger,
             DateTime sourceTimestamp,
-            uint monitoredItemId);
+            uint monitoredItemId,
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 2, Level = LogLevel.Warning,
             Message = "Overflow bit set for data change with ServerTimestamp {ServerTimestamp} and value {Value}" +
-                " for MonitoredItemId {MonitoredItemId}")]
+                " for MonitoredItemId {MonitoredItemId}, SubscriptionId={SubscriptionId}," +
+                " SessionId={SessionId}")]
         public static partial void OverflowBitSetDataChangeServerTimestamp(
             this ILogger logger,
             DateTime serverTimestamp,
             Variant value,
-            uint monitoredItemId);
+            uint monitoredItemId,
+            uint subscriptionId,
+            NodeId? sessionId);
 
-        [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 3, Level = LogLevel.Debug,
-            Message = "Notification: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}")]
-        public static partial void NotificationClientHandleClientHandleValueValueSourceTime(
+        [LoggerMessage(
+            EventId = ClientEventIds.LegacyNotificationId,
+            EventName = "Notification",
+            Level = LogLevel.Trace,
+            Message = "Notification: ClientHandle={ClientHandle}, Value={Value}")]
+        public static partial void ClientEventNotification(
             this ILogger logger,
-            uint clientHandle,
-            Variant value,
-            DateTimeUtc sourceTime);
+            int clientHandle,
+            string value);
 
         [LoggerMessage(EventId = ClientEventIds.MonitoredItem + 4, Level = LogLevel.Information,
             Message = "Dropped value: ClientHandle={ClientHandle}, Value={Value}, SourceTime={SourceTime}")]

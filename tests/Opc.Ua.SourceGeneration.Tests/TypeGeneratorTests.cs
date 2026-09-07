@@ -30,9 +30,12 @@
 using System;
 using System.Collections.Immutable;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Emit;
 using NUnit.Framework;
 
 namespace Opc.Ua.SourceGeneration
@@ -478,7 +481,6 @@ namespace TestApp.Incremental
     }
 }";
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
             CSharpParseOptions parseOptions = new CSharpParseOptions()
                 .WithKind(SourceCodeKind.Regular)
                 .WithLanguageVersion(LanguageVersion.CSharp13);
@@ -492,7 +494,7 @@ namespace TestApp.Incremental
                     .WithOpcUaGeneratedStack(),
                     LanguageVersion.CSharp13);
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(parseOptions);
 
             driver = driver.RunGeneratorsAndUpdateCompilation(
@@ -560,13 +562,89 @@ namespace TestApp.Incremental
                 $"Final incremental compilation produced {errors} errors");
         }
 
+        [Test]
+        public void DerivedClassCloneKeepsInheritedFields()
+        {
+            // Repro from GH issue #4352: Clone() on a derived [DataType]
+            // structure must carry the fields inherited from the base type.
+            const string source = """
+
+using Opc.Ua;
+
+namespace TestApp.CloneRepro
+{
+    [DataType(Namespace = "urn:repro", DataTypeId = "i=1000")]
+    public partial class BaseStruct
+    {
+        public string Name { get; set; }
+    }
+
+    [DataType(Namespace = "urn:repro", DataTypeId = "i=1001")]
+    public partial class DerivedStruct : BaseStruct
+    {
+        public uint Count { get; set; }
+    }
+}
+""";
+            GeneratorRunResult result = RunGenerator(
+                source, out Compilation outputCompilation);
+
+            Assert.That(result.GeneratedSources, Has.Length.EqualTo(1));
+            string generated = result.GeneratedSources[0].SourceText.ToString();
+            Assert.That(generated, Does.Contain("public virtual object Clone()"));
+            Assert.That(generated, Does.Contain("public override object Clone()"));
+            Assert.That(generated, Does.Contain("public new object MemberwiseClone()"));
+            Assert.That(generated, Does.Contain(
+                "BaseStruct clone = (BaseStruct)base.MemberwiseClone();"));
+            Assert.That(generated, Does.Contain(
+                "DerivedStruct clone = (DerivedStruct)base.MemberwiseClone();"));
+            Assert.That(generated, Does.Not.Contain("clone = new DerivedStruct()"),
+                "Clone must not start from a fresh instance");
+
+            // Execute the generated Clone() to prove the inherited
+            // field survives at runtime.
+            using var stream = new MemoryStream();
+            EmitResult emitResult = outputCompilation.Emit(stream);
+            emitResult.Check(TestContext.Out, out int emitErrors, out _);
+            Assert.That(emitResult.Success, Is.True,
+                $"Emit produced {emitErrors} errors");
+
+            Assembly assembly = Assembly.Load(stream.ToArray());
+            Type derivedType = assembly.GetType(
+                "TestApp.CloneRepro.DerivedStruct", throwOnError: true);
+
+            object original = Activator.CreateInstance(derivedType);
+            derivedType.GetProperty("Name").SetValue(original, "kept?");
+            derivedType.GetProperty("Count").SetValue(original, 7u);
+
+            object clone = derivedType.GetMethod("Clone").Invoke(original, null);
+
+            Assert.That(clone, Is.Not.SameAs(original));
+            Assert.That(clone, Is.InstanceOf(derivedType));
+            Assert.That(
+                derivedType.GetProperty("Count").GetValue(clone),
+                Is.EqualTo(7u));
+            Assert.That(
+                derivedType.GetProperty("Name").GetValue(clone),
+                Is.EqualTo("kept?"),
+                "Clone() dropped the inherited field");
+        }
+
         private static GeneratorRunResult RunGenerator(
             string source,
             bool expectErrors = false,
             bool expectWarnings = false)
         {
+            return RunGenerator(source, out _, expectErrors, expectWarnings);
+        }
+
+        private static GeneratorRunResult RunGenerator(
+            string source,
+            out Compilation outputCompilation,
+            bool expectErrors = false,
+            bool expectWarnings = false)
+        {
             var generator = new ModelSourceGenerator();
-            var host = new ModelSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Release
                 .CreateCompilation()
@@ -576,14 +654,14 @@ namespace TestApp.Incremental
                     .WithOpcUaGeneratedStack(),
                     LanguageVersion.Preview);
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(host)
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(generator)
                 .WithUpdatedParseOptions(new CSharpParseOptions()
                     .WithKind(SourceCodeKind.Regular)
                     .WithLanguageVersion(LanguageVersion.Preview));
 
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation,
-                out Compilation outputCompilation,
+                out outputCompilation,
                 out ImmutableArray<Diagnostic> diagnostics);
 
             if (!expectErrors)

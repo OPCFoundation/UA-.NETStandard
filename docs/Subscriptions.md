@@ -876,4 +876,4 @@ matches the use case.
 - Alarm streaming: `src/Opc.Ua.Client/Alarms/AlarmStreamExtensions.cs`
 - Sessions architecture and engine choice: [Sessions.md](Sessions.md)
 - Reference client sample:
-  `samples/ConsoleReferenceClient/AlarmClientSample.cs`
+  `samples/Reference/ConsoleReferenceClient/AlarmClientSample.cs`

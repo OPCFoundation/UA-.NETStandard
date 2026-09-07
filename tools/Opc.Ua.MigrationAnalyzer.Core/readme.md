@@ -33,7 +33,7 @@ the source project — e.g. the obsolete extension surface around
   to avoid sync-context deadlocks.
 - Removed `<Type>Collection` wrapper types are **not** runtime-shimmed —
   the companion `Opc.Ua.MigrationAnalyzer.Generator.dll` emits per-consumer
-  `internal sealed [Obsolete] class <Name>Collection : List<TElement>`
+  `public sealed [Obsolete] class <Name>Collection : List<TElement>`
   shims into the consumer's compilation instead. Consumers walk the resulting
   `UA0002` analyzer warnings to migrate to `List<T>` / `ArrayOf<T>` at their
   own pace.

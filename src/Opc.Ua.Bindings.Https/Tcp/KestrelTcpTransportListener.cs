@@ -186,7 +186,10 @@ namespace Opc.Ua.Bindings
                 NamespaceUris = settings.NamespaceUris!,
                 ServerUris = new StringTable()
             };
-            m_quotas = new ChannelQuotas(messageContext);
+            m_quotas = new ChannelQuotas(messageContext)
+            {
+                SecurityPolicyRegistry = settings.SecurityPolicyRegistry
+            };
             if (configuration != null)
             {
                 m_quotas.MaxBufferSize = configuration.MaxBufferSize;

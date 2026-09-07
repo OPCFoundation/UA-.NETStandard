@@ -63,7 +63,16 @@ namespace Opc.Ua.Types.Tests.Encoders
         /// Change when adding more IEncodeable
         /// </summary>
         private const int kNumberOfBootstrapEncodeableTypes = 24;
-        private const int kNumberOfBootstrapFactoryEntries = kNumberOfBootstrapEncodeableTypes * 3;
+
+        /// <summary>
+        /// Most encodeables contribute three factory entries - a TypeId, a
+        /// binary encoding id and an XML encoding id. Decimal contributes only
+        /// one: OPC 10000-6 5.1.10 publishes no Structure metadata and no
+        /// encoding Objects for it, so all three of its identifiers are the
+        /// Decimal DataType NodeId itself.
+        /// </summary>
+        private const int kNumberOfBootstrapFactoryEntries =
+            (kNumberOfBootstrapEncodeableTypes * 3) + 1;
         public static readonly NodeId ReadRequestEncoding = new(631);
 
         /// <summary>

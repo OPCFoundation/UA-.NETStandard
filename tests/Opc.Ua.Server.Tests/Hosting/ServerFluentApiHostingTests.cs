@@ -96,9 +96,14 @@ namespace Opc.Ua.Server.Tests.Hosting
         [Test]
         public async Task ConfigureApplicationBuildsSharedClientAndServerConfigurationAsync()
         {
+            // Short root on purpose. A ClientAndServer application provisions
+            // ECC certificates too, and those file names carry the curve
+            // ("... [BrainpoolP256r1] [<thumbprint>].pfx"), which is long
+            // enough that a root named after this test method pushes the PFX
+            // past MAX_PATH. .NET Framework cannot open such a path at all.
             string pkiRoot = Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
-                nameof(ConfigureApplicationBuildsSharedClientAndServerConfigurationAsync),
+                "cfgapp",
                 Guid.NewGuid().ToString("N"));
             using var certificateManager = new CertificateManager(
                 NUnitTelemetryContext.Create(isServer: true));
@@ -360,6 +365,46 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
+        public async Task CreateUserManagementSeamBindsTheModelToTheServerAsync()
+        {
+            // The user management model is bound through the CreateUserManagement factory
+            // seam, not by reaching for IServerInternal.SetUserManagement from a node
+            // manager override. Every other hosted-server test in this fixture starts
+            // without one, which covers the default null path.
+            UserManagementCaptureServer.Reset();
+            var userManagement = new Mock<Opc.Ua.Server.UserManagement.IUserManagement>();
+            userManagement.Setup(u => u.SnapshotUsers()).Returns([]);
+            userManagement.Setup(u => u.PasswordLength).Returns(new Opc.Ua.Range(256, 1));
+            userManagement.Setup(u => u.PasswordOptions).Returns(PasswordOptionsMask.None);
+            userManagement.Setup(u => u.PasswordRestrictions).Returns((LocalizedText?)null);
+            UserManagementCaptureServer.Supplied = userManagement.Object;
+
+            try
+            {
+                await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                    services => services.AddOpcUa()
+                        .AddServer<UserManagementCaptureServer>(
+                            options => ConfigureHostedOptions(options, "UserManagementCaptureServer")))
+                    .ConfigureAwait(false);
+
+                Assert.That(
+                    await WaitForAsync(
+                        () => UserManagementCaptureServer.NodeManagerStarted,
+                        TimeSpan.FromSeconds(30)).ConfigureAwait(false),
+                    Is.True,
+                    "the server must reach OnNodeManagerStarted");
+
+                Assert.That(
+                    UserManagementCaptureServer.BoundUserManagement,
+                    Is.SameAs(userManagement.Object));
+            }
+            finally
+            {
+                UserManagementCaptureServer.Reset();
+            }
+        }
+
+        [Test]
         public async Task ConfigureRolesBindsRoleSetToDependencyInjectedRoleManagerAsync()
         {
             RoleCaptureServer.Reset();
@@ -397,6 +442,52 @@ namespace Opc.Ua.Server.Tests.Hosting
                 })), Is.True);
             Assert.That(HasUserNameRule(RoleCaptureServer.BoundObserverRole.Identities.Value, "address-space-sync"),
                 Is.True);
+        }
+
+        [Test]
+        public async Task ConfigureRolesCustomRoleIsBrowsableUnderTheRoleSetAsync()
+        {
+            // Part 18 §4.2: the RoleSet describes every role the server
+            // supports, so a role that only exists in the configuration still
+            // needs a node — otherwise it grants access but cannot be browsed,
+            // read or reconfigured by a client.
+            RoleCaptureServer.Reset();
+            await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services => services.AddOpcUa()
+                    .AddServer<RoleCaptureServer>(
+                        options => ConfigureHostedOptions(options, "CustomRoleServer"))
+                    .ConfigureRoles(options => options.Roles.Add(new RoleDefinitionOptions
+                    {
+                        Name = "Maintenance",
+                        Identities =
+                        {
+                            new RoleIdentityMappingOptions
+                            {
+                                CriteriaType = IdentityCriteriaType.UserName,
+                                Criteria = "maintainer"
+                            }
+                        }
+                    }))).ConfigureAwait(false);
+
+            Assert.That(
+                await WaitForAsync(
+                    () => RoleCaptureServer.BoundServer != null,
+                    TimeSpan.FromSeconds(30)).ConfigureAwait(false),
+                Is.True);
+
+            IServerInternal server = RoleCaptureServer.BoundServer!;
+            IRoleManager roleManager = fixture.Services.GetRequiredService<IRoleManager>();
+            NodeId roleId = roleManager.RoleIds.Single(
+                id => string.Equals(roleManager.GetRole(id)?.BrowseName, "Maintenance",
+                    StringComparison.Ordinal));
+
+            RoleState? roleNode = server.DiagnosticsNodeManager
+                .FindPredefinedNode<RoleState>(roleId);
+            Assert.That(roleNode, Is.Not.Null,
+                "A role created from ConfigureRoles must have a node under the RoleSet.");
+            Assert.That(roleNode!.BrowseName.Name, Is.EqualTo("Maintenance"));
+            Assert.That(HasUserNameRule(roleNode.Identities!.Value, "maintainer"), Is.True,
+                "The node must expose the configured identity mapping.");
         }
 
         [Test]
@@ -493,7 +584,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         public void AddNodeManagerRegistersFluentNodeManagerFactory()
         {
             using ServiceProvider sp = CreateServerBuilder()
-                .AddNodeManager("urn:tests:fluent", builder => builder.Node("ReferenceServer"))
+                .AddNodeManager("urn:tests:fluent", _ => { })
                 .Services.BuildServiceProvider();
 
             OpcUaServerNodeManagerRegistration registration = sp
@@ -894,17 +985,59 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             public static RoleState? BoundObserverRole { get; private set; }
 
+            public static IServerInternal? BoundServer { get; private set; }
+
             public static void Reset()
             {
                 BoundRoleManager = null;
                 BoundObserverRole = null;
+                BoundServer = null;
             }
 
             protected override void OnNodeManagerStarted(IServerInternal server)
             {
+                BoundServer = server;
                 BoundRoleManager = server.RoleManager;
                 BoundObserverRole = server.DiagnosticsNodeManager.FindPredefinedNode<RoleState>(
                     ObjectIds.WellKnownRole_Observer);
+                base.OnNodeManagerStarted(server);
+            }
+        }
+
+        public sealed class UserManagementCaptureServer : DependencyInjectionStandardServer
+        {
+            public UserManagementCaptureServer(
+                IServiceProvider services,
+                ITelemetryContext telemetry,
+                TimeProvider timeProvider)
+                : base(services, telemetry, timeProvider)
+            {
+            }
+
+            public static Opc.Ua.Server.UserManagement.IUserManagement? Supplied { get; set; }
+
+            public static Opc.Ua.Server.UserManagement.IUserManagement? BoundUserManagement { get; private set; }
+
+            public static bool NodeManagerStarted { get; private set; }
+
+            public static void Reset()
+            {
+                Supplied = null;
+                BoundUserManagement = null;
+                NodeManagerStarted = false;
+            }
+
+            protected override Opc.Ua.Server.UserManagement.IUserManagement? CreateUserManagement(
+                IServerInternal server,
+                ApplicationConfiguration configuration)
+            {
+                return Supplied;
+            }
+
+            protected override void OnNodeManagerStarted(IServerInternal server)
+            {
+                BoundUserManagement = server.UserManagement;
+                NodeManagerStarted = true;
                 base.OnNodeManagerStarted(server);
             }
         }
@@ -988,7 +1121,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                 }
                 configureServices(services);
                 ServiceProvider provider = services.BuildServiceProvider();
-                IHostedService hostedService = provider.GetServices<IHostedService>().Single();
+                IHostedService hostedService = provider
+                    .GetServices<IHostedService>()
+                    .Single(static service => service is OpcUaServerHostedService);
                 try
                 {
                     await hostedService.StartAsync(CancellationToken.None).ConfigureAwait(false);
@@ -1024,9 +1159,9 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             public int InvocationCount => Volatile.Read(ref m_invocationCount);
 
-            public IServerInternal? ObservedServer { get; private set; }
+            public IServerContext? ObservedServer { get; private set; }
 
-            public ValueTask OnServerStartedAsync(IServerInternal server, CancellationToken cancellationToken = default)
+            public ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default)
             {
                 Interlocked.Increment(ref m_invocationCount);
                 ObservedServer = server;

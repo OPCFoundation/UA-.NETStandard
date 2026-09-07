@@ -143,6 +143,7 @@ namespace Opc.Ua.Configuration
             {
                 securityOptions = securityOptions.SetMinimumCertificateKeySize(minimumKeySize);
             }
+            effectiveOptions.ConfigureSecurity?.Invoke(securityOptions);
 
             Configuration = configuration;
             m_certificateManager = certificateManager;

@@ -74,7 +74,8 @@ namespace Opc.Ua.Client.Subscriptions
             m_loggerFactory = loggerFactory;
             m_logger = loggerFactory.CreateLogger<SubscriptionManager>();
             ReturnDiagnostics = returnDiagnostics;
-            m_publishController = PublishControllerAsync(m_cts.Token);
+            m_disposeToken = m_cts.Token;
+            m_publishController = PublishControllerAsync(m_disposeToken);
             m_acks = Channel.CreateUnboundedPrioritized(
                 new UnboundedPrioritizedChannelOptions<SubscriptionAcknowledgement>
                 {
@@ -249,11 +250,14 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 return;
             }
+            bool quiescenceAcquired = false;
             try
             {
                 await m_cts.CancelAsync().ConfigureAwait(false);
                 m_publishControl.Set();
                 await m_publishController.ConfigureAwait(false);
+                await m_publishQuiescenceGate.WaitAsync().ConfigureAwait(false);
+                quiescenceAcquired = true;
 
                 List<LogicalSubscription>? logicals;
                 List<IManagedSubscription>? orphans;
@@ -300,6 +304,12 @@ namespace Opc.Ua.Client.Subscriptions
             }
             finally
             {
+                if (!quiescenceAcquired)
+                {
+                    await m_publishQuiescenceGate.WaitAsync().ConfigureAwait(false);
+                }
+                m_publishQuiescenceGate.Release();
+                m_publishQuiescenceGate.Dispose();
                 m_cts.Dispose();
                 (m_acks as IDisposable)?.Dispose();
                 GC.SuppressFinalize(this);
@@ -322,20 +332,56 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
+        public async ValueTask RunWithPublishingQuiescedAsync(
+            Func<CancellationToken, ValueTask> operation,
+            CancellationToken ct)
+        {
+            if (operation == null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                throw new ObjectDisposedException(nameof(SubscriptionManager));
+            }
+
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                ct, m_disposeToken);
+            CancellationToken linkedToken = linked.Token;
+            await m_publishQuiescenceGate.WaitAsync(linkedToken)
+                .ConfigureAwait(false);
+            try
+            {
+                if (Volatile.Read(ref m_disposed) != 0)
+                {
+                    throw new ObjectDisposedException(nameof(SubscriptionManager));
+                }
+                SetPublishingQuiesced(true);
+                try
+                {
+                    await DrainAsync(linkedToken).ConfigureAwait(false);
+                    await operation(linkedToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    SetPublishingQuiesced(false);
+                }
+            }
+            finally
+            {
+                m_publishQuiescenceGate.Release();
+            }
+        }
+
+        /// <inheritdoc/>
         public int DropPendingForSubscription(uint subscriptionId)
         {
             // Drain the prioritised channel into a local buffer,
             // keeping only the acks that do not target the dead
             // subscription id, then re-publish the kept items.
-            // Concurrent workers may interleave reads or writes
-            // during this loop; that is intentional — a worker
-            // racing in is acceptable because (a) any ack it reads
-            // would have been sent to the server anyway, (b) any
-            // ack it writes is queued back into the channel. The
-            // contract is "no targeted acks remain when this
-            // method returns" — callers must invoke it BEFORE
-            // recreate assigns a fresh subscription id so a new
-            // generation cannot enter the queue.
+            // Recreate callers invoke this while publish ingress is
+            // quiesced, so no worker can remove or requeue an old
+            // acknowledgement while the generation changes.
             var keep = new List<SubscriptionAcknowledgement>();
             int dropped = 0;
             while (m_acks.Reader.TryRead(out SubscriptionAcknowledgement? ack))
@@ -357,21 +403,32 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public ValueTask CompleteAsync(uint subscriptionId, CancellationToken ct)
+        public ValueTask CompleteAsync(IMessageProcessor completing,
+            uint subscriptionId, CancellationToken ct)
         {
-            IManagedSubscription? subscription;
+            if (completing is not IManagedSubscription partition)
+            {
+                return default;
+            }
+
             LogicalSubscription? logical = null;
             lock (m_subscriptionLock)
             {
-                // Drop the partition from the dispatch registry.
-                subscription = m_subscriptions
-                    .FirstOrDefault(s => s.Id == subscriptionId);
-                if (subscription == null ||
-                    !m_subscriptions.Remove(subscription))
+                // Drop the partition from the dispatch registry by
+                // reference — never by identifier, because every
+                // subscription that is not created (yet) shares id 0.
+                if (!m_subscriptions.Remove(partition))
                 {
                     return default;
                 }
-                m_subscriptionHistory.Enqueue(subscriptionId);
+
+                // Record the retired identifier while the registry lock
+                // is still held. A publish worker resolves incoming
+                // responses under the same lock, so it can never observe
+                // the partition as removed before the identifier is
+                // known to be retired and mistake a late response for an
+                // orphaned server side subscription.
+                RetireSubscriptionId(subscriptionId);
 
                 // If the removed partition was the primary of any
                 // logical wrapper, the wrapper has no usable
@@ -384,7 +441,7 @@ namespace Opc.Ua.Client.Subscriptions
                 foreach (LogicalSubscription wrapper in m_logicals)
                 {
                     IReadOnlyList<IManagedSubscription> parts = wrapper.Partitions;
-                    if (parts.Count > 0 && ReferenceEquals(parts[0], subscription))
+                    if (parts.Count > 0 && ReferenceEquals(parts[0], partition))
                     {
                         logical = wrapper;
                         break;
@@ -395,11 +452,7 @@ namespace Opc.Ua.Client.Subscriptions
                     m_logicals.Remove(logical);
                 }
             }
-            while (m_subscriptionHistory.Count > kMaxSubscriptionHistory)
-            {
-                m_subscriptionHistory.TryDequeue(out _);
-            }
-            m_logger.SubscriptionRemoved(subscription.Id);
+            m_logger.SubscriptionRemoved(subscriptionId);
             m_publishControl.Set();
             return default;
         }
@@ -557,6 +610,10 @@ namespace Opc.Ua.Client.Subscriptions
             lock (m_subscriptionLock)
             {
                 m_subscriptions.Remove(partition);
+                // Retire the identifier under the registry lock so a
+                // publish worker cannot observe the partition as removed
+                // before the identifier is known to be retired.
+                RetireSubscriptionId(partitionId);
             }
             if (partitionId != 0)
             {
@@ -571,6 +628,56 @@ namespace Opc.Ua.Client.Subscriptions
                 m_logger.IdleDeleteSecondaryPartitionThrew(ex, partition.Id);
             }
             m_publishControl.Set();
+        }
+
+        /// <summary>
+        /// Remember a server side subscription identifier that this
+        /// manager has just retired. Late publish responses carrying a
+        /// retired identifier are dropped instead of being mistaken
+        /// for an orphaned server side subscription.
+        /// </summary>
+        /// <remarks>
+        /// Callers record the identifier in the same critical section
+        /// that drops the subscription from the dispatch registry, so
+        /// the removal and the retirement are observed atomically by a
+        /// publish worker resolving an incoming response.
+        /// </remarks>
+        /// <param name="subscriptionId">The retired identifier. Zero
+        /// is ignored because it never identifies a subscription on
+        /// the server.</param>
+        private void RetireSubscriptionId(uint subscriptionId)
+        {
+            if (subscriptionId == 0)
+            {
+                return;
+            }
+            m_subscriptionHistory.Enqueue(subscriptionId);
+            while (m_subscriptionHistory.Count > kMaxSubscriptionHistory)
+            {
+                m_subscriptionHistory.TryDequeue(out _);
+            }
+        }
+
+        /// <summary>
+        /// Whether any registered subscription has not yet been
+        /// assigned a server side identifier. While that is the case a
+        /// publish response can carry an identifier that belongs to a
+        /// subscription this manager owns but has not observed yet, so
+        /// unresolved identifiers must not be deleted.
+        /// </summary>
+        private bool HasSubscriptionsPendingCreation()
+        {
+            lock (m_subscriptionLock)
+            {
+                foreach (IManagedSubscription subscription in m_subscriptions)
+                {
+                    if (subscription.Id == 0)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -1064,14 +1171,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         internal void Resume()
         {
-            lock (m_subscriptionLock)
-            {
-                foreach (IManagedSubscription item in m_subscriptions)
-                {
-                    item.NotifySubscriptionManagerPaused(false);
-                }
-            }
-            m_running.Set();
+            SetPublishingRequested(true);
         }
 
         /// <summary>
@@ -1079,14 +1179,75 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         internal void Pause()
         {
+            SetPublishingRequested(false);
+        }
+
+        private void SetPublishingRequested(bool requested)
+        {
+            bool? paused;
+            lock (m_publishStateLock)
+            {
+                m_publishingRequested = requested;
+                paused = UpdatePublishingState();
+            }
+            if (paused.HasValue)
+            {
+                NotifySubscriptionsPaused(paused.Value);
+            }
+            // Wake the controller so the pool is sized for the new state.
+            // Resuming is the first point at which a manager that was
+            // constructed paused has a reason to hold workers at all.
+            m_publishControl.Set();
+        }
+
+        private void SetPublishingQuiesced(bool quiesced)
+        {
+            bool? paused;
+            lock (m_publishStateLock)
+            {
+                m_publishingQuiesced = quiesced;
+                paused = UpdatePublishingState();
+            }
+            if (paused.HasValue)
+            {
+                NotifySubscriptionsPaused(paused.Value);
+            }
+            // See SetPublishingRequested - leaving quiescence resumes
+            // publishing just like Resume does.
+            m_publishControl.Set();
+        }
+
+        private bool? UpdatePublishingState()
+        {
+            bool shouldRun = m_publishingRequested &&
+                !m_publishingQuiesced &&
+                Volatile.Read(ref m_disposed) == 0;
+            if (m_running.IsSet == shouldRun)
+            {
+                return null;
+            }
+            if (shouldRun)
+            {
+                m_publishingPaused.Reset();
+                m_running.Set();
+            }
+            else
+            {
+                m_running.Reset();
+                m_publishingPaused.Set();
+            }
+            return !shouldRun;
+        }
+
+        private void NotifySubscriptionsPaused(bool paused)
+        {
             lock (m_subscriptionLock)
             {
                 foreach (IManagedSubscription item in m_subscriptions)
                 {
-                    item.NotifySubscriptionManagerPaused(true);
+                    item.NotifySubscriptionManagerPaused(paused);
                 }
             }
-            m_running.Reset();
         }
 
         /// <summary>
@@ -1107,6 +1268,33 @@ namespace Opc.Ua.Client.Subscriptions
             return m_drainSignal.WaitAsync(ct);
         }
 
+        private bool TryBeginPublishRequest()
+        {
+            lock (m_publishStateLock)
+            {
+                if (!m_running.IsSet || Volatile.Read(ref m_disposed) != 0)
+                {
+                    return false;
+                }
+                if (++m_activePublishRequests == 1)
+                {
+                    m_drainSignal.Reset();
+                }
+                return true;
+            }
+        }
+
+        private void EndPublishRequest()
+        {
+            lock (m_publishStateLock)
+            {
+                if (--m_activePublishRequests == 0)
+                {
+                    m_drainSignal.Set();
+                }
+            }
+        }
+
         /// <summary>
         /// Recreate subscriptions
         /// </summary>
@@ -1123,7 +1311,11 @@ namespace Opc.Ua.Client.Subscriptions
                 return;
             }
 
-            IReadOnlyList<IManagedSubscription> subscriptions = [.. m_subscriptions];
+            IReadOnlyList<IManagedSubscription> subscriptions;
+            lock (m_subscriptionLock)
+            {
+                subscriptions = [.. m_subscriptions];
+            }
             if (TransferSubscriptionsOnRecreate && previousSessionId != null)
             {
                 subscriptions = await TransferSubscriptionsAsync(subscriptions,
@@ -1132,7 +1324,6 @@ namespace Opc.Ua.Client.Subscriptions
             // Force creation of the subscriptions which were not transferred.
             foreach (IManagedSubscription subscription in subscriptions)
             {
-                bool force = previousSessionId != null && subscription.Created;
                 await subscription.RecreateAsync(ct).ConfigureAwait(false);
             }
             m_publishControl.Set();
@@ -1240,10 +1431,70 @@ namespace Opc.Ua.Client.Subscriptions
         private async Task PublishControllerAsync(CancellationToken ct)
         {
             var publishWorkers = new List<PublishWorker>();
+            //
+            // The control wait is created once and only re-armed after it
+            // has completed. Creating a fresh wait on every iteration would
+            // abandon the previous waiter inside the auto reset event, and a
+            // later Set() would then be handed to the abandoned waiter and
+            // lost — leaving the worker pool permanently unresized.
+            //
+            Task controlWait = m_publishControl.WaitAsync(ct);
             try
             {
                 while (!ct.IsCancellationRequested)
                 {
+                    //
+                    // Wait before touching the pool. The controller runs
+                    // synchronously up to this first await, i.e. still inside
+                    // the constructor, where MinPublishWorkerCount and
+                    // MaxPublishWorkerCount are whatever the defaults are —
+                    // the owner has not had a chance to configure them yet.
+                    // Sizing the pool there spins up workers off the default
+                    // minimum only to tear them down again on the first
+                    // resize, and publishes that overshoot through
+                    // PublishWorkerCount. Every path that changes the desired
+                    // count (add/remove, pause/resume, the Min/Max setters,
+                    // Update) signals m_publishControl, so the pool is sized
+                    // exclusively in response to a signal or a worker exit.
+                    //
+                    Task[] waiting = [.. publishWorkers
+                        .Select(w => w.Task)
+                        .Prepend(controlWait)];
+                    await Task.WhenAny(waiting).ConfigureAwait(false);
+                    if (controlWait.IsCompleted)
+                    {
+                        controlWait = m_publishControl.WaitAsync(ct);
+                    }
+                    PublishControlCycles++;
+
+                    // Reap the workers that exited on their own before
+                    // sizing the pool, so a worker that is already gone is
+                    // never counted towards the pool nor kept alongside its
+                    // replacement.
+                    int index = 0;
+                    foreach (Task? item in waiting.Skip(1)) // Skip wait handle
+                    {
+                        if (item.IsCompleted)
+                        {
+                            PublishWorker worker = publishWorkers[index];
+                            m_logger.PublishWorkerExited(worker.Index);
+                            await worker.DisposeAsync().ConfigureAwait(false);
+                            publishWorkers.RemoveAt(index);
+                            continue;
+                        }
+                        index++;
+                    }
+
+                    // Now lower the max publish request if we got any too
+                    // many requests errors
+                    if (publishWorkers.Any(w => w.TooManyPublishRequests))
+                    {
+                        if (MaxPublishWorkerCount > 1)
+                        {
+                            MaxPublishWorkerCount--;
+                        }
+                    }
+
                     int desiredWorkerCount = GetDesiredPublishWorkerCount();
                     if (publishWorkers.Count > desiredWorkerCount)
                     {
@@ -1271,36 +1522,9 @@ namespace Opc.Ua.Client.Subscriptions
                                 desiredWorkerCount - publishWorkers.Count)
                             .Select(index => new PublishWorker(this, index)));
                     }
-                    PublishWorkerCount = publishWorkers.Count;
 
-                    Task[] waiting = [.. publishWorkers
-                        .Select(w => w.Task)
-                        .Prepend(m_publishControl.WaitAsync(ct))];
-                    await Task.WhenAny(waiting).ConfigureAwait(false);
-                    PublishControlCycles++;
-                    int index = 0;
-                    foreach (Task? item in waiting.Skip(1)) // Skip wait handle
-                    {
-                        if (item.IsCompleted)
-                        {
-                            PublishWorker worker = publishWorkers[index];
-                            m_logger.PublishWorkerExited(worker.Index);
-                            await worker.DisposeAsync().ConfigureAwait(false);
-                            publishWorkers.RemoveAt(index);
-                            continue;
-                        }
-                        index++;
-                    }
-
-                    // Now lower the max publish request if we got any too
-                    // many requests errors
-                    if (publishWorkers.Any(w => w.TooManyPublishRequests))
-                    {
-                        if (MaxPublishWorkerCount > 1)
-                        {
-                            MaxPublishWorkerCount--;
-                        }
-                    }
+                    // The pool is settled for this cycle — only now is the
+                    // count observable by callers.
                     PublishWorkerCount = publishWorkers.Count;
                 }
             }
@@ -1319,7 +1543,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             int GetDesiredPublishWorkerCount()
             {
-                int publishCount = CreatedCount;
+                int publishCount = CreatedCount + m_session.SessionSubscriptionCount;
                 if (publishCount != 0)
                 {
                     //
@@ -1376,7 +1600,17 @@ namespace Opc.Ua.Client.Subscriptions
                 m_outer = outer;
                 m_cts = CancellationTokenSource.CreateLinkedTokenSource(outer.m_cts.Token);
                 m_logger = m_outer.m_loggerFactory.CreateLogger<PublishWorker>();
-                Task = PublishWorkerAsync(m_cts.Token);
+                //
+                // Start on the thread pool. Workers are constructed inline by
+                // the publish controller, and the worker loop only yields
+                // where it awaits something that is not already completed. A
+                // transport whose publish completes synchronously would
+                // therefore run the entire worker loop on the controller's
+                // stack, starving the control loop - it could neither resize
+                // the pool nor publish PublishWorkerCount.
+                //
+                CancellationToken token = m_cts.Token;
+                Task = Task.Run(() => PublishWorkerAsync(token), token);
             }
 
             /// <inheritdoc/>
@@ -1385,16 +1619,20 @@ namespace Opc.Ua.Client.Subscriptions
                 try
                 {
                     await m_cts.CancelAsync().ConfigureAwait(false);
-                    if (!Task.IsCompleted)
+                    try
                     {
-                        try
-                        {
-                            await Task.ConfigureAwait(false);
-                        }
-                        catch
-                        {
-                        } // Ignore
+                        //
+                        // Await unconditionally. The controller reaps a
+                        // worker whose task has already completed, and that
+                        // completion is usually a fault or a cancellation -
+                        // skipping the await for completed tasks would leave
+                        // those exceptions unobserved.
+                        //
+                        await Task.ConfigureAwait(false);
                     }
+                    catch
+                    {
+                    } // Ignore
                 }
                 finally
                 {
@@ -1446,64 +1684,133 @@ namespace Opc.Ua.Client.Subscriptions
                         : (long)publishLatency.TotalMilliseconds;
                     int ackWaitTimeout = CalculateTimeouts(
                         currentLatencyMs, ref timeoutHint);
-                    ArrayOf<SubscriptionAcknowledgement> acks = GetAcksReadyToSend();
-                    uint handle = Utils.IncrementIdentifier(ref m_outer.m_publishRequestCounter);
+                    if (!m_outer.TryBeginPublishRequest())
+                    {
+                        continue;
+                    }
+                    ArrayOf<SubscriptionAcknowledgement> acks = [];
+                    uint handle = 0;
+                    bool publishActive = true;
                     try
                     {
+                        acks = GetAcksReadyToSend();
+                        handle = Utils.IncrementIdentifier(
+                            ref m_outer.m_publishRequestCounter);
                         if (acks.Count == 0 && !moreNotifications && ackWaitTimeout != 0)
                         {
                             // Throttle publishing as we wait for acks to arrive
                             acks = await WaitForAcksAsync(ackWaitTimeout, ct).ConfigureAwait(false);
                         }
+                        if (!m_outer.m_running.IsSet)
+                        {
+                            acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                            continue;
+                        }
                         publishLatencyStart = m_outer.m_timeProvider.GetTimestamp();
                         publishLatencyRunning = true;
-                        if (Interlocked.Increment(ref m_outer.m_activePublishRequests) == 1)
-                        {
-                            m_outer.m_drainSignal.Reset();
-                        }
-                        try
-                        {
-                            PublishResponse response = await m_outer.m_session.PublishAsync(new RequestHeader
+                        PublishResponse response = await m_outer.m_session.PublishAsync(
+                            new RequestHeader
                             {
                                 TimeoutHint = timeoutHint,
                                 ReturnDiagnostics = (uint)(int)m_outer.ReturnDiagnostics,
                                 RequestHandle = handle
                             }, acks, ct).ConfigureAwait(false);
 
-                            moreNotifications = response.MoreNotifications;
-                            uint subscriptionId = response.SubscriptionId;
-                            NotificationMessage notificationMessage = response.NotificationMessage;
-                            ArrayOf<uint> availableSequenceNumbers = response.AvailableSequenceNumbers;
+                        moreNotifications = response.MoreNotifications;
+                        uint subscriptionId = response.SubscriptionId;
+                        NotificationMessage notificationMessage = response.NotificationMessage;
+                        ArrayOf<uint> availableSequenceNumbers =
+                            response.AvailableSequenceNumbers;
 
-                            ArrayOf<StatusCode> acknowledgeResults = response.Results;
-                            ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos = response.DiagnosticInfos;
-                            ClientBase.ValidateResponse(acknowledgeResults, acks);
-                            ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
-                            TooManyPublishRequests = false;
+                        ArrayOf<StatusCode> acknowledgeResults = response.Results;
+                        ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos =
+                            response.DiagnosticInfos;
+                        ClientBase.ValidateResponse(acknowledgeResults, acks);
+                        ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
+                        TooManyPublishRequests = false;
 
-                            // A publish completed, so the channel is healthy:
-                            // clear the consecutive-error backoff state.
-                            m_consecutivePublishErrors = 0;
-                            m_lastLoggedErrorStatus = default;
+                        // A publish completed, so the channel is healthy:
+                        // clear the consecutive-error backoff state.
+                        m_consecutivePublishErrors = 0;
+                        m_lastLoggedErrorStatus = default;
 
-                            // Get the subscription with the provided identifier
-                            IManagedSubscription? subscription = m_outer.GetById(subscriptionId);
-                            publishLatency = m_outer.m_timeProvider.GetElapsedTime(publishLatencyStart);
-                            publishLatencyRunning = false;
-                            if (subscription != null)
-                            {
-                                // deliver to subscription
-                                await subscription.OnPublishReceivedAsync(
-                                    notificationMessage,
-                                    availableSequenceNumbers.ToList(),
-                                    response.ResponseHeader.StringTable.ToList()).ConfigureAwait(false);
-                                Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
-                            }
-                            else if (!ct.IsCancellationRequested &&
-                                !m_outer.m_subscriptionHistory.Contains(subscriptionId))
+                        // Get the subscription with the provided identifier
+                        IManagedSubscription? subscription = m_outer.GetById(subscriptionId);
+                        publishLatency = m_outer.m_timeProvider.GetElapsedTime(
+                            publishLatencyStart);
+                        publishLatencyRunning = false;
+                        if (subscription != null)
+                        {
+                            // deliver to subscription
+                            await subscription.OnPublishReceivedAsync(
+                                notificationMessage,
+                                availableSequenceNumbers.ToList(),
+                                response.ResponseHeader.StringTable.ToList())
+                                .ConfigureAwait(false);
+                            Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
+                            m_lastUnknownSubscriptionId = 0;
+                            m_consecutiveUnresolvedResponses = 0;
+                        }
+                        else if (!ct.IsCancellationRequested)
+                        {
+                            //
+                            // The identifier does not resolve to any subscription
+                            // this manager owns. Delete the orphan on the server,
+                            // but only when no subscription is currently awaiting
+                            // its identifier: a publish response can overtake the
+                            // CreateSubscription continuation that assigns the id,
+                            // and deleting in that window would silently kill a
+                            // healthy subscription. Leaving a genuine orphan alive
+                            // until its lifetime expires is the safe trade-off.
+                            //
+                            // None of the branches below made progress, so the
+                            // server can answer the next publish request with the
+                            // very same undeliverable response. Publishing again
+                            // without waiting would busy-spin against the server
+                            // and flood the log, and a transport that completes
+                            // synchronously would never release the worker's
+                            // thread pool thread. Therefore always throttle here.
+                            //
+                            if (m_outer.m_subscriptionHistory.Contains(subscriptionId))
                             {
                                 // ignore messages with a subscription that was deleted
                                 // Do not delete publish requests of stale subscriptions
+                                moreNotifications = false;
+                                await DelayUnresolvedSubscriptionAsync(ct)
+                                    .ConfigureAwait(false);
+                            }
+                            else if (m_outer.HasSubscriptionsPendingCreation())
+                            {
+                                // Log only the first response of a run for the
+                                // same identifier so a long lived creation window
+                                // cannot flood the log.
+                                if (m_lastUnknownSubscriptionId != subscriptionId)
+                                {
+                                    m_lastUnknownSubscriptionId = subscriptionId;
+                                    m_logger.PublishWorkerDeferredUnknownSubscription(
+                                        Index, handle, subscriptionId);
+                                }
+                                moreNotifications = false;
+                                await DelayUnresolvedSubscriptionAsync(ct)
+                                    .ConfigureAwait(false);
+                            }
+                            else if (m_outer.m_session.TryDispatchToSessionSubscription(
+                                subscriptionId,
+                                notificationMessage,
+                                availableSequenceNumbers,
+                                response.ResponseHeader.StringTable,
+                                moreNotifications))
+                            {
+                                // The session holds this subscription through the classic
+                                // API. It is live and owned by the application, so the
+                                // notification belongs to it: deliver rather than drop it,
+                                // and never delete it as abandoned.
+                                Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
+                                m_lastUnknownSubscriptionId = 0;
+                                m_consecutiveUnresolvedResponses = 0;
+                            }
+                            else
+                            {
                                 m_logger.PublishWorkerReceivedUnknownSubscription(
                                     Index, handle, subscriptionId);
                                 Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
@@ -1511,15 +1818,18 @@ namespace Opc.Ua.Client.Subscriptions
                                     null,
                                     [subscriptionId],
                                     ct).ConfigureAwait(false);
+                                //
+                                // Retire the identifier so responses that were
+                                // already in flight, or that the server emits
+                                // before the delete takes effect, are ignored
+                                // instead of triggering another delete. Without
+                                // this the worker issues DeleteSubscriptions for
+                                // the same orphan on every publish response.
+                                //
+                                m_outer.RetireSubscriptionId(subscriptionId);
+                                m_lastUnknownSubscriptionId = 0;
+                                m_consecutiveUnresolvedResponses = 0;
                                 moreNotifications = true;
-                            }
-                        }
-                        finally
-                        {
-                            int active = Interlocked.Decrement(ref m_outer.m_activePublishRequests);
-                            if (active == 0)
-                            {
-                                m_outer.m_drainSignal.Set();
                             }
                         }
                     }
@@ -1543,6 +1853,8 @@ namespace Opc.Ua.Client.Subscriptions
                         Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
                         // Rollback acks we collected
                         acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                        m_outer.EndPublishRequest();
+                        publishActive = false;
 
                         // ignore errors if paused.
                         if (!m_outer.m_running.IsSet)
@@ -1637,8 +1949,37 @@ namespace Opc.Ua.Client.Subscriptions
                             break;
                         }
                     }
+                    finally
+                    {
+                        if (publishActive)
+                        {
+                            m_outer.EndPublishRequest();
+                        }
+                    }
                 }
                 m_logger.PublishWorkerStopped(Index);
+            }
+
+            /// <summary>
+            /// Back off after a publish response that carried a subscription
+            /// identifier this manager could not dispatch to. The server keeps
+            /// answering with the same undeliverable response until the
+            /// identifier resolves or the subscription is gone, so without an
+            /// explicit delay the worker would issue publish requests in a
+            /// tight loop - and a transport that completes synchronously would
+            /// additionally never release its thread pool thread. The delay
+            /// escalates and is bounded so a healthy subscription sharing this
+            /// worker is not starved.
+            /// </summary>
+            /// <param name="ct"></param>
+            private Task DelayUnresolvedSubscriptionAsync(CancellationToken ct)
+            {
+                int count = ++m_consecutiveUnresolvedResponses;
+                int backoffMs = Math.Min(
+                    kBaseUnresolvedBackoffMs << Math.Min(count - 1, 4),
+                    (int)s_maxUnresolvedBackoff.TotalMilliseconds);
+                return m_outer.m_timeProvider
+                    .Delay(TimeSpan.FromMilliseconds(backoffMs), ct);
             }
 
             /// <summary>
@@ -1681,8 +2022,40 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 try
                 {
-                    SubscriptionAcknowledgement firstAck = await m_outer.m_acks.Reader.ReadAsync(
-                        waitToken).ConfigureAwait(false);
+                    using var pauseCts =
+                        CancellationTokenSource.CreateLinkedTokenSource(waitToken);
+                    Task<SubscriptionAcknowledgement> readTask = m_outer.m_acks.Reader
+                        .ReadAsync(pauseCts.Token).AsTask();
+                    Task pausedTask = m_outer.m_publishingPaused
+                        .WaitAsync(pauseCts.Token);
+                    Task completed = await Task.WhenAny(readTask, pausedTask)
+                        .ConfigureAwait(false);
+                    if (ReferenceEquals(completed, pausedTask))
+                    {
+                        await pausedTask.ConfigureAwait(false);
+                        await pauseCts.CancelAsync().ConfigureAwait(false);
+                        try
+                        {
+                            SubscriptionAcknowledgement acknowledgement =
+                                await readTask.ConfigureAwait(false);
+                            m_outer.m_acks.Writer.TryWrite(acknowledgement);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                        }
+                        return [];
+                    }
+
+                    SubscriptionAcknowledgement firstAck =
+                        await readTask.ConfigureAwait(false);
+                    await pauseCts.CancelAsync().ConfigureAwait(false);
+                    try
+                    {
+                        await pausedTask.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
                     ArrayOf<SubscriptionAcknowledgement> restAcks = GetAcksReadyToSend();
                     var ackList = restAcks.ToList();
                     ackList.Insert(0, firstAck);
@@ -1803,13 +2176,17 @@ namespace Opc.Ua.Client.Subscriptions
             private readonly CancellationTokenSource m_cts;
             private int m_consecutivePublishErrors;
             private StatusCode m_lastLoggedErrorStatus;
+            private uint m_lastUnknownSubscriptionId;
+            private int m_consecutiveUnresolvedResponses;
             private const int kBasePublishBackoffMs = 200;
+            private const int kBaseUnresolvedBackoffMs = 20;
             private static readonly TimeSpan s_maxPublishBackoff = TimeSpan.FromSeconds(5);
+            private static readonly TimeSpan s_maxUnresolvedBackoff = TimeSpan.FromMilliseconds(250);
         }
 
         private static readonly TimeSpan s_maxOperationTimeout = TimeSpan.FromMinutes(30);
         private static readonly TimeSpan s_minOperationTimeout = TimeSpan.FromSeconds(1);
-        private const int kMaxSubscriptionHistory = 10;
+        private const int kMaxSubscriptionHistory = 256;
         private uint m_publishRequestCounter;
 #pragma warning disable IDE0032 // Use auto property
         private int m_badPublishRequestCount;
@@ -1817,10 +2194,16 @@ namespace Opc.Ua.Client.Subscriptions
 #pragma warning restore IDE0032 // Use auto property
         private readonly Channel<SubscriptionAcknowledgement> m_acks;
         private readonly AsyncManualResetEvent m_running = new();
+        private readonly AsyncManualResetEvent m_publishingPaused = new(true);
         private readonly AsyncAutoResetEvent m_publishControl = new();
         private readonly AsyncManualResetEvent m_drainSignal = new(true);
+        private readonly SemaphoreSlim m_publishQuiescenceGate = new(1, 1);
+        private readonly Lock m_publishStateLock = new();
+        private readonly CancellationToken m_disposeToken;
         private int m_activePublishRequests;
         private int m_disposed;
+        private bool m_publishingRequested;
+        private bool m_publishingQuiesced;
         private readonly ConcurrentQueue<uint> m_subscriptionHistory = new();
         private readonly Task m_publishController;
         private readonly Lock m_subscriptionLock = new();
@@ -2052,5 +2435,15 @@ namespace Opc.Ua.Client.Subscriptions
             int handle,
             int count,
             int total);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 35, Level = LogLevel.Information,
+            Message = "PUBLISH Worker #{Handle}-{Id} - Received Publish Response for Unknown " +
+                "SubscriptionId={SubscriptionId} while subscriptions are still being created. " +
+                "Dropping the message instead of deleting the subscription.")]
+        public static partial void PublishWorkerDeferredUnknownSubscription(
+            this ILogger logger,
+            int handle,
+            uint id,
+            uint subscriptionId);
     }
 }

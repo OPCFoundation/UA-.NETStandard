@@ -1,0 +1,84 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "pump": "http://example.com/demo/pump"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": [
+    "tm:ThingModel",
+    "uav:objectType"
+  ],
+  "title": "PumpType (exceptional structured NodeSet projection)",
+  "uav:browseName": "pump:PumpType",
+  "uav:id": "nsu=http://example.com/demo/pump;i=1001",
+  "uav:nodes": {
+    "@type": "uav:NodeModel",
+    "profileVersion": "1.0",
+    "namespaceUris": [
+      "http://example.com/demo/pump"
+    ],
+    "models": [
+      {
+        "modelUri": "http://example.com/demo/pump",
+        "version": "1.0.0",
+        "publicationDate": "2026-01-01T00:00:00Z",
+        "requiredModels": [
+          {
+            "modelUri": "http://opcfoundation.org/UA/",
+            "version": "1.05.03"
+          }
+        ]
+      }
+    ],
+    "aliases": [
+      {
+        "alias": "PumpType",
+        "value": "ns=1;i=1001"
+      }
+    ],
+    "nodes": [
+      {
+        "nodeClass": "ObjectType",
+        "nodeId": "ns=1;i=1001",
+        "browseName": "1:PumpType",
+        "displayName": [
+          {
+            "value": "PumpType"
+          }
+        ],
+        "references": [
+          {
+            "referenceType": "HasSubtype",
+            "isForward": false,
+            "target": "i=58"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6001"
+          }
+        ]
+      },
+      {
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6001",
+        "browseName": "1:PumpSpeed",
+        "parentNodeId": "ns=1;i=1001",
+        "dataType": "Double",
+        "accessLevel": 1,
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=63"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -71,7 +71,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
                     MinDelay = TimeSpan.Zero,
                     MaxDelay = TimeSpan.Zero,
                     MaxAttempts = 3
-                });
+                },
+                metrics.Telemetry);
             ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.Basic256Sha256)
                 .ConfigureAwait(false);
             var sessions = new List<ManagedSessionType>(SessionCount);
@@ -119,7 +120,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
                     MinDelay = TimeSpan.FromMilliseconds(100),
                     MaxDelay = TimeSpan.FromMilliseconds(500),
                     MaxAttempts = 120
-                });
+                },
+                metrics.Telemetry);
             ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.Basic256Sha256)
                 .ConfigureAwait(false);
             var sessions = new List<ManagedSessionType>(SessionCount);

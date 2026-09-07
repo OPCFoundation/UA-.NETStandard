@@ -203,6 +203,23 @@ ManagedSession session = await ManagedSession.CreateAsync(
     telemetry: telemetry);
 ```
 
+### Failure of the initial connect
+
+`CreateAsync` returns only once the session is actually connected. When the
+first connect attempt fails, the state machine treats it like any other
+connection loss and retries it under the configured reconnect policy — a
+reconnect that finds no inner session runs a full connect rather than
+reactivating one. If the policy, the `MaxTotalReconnectTime` budget and the
+redundancy failover are all exhausted, `CreateAsync` disposes the half-built
+session and throws a `ServiceResultException` carrying the error of the last
+failed attempt (for example `BadCertificateUntrusted`), not a generic
+`BadNotConnected`. It never returns a `ManagedSession` without a live inner
+session.
+
+Callers that want to give up sooner than the policy does should cap the policy
+(`MaxRetries`, `MaxTotalReconnectTime`) or pass a cancellation token, which
+surfaces as an `OperationCanceledException`.
+
 ### `ManagedSessionFactory`
 
 `ManagedSessionFactory` (`src/Opc.Ua.Client/Session/ManagedSessionFactory.cs`)
@@ -282,6 +299,31 @@ bounds each participant callback with a `ParticipantTimeout` of 30 seconds.
 Because all of this is driven internally, callers must **not** wrap a
 `ManagedSession` with `SessionReconnectHandler`; doing so throws
 `NotSupportedException`.
+
+### Closing a `ManagedSession`
+
+`CloseAsync` requests the close on the connection state machine, which
+cancels the connect, reconnect or failover attempt in flight before it
+closes the inner session. Without that cancellation a close issued while
+the session is reconnecting would have to wait out the current attempt,
+which runs to the endpoint's `OperationTimeout` against a peer that
+accepts the connection but never answers.
+
+```csharp
+// Bounded close: returns BadTimeout when the close does not settle in
+// time, and closes the transport channel as well.
+StatusCode status = await session.CloseAsync(
+    timeout: 10_000,
+    closeChannel: true,
+    ct);
+```
+
+Both overloads close through the state machine and report the status of
+the inner `CloseSession` call; `CloseAsync(ct)` is equivalent to
+`CloseAsync(0, closeChannel: true, ct)`, where a `timeout` of `0` leaves
+the wait unbounded (other than by `ct`). Passing `closeChannel: false`
+tears down the session but leaves the transport channel open and owned by
+the caller, so it can be reused for another session.
 
 ### Server retry-after backpressure
 
@@ -655,36 +697,37 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
 For migration notes on the budget-aware APIs, see
 [the migration guide](MigrationGuide.md#shared-reconnect-budget-for-managedsession-and-the-channel-manager).
 
-### Diagnostics surface contract — what tags and EventSource fields carry
+### Diagnostics surface contract — what tags and structured log fields carry
 
-The channel manager emits diagnostics through three independent
-channels: `System.Diagnostics.Activity` tags (distributed tracing),
-the `Opc.Ua.ChannelManager` `EventSource` (ETW / `dotnet-trace`), and
-`System.Diagnostics.Metrics` instruments. Tag and field values surfaced
-through any of these are restricted to **OPC UA-protocol-level fields
-only**:
+The channel manager emits diagnostics through three independent channels: `System.Diagnostics.Activity` tags (distributed tracing), structured `ILogger` logs under the `Opc.Ua.ChannelManager` category, and `System.Diagnostics.Metrics` instruments. The channel manager previously emitted its own `Opc.Ua.ChannelManager` `EventSource` (ETW / `dotnet-trace`); that provider is removed. The structured logs are the replacement — same category name, same event identities — routed through `Microsoft.Extensions.Logging` / OpenTelemetry logging instead of ETW.
+
+Each event kept its original `EventId` and `EventName` on the `[LoggerMessage]` replacement, so tooling matching on the numeric id or name keeps working:
+
+| EventId | EventName | Level | Message template |
+|---|---|---|---|
+| 1 | `ChannelOpened` | Information | `Channel opened. Endpoint={Endpoint}, Reverse={Reverse}, Refcount={Refcount}, Participants={ParticipantCount}` |
+| 2 | `ChannelClosed` | Information | `Channel closed. Endpoint={Endpoint}, Reason={Reason}, Refcount={Refcount}, Participants={ParticipantCount}` |
+| 3 | `StateChanged` | Information | `State changed. Endpoint={Endpoint}, Previous={PreviousState}, New={NewState}, Attempt={ReconnectAttempt}, Status={StatusCode}, ErrorMessage={ErrorMessage}` |
+| 4 | `ReconnectStarted` | Information | `Reconnect started. Endpoint={Endpoint}, AttemptCount={AttemptCount}` |
+| 5 | `ReconnectCompleted` | Information | `Reconnect completed. Endpoint={Endpoint}, AttemptCount={AttemptCount}, Outcome={Outcome}` |
+| 6 | `ReconnectFailed` | Warning | `Reconnect failed. Endpoint={Endpoint}, Attempt={Attempt}, Outcome={Outcome}, Status={StatusCode}, ErrorMessage={ErrorMessage}` |
+| 7 | `ParticipantAttached` | Information | `Participant attached. Endpoint={Endpoint}, Participant={ParticipantId}, Refcount={Refcount}, Participants={ParticipantCount}` |
+| 8 | `ParticipantDetached` | Information | `Participant detached. Endpoint={Endpoint}, Participant={ParticipantId}, Refcount={Refcount}, Participants={ParticipantCount}` |
+
+Tag and structured-field values surfaced through Activity tags or these logs are restricted to **OPC UA-protocol-level fields only**:
 
 - `StatusCode` (numeric / symbolic), e.g. `BadSecureChannelClosed`
 - `ServiceResult.SymbolicId`
 - `ServiceResult.LocalizedText.Text` — the operator-facing message
 
-Notably, the following are **never** sent to Activity tags or to
-`EventSource` events:
+Notably, the following are **never** sent to Activity tags or to the `Opc.Ua.ChannelManager` structured logs above:
 
 - The full `ServiceResult.ToString()` serialization
-- `ServiceResult.AdditionalInfo` — typically carries inner-exception
-  messages, file paths, internal IDs
-- `Exception.StackTrace`, `Exception.Message`, or any other inner .NET
-  exception detail
+- `ServiceResult.AdditionalInfo` — typically carries inner-exception messages, file paths, internal IDs
+- `Exception.StackTrace`, `Exception.Message`, or any other inner .NET exception detail
 - `Inner` recursion into `ServiceResult.InnerResult`
 
-This keeps internal client/server diagnostics out of distributed
-tracing backends where operators with telemetry-read access (but no
-production-debug access) should not be able to read internal failure
-detail. Full failure context — including stack traces and
-`AdditionalInfo` — flows only through the local `ILogger.LogDebug`
-path on the manager, where it stays under the host's log-access
-controls.
+This keeps internal client/server diagnostics out of distributed tracing and logging backends where operators with telemetry-read access (but no production-debug access) should not be able to read internal failure detail. Full failure context — including stack traces and `AdditionalInfo` — flows only through a separate, local `ILogger.LogDebug` call on the manager, where it stays under the host's log-access controls; it is never folded into the `Opc.Ua.ChannelManager`-category events listed above.
 
 The metric tag set is also bounded for routine operation:
 
@@ -696,22 +739,11 @@ The metric tag set is also bounded for routine operation:
 | `opc.ua.channel.gate.wait` | `endpoint` |
 | `opc.ua.channel.participant.timeout.count` / `opc.ua.channel.participant.recreate.count` | `endpoint`, `participant` (+ `success` on recreate) |
 
-`outcome` is one of `success`, `transient-failure`, `policy-exhausted`,
-`fatal-channel`. `reason` is one of `lease-released`,
-`manager-disposed`, `faulted`. `endpoint` cardinality is bounded by the
-number of distinct OPC UA endpoint URLs the application connects to.
+`outcome` is one of `success`, `transient-failure`, `policy-exhausted`, `fatal-channel`. `reason` is one of `lease-released`, `manager-disposed`, `faulted`. `endpoint` cardinality is bounded by the number of distinct OPC UA endpoint URLs the application connects to.
 
-> The `participant` tag carries the **kind prefix** of the
-> participant identifier (e.g. `"Session"`, `"Client"`), not the
-> per-instance suffix. This keeps cardinality bounded by the small set
-> of participant kinds rather than growing with every session /
-> reconnect-storm participant ever created. The full per-instance
-> `IReconnectParticipant.Id` is preserved on Activity tags and
-> EventSource events so individual sessions remain correlatable in
-> distributed traces. Custom participants that don't use the
-> "kind-`-`-instance" naming convention contribute their full id to
-> the tag, so prefer the prefix-then-suffix shape for new participant
-> types.
+> The `participant` tag carries the **kind prefix** of the participant identifier (e.g. `"Session"`, `"Client"`), not the per-instance suffix. This keeps cardinality bounded by the small set of participant kinds rather than growing with every session / reconnect-storm participant ever created. The full per-instance `IReconnectParticipant.Id` is preserved on Activity tags and on the `Opc.Ua.ChannelManager` structured logs above so individual sessions remain correlatable in distributed traces. Custom participants that don't use the "kind-`-`-instance" naming convention contribute their full id to the tag, so prefer the prefix-then-suffix shape for new participant types.
+
+For the removal of the old `EventSource` providers (including this one) and migration guidance for `EventListener` / `dotnet-trace` consumers, see [migrate/2.0.x/telemetry.md](migrate/2.0.x/telemetry.md#etw-eventsource-provider-removal).
 
 ### DI registration
 

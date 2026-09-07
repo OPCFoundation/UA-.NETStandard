@@ -1,0 +1,91 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+namespace Opc.Ua.Server
+{
+    /// <summary>
+    /// Provides the internal lifecycle contract used when a monitored node is deleted or rebound.
+    /// </summary>
+    internal interface IDetachableMonitoredItem
+    {
+        /// <summary>
+        /// Gets whether the monitored item is detached from its node manager dispatch path.
+        /// </summary>
+        bool IsDetached { get; }
+
+        /// <summary>
+        /// Gets whether the monitored node is currently deleted.
+        /// </summary>
+        bool IsDeleted { get; }
+
+        /// <summary>
+        /// Reserves the monitored item while it is handed to a NodeManager, so that a concurrent
+        /// delete cannot dispose it midway and leave the NodeManager sampling a disposed item.
+        /// </summary>
+        /// <returns><c>false</c> when the item has already been disposed.</returns>
+        bool TryBeginAttach();
+
+        /// <summary>
+        /// Ends the reservation taken by <see cref="TryBeginAttach"/>.
+        /// </summary>
+        /// <returns>
+        /// <c>true</c> when the item is still usable, <c>false</c> when it was disposed while the
+        /// attach was running, in which case the caller has to undo the attach.
+        /// </returns>
+        bool EndAttach();
+
+        /// <summary>
+        /// Marks the monitored node as deleted and schedules the required status notification.
+        /// </summary>
+        void MarkNodeDeleted();
+
+        /// <summary>
+        /// Enters the manager-detach transition while preserving rollback ownership.
+        /// </summary>
+        void BeginDetach();
+
+        /// <summary>
+        /// Detaches the MonitoredItem from the NodeManager that owns it and parks it on the
+        /// server's long lived CoreNodeManager, which outlives every NodeManager that can be
+        /// retired, so the item keeps its identity and queue while it has no real owner.
+        /// </summary>
+        /// <param name="server">The server whose CoreNodeManager takes the item over.</param>
+        void Detach(IServerInternal server);
+
+        /// <summary>
+        /// Ensures that the missing-node status is scheduled for publication.
+        /// </summary>
+        void QueueNodeIdUnknown();
+
+        /// <summary>
+        /// Rebinds the monitored item to a compatible node manager and handle.
+        /// </summary>
+        void Rebind(IAsyncNodeManager nodeManager, object managerHandle);
+    }
+}

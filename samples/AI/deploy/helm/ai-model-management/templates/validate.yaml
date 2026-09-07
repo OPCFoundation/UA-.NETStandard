@@ -1,0 +1,35 @@
+{{/*
+Refuses configurations that would deploy something misleading.
+
+Each of these is a real mistake that produces a Server which looks healthy and
+answers questions wrongly - which is worse than one that fails to start, because
+nobody investigates a green pod.
+*/}}
+
+{{- if and (ne .Values.backend.authentication "Anonymous") (not (include "ai-model-management.hasCredential" .)) }}
+{{- fail "backend.authentication expects a credential but none is supplied. Set credentials.existingSecret, or use authentication: Anonymous for an endpoint that needs none. This applies to BearerToken and WorkloadIdentity as much as ApiKey: without a credential the Server sends no Authorization header at all, while the address space still says it authenticates." }}
+{{- end }}
+
+{{- if and (ne .Values.backend.authentication "Anonymous") (not .Values.backend.credentialReference) }}
+{{- fail "backend.credentialReference is empty, so the Server would authenticate with nothing while publishing AuthenticationKind as though it did. Name the key within the Secret (or the token scope, for WorkloadIdentity)." }}
+{{- end }}
+
+{{- if and .Values.fallbackBackend.enabled (ne .Values.fallbackBackend.site "OnServer") (not .Values.fallbackBackend.egressPermitted) }}
+{{- fail "fallbackBackend.egressPermitted is false but its site is not OnServer, so the fallback deployment would publish EgressPermitted=false while sending payloads off the machine." }}
+{{- end }}
+
+{{- if and .Values.credentials.create .Values.credentials.existingSecret }}
+{{- fail "Set either credentials.existingSecret or credentials.create, not both." }}
+{{- end }}
+
+{{- if and .Values.ai.enableFallback (not .Values.fallbackBackend.enabled) }}
+{{- fail "ai.enableFallback publishes a fallback deployment, but fallbackBackend.enabled is false, so it has nothing to reach. A fallback that always fails is worse than none: set fallbackBackend.enabled, or turn ai.enableFallback off." }}
+{{- end }}
+
+{{- if and .Values.fallbackBackend.enabled (eq .Values.fallbackBackend.endpointUri .Values.backend.endpointUri) }}
+{{- fail "The fallback endpoint is the same as the primary. That is a retry, not a fallback: it fails for every reason the primary just failed for." }}
+{{- end }}
+
+{{- if and (not .Values.backend.egressPermitted) (ne .Values.backend.site "OnServer") }}
+{{- fail "backend.egressPermitted is false but backend.site is not OnServer, so this Server would publish EgressPermitted=false while sending payloads off the machine. Set egressPermitted, or point the backend at a local runtime." }}
+{{- end }}

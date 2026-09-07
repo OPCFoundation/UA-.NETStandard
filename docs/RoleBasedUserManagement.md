@@ -49,7 +49,23 @@ Every mutator returns a `ServiceResult` that mirrors the spec-defined status cod
 - `Thumbprint` - upper-case hexadecimal, no spaces.
 - `X509Subject` - `Name=Value(/Name=Value)*` grammar with names from Part 18 Table 10.
 
-`EndpointType` comparisons in identity resolution honour Part 18 4.4.2: fields set to their default value on the rule side act as wildcards.
+`EndpointType` comparisons in identity resolution honour Part 18 4.4.2: fields set to their default value on the rule
+side act as wildcards. A rule may therefore constrain any subset of endpoint fields by assigning non-default values to
+those fields. For example, this rule applies to every endpoint URL that uses `SignAndEncrypt`:
+
+```csharp
+IRoleManager roles = server.CurrentInstance.RoleManager;
+
+roles.AddEndpoint(
+    ObjectIds.WellKnownRole_Engineer,
+    new EndpointType
+    {
+        SecurityMode = MessageSecurityMode.SignAndEncrypt
+    });
+```
+
+At least one field must be non-default; `AddEndpoint` returns `Bad_InvalidArgument` for a null or completely default
+`EndpointType`.
 
 > **Identity-claim criteria support**:
 >

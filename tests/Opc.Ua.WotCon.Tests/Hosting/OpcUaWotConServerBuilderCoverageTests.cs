@@ -81,6 +81,30 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         }
 
         [Test]
+        public void AddWotConServerWithConfigurationCannotSetHasInitialValueDirectly()
+        {
+            var configData = new Dictionary<string, string?>
+            {
+                ["OpcUa:WotCon:Server:Configuration:VendorName:HasInitialValue"] = "true"
+            };
+
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(configData)
+                .Build();
+
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddWotConServer(configuration);
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            WotConnectivityServerOptions options =
+                sp.GetRequiredService<IOptions<WotConnectivityServerOptions>>().Value;
+            WotConfigurationParameter parameter = options.Configuration["VendorName"];
+
+            Assert.That(parameter.HasInitialValue, Is.False);
+            Assert.That(parameter.InitialValue.IsNull, Is.True);
+        }
+
+        [Test]
         public void AddWotConServerWithConfigurationSectionBindsOptions()
         {
             var configData = new Dictionary<string, string?>

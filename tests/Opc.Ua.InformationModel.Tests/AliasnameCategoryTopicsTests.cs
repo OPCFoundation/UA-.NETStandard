@@ -65,7 +65,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(typeNodeIds, Contains.Item(AliasNameCategoryTypeNodeId));
         }
 
-        [Description("Verify that at least one instance of a Topic is included in the Topics category and that it references a remote Object.")]
+        [Description("Verify that at least one instance of a Topic is included in the category and that the instance is a Dataset.")]
         [Test]
         public async Task TopicsCategoryContainsAliasNameForDatasetAsync()
         {
@@ -76,29 +76,46 @@ namespace Opc.Ua.InformationModel.Tests
                 Session, category).ConfigureAwait(false);
 
             int aliasInstances = 0;
+            int aliasForDataSet = 0;
             var browseNames = new List<string>();
             foreach (ReferenceDescription child in children)
             {
                 var typeDef = ExpandedNodeId.ToNodeId(
                     child.TypeDefinition, Session.NamespaceUris);
-                if (typeDef == AliasNameTypeNodeId)
+                if (typeDef != AliasNameTypeNodeId)
                 {
-                    aliasInstances++;
-                    browseNames.Add(child.BrowseName.Name);
+                    continue;
                 }
-            }
+                aliasInstances++;
+                browseNames.Add(child.BrowseName.Name);
 
-            if (aliasInstances == 0)
-            {
-                Assert.Ignore(
-                    "Topics category exposes no AliasName instances on this server.");
+                // Part 17 §9 requires every alias in the Topics hierarchy to
+                // point at a PublishedDataSetType instance.
+                var aliasId = ExpandedNodeId.ToNodeId(
+                    child.NodeId, Session.NamespaceUris);
+                IList<ReferenceDescription> targets = await BrowseChildrenAsync(
+                    Session, aliasId, AliasForNodeId).ConfigureAwait(false);
+                Assert.That(targets, Is.Not.Empty,
+                    $"Alias '{child.BrowseName.Name}' should have an AliasFor target.");
+
+                foreach (ReferenceDescription target in targets)
+                {
+                    Assert.That(
+                        await IsPublishedDataSetAsync(Session, target).ConfigureAwait(false),
+                        Is.True,
+                        $"Topics alias '{child.BrowseName.Name}' should reference a PublishedDataSetType instance.");
+                    aliasForDataSet++;
+                }
             }
 
             Assert.That(aliasInstances, Is.GreaterThan(0),
                 "Topics should contain at least one AliasName instance.");
-            // ServerEvents and AuditEvents are populated by the
-            // Quickstart reference server's AliasNameNodeManager.
+            Assert.That(aliasForDataSet, Is.GreaterThan(0),
+                "Topics should contain at least one AliasName referencing a dataset.");
+            // The datasets are created by the reference server's
+            // ReferenceServerConfigurationNodeManager under PublishedDataSets.
             Assert.That(browseNames, Contains.Item("ServerEvents"));
+            Assert.That(browseNames, Contains.Item("ReferenceDataSet"));
         }
 
         [Description("Call the FindAlias method on the Topics object, passing in '%' for the filter.")]

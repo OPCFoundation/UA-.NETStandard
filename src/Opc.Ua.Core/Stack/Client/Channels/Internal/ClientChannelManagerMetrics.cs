@@ -188,7 +188,7 @@ namespace Opc.Ua
         /// tag at per-kind cardinality instead of accumulating one
         /// permanent time-series per participant instance in metric
         /// backends. The full per-instance ID is preserved on Activity
-        /// tags and EventSource events for correlation.
+        /// tags and structured channel-manager logs for correlation.
         /// </summary>
         private static string GetParticipantKind(string participantId)
         {

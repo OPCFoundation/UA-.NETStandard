@@ -36,8 +36,6 @@ using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Opc.Ua.SourceGeneration.Dependency;
-using ILogger = SGF.Diagnostics.ILogger;
-using SourceProductionContext = SGF.SgfSourceProductionContext;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -57,23 +55,26 @@ namespace Opc.Ua.SourceGeneration
         public ModelCompilation(
             SourceProductionContext context,
             ImmutableArray<(AdditionalText, NodesetFileOptions)> inputFiles,
+            ImmutableArray<AdditionalText> csvFiles,
             ImmutableArray<AdditionalText> identifierFiles,
             ModelCompilationOptions options,
             CompilationOptions compilationOptions,
             ImmutableArray<ModelDependencyReference> referencedModels,
+            ImmutableArray<ModelFluentAccessorProviderReference> referencedAccessorProviders,
             ImmutableArray<NodeManagerAttributeDiscovery> nodeManagerBindings,
-            ImmutableHashSet<string> availableStateTypeNames,
-            ILogger logger)
+            ImmutableHashSet<string> availableStateTypeNames)
         {
             m_context = context;
             m_input = inputFiles;
+            m_csvFiles = csvFiles;
             m_identifierFiles = identifierFiles;
             m_options = options;
             m_compilationOptions = compilationOptions;
             m_nodeManagerBindings = nodeManagerBindings;
             m_referencedModels = referencedModels;
+            m_referencedAccessorProviders = referencedAccessorProviders;
             m_availableStateTypeNames = availableStateTypeNames;
-            m_telemetry = SourceGeneratorTelemetry.Create(logger, m_context);
+            m_telemetry = SourceGeneratorTelemetry.Create(m_context);
         }
 
         /// <summary>
@@ -86,7 +87,7 @@ namespace Opc.Ua.SourceGeneration
                 return;
             }
             var sourceFiles = new SourceGeneratorFileSystem(
-                m_input.Select(i => i.Item1).Concat(m_identifierFiles));
+                m_input.Select(i => i.Item1).Concat(m_csvFiles));
 
             using var vfs = new VirtualFileSystem(); // Use a virtual file sytem
             try
@@ -117,13 +118,17 @@ namespace Opc.Ua.SourceGeneration
                     UseTypeDefinitionModellingRules =
                         m_options.UseTypeDefinitionModellingRules,
                     EmitDependencyMetadata = ResolveEmitDependencyMetadata(),
-                    OmitFluentApi = m_options.OmitFluentApi
+                    OmitFluentApi = m_options.OmitFluentApi,
+                    FluentAccessorsOnly = m_options.FluentAccessorsOnly,
+                    OmitEventRecords = m_options.OmitEventRecords
                 };
 
                 // Load all available nodeset files from the input
                 NodesetFileCollection nodesets = m_input.ToNodeSetFileCollection(
+                    m_csvFiles,
                     sourceFiles, // .WithFallback(vfs),
                     m_telemetry);
+                ReportNodesetIdentifierDiagnostics(nodesets.IdentifierValidationErrors);
 
                 // Resolve [NodeManager] bindings: validate partial-ness and
                 // build the binding list to pass into both GenerateCode calls
@@ -135,6 +140,27 @@ namespace Opc.Ua.SourceGeneration
                 {
                     if (discovery == null)
                     {
+                        continue;
+                    }
+                    if (!discovery.InvalidExpressions.IsDefaultOrEmpty)
+                    {
+                        string targetType = string.IsNullOrEmpty(
+                            discovery.Binding.TargetNamespace)
+                                ? discovery.Binding.TargetClassName
+                                : discovery.Binding.TargetNamespace +
+                                    "." +
+                                    discovery.Binding.TargetClassName;
+                        foreach (NodeManagerAttributeExpressionError error in
+                            discovery.InvalidExpressions)
+                        {
+                            m_context.ReportDiagnostic(
+                                Diagnostic.Create(
+                                    SourceGenerator.NodeManagerArgumentUnresolved,
+                                    error.Location,
+                                    error.ArgumentName,
+                                    error.Expression,
+                                    targetType));
+                        }
                         continue;
                     }
                     if (!discovery.IsPartial)
@@ -154,9 +180,11 @@ namespace Opc.Ua.SourceGeneration
 
                 void reportBinding(NodeManagerAttributeBinding binding, string message)
                 {
-                    Location loc = bindingByPayload.TryGetValue(binding, out NodeManagerAttributeDiscovery d) && d != null
-                        ? d.Location
-                        : Location.None;
+                    Location loc =
+                        bindingByPayload.TryGetValue(binding, out NodeManagerAttributeDiscovery d) &&
+                        d != null
+                            ? d.Location
+                            : Location.None;
                     m_context.ReportDiagnostic(
                         Diagnostic.Create(
                             SourceGenerator.NodeManagerBindingError,
@@ -164,13 +192,28 @@ namespace Opc.Ua.SourceGeneration
                             message));
                 }
 
+                void reportFluentAccessorsOnly(
+                    string modelUri,
+                    string prefix,
+                    string path,
+                    string reason)
+                {
+                    m_context.ReportDiagnostic(
+                        Diagnostic.Create(
+                            SourceGenerator.FluentAccessorsOnlyModelError,
+                            Location.None,
+                            modelUri,
+                            prefix,
+                            path,
+                            reason));
+                }
+
                 // Reduce referenced model attributes to a single dictionary by
                 // model URI (with tie-break on highest version+publication date)
-                // so the downstream generators can apply override resolution.
+                // so the downstream generators can apply override resolution
+                // and decode the carried dependency payloads.
                 IReadOnlyDictionary<string, ModelDependencyReference>
                     referencedModels = BuildReferencedModelMap();
-                IReadOnlyDictionary<string, ModelDependencyV1>
-                    referencedDependencies = BuildReferencedDependencyMap();
 
                 // The design files that are not NodeSet2 inputs form the
                 // ModelDesign pass. Compute them up front so the total model
@@ -218,9 +261,13 @@ namespace Opc.Ua.SourceGeneration
                     referencedModels,
                     bindings.Count > 0 ? bindings : null,
                     bindings.Count > 0 ? reportBinding : null,
-                    referencedDependencies,
+                    // Derived from referencedModels, which carries the payloads.
+                    null,
                     usedBindings,
-                    totalModelCount);
+                    totalModelCount,
+                    reportFluentAccessorsOnly,
+                    m_referencedModels,
+                    m_referencedAccessorProviders);
 
                 // Process the remaining design files. Every NodeSet2 input
                 // (encoded with the prefix/name computed by the nodeset
@@ -228,7 +275,10 @@ namespace Opc.Ua.SourceGeneration
                 // dependency so cross-model references resolve — both
                 // ModelDesign -> NodeSet2 (e.g. an instance whose
                 // TypeDefinition is a NodeSet2-defined ObjectType) and
-                // ModelDesign -> ModelDesign across directories.
+                // ModelDesign -> ModelDesign across directories. The
+                // referenced models carry the upstream dependency payloads,
+                // so a design file can also subtype a structure of a
+                // referenced model that is not present in AdditionalFiles.
                 new DesignFileCollection
                 {
                     Targets = designTargets,
@@ -245,7 +295,10 @@ namespace Opc.Ua.SourceGeneration
                     bindings.Count > 0 ? bindings : null,
                     bindings.Count > 0 ? reportBinding : null,
                     usedBindings,
-                    totalModelCount);
+                    totalModelCount,
+                    reportFluentAccessorsOnly,
+                    m_referencedModels,
+                    m_referencedAccessorProviders);
 
                 // Report any [NodeManager] bindings that neither pass matched,
                 // once, against the shared used-set aggregated across passes.
@@ -270,7 +323,7 @@ namespace Opc.Ua.SourceGeneration
                         SourceGenerator.Exception,
                         Location.None,
                         ex.Message,
-                        ex.StackTrace));
+                        ex.ToString()));
             }
         }
 
@@ -289,14 +342,68 @@ namespace Opc.Ua.SourceGeneration
                         "Minimum required language version is CSharp 8."));
                 return false;
             }
+            if (m_options.FluentAccessorsOnly && m_options.OmitFluentApi)
+            {
+                m_context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        SourceGenerator.FluentAccessorsOnlyOptionsError,
+                        Location.None,
+                        "ModelSourceGeneratorFluentAccessorsOnly and " +
+                        "ModelSourceGeneratorOmitFluentApi cannot both be enabled."));
+                return false;
+            }
+            if (m_options.FluentAccessorsOnly && m_options.Options.GenerateNodeManager)
+            {
+                m_context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        SourceGenerator.FluentAccessorsOnlyOptionsError,
+                        Location.None,
+                        "ModelSourceGeneratorFluentAccessorsOnly cannot be combined with " +
+                        "ModelSourceGeneratorGenerateNodeManager."));
+                return false;
+            }
             return true;
+        }
+
+        private void ReportNodesetIdentifierDiagnostics(
+            IEnumerable<NodesetIdentifierValidationError> errors)
+        {
+            foreach (NodesetIdentifierValidationError error in errors)
+            {
+                m_context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        error.Kind switch
+                        {
+                            NodesetIdentifierValidationErrorKind.MissingFile =>
+                                SourceGenerator.NodesetIdentifierFileMissing,
+                            NodesetIdentifierValidationErrorKind.DuplicateSymbolicName =>
+                                SourceGenerator.NodesetIdentifierDuplicateSymbolicName,
+                            NodesetIdentifierValidationErrorKind.DuplicateNumericId =>
+                                SourceGenerator.NodesetIdentifierDuplicateNumericId,
+                            NodesetIdentifierValidationErrorKind.UnknownSymbol =>
+                                SourceGenerator.NodesetIdentifierUnknownSymbol,
+                            NodesetIdentifierValidationErrorKind.NumericIdMismatch =>
+                                SourceGenerator.NodesetIdentifierNumericIdMismatch,
+                            NodesetIdentifierValidationErrorKind.NodeClassMismatch =>
+                                SourceGenerator.NodesetIdentifierNodeClassMismatch,
+                            NodesetIdentifierValidationErrorKind.AssignedToMultipleModels =>
+                                SourceGenerator.NodesetIdentifierAssignedToMultipleModels,
+                            _ => SourceGenerator.NodesetIdentifierInvalidRow
+                        },
+                        Location.None,
+                        error.NodeSetFilePath,
+                        error.IdentifierFilePath,
+                        error.SymbolicName,
+                        error.Value));
+            }
         }
 
         /// <summary>
         /// Group the referenced-assembly attributes by model URI; when more
-        /// than one assembly contributes the same URI, prefer the entry with
-        /// the highest <c>(Version, PublicationDate)</c> lexicographic tuple
-        /// per the contract on <see cref="ModelDependencyAttribute"/>.
+        /// than one assembly contributes the same URI, prefer a payload-bearing
+        /// self producer over payloadless transitive re-exports, then use the
+        /// highest <c>(Version, PublicationDate)</c> lexicographic tuple per
+        /// the contract on <see cref="ModelDependencyAttribute"/>.
         /// </summary>
         private IReadOnlyDictionary<string, ModelDependencyReference>
             BuildReferencedModelMap()
@@ -318,7 +425,13 @@ namespace Opc.Ua.SourceGeneration
                     map[candidate.ModelUri] = candidate;
                     continue;
                 }
-                int cmp = string.CompareOrdinal(candidate.Version, existing.Version);
+                bool candidateIsProducer = IsModelProducer(candidate);
+                bool existingIsProducer = IsModelProducer(existing);
+                int cmp = candidateIsProducer.CompareTo(existingIsProducer);
+                if (cmp == 0)
+                {
+                    cmp = string.CompareOrdinal(candidate.Version, existing.Version);
+                }
                 if (cmp == 0)
                 {
                     cmp = string.CompareOrdinal(
@@ -349,34 +462,11 @@ namespace Opc.Ua.SourceGeneration
             return map;
         }
 
-        /// <summary>
-        /// Build a per-URI dictionary of the deserialised model
-        /// dependency payloads scanned from referenced assemblies.
-        /// Payloads with unknown versions or malformed encodings are
-        /// silently dropped.
-        /// </summary>
-        private IReadOnlyDictionary<string, ModelDependencyV1>
-            BuildReferencedDependencyMap()
+        private static bool IsModelProducer(ModelDependencyReference reference)
         {
-            if (m_referencedModels.IsDefaultOrEmpty)
-            {
-                return ImmutableDictionary<string, ModelDependencyV1>.Empty;
-            }
-            var map = new Dictionary<string, ModelDependencyV1>(
-                StringComparer.Ordinal);
-            foreach (ModelDependencyReference candidate in m_referencedModels)
-            {
-                ModelDependencyV1 decoded = candidate.GetDependency();
-                if (decoded == null)
-                {
-                    continue;
-                }
-                if (!map.ContainsKey(candidate.ModelUri))
-                {
-                    map[candidate.ModelUri] = decoded;
-                }
-            }
-            return map;
+            ModelDependencyV1 dependency = reference.GetDependency();
+            return dependency != null &&
+                string.Equals(dependency.ModelUri, reference.ModelUri, StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -398,10 +488,13 @@ namespace Opc.Ua.SourceGeneration
 
         private readonly SourceProductionContext m_context;
         private readonly ImmutableArray<(AdditionalText, NodesetFileOptions)> m_input;
+        private readonly ImmutableArray<AdditionalText> m_csvFiles;
         private readonly ImmutableArray<AdditionalText> m_identifierFiles;
         private readonly ModelCompilationOptions m_options;
         private readonly CompilationOptions m_compilationOptions;
         private readonly ImmutableArray<ModelDependencyReference> m_referencedModels;
+        private readonly ImmutableArray<ModelFluentAccessorProviderReference>
+            m_referencedAccessorProviders;
         private readonly ImmutableArray<NodeManagerAttributeDiscovery> m_nodeManagerBindings;
         private readonly ImmutableHashSet<string> m_availableStateTypeNames;
         private readonly SourceGeneratorTelemetry m_telemetry;

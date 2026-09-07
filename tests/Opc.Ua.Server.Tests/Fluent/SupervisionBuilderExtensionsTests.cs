@@ -152,7 +152,8 @@ namespace Opc.Ua.Server.Tests.Fluent
         [Test]
         public void ActivatesAlarmFlipsAlarmActiveState()
         {
-            (NodeManagerBuilder b, _, BaseDataVariableState<bool> v) = CreateBuilder();
+            (NodeManagerBuilder b, BaseObjectState root, BaseDataVariableState<bool> v) =
+                CreateBuilder();
             INodeBuilder nb = b.Node(new NodeId("Root", kNs));
             IAlarmBuilder<NonExclusiveLimitAlarmState> ab = nb.CreateLimitAlarm(
                 new QualifiedName("CavitationAlarm", kNs));
@@ -160,17 +161,49 @@ namespace Opc.Ua.Server.Tests.Fluent
             IVariableBuilder<bool> vb = b.Variable<bool>(new NodeId("Root.Flag", kNs));
             vb.ActivatesAlarm(ab);
 
+            var reported = new List<IFilterTarget>();
+            root.OnReportEvent = (_, _, e) => reported.Add(e);
+
             // Transition false -> true: should activate alarm
             v.Value = true;
             v.ClearChangeMasks(null!, includeChildren: false);
 
             Assert.That(ab.Alarm.ActiveState!.Id!.Value, Is.True);
+            Assert.That(reported, Has.Count.EqualTo(1));
+            Assert.That(ab.Alarm.EventId!.Value.IsNull, Is.False);
+            Assert.That(ab.Alarm.Retain!.Value, Is.True);
+            Assert.That(ab.Alarm.Severity!.Value, Is.EqualTo((ushort)EventSeverity.High));
+            Assert.That(ab.Alarm.AckedState!.Id!.Value, Is.False);
 
-            // Transition true -> false: should deactivate
+            // Re-publishing the same value must not report another event.
+            v.Value = true;
+            v.ClearChangeMasks(null!, includeChildren: false);
+            Assert.That(reported, Has.Count.EqualTo(1));
+
+            // Clearing an unacknowledged alarm keeps it retained.
             v.Value = false;
             v.ClearChangeMasks(null!, includeChildren: false);
 
             Assert.That(ab.Alarm.ActiveState.Id.Value, Is.False);
+            Assert.That(reported, Has.Count.EqualTo(2));
+            Assert.That(ab.Alarm.Retain.Value, Is.True);
+            Assert.That(ab.Alarm.Severity.Value, Is.EqualTo((ushort)EventSeverity.Low));
+
+            // A subsequent activation is a new unacknowledged occurrence.
+            ab.Alarm.SetAcknowledgedState(b.Context, acknowledged: true);
+            ab.Alarm.Retain.Value = false;
+            v.Value = true;
+            v.ClearChangeMasks(null!, includeChildren: false);
+            Assert.That(ab.Alarm.AckedState.Id.Value, Is.False);
+            Assert.That(ab.Alarm.Retain.Value, Is.True);
+            Assert.That(reported, Has.Count.EqualTo(3));
+
+            // Disabled conditions ignore source transitions.
+            ab.Alarm.SetEnableState(b.Context, enabled: false);
+            v.Value = false;
+            v.ClearChangeMasks(null!, includeChildren: false);
+            Assert.That(ab.Alarm.ActiveState.Id.Value, Is.True);
+            Assert.That(reported, Has.Count.EqualTo(3));
         }
 
         [Test]

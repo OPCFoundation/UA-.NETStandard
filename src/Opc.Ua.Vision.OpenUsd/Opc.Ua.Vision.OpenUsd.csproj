@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- The OpenUSD rendering stack targets .NET 8+, so this optional assembly
+         is deliberately narrower than the Vision server/client contracts. The
+         Vision server takes the ISceneCameraCaptureProvider abstraction and
+         degrades to a non-rendering sensor when this assembly is not present. -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net10.0;net9.0;net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
+    <AssemblyName>$(AssemblyPrefix).Vision.OpenUsd</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.Vision.OpenUsd</PackageId>
+    <RootNamespace>Opc.Ua.Vision.OpenUsd</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>Offscreen renderer for the draft OPC UA Vision companion server: renders a stage camera prim's view through the OpenUSD Silk backend (D3D12 hardware, D3D12 WARP software, or Vulkan headless), returns encoded PNG frames through a small ISceneCameraCaptureProvider abstraction, and reports a clear result when no graphics backend is available so the Vision server can degrade to a non-rendering sensor.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Rendering.Silk and the native OpenUSD payload are not trim/AOT clean;
+         the connector viewer package makes the same call. -->
+    <IsAotCompatible>false</IsAotCompatible>
+    <!-- The OpenUSD rendering stack has no net48/netstandard asset, so legacy
+         CustomTestTarget solution legs build this project as a no-op shell. -->
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Vision.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Vision.OpenUsd.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Types\Opc.Ua.Types.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="OpenUsd" />
+    <PackageReference Include="OpenUsd.Rendering" />
+    <PackageReference Include="OpenUsd.Rendering.Silk" />
+    <PackageReference Include="OpenUsd.Rendering.Silk.D3D12" />
+    <PackageReference Include="OpenUsd.Rendering.Silk.Vulkan" />
+    <PackageReference Include="OpenUsd.Runtime.Core" />
+    <PackageReference Include="OpenUsd.Runtime.Imaging" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

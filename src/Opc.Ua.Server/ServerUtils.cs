@@ -510,5 +510,18 @@ namespace Opc.Ua.Server
                 context.StringTable,
                 logger);
         }
+
+        /// <summary>
+        /// Returns whether compatibility logging for the retired
+        /// "OPC-UA-Server" EventSource provider is enabled.
+        /// </summary>
+        /// <remarks>
+        /// Requiring the <c>Trace</c> log level keeps these events opt-in even
+        /// when their retained legacy record level is <c>Information</c>.
+        /// </remarks>
+        internal static bool IsEventLogEnabled(this ILogger eventLogger)
+        {
+            return eventLogger.IsEnabled(LogLevel.Trace);
+        }
     }
 }

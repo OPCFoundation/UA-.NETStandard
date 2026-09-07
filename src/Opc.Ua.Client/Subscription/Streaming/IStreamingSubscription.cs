@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 namespace Opc.Ua.Client.Subscriptions.Streaming
 {
@@ -86,6 +88,25 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             NodeId notifierId,
             EventFilter filter,
             MonitoredItems.MonitoredItemOptions? options = null,
+            CancellationToken ct = default);
+    }
+
+    /// <summary>
+    /// Internal event-subscription hook for consumers that need to
+    /// await server-side monitored item creation before proceeding.
+    /// </summary>
+    internal interface IStreamingSubscriptionReadiness
+    {
+        /// <summary>
+        /// Subscribes to events and invokes <paramref name="onMonitoredItemReady"/>
+        /// after the monitored item has been added locally and before
+        /// notifications are yielded.
+        /// </summary>
+        IAsyncEnumerable<EventNotification> SubscribeEventsAsync(
+            NodeId notifierId,
+            EventFilter filter,
+            MonitoredItems.MonitoredItemOptions? options,
+            Func<IMonitoredItem, CancellationToken, ValueTask> onMonitoredItemReady,
             CancellationToken ct = default);
     }
 }

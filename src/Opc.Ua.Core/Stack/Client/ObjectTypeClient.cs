@@ -226,6 +226,7 @@ namespace Opc.Ua
                             new RelativePathElement
                             {
                                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                                IsInverse = false,
                                 IncludeSubtypes = true,
                                 TargetName = new QualifiedName(browseName, (ushort)nsIdx)
                             }

@@ -366,22 +366,43 @@ namespace Opc.Ua.SourceGeneration
             }
             foreach (InstanceDesign grandchild in grandchildren)
             {
-                if (grandchild is not PropertyDesign property ||
+                if (grandchild is not VariableDesign property ||
                     !string.Equals(property.SymbolicName?.Name, propertyName,
                         StringComparison.Ordinal))
                 {
                     continue;
                 }
-                System.Xml.XmlElement element = property.DefaultValue;
-                if (element != null &&
-                    !string.IsNullOrWhiteSpace(element.InnerText) &&
-                    uint.TryParse(element.InnerText.Trim(), NumberStyles.Integer,
-                        CultureInfo.InvariantCulture, out uint value))
+                if (TryReadNumber(property, out uint value))
                 {
                     return value;
                 }
             }
             return null;
+        }
+
+        private static bool TryReadNumber(VariableDesign property, out uint value)
+        {
+            if (property.DecodedValue != null &&
+                uint.TryParse(
+                    Convert.ToString(property.DecodedValue, CultureInfo.InvariantCulture),
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out value))
+            {
+                return true;
+            }
+
+            System.Xml.XmlElement element = property.DefaultValue;
+            if (element != null &&
+                !string.IsNullOrWhiteSpace(element.InnerText) &&
+                uint.TryParse(element.InnerText.Trim(), NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out value))
+            {
+                return true;
+            }
+
+            value = 0;
+            return false;
         }
 
         private sealed class FsmTypeInfo

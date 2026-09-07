@@ -43,6 +43,18 @@ namespace Opc.Ua.SourceGeneration
         public IReadOnlyList<string> Exclude { get; set; }
 
         /// <summary>
+        /// Which part of the stack the compilation opts in to generating.
+        /// </summary>
+        /// <remarks>
+        /// Empty when the project did not opt in, which is the case for every
+        /// compilation the generator is merely loaded into - a
+        /// BenchmarkDotNet host project, for instance. Those must compile
+        /// without the generator contributing anything, so the absence of the
+        /// property is not an error.
+        /// </remarks>
+        public string Mode { get; set; }
+
+        /// <summary>
         /// Get options from options provider
         /// </summary>
         /// <param name="provider"></param>
@@ -51,7 +63,8 @@ namespace Opc.Ua.SourceGeneration
         {
             return new StackGenerationOptions
             {
-                Exclude = provider.GlobalOptions.GetStrings(nameof(Exclude))
+                Exclude = provider.GlobalOptions.GetStrings(nameof(Exclude)),
+                Mode = provider.GlobalOptions.GetString(nameof(Mode))
             };
         }
     }

@@ -1,0 +1,206 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "ua": "http://opcfoundation.org/UA/",
+      "pump": "http://example.com/demo/pump",
+      "qudt": "http://qudt.org/schema/qudt/",
+      "qudt-quantitykind": "http://qudt.org/vocab/quantitykind/",
+      "@language": "en"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["tm:ThingModel", "uav:objectType"],
+  "title": "PumpType",
+  "description": "A Thing Model of an OPC UA ObjectType that exercises the model and platform vocabulary: composition, references, engineering units and ranges, scaling, localized text, configuration, metadata and modelling rules. It declares no grouping of its own; Annex E organizes its members into groups with projections.",
+  "uav:bindingVersion": "1.1",
+  "uav:profile": ["WoT-Modeller"],
+  "uav:browseName": "pump:PumpType",
+  "uav:id": "nsu=http://example.com/demo/pump;i=1001",
+  "uav:isComposite": true,
+  "uav:includeInherited": true,
+  "uav:additionalProperties": false,
+  "uav:semanticId": "http://example.com/ontology/Pump",
+  "uav:contains": ["Impeller"],
+  "uav:metadata": {
+    "pump:revision": 3,
+    "http://example.com/vocab/maintainer": "Modeling Working Group"
+  },
+  "links": [
+    {
+      "rel": "ua:HasComponent",
+      "href": "./04-type-reference-modelling-rule.jsonld",
+      "uav:refName": "Impeller",
+      "uav:refId": "i=47"
+    },
+    {
+      "rel": "pump:DriveReference",
+      "href": "https://example.com/models/MotorType.tm.jsonld",
+      "uav:refName": "Drive",
+      "uav:refId": "nsu=http://example.com/demo/pump;i=4002"
+    },
+    { "rel": "ua:HasInterface", "href": "https://example.com/capabilities/telemetry" },
+    { "rel": "ua:NonHierarchicalReferences", "href": "https://example.com/models/NameplateType.tm.jsonld" }
+  ],
+  "properties": {
+    "pumpSpeed": {
+      "@type": "uav:variableType",
+      "title": "Pump Speed",
+      "titles": { "en": "Pump Speed", "de": "Pumpendrehzahl" },
+      "description": "The measured rotational speed of the pump.",
+      "descriptions": {
+        "en": "The measured rotational speed of the pump.",
+        "de": "Die gemessene Drehzahl der Pumpe."
+      },
+      "uav:browseName": "pump:PumpSpeed",
+      "type": "number",
+      "unit": "rpm",
+      "qudt:hasQuantityKind": "qudt-quantitykind:AngularVelocity",
+      "minimum": 0,
+      "maximum": 3600,
+      "uav:instrumentRange": { "minimum": -50, "maximum": 4200 },
+      "uav:modellingRule": "Mandatory",
+      "uav:unitProperty": "/properties/pumpSpeedUnit",
+      "uav:scaleFactor": 0.1,
+      "uav:decimalPlaces": 1,
+      "observable": true,
+      "readOnly": true
+    },
+    "pumpSpeedUnit": {
+      "@type": "uav:variableType",
+      "title": "Pump Speed Engineering Units",
+      "uav:browseName": "ua:EngineeringUnits",
+      "type": "string",
+      "uav:modellingRule": "Optional",
+      "uav:engineeringUnits": {
+        "namespaceUri": "http://www.opcfoundation.org/UA/units/un/cefact",
+        "unitId": 5340017,
+        "displayName": "rpm",
+        "description": "revolutions per minute"
+      },
+      "readOnly": true
+    },
+    "dischargePressure": {
+      "@type": "uav:variableType",
+      "title": "Discharge Pressure",
+      "uav:browseName": "pump:DischargePressure",
+      "type": "number",
+      "unit": "bar",
+      "qudt:hasQuantityKind": "qudt-quantitykind:Pressure",
+      "minimum": 0,
+      "maximum": 25,
+      "uav:modellingRule": "Mandatory",
+      "observable": true,
+      "readOnly": true
+    },
+    "motorTemperature": {
+      "@type": "uav:variableType",
+      "title": "Motor Temperature",
+      "uav:browseName": "pump:MotorTemperature",
+      "type": "number",
+      "unit": "Cel",
+      "qudt:hasQuantityKind": "qudt-quantitykind:Temperature",
+      "minimum": -20,
+      "maximum": 150,
+      "uav:modellingRule": "Mandatory",
+      "observable": true,
+      "readOnly": true
+    },
+    "vibration": {
+      "@type": "uav:variableType",
+      "title": "Vibration",
+      "uav:browseName": "pump:Vibration",
+      "type": "number",
+      "unit": "mm/s",
+      "qudt:hasQuantityKind": "qudt-quantitykind:Velocity",
+      "minimum": 0,
+      "maximum": 50,
+      "uav:modellingRule": "Optional",
+      "observable": true,
+      "readOnly": true
+    },
+    "serialNumber": {
+      "@type": "uav:variableType",
+      "title": "Serial Number",
+      "uav:browseName": "pump:SerialNumber",
+      "type": "string",
+      "uav:modellingRule": "Mandatory"
+    },
+    "stage": {
+      "@type": "uav:variableType",
+      "title": "Stage",
+      "uav:browseName": "pump:Stage",
+      "type": "number",
+      "uav:modellingRule": "MandatoryPlaceholder"
+    }
+  },
+  "actions": {
+    "reset": {
+      "@type": "uav:method",
+      "title": "Reset",
+      "uav:browseName": "pump:Reset",
+      "uav:modellingRule": "Optional",
+      "uav:actionConfiguration": { "pump:timeoutMs": 5000, "pump:confirm": true },
+      "uav:externalSchema": "https://example.com/schemas/reset-args.json"
+    },
+    "start": {
+      "@type": "uav:method",
+      "title": "Start",
+      "uav:browseName": "pump:Start",
+      "uav:modellingRule": "Optional"
+    },
+    "stop": {
+      "@type": "uav:method",
+      "title": "Stop",
+      "uav:browseName": "pump:Stop",
+      "uav:modellingRule": "Optional"
+    }
+  },
+  "events": {
+    "temperatureExceeded": {
+      "@type": "uav:eventType",
+      "tm:ref": "./27-event-type-models.jsonld#/events/temperatureExceeded",
+      "title": "Temperature Exceeded",
+      "uav:browseName": "pump:TemperatureExceededEventType",
+      "uav:semanticId": "http://example.com/ontology/TemperatureExceeded",
+      "data": {
+        "type": "object",
+        "required": ["EventId", "EventType", "SourceNode", "SourceName", "Time", "ReceiveTime", "Message", "Severity"],
+        "properties": {
+          "EventId": { "type": "string", "contentEncoding": "base64" },
+          "EventType": { "type": "string" },
+          "SourceNode": { "type": "string" },
+          "SourceName": { "type": "string" },
+          "Time": { "type": "string", "format": "date-time" },
+          "ReceiveTime": { "type": "string", "format": "date-time" },
+          "Message": { "type": "string" },
+          "Severity": { "type": "integer", "minimum": 1, "maximum": 1000 },
+          "Temperature": { "uav:browseName": "pump:Temperature", "type": "number", "unit": "Cel" }
+        }
+      }
+    },
+    "sealLeak": {
+      "@type": "uav:eventType",
+      "tm:ref": "./27-event-type-models.jsonld#/events/sealLeak",
+      "title": "Seal Leak",
+      "uav:browseName": "pump:SealLeakEventType",
+      "uav:semanticId": "http://example.com/ontology/SealLeak",
+      "data": {
+        "type": "object",
+        "required": ["EventId", "EventType", "SourceNode", "SourceName", "Time", "ReceiveTime", "Message", "Severity"],
+        "properties": {
+          "EventId": { "type": "string", "contentEncoding": "base64" },
+          "EventType": { "type": "string" },
+          "SourceNode": { "type": "string" },
+          "SourceName": { "type": "string" },
+          "Time": { "type": "string", "format": "date-time" },
+          "ReceiveTime": { "type": "string", "format": "date-time" },
+          "Message": { "type": "string" },
+          "Severity": { "type": "integer", "minimum": 1, "maximum": 1000 },
+          "LeakRate": { "uav:browseName": "pump:LeakRate", "type": "number", "unit": "L/min" }
+        }
+      }
+    }
+  }
+}

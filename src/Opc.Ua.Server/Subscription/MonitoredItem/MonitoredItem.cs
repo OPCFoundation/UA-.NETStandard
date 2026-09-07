@@ -41,7 +41,9 @@ namespace Opc.Ua.Server
     public class MonitoredItem :
         IEventMonitoredItem,
         ISampledDataChangeMonitoredItem,
-        ITriggeredMonitoredItem
+        ITriggeredMonitoredItem,
+        IDetachableMonitoredItem,
+        IMonitoredItemTransferState
     {
         /// <summary>
         /// Initializes the object with its node type.
@@ -202,7 +204,7 @@ namespace Opc.Ua.Server
 
             if (!m_monitoredItemQueueFactory.SupportsDurableQueues && IsDurable)
             {
-                m_logger.DurableSubscriptionWasCreateButNoMonitoredItemQueueFactory(id);
+                m_logger.DurableSubscriptionWasCreateButNoMonitoredItemQueueFactory(id, subscriptionId);
                 throw new ServiceResultException(StatusCodes.BadInternalError);
             }
 
@@ -318,6 +320,17 @@ namespace Opc.Ua.Server
             m_lastValue = storedMonitoredItem.LastValue;
             MonitoredItemType = storedMonitoredItem.TypeMask;
 
+            // without this the first transition out of filter scope after a restart is
+            // dropped, because the item would not know the client had been told about the
+            // condition.
+            ArrayOf<string> filteredRetainConditionIds =
+                storedMonitoredItem.FilteredRetainConditionIds;
+
+            if (!filteredRetainConditionIds.IsEmpty)
+            {
+                m_filteredRetainConditionIds = [.. filteredRetainConditionIds];
+            }
+
             // create aggregate calculator.
             if (storedMonitoredItem.FilterToUse is ServerAggregateFilter aggregateFilter)
             {
@@ -341,6 +354,9 @@ namespace Opc.Ua.Server
                 MonitoringMode);
 
             RestoreQueue();
+
+            m_isDeleted = storedMonitoredItem.IsDeleted;
+            m_isDetached = storedMonitoredItem.IsDetached;
         }
 
         /// <summary>
@@ -378,6 +394,30 @@ namespace Opc.Ua.Server
         /// </summary>
         public IAsyncNodeManager NodeManager { get; private set; }
 
+        /// <inheritdoc/>
+        bool IDetachableMonitoredItem.IsDetached
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_isDetached;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        bool IDetachableMonitoredItem.IsDeleted
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_isDeleted;
+                }
+            }
+        }
+
         /// <summary>
         /// The handle assigned by the node manager when it created the item.
         /// </summary>
@@ -413,21 +453,18 @@ namespace Opc.Ua.Server
                 // check if not ready to publish in case it doesn't ResendData
                 if (!m_readyToPublish)
                 {
-                    //ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
                     return false;
                 }
 
                 // check if it has been triggered.
                 if (MonitoringMode != MonitoringMode.Disabled && m_triggered)
                 {
-                    //ServerUtils.EventLog.MonitoredItemReady(Id, "TRIGGERED");
                     return true;
                 }
 
                 // check if monitoring was turned off.
                 if (MonitoringMode != MonitoringMode.Reporting)
                 {
-                    //ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
                     return false;
                 }
 
@@ -438,13 +475,9 @@ namespace Opc.Ua.Server
 
                     if (m_nextSamplingTime > now)
                     {
-                        //ServerUtils.EventLog.MonitoredItemReady(
-                        //    Id,
-                        //    Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
                         return false;
                     }
                 }
-                //ServerUtils.EventLog.MonitoredItemReady(Id, "NORMAL");
                 return true;
             }
         }
@@ -489,6 +522,14 @@ namespace Opc.Ua.Server
             }
         }
 
+        void IMonitoredItemTransferState.RestoreResendDataTrigger(bool resendData)
+        {
+            lock (m_lock)
+            {
+                m_resendData = resendData;
+            }
+        }
+
         /// <summary>
         /// Sets a flag indicating that the item has been triggered and should publish.
         /// </summary>
@@ -498,7 +539,7 @@ namespace Opc.Ua.Server
             {
                 if (m_readyToPublish)
                 {
-                    m_logger.SetTriggeredId(Id);
+                    m_logger.SetTriggeredId(Id, SubscriptionId);
                     m_triggered = true;
                     return true;
                 }
@@ -527,6 +568,127 @@ namespace Opc.Ua.Server
         public void SetStructureChanged()
         {
             m_structureChanged = true;
+        }
+
+        /// <inheritdoc/>
+        bool IDetachableMonitoredItem.TryBeginAttach()
+        {
+            lock (m_lock)
+            {
+                if (m_isDisposed)
+                {
+                    return false;
+                }
+
+                m_isAttaching = true;
+                return true;
+            }
+        }
+
+        /// <inheritdoc/>
+        bool IDetachableMonitoredItem.EndAttach()
+        {
+            lock (m_lock)
+            {
+                m_isAttaching = false;
+                if (!m_isDisposed)
+                {
+                    return true;
+                }
+            }
+
+            // The item was deleted and disposed while it was being handed to the replacement, so
+            // the teardown that Dispose deferred runs now and the caller has to undo the attach.
+            DisposeQueueHandlers();
+            return false;
+        }
+
+        /// <inheritdoc/>
+        void IDetachableMonitoredItem.MarkNodeDeleted()
+        {
+            lock (m_lock)
+            {
+                m_isDeleted = true;
+                QueueNodeIdUnknown();
+            }
+        }
+
+        /// <inheritdoc/>
+        void IDetachableMonitoredItem.BeginDetach()
+        {
+            lock (m_lock)
+            {
+                m_isDetached = true;
+            }
+        }
+
+        /// <inheritdoc/>
+        void IDetachableMonitoredItem.Detach(IServerInternal server)
+        {
+            if (server is null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+
+            IAsyncNodeManager owner = GetDetachedOwner(server);
+
+            lock (m_lock)
+            {
+                NodeManager = owner;
+                ManagerHandle = DetachedHandle;
+                m_isDetached = true;
+            }
+        }
+
+        /// <summary>
+        /// Returns the long lived NodeManager that a detached MonitoredItem is parked on. The
+        /// CoreNodeManager is used because it outlives every NodeManager that can be retired.
+        /// </summary>
+        /// <param name="server">The server that owns the NodeManagers.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="server"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">The server has no CoreNodeManager.</exception>
+        internal static IAsyncNodeManager GetDetachedOwner(IServerInternal server)
+        {
+            if (server is null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+
+            return server.NodeManager?.CoreNodeManager ??
+                server.CoreNodeManager ??
+                throw new InvalidOperationException(
+                    "The server does not have a long lived CoreNodeManager for detached monitored items.");
+        }
+
+        /// <summary>
+        /// Gets the handle a detached MonitoredItem is parked on.
+        /// </summary>
+        internal static object DetachedHandle => s_detachedHandle;
+
+        /// <inheritdoc/>
+        void IDetachableMonitoredItem.QueueNodeIdUnknown()
+        {
+            lock (m_lock)
+            {
+                if (!m_isDeleted)
+                {
+                    m_isDeleted = true;
+                }
+
+                QueueNodeIdUnknown();
+            }
+        }
+
+        /// <inheritdoc/>
+        void IDetachableMonitoredItem.Rebind(IAsyncNodeManager nodeManager, object managerHandle)
+        {
+            lock (m_lock)
+            {
+                NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
+                ManagerHandle = managerHandle;
+                m_isDetached = false;
+                m_isDeleted = false;
+                }
         }
 
         /// <summary>
@@ -773,9 +935,13 @@ namespace Opc.Ua.Server
                 ClientHandle = clientHandle;
                 m_discardOldest = discardOldest;
 
+                MonitoringFilter? previousFilterToUse = m_filterToUse;
+
                 Filter = originalFilter;
                 m_filterToUse = filterToUse;
                 m_cachedDataChangeFilter = filterToUse as DataChangeFilter;
+
+                DiscardFilteredRetainStateOnWhereClauseChange(previousFilterToUse, filterToUse);
 
                 if (range != null)
                 {
@@ -893,7 +1059,11 @@ namespace Opc.Ua.Server
                     return previousMode;
                 }
 
-                m_logger.MONITORINGMODEMonitoredItemIdPreviousNew(Id, MonitoringMode, monitoringMode);
+                m_logger.MONITORINGMODEMonitoredItemIdPreviousNew(
+                    Id,
+                    MonitoringMode,
+                    monitoringMode,
+                    SubscriptionId);
 
                 if (previousMode == MonitoringMode.Disabled)
                 {
@@ -960,7 +1130,10 @@ namespace Opc.Ua.Server
                 // make a shallow copy of the value.
                 if (!current.IsNull)
                 {
-                    m_logger.RECEIVEDVALUEMonitoredItemIdValueValue(Id, current.WrappedValue);
+                    m_logger.RECEIVEDVALUEMonitoredItemIdValueValue(
+                        Id,
+                        current.WrappedValue,
+                        SubscriptionId);
 
                     current = current.Copy();
 
@@ -974,11 +1147,12 @@ namespace Opc.Ua.Server
                 // create empty value if none provided.
                 if (ServiceResult.IsBad(error) && current.IsNull)
                 {
+                    DateTime utcNow = m_timeProvider.GetUtcNow().UtcDateTime;
                     current = new DataValue(
                         Variant.Null,
                         error!.StatusCode,
-                        DateTime.UtcNow,
-                        DateTime.UtcNow);
+                        utcNow,
+                        utcNow);
                 }
 
                 // this should never happen.
@@ -997,7 +1171,8 @@ namespace Opc.Ua.Server
                             current.SourceTimestamp
                                 .ToLocalTime()
                                 .ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
-                            Id);
+                            Id,
+                            SubscriptionId);
                     }
 
                     while (m_calculator.TryGetProcessedValue(false, out DataValue processedValue))
@@ -1047,7 +1222,8 @@ namespace Opc.Ua.Server
                 Id,
                 m_lastValue.WrappedValue,
                 m_lastValue.StatusCode.Code,
-                overflow);
+                overflow,
+                SubscriptionId);
         }
 
         /// <summary>
@@ -1187,6 +1363,22 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Determines whether an event can be sent with SupportsFilteredRetain in consideration.
         /// </summary>
+        /// <remarks>
+        /// Filtered retain (OPC UA Part 9, B.1.4) lets a condition report one final event as it
+        /// leaves the scope of this client's where clause, so the client sees Retain go false
+        /// even though the condition itself is unchanged on the server. The item therefore
+        /// remembers which conditions currently pass its where clause; a condition that drops
+        /// out of that set is delivered once more and then forgotten.
+        /// <para>
+        /// The condition behind <paramref name="instance"/> is resolved from either an
+        /// <see cref="InstanceStateSnapshot"/> - the shape <c>ReportEvent</c> produces - or a
+        /// <see cref="ConditionState"/> handed over directly, which is what
+        /// <c>ConditionState.ConditionRefresh</c> puts into the refresh event list. Any other
+        /// <see cref="IFilterTarget"/> cannot be mapped onto a condition, so a server that
+        /// queues its own filter targets falls back to plain where clause evaluation and
+        /// filtered retain has no effect for those events.
+        /// </para>
+        /// </remarks>
         protected bool CanSendFilteredAlarm(
             IFilterContext context,
             EventFilter filter,
@@ -1194,58 +1386,109 @@ namespace Opc.Ua.Server
         {
             bool passedFilter = filter.WhereClause.Evaluate(context, instance);
 
-            ConditionState? alarmCondition = null;
-            NodeId conditionId = default;
-            if (instance is InstanceStateSnapshot instanceStateSnapshot)
-            {
-                alarmCondition = instanceStateSnapshot.Handle as ConditionState;
+            ConditionState? alarmCondition = GetFilteredRetainCondition(instance);
 
-                if (alarmCondition != null &&
-                    alarmCondition.SupportsFilteredRetain != null &&
-                    alarmCondition.SupportsFilteredRetain.Value &&
-                    !filter.SelectClauses.IsNull)
-                {
-                    conditionId = alarmCondition.NodeId;
-                }
+            if (alarmCondition == null || filter.SelectClauses.IsNull)
+            {
+                return passedFilter;
             }
 
-            bool canSend = passedFilter;
+            HashSet<string> conditionIds = GetFilteredRetainConditionIds();
+            string key = GetFilteredRetainKey(alarmCondition);
 
-            // ConditionId is valid only if FilteredRetain is set for the alarm condition
-            if (!conditionId.IsNull && alarmCondition != null)
+            // the key is present exactly while the condition passed the where clause the
+            // last time it was evaluated, so removing it here both consumes the entry for
+            // the transition out of scope and clears the way for re-priming it below.
+            bool wasInFilterScope = conditionIds.Remove(key);
+
+            if (passedFilter)
             {
-                HashSet<string> conditionIds = GetFilteredRetainConditionIds();
-
-                string key = conditionId.ToString();
-
-                bool saved = conditionIds.Contains(key);
-
-                if (saved)
-                {
-                    conditionIds.Remove(key);
-                }
-
-                if (passedFilter)
-                {
-                    // Archie - December 17 2024
-                    // Requires discussion with Part 9 Editor
-                    // if (alarmCondition.Retain.Value)
-                    {
-                        conditionIds.Add(key);
-                    }
-                }
-                else if (saved)
-                {
-                    canSend = true;
-                }
+                // Archie - December 17 2024
+                // Whether the condition should only be tracked while Retain is true is an
+                // open question with the Part 9 editor; it is tracked in
+                // https://github.com/OPCFoundation/UA-.NETStandard/issues/4370. Until that
+                // is settled a condition is tracked whenever it passes the where clause,
+                // which means it always produces one trailing event on the way out - even
+                // if Retain was already false when it passed.
+                conditionIds.Add(key);
+                return true;
             }
 
-            return canSend;
+            // out of scope now: send the trailing event if it was in scope before.
+            return wasInFilterScope;
+        }
+
+        /// <summary>
+        /// Returns the condition that <paramref name="instance"/> reports on when that
+        /// condition opted into filtered retain, otherwise <c>null</c>.
+        /// </summary>
+        private static ConditionState? GetFilteredRetainCondition(IFilterTarget instance)
+        {
+            ConditionState? condition = instance switch
+            {
+                InstanceStateSnapshot snapshot => snapshot.Handle as ConditionState,
+                ConditionState state => state,
+                _ => null
+            };
+
+            return condition?.SupportsFilteredRetain?.Value == true ? condition : null;
+        }
+
+        /// <summary>
+        /// Builds the key a condition is tracked under.
+        /// </summary>
+        /// <remarks>
+        /// A branch shares its parent's NodeId - branches are told apart by BranchId - so the
+        /// NodeId alone would make a condition and all of its branches contend for a single
+        /// entry, and one branch leaving filter scope would consume the entry another branch
+        /// relies on.
+        /// </remarks>
+        private static string GetFilteredRetainKey(ConditionState condition)
+        {
+            return Utils.Format(
+                "{0}|{1}",
+                condition.NodeId,
+                condition.BranchId?.Value ?? default);
         }
 
         private HashSet<string> GetFilteredRetainConditionIds()
         {
             return m_filteredRetainConditionIds ??= [];
+        }
+
+        /// <summary>
+        /// Drops the filtered retain bookkeeping when the where clause it was derived from
+        /// is replaced.
+        /// </summary>
+        /// <remarks>
+        /// Every entry means "this condition passed the previous where clause". Keeping
+        /// those across a ModifyMonitoredItems that changes the where clause would produce
+        /// a trailing event against a filter that never saw the condition pass. The select
+        /// clauses do not take part in the decision, since they only shape the fields of an
+        /// event that is being sent anyway.
+        /// <para>
+        /// A monitoring mode change deliberately keeps the state. A disabled item does not
+        /// evaluate events at all, so the entries still describe what the client was last
+        /// told, and the trailing event is owed to it once reporting resumes.
+        /// </para>
+        /// </remarks>
+        private void DiscardFilteredRetainStateOnWhereClauseChange(
+            MonitoringFilter? previousFilter,
+            MonitoringFilter? newFilter)
+        {
+            if (m_filteredRetainConditionIds == null ||
+                m_filteredRetainConditionIds.Count == 0)
+            {
+                return;
+            }
+
+            ContentFilter? previousWhereClause = (previousFilter as EventFilter)?.WhereClause;
+            ContentFilter? newWhereClause = (newFilter as EventFilter)?.WhereClause;
+
+            if (!Utils.IsEqual(previousWhereClause, newWhereClause))
+            {
+                m_filteredRetainConditionIds.Clear();
+            }
         }
 
         /// <summary>
@@ -1324,7 +1567,10 @@ namespace Opc.Ua.Server
                 // publish events.
                 if (m_eventQueueHandler != null)
                 {
-                    m_logger.MONITOREDITEMPublishQueueSizeQueueSize(notifications.Count);
+                    m_logger.MONITOREDITEMPublishQueueSizeQueueSize(
+                        notifications.Count,
+                        SubscriptionId,
+                        Id);
 
                     EventFieldList? overflowEvent = null;
 
@@ -1392,7 +1638,10 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    m_logger.MONITOREDITEMPublishQueueSizeQueueSize(notifications.Count);
+                    m_logger.MONITOREDITEMPublishQueueSizeQueueSize(
+                        notifications.Count,
+                        SubscriptionId,
+                        Id);
                 }
 
                 // reset state variables.
@@ -1448,7 +1697,8 @@ namespace Opc.Ua.Server
                 else
                 {
                     // pull any unprocessed data.
-                    if (m_calculator != null && m_calculator.HasEndTimePassed(DateTime.UtcNow))
+                    if (m_calculator != null &&
+                        m_calculator.HasEndTimePassed(DateTime.UtcNow))
                     {
                         while (m_calculator.TryGetProcessedValue(false, out DataValue processedValue))
                         {
@@ -1463,6 +1713,7 @@ namespace Opc.Ua.Server
 
                     IncrementSampleTime();
                 }
+
                 // check if queueing enabled.
                 if (m_dataChangeQueueHandler != null &&
                     (!m_resendData || m_dataChangeQueueHandler.ItemsInQueue != 0))
@@ -1490,7 +1741,8 @@ namespace Opc.Ua.Server
                     m_logger.DequeueValue(
                         m_lastValue.WrappedValue,
                         m_lastValue.StatusCode.Code,
-                        m_lastValue.StatusCode.Overflow);
+                        m_lastValue.StatusCode.Overflow,
+                        Id);
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError!);
                 }
 
@@ -1507,8 +1759,13 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Publishes a single data change notifications.
+        /// Publishes a single data change notification.
         /// </summary>
+        /// <param name="context">The context of the Publish request.</param>
+        /// <param name="notifications">The queue the notification is added to.</param>
+        /// <param name="diagnostics">The queue the diagnostic info is added to.</param>
+        /// <param name="value">The value to publish.</param>
+        /// <param name="error">The error that belongs to the value.</param>
         protected virtual bool Publish(
             OperationContext context,
             Queue<MonitoredItemNotification> notifications,
@@ -1584,6 +1841,7 @@ namespace Opc.Ua.Server
             return false;
         }
 
+
         /// <summary>
         /// The object to call when item is ready to publish.
         /// </summary>
@@ -1643,32 +1901,83 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public IStoredMonitoredItem ToStorableMonitoredItem()
         {
-            return new StoredMonitoredItem
+            lock (m_lock)
             {
-                SamplingInterval = m_samplingInterval,
-                SourceSamplingInterval = m_sourceSamplingInterval,
-                SubscriptionId = SubscriptionId,
-                QueueSize = QueueSize,
-                AlwaysReportUpdates = AlwaysReportUpdates,
-                AttributeId = AttributeId,
-                ClientHandle = ClientHandle,
-                DiagnosticsMasks = DiagnosticsMasks,
-                DiscardOldest = m_discardOldest,
-                IsDurable = IsDurable,
-                Encoding = DataEncoding,
-                FilterToUse = m_filterToUse!,
-                Id = Id,
-                IndexRange = m_indexRange!,
-                LastError = m_lastError!,
-                LastValue = m_lastValue,
-                MonitoringMode = MonitoringMode,
-                NodeId = NodeId,
-                OriginalFilter = Filter!,
-                Range = m_range,
-                TimestampsToReturn = m_timestampsToReturn,
-                TypeMask = MonitoredItemType,
-                ParsedIndexRange = m_parsedIndexRange
-            };
+                return new StoredMonitoredItem
+                {
+                    SamplingInterval = m_samplingInterval,
+                    SourceSamplingInterval = m_sourceSamplingInterval,
+                    SubscriptionId = SubscriptionId,
+                    QueueSize = QueueSize,
+                    AlwaysReportUpdates = AlwaysReportUpdates,
+                    AttributeId = AttributeId,
+                    ClientHandle = ClientHandle,
+                    DiagnosticsMasks = DiagnosticsMasks,
+                    DiscardOldest = m_discardOldest,
+                    IsDurable = IsDurable,
+                    IsDeleted = m_isDeleted,
+                    IsDetached = m_isDetached,
+                    Encoding = DataEncoding,
+                    FilterToUse = m_filterToUse!,
+                    Id = Id,
+                    IndexRange = m_indexRange!,
+                    LastError = m_lastError!,
+                    LastValue = m_lastValue,
+                    MonitoringMode = MonitoringMode,
+                    NodeId = NodeId,
+                    OriginalFilter = Filter!,
+                    Range = m_range,
+                    TimestampsToReturn = m_timestampsToReturn,
+                    TypeMask = MonitoredItemType,
+                    ParsedIndexRange = m_parsedIndexRange,
+                    FilteredRetainConditionIds = m_filteredRetainConditionIds?.Count > 0
+                        ? [.. m_filteredRetainConditionIds]
+                        : ArrayOf<string>.Null
+                };
+            }
+        }
+
+        private void QueueNodeIdUnknown()
+        {
+            if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
+            {
+                return;
+            }
+
+            DataValue value = CreateNodeIdUnknownValue();
+            var error = new ServiceResult(StatusCodes.BadNodeIdUnknown);
+
+            // With queueing disabled the last value is what the Client is served, so there is
+            // nothing to protect and the notification simply becomes that value.
+            if (QueueSize > 1)
+            {
+                m_dataChangeQueueHandler?.QueueRequiredValue(value, error);
+            }
+
+            m_lastValue = value;
+            m_lastError = error;
+            m_readyToPublish = true;
+            m_readyToTrigger = true;
+        }
+
+        private DataValue CreateNodeIdUnknownValue()
+        {
+            DateTime utcNow = m_timeProvider.GetUtcNow().UtcDateTime;
+            return new DataValue(
+                Variant.Null,
+                StatusCodes.BadNodeIdUnknown,
+                utcNow,
+                utcNow);
+        }
+
+        private static bool IsBadNodeIdUnknown(in DataValue value, ServiceResult? error)
+        {
+            if (error?.StatusCode.Code == StatusCodes.BadNodeIdUnknown.Code)
+            {
+                return true;
+            }
+
+            return !value.IsNull && value.StatusCode.Code == StatusCodes.BadNodeIdUnknown.Code;
         }
 
         /// <summary>
@@ -1917,7 +2226,7 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception ex)
                             {
-                                m_logger.FailedToRestoreQueueForMonitoredItem(ex, Id);
+                                m_logger.FailedToRestoreQueueForMonitoredItem(ex, Id, SubscriptionId);
                             }
                         }
 
@@ -1959,7 +2268,7 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception ex)
                             {
-                                m_logger.FailedToRestoreQueueForMonitoredItem2(ex, Id);
+                                m_logger.FailedToRestoreQueueForMonitoredItem2(ex, Id, SubscriptionId);
                             }
                         }
                         if (restoredQueue != null)
@@ -1995,7 +2304,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void QueueOverflowHandler()
         {
-            m_subscription?.QueueOverflowHandler();
+            (m_subscription as ISubscriptionPublishPipeline)?.QueueOverflowHandler();
         }
 
         /// <inheritdoc/>
@@ -2010,15 +2319,53 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (!disposing)
             {
-                m_dataChangeQueueHandler?.Dispose();
-                m_eventQueueHandler?.Dispose();
+                return;
             }
+
+            lock (m_lock)
+            {
+                if (m_isDisposed)
+                {
+                    return;
+                }
+
+                m_isDisposed = true;
+
+                // A NodeManager reload may be handing this item to its replacement right now.
+                // Tearing the queues down underneath it would leave the replacement sampling a
+                // disposed item, so the teardown waits for the attach to report back.
+                if (m_isAttaching)
+                {
+                    return;
+                }
+            }
+
+            DisposeQueueHandlers();
+        }
+
+        /// <summary>
+        /// Releases the queues once no attach is in flight.
+        /// </summary>
+        private void DisposeQueueHandlers()
+        {
+            DataChangeQueueHandler? dataChangeQueueHandler;
+            EventQueueHandler? eventQueueHandler;
+            lock (m_lock)
+            {
+                dataChangeQueueHandler = m_dataChangeQueueHandler;
+                eventQueueHandler = m_eventQueueHandler;
+            }
+
+            dataChangeQueueHandler?.Dispose();
+            eventQueueHandler?.Dispose();
         }
 
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
+        private bool m_isDisposed;
+        private bool m_isAttaching;
         private readonly TimeProvider m_timeProvider;
         private IServerInternal m_server;
         private string? m_indexRange;
@@ -2049,6 +2396,14 @@ namespace Opc.Ua.Server
         private bool m_triggered;
         private bool m_resendData;
         private HashSet<string>? m_filteredRetainConditionIds;
+        private bool m_isDetached;
+
+        /// <summary>
+        /// The handle a detached MonitoredItem is parked on. It is a shared sentinel, because a
+        /// detached item has no real Node behind it until it is attached again.
+        /// </summary>
+        private static readonly object s_detachedHandle = new();
+        private bool m_isDeleted;
     }
 
     /// <summary>
@@ -2057,62 +2412,91 @@ namespace Opc.Ua.Server
     internal static partial class MonitoredItemLog
     {
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 0, Level = LogLevel.Error,
-            Message = "Durable subscription was create but no MonitoredItemQueueFactory that supports durable " +
-                "queues was registered, monitored item with id {Id} could not be created")]
+            Message = "Durable subscription was created but no MonitoredItemQueueFactory that supports durable " +
+                "queues was registered, monitored item with id {Id} could not be created, " +
+                "SubscriptionId={SubscriptionId}")]
         public static partial void DurableSubscriptionWasCreateButNoMonitoredItemQueueFactory(
             this ILogger logger,
-            uint id);
+            uint id,
+            uint subscriptionId);
 
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 1, Level = LogLevel.Trace,
-            Message = "SetTriggered[{Id}]")]
-        public static partial void SetTriggeredId(this ILogger logger, uint id);
+            Message = "SetTriggered[{Id}], SubscriptionId={SubscriptionId}")]
+        public static partial void SetTriggeredId(this ILogger logger, uint id, uint subscriptionId);
 
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 2, Level = LogLevel.Trace,
-            Message = "MONITORING MODE[{MonitoredItemId}] {Previous} -> {New}")]
+            Message = "MONITORING MODE[{MonitoredItemId}] {Previous} -> {New}, SubscriptionId={SubscriptionId}")]
         public static partial void MONITORINGMODEMonitoredItemIdPreviousNew(
             this ILogger logger,
             uint monitoredItemId,
             MonitoringMode previous,
-            MonitoringMode @new);
+            MonitoringMode @new,
+            uint subscriptionId);
 
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 3, Level = LogLevel.Trace,
-            Message = "RECEIVED VALUE[{MonitoredItemId}] Value={Value}")]
+            Message = "RECEIVED VALUE[{MonitoredItemId}] Value={Value}, SubscriptionId={SubscriptionId}")]
         public static partial void RECEIVEDVALUEMonitoredItemIdValueValue(
             this ILogger logger,
             uint monitoredItemId,
-            Variant value);
+            Variant value,
+            uint subscriptionId);
 
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 4, Level = LogLevel.Trace,
-            Message = "Value received out of order: {SourceTimestamp}, ServerHandle={MonitoredItemId}")]
+            Message = "Value received out of order: {SourceTimestamp}, ServerHandle={MonitoredItemId}, " +
+                "SubscriptionId={SubscriptionId}")]
         public static partial void ValueReceivedOutOfOrderSourceTimestampServerHandle(
             this ILogger logger,
             string? sourceTimestamp,
-            uint monitoredItemId);
+            uint monitoredItemId,
+            uint subscriptionId);
 
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 5, Level = LogLevel.Trace,
-            Message = "QUEUE VALUE[{MonitoredItemId}]: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}")]
+            Message = "QUEUE VALUE[{MonitoredItemId}]: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}, " +
+                "SubscriptionId={SubscriptionId}")]
         public static partial void QUEUEVALUEMonitoredItemIdValueValueCODECode(
             this ILogger logger,
             uint monitoredItemId,
             Variant value,
             uint code,
-            bool overflow);
+            bool overflow,
+            uint subscriptionId);
 
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 6, Level = LogLevel.Trace,
-            Message = "MONITORED ITEM: Publish(QueueSize={QueueSize})")]
-        public static partial void MONITOREDITEMPublishQueueSizeQueueSize(this ILogger logger, int queueSize);
+            Message = "MONITORED ITEM: Publish(QueueSize={QueueSize}), " +
+                "SubscriptionId={SubscriptionId}, MonitoredItemId={MonitoredItemId}")]
+        public static partial void MONITOREDITEMPublishQueueSizeQueueSize(
+            this ILogger logger,
+            int queueSize,
+            uint subscriptionId,
+            uint monitoredItemId);
 
+        [LoggerMessage(
+            EventId = ServerCompatibilityEventIds.MonitoredItemReady,
+            EventName = "MonitoredItemReady",
+            Level = LogLevel.Trace,
+            Message = "IsReadyToPublish[{Id}] {State}")]
+        public static partial void CompatibilityMonitoredItemReady(
+            this ILogger logger,
+            uint id,
+            string state);
 
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 7, Level = LogLevel.Error,
-            Message = "Failed to restore queue for monitored item with id {MonitoredItemId}")]
+            Message = "Failed to restore queue for monitored item with id {MonitoredItemId}," +
+                " SubscriptionId={SubscriptionId}")]
         public static partial void FailedToRestoreQueueForMonitoredItem(
             this ILogger logger,
             Exception ex,
-            uint monitoredItemId);
+            uint monitoredItemId,
+            uint subscriptionId);
 
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 8, Level = LogLevel.Error,
-            Message = "Failed to restore queue for monitored item with id {Id}")]
-        public static partial void FailedToRestoreQueueForMonitoredItem2(this ILogger logger, Exception ex, uint id);
+            Message = "Failed to restore queue for monitored item with id {Id}," +
+                " SubscriptionId={SubscriptionId}")]
+        public static partial void FailedToRestoreQueueForMonitoredItem2(
+            this ILogger logger,
+            Exception ex,
+            uint id,
+            uint subscriptionId);
     }
 
 }

@@ -115,7 +115,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         public void Unpacked_SplitsPackedKeysUsingPolicyLengths()
         {
             IPubSubSecurityPolicy policy =
-                PubSubSecurityPolicyRegistry.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
+                PubSubSecurityPolicyRegistry.Default.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
             int total = policy.SigningKeyLength + policy.EncryptingKeyLength + policy.NonceLength;
             byte[] packed1 = new byte[total];
             byte[] packed2 = new byte[total];
@@ -163,7 +163,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         public void Unpacked_IsCachedBetweenInvocations()
         {
             IPubSubSecurityPolicy policy =
-                PubSubSecurityPolicyRegistry.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
+                PubSubSecurityPolicyRegistry.Default.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
             int total = policy.SigningKeyLength + policy.EncryptingKeyLength + policy.NonceLength;
             var response = new SksKeyResponse(
                 PubSubSecurityPolicyUri.PubSubAes128Ctr,
@@ -182,7 +182,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         public void UnpackUsesSuppliedTimeProviderForIssuedAt()
         {
             IPubSubSecurityPolicy policy =
-                PubSubSecurityPolicyRegistry.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
+                PubSubSecurityPolicyRegistry.Default.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
             int total = policy.SigningKeyLength + policy.EncryptingKeyLength + policy.NonceLength;
             var response = new SksKeyResponse(
                 PubSubSecurityPolicyUri.PubSubAes128Ctr,

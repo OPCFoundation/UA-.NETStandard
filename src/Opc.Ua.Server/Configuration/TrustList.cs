@@ -41,7 +41,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The implementation of a server trustlist.
     /// </summary>
-    public class TrustList
+    public class TrustList : IDisposable
     {
         private const int kDefaultTrustListCapacity = 1 * 1024 * 1024;
 
@@ -197,6 +197,125 @@ namespace Opc.Ua.Server
         /// enforces on Read/Write/CloseAndUpdate/AddCertificate.
         /// </summary>
         internal int EffectiveMaxTrustListSize => m_effectiveMaxTrustListSize;
+
+        /// <summary>
+        /// Wires an optional trust-material change notifier for the legacy
+        /// non-transactional (immediate-apply) hosting mode. When set, the
+        /// immediate-apply branches of <c>CloseAndUpdate</c>,
+        /// <c>AddCertificate</c> and <c>RemoveCertificate</c> call
+        /// <see cref="ICertificateTrustListManager.NotifyTrustListChanged"/>
+        /// with the supplied <paramref name="scope"/> as soon as the store
+        /// write succeeds, so the certificate manager drops its cached
+        /// validation state and observers (e.g. the server's live-channel
+        /// enforcement) react without waiting for a token renewal. Hosts on
+        /// the transactional path do not need this: the notification is
+        /// raised by the <c>ApplyChanges</c> deferred apply instead.
+        /// </summary>
+        /// <param name="notifier">The certificate manager to notify.</param>
+        /// <param name="scope">
+        /// The trust-list scope this TrustList's stores validate
+        /// (e.g. <see cref="TrustListIdentifier.Peers"/>).
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// When <paramref name="notifier"/> or <paramref name="scope"/> is
+        /// <see langword="null"/>.
+        /// </exception>
+        public void SetTrustListChangeNotifier(
+            ICertificateTrustListManager notifier,
+            TrustListIdentifier scope)
+        {
+            m_changeNotifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
+            m_changeNotifierScope = scope ?? throw new ArgumentNullException(nameof(scope));
+        }
+
+        /// <summary>
+        /// Disposes the trusted and issuer store instances this TrustList
+        /// holds open across its operations. The owner of the TrustList
+        /// (the node manager hosting the handler) calls this at shutdown;
+        /// a later operation would simply re-open the stores.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Disposes the store instances held open by this TrustList.
+        /// </summary>
+        /// <param name="disposing"><c>true</c> to release managed resources.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Interlocked.Exchange(ref m_trustedStoreInstance, null)?.Dispose();
+                Interlocked.Exchange(ref m_issuerStoreInstance, null)?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Raises the trust-material change notification configured via
+        /// <see cref="SetTrustListChangeNotifier"/>, if any. Failures are
+        /// logged and never propagate into the method result: the store
+        /// write already succeeded and must be reported as such.
+        /// </summary>
+        private void NotifyTrustListChanged(bool trustChanged, bool crlChanged)
+        {
+            ICertificateTrustListManager? notifier = m_changeNotifier;
+            TrustListIdentifier? scope = m_changeNotifierScope;
+            if (notifier == null || scope == null || (!trustChanged && !crlChanged))
+            {
+                return;
+            }
+
+            try
+            {
+                notifier.NotifyTrustListChanged(scope, trustChanged, crlChanged);
+            }
+            catch (Exception ex)
+            {
+                m_logger.TrustListChangeNotifierFailed(ex, scope.ToString());
+            }
+        }
+
+        /// <summary>
+        /// Returns the store instance for one of the TrustList's two store
+        /// identifiers, opening it on first use. The instance is held open
+        /// for the TrustList's lifetime (its parsed-certificate cache is
+        /// reused across operations, refreshed by the store itself when the
+        /// backing data changes) and disposed by <see cref="Dispose()"/>.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The store could not be opened.
+        /// </exception>
+        private ICertificateStore GetStore(CertificateStoreIdentifier storeIdentifier)
+        {
+            return ReferenceEquals(storeIdentifier, m_issuerStore)
+                ? GetOrOpenStore(m_issuerStore, ref m_issuerStoreInstance)
+                : GetOrOpenStore(m_trustedStore, ref m_trustedStoreInstance);
+        }
+
+        private ICertificateStore GetOrOpenStore(
+            CertificateStoreIdentifier storeIdentifier,
+            ref ICertificateStore? instance)
+        {
+            ICertificateStore? store = Volatile.Read(ref instance);
+            if (store != null)
+            {
+                return store;
+            }
+
+            ICertificateStore created = storeIdentifier.OpenStore(m_telemetry) ??
+                throw ServiceResultException.ConfigurationError(
+                    "Failed to open certificate store.");
+            ICertificateStore? current = Interlocked.CompareExchange(ref instance, created, null);
+            if (current != null)
+            {
+                created.Dispose();
+                return current;
+            }
+            return created;
+        }
 
         /// <summary>
         /// Computes the effective, actually-enforced maximum TrustList size (in
@@ -415,65 +534,41 @@ namespace Opc.Ua.Server
             {
                 var trustList = new TrustListDataType { SpecifiedLists = (uint)masks };
 
-                ICertificateStore store = m_trustedStore.OpenStore(m_telemetry);
-                try
+                ICertificateStore store = GetStore(m_trustedStore);
+
+                if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
                 {
-                    if (store == null)
-                    {
-                        throw ServiceResultException.ConfigurationError(
-                            "Failed to open trusted certificate store.");
-                    }
-
-                    if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
-                    {
-                        using CertificateCollection certificates = await store.EnumerateAsync(cancellationToken)
-                            .ConfigureAwait(false);
-                        trustList.TrustedCertificates = trustList.TrustedCertificates.AddItems(
-                            certificates
-                                .Select(certificate => certificate.RawData.ToByteString()));
-                    }
-
-                    if (((int)masks & (int)TrustListMasks.TrustedCrls) != 0)
-                    {
-                        X509CRLCollection crls = await store.EnumerateCRLsAsync(cancellationToken)
-                            .ConfigureAwait(false);
-                        trustList.TrustedCrls = trustList.TrustedCrls.AddItems(
-                             crls.Select(crl => crl.RawData.ToByteString()));
-                    }
-                }
-                finally
-                {
-                    store.Dispose();
-                }
-
-                store = m_issuerStore.OpenStore(m_telemetry);
-                try
-                {
-                    if (store == null)
-                    {
-                        throw ServiceResultException.ConfigurationError(
-                            "Failed to open issuer certificate store.");
-                    }
-
-                    if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
-                    {
-                        using CertificateCollection certificates = await store.EnumerateAsync(cancellationToken)
-                            .ConfigureAwait(false);
-                        trustList.IssuerCertificates = trustList.IssuerCertificates.AddItems(certificates
+                    using CertificateCollection certificates = await store.EnumerateAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    trustList.TrustedCertificates = trustList.TrustedCertificates.AddItems(
+                        certificates
                             .Select(certificate => certificate.RawData.ToByteString()));
-                    }
-
-                    if (((int)masks & (int)TrustListMasks.IssuerCrls) != 0)
-                    {
-                        X509CRLCollection crls = await store.EnumerateCRLsAsync(cancellationToken)
-                            .ConfigureAwait(false);
-                        trustList.IssuerCrls = trustList.IssuerCrls.AddItems(crls
-                            .Select(crl => crl.RawData.ToByteString()));
-                    }
                 }
-                finally
+
+                if (((int)masks & (int)TrustListMasks.TrustedCrls) != 0)
                 {
-                    store.Dispose();
+                    X509CRLCollection crls = await store.EnumerateCRLsAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    trustList.TrustedCrls = trustList.TrustedCrls.AddItems(
+                         crls.Select(crl => crl.RawData.ToByteString()));
+                }
+
+                store = GetStore(m_issuerStore);
+
+                if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
+                {
+                    using CertificateCollection certificates = await store.EnumerateAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    trustList.IssuerCertificates = trustList.IssuerCertificates.AddItems(certificates
+                        .Select(certificate => certificate.RawData.ToByteString()));
+                }
+
+                if (((int)masks & (int)TrustListMasks.IssuerCrls) != 0)
+                {
+                    X509CRLCollection crls = await store.EnumerateCRLsAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    trustList.IssuerCrls = trustList.IssuerCrls.AddItems(crls
+                        .Select(crl => crl.RawData.ToByteString()));
                 }
 
                 if (mode == OpenFileMode.Read)
@@ -901,9 +996,16 @@ namespace Opc.Ua.Server
                 // Decode/validation failure, or legacy non-transactional
                 // hosting: apply immediately (or report the failure), as
                 // before.
+                // A failed update helper does not mean the store was left
+                // unchanged: it may have deleted/added several entries before
+                // a later operation failed. Notify for every mask that an
+                // apply was ATTEMPTED for - an extra cache invalidation is
+                // harmless, a missed one is not. (result is reassigned in
+                // the try below, so this must be captured up front.)
+                bool updateAttempted = ServiceResult.IsGood(result);
                 try
                 {
-                    if (ServiceResult.IsGood(result))
+                    if (updateAttempted)
                     {
                         int updateMasks = (int)TrustListMasks.None;
                         if ((masks & (int)TrustListMasks.IssuerCertificates) != 0 &&
@@ -957,6 +1059,15 @@ namespace Opc.Ua.Server
                     m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
                 }
 
+                // Even a partial or failed apply may have changed the stores;
+                // notify for everything that was attempted so cached
+                // validation state is dropped.
+                NotifyTrustListChanged(
+                    trustChanged: updateAttempted && (masks &
+                        (int)(TrustListMasks.IssuerCertificates | TrustListMasks.TrustedCertificates)) != 0,
+                    crlChanged: updateAttempted && (masks &
+                        (int)(TrustListMasks.IssuerCrls | TrustListMasks.TrustedCrls)) != 0);
+
                 m_node.ReportTrustListUpdatedAuditEvent(
                     context,
                     objectId,
@@ -984,22 +1095,22 @@ namespace Opc.Ua.Server
             {
                 if (issuerCertificates != null)
                 {
-                    using ICertificateStore store = m_issuerStore.OpenStore(m_telemetry);
+                    ICertificateStore store = GetStore(m_issuerStore);
                     originalIssuerCertificates = await store.EnumerateAsync(cancellationToken).ConfigureAwait(false);
                 }
                 if (issuerCrls != null)
                 {
-                    using ICertificateStore store = m_issuerStore.OpenStore(m_telemetry);
+                    ICertificateStore store = GetStore(m_issuerStore);
                     originalIssuerCrls = await store.EnumerateCRLsAsync(cancellationToken).ConfigureAwait(false);
                 }
                 if (trustedCertificates != null)
                 {
-                    using ICertificateStore store = m_trustedStore.OpenStore(m_telemetry);
+                    ICertificateStore store = GetStore(m_trustedStore);
                     originalTrustedCertificates = await store.EnumerateAsync(cancellationToken).ConfigureAwait(false);
                 }
                 if (trustedCrls != null)
                 {
-                    using ICertificateStore store = m_trustedStore.OpenStore(m_telemetry);
+                    ICertificateStore store = GetStore(m_trustedStore);
                     originalTrustedCrls = await store.EnumerateCRLsAsync(cancellationToken).ConfigureAwait(false);
                 }
 
@@ -1235,11 +1346,8 @@ namespace Opc.Ua.Server
                             CertificateStoreIdentifier storeIdentifier = isTrustedCertificate
                                 ? m_trustedStore
                                 : m_issuerStore;
-                            using ICertificateStore store = storeIdentifier.OpenStore(m_telemetry);
-                            if (store != null)
-                            {
-                                await store.AddAsync(cert, null, cancellationToken).ConfigureAwait(false);
-                            }
+                            ICertificateStore store = GetStore(storeIdentifier);
+                            await store.AddAsync(cert, null, cancellationToken).ConfigureAwait(false);
                         }
                         finally
                         {
@@ -1250,6 +1358,8 @@ namespace Opc.Ua.Server
                         {
                             m_node.LastUpdateTime!.Value = DateTime.UtcNow;
                         }
+
+                        NotifyTrustListChanged(trustChanged: true, crlChanged: false);
                     }
                     else
                     {
@@ -1264,11 +1374,8 @@ namespace Opc.Ua.Server
                                 CertificateStoreIdentifier storeIdentifier = isTrustedCertificate
                                     ? m_trustedStore
                                     : m_issuerStore;
-                                using ICertificateStore store = storeIdentifier.OpenStore(m_telemetry);
-                                if (store != null)
-                                {
-                                    await store.AddAsync(stagedCert, null, ct).ConfigureAwait(false);
-                                }
+                                ICertificateStore store = GetStore(storeIdentifier);
+                                await store.AddAsync(stagedCert, null, ct).ConfigureAwait(false);
 
                                 lock (m_lock)
                                 {
@@ -1284,11 +1391,8 @@ namespace Opc.Ua.Server
                                 CertificateStoreIdentifier storeIdentifier = isTrustedCertificate
                                     ? m_trustedStore
                                     : m_issuerStore;
-                                using ICertificateStore store = storeIdentifier.OpenStore(m_telemetry);
-                                if (store != null)
-                                {
-                                    await store.DeleteAsync(stagedThumbprint, ct).ConfigureAwait(false);
-                                }
+                                ICertificateStore store = GetStore(storeIdentifier);
+                                await store.DeleteAsync(stagedThumbprint, ct).ConfigureAwait(false);
                             },
                             DisposeStaged = () => stagedCert.Dispose()
                         });
@@ -1394,15 +1498,8 @@ namespace Opc.Ua.Server
                 if (m_coordinator == null)
                 {
                     // Legacy non-transactional behavior: apply immediately.
-                    using (ICertificateStore store = storeIdentifier.OpenStore(m_telemetry))
                     {
-                        if (store == null)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadConfigurationError,
-                                "Failed to open certificate store.");
-                        }
-
+                        ICertificateStore store = GetStore(storeIdentifier);
                         using CertificateCollection certCollection = await store
                             .FindByThumbprintAsync(thumbprint, cancellationToken)
                             .ConfigureAwait(false);
@@ -1439,14 +1536,27 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                foreach (X509CRL crl in crlsToDelete)
+                                try
                                 {
-                                    if (!await store.DeleteCRLAsync(crl, cancellationToken)
-                                        .ConfigureAwait(false))
+                                    foreach (X509CRL crl in crlsToDelete)
                                     {
-                                        // intentionally ignore errors, try best effort
-                                        m_logger.RemoveCertificateFailedToDeleteCRLCrl(crl);
+                                        if (!await store.DeleteCRLAsync(crl, cancellationToken)
+                                            .ConfigureAwait(false))
+                                        {
+                                            // intentionally ignore errors, try best effort
+                                            m_logger.RemoveCertificateFailedToDeleteCRLCrl(crl);
+                                        }
                                     }
+                                }
+                                finally
+                                {
+                                    // The certificate is already deleted at this
+                                    // point, so notify even when a CRL delete
+                                    // throws mid-way - cached validation state
+                                    // must never survive a partial update.
+                                    NotifyTrustListChanged(
+                                        trustChanged: true,
+                                        crlChanged: crlsToDelete.Count > 0);
                                 }
                             }
                         }
@@ -1465,14 +1575,7 @@ namespace Opc.Ua.Server
                     CertificateCollection? certCollection = null;
                     try
                     {
-                        using ICertificateStore store = storeIdentifier.OpenStore(m_telemetry);
-                        if (store == null)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadConfigurationError,
-                                "Failed to open certificate store.");
-                        }
-
+                        ICertificateStore store = GetStore(storeIdentifier);
                         certCollection = await store
                             .FindByThumbprintAsync(thumbprint, cancellationToken)
                             .ConfigureAwait(false);
@@ -1509,7 +1612,7 @@ namespace Opc.Ua.Server
                                 AffectedTrustList = trustListId,
                                 CommitAsync = async ct =>
                                 {
-                                    using ICertificateStore commitStore = storeIdentifier.OpenStore(m_telemetry);
+                                    ICertificateStore commitStore = GetStore(storeIdentifier);
                                     if (!await commitStore.DeleteAsync(thumbprint, ct).ConfigureAwait(false))
                                     {
                                         throw new ServiceResultException(
@@ -1537,7 +1640,7 @@ namespace Opc.Ua.Server
                                 },
                                 RollbackAsync = async ct =>
                                 {
-                                    using ICertificateStore rollbackStore = storeIdentifier.OpenStore(m_telemetry);
+                                    ICertificateStore rollbackStore = GetStore(storeIdentifier);
                                     foreach (Certificate cert in stagedRemovedCerts)
                                     {
                                         await rollbackStore.AddAsync(cert, null, ct).ConfigureAwait(false);
@@ -1640,33 +1743,21 @@ namespace Opc.Ua.Server
             bool result = true;
             try
             {
-                ICertificateStore store = storeIdentifier.OpenStore(m_telemetry);
-                try
-                {
-                    if (store == null)
-                    {
-                        throw ServiceResultException.ConfigurationError(
-                            "Failed to open certificate store.");
-                    }
+                ICertificateStore store = GetStore(storeIdentifier);
 
-                    X509CRLCollection storeCrls = await store.EnumerateCRLsAsync(cancellationToken)
-                        .ConfigureAwait(false);
-                    foreach (X509CRL crl in storeCrls)
+                X509CRLCollection storeCrls = await store.EnumerateCRLsAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                foreach (X509CRL crl in storeCrls)
+                {
+                    if (!updatedCrls.Remove(crl) &&
+                        !await store.DeleteCRLAsync(crl, cancellationToken).ConfigureAwait(false))
                     {
-                        if (!updatedCrls.Remove(crl) &&
-                            !await store.DeleteCRLAsync(crl, cancellationToken).ConfigureAwait(false))
-                        {
-                            result = false;
-                        }
-                    }
-                    foreach (X509CRL crl in updatedCrls)
-                    {
-                        await store.AddCRLAsync(crl, cancellationToken).ConfigureAwait(false);
+                        result = false;
                     }
                 }
-                finally
+                foreach (X509CRL crl in updatedCrls)
                 {
-                    store.Close();
+                    await store.AddCRLAsync(crl, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch
@@ -1684,33 +1775,21 @@ namespace Opc.Ua.Server
             bool result = true;
             try
             {
-                ICertificateStore store = storeIdentifier.OpenStore(m_telemetry);
-                try
-                {
-                    if (store == null)
-                    {
-                        throw ServiceResultException.ConfigurationError(
-                            "Failed to open certificate store.");
-                    }
+                ICertificateStore store = GetStore(storeIdentifier);
 
-                    using CertificateCollection storeCerts = await store.EnumerateAsync(cancellationToken)
-                        .ConfigureAwait(false);
-                    foreach (Certificate cert in storeCerts)
+                using CertificateCollection storeCerts = await store.EnumerateAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                foreach (Certificate cert in storeCerts)
+                {
+                    if (!updatedCerts.Remove(cert) &&
+                        !await store.DeleteAsync(cert.Thumbprint, cancellationToken).ConfigureAwait(false))
                     {
-                        if (!updatedCerts.Remove(cert) &&
-                            !await store.DeleteAsync(cert.Thumbprint, cancellationToken).ConfigureAwait(false))
-                        {
-                            result = false;
-                        }
-                    }
-                    foreach (Certificate cert in updatedCerts)
-                    {
-                        await store.AddAsync(cert, null, cancellationToken).ConfigureAwait(false);
+                        result = false;
                     }
                 }
-                finally
+                foreach (Certificate cert in updatedCerts)
                 {
-                    store.Close();
+                    await store.AddAsync(cert, null, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch
@@ -1751,12 +1830,16 @@ namespace Opc.Ua.Server
         private uint m_fileHandle;
         private readonly CertificateStoreIdentifier m_trustedStore;
         private readonly CertificateStoreIdentifier m_issuerStore;
+        private ICertificateStore? m_trustedStoreInstance;
+        private ICertificateStore? m_issuerStoreInstance;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly TrustListState m_node;
         private readonly IPushConfigurationTransactionCoordinator? m_coordinator;
         private MemoryStream? m_strm;
         private readonly int m_effectiveMaxTrustListSize;
+        private ICertificateTrustListManager? m_changeNotifier;
+        private TrustListIdentifier? m_changeNotifierScope;
         private long m_totalBytesProcessed;
     }
 
@@ -1767,5 +1850,12 @@ namespace Opc.Ua.Server
         public static partial void RemoveCertificateFailedToDeleteCRLCrl(
             this ILogger logger,
             global::Opc.Ua.Security.Certificates.X509CRL crl);
+
+        [LoggerMessage(EventId = ServerEventIds.TrustList + 1, Level = LogLevel.Warning,
+            Message = "Failed to notify the certificate manager of the TrustList change for scope {Scope}.")]
+        public static partial void TrustListChangeNotifierFailed(
+            this ILogger logger,
+            Exception ex,
+            string scope);
     }
 }

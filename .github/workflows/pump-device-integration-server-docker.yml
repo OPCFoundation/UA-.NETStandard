@@ -4,7 +4,7 @@ on:
   push:
     branches: [ master ]
     paths:
-    - 'samples/PumpDeviceIntegrationServer/**'
+    - 'samples/DI/PumpDeviceIntegrationServer/**'
     - 'src/**'
     - 'src/**'
     - 'tools/**'
@@ -73,7 +73,7 @@ jobs:
       uses: docker/build-push-action@v7
       with:
         context: .
-        file: ./samples/PumpDeviceIntegrationServer/Dockerfile
+        file: ./samples/DI/PumpDeviceIntegrationServer/Dockerfile
         build-args: |
           Version=${{ env.NBGV_Version }}
           SimpleVersion=${{ env.NBGV_SimpleVersion }}
@@ -84,4 +84,5 @@ jobs:
         platforms: linux/amd64
         provenance: false
         cache-from: type=gha
-        cache-to: type=gha,mode=max
+        # setup-buildx-action@v4 installs Buildx and BuildKit versions that support ignore-error.
+        cache-to: type=gha,mode=max,ignore-error=true

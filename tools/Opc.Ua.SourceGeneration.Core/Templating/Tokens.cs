@@ -31,6 +31,7 @@ namespace Opc.Ua.SourceGeneration
 {
     internal static class Tokens
     {
+        public static string AdditionalNamespaceUris => nameof(AdditionalNamespaceUris);
         public static string ArrayDimensions => nameof(ArrayDimensions);
         public static string BaseClassName => nameof(BaseClassName);
         public static string BaseInterfaces => nameof(BaseInterfaces);
@@ -69,7 +70,12 @@ namespace Opc.Ua.SourceGeneration
         public static string Documentation => nameof(Documentation);
         public static string EmitDefaultValue => nameof(EmitDefaultValue);
         public static string EncodingMaskModifier => nameof(EncodingMaskModifier);
+        public static string EncodingMaskFieldNamesModifier =>
+            nameof(EncodingMaskFieldNamesModifier);
+        public static string EncodingMaskEncode => nameof(EncodingMaskEncode);
+        public static string EncodingMaskDecode => nameof(EncodingMaskDecode);
         public static string EnumerationName => nameof(EnumerationName);
+        public static string ElementNamespaceOverride => nameof(ElementNamespaceOverride);
         public static string EventNotifier => nameof(EventNotifier);
         public static string FieldIndex => nameof(FieldIndex);
         public static string ExtraInterfaces => nameof(ExtraInterfaces);
@@ -201,6 +207,13 @@ namespace Opc.Ua.SourceGeneration
         public static string ListOfOptionalChildNodeStates => nameof(ListOfOptionalChildNodeStates);
         public static string ListOfReferences => nameof(ListOfReferences);
         public static string NodeIdConstant => nameof(NodeIdConstant);
+
+        public static string EventFilterParameters => nameof(EventFilterParameters);
+
+        public static string EventFilterParameterDocumentation =>
+            nameof(EventFilterParameterDocumentation);
+
+        public static string EventTypeId => nameof(EventTypeId);
         public static string InstanceNodeIdOverride => nameof(InstanceNodeIdOverride);
         public static string ListOfInstanceNodeIdBranches => nameof(ListOfInstanceNodeIdBranches);
         public static string ParentNodeIdConstant => nameof(ParentNodeIdConstant);

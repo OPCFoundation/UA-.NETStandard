@@ -43,14 +43,14 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         [Test]
         public void All_ContainsThreeBuiltInPolicies()
         {
-            Assert.That(PubSubSecurityPolicyRegistry.All.Count, Is.EqualTo(3));
+            Assert.That(PubSubSecurityPolicyRegistry.Default.Policies.Count, Is.EqualTo(3));
         }
 
         [Test]
         public void GetByUri_FindsNonePolicy()
         {
             Assert.That(
-                PubSubSecurityPolicyRegistry.GetByUri(PubSubSecurityPolicyUri.None),
+                PubSubSecurityPolicyRegistry.Default.GetByUri(PubSubSecurityPolicyUri.None),
                 Is.SameAs(PubSubNonePolicy.Instance));
         }
 
@@ -58,7 +58,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         public void GetByUri_FindsAes128Policy()
         {
             Assert.That(
-                PubSubSecurityPolicyRegistry.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr),
+                PubSubSecurityPolicyRegistry.Default.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr),
                 Is.SameAs(PubSubAes128CtrPolicy.Instance));
         }
 
@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         public void GetByUri_FindsAes256Policy()
         {
             Assert.That(
-                PubSubSecurityPolicyRegistry.GetByUri(PubSubSecurityPolicyUri.PubSubAes256Ctr),
+                PubSubSecurityPolicyRegistry.Default.GetByUri(PubSubSecurityPolicyUri.PubSubAes256Ctr),
                 Is.SameAs(PubSubAes256CtrPolicy.Instance));
         }
 
@@ -74,7 +74,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         public void GetByUri_ReturnsNullForUnknownUri()
         {
             Assert.That(
-                PubSubSecurityPolicyRegistry.GetByUri("urn:does-not-exist"),
+                PubSubSecurityPolicyRegistry.Default.GetByUri("urn:does-not-exist"),
                 Is.Null);
         }
 
@@ -83,8 +83,8 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         {
             Assert.Multiple(() =>
             {
-                Assert.That(PubSubSecurityPolicyRegistry.GetByUri(null), Is.Null);
-                Assert.That(PubSubSecurityPolicyRegistry.GetByUri(string.Empty), Is.Null);
+                Assert.That(PubSubSecurityPolicyRegistry.Default.GetByUri(null), Is.Null);
+                Assert.That(PubSubSecurityPolicyRegistry.Default.GetByUri(string.Empty), Is.Null);
             });
         }
 
@@ -92,7 +92,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Policies
         public void GetByUri_IsCaseSensitive()
         {
             string upper = PubSubSecurityPolicyUri.PubSubAes128Ctr.ToUpperInvariant();
-            Assert.That(PubSubSecurityPolicyRegistry.GetByUri(upper), Is.Null);
+            Assert.That(PubSubSecurityPolicyRegistry.Default.GetByUri(upper), Is.Null);
         }
     }
 }

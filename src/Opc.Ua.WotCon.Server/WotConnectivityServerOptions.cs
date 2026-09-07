@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using Opc.Ua.WotCon.Server.Assets;
+using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Server
 {
@@ -115,6 +116,20 @@ namespace Opc.Ua.WotCon.Server
         public IWotAssetDiscoveryProvider? Discovery { get; set; }
 
         /// <summary>
+        /// Optional registry service that mirrors materialized asset Thing
+        /// Descriptions into the WoT xRegistry. When <c>null</c>, registry
+        /// mirroring is disabled and asset lifecycle behavior is unchanged.
+        /// </summary>
+        public IWotRegistryService? RegistryBridge { get; set; }
+
+        /// <summary>
+        /// Registry group id used by <see cref="RegistryBridge"/> when mirroring
+        /// asset Thing Descriptions. Defaults to the well-known Thing
+        /// Description group.
+        /// </summary>
+        public string RegistryBridgeGroupId { get; set; } = WotRegistryGroups.ThingDescriptions;
+
+        /// <summary>
         /// Allow-list / deny-list policy applied to every endpoint URI
         /// that flows from a remote OPC UA client through
         /// <c>CreateAssetForEndpoint</c> or <c>ConnectionTest</c>.
@@ -160,11 +175,28 @@ namespace Opc.Ua.WotCon.Server
     /// </summary>
     public sealed class WotConfigurationParameter
     {
-        /// <summary>The OPC UA <c>DataType</c> for the parameter.</summary>
-        public NodeId DataType { get; init; } = DataTypeIds.String;
+        /// <summary>
+        /// The OPC UA <c>DataType</c> for the parameter.
+        /// </summary>
+        public NodeId DataType { get; init; } = Ua.DataTypeIds.String;
 
-        /// <summary>The initial value (must be assignable to a <c>Variant</c>).</summary>
-        public Variant? InitialValue { get; init; }
+        /// <summary>
+        /// The initial value (must be assignable to a <c>Variant</c>).
+        /// </summary>
+        public Variant InitialValue
+        {
+            get => m_initialValue;
+            init
+            {
+                m_initialValue = value;
+                HasInitialValue = true;
+            }
+        }
+
+        /// <summary>
+        /// Whether <see cref="InitialValue"/> was explicitly specified.
+        /// </summary>
+        public bool HasInitialValue { get; private set; }
 
         /// <summary>
         /// Optional description.
@@ -175,5 +207,7 @@ namespace Opc.Ua.WotCon.Server
         /// Whether the parameter is writable.
         /// </summary>
         public bool Writable { get; init; } = true;
+
+        private Variant m_initialValue;
     }
 }

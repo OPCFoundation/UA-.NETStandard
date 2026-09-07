@@ -121,18 +121,19 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            OnChunkReceived(chunk);
+            await OnChunkReceivedAsync(chunk, ct).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Processes an incoming message.
         /// </summary>
         /// <returns>True if the implementor takes ownership of the buffer.</returns>
-        protected override bool HandleIncomingMessage(
+        protected override async ValueTask<bool> HandleIncomingMessageAsync(
             uint messageType,
-            ArraySegment<byte> messageChunk)
+            ArraySegment<byte> messageChunk,
+            CancellationToken ct)
         {
-            lock (DataLock)
+            using (await Gate.EnterAsync(ct).ConfigureAwait(false))
             {
                 SetResponseRequired(true);
 
@@ -146,7 +147,7 @@ namespace Opc.Ua.Bindings
                     }
 
                     // invalid message type - must close socket and reconnect.
-                    ForceChannelFault(
+                    ForceChannelFaultCore(
                         StatusCodes.BadTcpMessageTypeInvalid,
                         "The reverse connect handler does not recognize the message type: {0:X8}.",
                         messageType);
@@ -168,7 +169,7 @@ namespace Opc.Ua.Bindings
             // validate the channel state.
             if (State != TcpChannelState.Connecting)
             {
-                ForceChannelFault(
+                ForceChannelFaultCore(
                     StatusCodes.BadTcpMessageTypeInvalid,
                     "Client sent an unexpected ReverseHello message.");
                 return false;
@@ -214,7 +215,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                ForceChannelFault(
+                ForceChannelFaultCore(
                     e,
                     StatusCodes.BadTcpInternalError,
                     "Unexpected error while processing a ReverseHello message.");

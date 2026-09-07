@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server;
@@ -131,7 +132,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <exception cref="ArgumentNullException"><paramref name="server"/> is <c>null</c>.</exception>
         internal async ValueTask AttachAsync(
-            IServerInternal server,
+            IServerContext server,
             CancellationToken cancellationToken = default)
         {
             if (server == null)
@@ -167,7 +168,7 @@ namespace Opc.Ua.Redundancy.Server
         /// configured mode and publishes the mode-specific values.
         /// </summary>
         private static async ValueTask ApplyAsync(
-            IServerInternal server,
+            IServerContext server,
             ServerRedundancyOptions options,
             CancellationToken cancellationToken)
         {
@@ -187,7 +188,7 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             NodeId targetTypeDefinition = GetTypeDefinitionId(options.Mode);
-            var replacer = server.DiagnosticsNodeManager as IPredefinedNodeSubtypeReplacer;
+            IPredefinedNodeSubtypeReplacer? replacer = server.FindNodeManagers<IPredefinedNodeSubtypeReplacer>().FirstOrDefault();
 
             if (replacer != null && !redundancy.TypeDefinitionId.Equals(targetTypeDefinition))
             {
@@ -302,6 +303,6 @@ namespace Opc.Ua.Redundancy.Server
 
         private readonly ServerRedundancyOptions m_options;
         private readonly SemaphoreSlim m_gate = new(1, 1);
-        private IServerInternal? m_server;
+        private IServerContext? m_server;
     }
 }

@@ -229,13 +229,13 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 .OnCause(200, from: 2, transition: 20);
         }
 
-        private static uint CurrentStateId(FiniteStateMachineState sm)
+        private static uint CurrentStateId(FluentFiniteStateMachineState sm)
         {
-            if (sm.CurrentState?.Id?.Value is { } id &&
-                !id.IsNull &&
-                id.TryGetValue(out uint stateId))
+            if (sm.CurrentState?.Id?.Value is { } id && !id.IsNull)
             {
-                return stateId;
+                // Resolve through the machine's own mapping so
+                // materialized state NodeIds are understood too.
+                return sm.GetStateId(id);
             }
             return 0;
         }

@@ -250,11 +250,13 @@ namespace Opc.Ua.Client.FileSystem
             for (int i = 0; i < segments.Length; i++)
             {
                 bool isLast = i == segments.Length - 1;
-                QualifiedName segment = segments[i];
+                QualifiedName inputSegment = segments[i];
+                QualifiedName segment = Qualify(inputSegment, current.NodeId);
                 NodeId? childId = await TryResolveSingleAsync(current.NodeId, segment, ct)
                     .ConfigureAwait(false);
                 if (childId != null)
                 {
+                    segments[i] = segment;
                     UaFileSystemInfo info = await BuildInfoAsync(
                         new ResolvedNode(childId.Value, segment),
                         [.. segments.Take(i + 1)],
@@ -264,8 +266,11 @@ namespace Opc.Ua.Client.FileSystem
                         current = dir;
                         continue;
                     }
+                    string currentPath = string.Join(
+                        "/",
+                        segments.Take(i + 1).Select(UaPath.FormatSegment));
                     throw new IOException(
-                        $"Cannot create directory '{path}': '{string.Join("/", segments.Take(i + 1).Select(UaPath.FormatSegment))}' is not a directory.");
+                        $"Cannot create directory '{path}': '{currentPath}' is not a directory.");
                 }
                 if (!createIntermediate && !isLast)
                 {
@@ -273,14 +278,17 @@ namespace Opc.Ua.Client.FileSystem
                         UaPath.Format([.. segments.Take(i + 1)]),
                         targetIsDirectory: true);
                 }
-                if (segment.NamespaceIndex != 0)
+                if (inputSegment.NamespaceIndex != 0)
                 {
+                    string formattedSegment = UaPath.FormatSegment(inputSegment);
                     throw new ArgumentException(
-                        $"Cannot create '{UaPath.FormatSegment(segment)}': leaf segments must not include a namespace prefix; the server picks the BrowseName namespace.",
+                        $"Cannot create '{formattedSegment}': leaf segments must not include a " +
+                        "namespace prefix; the server picks the BrowseName namespace.",
                         nameof(path));
                 }
-                current = await CreateDirectoryInAsync(current, segment.Name!, ct)
+                current = await CreateDirectoryInAsync(current, inputSegment.Name!, ct)
                     .ConfigureAwait(false);
+                segments[i] = current.BrowseName;
             }
             return current;
         }
@@ -931,10 +939,11 @@ namespace Opc.Ua.Client.FileSystem
             for (int i = 0; i < segments.Length; i++)
             {
                 bool isLast = i == segments.Length - 1;
-                QualifiedName segment = segments[i];
+                QualifiedName segment = Qualify(segments[i], currentParent);
                 NodeId? cached = m_pathCache.TryGet(currentParent, segment);
                 if (cached != null)
                 {
+                    segments[i] = segment;
                     if (isLast)
                     {
                         return new ResolvedNode(cached.Value, segment);
@@ -955,6 +964,7 @@ namespace Opc.Ua.Client.FileSystem
                     return null;
                 }
                 m_pathCache.Put(currentParent, segment, resolved.Value);
+                segments[i] = segment;
                 if (isLast)
                 {
                     return new ResolvedNode(resolved.Value, segment);
@@ -963,6 +973,21 @@ namespace Opc.Ua.Client.FileSystem
             }
             // segments.Length == 0 case is handled by callers.
             return null;
+        }
+
+        /// <summary>
+        /// A path segment written without a namespace prefix names a file or
+        /// directory of the provider that owns <paramref name="parent"/>, whose
+        /// BrowseNames live in that provider's namespace rather than in
+        /// namespace zero. Segments that already carry an index are left alone.
+        /// </summary>
+        private static QualifiedName Qualify(QualifiedName segment, NodeId parent)
+        {
+            if (segment.NamespaceIndex != 0 || parent.NamespaceIndex == 0)
+            {
+                return segment;
+            }
+            return new QualifiedName(segment.Name, parent.NamespaceIndex);
         }
 
         private async ValueTask<NodeId?> TryResolveSingleAsync(

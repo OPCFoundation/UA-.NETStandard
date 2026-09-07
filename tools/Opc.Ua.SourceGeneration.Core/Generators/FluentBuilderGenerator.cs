@@ -170,6 +170,9 @@ namespace Opc.Ua.SourceGeneration
             using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, FluentBuilderTemplates.File);
 
+            template.AddReplacement(
+                Tokens.ModelUri,
+                EscapeStringLiteral(m_context.ModelDesign.TargetNamespace.Value));
             template.AddReplacement(Tokens.NamespacePrefix, outputNamespace);
 
             // Render the typed manager interface, the typed manager
@@ -254,6 +257,17 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
                 if (instance.IsDeclaration)
+                {
+                    continue;
+                }
+                // DataTypeEncoding objects (Default Binary/XML/JSON) hang off
+                // their DataType rather than the instance tree, so they surface
+                // here as parent-less "root" instances that all share one of the
+                // reserved symbolic names (DefaultBinary/DefaultXml/DefaultJson).
+                // They are encoding metadata, never fluent-wired, so skip them —
+                // otherwise a model with more than one structure emits colliding
+                // typed-builder accessors.
+                if (instance.TypeDefinition?.Name is "DataTypeEncodingType")
                 {
                     continue;
                 }
@@ -469,18 +483,22 @@ namespace Opc.Ua.SourceGeneration
             string leafName = ResolveLeafName(root, relativePath, method);
             string parentKey = ResolveParentKey(root, relativePath, leafName);
             string className = ComposeWrapperClassName(leafName, suffix: "MethodBuilder");
+            MethodDesign effectiveMethod = method.IsOverridden()
+                ? (MethodDesign)method.GetMergedInstance()
+                : method;
+            (Parameter[] inputs, Parameter[] outputs) =
+                MethodDesignArgumentResolver.ResolveMethodArguments(effectiveMethod);
             m_methodWrappers[key] = new MethodWrapper
             {
                 Key = key,
                 ClassName = className,
                 LeafName = leafName,
                 ParentKey = parentKey,
-                Inputs = MethodDesignArgumentResolver.ResolveMethodInputs(method),
-                Outputs = MethodDesignArgumentResolver.ResolveMethodOutputs(method)
+                Inputs = inputs,
+                Outputs = outputs
             };
         }
 
-        // Validation
         /// <summary>
         /// Wires each wrapper to its direct child object/method wrappers
         /// so the recursive emitter can walk the tree depth-first. Sorts
@@ -673,7 +691,67 @@ namespace Opc.Ua.SourceGeneration
                 "global::Opc.Ua.NodeId typeDefinitionId, global::Opc.Ua.QualifiedName browseName",
                 "typeDefinitionId, browseName",
                 typeArg: "TValue", noConstraint: true);
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.IVariableBuilder<TValue>", "VariableFromDataTypeId",
+                "global::Opc.Ua.NodeId dataTypeId", "dataTypeId",
+                typeArg: "TValue", noConstraint: true);
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.IVariableBuilder<TValue>", "VariableFromDataTypeId",
+                "global::Opc.Ua.NodeId dataTypeId, global::Opc.Ua.QualifiedName browseName",
+                "dataTypeId, browseName",
+                typeArg: "TValue", noConstraint: true);
 
+            // Node-creation pass-throughs.
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<TState>", "Add",
+                "TState node, global::Opc.Ua.NodeId parentId = default", "node, parentId");
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<TState>", "Add",
+                "global::System.Func<global::Opc.Ua.NodeState?, TState> factory," +
+                    " global::Opc.Ua.NodeId parentId = default",
+                "factory, parentId");
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<TState>", "AddRoot",
+                "TState node", "node");
+            EmitPassThroughMethod(writer,
+                "bool", "TryGetNode",
+                "global::Opc.Ua.NodeId nodeId, out global::Opc.Ua.NodeState? node",
+                "nodeId, out node");
+
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.FolderState>", "AddFolder",
+                "string browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId");
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.FolderState>", "AddFolder",
+                "global::Opc.Ua.QualifiedName browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId");
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.BaseObjectState>", "AddObject",
+                "string browseName, global::Opc.Ua.NodeId parentId = default," +
+                    " global::Opc.Ua.NodeId typeDefinitionId = default",
+                "browseName, parentId, typeDefinitionId");
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.BaseObjectState>", "AddObject",
+                "global::Opc.Ua.QualifiedName browseName, global::Opc.Ua.NodeId parentId = default," +
+                    " global::Opc.Ua.NodeId typeDefinitionId = default",
+                "browseName, parentId, typeDefinitionId");
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.IVariableBuilder<TValue>", "AddVariable",
+                "string browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId", typeArg: "TValue", noConstraint: true);
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.IVariableBuilder<TValue>", "AddVariable",
+                "global::Opc.Ua.QualifiedName browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId", typeArg: "TValue", noConstraint: true);
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.MethodState>", "AddMethod",
+                "string browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId");
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.MethodState>", "AddMethod",
+                "global::Opc.Ua.QualifiedName browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId");
             // Typed top-level accessors.
             foreach (InstanceDesign root in roots)
             {
@@ -1069,9 +1147,14 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            string stateName = typeName.EndsWith("Type", StringComparison.Ordinal)
-                ? typeName[..^"Type".Length] + "State"
-                : typeName + "State";
+            if (!string.IsNullOrEmpty(type.ClassName))
+            {
+                return type.GetClassName(m_context.ModelDesign.Namespaces) + "State";
+            }
+            string className = typeName.EndsWith("Type", StringComparison.Ordinal)
+                ? typeName[..^"Type".Length]
+                : typeName;
+            string stateName = className + "State";
             string nsUri = type.SymbolicName?.Namespace;
             string prefix = ResolveCSharpNamespaceForUri(nsUri);
             return string.IsNullOrEmpty(prefix)
@@ -1094,7 +1177,11 @@ namespace Opc.Ua.SourceGeneration
             System.Xml.XmlQualifiedName typeDef = child?.TypeDefinition;
             if (typeDef == null || string.IsNullOrEmpty(typeDef.Name))
             {
-                return ResolveStateClrType(child);
+                return ResolveFallbackStateClrType(child);
+            }
+            if (child.TypeDefinitionNode is ObjectTypeDesign objectType)
+            {
+                return ResolveObjectTypeStateClr(objectType);
             }
             string stateName = typeDef.Name.EndsWith("Type", StringComparison.Ordinal)
                 ? typeDef.Name[..^"Type".Length] + "State"
@@ -1103,6 +1190,23 @@ namespace Opc.Ua.SourceGeneration
             return string.IsNullOrEmpty(prefix)
                 ? "global::Opc.Ua." + stateName
                 : "global::" + prefix + "." + stateName;
+        }
+
+        private static string ResolveFallbackStateClrType(NodeDesign node)
+        {
+            if (node is ObjectDesign)
+            {
+                return "global::Opc.Ua.BaseObjectState";
+            }
+            if (node is MethodDesign)
+            {
+                return "global::Opc.Ua.MethodState";
+            }
+            if (node is VariableDesign)
+            {
+                return "global::Opc.Ua.BaseDataVariableState";
+            }
+            return "global::Opc.Ua.NodeState";
         }
 
         /// <summary>
@@ -1801,22 +1905,11 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private string ResolveStateClrType(NodeDesign node)
         {
-            // For object instances, use BaseObjectState as the lowest common
-            // denominator. The user can call .Builder.As&lt;TConcrete&gt;() to
-            // narrow.
-            if (node is ObjectDesign)
+            if (node is ObjectDesign objectDesign)
             {
-                return "global::Opc.Ua.BaseObjectState";
+                return ResolveChildStateClr(objectDesign);
             }
-            if (node is MethodDesign)
-            {
-                return "global::Opc.Ua.MethodState";
-            }
-            if (node is VariableDesign)
-            {
-                return "global::Opc.Ua.BaseDataVariableState";
-            }
-            return "global::Opc.Ua.NodeState";
+            return ResolveFallbackStateClrType(node);
         }
 
         /// <summary>
@@ -1941,7 +2034,9 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             public string WrapperClassName;
 
-            /// <summary>Key into <c>m_wrappers</c> for object children.</summary>
+            /// <summary>
+            /// Key into <c>m_wrappers</c> for object children.
+            /// </summary>
             public string ChildKey;
 
             /// <summary>

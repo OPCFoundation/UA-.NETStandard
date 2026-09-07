@@ -41,6 +41,7 @@ using System.Threading;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Client
 {
@@ -56,16 +57,18 @@ namespace Opc.Ua.Core.Tests.Stack.Client
     {
         private Mock<ITransportChannel>? m_transportChannelMock;
         private Mock<IServiceMessageContext>? m_messageContextMock;
-        private TestLoggerProvider? m_loggerProvider;
+        private RecordingLoggerProvider? m_loggerProvider;
         private TestMeterListener? m_meterListener;
         private ITelemetryContext? m_telemetry;
 
         [SetUp]
         public void SetUp()
         {
-            m_loggerProvider = new TestLoggerProvider();
+            m_loggerProvider = new RecordingLoggerProvider();
             m_telemetry = DefaultTelemetry.Create(
-                configure => configure.AddProvider(m_loggerProvider));
+                configure => configure
+                    .SetMinimumLevel(LogLevel.Trace)
+                    .AddProvider(m_loggerProvider));
             m_messageContextMock = new Mock<IServiceMessageContext>();
             m_messageContextMock
                 .Setup(m => m.Telemetry)
@@ -129,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             sut.TestRequestCompleted(request, response, "Read");
 
             // Assert
-            Assert.That(m_loggerProvider!.LogEntries, Is.Empty);
+            Assert.That(m_loggerProvider!.Records, Is.Empty);
             Assert.That(m_meterListener!.RecordedMeasurements, Is.Empty);
         }
 
@@ -168,8 +171,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(measurement.Value, Is.EqualTo(sw.Elapsed.TotalSeconds).Within(0.03));
 
             // Assert - no logs should be recorded
-            Assert.That(m_loggerProvider!.LogEntries
-                .Count(e => e.Contains("Read", StringComparison.Ordinal)), Is.Zero);
+            Assert.That(m_loggerProvider!.Records
+                .Count(record => record.Message.Contains("Read", StringComparison.Ordinal)), Is.Zero);
         }
 
         [Test]
@@ -193,14 +196,16 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             sut.TestUpdateRequestHeader(request, true, "Read");
             sut.TestRequestCompleted(request, response, "Read");
 
-            // Assert - logs should be recorded
-            Assert.That(m_loggerProvider!.LogEntries, Has.Count.GreaterThan(0));
-            Assert.That(m_loggerProvider.LogEntries.Any(e =>
-                e.Contains("Read", StringComparison.Ordinal) &&
-                e.Contains("started", StringComparison.Ordinal)), Is.True);
-            Assert.That(m_loggerProvider.LogEntries.Any(e =>
-                e.Contains("Read", StringComparison.Ordinal) &&
-                e.Contains("success", StringComparison.Ordinal)), Is.True);
+            // Assert - compatibility logs should be recorded
+            Assert.That(m_loggerProvider!.Records, Has.Count.EqualTo(2));
+            Assert.That(m_loggerProvider.Records.Any(record =>
+                record.CategoryName == CoreEventIds.CoreCompatibilityCategory &&
+                record.EventId.Id == CoreEventIds.CoreServiceCallStart &&
+                record.EventId.Name == "ServiceCallStart"), Is.True);
+            Assert.That(m_loggerProvider.Records.Any(record =>
+                record.CategoryName == CoreEventIds.CoreCompatibilityCategory &&
+                record.EventId.Id == CoreEventIds.CoreServiceCallStop &&
+                record.EventId.Name == "ServiceCallStop"), Is.True);
 
             // Assert - no metrics should be recorded
             Assert.That(m_meterListener!.RecordedMeasurements, Is.Empty);
@@ -251,31 +256,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
-        public void ActivityTraceFlags_EventLog_ShouldLogToEventLog()
-        {
-            // Arrange
-            using var sut = new TestableClientBase(m_transportChannelMock!.Object, m_telemetry!);
-            sut.ActivityTraceFlags = ClientTraceFlags.EventLog;
-
-            var request = new ReadRequest { RequestHeader = new RequestHeader() };
-            var response = new ReadResponse
-            {
-                ResponseHeader = new ResponseHeader
-                {
-                    RequestHandle = request.RequestHeader.RequestHandle,
-                    ServiceResult = StatusCodes.Good
-                }
-            };
-
-            // Act
-            sut.TestUpdateRequestHeader(request, true, "Read");
-            sut.TestRequestCompleted(request, response, "Read");
-
-            // Assert - EventLog calls are not easily testable, but we ensure no exceptions are thrown
-            Assert.Pass("EventLog flag processed without exceptions");
-        }
-
-        [Test]
         public void ActivityTraceFlags_MetricsAndLog_ShouldRecordBoth()
         {
             // Arrange
@@ -301,7 +281,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             // Assert - both metrics and logs should be recorded
             Assert.That(m_meterListener.RecordedMeasurements, Is.Not.Empty);
-            Assert.That(m_loggerProvider!.LogEntries, Is.Not.Empty);
+            Assert.That(m_loggerProvider!.Records, Is.Not.Empty);
         }
 
         [Test]
@@ -346,8 +326,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             sut.ActivityTraceFlags =
                 ClientTraceFlags.Metrics |
                 ClientTraceFlags.Traces |
-                ClientTraceFlags.Log |
-                ClientTraceFlags.EventLog;
+                ClientTraceFlags.Log;
 
             var request = new ReadRequest { RequestHeader = new RequestHeader() };
             var response = new ReadResponse
@@ -371,7 +350,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
             // Assert - all should be recorded
             Assert.That(m_meterListener.RecordedMeasurements, Is.Not.Empty);
-            Assert.That(m_loggerProvider!.LogEntries, Is.Not.Empty);
+            Assert.That(m_loggerProvider!.Records, Is.Not.Empty);
             Assert.That(activityListener.RecordedEvents, Is.Not.Empty);
 
             activityListener.Dispose();
@@ -399,9 +378,13 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             sut.TestRequestCompleted(request, response, "Read");
 
             // Assert
-            Assert.That(m_loggerProvider!.LogEntries.Any(e =>
-                e.Contains("failed", StringComparison.Ordinal) &&
-                e.Contains("BadTimeout", StringComparison.Ordinal)), Is.True);
+            RecordedLogRecord record = m_loggerProvider!.Records.Single(candidate =>
+                candidate.CategoryName == CoreEventIds.CoreCompatibilityCategory &&
+                candidate.EventId.Id == CoreEventIds.CoreServiceCallBadStop);
+            Assert.That(record.EventId.Name, Is.EqualTo("ServiceCallBadStop"));
+            Assert.That(
+                record.Properties["StatusCode"],
+                Is.EqualTo(unchecked((int)StatusCodes.BadTimeout.Code)));
         }
 
         [Test]
@@ -532,53 +515,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                         System.Reflection.BindingFlags.NonPublic |
                         System.Reflection.BindingFlags.Instance)?
                     .GetValue(this);
-        }
-
-        /// <summary>
-        /// Test logger provider for capturing log entries.
-        /// </summary>
-        private sealed class TestLoggerProvider : ILoggerProvider
-        {
-            public List<string> LogEntries { get; } = [];
-
-            public ILogger CreateLogger(string categoryName)
-            {
-                return new TestLogger(this);
-            }
-
-            public void Dispose()
-            {
-            }
-
-            private sealed class TestLogger : ILogger
-            {
-                private readonly TestLoggerProvider m_provider;
-
-                public TestLogger(TestLoggerProvider provider)
-                {
-                    m_provider = provider;
-                }
-
-                public IDisposable BeginScope<TState>(TState state) where TState : notnull
-                {
-                    return null!;
-                }
-
-                public bool IsEnabled(LogLevel logLevel)
-                {
-                    return true;
-                }
-
-                public void Log<TState>(
-                    LogLevel logLevel,
-                    EventId eventId,
-                    TState state,
-                    Exception? exception,
-                    Func<TState, Exception?, string> formatter)
-                {
-                    m_provider.LogEntries.Add(formatter(state, exception));
-                }
-            }
         }
 
         /// <summary>

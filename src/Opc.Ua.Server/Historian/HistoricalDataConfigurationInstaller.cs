@@ -103,7 +103,7 @@ namespace Opc.Ua.Server.Historian
                 if (context.NodeIdFactory != null)
                 {
                     config.NodeId = context.NodeIdFactory.New(context, config);
-                    AssignInstanceNodeIds(context, config);
+                    AssignInstanceNodeIds(context, context.NodeIdFactory, config);
                 }
 
                 variable.AddReference(ReferenceTypeIds.HasHistoricalConfiguration, false, config.NodeId);
@@ -181,14 +181,17 @@ namespace Opc.Ua.Server.Historian
             return variable.FindChild(context, browseName) as HistoricalDataConfigurationState;
         }
 
-        private static void AssignInstanceNodeIds(ISystemContext context, NodeState node)
+        private static void AssignInstanceNodeIds(
+            ISystemContext context,
+            INodeIdFactory nodeIdFactory,
+            NodeState node)
         {
             var children = new List<BaseInstanceState>();
             node.GetChildren(context, children);
             foreach (BaseInstanceState child in children)
             {
-                child.NodeId = context.NodeIdFactory.New(context, child);
-                AssignInstanceNodeIds(context, child);
+                child.NodeId = nodeIdFactory.New(context, child);
+                AssignInstanceNodeIds(context, nodeIdFactory, child);
             }
         }
     }

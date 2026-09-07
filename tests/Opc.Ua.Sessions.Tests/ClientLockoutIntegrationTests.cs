@@ -58,6 +58,11 @@ namespace Opc.Ua.Sessions.Tests
         private ArrayOf<EndpointDescription> m_endpoints;
         private ITelemetryContext m_telemetry;
 
+        // Leave margin for internal ActivateSession retries in reset-counter tests.
+        private const int LockoutThreshold = 10;
+        private const int PreResetFailedAttempts = 3;
+        private const int PostResetFailedAttempts = 4;
+
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -79,6 +84,7 @@ namespace Opc.Ua.Sessions.Tests
 
             m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
+            m_serverFixture.Config.ServerConfiguration.MaxFailedAuthenticationAttempts = LockoutThreshold;
 
             m_server = await m_serverFixture.StartAsync().ConfigureAwait(false);
             m_server.TokenValidator = new TokenValidatorMock();
@@ -130,7 +136,7 @@ namespace Opc.Ua.Sessions.Tests
             var endpointConfiguration = EndpointConfiguration.Create(m_clientFixture.Config);
             var configuredEndpoint = new ConfiguredEndpoint(null, endpoint, endpointConfiguration);
 
-            for (int attempt = 0; attempt < 5; attempt++)
+            for (int attempt = 0; attempt < LockoutThreshold; attempt++)
             {
                 try
                 {
@@ -184,7 +190,7 @@ namespace Opc.Ua.Sessions.Tests
             var endpointConfiguration = EndpointConfiguration.Create(m_clientFixture.Config);
             var configuredEndpoint = new ConfiguredEndpoint(null, endpoint, endpointConfiguration);
 
-            for (int attempt = 0; attempt < 3; attempt++)
+            for (int attempt = 0; attempt < PreResetFailedAttempts; attempt++)
             {
                 try
                 {
@@ -221,7 +227,7 @@ namespace Opc.Ua.Sessions.Tests
                 Assert.That(successSession.Connected, Is.True);
             }
 
-            for (int attempt = 0; attempt < 4; attempt++)
+            for (int attempt = 0; attempt < PostResetFailedAttempts; attempt++)
             {
                 try
                 {
@@ -267,7 +273,7 @@ namespace Opc.Ua.Sessions.Tests
             var endpointConfiguration = EndpointConfiguration.Create(m_clientFixture.Config);
             var configuredEndpoint = new ConfiguredEndpoint(null, endpoint, endpointConfiguration);
 
-            for (int attempt = 0; attempt < 5; attempt++)
+            for (int attempt = 0; attempt < LockoutThreshold; attempt++)
             {
                 try
                 {

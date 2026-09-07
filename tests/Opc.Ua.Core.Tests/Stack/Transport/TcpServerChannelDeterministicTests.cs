@@ -167,9 +167,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             channel.SetTransport(transport);
             channel.CurrentState = TcpChannelState.Connecting;
 
-            channel.FeedIncomingMessage(
+            await channel.FeedIncomingMessageAsync(
                 TcpMessageType.Hello,
-                new ArraySegment<byte>(BuildHelloWithUrlLength(5000)));
+                new ArraySegment<byte>(BuildHelloWithUrlLength(5000))).ConfigureAwait(false);
 
             Assert.That(
                 await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
@@ -192,8 +192,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             // A Hello is only valid in the Connecting state; Opening triggers a fault.
             channel.CurrentState = TcpChannelState.Opening;
 
-            channel.FeedIncomingMessage(
-                TcpMessageType.Hello, new ArraySegment<byte>([]));
+            await channel.FeedIncomingMessageAsync(
+                TcpMessageType.Hello, new ArraySegment<byte>([])).ConfigureAwait(false);
 
             Assert.That(
                 await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
@@ -215,7 +215,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             channel.SetTransport(transport);
             channel.CurrentState = TcpChannelState.Connecting;
 
-            channel.FeedIncomingMessage(0x00FFFFFFu, new ArraySegment<byte>([]));
+            await channel.FeedIncomingMessageAsync(0x00FFFFFFu, new ArraySegment<byte>([])).ConfigureAwait(false);
 
             Assert.That(
                 await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
@@ -452,14 +452,16 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Transport = transport;
             }
 
-            public bool FeedIncomingMessage(uint messageType, ArraySegment<byte> chunk)
+            public ValueTask<bool> FeedIncomingMessageAsync(
+                uint messageType,
+                ArraySegment<byte> chunk)
             {
-                return HandleIncomingMessage(messageType, chunk);
+                return HandleIncomingMessageAsync(messageType, chunk, CancellationToken.None);
             }
 
-            public void ForceMessageLimitsExceeded()
+            public void ForceMessageLimitsExceeded(bool gateHeld = false)
             {
-                DoMessageLimitsExceeded();
+                DoMessageLimitsExceeded(gateHeld);
             }
 
             public void CallSendServiceFault(uint requestId, bool renew, ServiceResult fault)

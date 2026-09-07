@@ -27,10 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
@@ -39,6 +38,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.ModelChange;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -89,6 +89,32 @@ namespace Opc.Ua.Client.Tests.ModelChange
             await tracker.StartTrackingAsync().ConfigureAwait(false);
 
             Assert.That(tracker.IsTracking, Is.True);
+        }
+
+        [Test]
+        public async Task StartTrackingAsyncWaitsUntilEventMonitoredItemIsCreated()
+        {
+            var fake = new FakeStreamingSubscription(eventMonitoredItemCreated: false);
+            await using var tracker = new ModelChangeTracker(fake);
+
+            int raised = 0;
+            tracker.ModelChanged += (_, _) => Interlocked.Increment(ref raised);
+
+            Task startTask = tracker.StartTrackingAsync().AsTask();
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
+            await Task.Delay(50).ConfigureAwait(false);
+
+            Assert.That(startTask.IsCompleted, Is.False);
+
+            fake.CreateEventMonitoredItem();
+            await startTask.ConfigureAwait(false);
+
+            fake.Push(new EventNotification(
+                null,
+                ArrayOf.Wrapped(default, default, Variant.From("ready"))));
+            await fake.QuiesceAsync().ConfigureAwait(false);
+
+            Assert.That(raised, Is.EqualTo(1));
         }
 
         [Test]
@@ -301,6 +327,274 @@ namespace Opc.Ua.Client.Tests.ModelChange
         }
 
         /// <summary>
+        /// Regression for #4100. A server that appends a namespace uri
+        /// while running reports the change as a
+        /// <c>BaseModelChangeEvent</c> — no per-node detail — so the
+        /// tracker must re-read the namespace table.
+        /// </summary>
+        [Test]
+        public async Task UnqualifiedModelChangeRefreshesNamespaceTable()
+        {
+            var fake = new FakeStreamingSubscription();
+            var namespaces = new FakeNamespaceTableRefresher();
+            await using var tracker = new ModelChangeTracker(
+                fake, nodeCache: null, logger: null, namespaceTables: namespaces);
+
+            ModelChangedEventArgs? observed = null;
+            tracker.ModelChanged += (_, e) => observed = e;
+
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
+
+            namespaces.OnRefresh = table => table.Append("urn:live:model");
+
+            fake.Push(new EventNotification(
+                null, ArrayOf.Wrapped<Variant>(default, default, default)));
+            await fake.QuiesceAsync().ConfigureAwait(false);
+
+            Assert.That(namespaces.RefreshCount, Is.EqualTo(1));
+            Assert.That(observed, Is.Not.Null);
+            Assert.That(observed!.NamespaceTableRefreshed, Is.True);
+            Assert.That(namespaces.NamespaceUris.GetIndex("urn:live:model"),
+                Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task ResolvableModelChangeDoesNotRefreshNamespaceTable()
+        {
+            var fake = new FakeStreamingSubscription();
+            var namespaces = new FakeNamespaceTableRefresher("urn:one");
+            await using var tracker = new ModelChangeTracker(
+                fake, nodeCache: null, logger: null, namespaceTables: namespaces);
+
+            ModelChangedEventArgs? observed = null;
+            tracker.ModelChanged += (_, e) => observed = e;
+
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
+
+            fake.Push(CreateGeneralModelChangeNotification(
+                new NodeId(42u, 1), ObjectTypeIds.BaseObjectType));
+            await fake.QuiesceAsync().ConfigureAwait(false);
+
+            Assert.That(namespaces.RefreshCount, Is.Zero);
+            Assert.That(observed, Is.Not.Null);
+            Assert.That(observed!.NamespaceTableRefreshed, Is.False);
+            Assert.That(observed.Changes, Has.Count.EqualTo(1));
+            Assert.That(observed.Changes[0].AffectedNode,
+                Is.EqualTo(new NodeId(42u, 1)));
+        }
+
+        [Test]
+        public async Task ChangeAffectingServerNamespaceArrayRefreshesNamespaceTable()
+        {
+            var fake = new FakeStreamingSubscription();
+            var namespaces = new FakeNamespaceTableRefresher();
+            await using var tracker = new ModelChangeTracker(
+                fake, nodeCache: null, logger: null, namespaceTables: namespaces);
+
+            ModelChangedEventArgs? observed = null;
+            tracker.ModelChanged += (_, e) => observed = e;
+
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
+
+            fake.Push(CreateGeneralModelChangeNotification(
+                VariableIds.Server_NamespaceArray, NodeId.Null));
+            await fake.QuiesceAsync().ConfigureAwait(false);
+
+            Assert.That(namespaces.RefreshCount, Is.EqualTo(1));
+            Assert.That(observed, Is.Not.Null);
+            Assert.That(observed!.NamespaceTableRefreshed, Is.True);
+        }
+
+        [Test]
+        public async Task ChangeWithUnknownNamespaceIndexRefreshesNamespaceTable()
+        {
+            var fake = new FakeStreamingSubscription();
+            var namespaces = new FakeNamespaceTableRefresher();
+            await using var tracker = new ModelChangeTracker(
+                fake, nodeCache: null, logger: null, namespaceTables: namespaces);
+
+            ModelChangedEventArgs? observed = null;
+            tracker.ModelChanged += (_, e) => observed = e;
+
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
+
+            // Namespace index 3 is beyond the single known uri, so the
+            // client provably cannot resolve the affected node.
+            fake.Push(CreateGeneralModelChangeNotification(
+                new NodeId(42u, 3), NodeId.Null));
+            await fake.QuiesceAsync().ConfigureAwait(false);
+
+            Assert.That(namespaces.RefreshCount, Is.EqualTo(1));
+            Assert.That(observed, Is.Not.Null);
+            Assert.That(observed!.NamespaceTableRefreshed, Is.True);
+        }
+
+        [Test]
+        public async Task ChangeWithUnknownTypeDefinitionNamespaceRefreshesNamespaceTable()
+        {
+            var fake = new FakeStreamingSubscription();
+            var namespaces = new FakeNamespaceTableRefresher();
+            await using var tracker = new ModelChangeTracker(
+                fake, nodeCache: null, logger: null, namespaceTables: namespaces);
+
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
+
+            fake.Push(CreateGeneralModelChangeNotification(
+                new NodeId(42u), new NodeId(99u, 2)));
+            await fake.QuiesceAsync().ConfigureAwait(false);
+
+            Assert.That(namespaces.RefreshCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task NamespaceTableIsRefreshedBeforeTheNodeCacheIsInvalidated()
+        {
+            var fake = new FakeStreamingSubscription();
+            var namespaces = new FakeNamespaceTableRefresher();
+            var order = new List<string>();
+            var cache = new Mock<INodeCache>(MockBehavior.Loose);
+            cache.Setup(c => c.Clear()).Callback(() => order.Add("clear"));
+            namespaces.OnRefresh = _ => order.Add("refresh");
+
+            await using var tracker = new ModelChangeTracker(
+                fake, cache.Object, logger: null, namespaceTables: namespaces);
+
+            tracker.ModelChanged += (_, _) => order.Add("event");
+
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
+
+            fake.Push(new EventNotification(
+                null, ArrayOf.Wrapped<Variant>(default, default, default)));
+            await fake.QuiesceAsync().ConfigureAwait(false);
+
+            Assert.That(order, Is.EqualTo(s_refreshBeforeInvalidateOrder));
+        }
+
+        [Test]
+        public async Task NamespaceTableRefreshFailureIsSwallowedAndTrackingContinues()
+        {
+            var fake = new FakeStreamingSubscription();
+            var namespaces = new FakeNamespaceTableRefresher
+            {
+                OnRefresh = _ => throw new ServiceResultException(
+                    StatusCodes.BadNotConnected)
+            };
+            await using var tracker = new ModelChangeTracker(
+                fake, nodeCache: null, logger: null, namespaceTables: namespaces);
+
+            var observed = new List<ModelChangedEventArgs>();
+            tracker.ModelChanged += (_, e) => observed.Add(e);
+
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
+
+            fake.Push(new EventNotification(
+                null, ArrayOf.Wrapped<Variant>(default, default, default)));
+            await fake.QuiesceAsync().ConfigureAwait(false);
+
+            // Pump must still be alive for the next notification.
+            fake.Push(new EventNotification(
+                null, ArrayOf.Wrapped<Variant>(default, default, default)));
+            await fake.QuiesceAsync().ConfigureAwait(false);
+
+            Assert.That(namespaces.RefreshCount, Is.EqualTo(2));
+            Assert.That(observed, Has.Count.EqualTo(2));
+            Assert.That(observed[0].NamespaceTableRefreshed, Is.False);
+            Assert.That(tracker.IsTracking, Is.True);
+        }
+
+        [Test]
+        public async Task WithoutANamespaceTableRefresherNoRefreshIsAttempted()
+        {
+            var fake = new FakeStreamingSubscription();
+            var cache = new Mock<INodeCache>(MockBehavior.Loose);
+            await using var tracker = new ModelChangeTracker(fake, cache.Object);
+
+            ModelChangedEventArgs? observed = null;
+            tracker.ModelChanged += (_, e) => observed = e;
+
+            await tracker.StartTrackingAsync().ConfigureAwait(false);
+            await fake.WaitForSubscribeAsync().ConfigureAwait(false);
+
+            fake.Push(new EventNotification(
+                null, ArrayOf.Wrapped<Variant>(default, default, default)));
+            await fake.QuiesceAsync().ConfigureAwait(false);
+
+            cache.Verify(c => c.Clear(), Times.Once);
+            Assert.That(observed, Is.Not.Null);
+            Assert.That(observed!.NamespaceTableRefreshed, Is.False);
+        }
+
+        /// <summary>
+        /// Expected call order when a model change triggers both a
+        /// namespace refresh and a full cache invalidation.
+        /// </summary>
+        private static readonly string[] s_refreshBeforeInvalidateOrder =
+            ["refresh", "clear", "event"];
+
+        /// <summary>
+        /// Builds a <c>GeneralModelChangeEvent</c> shaped notification
+        /// carrying a single change entry.
+        /// </summary>
+        private static EventNotification CreateGeneralModelChangeNotification(
+            NodeId affected,
+            NodeId affectedType)
+        {
+            var change = new ModelChangeStructureDataType
+            {
+                Affected = affected,
+                AffectedType = affectedType,
+                Verb = (byte)ModelChangeVerb.NodeAdded
+            };
+            ArrayOf<ExtensionObject> changes = new ExtensionObject[]
+            {
+                new(change)
+            };
+            return new EventNotification(
+                null,
+                ArrayOf.Wrapped(default, default, Variant.From(changes)));
+        }
+
+        /// <summary>
+        /// Hand-rolled fake for <see cref="INamespaceTableRefresher"/>.
+        /// Counts refresh calls and lets a test mutate the table (or
+        /// throw) from inside the refresh.
+        /// </summary>
+        private sealed class FakeNamespaceTableRefresher : INamespaceTableRefresher
+        {
+            public FakeNamespaceTableRefresher(params string[] additionalNamespaceUris)
+            {
+                NamespaceUris = new NamespaceTable(
+                    new[] { Namespaces.OpcUa }.Concat(additionalNamespaceUris));
+            }
+
+            public NamespaceTable NamespaceUris { get; }
+
+            public int RefreshCount => Volatile.Read(ref m_refreshCount);
+
+            /// <summary>
+            /// Invoked on every refresh so a test can simulate the
+            /// server side table growing, or a failure.
+            /// </summary>
+            public Action<NamespaceTable>? OnRefresh { get; set; }
+
+            public Task FetchNamespaceTablesAsync(CancellationToken ct = default)
+            {
+                Interlocked.Increment(ref m_refreshCount);
+                OnRefresh?.Invoke(NamespaceUris);
+                return Task.CompletedTask;
+            }
+
+            private int m_refreshCount;
+        }
+
+        /// <summary>
         /// Fake streaming subscription that exposes a deterministic
         /// <see cref="EventNotification"/> channel for tests. Each call
         /// to <see cref="SubscribeEventsAsync"/> increments
@@ -310,7 +604,9 @@ namespace Opc.Ua.Client.Tests.ModelChange
         /// completes when <see cref="Complete"/> is called or the
         /// supplied cancellation token fires.
         /// </summary>
-        private sealed class FakeStreamingSubscription : IStreamingSubscription
+        private sealed class FakeStreamingSubscription :
+            IStreamingSubscription,
+            IStreamingSubscriptionReadiness
         {
             private readonly Channel<EventNotification> m_channel =
                 Channel.CreateUnbounded<EventNotification>(
@@ -323,15 +619,26 @@ namespace Opc.Ua.Client.Tests.ModelChange
             private readonly TaskCompletionSource<bool> m_subscribed =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+            private readonly FakeMonitoredItem m_eventMonitoredItem;
             private int m_subscribeCallCount;
             private int m_pumpCancellationObserved;
             private int m_pushed;
             private int m_handled;
 
+            public FakeStreamingSubscription(bool eventMonitoredItemCreated = true)
+            {
+                m_eventMonitoredItem = new FakeMonitoredItem(eventMonitoredItemCreated);
+            }
+
             public int SubscribeCallCount => m_subscribeCallCount;
 
             public bool PumpCancellationObserved =>
                 Volatile.Read(ref m_pumpCancellationObserved) != 0;
+
+            public void CreateEventMonitoredItem()
+            {
+                m_eventMonitoredItem.Create();
+            }
 
             public void Push(EventNotification notification)
             {
@@ -369,14 +676,39 @@ namespace Opc.Ua.Client.Tests.ModelChange
                 }
             }
 
+            public IAsyncEnumerable<EventNotification> SubscribeEventsAsync(
+                NodeId notifierId,
+                EventFilter filter,
+                MonitoringOptions? options,
+                Func<IMonitoredItem, CancellationToken, ValueTask> onMonitoredItemReady,
+                CancellationToken ct = default)
+            {
+                return SubscribeEventsCoreAsync(onMonitoredItemReady, ct);
+            }
+
             public async IAsyncEnumerable<EventNotification> SubscribeEventsAsync(
                 NodeId notifierId,
                 EventFilter filter,
                 MonitoringOptions? options = null,
                 [EnumeratorCancellation] CancellationToken ct = default)
             {
+                await foreach (EventNotification notification in SubscribeEventsCoreAsync(null, ct)
+                    .ConfigureAwait(false))
+                {
+                    yield return notification;
+                }
+            }
+
+            private async IAsyncEnumerable<EventNotification> SubscribeEventsCoreAsync(
+                Func<IMonitoredItem, CancellationToken, ValueTask>? onMonitoredItemReady,
+                [EnumeratorCancellation] CancellationToken ct = default)
+            {
                 Interlocked.Increment(ref m_subscribeCallCount);
                 m_subscribed.TrySetResult(true);
+                if (onMonitoredItemReady != null)
+                {
+                    await onMonitoredItemReady(m_eventMonitoredItem, ct).ConfigureAwait(false);
+                }
 
                 try
                 {
@@ -420,6 +752,53 @@ namespace Opc.Ua.Client.Tests.ModelChange
             public ValueTask DisposeAsync()
             {
                 Complete();
+                return default;
+            }
+        }
+
+        private sealed class FakeMonitoredItem : IMonitoredItem, IMonitoredItemApplyState
+        {
+            private int m_created;
+
+            public FakeMonitoredItem(bool created)
+            {
+                m_created = created ? 1 : 0;
+                Error = ServiceResult.Good;
+            }
+
+            public string Name => "fake_event";
+
+            public uint Order => 0;
+
+            public uint ServerId => Created ? 1u : 0u;
+
+            public bool Created => Volatile.Read(ref m_created) != 0;
+
+            public ServiceResult Error { get; }
+
+            public bool HasPendingChanges => !Created && ServiceResult.IsGood(Error);
+
+            public MonitoringFilterResult? FilterResult => null;
+
+            public MonitoringMode CurrentMonitoringMode => MonitoringMode.Reporting;
+
+            public TimeSpan CurrentSamplingInterval => TimeSpan.Zero;
+
+            public uint CurrentQueueSize => 0;
+
+            public uint ClientHandle => 1;
+
+            public IEnumerable<IMonitoredItem> TriggeringItems => Array.Empty<IMonitoredItem>();
+
+            public IEnumerable<IMonitoredItem> TriggeredItems => Array.Empty<IMonitoredItem>();
+
+            public void Create()
+            {
+                Interlocked.Exchange(ref m_created, 1);
+            }
+
+            public ValueTask ConditionRefreshAsync(CancellationToken ct = default)
+            {
                 return default;
             }
         }

@@ -241,6 +241,56 @@ namespace Opc.Ua.Features.Tests
         }
 
         [Test]
+        public async Task ExplicitlyQualifiedPathResolvesToTheSameNodeAsync()
+        {
+            FileSystemClient client = OpenClient();
+            UaDirectoryInfo created = await client.Root
+                .CreateSubdirectoryAsync("qualified")
+                .ConfigureAwait(false);
+
+            ushort namespaceIndex = created.NodeId.NamespaceIndex;
+            Assert.That(namespaceIndex, Is.Not.Zero,
+                "The provider is expected to own a namespace of its own.");
+
+            UaFileSystemInfo unqualified = await client
+                .GetInfoAsync("qualified").ConfigureAwait(false);
+            UaFileSystemInfo qualified = await client
+                .GetInfoAsync($"{namespaceIndex}:qualified").ConfigureAwait(false);
+
+            Assert.That(unqualified, Is.InstanceOf<UaDirectoryInfo>());
+            Assert.That(qualified, Is.InstanceOf<UaDirectoryInfo>());
+            Assert.That(qualified.NodeId, Is.EqualTo(created.NodeId));
+        }
+
+        [Test]
+        public async Task CreateDirectoryAsyncAcceptsUnqualifiedNamespacedParentAsync()
+        {
+            FileSystemClient mountClient = OpenClient();
+            UaDirectoryInfo uploads = await mountClient.Root
+                .CreateSubdirectoryAsync("Uploads")
+                .ConfigureAwait(false);
+            ushort namespaceIndex = uploads.BrowseName.NamespaceIndex;
+            Assert.That(namespaceIndex, Is.Not.Zero,
+                "The provider is expected to own a namespace of its own.");
+
+            FileSystemClient serverFileSystem = FileSystemClient.OpenServerFileSystem(m_session);
+            string parentPath = $"/{namespaceIndex}:TestRoot/Uploads";
+            UaDirectoryInfo created = await serverFileSystem
+                .CreateDirectoryAsync(
+                    $"{parentPath}/probe",
+                    createIntermediate: false)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                Directory.Exists(Path.Combine(m_providerRoot, "Uploads", "probe")),
+                Is.True);
+            Assert.That(
+                created.FullPath,
+                Is.EqualTo(
+                    $"/{namespaceIndex}:TestRoot/{namespaceIndex}:Uploads/{namespaceIndex}:probe"));
+        }
+
+        [Test]
         public async Task DeleteFileRemovesFromEnumerationAsync()
         {
             FileSystemClient client = OpenClient();

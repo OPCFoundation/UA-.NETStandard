@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -376,6 +377,136 @@ namespace Opc.Ua.Client.Tests
 
             Assert.DoesNotThrowAsync(async () => await task.ConfigureAwait(false));
             factory.Verify();
+        }
+
+        private static readonly Uri s_reverseEndpointUrl = new("opc.tcp://localhost:4840");
+
+        [Test]
+        public async Task ReverseConnectRetryReturnsFirstSessionWhenConnectionIsHealthyAsync()
+        {
+            ITransportWaitingConnection connection = new Mock<ITransportWaitingConnection>().Object;
+            ISession session = new Mock<ISession>().Object;
+            int resolveCalls = 0;
+
+            ISession result = await DefaultSessionFactory
+                .CreateReverseConnectSessionWithRetryAsync(
+                    connection,
+                    (conn, ct) => Task.FromResult(session),
+                    ct =>
+                    {
+                        resolveCalls++;
+                        return Task.FromResult(connection);
+                    },
+                    maxAttempts: 3,
+                    logger: null,
+                    endpointUrl: s_reverseEndpointUrl,
+                    ct: CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(result, Is.SameAs(session));
+            Assert.That(resolveCalls, Is.Zero, "a healthy connection must not be re-fetched");
+        }
+
+        [Test]
+        public async Task ReverseConnectRetryRefetchesConnectionAfterStaleFailureAsync()
+        {
+            ITransportWaitingConnection firstConnection = new Mock<ITransportWaitingConnection>().Object;
+            ITransportWaitingConnection secondConnection = new Mock<ITransportWaitingConnection>().Object;
+            ISession session = new Mock<ISession>().Object;
+            int createCalls = 0;
+            int resolveCalls = 0;
+
+            ISession result = await DefaultSessionFactory
+                .CreateReverseConnectSessionWithRetryAsync(
+                    firstConnection,
+                    (conn, ct) =>
+                    {
+                        createCalls++;
+                        if (createCalls == 1)
+                        {
+                            Assert.That(conn, Is.SameAs(firstConnection));
+                            throw new ServiceResultException(StatusCodes.BadConnectionClosed);
+                        }
+
+                        Assert.That(conn, Is.SameAs(secondConnection),
+                            "the retry must use the freshly delivered connection");
+                        return Task.FromResult(session);
+                    },
+                    ct =>
+                    {
+                        resolveCalls++;
+                        return Task.FromResult(secondConnection);
+                    },
+                    maxAttempts: 3,
+                    // Exercise the warning-log branch with a real logger.
+                    logger: m_telemetry.CreateLogger<DefaultSessionFactory>(),
+                    endpointUrl: s_reverseEndpointUrl,
+                    ct: CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(result, Is.SameAs(session));
+            Assert.That(createCalls, Is.EqualTo(2));
+            Assert.That(resolveCalls, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ReverseConnectRetryPropagatesNonTransientFailureWithoutRefetch()
+        {
+            ITransportWaitingConnection connection = new Mock<ITransportWaitingConnection>().Object;
+            int resolveCalls = 0;
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await DefaultSessionFactory
+                    .CreateReverseConnectSessionWithRetryAsync(
+                        connection,
+                        (conn, ct) =>
+                            throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected),
+                        ct =>
+                        {
+                            resolveCalls++;
+                            return Task.FromResult(connection);
+                        },
+                        maxAttempts: 3,
+                        logger: null,
+                        endpointUrl: s_reverseEndpointUrl,
+                        ct: CancellationToken.None)
+                    .ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(resolveCalls, Is.Zero,
+                "a non-transient failure must not trigger a reverse-connection re-fetch");
+        }
+
+        [Test]
+        public void ReverseConnectRetryStopsAfterMaxAttemptsAndSurfacesStaleFailure()
+        {
+            ITransportWaitingConnection connection = new Mock<ITransportWaitingConnection>().Object;
+            int createCalls = 0;
+            int resolveCalls = 0;
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await DefaultSessionFactory
+                    .CreateReverseConnectSessionWithRetryAsync(
+                        connection,
+                        (conn, ct) =>
+                        {
+                            createCalls++;
+                            throw new ServiceResultException(StatusCodes.BadConnectionClosed);
+                        },
+                        ct =>
+                        {
+                            resolveCalls++;
+                            return Task.FromResult(connection);
+                        },
+                        maxAttempts: 3,
+                        logger: null,
+                        endpointUrl: s_reverseEndpointUrl,
+                        ct: CancellationToken.None)
+                    .ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
+            Assert.That(createCalls, Is.EqualTo(3), "initial attempt plus two bounded retries");
+            Assert.That(resolveCalls, Is.EqualTo(2), "a fresh connection is fetched before each retry");
         }
     }
 }

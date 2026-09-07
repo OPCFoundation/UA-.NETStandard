@@ -175,47 +175,44 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sets the callback used to receive notifications of new events.
         /// </summary>
+        /// <remarks>
+        /// Deliberately takes no lock. The listener calls this from the
+        /// reverse-hello completion callback, which the channel invokes inline
+        /// while it holds the gate, so taking the gate here would deadlock. A
+        /// single delegate field needs no more than a volatile write.
+        /// </remarks>
         public void SetRequestReceivedCallback(TcpChannelRequestEventHandler callback)
         {
-            lock (DataLock)
-            {
-                RequestReceived = callback;
-            }
+            RequestReceived = callback;
         }
 
         /// <summary>
         /// Sets the callback used to raise channel audit events.
         /// </summary>
+        /// <inheritdoc cref="SetRequestReceivedCallback" path="/remarks"/>
         public void SetReportOpenSecureChannelAuditCallback(
             ReportAuditOpenSecureChannelEventHandler callback)
         {
-            lock (DataLock)
-            {
-                ReportAuditOpenSecureChannelEvent = callback;
-            }
+            ReportAuditOpenSecureChannelEvent = callback;
         }
 
         /// <summary>
         /// Sets the callback used to raise channel audit events.
         /// </summary>
+        /// <inheritdoc cref="SetRequestReceivedCallback" path="/remarks"/>
         public void SetReportCloseSecureChannelAuditCallback(
             ReportAuditCloseSecureChannelEventHandler callback)
         {
-            lock (DataLock)
-            {
-                ReportAuditCloseSecureChannelEvent = callback;
-            }
+            ReportAuditCloseSecureChannelEvent = callback;
         }
 
         /// <summary>
         /// Sets the callback used to raise channel audit events.
         /// </summary>
+        /// <inheritdoc cref="SetRequestReceivedCallback" path="/remarks"/>
         public void SetReportCertificateAuditCallback(ReportAuditCertificateEventHandler callback)
         {
-            lock (DataLock)
-            {
-                ReportAuditCertificateEvent = callback;
-            }
+            ReportAuditCertificateEvent = callback;
         }
 
         /// <summary>
@@ -250,7 +247,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(transport));
             }
 
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 if (Transport != null)
                 {
@@ -278,7 +275,7 @@ namespace Opc.Ua.Bindings
         {
             TcpChannelState state;
 
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 state = State;
                 if (state is TcpChannelState.Open or TcpChannelState.Connecting)
@@ -376,7 +373,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 if (State is TcpChannelState.Closed or TcpChannelState.Faulted)
                 {
@@ -423,12 +420,12 @@ namespace Opc.Ua.Bindings
         /// no client certificate (for example a
         /// <see cref="SecurityPolicies.None"/> channel) or is already
         /// closed/faulted. The returned reference is owned by the caller,
-        /// which must dispose it. Snapshotting under <c>DataLock</c> avoids
+        /// which must dispose it. Snapshotting under the channel gate avoids
         /// racing the channel's own disposal of its live client certificate.
         /// </summary>
         internal Certificate? SnapshotClientCertificateForRevalidation()
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 if (State is TcpChannelState.Closed or TcpChannelState.Faulted)
                 {
@@ -467,7 +464,7 @@ namespace Opc.Ua.Bindings
         {
             globalChannelId = null;
 
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 if (State is TcpChannelState.Closed or TcpChannelState.Faulted)
                 {
@@ -503,18 +500,24 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles a socket error.
         /// </summary>
+        /// <remarks>
+        /// Called without the gate held, so both branches take it. The close
+        /// must be guarded: it moves the channel to <see cref="TcpChannelState.Closed"/>
+        /// and notifies the listener, and letting that race an in-flight request
+        /// on the same channel leaves the session it belongs to behind.
+        /// </remarks>
         protected override void HandleSocketError(ServiceResult result)
         {
-            lock (DataLock)
+            // channel fault.
+            if (ServiceResult.IsBad(result))
             {
-                // channel fault.
-                if (ServiceResult.IsBad(result))
-                {
-                    ForceChannelFault(result);
-                    return;
-                }
+                ForceChannelFault(result);
+                return;
+            }
 
-                // gracefully shutdown the channel.
+            // gracefully shutdown the channel.
+            using (Gate.Enter())
+            {
                 ChannelClosed();
             }
         }
@@ -525,6 +528,27 @@ namespace Opc.Ua.Bindings
         protected void ForceChannelFault(StatusCode statusCode, string format, params object[] args)
         {
             ForceChannelFault(ServiceResult.Create(statusCode, format, args));
+
+            if (m_logger.IsEnabled(LogLevel.Error))
+            {
+                m_logger.TcpListenChannelLog2(ChannelId, Utils.Format(format, args));
+            }
+        }
+
+        /// <summary>
+        /// Forces the channel into a faulted state as a result of a fatal error,
+        /// without taking the gate.
+        /// </summary>
+        /// <remarks>
+        /// For callers that already hold it. See
+        /// <see cref="ForceChannelFaultCore(ServiceResult)"/>.
+        /// </remarks>
+        private protected void ForceChannelFaultCore(
+            StatusCode statusCode,
+            string format,
+            params object[] args)
+        {
+            ForceChannelFaultCore(ServiceResult.Create(statusCode, format, args));
 
             if (m_logger.IsEnabled(LogLevel.Error))
             {
@@ -550,72 +574,107 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Forces the channel into a faulted state as a result of a fatal error,
+        /// without taking the gate.
+        /// </summary>
+        /// <remarks>
+        /// For callers that already hold it. See
+        /// <see cref="ForceChannelFaultCore(ServiceResult)"/>.
+        /// </remarks>
+        private protected void ForceChannelFaultCore(
+            Exception exception,
+            StatusCode defaultCode,
+            string format,
+            params object[] args)
+        {
+            ForceChannelFaultCore(ServiceResult.Create(exception, defaultCode, format, args));
+
+            if (m_logger.IsEnabled(LogLevel.Error))
+            {
+                m_logger.TcpListenChannelLog3(exception, ChannelId, Utils.Format(format, args));
+            }
+        }
+
+        /// <summary>
         /// Forces the channel into a faulted state as a result of a fatal error.
         /// </summary>
         protected void ForceChannelFault(ServiceResult reason)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
-                CompleteReverseHello(new ServiceResultException(reason));
-
-                // nothing to do if channel already in a faulted state.
-                if (State == TcpChannelState.Faulted)
-                {
-                    return;
-                }
-
-                bool close = false;
-                if (State is not TcpChannelState.Connecting and not TcpChannelState.Opening)
-                {
-                    EndPoint? remoteEndpoint = Transport?.RemoteEndpoint;
-                    if (remoteEndpoint != null)
-                    {
-                        m_logger
-                            .TcpListenChannelLog4(
-                                ChannelName,
-                                remoteEndpoint,
-                                CurrentToken != null ? CurrentToken.ChannelId : 0,
-                                CurrentToken != null ? CurrentToken.TokenId : 0,
-                                reason);
-                    }
-                }
-                else
-                {
-                    // Close immediately if the client never got out of connecting or opening state
-                    close = true;
-                }
-
-                // send error and close response.
-                if (Transport != null && m_responseRequired)
-                {
-                    SendErrorMessage(reason);
-                }
-
-                State = TcpChannelState.Faulted;
-                m_responseRequired = false;
-
-                if (close)
-                {
-                    // mark the RemoteAddress as potential problematic if Basic128Rsa15
-                    if ((SecurityPolicyUri == SecurityPolicies.Basic128Rsa15) &&
-                        (
-                            reason.StatusCode == StatusCodes.BadSecurityChecksFailed ||
-                            reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid))
-                    {
-                        var tcpTransportListener = Listener as TcpTransportListener;
-                        if (Transport?.RemoteEndpoint is IPEndPoint ipEndpoint)
-                        {
-                            tcpTransportListener?.MarkAsPotentialProblematic(ipEndpoint.Address);
-                        }
-                    }
-
-                    // close channel immediately.
-                    ChannelFaulted();
-                }
-
-                // notify any monitors.
-                NotifyMonitors(reason, close);
+                ForceChannelFaultCore(reason);
             }
+        }
+
+        /// <summary>
+        /// Forces the channel into a faulted state as a result of a fatal error,
+        /// without taking the gate.
+        /// </summary>
+        /// <param name="reason">Why the channel faulted.</param>
+        /// <remarks>
+        /// The gate is not re-entrant, so a caller that already holds it — every
+        /// message dispatch path does — must call this rather than
+        /// <see cref="ForceChannelFault(ServiceResult)"/>.
+        /// </remarks>
+        private protected void ForceChannelFaultCore(ServiceResult reason)
+        {
+            CompleteReverseHello(new ServiceResultException(reason));
+
+            // nothing to do if channel already in a faulted state.
+            if (State == TcpChannelState.Faulted)
+            {
+                return;
+            }
+
+            bool close = false;
+            if (State is not TcpChannelState.Connecting and not TcpChannelState.Opening)
+            {
+                EndPoint? remoteEndpoint = Transport?.RemoteEndpoint;
+                if (remoteEndpoint != null)
+                {
+                    m_logger.TcpListenChannelLog4(
+                        ChannelName,
+                        remoteEndpoint,
+                        CurrentToken != null ? CurrentToken.ChannelId : 0,
+                        CurrentToken != null ? CurrentToken.TokenId : 0,
+                        reason);
+                }
+            }
+            else
+            {
+                // Close immediately if the client never got out of connecting or opening state
+                close = true;
+            }
+
+            // send error and close response.
+            if (Transport != null && m_responseRequired)
+            {
+                SendErrorMessage(reason);
+            }
+
+            State = TcpChannelState.Faulted;
+            m_responseRequired = false;
+
+            if (close)
+            {
+                // mark the RemoteAddress as potential problematic if Basic128Rsa15
+                if (SecurityPolicyUri == SecurityPolicies.Basic128Rsa15 &&
+                    (reason.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                        reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid))
+                {
+                    var tcpTransportListener = Listener as TcpTransportListener;
+                    if (Transport?.RemoteEndpoint is IPEndPoint ipEndpoint)
+                    {
+                        tcpTransportListener?.MarkAsPotentialProblematic(ipEndpoint.Address);
+                    }
+                }
+
+                // close channel immediately.
+                ChannelFaulted();
+            }
+
+            // notify any monitors.
+            NotifyMonitors(reason, close);
         }
 
         /// <summary>
@@ -623,7 +682,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void OnCleanup(object state)
         {
-            lock (DataLock)
+            using (Gate.Enter())
             {
                 // nothing to do if the channel is now open or closed.
                 if (State is TcpChannelState.Closed or TcpChannelState.Open)
@@ -647,7 +706,9 @@ namespace Opc.Ua.Bindings
                         reason.ToString());
                 }
 
-                // close channel.
+                // close channel. Safe under the gate: the listener removes the
+                // channel from a lock-free map and disposes it, and disposal
+                // deliberately does not take the gate.
                 ChannelClosed();
             }
         }
@@ -713,7 +774,10 @@ namespace Opc.Ua.Bindings
                 int size = encoder.Close();
                 UpdateMessageSize(buffer, 0, size);
 
-                BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
+                // Written on this stack rather than queued: the caller closes the
+                // transport as its next step, and a queued write would be
+                // discarded before the peer ever saw why the channel faulted.
+                WriteMessageInline(new ArraySegment<byte>(buffer, 0, size));
                 buffer = null;
             }
             finally
@@ -773,7 +837,7 @@ namespace Opc.Ua.Bindings
 
                 m_logger.TcpListenChannelLog8(e, ChannelId, requestId, fault.StatusCode);
 
-                ForceChannelFault(
+                ForceChannelFaultCore(
                     ServiceResult.Create(
                         e,
                         StatusCodes.BadTcpInternalError,
@@ -837,24 +901,44 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The channel request event handler.
         /// </summary>
-        protected TcpChannelRequestEventHandler? RequestReceived { get; private set; }
+        protected TcpChannelRequestEventHandler? RequestReceived
+        {
+            get => m_requestReceived;
+            private set => m_requestReceived = value;
+        }
 
         /// <summary>
         /// The report open secure channel audit event handler.
         /// </summary>
-        protected ReportAuditOpenSecureChannelEventHandler? ReportAuditOpenSecureChannelEvent { get; private set; }
+        protected ReportAuditOpenSecureChannelEventHandler? ReportAuditOpenSecureChannelEvent
+        {
+            get => m_reportAuditOpenSecureChannelEvent;
+            private set => m_reportAuditOpenSecureChannelEvent = value;
+        }
 
         /// <summary>
         /// The report close secure channel audit event handler.
         /// </summary>
-        protected ReportAuditCloseSecureChannelEventHandler? ReportAuditCloseSecureChannelEvent { get; private set; }
+        protected ReportAuditCloseSecureChannelEventHandler? ReportAuditCloseSecureChannelEvent
+        {
+            get => m_reportAuditCloseSecureChannelEvent;
+            private set => m_reportAuditCloseSecureChannelEvent = value;
+        }
 
         /// <summary>
         /// The report certificate audit event handler.
         /// </summary>
-        protected ReportAuditCertificateEventHandler? ReportAuditCertificateEvent { get; private set; }
+        protected ReportAuditCertificateEventHandler? ReportAuditCertificateEvent
+        {
+            get => m_reportAuditCertificateEvent;
+            private set => m_reportAuditCertificateEvent = value;
+        }
 
         private readonly ILogger m_logger;
+        private volatile TcpChannelRequestEventHandler? m_requestReceived;
+        private volatile ReportAuditOpenSecureChannelEventHandler? m_reportAuditOpenSecureChannelEvent;
+        private volatile ReportAuditCloseSecureChannelEventHandler? m_reportAuditCloseSecureChannelEvent;
+        private volatile ReportAuditCertificateEventHandler? m_reportAuditCertificateEvent;
         private bool m_responseRequired;
         private uint m_lastTokenId;
         private int m_sessionCount;

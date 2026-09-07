@@ -128,10 +128,11 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
         }
 
         /// <summary>
-        /// Tests that Group returns single group when multiple design files are in the same directory.
+        /// Tests that Group returns one generation unit per design file when
+        /// multiple targets share a directory.
         /// </summary>
         [Test]
-        public void Group_MultipleFilesInSameDirectory_ReturnsSingleGroup()
+        public void GroupMultipleFilesInSameDirectoryReturnsOneGroupPerTarget()
         {
             // Arrange
             string dir = Path.Combine("C:", "TestDir");
@@ -155,12 +156,16 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group().ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result, Has.Count.EqualTo(1));
-            Assert.That(result[0].Targets, Is.Not.Null);
-            Assert.That(result[0].Targets, Has.Count.EqualTo(3));
-            Assert.That(result[0].Targets, Is.EquivalentTo(designFiles));
-            Assert.That(result[0].IdentifierFilePath, Is.EqualTo("fallback.csv"));
-            Assert.That(result[0].Options, Is.EqualTo(options));
+            Assert.That(result, Has.Count.EqualTo(3));
+            Assert.That(result.SelectMany(group => group.Targets), Is.EquivalentTo(designFiles));
+            foreach (DesignFileCollection group in result)
+            {
+                Assert.That(group.Targets, Has.Count.EqualTo(1));
+                Assert.That(group.Dependencies, Has.Count.EqualTo(2));
+                Assert.That(group.Dependencies, Does.Not.Contain(group.Targets[0]));
+                Assert.That(group.IdentifierFilePath, Is.EqualTo("fallback.csv"));
+                Assert.That(group.Options, Is.EqualTo(options));
+            }
         }
 
         /// <summary>
@@ -256,10 +261,11 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
         }
 
         /// <summary>
-        /// Tests that Group uses identifier file from matching directory when provided.
+        /// Tests that Group assigns an identifier file by matching the target
+        /// base name, even when several models share a directory.
         /// </summary>
         [Test]
-        public void Group_IdentifierFileInMatchingDirectory_UsesIdentifierFile()
+        public void GroupBasenameIdentifierFilesAssignsEachTarget()
         {
             // Arrange
             string dir = Path.Combine("C:", "TestDir");
@@ -270,7 +276,8 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var identifierFiles = new List<string>
             {
-                Path.Combine(dir, "identifiers.csv")
+                Path.Combine(dir, "Design1.csv"),
+                Path.Combine(dir, "Design2.CSV")
             };
             var collection = new DesignFileCollection
             {
@@ -282,26 +289,88 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group(identifierFiles).ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result, Has.Count.EqualTo(1));
-            Assert.That(result[0].IdentifierFilePath, Is.EqualTo(Path.Combine(dir, "identifiers.csv")));
+            Assert.That(result, Has.Count.EqualTo(2));
+            Assert.That(
+                result.Single(group => group.Targets[0].EndsWith("Design1.xml", StringComparison.Ordinal))
+                    .IdentifierFilePath,
+                Is.EqualTo(Path.Combine(dir, "Design1.csv")));
+            Assert.That(
+                result.Single(group => group.Targets[0].EndsWith("Design2.xml", StringComparison.Ordinal))
+                    .IdentifierFilePath,
+                Is.EqualTo(Path.Combine(dir, "Design2.CSV")));
         }
 
         /// <summary>
-        /// Tests that Group uses first identifier file when multiple identifier files exist in same directory.
+        /// Tests that the legacy single-model case continues to use the only
+        /// adjacent identifier file even when its basename differs.
         /// </summary>
         [Test]
-        public void Group_MultipleIdentifierFilesInSameDirectory_UsesFirstIdentifierFile()
+        public void GroupSingleTargetWithNonBasenameIdentifierUsesAdjacentFile()
+        {
+            string dir = Path.Combine("C:", "TestDir");
+            string target = Path.Combine(dir, "Design.xml");
+            string identifierFile = Path.Combine(dir, "LegacyIdentifiers.csv");
+            var collection = new DesignFileCollection
+            {
+                Targets = [target],
+                IdentifierFilePath = "fallback.csv"
+            };
+
+            DesignFileCollection result = collection
+                .Group([identifierFile])
+                .Single();
+
+            Assert.That(result.IdentifierFilePath, Is.EqualTo(identifierFile));
+        }
+
+        /// <summary>
+        /// Tests that each single-model directory preserves its legacy
+        /// non-basename identifier file in a multi-directory collection.
+        /// </summary>
+        [Test]
+        public void GroupMultipleSingleTargetDirectoriesUseAdjacentLegacyFiles()
+        {
+            string dir1 = Path.Combine("C:", "Dir1");
+            string dir2 = Path.Combine("C:", "Dir2");
+            string target1 = Path.Combine(dir1, "Model1.xml");
+            string target2 = Path.Combine(dir2, "Model2.xml");
+            string identifier1 = Path.Combine(dir1, "Identifiers.csv");
+            string identifier2 = Path.Combine(dir2, "Identifiers.csv");
+            var collection = new DesignFileCollection
+            {
+                Targets = [target1, target2],
+                IdentifierFilePath = "fallback.csv"
+            };
+
+            List<DesignFileCollection> result = collection
+                .Group([identifier1, identifier2])
+                .ToList();
+
+            Assert.That(
+                result.Single(group => group.Targets[0] == target1).IdentifierFilePath,
+                Is.EqualTo(identifier1));
+            Assert.That(
+                result.Single(group => group.Targets[0] == target2).IdentifierFilePath,
+                Is.EqualTo(identifier2));
+        }
+
+        /// <summary>
+        /// Tests that unrelated identifier files in the same directory are
+        /// ignored in favour of the target's basename match.
+        /// </summary>
+        [Test]
+        public void GroupMultipleIdentifierFilesInSameDirectoryUsesBasenameMatch()
         {
             // Arrange
             string dir = Path.Combine("C:", "TestDir");
             var designFiles = new List<string>
             {
-                Path.Combine(dir, "Design1.xml")
+                Path.Combine(dir, "Design2.xml")
             };
             var identifierFiles = new List<string>
             {
                 Path.Combine(dir, "identifiers1.csv"),
-                Path.Combine(dir, "identifiers2.csv"),
+                Path.Combine(dir, "Design2.csv"),
                 Path.Combine(dir, "identifiers3.csv")
             };
             var collection = new DesignFileCollection
@@ -315,7 +384,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Count.EqualTo(1));
-            Assert.That(result[0].IdentifierFilePath, Is.EqualTo(Path.Combine(dir, "identifiers1.csv")));
+            Assert.That(result[0].IdentifierFilePath, Is.EqualTo(Path.Combine(dir, "Design2.csv")));
         }
 
         /// <summary>
@@ -367,8 +436,8 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var identifierFiles = new List<string>
             {
-                Path.Combine(dir1, "id1.csv"),
-                Path.Combine(dir3, "id3.csv")
+                Path.Combine(dir1, "Design1.csv"),
+                Path.Combine(dir3, "Design3.csv")
             };
             var collection = new DesignFileCollection
             {
@@ -383,13 +452,13 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             Assert.That(result, Has.Count.EqualTo(3));
             DesignFileCollection group1 = result.FirstOrDefault(g => g.Targets.Contains(Path.Combine(dir1, "Design1.xml")));
             Assert.That(group1, Is.Not.Null);
-            Assert.That(group1.IdentifierFilePath, Is.EqualTo(Path.Combine(dir1, "id1.csv")));
+            Assert.That(group1.IdentifierFilePath, Is.EqualTo(Path.Combine(dir1, "Design1.csv")));
             DesignFileCollection group2 = result.FirstOrDefault(g => g.Targets.Contains(Path.Combine(dir2, "Design2.xml")));
             Assert.That(group2, Is.Not.Null);
             Assert.That(group2.IdentifierFilePath, Is.EqualTo("fallback.csv"));
             DesignFileCollection group3 = result.FirstOrDefault(g => g.Targets.Contains(Path.Combine(dir3, "Design3.xml")));
             Assert.That(group3, Is.Not.Null);
-            Assert.That(group3.IdentifierFilePath, Is.EqualTo(Path.Combine(dir3, "id3.csv")));
+            Assert.That(group3.IdentifierFilePath, Is.EqualTo(Path.Combine(dir3, "Design3.csv")));
         }
 
         /// <summary>
@@ -411,7 +480,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             };
             var identifierFiles = new List<string>
             {
-                Path.Combine(dir2, "identifiers_dir2.csv")
+                Path.Combine(dir2, "DesignC.csv")
             };
             var options = new DesignFileOptions
             {
@@ -429,16 +498,16 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group(identifierFiles).ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result, Has.Count.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(5));
             DesignFileCollection group1 = result.FirstOrDefault(g => g.Targets.Contains(Path.Combine(dir1, "DesignA.xml")));
             Assert.That(group1, Is.Not.Null);
-            Assert.That(group1.Targets, Has.Count.EqualTo(2));
+            Assert.That(group1.Targets, Has.Count.EqualTo(1));
             Assert.That(group1.IdentifierFilePath, Is.EqualTo("global_fallback.csv"));
             Assert.That(group1.Options, Is.EqualTo(options));
             DesignFileCollection group2 = result.FirstOrDefault(g => g.Targets.Contains(Path.Combine(dir2, "DesignC.xml")));
             Assert.That(group2, Is.Not.Null);
-            Assert.That(group2.Targets, Has.Count.EqualTo(3));
-            Assert.That(group2.IdentifierFilePath, Is.EqualTo(Path.Combine(dir2, "identifiers_dir2.csv")));
+            Assert.That(group2.Targets, Has.Count.EqualTo(1));
+            Assert.That(group2.IdentifierFilePath, Is.EqualTo(Path.Combine(dir2, "DesignC.csv")));
             Assert.That(group2.Options, Is.EqualTo(options));
         }
 
@@ -498,7 +567,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
         /// Tests that Group handles design files with relative paths correctly.
         /// </summary>
         [Test]
-        public void Group_DesignFilesWithRelativePaths_GroupsByDirectory()
+        public void GroupDesignFilesWithRelativePathsEmitsEachTarget()
         {
             // Arrange
             var designFiles = new List<string>
@@ -517,7 +586,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             var result = collection.Group().ToList();
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result, Has.Count.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(3));
         }
 
         /// <summary>

@@ -1,0 +1,39 @@
+The AI Model Management sample Server is deploying.
+
+  Release:   {{ .Release.Name }}
+  Namespace: {{ .Release.Namespace }}
+  Endpoint:  opc.tcp://{{ include "ai-model-management.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}/ModelManagementServer
+
+Reach it from your machine:
+
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "ai-model-management.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+  dotnet run --project samples/AI/ModelManagementClient -- opc.tcp://localhost:{{ .Values.service.port }}/ModelManagementServer
+
+What this Server will tell a client about itself:
+
+  Inference runs   {{ .Values.backend.site }}
+  Jurisdiction     {{ .Values.backend.dataJurisdiction }}
+  Egress permitted {{ .Values.backend.egressPermitted }}
+  Input retained   {{ .Values.backend.retainsInput }}
+{{- if .Values.ai.enableFallback }}
+  Fallback         published, reaching {{ .Values.fallbackBackend.endpointUri }}
+{{- else }}
+  Fallback         none; a failed inference fails
+{{- end }}
+
+{{- if not (include "ai-model-management.hasCredential" .) }}
+
+No credential is mounted. That is correct for an anonymous endpoint or for
+workload identity, and wrong for anything else.
+{{- end }}
+{{- if .Values.credentials.create }}
+
+WARNING: credentials.create put the secret through Helm, so it is in the release
+history and in `helm get values`. Use credentials.existingSecret for anything
+that is not a local cluster.
+{{- end }}
+{{- if not .Values.persistence.enabled }}
+
+WARNING: persistence is off, so the Server generates a new application instance
+certificate on every restart and every client has to trust it again.
+{{- end }}

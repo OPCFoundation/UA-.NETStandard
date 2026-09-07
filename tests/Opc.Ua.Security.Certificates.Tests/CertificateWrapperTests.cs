@@ -964,27 +964,132 @@ namespace Opc.Ua.Security.Certificates.Tests
                 "handle Dispose must not affect the counters.");
         }
 
-#if DEBUG
         [Test]
-        public void VerifyLeakDetectionTracksAllocation()
+        public void LeakTrackingConfigurationUsesAppContextBeforeEnvironment()
         {
-            WeakReference weakRef = CreateLeakedCertificateRef("CN=LeakTest");
+            bool enabled = Certificate.ResolveLeakTrackingEnabled(
+                switchFound: true,
+                switchValue: false,
+                environmentValue: "true",
+                defaultValue: true);
 
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
+            Assert.That(enabled, Is.False);
+        }
 
-            Assert.That(weakRef.IsAlive, Is.False);
+        [TestCase("1", true)]
+        [TestCase("true", true)]
+        [TestCase("TRUE", true)]
+        [TestCase("0", false)]
+        [TestCase("false", false)]
+        [TestCase("FALSE", false)]
+        public void LeakTrackingConfigurationParsesEnvironmentValue(
+            string environmentValue,
+            bool expected)
+        {
+            bool enabled = Certificate.ResolveLeakTrackingEnabled(
+                switchFound: false,
+                switchValue: false,
+                environmentValue,
+                defaultValue: !expected);
 
-            // The certificate above is deliberately abandoned without Dispose
-            // to exercise the finalizer-based leak tracking. Account for it so
-            // the intentional leak does not trip the assembly-level leak
-            // assertion (the inner X509Certificate2 is reclaimed by its own
-            // finalizer).
-            Certificate.AccountForDeliberatelyLeakedInstanceForTest();
+            Assert.That(enabled, Is.EqualTo(expected));
         }
 
         [Test]
+        public void LeakTrackingConfigurationUsesDefaultForUnknownEnvironmentValue()
+        {
+            bool enabled = Certificate.ResolveLeakTrackingEnabled(
+                switchFound: false,
+                switchValue: false,
+                environmentValue: "unknown",
+                defaultValue: true);
+
+            Assert.That(enabled, Is.True);
+        }
+
+        [Test]
+        public void LeakTrackingMatchesExplicitEnvironmentSetting()
+        {
+            string setting = Environment.GetEnvironmentVariable(
+                "OPCUA_CERTIFICATE_LEAK_TRACKING");
+            if (setting is not ("0" or "1"))
+            {
+                Assert.Ignore("No explicit certificate leak tracking setting was provided.");
+            }
+
+            Assert.That(Certificate.LeakTrackingEnabled, Is.EqualTo(setting == "1"));
+        }
+
+        [Test]
+        [NonParallelizable]
+        public void LeakTrackingReportsLiveCertificateOnlyWhenEnabled()
+        {
+            const string fixtureName = "Opc.Ua.Tests.LiveTrackingFixture";
+            string previousScope = Certificate.LeakTrackingScope;
+            Certificate.LeakTrackingScope = fixtureName;
+            try
+            {
+                using Certificate cert = CertificateBuilder.Create("CN=LiveTrackingTest")
+                    .SetRSAKeySize(2048)
+                    .CreateForRSA();
+
+                var matches = Certificate.EnumerateLiveCertificates()
+                    .Where(entry => entry.Thumbprint == cert.Thumbprint)
+                    .ToArray();
+
+                Assert.That(
+                    matches,
+                    Has.Length.EqualTo(Certificate.LeakTrackingEnabled ? 1 : 0));
+                if (Certificate.LeakTrackingEnabled)
+                {
+                    Assert.That(matches[0].FixtureName, Is.EqualTo(fixtureName));
+                }
+            }
+            finally
+            {
+                Certificate.LeakTrackingScope = previousScope;
+            }
+        }
+
+        [Test]
+        [NonParallelizable]
+        public void VerifyLeakDetectionTracksAllocation()
+        {
+            if (!Certificate.LeakTrackingEnabled)
+            {
+                Assert.Ignore("Certificate allocation tracking is disabled.");
+            }
+
+            WeakReference weakRef = CreateLeakedCertificateRef("CN=LeakTest");
+
+            try
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+
+                Assert.That(weakRef.IsAlive, Is.False);
+                Assert.That(
+                    Certificate.EnumerateUnreachableUndisposedCertificates().Any(
+                        entry => entry.StackTrace.Contains(
+                            nameof(CreateLeakedCertificateRef),
+                            StringComparison.Ordinal)),
+                    Is.True);
+            }
+            finally
+            {
+                // The certificate above is deliberately abandoned without Dispose
+                // to exercise the finalizer-based leak tracking. Account for it so
+                // the intentional leak does not trip the assembly-level leak
+                // assertion (the inner X509Certificate2 is reclaimed by its own
+                // finalizer).
+                Certificate.AccountForDeliberatelyLeakedInstanceForTest(
+                    nameof(CreateLeakedCertificateRef));
+            }
+        }
+
+        [Test]
+        [NonParallelizable]
         public void VerifyNoLeakWhenProperlyDisposed()
         {
             WeakReference weakRef = CreateDisposedCertificateRef(
@@ -998,6 +1103,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
         [Test]
+        [NonParallelizable]
         public void VerifyAddRefDisposeNoLeak()
         {
             WeakReference weakRef = CreateAddRefDisposedCertificateRef(
@@ -1047,7 +1153,5 @@ namespace Opc.Ua.Security.Certificates.Tests
             cert.Dispose();
             return new WeakReference(cert);
         }
-
-#endif
     }
 }

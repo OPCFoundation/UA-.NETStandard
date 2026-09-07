@@ -25,13 +25,14 @@ If you are migrating an existing application, the companion
 - **New companion-spec coverage**: Part 9 (Alarms & Conditions), Part 11
   (Historical Access) + Part 13 (Aggregates), Part 16 (State Machines),
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File Transfer),
-  Part 100 (Device Integration), plus OPC 10100-1 WoT Connectivity and a
-  Local Discovery Server.
+  Part 100 (Device Integration), OPC 10100-1 WoT Connectivity, and a Local
+  Discovery Server.
 - **Source generators emit NodeManagers, typed `ObjectType` proxies, and
   `IEncodeable` data types from model design XML**, removing hand-written
   boilerplate while staying AOT-clean.
 - **GDS is now Part 12 full-compliance**, with arbitrary certificate groups,
-  custom group support, and modernised Push/Pull APIs.
+  custom group support, modernised Push/Pull APIs, and OPC 10000-21
+  registrar ticket administration backed by the generated Onboarding model.
 - **OPC UA Part 4 §6.6 redundancy plus opt-in distributed high availability.**
   Server and client redundancy (`Server.ServerRedundancy` / `ServiceLevel`,
   `ManagedSession.WithServerRedundancy()`) ship in the box, and new
@@ -100,7 +101,7 @@ library hangs its own `.AddXxx(...)` extension off it. Servers run as
 `Action<T>` or `IConfiguration`; identity providers, certificate manager,
 secret store, file system, historian, alarms, and the GDS extensions all
 register through the same builder. Alongside DI, a
-[source-generated fluent server API](SourceGeneratedNodeManagers.md) lets
+[source-generated fluent server API](NodeManagers.md#source-generated-node-managers) lets
 applications stand up a server from a model design XML with a few
 `.AddXxx().WithYyy()` calls; the
 [`ManagedSession`](Sessions.md#3-managedsession--the-connection-state-machine-facade)
@@ -121,7 +122,7 @@ library.
 
 The new source-generation pipeline emits the typical OPC UA boilerplate
 from model design XML rather than hand-written code. The
-[NodeManager generator](SourceGeneratedNodeManagers.md) produces a fully
+[NodeManager generator](NodeManagers.md#source-generated-node-managers) produces a fully
 async, fluent NodeManager skeleton plus typed `*State` properties for every
 node; the [DataType generator](SourceGeneratedDataTypes.md) emits
 `IEncodeable` implementations from POCO classes; and a new generator emits
@@ -162,6 +163,23 @@ server- and client-side implementations:
   (`FluentFiniteStateMachineState`) and *lifecycle* (attach behaviour to
   stack-shipped or generator-emitted FSMs) modes, plus client-side
   streaming / read helpers on the generated `*TypeClient` proxies.
+  Definition-mode machines materialize a `StateType` node per declared
+  state and a `TransitionType` node per declared transition (with
+  `StateNumber` / `TransitionNumber`, `FromState` / `ToState` /
+  `HasEffect` / `HasCause`, and the `AvailableStates` /
+  `AvailableTransitions` / `LastTransition` children), so
+  `CurrentState/Id` and `LastTransition/Id` resolve to real nodes and
+  `HasSubStateMachine` hangs off the parent **state** node per Part 16
+  §4.4.16 rather than off the machine root. Callers that passed a state
+  machine's `ObjectId` to `GetSubStateMachineAsync` must pass a state
+  NodeId instead — from `GetAvailableStatesAsync` or a snapshot's
+  `CurrentStateId` — and code that read a numeric id out of
+  `CurrentState/Id` should call `FiniteStateMachineState.GetStateId`
+  instead of parsing the identifier. Generated state-machine classes
+  now also override `ElementNamespaceUri` with the namespace of the
+  model that declares their states, so `CurrentState/Id` and
+  `LastTransition/Id` are qualified with the companion-spec namespace
+  rather than the OPC UA one.
 - **Part 17 — Alias Names**: full server + client support for
   `AliasNameType`, `AliasNameCategoryType`, `FindAlias`, `FindAliasVerbose`,
   `AddAliasesToCategory`, `DeleteAliasesFromCategory`, and `LastChange`.
@@ -179,6 +197,37 @@ server- and client-side implementations:
   sub-type extensions, lock service, software-update package store, and
   client helpers. See [Device Integration](DeviceIntegration.md) and
   [Software Update](SoftwareUpdate.md).
+- **Parts 210 and 211 — Relative Spatial Location and Global Positioning**:
+  source-generated released RSL/GPOS models, standalone and composed server
+  hosting, technology-neutral position providers, typed clients and streams,
+  frame-chain resolution, WGS84/ENU conversion, and rigid/similarity/affine
+  Zone fitting. The robot/OpenUSD sample publishes independently configurable
+  mobile robot poses. See [Positioning](Positioning.md).
+- **OPC 40010-1 — Robotics** (over **OPC 40001-1 — Industrial Automation**):
+  the `Opc.Ua.Robotics` / `Opc.Ua.Robotics.Server` / `Opc.Ua.Robotics.Client`
+  library trio over Device Integration, with source-generated Robotics 1.02
+  and IA models, `AddRobotics` / `ConfigureRobotics` hosting, ordered model
+  providers, and validated fluent topology builders that assemble motion
+  device systems, controllers, motion devices, axes, power trains, motors,
+  gears, drives, safety states, and task controls with the correct
+  companion-spec references. See [Robotics](Robotics.md), including the draft
+  Robot Intent task-level command model.
+- **OPC UA — Vision** (draft): the `Opc.Ua.Vision` /
+  `Opc.Ua.Vision.Server` / `Opc.Ua.Vision.Client` /
+  `Opc.Ua.Vision.OpenUsd` package family, with a source-generated Vision model,
+  `AddVision` / `ConfigureVision` hosting, media/inference/feedback providers,
+  fluent frame/sensor/calibration/pipeline builders, typed `VisionClient`
+  discovery, result streaming, off-server feedback, facet derivation, and
+  OpenUSD camera capture. See [Vision](Vision.md), including the Robotics +
+  Vision bin-picking example.
+- **OPC UA — AI Model Management and Inference** (draft): the `Opc.Ua.AI` /
+  `Opc.Ua.AI.Inference` / `Opc.Ua.AI.Server` / `Opc.Ua.AI.Client` package
+  family over xRegistry, with a source-generated catalogue/deployment/inference
+  model, the `IInferenceBackend` contract, `Microsoft.Extensions.AI`
+  `IChatClient` and OpenAI-compatible REST backends, `AINodeManagerFactory`
+  hosting through `AddNodeManager<AINodeManagerFactory>`, `Invoke` routing,
+  learning jobs, and standard file-transfer artefact streaming. See
+  [AI Model Management](AI.md).
 - **OPC 10100-1 — WoT Connectivity**: model, server, and client libraries
   for surfacing OPC UA servers as Web of Things Thing Descriptions, with
   the `WoTAssetConnectionManagement` server methods gated by a
@@ -232,6 +281,45 @@ is bridge-compatible with legacy .NET / OPC UA implementations. The server
 ships with [client lockout](RoleBasedUserManagement.md) for failed
 authentication attempts, and `SubCA` revocation no longer auto-creates an
 empty CRL on the issuing CA.
+
+Cryptography is now pluggable. A [`CryptoProvider`](CryptoProvider.md) model
+lets an application route cryptographic operations to another library, an
+offboard service or hardware, chosen per purpose and per security policy and
+injected through `AddCryptoProvider(…)`. The default is unchanged and costs
+nothing: everything resolves to platform cryptography until something is bound.
+Private keys no longer have to be owned by the certificate — a key can be held
+detached, in a TPM, a smart card or an HSM, and never enter process memory.
+`Certificate.CopyWithDetachedPrivateKey` is the seam that makes this work on
+every platform, which `X509Certificate2.CopyWithPrivateKey` does not.
+The optional `OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` package adds a
+PKCS#11 certificate store addressed by RFC 7512 `pkcs11:` URIs. Which
+cryptographic module performed an operation, and whether it carries any
+validation, is auditable through logs, metrics and the address space, and can
+be constrained with a compliance policy.
+The symmetric primitives are pluggable too. `ISymmetricCryptoProvider`,
+`IKeyDerivationProvider` and `ISecureRandomSource` let a validated cryptographic
+module perform *every* operation rather than only the asymmetric ones, which is
+what a FIPS deployment needs. They are optional facets a provider opts into, so
+existing providers are unaffected, and they sit behind a null fast path: a
+deployment that registers nothing keeps the inline platform code, with no
+interface dispatch on the per-message path. A provider bound to a symmetric
+purpose it cannot actually perform is reported rather than silently replaced by
+the platform, and under `FipsOnly` it refuses to start.
+PubSub uses the same seam: the per-message AES-CTR and HMAC a publisher applies
+route through a registered provider, so a validated module performs those too.
+Full device custody is not achievable for PubSub, and the reason is worth stating
+— a standard Security Key Service returns raw key bytes over the wire, so the key
+is in process memory by construction. What is bounded instead is its lifetime.
+A key served over a network no longer has to occupy a thread. `RSA` and `ECDsa`
+are synchronous contracts belonging to .NET, so an implementation opts in by
+also implementing `IAsyncRsaKey` or `IAsyncEcdsaKey`, which the stack finds by
+type test and uses where it can — user identity token signing and decryption,
+session activation, and the secure channel open and renew path. A software key
+implements neither, so those paths complete synchronously and nothing about
+their ordering changes. The secure channel no longer serialises its state on a
+monitor, and `UaSCBinaryChannel.DataLock` is `[Obsolete]`. The gate that replaced
+it is not re-entrant, so the channel calls a lock-free `Core` variant on every
+path that used to take the lock recursively.
 
 ## By layer
 
@@ -418,7 +506,10 @@ loggers, meters, and activities all hang off the same context object, and
 log redaction is wired through the audit APIs. Tests have been
 reorganised for faster CI, with several integration suites separated from
 unit suites, and code-coverage gates apply to all non-test, non-application
-projects.
+projects. Those gates now run inside the pipeline itself - an absolute
+project floor plus a changed-lines check - instead of relying on an external
+coverage service; see
+[Continuous integration](DeveloperGuide.md#continuous-integration).
 
 ## Further reading
 
@@ -436,7 +527,7 @@ projects.
 - [Dependency Injection](DependencyInjection.md),
   [Native AOT](NativeAoT.md),
   [Diagnostics](Diagnostics.md),
-  [Source-Generated NodeManagers](SourceGeneratedNodeManagers.md),
+  [Source-Generated NodeManagers](NodeManagers.md#source-generated-node-managers),
   [Source-Generated DataTypes](SourceGeneratedDataTypes.md).
 - Companion specs:
   [Alarms and Conditions](AlarmsAndConditions.md),
@@ -445,6 +536,9 @@ projects.
   [State Machines](StateMachines.md),
   [Alias Names](AliasNames.md),
   [Device Integration](DeviceIntegration.md),
+  [Relative Spatial Location and Global Positioning](Positioning.md),
+  [Vision](Vision.md),
+  [AI Model Management](AI.md),
   [Software Update](SoftwareUpdate.md),
   [WoT Connectivity](WoTConnectivity.md),
   [Subscriptions and Monitored Items](Subscriptions.md),

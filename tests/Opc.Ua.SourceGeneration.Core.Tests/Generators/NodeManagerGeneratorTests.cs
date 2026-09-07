@@ -81,27 +81,92 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(mgr, Does.Contain(": global::Opc.Ua.Server.Fluent.FluentNodeManagerBase"));
             Assert.That(mgr, Does.Match(@"public\s+partial\s+class\s+\w+NodeManager"));
 
-            // Lifecycle overrides that wire the runtime fluent dispatcher.
+            // Node-manager lifecycle members emitted by the generated partial.
             Assert.That(mgr, Does.Contain("LoadPredefinedNodesAsync"));
             Assert.That(mgr, Does.Contain("CreateAddressSpaceAsync"));
             Assert.That(mgr, Does.Contain("AddPredefinedNodeAsync"));
             Assert.That(mgr, Does.Contain("RemovePredefinedNodeAsync"));
-            Assert.That(mgr, Does.Contain("OnMonitoredItemCreated"));
+            Assert.That(
+                mgr,
+                Does.Not.Contain("OnMonitoredItemCreated"),
+                "Monitored-item lifecycle forwarding is owned by FluentNodeManagerBase");
 
             // The user code-behind hook + the runtime builder type.
             Assert.That(mgr, Does.Contain("partial void Configure("));
             Assert.That(mgr, Does.Contain("global::Opc.Ua.Server.Fluent.NodeManagerBuilder"));
             Assert.That(mgr, Does.Contain("global::Opc.Ua.Server.Fluent.INodeManagerBuilder"));
 
-            // The Configure/Seal sequence inside CreateAddressSpace must be
-            // wired before any NotifyNodeAdded replays. Order is part of
-            // the contract and is exercised by the hybrid integration test.
+            // The Configure/CompleteConfigure/Seal sequence inside
+            // CreateAddressSpace must be wired before any NotifyNodeAdded
+            // replays. Order is part of the contract and is exercised by
+            // the hybrid integration test. CompleteConfigureAsync re-runs
+            // the reverse-reference pass so configure-created nodes publish
+            // references to nodes owned by other managers (issue #4329).
             int idxConfigure = mgr.IndexOf("Configure(__m_builder)", StringComparison.Ordinal);
+            int idxComplete = mgr.IndexOf(
+                "await CompleteConfigureAsync(externalReferences, cancellationToken)",
+                StringComparison.Ordinal);
             int idxSeal = mgr.IndexOf(".Seal()", StringComparison.Ordinal);
             int idxNotify = mgr.IndexOf("NotifyNodeAdded(", StringComparison.Ordinal);
             Assert.That(idxConfigure, Is.GreaterThan(0), "Configure call must be emitted");
-            Assert.That(idxSeal, Is.GreaterThan(idxConfigure), "Seal must run after Configure");
+            Assert.That(idxComplete, Is.GreaterThan(idxConfigure),
+                "CompleteConfigureAsync must run after Configure");
+            Assert.That(idxSeal, Is.GreaterThan(idxComplete),
+                "Seal must run after CompleteConfigureAsync");
             Assert.That(idxNotify, Is.GreaterThan(idxSeal), "NotifyNodeAdded replay must run after Seal");
+        }
+
+        [Test]
+        public void EmittedNodeManager_WithoutAdditionalNamespaceUris_ReportsModelNamespaceOnly()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: true);
+
+            string mgr = files.Single(kv => kv.Key.EndsWith(".NodeManager.g.cs", StringComparison.Ordinal)).Value;
+            string factory = files.Single(kv => kv.Key.EndsWith(".NodeManagerFactory.g.cs", StringComparison.Ordinal)).Value;
+
+            Assert.That(mgr, Does.Not.Contain("/Instance"));
+            Assert.That(factory, Does.Not.Contain("/Instance"));
+        }
+
+        [Test]
+        public void EmittedNodeManager_WithAdditionalNamespaceUris_ReportsThemAtConstruction()
+        {
+            const string instanceUri = "http://test.org/UA/TestModel/Instance";
+            Dictionary<string, string> files = GenerateForTestModel(
+                generateNodeManager: true,
+                additionalNamespaceUris: [instanceUri]);
+
+            string mgr = files.Single(kv => kv.Key.EndsWith(".NodeManager.g.cs", StringComparison.Ordinal)).Value;
+            string factory = files.Single(kv => kv.Key.EndsWith(".NodeManagerFactory.g.cs", StringComparison.Ordinal)).Value;
+
+            // The constructor must pass the extra namespace to the base
+            // manager so the master node manager routes it to this manager
+            // from construction (SetNamespaces after the fact is too late).
+            Assert.That(mgr, Does.Contain(", \"" + instanceUri + "\")"),
+                "Constructor must append the additional namespace URI to the base call");
+
+            // The factory must advertise the same namespace set.
+            Assert.That(factory, Does.Contain(", \"" + instanceUri + "\" })"),
+                "Factory NamespacesUris must include the additional namespace URI");
+        }
+
+        [Test]
+        public void EmittedNodeManagerInUnrelatedNamespaceUsesQualifiedModelComposer()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(
+                generateNodeManager: true,
+                nodeManagerNamespace: "Unrelated.Managers");
+
+            string mgr = files.Single(
+                kv => kv.Key.EndsWith(".NodeManager.g.cs", StringComparison.Ordinal)).Value;
+
+            Assert.That(mgr, Does.Contain("namespace Unrelated.Managers"));
+            Assert.That(
+                mgr,
+                Does.Match(
+                    @"global::TestModel\.TestModelExtensions\.AddTestModel\(\s*" +
+                    @"new global::Opc\.Ua\.NodeStateCollection\(\),\s*context\)"),
+                "LoadPredefinedNodesAsync must invoke the model composer as a fully-qualified static method");
         }
 
         [Test]
@@ -239,6 +304,128 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
+        /// A child materialised onto an already-instantiated tree (through
+        /// NodeState.CreateChild / ReplaceChild or by hand) must receive a
+        /// per-instance NodeId, otherwise sibling instances of the same type
+        /// collide on the type-level NodeIds.
+        /// </summary>
+        [Test]
+        public void CreateOrReplaceChildAssignsInstanceNodeIdsByDefault()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: false);
+            string source = files.Values.Single(value =>
+                value.Contains(" CreateOrReplaceRed(", StringComparison.Ordinal));
+            string createOrReplace = ExtractInstanceMethodBody(source, "CreateOrReplaceRed");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(createOrReplace, Does.Contain("bool assignInstanceNodeIds = true"),
+                    "Assignment must be the default so hand-written node managers get it for free.");
+                Assert.That(createOrReplace, Does.Contain(
+                    "if (assignInstanceNodeIds && context.NodeIdFactory != null)"));
+                Assert.That(createOrReplace, Does.Contain("childState.NodeId.IsNull ||"),
+                    "A NodeId the caller already assigned must never be overwritten.");
+                Assert.That(createOrReplace, Does.Contain(
+                    "global::Opc.Ua.NodeInstanceExtensions.AssignInstanceNodeId("));
+                Assert.That(createOrReplace, Does.Contain(
+                    "global::Opc.Ua.NodeInstanceExtensions.AssignInstanceChildNodeIds("));
+            });
+        }
+
+        /// <summary>
+        /// Every FindChild override a generated type emits carries the
+        /// assignment argument with its <c>true</c> default: the caller states
+        /// its intent, so no second overload, capability property or context
+        /// wrapper is needed to reach the override.
+        /// </summary>
+        [Test]
+        public void GeneratedTypesEmitOneFindChildOverrideCarryingTheAssignmentFlag()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: false);
+            string source = files.Values.Single(value =>
+                value.Contains(" CreateOrReplaceRed(", StringComparison.Ordinal));
+
+            const string signature =
+                "protected override global::Opc.Ua.BaseInstanceState? FindChild(";
+            var parameterLists = new List<string>();
+            for (int index = source.IndexOf(signature, StringComparison.Ordinal);
+                index >= 0;
+                index = source.IndexOf(signature, index + signature.Length, StringComparison.Ordinal))
+            {
+                int start = index + signature.Length;
+                int end = source.IndexOf(')', start);
+                parameterLists.Add(source.Substring(start, end - start));
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(parameterLists, Is.Not.Empty,
+                    "A type declaring children must resolve them in a FindChild override.");
+                Assert.That(parameterLists, Has.All.Contains("bool assignInstanceNodeIds = true"),
+                    "Every override must carry the argument, and repeat the default so " +
+                    "callers keep the 1.5.378 behaviour.");
+                Assert.That(source, Does.Not.Contain("SupportsInstanceNodeIdAssignmentControl"),
+                    "Assignment control is stated per call, not advertised per type.");
+                Assert.That(source, Does.Contain("return base.FindChild("),
+                    "An unmatched browse name must pass the request on to the base.");
+                Assert.That(source, Does.Contain(
+                    "context, browseName, createOrReplace, replacement, assignInstanceNodeIds);"),
+                    "The request must be forwarded verbatim to the base.");
+            });
+        }
+
+        /// <summary>
+        /// The generated factories build declaration subtrees whose NodeIds
+        /// must stay at their type-level values - the enclosing
+        /// CreateInstanceOf&lt;Type&gt; factory rebases the finished subtree in
+        /// a single pass - so every factory call site opts out.
+        /// </summary>
+        [Test]
+        public void TypeFactoriesOptOutOfCreateOrReplaceNodeIdAssignment()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: false);
+            string ex = files
+                .Single(kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal))
+                .Value;
+
+            string[] callSites = [.. ex
+                .Split('\n')
+                .Where(line => line.Contains("state.CreateOrReplace", StringComparison.Ordinal))];
+
+            Assert.That(callSites, Is.Not.Empty);
+            Assert.That(callSites, Has.All.Contains("assignInstanceNodeIds: false"));
+        }
+
+        /// <summary>
+        /// An explicit browse name marks a dynamically materialised instance,
+        /// so the subtree is rebased onto per-instance NodeIds even when the
+        /// caller attaches the parent itself and passes none to the factory.
+        /// </summary>
+        [Test]
+        public void CreateInstanceOfFactoriesRebaseWithoutAnExplicitParent()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: false);
+            string ex = files
+                .Single(kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal))
+                .Value;
+
+            foreach (string factory in new[]
+            {
+                "CreateInstanceOfRestrictedObjectType",
+                "CreateInstanceOfRestrictedVariableType",
+                "CreateInstanceOfRestrictedMethodType"
+            })
+            {
+                string body = ExtractFactoryBody(ex, factory);
+                Assert.That(body, Does.Contain(
+                    "if (!browseName.IsNull && context.NodeIdFactory != null)"),
+                    factory + " should rebase whenever a browse name is supplied.");
+                Assert.That(body, Does.Not.Contain("parent != null && !browseName.IsNull"),
+                    factory + " should no longer require an explicit parent to rebase.");
+            }
+        }
+
+        /// <summary>
         /// Extracts the body of a generated factory method (from the line that
         /// declares it through the matching closing brace) so individual
         /// factories can be asserted on without false matches from other
@@ -323,7 +510,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             return string.Empty;
         }
 
-        private static Dictionary<string, string> GenerateForTestModel(bool generateNodeManager)
+        private static Dictionary<string, string> GenerateForTestModel(
+            bool generateNodeManager,
+            IReadOnlyList<string> additionalNamespaceUris = null,
+            string nodeManagerNamespace = null)
         {
             const string designFile = "TestModel.xml";
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
@@ -338,7 +528,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     Path.GetFileNameWithoutExtension(designFile) + ".csv"),
                 Options = new DesignFileOptions
                 {
-                    GenerateNodeManager = generateNodeManager
+                    GenerateNodeManager = generateNodeManager,
+                    NodeManagerAdditionalNamespaceUris = additionalNamespaceUris,
+                    NodeManagerNamespace = nodeManagerNamespace
                 }
             }, fileSystem, string.Empty, telemetry);
 

@@ -46,7 +46,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         public void Generate_ProducesKeysOfPolicyLengths()
         {
             IPubSubSecurityPolicy policy =
-                PubSubSecurityPolicyRegistry.GetByUri(PubSubSecurityPolicyUri.PubSubAes256Ctr)!;
+                PubSubSecurityPolicyRegistry.Default.GetByUri(PubSubSecurityPolicyUri.PubSubAes256Ctr)!;
             var now = DateTimeUtc.From(DateTime.UtcNow);
             PubSubSecurityKey key = SksKeyGenerator.Generate(
                 policy,
@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         public void Generate_ProducesUniqueMaterialAcrossInvocations()
         {
             IPubSubSecurityPolicy policy =
-                PubSubSecurityPolicyRegistry.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
+                PubSubSecurityPolicyRegistry.Default.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
             var now = DateTimeUtc.From(DateTime.UtcNow);
             PubSubSecurityKey first = SksKeyGenerator.Generate(policy, 1U, now, TimeSpan.FromMinutes(1));
             PubSubSecurityKey second = SksKeyGenerator.Generate(policy, 2U, now, TimeSpan.FromMinutes(1));
@@ -94,7 +94,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         public void Pack_RoundTripsThroughPolicyLengths()
         {
             IPubSubSecurityPolicy policy =
-                PubSubSecurityPolicyRegistry.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
+                PubSubSecurityPolicyRegistry.Default.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
             var now = DateTimeUtc.From(DateTime.UtcNow);
             PubSubSecurityKey key = SksKeyGenerator.Generate(policy, 1U, now, TimeSpan.FromMinutes(1));
             byte[] packed = SksKeyGenerator.Pack(key);

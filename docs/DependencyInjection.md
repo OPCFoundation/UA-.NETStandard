@@ -37,12 +37,21 @@ you need finer control.
 | `Opc.Ua.Core` (root)           | `services.AddOpcUa()`                    | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Configuration`         | `builder.ConfigureApplication(opt => …)` | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Configuration`         | `builder.AddApplicationInstance()`       | `IOpcUaBuilder`          | —       | —                        |
+| `Opc.Ua.Core` (crypto)         | `builder.AddCryptoProvider(crypto => …)` | `IOpcUaBuilder`          | —       | —                        |
+| `Opc.Ua.Security.Pkcs11`       | `builder.AddPkcs11CertificateStore(…)`   | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Client`                | `builder.AddClient(opt => …)`            | `IOpcUaClientBuilder`    | —       | `OpcUa:Client`           |
 | `Opc.Ua.Client.ComplexTypes`   | `builder.AddComplexTypes()`              | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Client.Alarms` (within `Opc.Ua.Client`) | `builder.AddAlarms()`        | `IOpcUaBuilder`          | —       | —                        |
 | `Opc.Ua.Server`                | `builder.AddServer(opt => …)`            | `IOpcUaServerBuilder`    | yes     | `OpcUa:Server`           |
 | `Opc.Ua.Server` (node manager)| `builder.AddNodeManager<T>()`            | `IOpcUaServerBuilder`    | —       | —                        |
 | `Opc.Ua.Server` (runtime NodeSet) | `builder.AddRuntimeNodeSet(…)`       | `IOpcUaServerBuilder`    | —       | —                        |
+| `Opc.Ua.Server` (live NodeManagers) | resolve `INodeManagerLifecycle`   | `INodeManagerLifecycle`  | yes     | —                        |
+| `Opc.Ua.Positioning.Server`    | `serverBuilder.AddPositioningServer()` / `AddPositioningFor<T>()` | `IPositioningServerBuilder` | yes (via `AddServer`) | — |
+| `Opc.Ua.Positioning.Client`    | `clientBuilder.AddPositioningClient()`   | `IOpcUaClientBuilder`    | —       | —                        |
+| `Opc.Ua.Robotics.Server`       | `serverBuilder.AddRobotics(opt => …)`    | `IOpcUaServerBuilder`    | yes (via `AddServer`) | — |
+| `Opc.Ua.Robotics.Server` (model) | `serverBuilder.AddRoboticsModel<T>()`  | `IOpcUaServerBuilder`    | —       | —                        |
+| `Opc.Ua.Robotics.Server` (build) | `serverBuilder.ConfigureRobotics(…)` / `ConfigureRoboticsFor<T>(…)` | `IOpcUaServerBuilder` | — | — |
+| `Opc.Ua.Robotics.Client`       | `clientBuilder.AddRoboticsClient()`      | `IOpcUaClientBuilder`    | —       | —                        |
 | `Opc.Ua.Gds.Client.Common`     | `builder.AddGdsClient(opt => …)`         | `IGdsClientBuilder`      | —       | `OpcUa:Gds:Client`       |
 | `Opc.Ua.Gds.Server.Common`     | `builder.AddGdsServer(opt => …)`         | `IGdsServerBuilder`      | yes     | `OpcUa:Gds:Server`       |
 | `Opc.Ua.Lds.Server`            | `builder.AddLdsServer(opt => …)`         | `ILdsServerBuilder`      | yes     | `OpcUa:Lds`              |
@@ -157,7 +166,22 @@ IOpcUaBuilder opcUa = services.AddOpcUa()
         options.ApplicationName = "MyApplication";
         options.ApplicationUri = "urn:localhost:MyApplication";
         options.ProductUri = "uri:example.com:MyApplication";
-        options.AutoAcceptUntrustedCertificates = true;
+        options.SubjectName = "CN=MyApplication, O=Example, DC=localhost";
+        options.PkiRoot = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Example",
+            "MyApplication",
+            "pki");
+        options.AutoAcceptUntrustedCertificates = false;
+        options.RejectSHA1SignedCertificates = true;
+        options.MinimumCertificateKeySize = 2048;
+
+        // Code-only advanced settings, applied after the values above.
+        options.ConfigureSecurity = security => security
+            .SetMaxRejectedCertificates(20)
+            .SetRejectUnknownRevocationStatus(true)
+            .SetUseValidatedCertificates(false)
+            .SetSendCertificateChain(true);
     });
 
 opcUa.AddClient(options =>
@@ -175,6 +199,56 @@ opcUa.AddServer(options =>
 ```
 
 When both features are registered, the shared configuration has `ApplicationType.ClientAndServer` and one application-certificate lifecycle. An explicitly supplied `OpcUaClientOptions.Configuration` still wins for that client registration.
+
+### Application identity and certificate defaults
+
+| Setting | Behavior when omitted |
+|---------|-----------------------|
+| `ApplicationName` | Required after client/server feature defaults are applied. The server feature defaults to `OpcUaServer`; client-only applications should set it explicitly. |
+| `ApplicationUri` | Generated from the host name and application name during validation. Set a stable URI for deployed applications. |
+| `ProductUri` | Uses the contributing feature value. Set a stable product URI for deployed applications. |
+| `SubjectName` | `CN={ApplicationName}, O=OPC Foundation, DC=localhost`; `DC=localhost` is replaced with the host name. |
+| `PkiRoot` | A per-application `OPC Foundation/{ApplicationName}/pki` directory below the process temporary directory. Configure a persistent, access-controlled location in production. |
+| Application certificates and stores | Directory-backed application, trusted peer/issuer, HTTPS, user, and rejected stores are created below `PkiRoot`; default RSA and supported ECC application-certificate identifiers are selected. |
+
+The security builder starts with secure defaults: unknown certificates are not
+auto-accepted, the application certificate is not copied into a shared trusted
+store, SHA-1 certificates and unknown revocation status are rejected, nonce
+validation errors are not suppressed, certificate chains are sent, the minimum
+RSA key size is 2048, and at most five rejected certificates are retained.
+Validated-certificate caching is off unless enabled explicitly.
+
+### Advanced application certificate validation
+
+`OpcUaApplicationOptions.ConfigureSecurity` is an
+`Action<IApplicationConfigurationBuilderSecurityOptions>?`. It is invoked after
+the default application certificates and stores and after the first-class
+`AutoAcceptUntrustedCertificates`, `RejectSHA1SignedCertificates`, and
+`MinimumCertificateKeySize` values. It is the final security customization
+before `CreateAsync`, so it can override those first-class values. The callback
+is code-only and is not bound from `IConfiguration`; exceptions are not
+swallowed and fail application-configuration provider creation.
+
+Prefer the first-class properties for their common settings and use
+`ConfigureSecurity` only for advanced certificate/store behavior:
+
+| Method | Purpose and secure default |
+|--------|----------------------------|
+| `SetApplicationCertificates(...)` | Replaces the generated application-certificate identifiers. Prefer `SubjectName` and `PkiRoot` for the normal generated layout. |
+| `SetMaxRejectedCertificates(...)` | Sets rejected-certificate retention; default `5`, `0` keeps all, and a negative value keeps no history. |
+| `SetAutoAcceptUntrustedCertificates(...)` | Accepts otherwise-valid unknown peer certificates; default `false`. Prefer `AutoAcceptUntrustedCertificates`. Use `true` only in an isolated lab. |
+| `SetAddAppCertToTrustedStore(...)` | Adds a newly created application certificate to a shared trusted store; default `false`. |
+| `SetRejectSHA1SignedCertificates(...)` | Rejects SHA-1-signed certificates; default `true`. Prefer `RejectSHA1SignedCertificates`. |
+| `SetRejectUnknownRevocationStatus(...)` | Rejects chains when CA revocation status cannot be determined; default `true`. |
+| `SetUseValidatedCertificates(...)` | Reuses previously validated certificates without repeating the full validation path; default `false`. Leave disabled unless the reduced revalidation is explicitly acceptable for the deployment. |
+| `SetSuppressNonceValidationErrors(...)` | Suppresses zero/weak nonce errors; default `false`. Enabling it weakens user-token protection and is only for unavoidable legacy interoperability. |
+| `SetSendCertificateChain(...)` | Sends the chain with a CA-signed application certificate; default `true`. |
+| `SetMinimumCertificateKeySize(...)` | Sets the minimum accepted RSA key size; default `2048`. Prefer `MinimumCertificateKeySize`. |
+| `AddCertificatePasswordProvider(...)` | Supplies an `ICertificatePasswordProvider` for protected private keys; no provider is registered by default. |
+
+See [Certificates](Certificates.md) for trust-store deployment and validation,
+and [Certificate Manager](CertificateManager.md) for injectable certificate
+lifecycle management.
 
 Discovery servers expose the same transport and reverse-connect shortcuts as
 the regular server builder:
@@ -199,6 +273,11 @@ services.AddOpcUa()
         server => server.EndpointUrls.Add("opc.tcp://localhost:4840/WoT"),
         wot => wot.AssetNamespaceUri = WotConnectivityServerOptions.DefaultAssetNamespaceUri);
 ```
+
+`AddHttpsTransport()` is supplied by
+`OPCFoundation.NetStandard.Opc.Ua.Bindings.Https`. Add that package directly
+when enabling HTTPS, WSS, Kestrel-hosted OPC TCP, or the REST binding; the GDS
+server package does not reference it transitively.
 
 ## Options binding
 
@@ -259,7 +338,7 @@ builder.Services
         o.ApplicationName = "MyServer";
         o.ApplicationUri = "urn:localhost:MyOrg:MyServer";
         o.ProductUri = "uri:myorg:myserver";
-        o.AutoAcceptUntrustedCertificates = true;
+        o.AutoAcceptUntrustedCertificates = false;
         o.EndpointUrls.Add("opc.tcp://localhost:51210/MyServer");
     })
     .AddNodeManager<MyNodeManagerFactory>()       // IAsyncNodeManagerFactory
@@ -276,6 +355,26 @@ same container. See *Combined hosts* below.
 
 `.AddServer(...)` throws `InvalidOperationException` on a second call:
 at most one regular server may be registered per service collection.
+
+The regular hosted server also registers `INodeManagerLifecycle` as a singleton forwarding provider. After the server reaches `Running`, application services can inject it to add, reload, or remove lifecycle-owned NodeManagers. Calls made before startup or after shutdown fail explicitly.
+
+```csharp
+public sealed class RuntimeModelService(INodeManagerLifecycle lifecycle)
+{
+    public ValueTask<NodeManagerRegistration> AddAsync(CancellationToken ct)
+    {
+        return lifecycle.AddRuntimeNodeSetAsync(
+            new RuntimeNodeSetOptions
+            {
+                Sources = [RuntimeNodeSetSource.FromFile("Models/Line.NodeSet2.xml")]
+            },
+            callerContext: null,
+            ct);
+    }
+}
+```
+
+Applications that construct `StandardServer` directly use `server.NodeManagerLifecycle` instead. Both paths use the same lifecycle implementation and generation-aware registration handles.
 
 Advanced server services can be supplied through the same fluent builder:
 
@@ -298,23 +397,174 @@ an anonymous authenticator matching its default anonymous user-token policy.
 If a non-anonymous user-token policy is configured without a corresponding
 authenticator, startup logs a warning.
 
-For advanced configuration (custom security policies, custom security
-stores), set `OpcUaServerOptions.ConfigureBuilder` — it receives the
-underlying `IApplicationConfigurationBuilderServerSelected` between the
-default policy/quota steps and `CreateAsync`.
+### Migrating with an existing configuration XML file
+
+Applications that already own a classic OPC UA application configuration
+file (`*.Config.xml`, previously loaded through
+`ApplicationInstance.LoadApplicationConfigurationAsync`) can pass that
+file to `AddServer` directly and keep every setting in it — base
+addresses, security policies, certificate stores, transport quotas,
+operation limits, user-token policies — while adopting the hosted
+dependency-injection surface:
+
+```csharp
+builder.Services
+    .AddOpcUa()
+    .AddServer("MyServer.Config.xml")
+    .AddNodeManager<MyNodeManagerFactory>();
+```
+
+The same file can be referenced from configuration instead
+(`OpcUa:Server:ConfigurationFile`), and a custom `StandardServer`
+subclass works too:
+
+```json
+{ "OpcUa": { "Server": { "ConfigurationFile": "MyServer.Config.xml" } } }
+```
+
+```csharp
+builder.Services.AddOpcUa().AddServer<MyServer>("MyServer.Config.xml");
+```
+
+On this path the file is authoritative: the `OpcUaServerOptions` knobs
+that feed the configuration builder (`ApplicationName`, `EndpointUrls`,
+`PkiRoot`, policy toggles, transport quotas, `ConfigureBuilder`, ...)
+are not applied, and the file also takes precedence over a shared
+application registered with `ConfigureApplication(...)`. Options that
+act on the hosted server itself (`Identity`, `ConfigureRateLimits`) and
+all fluent registrations (`AddNodeManager`, `ConfigureRoles`,
+`AddDefaultIdentityAuthenticators`, ...) keep working. To override
+individual file settings from code, pass the optional callback, which
+runs after the file is loaded and validated but before certificates are
+checked and the server starts:
+
+```csharp
+builder.Services
+    .AddOpcUa()
+    .AddServer("MyServer.Config.xml", configuration =>
+    {
+        configuration.ServerConfiguration.MaxSessionCount = 25;
+    });
+```
+
+A configuration document that is not a file on disk — an embedded
+resource, a document fetched from a store — can be supplied as a
+`Stream` instead (`OpcUaServerOptions.ConfigurationStream`; mutually
+exclusive with `ConfigurationFile`). The stream must remain open until
+the host starts the server; it is read once and disposed by the hosted
+service during startup, so do not wrap it in a `using` yourself:
+
+```csharp
+Stream stream = typeof(Program).Assembly
+    .GetManifestResourceStream("MyApp.MyServer.Config.xml")!;
+
+builder.Services
+    .AddOpcUa()
+    .AddServer(stream)   // read + disposed when the host starts the server
+    .AddNodeManager<MyNodeManagerFactory>();
+```
+
+The certificate manager and certificate password provider registered in
+dependency injection are honored the same way as on the options path,
+and the unmatched user-token-policy startup warning is derived from the
+policies advertised by the file. The client offers the same migration
+path — see
+[Client: using an existing configuration XML file](#client-using-an-existing-configuration-xml-file).
+
+### Server security and resource controls
+
+The hosted server is secure by default: sign-and-encrypt policies are included,
+`SecurityPolicy#None` is excluded, SHA-1 certificates are rejected, the minimum
+RSA key size is 2048, and unknown certificates are not auto-accepted. Review
+these controls explicitly for every deployment:
+
+- Keep `IncludeSignAndEncryptPolicies = true`. Set
+  `IncludeUnsecurePolicyNone = true` only for an isolated lab endpoint with no
+  sensitive data or credentials.
+- Enable `IncludeEccPolicies` only when the deployment certificates and clients
+  support the advertised ECC policies.
+- Configure `UserTokenPolicies` together with matching authenticators. An empty
+  list advertises `Anonymous`; adding a token policy alone does not authenticate
+  it. See [Identity Providers](IdentityProviders.md) and
+  [Role-Based User Management](RoleBasedUserManagement.md).
+- Keep certificate auto-accept disabled and provision trust lists. For
+  advanced validation, use the shared
+  `ConfigureApplication(...).ConfigureSecurity` callback described above.
+- Bound transport and service work for the deployment. `MaxByteStringLength`,
+  `MaxArrayLength`, `MaxMessageSize`, and `OperationTimeoutMs` control transport
+  quotas; `OperationLimits` bounds nodes processed by individual services.
+- Set deployment-specific channel, session, and failed-authentication ceilings
+  through `ConfigureBuilder` to reduce resource-exhaustion and credential-guessing
+  exposure.
+
+`OpcUaServerOptions.ConfigureBuilder` receives
+`IApplicationConfigurationBuilderServerSelected` after the standard transport
+quotas, policies, user-token policies, and server options are applied, but
+**before** application certificates and security stores are added.
+Use it for server policy and server-runtime options. In contrast,
+`OpcUaApplicationOptions.ConfigureSecurity` runs **after** certificates, stores,
+and first-class certificate-validation values are applied. Use it for
+post-security certificate and validation options.
+
+```csharp
+services.AddOpcUa()
+    .ConfigureApplication(application =>
+    {
+        application.ApplicationName = "MyServer";
+        application.AutoAcceptUntrustedCertificates = false;
+        application.RejectSHA1SignedCertificates = true;
+        application.MinimumCertificateKeySize = 2048;
+        application.ConfigureSecurity = security => security
+            .SetRejectUnknownRevocationStatus(true);
+    })
+    .AddServer(server =>
+    {
+        server.IncludeSignAndEncryptPolicies = true;
+        server.IncludeUnsecurePolicyNone = false;
+        server.IncludeEccPolicies = true;
+        server.ConfigureBuilder = configuration => configuration
+            .SetMaxFailedAuthenticationAttempts(5)
+            .SetMaxSessionCount(100)
+            .SetMaxChannelCount(200)
+            .SetAuditingEnabled(true)
+            .SetHttpsMutualTls(true);
+        server.ConfigureRateLimits = limits =>
+        {
+            limits.ConnectionsPerSecond = 200;
+            limits.ConnectionBurst = 400;
+            limits.MaxConcurrentSessionEstablishment = 64;
+        };
+    });
+```
+
+`SetAuditingEnabled(true)` enables OPC UA audit-event reporting.
+`SetHttpsMutualTls(true)` requests and validates a client certificate when one
+is supplied on HTTPS endpoints; it does not by itself require every client to
+present one. Enforce certificate-only Web API access through the corresponding
+authentication and authorization setup. Server admission rate limiting is
+enabled by default with conservative connection and concurrent
+session-establishment limits. Tune it with `ConfigureRateLimits`, or register a
+custom `IServerRateLimiterProvider`; do not disable it without an equivalent
+upstream control. See [Rate Limiting](RateLimiting.md) rather than duplicating
+the full algorithm and deployment guidance here.
 
 ### First-class server options
 
 In addition to the basic application-identity / endpoint / PKI knobs
 covered above, `OpcUaServerOptions` exposes the following first-class
 properties (bindable from `IConfiguration` or set via the
-`Action<OpcUaServerOptions>` overload). Anything not listed here remains
-reachable through `ConfigureBuilder`.
+`Action<OpcUaServerOptions>` overload). Certificate options added by
+`AddSecurityConfiguration` are instead reached through
+`OpcUaApplicationOptions.ConfigureSecurity`.
 
 | Property | Underlying builder call | Purpose |
 |----------|-------------------------|---------|
+| `IncludeSignAndEncryptPolicies` | `AddSignAndEncryptPolicies()` | Add the standard sign-and-encrypt policies. On by default. |
+| `IncludeUnsecurePolicyNone` | `AddUnsecurePolicyNone()` | Advertise an unsecured endpoint. Off by default; lab use only. |
 | `IncludeEccPolicies` | `AddEccSignAndEncryptPolicies()` | Add ECC sign-and-encrypt security policies. Off by default. |
 | `UserTokenPolicies` | `AddUserTokenPolicy(UserTokenType)` | List of user-token policies advertised on every endpoint. Defaults to `Anonymous` when empty. |
+| `MaxByteStringLength` | `SetMaxByteStringLength(int)` | Transport byte-string quota; defaults to 4 MiB. |
+| `MaxArrayLength` | `SetMaxArrayLength(int)` | Transport array-element quota; defaults to 1 Mi elements. |
 | `MaxMessageSize` | `SetMaxMessageSize(int)` | Transport quota in bytes; `null` keeps the stack default. |
 | `OperationTimeoutMs` | `SetOperationTimeout(int)` | Transport operation timeout in ms; `null` keeps the stack default. |
 | `RejectSHA1Certificates` | `SetRejectSHA1SignedCertificates(bool)` | Security hardening — defaults to `true`. |
@@ -322,6 +572,11 @@ reachable through `ConfigureBuilder`.
 | `RegistrationEndpointUrl` | `SetRegistrationEndpoint(EndpointDescription)` | LDS/GDS endpoint URL the server registers itself with on startup. |
 | `ReverseConnect` | `SetReverseConnect(ReverseConnectServerConfiguration)` | Server-side reverse-connect clients (see below). |
 | `OperationLimits` | `SetOperationLimits(OperationLimits)` | Per-service node limits (max nodes per read/write/browse/...). |
+| `ConfigurationFile` | `LoadApplicationConfigurationAsync(path)` | Load the configuration from an existing OPC UA XML configuration file instead of building it from the options (see [Migrating with an existing configuration XML file](#migrating-with-an-existing-configuration-xml-file)). |
+| `ConfigurationStream` | `LoadApplicationConfigurationAsync(stream)` | Code-only: load the configuration from a stream (e.g. an embedded resource); read once and disposed at startup. Mutually exclusive with `ConfigurationFile`. |
+| `ConfigureLoadedConfiguration` | Code-only callback | Override individual settings of the configuration loaded from `ConfigurationFile` / `ConfigurationStream`. |
+| `ConfigureBuilder` | Code-only callback | Pre-security server-policy and server-option escape hatch, including max failed authentication attempts, sessions, channels, auditing, and HTTPS mutual TLS. |
+| `ConfigureRateLimits` | Code-only callback | Tunes the default connection and session-establishment admission controls. |
 
 ### Server-side reverse connect
 
@@ -507,16 +762,99 @@ Custom server types that need session, subscription, or durable-subscription DI 
 Fluent node managers can be registered without a factory class:
 
 ```csharp
+const string namespaceUri = "urn:example:line";
+
 services.AddOpcUa()
-    .AddReferenceServer()
-    .AddNodeManager("urn:example:line", nodes =>
+    .AddServer(options => { /* endpoint and application options */ })
+    .AddNodeManager(namespaceUri, nodes =>
     {
-        nodes.Node("ReferenceServer");
+        ushort namespaceIndex =
+            (ushort)nodes.Context.NamespaceUris.GetIndex(namespaceUri);
+        nodes.CreateInstance(
+                new QualifiedName("Line", namespaceIndex),
+                parent => new FolderState(parent))
+            .Configure(node => node.UnderObjectsFolder());
     });
 ```
 
+The callback owns the complete address space contributed by this node manager.
+`AddNodeManager(namespaceUri, build)` does not create an implicit root folder.
+
 `AddHistorianFileStore(provider, path)` combines the historian provider registration with a Part 20
 file-system mount for demo and lab servers.
+
+### Positioning
+
+Use `AddPositioningServer()` when Positioning owns its node manager. Use
+`AddPositioningFor<TNodeManager>()` when an existing companion node manager
+loads and owns the RSL/GPOS models:
+
+```csharp
+IPositioningServerBuilder positioning = services
+    .AddOpcUa()
+    .AddServer(options => { /* endpoint and application options */ })
+    .AddPositioningServer();
+
+positioning
+    .AddGeoLocationProvider<MyGpsProvider>()
+    .AddRelativeSpatialLocationProvider<MyRelativeLocationProvider>()
+    .ConfigurePositioningFor<PositioningNodeManager>(context =>
+    {
+        // Build and register RSL/GPOS instances through context.AddressSpace.
+        return default;
+    });
+```
+
+Client factories compose the generated proxies over the managed session:
+
+```csharp
+services.AddOpcUa()
+    .AddClient(options => { /* endpoint and application options */ })
+    .AddPositioningClient();
+```
+
+See [Relative Spatial Location and Global Positioning](Positioning.md).
+
+### Robotics
+
+`AddRobotics()` registers the stock `RoboticsNodeManager`, the built-in DI/IA/
+Robotics model provider, and the ordered Robotics configuration pipeline. It
+owns the DI namespace, so it cannot be combined with `AddOpcUaDi()`.
+
+```csharp
+services
+    .AddOpcUa()
+    .AddServer(options => { /* endpoint and application options */ })
+    .AddRobotics(options =>
+        options.InstanceNamespaceUri = "urn:example:robot-cell")
+    .AddRoboticsModel<MyExtraModelProvider>()
+    .ConfigureRobotics(async context =>
+    {
+        await context.AddMotionDeviceSystemAsync("RobotCell", system =>
+        {
+            // Add controllers, motion devices, axes, power trains, and
+            // safety states through the fluent Robotics builders.
+        }, context.CancellationToken);
+    });
+```
+
+Use `ConfigureRobotics<TConfigurator>()` for a dependency-injected class-based
+code-behind implementing `IRoboticsConfigurator`, and
+`ConfigureRoboticsFor<TNodeManager>(…)` when the application already owns a
+compatible `DiNodeManager`. Configurators run in registration order and share
+one `IRoboticsBuildContext` per manager startup.
+
+See the [Robotics developer guide](Robotics.md).
+
+Client factories compose the Robotics client over the managed session.
+`AddRoboticsClient()` also registers the DI client services because the Robotics
+client extends `DiTopologyClient`:
+
+```csharp
+services.AddOpcUa()
+    .AddClient(options => { /* endpoint and application options */ })
+    .AddRoboticsClient();
+```
 
 ## Client feature
 
@@ -562,7 +900,99 @@ var managedSessions = sp.GetRequiredService<IManagedSessionFactory>();
 ManagedSession dynamicSession = await managedSessions.ConnectAsync(endpoint, ct);
 ```
 
-Misconfiguration is validated through `IValidateOptions<OpcUaClientOptions>` when the host starts and again before a DI-created session connects. Supply either an explicit `Configuration`, the application identity fields directly on `OpcUaClientOptions` (as shown above), or the shared `ConfigureApplication(...)` options for a combined client/server host (see [Shared application configuration](#shared-application-configuration)). `Session.Endpoint` is required by the cached fixed-endpoint delegate; `IManagedSessionFactory.ConnectAsync(endpoint, ...)` supplies it at runtime.
+Misconfiguration is validated through `IValidateOptions<OpcUaClientOptions>` when the host starts and again before a DI-created session connects. Supply either an explicit `Configuration`, the application identity fields directly on `OpcUaClientOptions` (as shown above), an existing configuration XML document (`ConfigurationFile` / `ConfigurationStream`, see below), or the shared `ConfigureApplication(...)` options for a combined client/server host (see [Shared application configuration](#shared-application-configuration)). `Session.Endpoint` is required by the cached fixed-endpoint delegate; `IManagedSessionFactory.ConnectAsync(endpoint, ...)` supplies it at runtime.
+
+### Client: using an existing configuration XML file
+
+The client offers the same migration path as
+[the server](#migrating-with-an-existing-configuration-xml-file):
+applications that already own a classic client configuration file
+(`*.Config.xml`) can pass it to `AddClient` and keep every setting in it
+— security configuration, certificate stores, transport quotas, client
+configuration:
+
+```csharp
+services
+    .AddOpcUa()
+    .AddClient("MyClient.Config.xml", opt =>
+    {
+        opt.Session = new ManagedSessionOptions { Endpoint = endpoint };
+    });
+```
+
+The same file can be referenced from configuration
+(`OpcUa:Client:ConfigurationFile`), and a stream works for documents
+that are not files on disk, e.g. embedded resources
+(`OpcUaClientOptions.ConfigurationStream`; read once and disposed after
+loading):
+
+```csharp
+Stream stream = typeof(Program).Assembly
+    .GetManifestResourceStream("MyApp.MyClient.Config.xml")!;
+services.AddOpcUa().AddClient(stream);
+```
+
+The document loads lazily through
+`ApplicationInstance.LoadApplicationConfigurationAsync` on first use —
+the first session connect, reverse-connect startup, or an explicit
+`GetAsync` on `OpcUaClientOptions.ConfigurationProvider` — which also
+runs the optional `ConfigureLoadedConfiguration` override callback and
+ensures the application-instance certificate, exactly like the shared
+`ConfigureApplication(...)` path. The supplied document is
+authoritative: it takes precedence over a shared application registered
+with `ConfigureApplication(...)`, and combining it with an explicit
+`Configuration`, with the application identity properties, or setting
+both file and stream is rejected with a clear
+`InvalidOperationException` at registration. DI-registered
+`ICertificateManager` / `ICertificatePasswordProvider` are honored.
+
+### Client: loading the configuration eagerly
+
+Hosted applications whose user interface needs the
+`ApplicationConfiguration` before any session exists — a WinForms or WPF
+client whose main form takes the configuration in its constructor, for
+instance — can opt into an eager load with
+`OpcUaClientOptions.LoadConfigurationOnStart` (bindable from
+`OpcUa:Client:LoadConfigurationOnStart`). It registers an
+`IHostedService` that awaits the load while the host starts, the
+client-side twin of the reverse-connect hosted service:
+
+```csharp
+services
+    .AddOpcUa()
+    .AddClient("MyClient.Config.xml", opt => opt.LoadConfigurationOnStart = true);
+
+using IHost host = builder.Build();
+await host.StartAsync();
+
+// The document is loaded and validated and the application instance
+// certificate is ensured; a failure has already failed host.StartAsync().
+ApplicationConfiguration configuration = host.Services
+    .GetRequiredService<OpcUaClientOptions>()
+    .ConfigurationProvider!
+    .Configuration;
+```
+
+`OpcUaClientOptions.ConfigurationProvider` is the public
+`IOpcUaApplicationConfigurationProvider` resolved for the client — the
+supplied-document provider when `ConfigurationFile` / `ConfigurationStream`
+was set, and otherwise the shared `ConfigureApplication(...)` provider.
+It is available on the options instance resolved from the service
+provider, not on the instance passed to the `AddClient(...)` callback,
+and it exposes everything a hosted client needs: `GetAsync(ct)` as an
+explicit load trigger without connecting a session, `Configuration` to
+read the loaded document back, and `Application`
+(`IApplicationInstance`) for applications that manage their own instance
+certificate. Applications that do not use the Generic Host can call
+`GetAsync` directly instead of setting `LoadConfigurationOnStart`; both
+routes share the provider's single-flight load, so the configuration is
+never loaded twice.
+
+`LoadConfigurationOnStart` applies to every provider source and is a
+no-op when an explicit `Configuration` was supplied, which is already
+complete. Because it decides a service registration, set it within the
+`AddClient(...)` callback or bind it from the configuration section;
+setting it on the resolved options afterwards has no effect.
 
 ### Fluent shortcuts
 
@@ -607,6 +1037,20 @@ services.AddOpcUa()
         options.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
     });
 ```
+
+Client security checklist:
+
+- Select `MessageSecurityMode.SignAndEncrypt` and an approved policy such as
+  `Basic256Sha256` (or a supported stronger policy) during discovery. Do not
+  fall back to `SecurityPolicy#None` outside isolated lab environments.
+- Keep `AutoAcceptUntrustedCertificates = false`; provision the server or issuer
+  certificate in the client trust store and retain URI/hostname, chain,
+  revocation, key-size, and nonce validation. See
+  [Certificates](Certificates.md).
+- Register an `IClientIdentityProvider` appropriate for the selected endpoint's
+  user-token policy. Keep passwords and tokens in the secret/provider
+  infrastructure rather than embedding them in configuration. See
+  [Identity Providers](IdentityProviders.md).
 
 ### Identity (client)
 
@@ -897,7 +1341,7 @@ services
         o.ApplicationName = "MyGds";
         o.ApplicationUri = "urn:localhost:MyOrg:MyGds";
         o.ProductUri = "uri:myorg:mygds";
-        o.AutoAcceptUntrustedCertificates = true;
+        o.AutoAcceptUntrustedCertificates = false;
         o.EndpointUrls.Add("opc.tcp://localhost:58810/GlobalDiscoveryServer");
         o.AuthoritiesStorePath = "%LocalApplicationData%/OPC Foundation/pki/CA";
     })
@@ -1106,7 +1550,7 @@ services.AddOpcUa()
         o.ApplicationName = "AotServer";
         o.ApplicationUri = "urn:host:AotServer";
         o.EndpointUrls.Add("opc.tcp://localhost:51210/AotServer");
-        o.AutoAcceptUntrustedCertificates = true;
+        o.AutoAcceptUntrustedCertificates = false;
     })
     .AddNodeManager<MyAotNodeManagerFactory>();
 ```
@@ -1132,8 +1576,10 @@ services.AddOpcUa()
 ## See also
 
 - [Sessions](Sessions.md) — `ManagedSession`, reconnect, subscription engines.
-- [Source Generated NodeManagers](SourceGeneratedNodeManagers.md) — `IAsyncNodeManagerFactory` from a model design XML.
+- [Source Generated NodeManagers](NodeManagers.md#source-generated-node-managers) — `IAsyncNodeManagerFactory` from a model design XML.
 - [Native AOT](NativeAoT.md) — AOT testing setup.
 - [GDS Developer Guide](GDS.md) — GDS service interfaces and provider patterns.
+- [Robotics](Robotics.md) — OPC 40010 hosting, model providers, and topology builders.
 - [WoT Connectivity](WoTConnectivity.md) — OPC 10100-1 information model.
 - [Diagnostics](Diagnostics.md) — `ITelemetryContext` end-to-end.
+- [CryptoProvider](CryptoProvider.md) — `AddCryptoProvider`, hardware-held private keys, FIPS posture and audit.

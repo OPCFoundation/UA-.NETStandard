@@ -46,7 +46,14 @@
     <PackageIcon>images/logo.jpg</PackageIcon>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <!--<PackageLicenseExpression>MIT</PackageLicenseExpression>-->
+    <!--
+      Every package ships the OPC Foundation MIT License 1.00 as a license
+      file. Do NOT replace this with
+      <PackageLicenseExpression>MIT</PackageLicenseExpression>: the SPDX `MIT`
+      license is a different text than the OPC Foundation one, and NuGet
+      rejects a project that carries both an expression and a license file
+      (NU5033). `Directory.Build.targets` enforces this.
+    -->
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageReleaseNotes>$(RepositoryUrl)/releases</PackageReleaseNotes>
     <!--

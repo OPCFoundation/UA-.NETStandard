@@ -1,0 +1,109 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "ua": "http://opcfoundation.org/UA/",
+      "tm": "https://www.w3.org/2019/wot/tm#",
+      "di": "http://opcfoundation.org/UA/DI/",
+      "pump": "http://example.com/demo/pump"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["Thing"],
+  "id": "urn:dev:opcua:asset:pump-01",
+  "title": "Pump 01 asset",
+  "description": "An asset authored as projections. It selects its own identity and organizes four groups, each of which is a projection that selects its members from the pump Thing Description. Nothing is copied and the pump is unaware that it is grouped.",
+  "uav:scenario": "http://example.com/scenario/AssetManagement",
+  "security": "nosec_sc",
+  "links": [
+    {
+      "rel": "ua:Organizes",
+      "href": "./10-group-process-data.jsonld",
+      "uav:refName": "ProcessData",
+      "type": "application/td+json"
+    },
+    {
+      "rel": "ua:Organizes",
+      "href": "./11-group-condition-data.jsonld",
+      "uav:refName": "ConditionData",
+      "type": "application/td+json"
+    },
+    {
+      "rel": "ua:Organizes",
+      "href": "./12-group-alarms.jsonld",
+      "uav:refName": "Alarms",
+      "type": "application/td+json"
+    },
+    {
+      "rel": "ua:Organizes",
+      "href": "./13-group-management.jsonld",
+      "uav:refName": "Management",
+      "type": "application/td+json"
+    }
+  ],
+  "securityDefinitions": {
+    "nosec_sc": { "scheme": "nosec" },
+    "identity_opcua_channel_sc": {
+      "scheme": "uav:channelsec",
+      "uav:securityMode": "SignAndEncrypt",
+      "uav:securityPolicy": "Aes256_Sha256_RsaPss"
+    }
+  },
+  "properties": {
+    "serialNumber": {
+      "@type": "uav:variable",
+      "title": "Serial Number",
+      "uav:browseName": "di:SerialNumber",
+      "uav:browsePath": "di:Identification/di:SerialNumber",
+      "uav:browsePathAnchor": "nsu=http://example.com/demo/pump;s=Pump07",
+      "type": "string",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.SerialNumber",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty"],
+          "security": ["identity_opcua_channel_sc"]
+        }
+      ],
+      "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/serialNumber"
+    },
+    "manufacturer": {
+      "@type": "uav:variable",
+      "title": "Manufacturer",
+      "uav:browseName": "di:Manufacturer",
+      "uav:browsePath": "di:Identification/di:Manufacturer",
+      "uav:browsePathAnchor": "nsu=http://example.com/demo/pump;s=Pump07",
+      "type": "string",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.Manufacturer",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty"],
+          "security": ["identity_opcua_channel_sc"]
+        }
+      ],
+      "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manufacturer"
+    },
+    "manual": {
+      "@type": "uav:variable",
+      "title": "Device Manual",
+      "uav:browseName": "di:DeviceManual",
+      "uav:browsePath": "di:Identification/di:DeviceManual",
+      "uav:browsePathAnchor": "nsu=http://example.com/demo/pump;s=Pump07",
+      "type": "string",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.DeviceManual",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty"],
+          "security": ["identity_opcua_channel_sc"]
+        }
+      ],
+      "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manual"
+    }
+  }
+}

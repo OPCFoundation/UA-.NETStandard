@@ -62,6 +62,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
     {
         private const string PolicyA = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256";
         private const string PolicyB = "http://opcfoundation.org/UA/SecurityPolicy#Aes256_Sha256_RsaPss";
+        private static readonly ByteString s_clientChannelCertificate =
+            ByteString.From(CreateBytes(32, 0x41));
 
         private static readonly InMemorySharedKeyValueStore s_sessionKv = new();
 
@@ -112,7 +114,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 AuthenticationToken = new NodeId(2, 1),
                 SecurityPolicyUri = PolicyA,
                 SecurityMode = (int)MessageSecurityMode.SignAndEncrypt,
-                ServerNonce = ByteString.From(nonce)
+                ServerNonce = ByteString.From(nonce),
+                SecurityStateVersion = SharedSessionEntry.CurrentSecurityStateVersion,
+                OriginalClientChannelCertificate = s_clientChannelCertificate,
+                ClientUserId = null,
+                ClientUserTokenType = UserTokenType.Anonymous,
+                HasActivatedUserIdentity = true
             };
         }
 
@@ -122,10 +129,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
             using DistributedSessionManager manager = CreateManager(registry);
-            SharedSessionEntry entry = EntryWithNonce([1, 2, 3, 4]);
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 1));
 
             DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
-                entry, PolicyA, MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+                entry,
+                PolicyA,
+                MessageSecurityMode.SignAndEncrypt,
+                s_clientChannelCertificate).ConfigureAwait(false);
 
             Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.Authorized));
         }
@@ -136,10 +146,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
             using DistributedSessionManager manager = CreateManager(registry);
-            SharedSessionEntry entry = EntryWithNonce([1, 2, 3, 4]);
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 2));
 
             DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
-                entry, PolicyB, MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+                entry,
+                PolicyB,
+                MessageSecurityMode.SignAndEncrypt,
+                s_clientChannelCertificate).ConfigureAwait(false);
 
             Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.PolicyMismatch));
         }
@@ -150,10 +163,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
             using DistributedSessionManager manager = CreateManager(registry);
-            SharedSessionEntry entry = EntryWithNonce([1, 2, 3, 4]);
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 3));
 
             DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
-                entry, PolicyA, MessageSecurityMode.Sign).ConfigureAwait(false);
+                entry,
+                PolicyA,
+                MessageSecurityMode.Sign,
+                s_clientChannelCertificate).ConfigureAwait(false);
 
             Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.PolicyMismatch));
         }
@@ -164,12 +180,18 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
             using DistributedSessionManager manager = CreateManager(registry);
-            SharedSessionEntry entry = EntryWithNonce([9, 9, 9, 9]);
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 9));
 
             DistributedSessionManager.RestoreDecision first = await manager.AuthorizeAndConsumeAsync(
-                entry, PolicyA, MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+                entry,
+                PolicyA,
+                MessageSecurityMode.SignAndEncrypt,
+                s_clientChannelCertificate).ConfigureAwait(false);
             DistributedSessionManager.RestoreDecision second = await manager.AuthorizeAndConsumeAsync(
-                entry, PolicyA, MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+                entry,
+                PolicyA,
+                MessageSecurityMode.SignAndEncrypt,
+                s_clientChannelCertificate).ConfigureAwait(false);
 
             Assert.That(first, Is.EqualTo(DistributedSessionManager.RestoreDecision.Authorized));
             Assert.That(second, Is.EqualTo(DistributedSessionManager.RestoreDecision.NonceReplayed),
@@ -185,9 +207,231 @@ namespace Opc.Ua.Server.Tests.Redundancy
             SharedSessionEntry entry = EntryWithNonce([]);
 
             DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
-                entry, PolicyA, MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+                entry,
+                PolicyA,
+                MessageSecurityMode.SignAndEncrypt,
+                s_clientChannelCertificate).ConfigureAwait(false);
 
-            Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.NonceReplayed));
+            Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.NonceInvalid));
+        }
+
+        [Test]
+        public async Task AuthorizeRejectsMissingVersionedSecurityStateAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using DistributedSessionManager manager = CreateManager(registry);
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 10)) with
+            {
+                SecurityStateVersion = 0
+            };
+
+            DistributedSessionManager.RestoreDecision decision =
+                await manager.AuthorizeAndConsumeAsync(
+                    entry,
+                    PolicyA,
+                    MessageSecurityMode.SignAndEncrypt,
+                    s_clientChannelCertificate).ConfigureAwait(false);
+
+            Assert.That(
+                decision,
+                Is.EqualTo(DistributedSessionManager.RestoreDecision.SecurityStateMissing));
+        }
+
+        [Test]
+        public async Task MirrorKeepsTheNewestNonceWhenActivationsCompleteOutOfOrderAsync()
+        {
+            using var sessionKv = new InMemorySharedKeyValueStore();
+            var sessionStore = new SharedKeyValueSessionStore(
+                sessionKv,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using DistributedSessionManager manager = CreateManager(registry, sessionStore);
+
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 21));
+            await sessionStore.PutAsync(entry).ConfigureAwait(false);
+
+            ByteString newerNonce = ByteString.From(CreateBytes(32, 22));
+            ByteString olderNonce = ByteString.From(CreateBytes(32, 23));
+
+            // The activation gate is released before the mirror callback runs, so
+            // a slower earlier activation can arrive last. Its nonce is stale and
+            // must not replace the nonce of the newer activation.
+            await manager.MirrorActivationIfCurrentAsync(
+                entry.AuthenticationToken,
+                newerNonce,
+                UserTokenType.Anonymous,
+                null,
+                activationSequence: 2,
+                CancellationToken.None).ConfigureAwait(false);
+            await manager.MirrorActivationIfCurrentAsync(
+                entry.AuthenticationToken,
+                olderNonce,
+                UserTokenType.Anonymous,
+                null,
+                activationSequence: 1,
+                CancellationToken.None).ConfigureAwait(false);
+
+            SharedSessionEntry? stored = await sessionStore
+                .TryGetAsync(entry.AuthenticationToken)
+                .ConfigureAwait(false);
+
+            Assert.That(stored, Is.Not.Null);
+            Assert.That(stored!.ServerNonce, Is.EqualTo(newerNonce));
+        }
+
+        [Test]
+        public async Task MirrorPersistsTheNonceOfAnAdvancingActivationAsync()
+        {
+            using var sessionKv = new InMemorySharedKeyValueStore();
+            var sessionStore = new SharedKeyValueSessionStore(
+                sessionKv,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using DistributedSessionManager manager = CreateManager(registry, sessionStore);
+
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 24));
+            await sessionStore.PutAsync(entry).ConfigureAwait(false);
+            ByteString firstNonce = ByteString.From(CreateBytes(32, 25));
+            ByteString secondNonce = ByteString.From(CreateBytes(32, 26));
+
+            await manager.MirrorActivationIfCurrentAsync(
+                entry.AuthenticationToken,
+                firstNonce,
+                UserTokenType.Anonymous,
+                null,
+                activationSequence: 1,
+                CancellationToken.None).ConfigureAwait(false);
+            await manager.MirrorActivationIfCurrentAsync(
+                entry.AuthenticationToken,
+                secondNonce,
+                UserTokenType.Anonymous,
+                null,
+                activationSequence: 2,
+                CancellationToken.None).ConfigureAwait(false);
+
+            SharedSessionEntry? stored = await sessionStore
+                .TryGetAsync(entry.AuthenticationToken)
+                .ConfigureAwait(false);
+
+            Assert.That(stored, Is.Not.Null);
+            Assert.That(stored!.ServerNonce, Is.EqualTo(secondNonce));
+            Assert.That(stored.HasActivatedUserIdentity, Is.True);
+        }
+
+        [Test]
+        public async Task AuthorizeRejectsPreviousSecurityStateVersionAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using DistributedSessionManager manager = CreateManager(registry);
+
+            // Version 2 stored a differently derived ClientUserId, so an entry a
+            // peer replica wrote before the upgrade must fail closed instead of
+            // being compared against a key this version computes.
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 11)) with
+            {
+                SecurityStateVersion = 2
+            };
+
+            DistributedSessionManager.RestoreDecision decision =
+                await manager.AuthorizeAndConsumeAsync(
+                    entry,
+                    PolicyA,
+                    MessageSecurityMode.SignAndEncrypt,
+                    s_clientChannelCertificate).ConfigureAwait(false);
+
+            Assert.That(
+                decision,
+                Is.EqualTo(DistributedSessionManager.RestoreDecision.SecurityStateMissing));
+        }
+
+        [Test]
+        public async Task AuthorizeRejectsMissingClientUserIdAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using DistributedSessionManager manager = CreateManager(registry);
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 11)) with
+            {
+                ClientUserId = null,
+                ClientUserTokenType = UserTokenType.UserName
+            };
+
+            DistributedSessionManager.RestoreDecision decision =
+                await manager.AuthorizeAndConsumeAsync(
+                    entry,
+                    PolicyA,
+                    MessageSecurityMode.SignAndEncrypt,
+                    s_clientChannelCertificate).ConfigureAwait(false);
+
+            Assert.That(
+                decision,
+                Is.EqualTo(DistributedSessionManager.RestoreDecision.SecurityStateMissing));
+        }
+
+        [Test]
+        public async Task AuthorizeRejectsUnactivatedIdentityStateAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using DistributedSessionManager manager = CreateManager(registry);
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 13)) with
+            {
+                HasActivatedUserIdentity = false
+            };
+
+            DistributedSessionManager.RestoreDecision decision =
+                await manager.AuthorizeAndConsumeAsync(
+                    entry,
+                    PolicyA,
+                    MessageSecurityMode.SignAndEncrypt,
+                    s_clientChannelCertificate).ConfigureAwait(false);
+
+            Assert.That(
+                decision,
+                Is.EqualTo(DistributedSessionManager.RestoreDecision.SecurityStateMissing));
+        }
+
+        [Test]
+        public async Task AuthorizeRejectsDifferentOriginalChannelCertificateAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using DistributedSessionManager manager = CreateManager(registry);
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 12));
+
+            DistributedSessionManager.RestoreDecision decision =
+                await manager.AuthorizeAndConsumeAsync(
+                    entry,
+                    PolicyA,
+                    MessageSecurityMode.SignAndEncrypt,
+                    ByteString.From(CreateBytes(32, 0x61))).ConfigureAwait(false);
+
+            Assert.That(
+                decision,
+                Is.EqualTo(
+                    DistributedSessionManager.RestoreDecision.ClientCertificateMismatch));
+        }
+
+        [Test]
+        public async Task AuthorizeRejectsAllZeroNonceAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using DistributedSessionManager manager = CreateManager(registry);
+            SharedSessionEntry entry = EntryWithNonce(new byte[32]);
+
+            DistributedSessionManager.RestoreDecision decision =
+                await manager.AuthorizeAndConsumeAsync(
+                    entry,
+                    PolicyA,
+                    MessageSecurityMode.SignAndEncrypt,
+                    s_clientChannelCertificate).ConfigureAwait(false);
+
+            Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.NonceInvalid));
         }
 
         [Test]
@@ -197,14 +441,17 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var registryKv = new InMemorySharedKeyValueStore();
             var registry = new SharedSingleUseNonceRegistry(registryKv);
             using DistributedSessionManager manager = CreateManager(registry, timeProvider: timeProvider);
-            SharedSessionEntry entry = EntryWithNonce([1, 2, 3, 4]) with
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 4)) with
             {
                 LastActivatedAt = DateTimeUtc.From(timeProvider.GetUtcNow().UtcDateTime.AddMilliseconds(-1001)),
                 SessionTimeout = 1000
             };
 
             DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
-                entry, PolicyA, MessageSecurityMode.SignAndEncrypt).ConfigureAwait(false);
+                entry,
+                PolicyA,
+                MessageSecurityMode.SignAndEncrypt,
+                s_clientChannelCertificate).ConfigureAwait(false);
 
             Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.Expired));
         }
@@ -224,7 +471,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 sessionStore: sessionStore,
                 timeProvider: timeProvider);
             var authenticationToken = new NodeId("expired-token", 2);
-            SharedSessionEntry entry = EntryWithNonce([5, 6, 7, 8]) with
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 5)) with
             {
                 AuthenticationToken = authenticationToken,
                 LastActivatedAt = DateTimeUtc.From(timeProvider.GetUtcNow().UtcDateTime.AddMilliseconds(-1001)),
@@ -258,7 +505,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 SessionTimeout = 60_000
             };
 
-            ISession? session = InvokeReconstructSession(manager, entry, entry.AuthenticationToken, CreateContext());
+            ISession? session = InvokeReconstructSession(
+                manager,
+                entry,
+                entry.AuthenticationToken,
+                CreateContext(clientCertificate.RawData));
 
             Assert.That(session, Is.Not.Null);
             Assert.That(session!.ClientCertificate, Is.Not.Null);
@@ -279,14 +530,18 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 registry,
                 server: server.Object,
                 serverCertificateProvider: _ => serverCertificate.AddRef());
-            SharedSessionEntry entry = EntryWithNonce([1, 2, 3, 4]) with
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 6)) with
             {
                 SecurityMode = (int)MessageSecurityMode.Sign,
                 ClientCertificateChain = ByteString.Empty,
                 SessionTimeout = 60_000
             };
 
-            ISession? session = InvokeReconstructSession(manager, entry, entry.AuthenticationToken, CreateContext());
+            ISession? session = InvokeReconstructSession(
+                manager,
+                entry,
+                entry.AuthenticationToken,
+                CreateContext(s_clientChannelCertificate.ToArray()));
 
             Assert.That(session, Is.Null);
         }
@@ -318,7 +573,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     SessionTimeout = 60_000
                 };
                 await sessionStore.PutAsync(entry).ConfigureAwait(false);
-                OperationContext context = CreateContext();
+                OperationContext context = CreateContext(clientCertificate.RawData);
                 InvalidOperationException? exception = null;
                 try
                 {
@@ -381,9 +636,14 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 SessionName = "secure-session",
                 CreatedAt = DateTimeUtc.Now,
                 LastActivatedAt = DateTimeUtc.Now,
-                ServerNonce = ByteString.From(new byte[] { 1, 2, 3, 4 }),
+                ServerNonce = ByteString.From(CreateBytes(32, 7)),
                 ClientNonce = ByteString.From(new byte[] { 5, 6, 7, 8 }),
                 ClientCertificateChain = ByteString.From(Utils.CreateCertificateChainBlob(clientChain)),
+                SecurityStateVersion = SharedSessionEntry.CurrentSecurityStateVersion,
+                OriginalClientChannelCertificate = clientCertificate.RawData.ToByteString(),
+                ClientUserId = null,
+                ClientUserTokenType = UserTokenType.Anonymous,
+                HasActivatedUserIdentity = true,
                 SecurityPolicyUri = PolicyA,
                 SecurityMode = (int)MessageSecurityMode.Sign,
                 EndpointUrl = "opc.tcp://localhost:4840",
@@ -405,7 +665,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 .CreateForRSA();
         }
 
-        private static OperationContext CreateContext()
+        private static OperationContext CreateContext(byte[]? clientChannelCertificate = null)
         {
             var endpoint = new EndpointDescription
             {
@@ -417,7 +677,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 "restore-channel",
                 endpoint,
                 RequestEncoding.Binary,
-                null,
+                clientChannelCertificate,
                 null,
                 null);
             return new OperationContext(
@@ -500,6 +760,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 .GetValue(certificate)!;
             return (int)core.GetType().GetProperty("RefCount", BindingFlags.Instance | BindingFlags.Public)!
                 .GetValue(core)!;
+        }
+
+        private static byte[] CreateBytes(int length, byte seed)
+        {
+            byte[] bytes = new byte[length];
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                bytes[i] = (byte)(seed + i);
+            }
+            return bytes;
         }
     }
 }

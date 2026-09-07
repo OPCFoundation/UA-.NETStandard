@@ -28,7 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
@@ -61,6 +65,15 @@ namespace Opc.Ua.Server.Tests
                 ValidateRequest(requestHeader);
             }
 
+            public ValueTask<OperationContext> ValidateRequestInScopePublicAsync()
+            {
+                return ValidateRequestAsync(
+                    null!,
+                    new RequestHeader(),
+                    RequestType.Read,
+                    RequestLifetime.None);
+            }
+
             public void SetServerStatePublic(ServerState state)
             {
                 SetServerState(state);
@@ -74,6 +87,13 @@ namespace Opc.Ua.Server.Tests
             public void OnApplicationCertificateErrorPublic(ByteString clientCertificate, ServiceResult result)
             {
                 OnApplicationCertificateError(clientCertificate, result);
+            }
+
+            public async Task InitializeAndDiscardServiceHostsAsync(
+                ApplicationConfiguration configuration,
+                ITransportBindingRegistry registry)
+            {
+                await InitializeServiceHostsAsync(configuration, registry).ConfigureAwait(false);
             }
         }
 
@@ -99,6 +119,16 @@ namespace Opc.Ua.Server.Tests
             using var server = new TestableStandardServer(NUnitTelemetryContext.Create(), custom);
 
             Assert.That(server.TimeProviderAccessor, Is.SameAs(custom));
+        }
+
+        [Test]
+        public void DisposeCanBeCalledMoreThanOnce()
+        {
+            TestableStandardServer server = CreateServer();
+
+            server.Dispose();
+
+            Assert.DoesNotThrow(server.Dispose);
         }
 
         [Test]
@@ -145,8 +175,10 @@ namespace Opc.Ua.Server.Tests
             using TestableStandardServer server = CreateServer();
 
 #pragma warning disable CS0618 // GetStatus is obsolete but still exercised for coverage.
-            Assert.That(() => server.GetStatus(), Throws.Exception);
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => server.GetStatus());
 #pragma warning restore CS0618
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadServerHalted));
         }
 
         [Test]
@@ -157,6 +189,22 @@ namespace Opc.Ua.Server.Tests
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => server.ValidateRequestPublic(new RequestHeader()));
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadServerHalted));
+        }
+
+        [Test]
+        public Task ValidateRequestInScopeThrowsWhenNotStartedAsync()
+        {
+            using TestableStandardServer server = CreateServer();
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await server
+                    .ValidateRequestInScopePublicAsync()
+                    .ConfigureAwait(false));
+
+            Assert.That(
+                exception.StatusCode,
+                Is.EqualTo((uint)StatusCodes.BadServerHalted));
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -237,6 +285,79 @@ namespace Opc.Ua.Server.Tests
                     ByteString.Empty,
                     new ServiceResult(StatusCodes.BadCertificateTimeInvalid)));
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadCertificateTimeInvalid));
+        }
+
+        [Test]
+        public void InitializeServiceHostsThrowsForUnregisteredScheme()
+        {
+            using TestableStandardServer server = CreateServer();
+            ApplicationConfiguration configuration = CreateConfiguration(
+                "opc.https://localhost:62540/TestServer");
+            var registry = new DefaultTransportBindingRegistry();
+
+            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await server.InitializeAndDiscardServiceHostsAsync(configuration, registry)
+                    .ConfigureAwait(false))!;
+
+            Assert.That(ex.Message, Does.Contain("opc.https"));
+            Assert.That(ex.Message, Does.Contain("AddHttpsTransport"));
+        }
+
+        [Test]
+        public async Task InitializeServiceHostsUsesRegisteredFactoryAsync()
+        {
+            using TestableStandardServer server = CreateServer();
+            ApplicationConfiguration configuration = CreateConfiguration(
+                "opc.tcp://localhost:62541/TestServer");
+            var registry = new DefaultTransportBindingRegistry();
+            var factory = new FakeTcpListenerFactory();
+            registry.RegisterListenerFactory(factory);
+
+            await server.InitializeAndDiscardServiceHostsAsync(configuration, registry)
+                .ConfigureAwait(false);
+
+            Assert.That(factory.CreateServiceHostCallCount, Is.EqualTo(1));
+        }
+
+        private static ApplicationConfiguration CreateConfiguration(string endpointUrl)
+        {
+            return new ApplicationConfiguration
+            {
+                ApplicationName = "TestServer",
+                ApplicationUri = "urn:localhost:UA:TestServer",
+                ProductUri = "uri:opcfoundation.org:TestServer",
+                ServerConfiguration = new ServerConfiguration
+                {
+                    BaseAddresses = [endpointUrl]
+                }
+            };
+        }
+
+        private sealed class FakeTcpListenerFactory : ITransportListenerFactory
+        {
+            public string UriScheme => Utils.UriSchemeOpcTcp;
+
+            public int CreateServiceHostCallCount { get; private set; }
+
+            public ITransportListener Create(ITelemetryContext telemetry)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ValueTask<List<EndpointDescription>> CreateServiceHostAsync(
+                ServerBase serverBase,
+                IDictionary<string, ServiceHost> hosts,
+                ApplicationConfiguration configuration,
+                ArrayOf<string> baseAddresses,
+                ApplicationDescription serverDescription,
+                ArrayOf<ServerSecurityPolicy> securityPolicies,
+                ICertificateRegistry serverCertificates,
+                ICertificateValidatorEx clientCertificateValidator,
+                CancellationToken ct = default)
+            {
+                CreateServiceHostCallCount++;
+                return new ValueTask<List<EndpointDescription>>([]);
+            }
         }
     }
 }

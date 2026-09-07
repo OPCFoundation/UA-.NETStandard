@@ -32,13 +32,13 @@ namespace Opc.Ua.Server.Tests
                 server.CurrentInstance.SessionManager.SessionDiagnosticsChanged += (s, reason)
                     => eventRaised = true;
 
-                uint before = session.SessionDiagnostics.ReadCount.TotalCount;
+                uint before = session.ReadDiagnostics(d => d.ReadCount.TotalCount);
 
                 // Call ValidateRequest for a request type that maps to a counter (Read).
                 session.ValidateRequest(requestHeader, secureChannelContext, RequestType.Read);
 
                 Assert.That(eventRaised, Is.True, "SessionDiagnosticsChanged event should be raised when a per-request counter changes.");
-                Assert.That(session.SessionDiagnostics.ReadCount.TotalCount, Is.GreaterThan(before), "ReadCount.TotalCount should have incremented.");
+                Assert.That(session.ReadDiagnostics(d => d.ReadCount.TotalCount), Is.GreaterThan(before), "ReadCount.TotalCount should have incremented.");
             }
             finally
             {
@@ -80,13 +80,13 @@ namespace Opc.Ua.Server.Tests
                     => eventRaised = true;
 
                 // Capture total requests before; UpdateDiagnosticCounters always increments TotalRequestCount.
-                uint totalBefore = session.SessionDiagnostics.TotalRequestCount.TotalCount;
+                uint totalBefore = session.ReadDiagnostics(d => d.TotalRequestCount.TotalCount);
 
                 // Call ValidateRequest with one of the ignored request types.
                 session.ValidateRequest(requestHeader, secureChannelContext, requestType);
 
                 Assert.That(
-                    session.SessionDiagnostics.TotalRequestCount.TotalCount,
+                    session.ReadDiagnostics(d => d.TotalRequestCount.TotalCount),
                     Is.EqualTo(totalBefore + 1),
                     "TotalRequestCount should increment for all request types.");
 

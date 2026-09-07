@@ -110,7 +110,7 @@ namespace Opc.Ua.Identity
 
             try
             {
-                return new UserIdentity(m_username, secret.Bytes)
+                return new UserIdentity(m_username, secret.Bytes, context.SecurityPolicyRegistry)
                 {
                     PolicyId = policy.PolicyId ?? string.Empty
                 };

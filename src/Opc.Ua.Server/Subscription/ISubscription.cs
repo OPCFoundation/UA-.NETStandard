@@ -34,8 +34,14 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// An interface used by the monitored items to signal the subscription.
+    /// The server-side representation of a subscription created by a client, exposing the
+    /// subscription service operations and diagnostics.
     /// </summary>
+    /// <remarks>
+    /// The publish pipeline (timer expiry, acknowledgement, notification consumption) is
+    /// driven through an internal contract implemented only by <see cref="Subscription"/>
+    /// and is not part of this surface.
+    /// </remarks>
     public interface ISubscription : IDisposable
     {
         /// <summary>
@@ -79,45 +85,39 @@ namespace Opc.Ua.Server
         bool IsDurable { get; }
 
         /// <summary>
-        /// Gets the lock that must be acquired before accessing the contents of the Diagnostics property.
+        /// True once the subscription has been deleted via <see cref="DeleteAsync"/>. Publicly
+        /// callable members throw Bad_SubscriptionIdInvalid once this is set.
         /// </summary>
-        object DiagnosticsLock { get; }
+        bool IsDeleted { get; }
 
         /// <summary>
-        /// Gets the lock that must be acquired before updating the contents of the Diagnostics property.
+        /// Applies an update to the subscription diagnostics while holding the
+        /// subscription's diagnostics lock.
         /// </summary>
-        object DiagnosticsWriteLock { get; }
+        /// <remarks>
+        /// The subscription owns its lock and never exposes it, so callers cannot
+        /// participate in the server's locking order. The diagnostic nodes are marked dirty
+        /// inside the critical section.
+        /// </remarks>
+        /// <param name="update">The mutation to apply to the diagnostics.</param>
+        void UpdateDiagnostics(Action<SubscriptionDiagnosticsDataType> update);
+
+        /// <summary>
+        /// Reads a value derived from the subscription diagnostics while holding the
+        /// subscription's diagnostics lock.
+        /// </summary>
+        /// <remarks>
+        /// Do not let the diagnostics object escape the callback: once the lock is
+        /// released, any field read from it is unsynchronized.
+        /// </remarks>
+        /// <typeparam name="TResult">The type of the value produced.</typeparam>
+        /// <param name="read">The projection applied to the diagnostics.</param>
+        TResult ReadDiagnostics<TResult>(Func<SubscriptionDiagnosticsDataType, TResult> read);
 
         /// <summary>
         /// Gets the current diagnostics for the subscription.
         /// </summary>
         SubscriptionDiagnosticsDataType Diagnostics { get; }
-
-        /// <summary>
-        /// Called when a monitored item is ready to publish.
-        /// </summary>
-        void ItemReadyToPublish(IMonitoredItem monitoredItem);
-
-        /// <summary>
-        /// Called when a monitored item is ready to publish.
-        /// </summary>
-        void ItemNotificationsAvailable(IMonitoredItem monitoredItem);
-
-        /// <summary>
-        /// Called when a value of monitored item is discarded in the monitoring queue.
-        /// </summary>
-        void QueueOverflowHandler();
-
-        /// <summary>
-        /// Checks if the subscription is ready to publish.
-        /// </summary>
-        PublishingState PublishTimerExpired();
-
-        /// <summary>
-        /// Returns the available sequence numbers for retransmission
-        /// For example used in Transfer Subscription
-        /// </summary>
-        ArrayOf<uint> AvailableSequenceNumbersForRetransmission();
 
         /// <summary>
         /// Refreshes the conditions.
@@ -198,16 +198,6 @@ namespace Opc.Ua.Server
         void ResendData(OperationContext context);
 
         /// <summary>
-        /// Tells the subscription that the owning session is being closed.
-        /// </summary>
-        void SessionClosed();
-
-        /// <summary>
-        /// Removes a message from the message queue.
-        /// </summary>
-        ServiceResult? Acknowledge(OperationContext context, uint sequenceNumber);
-
-        /// <summary>
         /// Deletes the subscription.
         /// </summary>
         ValueTask DeleteAsync(OperationContext context, CancellationToken cancellationToken = default);
@@ -228,30 +218,14 @@ namespace Opc.Ua.Server
         NotificationMessage Republish(OperationContext context, uint retransmitSequenceNumber);
 
         /// <summary>
-        /// Publishes a timeout status message.
+        /// Determines whether the authenticated owner of a target Session is compatible
+        /// with the identity that owns this subscription.
         /// </summary>
-        NotificationMessage PublishTimeout();
-
-        /// <summary>
-        /// Publishes a SubscriptionTransferred status message.
-        /// </summary>
-        NotificationMessage SubscriptionTransferred();
-
-        /// <summary>
-        /// Returns all available notifications.
-        /// </summary>
-        NotificationMessage? Publish(
-            OperationContext context,
-            out ArrayOf<uint> availableSequenceNumbers,
-            out bool moreNotifications);
-
-        /// <summary>
-        /// Transfers the subscription to a new session.
-        /// </summary>
-        /// <param name="context">The session to which the subscription is transferred.</param>
-        /// <param name="sendInitialValues">Whether the first Publish response shall contain current values.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        ValueTask TransferSessionAsync(OperationContext context, bool sendInitialValues, CancellationToken cancellationToken = default);
+        /// <param name="targetSession">The target Session for a transfer request.</param>
+        /// <returns>
+        /// <c>true</c> when the target Session represents the same ClientUserId; otherwise, <c>false</c>.
+        /// </returns>
+        bool IsTransferIdentityCompatible(ISession targetSession);
 
         /// <summary>
         /// Updates the triggers for the monitored item.

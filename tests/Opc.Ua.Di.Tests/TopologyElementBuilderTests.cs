@@ -51,7 +51,6 @@ namespace Opc.Ua.Di.Tests
         private ServerFixture<StandardServer> m_fixture = null!;
         private PumpNodeManager m_manager = null!;
         private StandardServer m_server = null!;
-        private ushort m_pumpsNamespaceIndex;
 
         [OneTimeSetUp]
         public async Task SetUpAsync()
@@ -65,8 +64,6 @@ namespace Opc.Ua.Di.Tests
             m_manager = new PumpNodeManager(m_server.CurrentInstance, m_fixture.Config);
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
             await m_manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
-            m_pumpsNamespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
-                global::Opc.Ua.Pumps.Namespaces.Pumps);
         }
 
         [OneTimeTearDown]
@@ -81,7 +78,7 @@ namespace Opc.Ua.Di.Tests
         {
             var browseName = new QualifiedName(
                 "Topology Lookup Pump",
-                m_pumpsNamespaceIndex);
+                m_manager.InstanceNamespaceIndex);
             PumpState pump = await m_manager.CreatePumpAsync(browseName)
                 .ConfigureAwait(false);
 
@@ -101,10 +98,10 @@ namespace Opc.Ua.Di.Tests
         public async Task ConfiguresGroupsReferencesAndRawStateAsync()
         {
             PumpState source = await m_manager.CreatePumpAsync(
-                new QualifiedName("Topology Source Pump", m_pumpsNamespaceIndex))
+                new QualifiedName("Topology Source Pump", m_manager.InstanceNamespaceIndex))
                 .ConfigureAwait(false);
             PumpState target = await m_manager.CreatePumpAsync(
-                new QualifiedName("Topology Target Pump", m_pumpsNamespaceIndex))
+                new QualifiedName("Topology Target Pump", m_manager.InstanceNamespaceIndex))
                 .ConfigureAwait(false);
             ITopologyElementBuilder<PumpState> builder =
                 m_manager.TopologyElement(source);
@@ -137,8 +134,8 @@ namespace Opc.Ua.Di.Tests
         public async Task PumpMeasurementPropertiesAreBrowsableAndReadableAsync()
         {
             const string measurementIdentifier =
-                "5001_Pump #1_Operational_Measurements_FluidTemperature";
-            ushort namespaceIndex = m_manager.DiNamespaceIndex;
+                "5001_Pump_1_Operational_Measurements_FluidTemperature";
+            ushort namespaceIndex = m_manager.InstanceNamespaceIndex;
             var measurementId = new NodeId(measurementIdentifier, namespaceIndex);
             var engineeringUnitsId = new NodeId(
                 $"{measurementIdentifier}_EngineeringUnits",
@@ -221,7 +218,7 @@ namespace Opc.Ua.Di.Tests
                     () => m_manager.TopologyElementByBrowseName<PumpState>(
                         new QualifiedName(
                             "Missing Topology Pump",
-                            m_pumpsNamespaceIndex)))!;
+                            m_manager.InstanceNamespaceIndex)))!;
 
             Assert.That(
                 exception.StatusCode,
@@ -233,7 +230,7 @@ namespace Opc.Ua.Di.Tests
         {
             var browseName = new QualifiedName(
                 "Topology Wrong Type Device",
-                m_manager.DiNamespaceIndex);
+                m_manager.InstanceNamespaceIndex);
             await m_manager.CreateDeviceAsync(browseName).ConfigureAwait(false);
 
             ServiceResultException exception =
@@ -254,7 +251,7 @@ namespace Opc.Ua.Di.Tests
                     () => m_manager.DeviceByBrowseName<DeviceState>(
                         new QualifiedName(
                             "Missing Device",
-                            m_manager.DiNamespaceIndex)))!;
+                            m_manager.InstanceNamespaceIndex)))!;
 
             Assert.That(
                 exception.StatusCode,
@@ -266,7 +263,7 @@ namespace Opc.Ua.Di.Tests
         {
             var browseName = new QualifiedName(
                 "Device Wrong Type Pump",
-                m_pumpsNamespaceIndex);
+                m_manager.InstanceNamespaceIndex);
             await m_manager.CreatePumpAsync(browseName).ConfigureAwait(false);
 
             ServiceResultException exception =

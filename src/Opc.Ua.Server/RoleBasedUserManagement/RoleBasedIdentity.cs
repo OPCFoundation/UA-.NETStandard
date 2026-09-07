@@ -211,6 +211,20 @@ namespace Opc.Ua.Server
                 .ToArrayOf());
         }
 
+        /// <summary>
+        /// Initializes an identity with an exact set of roles, bypassing the
+        /// role inheritance performed by the public constructor.
+        /// </summary>
+        private RoleBasedIdentity(
+            IUserIdentity identity,
+            IEnumerable<Role> roles,
+            ArrayOf<NodeId> grantedRoleIds)
+        {
+            InnerIdentity = identity;
+            Roles = roles;
+            GrantedRoleIds = grantedRoleIds;
+        }
+
         /// <inheritdoc/>
         public ArrayOf<NodeId> GrantedRoleIds { get; }
 
@@ -218,6 +232,57 @@ namespace Opc.Ua.Server
         /// The role in the context of a server.
         /// </summary>
         public IEnumerable<Role> Roles { get; }
+
+        /// <summary>
+        /// Returns an identity that grants exactly <paramref name="roles"/> and nothing
+        /// else, discarding every Role and granted Role NodeId carried by
+        /// <paramref name="identity"/>.
+        /// </summary>
+        /// <remarks>
+        /// Used where a specification requires a Session to hold only a specific Role,
+        /// such as the OPC 10000-18 5.2.8 rule that a Session activated by a user with
+        /// <c>MustChangePassword</c> set shall have only the Anonymous Role. Any role
+        /// wrappers around <paramref name="identity"/> are unwrapped, so the returned
+        /// identity is the plain <see cref="RoleBasedIdentity"/> shape and cannot carry
+        /// role-derived privileges of a wrapper (nor resurrect the discarded roles
+        /// through a later <see cref="WithAdditionalRoles"/> call). The authenticated
+        /// identity itself is preserved, so the user name, token type, and token handler
+        /// stay available.
+        /// </remarks>
+        /// <param name="identity">The authenticated identity to restrict.</param>
+        /// <param name="roles">The only roles the returned identity grants.</param>
+        /// <param name="namespaces">Namespace table used to resolve role NodeIds.</param>
+        /// <returns>An identity granting exactly <paramref name="roles"/>.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="identity"/> or <paramref name="roles"/> is <c>null</c>.
+        /// </exception>
+        public static RoleBasedIdentity CreateRestricted(
+            IUserIdentity identity,
+            IEnumerable<Role> roles,
+            NamespaceTable namespaces)
+        {
+            if (identity == null)
+            {
+                throw new ArgumentNullException(nameof(identity));
+            }
+            if (roles == null)
+            {
+                throw new ArgumentNullException(nameof(roles));
+            }
+
+            while (identity is RoleBasedIdentity roleBasedIdentity)
+            {
+                identity = roleBasedIdentity.InnerIdentity;
+            }
+
+            Role[] restrictedRoles = [.. roles.Where(role => role != null!)];
+            return new RoleBasedIdentity(
+                identity,
+                restrictedRoles,
+                [.. restrictedRoles
+                    .Select(role => ExpandedNodeId.ToNodeId(role.RoleId, namespaces))
+                    .Distinct()]);
+        }
 
         /// <summary>
         /// Returns a new <see cref="RoleBasedIdentity"/> that extends this identity with
@@ -238,7 +303,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The inner identity that this role-based identity wraps.
         /// </summary>
-        protected IUserIdentity InnerIdentity { get; }
+        /// <remarks>
+        /// Visible inside the assembly so that server code which has to reach the
+        /// authenticated identity behind one or more role wrappers does not need a
+        /// parallel accessor.
+        /// </remarks>
+        protected internal IUserIdentity InnerIdentity { get; }
 
         /// <inheritdoc/>
         public string DisplayName => InnerIdentity.DisplayName;

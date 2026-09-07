@@ -54,6 +54,13 @@
     <AdditionalFiles Include="TestData\Generated\TestDataDesign.csv" />
     <AdditionalFiles Include="TestData\Generated\TestDataDesign.xml" />
   </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="ReferenceServer\Model\ReferenceServer.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/Quickstarts/ReferenceServer</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>ReferenceServerModel</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Quickstarts.ReferenceServer</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+  </ItemGroup>
   <Target Name="GetPackagingOutputs" />
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

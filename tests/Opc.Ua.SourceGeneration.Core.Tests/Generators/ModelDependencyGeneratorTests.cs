@@ -30,10 +30,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
+using System.Xml;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Schema.Model;
+using Opc.Ua.SourceGeneration.Dependency;
 
 namespace Opc.Ua.SourceGeneration.Generator.Tests
 {
@@ -265,6 +268,207 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(output, Does.Contain("\"v\\\"1\\\"\""));
         }
 
+        [Test]
+        public void EmitDeclarationBackedMethodSerializesEffectiveArguments()
+        {
+            Namespace target = ConfigureSelf();
+            const string opcUaNamespace = Types.Namespaces.OpcUa;
+            var declaration = new MethodDesign
+            {
+                SymbolicId = new XmlQualifiedName("ExecuteMethodType", TestUri),
+                SymbolicName = new XmlQualifiedName("ExecuteMethodType", TestUri),
+                NumericId = 42,
+                NumericIdSpecified = true,
+                InputArguments =
+                [
+                    new Parameter
+                    {
+                        Name = "Name",
+                        DataType = new XmlQualifiedName("String", opcUaNamespace),
+                        ValueRank = ValueRank.Scalar
+                    }
+                ],
+                OutputArguments =
+                [
+                    new Parameter
+                    {
+                        Name = "Status",
+                        DataType = new XmlQualifiedName("Int16", opcUaNamespace),
+                        ValueRank = ValueRank.Scalar
+                    }
+                ]
+            };
+            var method = new MethodDesign
+            {
+                BrowseName = "Execute",
+                SymbolicId = new XmlQualifiedName("ControllerType_Execute", TestUri),
+                SymbolicName = new XmlQualifiedName("Execute", TestUri),
+                MethodDeclarationNode = declaration,
+                InputArguments = [],
+                OutputArguments = []
+            };
+            var objectType = new ObjectTypeDesign
+            {
+                ClassName = "Controller",
+                SymbolicId = new XmlQualifiedName("ControllerType", TestUri),
+                SymbolicName = new XmlQualifiedName("ControllerType", TestUri),
+                HasChildren = true,
+                Children = new ListOfChildren { Items = [method] }
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(target);
+            m_mockModelDesign.Setup(m => m.Nodes).Returns([objectType]);
+
+            var generator = new ModelDependencyGenerator(BuildContext());
+            generator.Emit();
+
+            ModelDependencyV1 payload = ReadSelfPayload();
+            Assert.That(payload, Is.Not.Null);
+            DependencyChild child = payload.Nodes
+                .Single(node => node.SymbolicName == "ControllerType")
+                .Children
+                .Single(candidate => candidate.SymbolicName == "Execute");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(child.InputArguments, Has.Count.EqualTo(1));
+                Assert.That(child.InputArguments[0].Name, Is.EqualTo("Name"));
+                Assert.That(child.InputArguments[0].DataTypeName, Is.EqualTo("String"));
+                Assert.That(child.OutputArguments, Has.Count.EqualTo(1));
+                Assert.That(child.OutputArguments[0].Name, Is.EqualTo("Status"));
+                Assert.That(child.OutputArguments[0].DataTypeName, Is.EqualTo("Int16"));
+                Assert.That(child.MethodStateName, Is.EqualTo("ExecuteMethodType"));
+                Assert.That(child.MethodStateNamespace, Is.EqualTo(TestUri));
+                Assert.That(child.MethodDeclarationName, Is.EqualTo("ExecuteMethodType"));
+                Assert.That(child.MethodDeclarationNamespace, Is.EqualTo(TestUri));
+                Assert.That(child.MethodDeclarationNumericId, Is.EqualTo(42));
+            });
+        }
+
+        [Test]
+        public void EmitVariableSerializesEffectiveMetadata()
+        {
+            Namespace target = ConfigureSelf();
+            var document = new XmlDocument();
+            System.Xml.XmlElement defaultValue = document.CreateElement(
+                "uax",
+                "ListOfString",
+                Types.Namespaces.OpcUaXsd);
+            System.Xml.XmlElement first = document.CreateElement(
+                "uax",
+                "String",
+                Types.Namespaces.OpcUaXsd);
+            first.InnerText = "First";
+            defaultValue.AppendChild(first);
+            System.Xml.XmlElement second = document.CreateElement(
+                "uax",
+                "String",
+                Types.Namespaces.OpcUaXsd);
+            second.InnerText = "Second";
+            defaultValue.AppendChild(second);
+            var variable = new VariableDesign
+            {
+                BrowseName = "Values",
+                SymbolicId = new XmlQualifiedName("ControllerType_Values", TestUri),
+                SymbolicName = new XmlQualifiedName("Values", TestUri),
+                TypeDefinition = new XmlQualifiedName(
+                    "BaseDataVariableType",
+                    Types.Namespaces.OpcUa),
+                DataType = new XmlQualifiedName("String", Types.Namespaces.OpcUa),
+                ValueRank = ValueRank.Array,
+                ValueRankSpecified = true,
+                AccessLevel = AccessLevel.ReadWrite,
+                AccessLevelSpecified = true,
+                RawAccessLevel = 5,
+                RawUserAccessLevel = 1,
+                MinimumSamplingInterval = 250,
+                MinimumSamplingIntervalSpecified = true,
+                Historizing = true,
+                HistorizingSpecified = true,
+                DefaultValue = defaultValue
+            };
+            var objectType = new ObjectTypeDesign
+            {
+                ClassName = "Controller",
+                SymbolicId = new XmlQualifiedName("ControllerType", TestUri),
+                SymbolicName = new XmlQualifiedName("ControllerType", TestUri),
+                HasChildren = true,
+                Children = new ListOfChildren { Items = [variable] }
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(target);
+            m_mockModelDesign.Setup(m => m.Nodes).Returns([objectType]);
+
+            var generator = new ModelDependencyGenerator(BuildContext());
+            generator.Emit();
+
+            ModelDependencyV1 payload = ReadSelfPayload();
+            Assert.That(payload, Is.Not.Null);
+            DependencyChild child = payload.Nodes
+                .Single(node => node.SymbolicName == "ControllerType")
+                .Children
+                .Single(candidate => candidate.SymbolicName == "Values");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(child.AccessLevel, Is.EqualTo((byte)AccessLevel.ReadWrite));
+                Assert.That(child.AccessLevelSpecified, Is.True);
+                Assert.That(child.RawAccessLevel, Is.EqualTo(5u));
+                Assert.That(child.RawUserAccessLevel, Is.EqualTo(1u));
+                Assert.That(child.MinimumSamplingInterval, Is.EqualTo(250));
+                Assert.That(child.MinimumSamplingIntervalSpecified, Is.True);
+                Assert.That(child.Historizing, Is.True);
+                Assert.That(child.HistorizingSpecified, Is.True);
+                Assert.That(child.DefaultValueXml, Does.Contain("First"));
+                Assert.That(child.DefaultValueXml, Does.Contain("Second"));
+            });
+        }
+
+        [Test]
+        public void PayloadWithoutMethodIdentityRemainsReadable()
+        {
+            var payload = new ModelDependencyV1
+            {
+                ModelUri = TestUri,
+                FluentAccessorsEmitted = false
+            };
+            payload.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "ControllerType",
+                SymbolicNamespace = TestUri,
+                ClassName = "Controller",
+                Kind = DependencyNodeKind.ObjectType,
+                Children =
+                [
+                    new DependencyChild
+                    {
+                        BrowseName = "Execute",
+                        SymbolicName = "Execute",
+                        InstanceKind = 4,
+                        InputArguments =
+                        [
+                            new DependencyMethodArg(
+                                "Name",
+                                "String",
+                                Types.Namespaces.OpcUa,
+                                (int)ValueRank.Scalar)
+                        ]
+                    }
+                ]
+            });
+
+            ModelDependencyV1 decoded =
+                ModelDependencyV1.FromBase64Payload(payload.ToBase64Payload());
+
+            Assert.That(decoded, Is.Not.Null);
+            DependencyChild child = decoded.Nodes.Single().Children.Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(decoded.FluentAccessorsEmitted, Is.False);
+                Assert.That(child.InputArguments, Has.Count.EqualTo(1));
+                Assert.That(child.MethodStateName, Is.Empty);
+                Assert.That(child.MethodDeclarationName, Is.Empty);
+            });
+        }
+
         private Namespace ConfigureSelf(
             string version = "1.05.04",
             string publicationDate = "2024-05-01T00:00:00Z")
@@ -307,6 +511,17 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // The generator wraps the captured stream in a StreamWriter and
             // disposes it on Emit(); the stream's Position is at the end.
             return Encoding.UTF8.GetString(m_memoryStream.ToArray());
+        }
+
+        private ModelDependencyV1 ReadSelfPayload()
+        {
+            string output = ReadOutput();
+            int payloadEnd = output.IndexOf("\")]", StringComparison.Ordinal);
+            Assert.That(payloadEnd, Is.GreaterThanOrEqualTo(0));
+            int payloadStart = output.LastIndexOf('"', payloadEnd - 1);
+            Assert.That(payloadStart, Is.GreaterThanOrEqualTo(0));
+            string encodedPayload = output[(payloadStart + 1)..payloadEnd];
+            return ModelDependencyV1.FromBase64Payload(encodedPayload);
         }
     }
 }

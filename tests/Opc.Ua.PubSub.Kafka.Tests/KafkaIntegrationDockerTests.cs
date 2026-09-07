@@ -58,10 +58,9 @@ namespace Opc.Ua.PubSub.Kafka.Tests
         {
             try
             {
-                // Dekaf (the net10.0 client) requires a Kafka 4.0+ broker for the
-                // KIP-848 ConsumerGroupHeartbeat API; the Apache image runs KRaft and
-                // enables the new consumer group protocol by default. The Confluent
-                // client used on other TFMs falls back to the classic protocol.
+                // Dekaf requires a Kafka 4.0+ broker for the KIP-848
+                // ConsumerGroupHeartbeat API; the Apache image runs KRaft and enables
+                // the new consumer group protocol by default.
                 m_container = new KafkaBuilder("apache/kafka:4.0.0").Build();
                 await m_container.StartAsync().ConfigureAwait(false);
             }
@@ -128,8 +127,8 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             byte[] payload = [0x10, 0x20, 0x30, 0x40];
 
             // Open the publisher and produce one record before the subscriber
-            // subscribes so the topic already exists: the Dekaf consumer (net10,
-            // KIP-848 protocol) does not pick up a topic that is created after it
+            // subscribes so the topic already exists: the Dekaf consumer (KIP-848
+            // protocol) does not pick up a topic that is created after it
             // has subscribed. The subscriber reads from the earliest offset once
             // it is assigned the partition.
             await publisher.OpenAsync(CancellationToken.None).ConfigureAwait(false);

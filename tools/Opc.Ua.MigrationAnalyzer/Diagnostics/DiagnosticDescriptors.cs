@@ -178,10 +178,18 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
 
         public static readonly DiagnosticDescriptor UA0021_CertificateValidatorRename = Create(
             DiagnosticIds.UA0021,
-            "CertificateValidator / CertificateValidationEventArgs renamed in 1.6",
-            "'{0}' was replaced in 1.6 by the new CertificateManager pipeline (ICertificateManager / ICertificateValidatorEx / CertificateValidationResult). The migration is structural (event-based -> async result + AcceptError callback) — see docs/migrate/2.0.x/certificates.md.",
+            "CertificateValidator / CertificateValidationEventArgs renamed in 2.0",
+            "'{0}' was replaced in 2.0 by the new CertificateManager pipeline " +
+            "(ICertificateManager / ICertificateValidatorEx / CertificateValidationResult). " +
+            "The migration is structural (event-based -> async result + AcceptError callback) — " +
+            "see docs/migrate/2.0.x/certificates.md.",
             DiagnosticSeverity.Info,
-            "The CertificateValidator class and CertificateValidationEventArgs were removed in 1.6. The new ICertificateManager (composed of ICertificateValidatorEx, ICertificateRegistry, ICertificateTrustListManager, ICertificateLifecycle) replaces them; per-error accept logic moves from the CertificateValidation event to CertificateValidationOptions.AcceptError. This rule is diagnostic-only because the migration changes the API shape (no mechanical rename).");
+            "The CertificateValidator class and CertificateValidationEventArgs were removed in 2.0. " +
+            "The new ICertificateManager (composed of ICertificateValidatorEx, " +
+            "ICertificateRegistry, ICertificateTrustListManager, ICertificateLifecycle) " +
+            "replaces them; per-error accept logic moves from the CertificateValidation event to " +
+            "CertificateValidationOptions.AcceptError. This rule is diagnostic-only because the " +
+            "migration changes the API shape (no mechanical rename).");
 
         public static readonly DiagnosticDescriptor UA0022_CertificateValidatorPropertyRename = Create(
             DiagnosticIds.UA0022,
@@ -193,8 +201,68 @@ namespace Opc.Ua.MigrationAnalyzer.Diagnostics
         public static readonly DiagnosticDescriptor UA0023_PubSubTopLevelObsolete = Create(
             DiagnosticIds.UA0023,
             "PubSub top-level types replaced in 2.0",
-            "'{0}' was replaced in 2.0 — use the new IPubSubApplication / PubSubApplicationBuilder surface (or AddPubSub() / AddUdpTransport() / AddMqttTransport() on IOpcUaBuilder)",
+            "'{0}' was replaced in 2.0 — use IPubSubApplication / " +
+            "PubSubApplicationBuilder, or call AddPubSub(...) on IOpcUaBuilder " +
+            "and configure transports on IPubSubBuilder",
             DiagnosticSeverity.Warning,
-            "The 1.04-era PubSub top-level types (UaPubSubApplication, IUaPubSubConnection, IUaPublisher, UaPubSubDataStore, UaPubSubConfigurator) ship as obsolete shims in 2.0; the new top-level surface uses provider-model abstractions wired via PubSubApplicationBuilder or Microsoft.Extensions.DependencyInjection extensions (docs/migrate/2.0.x/pubsub.md).");
+            "The 1.04-era application, connection, publisher, and configurator APIs " +
+            "are removed in 2.0. IUaPubSubDataStore remains as an obsolete bridge; " +
+            "the new top-level surface uses provider-model abstractions wired via " +
+            "PubSubApplicationBuilder or " +
+            "Microsoft.Extensions.DependencyInjection extensions " +
+            "(docs/migrate/2.0.x/pubsub.md).");
+
+        public static readonly DiagnosticDescriptor UA0024_RemovedDiagnosticsLock = Create(
+            DiagnosticIds.UA0024,
+            "Diagnostics locks are no longer exposed",
+            "'{0}.{1}' was removed in 2.0 — apply the change through '{0}.{2}' instead of taking the lock yourself",
+            DiagnosticSeverity.Warning,
+            "IServerInternal, ISession and ISubscription no longer expose DiagnosticsLock / DiagnosticsWriteLock. A caller could not see what else took those locks, in what order, or for how long, and holding one across a call back into the stack could deadlock. Each owner now applies the mutation itself through UpdateDiagnostics / UpdateServerDiagnostics, with ISession.ReadDiagnostics / ISubscription.ReadDiagnostics for projections. Do not let the diagnostics object escape the callback: once it returns the lock is released. This rule reports rather than fixes, because turning a lock statement body into a lambda depends on what the body captures and returns.");
+
+        public static readonly DiagnosticDescriptor UA0025_RemovedNodeDataLock = Create(
+            DiagnosticIds.UA0025,
+            "ILocalNode.DataLock is no longer exposed",
+            "'{0}.DataLock' was removed in 2.0 — the node synchronizes its own state, so take a lock you own if the surrounding operation still needs to be atomic",
+            DiagnosticSeverity.Warning,
+            "ILocalNode.DataLock returned the node instance itself, so every caller that took it shared one lock with the stack and with every other caller, in an order none of them could see, and holding it across a call back into the stack could deadlock. The node now guards its own state. Code that needs a wider critical section should use a lock it owns rather than one reachable from a shared node.");
+
+        public static readonly DiagnosticDescriptor UA0026_RemovedVariableValueLock = Create(
+            DiagnosticIds.UA0026,
+            "BaseVariableValue.Lock is no longer exposed",
+            "'{0}.Lock' was removed in 2.0 — construct the value with a lock you own and take that one instead",
+            DiagnosticSeverity.Warning,
+            "BaseVariableValue handed out the synchronization primitive that guards its value, so a caller could hold it across a callback into the stack. The value now owns it: derived value classes synchronize through the protected EnterLock / ExitLock pair, and a component that has to make its own state atomic with the value passes a lock it already owns to the BaseVariableValue constructor - which is how the server keeps its status and its diagnostics mutually exclusive - and takes that lock directly.");
+
+        public static readonly DiagnosticDescriptor UA0027_RemovedNodeBrowserDataLock = Create(
+            DiagnosticIds.UA0027,
+            "NodeBrowser no longer exposes a synchronization lock",
+            "'NodeBrowser.DataLock' was removed in 2.0 — a browser is single-consumer, so drop the lock instead of replacing it",
+            DiagnosticSeverity.Warning,
+            "NodeBrowser no longer exposes a protected DataLock. A browser is single-consumer: it belongs to whoever created it, and both server browse paths already serialize access on the owning side (BrowserContext for the async node manager, a lock around the continuation point's browser for CustomNodeManager2). The exposed lock therefore only added an inheritance-level locking contract that a derived browser could not reason about — it could be held across a call into another module with nothing in the type system saying for how long. A derived browser that took DataLock inside its Next() override should simply remove the lock statement and keep the body. If a browser really is shared between threads, serialize it where it is owned, not inside the browser. See docs/migrate/2.0.x/node-states.md.");
+
+        public static readonly DiagnosticDescriptor UA0028_RemovedPropertiesLock = Create(
+            DiagnosticIds.UA0028,
+            "ApplicationConfiguration.PropertiesLock is no longer exposed",
+            "'ApplicationConfiguration.PropertiesLock' was removed in 2.0 — Properties synchronizes itself, so drop the lock and use GetOrAddProperty(...) if a read and a write have to be atomic",
+            DiagnosticSeverity.Warning,
+            "ApplicationConfiguration.PropertiesLock returned the properties dictionary itself, so the lock was the data it guarded: every caller that took it shared one monitor with the dictionary and with every other caller, in an order none of them could see. Properties is now a concurrent dictionary, so each individual operation is atomic without a lock. The only combination that needs more than one operation is get-or-add, which GetOrAddProperty covers; it deliberately does not invoke the factory under a lock, so a caller cannot hold a critical section across a callback. This rule reports rather than fixes, because whether a lock body becomes a plain call or a GetOrAddProperty depends on what the body does.");
+
+        public static readonly DiagnosticDescriptor UA0029_SecurityPoliciesStaticsMoved = Create(
+            DiagnosticIds.UA0029,
+            "SecurityPolicies lookup and cryptography moved to ISecurityPolicyRegistry in 2.0",
+            "'SecurityPolicies.{0}' was removed in 2.0 — resolve an 'ISecurityPolicyRegistry' " +
+            "and call '{0}' on it, or use 'SecurityPolicies.Default' where no container is in scope",
+            DiagnosticSeverity.Warning,
+            "These operate on the set of registered security policies rather than on constants, " +
+            "so they are members of the registry that owns that set. The registry also carries its " +
+            "own logger, so the Encrypt/Decrypt logger argument is gone. SecurityPolicies keeps the " +
+            "policy URI constants. See docs/MigrationGuide.md#ua0029.");
+
+        public static readonly DiagnosticDescriptor UA0030_SubscriptionPublishPipelineInternalized = Create(
+            DiagnosticIds.UA0030,
+            "The ISubscription publish pipeline is server-internal in 2.0",
+            "'{0}' was removed from the public API in 2.0 — {1}",
+            DiagnosticSeverity.Warning,
+            "The members that drive the publishing state machine (PublishTimerExpired, Acknowledge, PublishTimeout, SubscriptionTransferred, AvailableSequenceNumbersForRetransmission, QueueOverflowHandler, SessionClosed and Publish) moved onto an internal contract implemented only by Subscription, and SessionPublishQueue became internal: a caller outside the pipeline invoking them corrupted the publishing state machine (consumed notifications, advanced sequence numbers, released a subscription its session still owned). ItemReadyToPublish and ItemNotificationsAvailable were deleted outright - their bodies had been commented out since 1.5.x, so every call was already a no-op. TransferSessionAsync was deleted - the server transfers subscriptions through its internal claim/prepare/commit protocol, reached via the TransferSubscriptions service. Custom ISubscription implementations must derive from Subscription; subscription creation fails with Bad_InternalError otherwise. See docs/MigrationGuide.md#ua0030.");
     }
 }

@@ -45,7 +45,7 @@ namespace Opc.Ua.Server
         internal RoleEntry(
             NodeId roleId,
             string? browseName,
-            ushort namespaceIndex,
+            string? namespaceUri,
             bool isReserved,
             bool isWellKnown,
             IReadOnlyList<IdentityMappingRuleType> identities,
@@ -57,7 +57,7 @@ namespace Opc.Ua.Server
         {
             RoleId = roleId;
             BrowseName = browseName;
-            NamespaceIndex = namespaceIndex;
+            NamespaceUri = namespaceUri;
             IsReserved = isReserved;
             IsWellKnown = isWellKnown;
             Identities = identities;
@@ -80,9 +80,20 @@ namespace Opc.Ua.Server
         public string? BrowseName { get; }
 
         /// <summary>
-        /// Namespace index for the role's NodeId.
+        /// Namespace URI qualifying the role's <see cref="BrowseName"/>, or
+        /// <c>null</c> when the manager did not record one.
         /// </summary>
-        public ushort NamespaceIndex { get; }
+        /// <remarks>
+        /// Per Part 18 §4.2.2 the <c>NamespaceUri</c> argument of <c>AddRole</c>
+        /// qualifies the BrowseName of the new role while its NodeId is
+        /// server-assigned, so this is not necessarily the namespace of
+        /// <see cref="RoleId"/>. The URI is kept rather than an index because
+        /// an index is only meaningful against the namespace table it was
+        /// resolved from: callers resolve it against the table they are working
+        /// with, which is the server's by the time a role reaches the address
+        /// space.
+        /// </remarks>
+        public string? NamespaceUri { get; }
 
         /// <summary>
         /// True if the role is one of the three reserved well-known roles

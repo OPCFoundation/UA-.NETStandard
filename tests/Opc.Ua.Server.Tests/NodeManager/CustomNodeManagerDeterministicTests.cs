@@ -171,6 +171,119 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
+        public void DeleteAddressSpaceRemovesRootNotifiers()
+        {
+            using Harness h = CreateHarness();
+            BaseObjectState notifier = h.NewObject("Notifier");
+            h.Manager.AddPredefinedNodePublic(h.Context, notifier);
+            h.Manager.AddRootNotifierPublic(notifier);
+            Assert.That(h.Manager.RootNotifiersDictionary.ContainsKey(notifier.NodeId), Is.True);
+
+            h.Manager.DeleteAddressSpace();
+
+            Assert.That(h.Manager.RootNotifiersDictionary, Is.Empty);
+        }
+
+        [Test]
+        public void DeleteAddressSpaceTracksAndClearsRemovedExternalReferences()
+        {
+            using Harness h = CreateHarness();
+            BaseObjectState node = h.NewObject("WithExternalRef");
+            h.Manager.AddPredefinedNodePublic(h.Context, node);
+            var externalTarget = new NodeId("External", h.NamespaceIndex);
+            node.AddReference(ReferenceTypeIds.HasNotifier, false, externalTarget);
+
+            Assert.That(h.Manager.GetRemovedExternalReferences(), Is.Empty);
+
+            h.Manager.DeleteAddressSpace();
+
+            List<LocalReference> removed = h.Manager.GetRemovedExternalReferences();
+            Assert.That(
+                removed,
+                Has.Some.Matches<LocalReference>(
+                    r => r.SourceId == externalTarget && r.TargetId == node.NodeId));
+
+            h.Manager.ClearRemovedExternalReferences();
+
+            Assert.That(h.Manager.GetRemovedExternalReferences(), Is.Empty);
+        }
+
+        [Test]
+        public void DeleteNodeWhenTypeNotOwnedByAnotherNodeManagerRemovesFromTypeTree()
+        {
+            using Harness h = CreateHarness();
+            BaseObjectTypeState type = h.NewObjectType("SoleType");
+            h.Manager.AddPredefinedNodePublic(h.Context, type);
+            Assert.That(h.MockServer.Object.TypeTree.IsKnown(type.NodeId), Is.True);
+
+            bool result = h.Manager.DeleteNode(h.Context, type.NodeId);
+
+            Assert.That(result, Is.True);
+            Assert.That(h.MockServer.Object.TypeTree.IsKnown(type.NodeId), Is.False);
+        }
+
+        [Test]
+        public void DeleteNodeWhenTypeOwnedByAnotherNodeManagerKeepsTypeTreeEntry()
+        {
+            using Harness h = CreateHarness();
+            BaseObjectTypeState type = h.NewObjectType("SharedType");
+            h.Manager.AddPredefinedNodePublic(h.Context, type);
+            Assert.That(h.MockServer.Object.TypeTree.IsKnown(type.NodeId), Is.True);
+
+            var otherSyncManager = new Mock<INodeManager>();
+            otherSyncManager.Setup(m => m.GetManagerHandle(type.NodeId)).Returns(new object());
+            var otherAsyncManager = new Mock<IAsyncNodeManager>();
+            otherAsyncManager.Setup(m => m.SyncNodeManager).Returns(otherSyncManager.Object);
+            var masterNodeManagerMock =
+                Mock.Get(h.MockServer.Object.NodeManager);
+            masterNodeManagerMock
+                .Setup(m => m.AsyncNodeManagers)
+                .Returns([h.Manager.ToAsyncNodeManager(), otherAsyncManager.Object]);
+
+            bool result = h.Manager.DeleteNode(h.Context, type.NodeId);
+
+            Assert.That(result, Is.True);
+            Assert.That(h.Manager.PredefinedNodes.ContainsKey(type.NodeId), Is.False);
+            Assert.That(h.MockServer.Object.TypeTree.IsKnown(type.NodeId), Is.True);
+        }
+
+        [Test]
+        public void RebuildTypeTreeRegistersSubtypeAndEncodingRelationshipsForDirectlyInsertedNodes()
+        {
+            using Harness h = CreateHarness();
+            ushort ns = h.NamespaceIndex;
+            BaseObjectTypeState type = h.NewObjectType("RebuiltType");
+            // Insert directly into PredefinedNodes to bypass AddPredefinedNode's own
+            // automatic type-tree wiring, mirroring nodes restored after a reload where
+            // the caller explicitly triggers RebuildTypeTree afterwards.
+            h.Manager.PredefinedNodes.Add(type.NodeId, type);
+            Assert.That(h.MockServer.Object.TypeTree.IsKnown(type.NodeId), Is.False);
+
+            var dataTypeId = new NodeId("RebuiltDataType", ns);
+            h.MockServer.Object.TypeTree.AddSubtype(dataTypeId, NodeId.Null);
+            BaseObjectState encoding = h.NewObject("RebuiltEncoding");
+            encoding.AddReference(ReferenceTypeIds.HasEncoding, true, dataTypeId);
+            h.Manager.PredefinedNodes.Add(encoding.NodeId, encoding);
+            Assert.That(h.MockServer.Object.TypeTree.IsEncodingOf(encoding.NodeId, dataTypeId), Is.False);
+
+            h.Manager.RebuildTypeTree();
+
+            Assert.That(h.MockServer.Object.TypeTree.IsKnown(type.NodeId), Is.True);
+            Assert.That(h.MockServer.Object.TypeTree.IsEncodingOf(encoding.NodeId, dataTypeId), Is.True);
+        }
+
+        [Test]
+        public void DisposeCalledTwiceDoesNotThrow()
+        {
+            Harness h = CreateHarness();
+            h.Manager.AddPredefinedNodePublic(h.Context, h.NewObject("DisposeTarget"));
+
+            h.Manager.Dispose();
+
+            Assert.DoesNotThrow(h.Manager.Dispose);
+        }
+
+        [Test]
         public void FindPredefinedNodeGeneric_ReturnsNodeWhenTypeMatches()
         {
             using Harness h = CreateHarness();
@@ -1001,17 +1114,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void IsNodeInView_ValidatedHandleReturnsFalseFromPublicOverloadRecursion()
+        public void IsNodeInView_ValidatedHandleDelegatesToProtectedOverload()
         {
-            // FLAGGED PRODUCTION BEHAVIOUR (not fixed here): the public
-            // IsNodeInView(OperationContext, NodeId, object) delegates via
-            // IsNodeInView(context, viewId, handle.Node). Because it forwards an
-            // OperationContext (not a ServerSystemContext), overload resolution binds
-            // back to the same public (OperationContext, NodeId, object) overload rather
-            // than the intended protected (ServerSystemContext, NodeId, NodeState) helper.
-            // The recursive call then receives a NodeState (not a NodeHandle) and returns
-            // false, so the public API reports "not in view" for in-memory nodes even when
-            // the view exists. This characterization test locks in the current behaviour.
+            // Regression test: the public IsNodeInView(OperationContext, NodeId, object)
+            // used to forward the OperationContext unchanged, so overload resolution bound
+            // back to the same public overload instead of the protected
+            // (ServerSystemContext, NodeId, NodeState) helper, and every call reported
+            // "not in view". It now copies the context and delegates to the overridable
+            // protected helper, which accepts any view that is a predefined node.
             using Harness h = CreateHarness();
             var view = new ViewState();
             view.CreateAsPredefinedNode(h.Context);
@@ -1022,14 +1132,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             h.Manager.AddPredefinedNodePublic(h.Context, node);
             var handle = new NodeHandle(node.NodeId, node);
 
-            // The view genuinely resolves through the protected helper...
             Assert.That(h.Manager.FindPredefinedNode<ViewState>(view.NodeId), Is.SameAs(view));
 
-            // ...yet the public overload returns false because of the recursion described above.
             bool result = h.Manager.IsNodeInView(
                 h.NewContext(RequestType.Browse), view.NodeId, handle);
 
-            Assert.That(result, Is.False);
+            Assert.That(result, Is.True);
+
+            bool unknownView = h.Manager.IsNodeInView(
+                h.NewContext(RequestType.Browse), new NodeId("UnknownView", h.NamespaceIndex), handle);
+
+            Assert.That(unknownView, Is.False);
         }
 
         [Test]
@@ -1086,6 +1199,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             mockServer.Setup(s => s.NodeManager).Returns(mockMasterNodeManager.Object);
             mockMasterNodeManager.Setup(m => m.ConfigurationNodeManager)
                 .Returns(mockConfigurationNodeManager.Object);
+            mockMasterNodeManager
+                .Setup(m => m.AsyncNodeManagers)
+                .Returns([]);
 
             var mockTelemetry = new Mock<ITelemetryContext>();
             mockServer.Setup(s => s.Telemetry).Returns(mockTelemetry.Object);
@@ -1135,6 +1251,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 node.BrowseName = new QualifiedName(name, NamespaceIndex);
                 node.DisplayName = new LocalizedText(name);
                 return node;
+            }
+
+            public BaseObjectTypeState NewObjectType(string name)
+            {
+                var type = new BaseObjectTypeState
+                {
+                    SuperTypeId = NodeId.Null
+                };
+                type.CreateAsPredefinedNode(Context);
+                type.NodeId = new NodeId(name, NamespaceIndex);
+                type.BrowseName = new QualifiedName(name, NamespaceIndex);
+                type.DisplayName = new LocalizedText(name);
+                return type;
             }
 
             public BaseDataVariableState NewVariable(string name, int value)

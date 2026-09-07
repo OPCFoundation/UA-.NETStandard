@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+           xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://test.org/UA/MethodArguments/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://test.org/UA/MethodArguments/"
+           PublicationDate="2026-01-01T00:00:00Z"
+           Version="1.0.0">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/"
+                     PublicationDate="2023-01-01T00:00:00Z"
+                     Version="1.05.03"/>
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="HasEncoding">i=38</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+  </Aliases>
+
+  <UADataType NodeId="ns=1;i=100" BrowseName="1:MyDataType">
+    <DisplayName>MyDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=101</Reference>
+    </References>
+    <Definition Name="1:MyDataType">
+      <Field Name="Value" DataType="i=6"/>
+    </Definition>
+  </UADataType>
+
+  <UAObject NodeId="ns=1;i=101" BrowseName="Default Binary" ParentNodeId="ns=1;i=100">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=100</Reference>
+    </References>
+  </UAObject>
+
+  <UAObjectType NodeId="ns=1;i=200" BrowseName="1:MyObjectType">
+    <DisplayName>MyObjectType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=201</Reference>
+    </References>
+  </UAObjectType>
+
+  <UAMethod NodeId="ns=1;i=201" BrowseName="1:DoWork" ParentNodeId="ns=1;i=200">
+    <DisplayName>DoWork</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=200</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=202</Reference>
+    </References>
+  </UAMethod>
+
+  <UAVariable NodeId="ns=1;i=202" BrowseName="InputArguments"
+              ParentNodeId="ns=1;i=201" DataType="i=296"
+              ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=201</Reference>
+    </References>
+    <Value>
+      <ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+        <ExtensionObject>
+          <TypeId>
+            <Identifier>i=297</Identifier>
+          </TypeId>
+          <Body>
+            <Argument>
+              <Name>Options</Name>
+              <DataType>
+                <Identifier>ns=1;i=100</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions/>
+              <Description>
+                <Text>Structured method options.</Text>
+              </Description>
+            </Argument>
+          </Body>
+        </ExtensionObject>
+      </ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+</UANodeSet>

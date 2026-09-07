@@ -146,19 +146,25 @@ namespace Opc.Ua
         /// later use clone it and then dispose the original when done.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+        /// <param name="token">The token to wrap.</param>
+        /// <param name="securityPolicies">
+        /// The policies to resolve the token's security policy URI against, or
+        /// <see langword="null"/> to use <see cref="SecurityPolicies.Default"/>.
+        /// </param>
         public static IUserIdentityTokenHandler AsTokenHandler(
-            this UserIdentityToken token)
+            this UserIdentityToken token,
+            ISecurityPolicyRegistry? securityPolicies = null)
         {
             switch (token)
             {
                 case AnonymousIdentityToken:
                     return new AnonymousIdentityTokenHandler();
                 case UserNameIdentityToken userNamePassword:
-                    return new UserNameIdentityTokenHandler(userNamePassword);
+                    return new UserNameIdentityTokenHandler(userNamePassword, securityPolicies);
                 case X509IdentityToken x509Identity:
-                    return new X509IdentityTokenHandler(x509Identity);
+                    return new X509IdentityTokenHandler(x509Identity, securityPolicies);
                 case IssuedIdentityToken issuedToken:
-                    return new IssuedIdentityTokenHandler(issuedToken);
+                    return new IssuedIdentityTokenHandler(issuedToken, securityPolicies);
                 default:
                     throw ServiceResultException.Create(
                         StatusCodes.BadNotSupported,

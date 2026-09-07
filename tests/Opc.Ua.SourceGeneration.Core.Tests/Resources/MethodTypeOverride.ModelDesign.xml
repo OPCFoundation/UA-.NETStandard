@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<opc:ModelDesign
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns="http://test.org/UA/MethodTypeOverride/"
+  TargetNamespace="http://test.org/UA/MethodTypeOverride/"
+  TargetXmlNamespace="http://test.org/UA/MethodTypeOverride/Types.xsd"
+  TargetVersion="1.0.0"
+  TargetPublicationDate="2026-07-25T00:00:00Z">
+  <opc:Namespaces>
+    <opc:Namespace
+      Name="MethodTypeOverride"
+      Prefix="MethodTypeOverride"
+      XmlNamespace="http://test.org/UA/MethodTypeOverride/Types.xsd"
+      XmlPrefix="MethodTypeOverride">http://test.org/UA/MethodTypeOverride/</opc:Namespace>
+    <opc:Namespace
+      Name="OpcUa"
+      Prefix="Opc.Ua"
+      XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+      XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:Method SymbolicName="IntegerConvertMethodType">
+    <opc:InputArguments>
+      <opc:Argument Name="Value" DataType="ua:Int32" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="Result" DataType="ua:Int32" />
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:Method SymbolicName="StringConvertMethodType">
+    <opc:InputArguments>
+      <opc:Argument Name="Value" DataType="ua:String" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="Result" DataType="ua:String" />
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:ObjectType SymbolicName="BaseControllerType" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Method
+        SymbolicName="Convert"
+        TypeDefinition="IntegerConvertMethodType"
+        ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="StringControllerType" BaseType="BaseControllerType">
+    <opc:Children>
+      <opc:Method
+        SymbolicName="Convert"
+        TypeDefinition="StringConvertMethodType"
+        ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+</opc:ModelDesign>

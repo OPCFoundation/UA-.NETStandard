@@ -66,6 +66,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
 
         private readonly ServerConnectionOptions m_options;
         private readonly ITelemetryContext m_telemetry;
+        private readonly ISecurityPolicyRegistry? m_securityPolicies;
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_connectLock = new(1, 1);
         private readonly Lock m_disposeGate = new();
@@ -84,9 +85,27 @@ namespace Opc.Ua.PubSub.Adapter.Session
         public ServerSession(
             ServerConnectionOptions options,
             ITelemetryContext telemetry)
+            : this(options, telemetry, securityPolicies: null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a server session that resolves security policy URIs against
+        /// the supplied registry, so a policy the application contributed
+        /// through <c>AddSecurityPolicy</c> is negotiable by the session this
+        /// adapter opens. Passing <see langword="null"/> falls back to
+        /// <see cref="SecurityPolicies.Default"/>.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        public ServerSession(
+            ServerConnectionOptions options,
+            ITelemetryContext telemetry,
+            ISecurityPolicyRegistry? securityPolicies)
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+            m_securityPolicies = securityPolicies;
             if (string.IsNullOrWhiteSpace(m_options.EndpointUrl))
             {
                 throw new ArgumentException(
@@ -501,6 +520,10 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 .UseEndpoint(endpoint)
                 .WithSessionName(m_options.SessionName)
                 .WithSessionTimeout(TimeSpan.FromMilliseconds(m_options.SessionTimeout));
+            if (m_securityPolicies != null)
+            {
+                builder = builder.UseSecurityPolicies(m_securityPolicies);
+            }
             if (identity != null)
             {
                 builder = builder.WithUserIdentity(identity);

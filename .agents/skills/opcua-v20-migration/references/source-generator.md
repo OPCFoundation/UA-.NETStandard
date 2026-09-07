@@ -1,7 +1,7 @@
 # Source generator: `<Type>Collection` shim emission + `MIG01` playbook
 
 The migration package's `Opc.Ua.MigrationAnalyzer.Generator.dll` is a Roslyn
-`IIncrementalGenerator` that emits `internal sealed [Obsolete] class
+`IIncrementalGenerator` that emits `public sealed [Obsolete] class
 <Name>Collection : List<TElement>` shims into the consumer's compilation for
 every legacy `<Type>Collection` wrapper the consumer references but that 2.0
 removed.
@@ -17,7 +17,7 @@ names, but **not** arbitrary user-compiled element types.
 The generator pattern lets the package cover the full open-ended catalog: it
 runs in the consumer's compilation context, sees every `<Foo>Collection` the
 consumer's code references, resolves `Foo` against the consumer's own types
-+ NuGet dependencies, and emits an internal subclass of `List<Foo>` only for
+and NuGet dependencies, and emits a public subclass of `List<Foo>` only for
 the names the consumer actually uses.
 
 ## Pipeline
@@ -61,38 +61,41 @@ The catalog only contains entries where semantic lookup would resolve to the
 | `ByteStringCollection` | `Opc.Ua.ByteString` | 1.5.378 element was `byte[]`; 2.0 needs `Opc.Ua.ByteString` (now a value type). |
 | `XmlElementCollection` | `System.Xml.XmlElement` | 2.0 introduced a value-typed `Opc.Ua.XmlElement` alongside the BCL `System.Xml.XmlElement` → the bare short name "XmlElement" resolves ambiguously. Pin the legacy interpretation so 1.5.378 callers drop in unchanged. |
 
-Everything else falls through to semantic lookup. This covers:
+Everything else falls through to two lookup paths:
 
+- **Consumer-source `<UserType>Collection` patterns** — the historical model
+  compiler emitted `Foo.BarCollection` for a complex type `Foo.Bar`.
+  `Compilation.GetSymbolsWithName` finds source declarations by short name
+  independently of `using` directives. Exactly one match is required.
 - **Primitive-typed wrappers** (`Int32Collection`, `BooleanCollection`,
-  `StringCollection`, …) — semantic lookup resolves to `System.Int32`,
-  `System.Boolean`, `System.String`, etc., which behave identically to the C#
-  aliases.
+  `StringCollection`, …) — metadata lookup probes `System.<Name>`.
 - **Built-in OPC UA-typed wrappers whose element name didn't change**
   (`NodeIdCollection`, `VariantCollection`, `DataValueCollection`,
   `ExtensionObjectCollection`, `EndpointDescriptionCollection`,
   `ReferenceDescriptionCollection`, `BrowsePathCollection`,
   `ReadValueIdCollection`, `WriteValueCollection`,
-  `MonitoredItemCreateRequestCollection`, …) — semantic lookup resolves
-  uniquely to the matching `Opc.Ua.*` type.
-- **Model-compiled `<UserType>Collection`** patterns — the historical
-  model-compiler convention emitted `Foo.BarCollection` for any complex type
-  `Foo.Bar`. Semantic lookup of `Bar` resolves uniquely in the consumer's
-  compilation.
+  `MonitoredItemCreateRequestCollection`, …) — metadata lookup probes
+  `Opc.Ua.<Name>`.
 
-### 2. Semantic lookup (arbitrary user types)
+Dependency metadata whose exact full name is not `System.<Type>` or
+`Opc.Ua.<Type>` is not scanned.
+
+### 2. Source declaration and standard metadata lookup
 
 For every other `<Foo>Collection` short name, the generator strips the
-`Collection` suffix and calls
-`Compilation.GetSymbolsWithName("Foo", SymbolFilter.Type, …)`. If exactly one
-`INamedTypeSymbol` matches, it emits the shim with the fully-qualified type
-reference (`global::Acme.WaterPump`, `global::Vendor.Devices.BoilerState`, etc).
+`Collection` suffix. It first calls
+`Compilation.GetSymbolsWithName("Foo", SymbolFilter.Type, …)` for consumer
+source declarations. If exactly one `INamedTypeSymbol` matches, it emits the
+shim with the fully qualified type reference. If no source declaration matches,
+it probes `System.Foo` and `Opc.Ua.Foo` with `GetTypeByMetadataName`.
 
 ### 3. MIG01 (unresolvable)
 
 Zero matches or > 1 matches → the generator emits **no** shim and reports
-`MIG01` instead, with the help link pointing at this skill's
+`MIG01` instead. Its help link opens the
+[resolution playbook below](#mig01-resolution-playbook);
 [`analyzer-rules.md`](analyzer-rules.md#mig01--generator-cant-resolve-element-type-for-foocollection)
-and [`docs/migrate/2.0.x/source-generation.md`](../../../../docs/migrate/2.0.x/source-generation.md).
+provides the compact rule summary.
 
 ## Generated file shape
 
@@ -114,7 +117,7 @@ namespace Opc.Ua
     [global::System.Obsolete(
         "'Int32Collection' was removed in 2.0. Use 'List<int>' " +
         "or 'ArrayOf<int>' instead. (UA0002)")]
-    internal sealed class Int32Collection : global::System.Collections.Generic.List<int>
+    public sealed class Int32Collection : global::System.Collections.Generic.List<int>
     {
         public Int32Collection() { }
         public Int32Collection(int capacity) : base(capacity) { }
@@ -128,10 +131,10 @@ namespace Opc.Ua
 
 ### Design choices in the generated shape
 
-- **`internal sealed`** — the shim never leaks through the consumer's public
-  API surface. (Consequence: consumer public APIs returning a
-  `<Type>Collection` will hit `CS0050: Inconsistent accessibility`. That's the
-  intended signal that the public surface must migrate first.)
+- **`public sealed`** — legacy public signatures keep compiling while the
+  migration package is installed. The shim remains `[Obsolete]` and disappears
+  when the package is removed, so it is a migration bridge rather than a stable
+  public API.
 - **`[Obsolete]` with `(UA0002)` suffix** — fires both CS0612 (or CS0618) **and**
   UA0002 with a consistent rule id.
 - **Implicit conversion to `ArrayOf<TElement>`** — graceful bridge into 2.0
@@ -143,18 +146,17 @@ namespace Opc.Ua
 
 ## MIG01 resolution playbook
 
-When the user reports `MIG01: Cannot resolve element type 'Foo' for legacy
-wrapper 'FooCollection'`, walk through these in order:
+When the user reports `MIG01: Cannot resolve a unique element type 'Foo' for
+legacy wrapper 'FooCollection'`, walk through these in order:
 
-### 1. Missing `using` directive (most common)
+### 1. Zero source matches
 
 ```csharp
-// Before — generator can't see Acme.WaterPump because there's no using
-public sealed class Pumps : IList<WaterPumpCollection> { … }   // MIG01 fires
+// Before — Vendor.WaterPump is dependency metadata, which is not scanned
+public WaterPumpCollection Pumps { get; set; }   // MIG01
 
-// After — add the using; generator emits WaterPumpCollection : List<Acme.WaterPump>
-using Acme;
-public sealed class Pumps : IList<WaterPumpCollection> { … }
+// After — state the intended element type directly
+public ArrayOf<global::Vendor.WaterPump> Pumps { get; set; }
 ```
 
 ### 2. Multiple candidates
@@ -163,21 +165,21 @@ public sealed class Pumps : IList<WaterPumpCollection> { … }
 // Before — both Acme.Boiler and Heaters.Boiler exist; generator picks neither
 public BoilerCollection MyBoilers { get; set; }   // MIG01
 
-// After — fully-qualify the type, or rename one of the conflicting types
-public global::Acme.BoilerCollection MyBoilers { get; set; }
+// After — fully-qualify the intended element type in the replacement
+public ArrayOf<global::Acme.Boiler> MyBoilers { get; set; }
 ```
 
-Note: name resolution treats the wrapper reference itself as
-`Opc.Ua.BoilerCollection` (the generator emits into the `Opc.Ua` namespace).
-The MIG01 is on the *element* type lookup, not the wrapper.
+Qualifying the legacy wrapper does not disambiguate the element lookup. The
+generator emits wrappers into `Opc.Ua`, while MIG01 concerns the stripped
+element short name.
 
-### 3. Element type lives in an unreferenced NuGet
+### 3. Element type lives in dependency metadata
 
-The generator only sees types in NuGets that `dotnet restore` materialized. Add
-the missing `<PackageReference>` to the consumer csproj. Common case: vendor
-device libraries that 1.5.378 consumers referenced transitively via
-`Quickstarts.Servers` (which no longer exists on 2.0 — see
-[`known-gaps.md`](known-gaps.md)).
+Adding a `PackageReference`, `ProjectReference`, or `using` makes the element
+available to C# but does not extend the generator's metadata search beyond the
+exact full names `System.<Type>` and `Opc.Ua.<Type>`. Migrate the site manually
+to the intended fully qualified `List<T>` / `ArrayOf<T>`, or define the wrapper
+explicitly.
 
 ### 4. Element type was deleted in your own migration
 
@@ -187,9 +189,10 @@ If `Foo` itself was renamed / removed during your 2.0 work, the
 
 ### 5. Force the shape manually
 
-Last resort: define an `internal` partial of the wrapper yourself in the
-consumer code, mirroring what the generator would have produced. Useful when
-the element type is genuinely synthesized at runtime (rare).
+Last resort: define the wrapper class yourself in consumer code. Match its
+accessibility to the signatures that use it; when the symbol binds, the
+generator skips emission. This is useful when the element type is genuinely
+synthesized at runtime (rare).
 
 ## Performance
 
@@ -217,6 +220,6 @@ In practice the generator is unmeasurable next to csc.exe's own startup cost.
   element short name with `Compilation.GetSymbolsWithName`; it doesn't try to
   enumerate generic instantiations or open generics. `MyCollection<T>` patterns
   are out of scope (and were never produced by the OPC UA model compiler).
-- **Internal-only emission.** No way to override; consumers with `public` APIs
-  returning `<Type>Collection` must migrate the public surface first (the
-  resulting `CS0050` is the intended forcing function).
+- **Temporary public emission.** Generated types keep legacy public signatures
+  compiling only while the package is installed. Migrate all remaining
+  references before removing the package.

@@ -300,13 +300,6 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
-        public void DataLockReturnsSelf()
-        {
-            var node = new Node();
-            Assert.That(node.DataLock, Is.SameAs(node));
-        }
-
-        [Test]
         public void ReferenceTableLazyInit()
         {
             var node = new Node();

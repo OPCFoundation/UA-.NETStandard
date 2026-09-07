@@ -40,7 +40,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
 {
     /// <summary>
     /// Verifies <see cref="MigrationGenerator"/> emits one
-    /// <c>internal sealed [Obsolete] class &lt;Name&gt;Collection : List&lt;TElement&gt;</c>
+    /// <c>public sealed [Obsolete] class &lt;Name&gt;Collection : List&lt;TElement&gt;</c>
     /// per uniquely-referenced legacy wrapper, falls back to semantic lookup for
     /// model-compiled element types, and surfaces <c>MIG01</c> for unresolvable
     /// references.
@@ -85,7 +85,10 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
                 name.StartsWith("Microsoft.CSharp", System.StringComparison.OrdinalIgnoreCase);
         }
 
-        private static GeneratorDriverRunResult Run(string userSource, string? extraSource = null)
+        private static GeneratorDriverRunResult Run(
+            string userSource,
+            string? extraSource = null,
+            MetadataReference? extraReference = null)
         {
             var parseOptions = new CSharpParseOptions(LanguageVersion.CSharp13);
 
@@ -99,20 +102,46 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
                 trees.Add(CSharpSyntaxTree.ParseText(extraSource, parseOptions, "Extra.cs"));
             }
 
+            ImmutableArray<MetadataReference> references = extraReference is null
+                ? s_baseReferences
+                : s_baseReferences.Add(extraReference);
             var compilation = CSharpCompilation.Create(
                 "GeneratorTestAssembly",
                 trees,
-                s_baseReferences,
+                references,
                 new CSharpCompilationOptions(
                     OutputKind.DynamicallyLinkedLibrary,
                     nullableContextOptions: NullableContextOptions.Enable));
 
-            GeneratorDriver driver = CSharpGeneratorDriver.Create(new MigrationGenerator());
+            // Hand the driver the same parse options as the input trees; the
+            // default language version tracks the Roslyn API version, so an
+            // implicit default makes the generated trees inconsistent with the
+            // compilation as soon as the SDK moves to a newer C#.
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(
+                [new MigrationGenerator().AsSourceGenerator()],
+                parseOptions: parseOptions);
             driver = driver.RunGeneratorsAndUpdateCompilation(
                 compilation,
                 out _,
                 out _);
             return driver.GetRunResult();
+        }
+
+        private static PortableExecutableReference CreateMetadataReference(string source)
+        {
+            var parseOptions = new CSharpParseOptions(LanguageVersion.CSharp13);
+            var compilation = CSharpCompilation.Create(
+                "DependencyAssembly",
+                [CSharpSyntaxTree.ParseText(source, parseOptions)],
+                [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)],
+                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+            using var stream = new MemoryStream();
+            var result = compilation.Emit(stream);
+            Assert.That(
+                result.Success,
+                Is.True,
+                string.Join(System.Environment.NewLine, result.Diagnostics));
+            return MetadataReference.CreateFromImage(stream.ToArray());
         }
 
         private static IEnumerable<TestCaseData> WellKnownOverridesCases()
@@ -147,9 +176,10 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
             Assert.That(generated, Is.Not.Null, $"No generated file for '{shortName}.g.cs'");
             string text = generated!.Value.SourceText.ToString();
             Assert.That(text, Does.Contain("namespace Opc.Ua"));
-            Assert.That(text, Does.Contain($"internal sealed class {shortName} : global::System.Collections.Generic.List<{elementDisplay}>"));
+            Assert.That(text, Does.Contain($"public sealed class {shortName} : global::System.Collections.Generic.List<{elementDisplay}>"));
             Assert.That(text, Does.Contain("[global::System.Obsolete("));
             Assert.That(text, Does.Contain("(UA0002)"));
+            Assert.That(text, Does.Contain("#pragma warning disable CS1591"));
             Assert.That(text, Does.Contain($"implicit operator global::Opc.Ua.ArrayOf<{elementDisplay}>"));
         }
 
@@ -179,7 +209,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
 
             Assert.That(generated, Is.Not.Null);
             string text = generated!.Value.SourceText.ToString();
-            Assert.That(text, Does.Contain("internal sealed class WaterPumpCollection : global::System.Collections.Generic.List<global::Acme.WaterPump>"));
+            Assert.That(text, Does.Contain("public sealed class WaterPumpCollection : global::System.Collections.Generic.List<global::Acme.WaterPump>"));
         }
 
         [Test]
@@ -204,7 +234,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
 
             Assert.That(generated, Is.Not.Null, "Semantic-lookup fallback must emit NodeIdCollection");
             string text = generated!.Value.SourceText.ToString();
-            Assert.That(text, Does.Contain("internal sealed class NodeIdCollection : global::System.Collections.Generic.List<global::Opc.Ua.NodeId>"));
+            Assert.That(text, Does.Contain("public sealed class NodeIdCollection : global::System.Collections.Generic.List<global::Opc.Ua.NodeId>"));
         }
 
         [Test]
@@ -233,7 +263,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
             // FullyQualifiedFormat uses C# keyword aliases for primitives, so
             // System.Int32 is rendered as `int` — that's intentional, the emitted
             // shim is consumer-facing and reads more naturally with the alias.
-            Assert.That(text, Does.Contain("internal sealed class Int32Collection : global::System.Collections.Generic.List<int>"));
+            Assert.That(text, Does.Contain("public sealed class Int32Collection : global::System.Collections.Generic.List<int>"));
         }
 
         [Test]
@@ -274,8 +304,44 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
             Assert.That(emitted, Is.False, "MIG01 path must not emit a shim type");
 
             ImmutableArray<Diagnostic> diagnostics = result.Diagnostics;
-            Assert.That(diagnostics.Any(d => d.Id == "MIG01"), Is.True,
+            Diagnostic? diagnostic = diagnostics.SingleOrDefault(d => d.Id == "MIG01");
+            Assert.That(diagnostic, Is.Not.Null,
                 $"Expected MIG01 diagnostic; saw: {string.Join(", ", diagnostics.Select(d => d.Id))}");
+            string message = diagnostic!.GetMessage(System.Globalization.CultureInfo.InvariantCulture);
+            Assert.That(message, Does.Contain("consumer source declarations"));
+            Assert.That(message, Does.Not.Contain("using directive"));
+            Assert.That(
+                diagnostic.Descriptor.HelpLinkUri,
+                Is.EqualTo(
+                    "https://github.com/OPCFoundation/UA-.NETStandard/blob/master/" +
+                    "docs/migrate/2.0.x/source-generation.md#mig01-resolution-playbook"));
+        }
+
+        [Test]
+        public void DependencyMetadataOutsideSupportedNamespacesReportsMig01()
+        {
+            const string dependency = """
+                namespace Vendor
+                {
+                    public sealed class Pump { }
+                }
+                """;
+            const string user = """
+                using Opc.Ua;
+                public static class Use
+                {
+                    public static void M(PumpCollection arg) { }
+                }
+                """;
+
+            GeneratorDriverRunResult result = Run(
+                user,
+                extraReference: CreateMetadataReference(dependency));
+
+            Assert.That(
+                result.Results.SelectMany(r => r.GeneratedSources),
+                Has.None.Matches<GeneratedSourceResult>(source => source.HintName == "PumpCollection.g.cs"));
+            Assert.That(result.Diagnostics, Has.One.Matches<Diagnostic>(diagnostic => diagnostic.Id == "MIG01"));
         }
 
         [Test]

@@ -6,38 +6,39 @@ A single NuGet install (`OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer`) th
 ships **three Roslyn components + a runtime shim** to help migrate from OPC UA
 .NET Standard 1.5.378 to 2.0:
 
-- a Roslyn **analyzer + code-fixer** set (`UA0001`–`UA0022`) that flags every
-  pattern covered by the
+- a Roslyn **analyzer + code-fixer** set (26 implemented rules through
+  `UA0030`, excluding `UA0013`, `UA0016`, `UA0017`, and the shim-only
+  `UA0029`) that flags the
+  automatable patterns covered by the
   [2.0 migration guide](../../docs/migrate/2.0.x/README.md)
   and, where safe, applies the fix automatically;
 - a Roslyn **source generator** (`Opc.Ua.MigrationAnalyzer.Generator.dll`) that
-  emits per-consumer `internal sealed [Obsolete] class <Name>Collection : List<TElement>`
+  emits per-consumer `public sealed [Obsolete] class <Name>Collection : List<TElement>`
   shims for every `<Type>Collection` wrapper the consumer references but that
   2.0 removed — **including** model-compiled `<UserType>Collection` patterns,
   not just the built-in ones. Element types renamed across the
   1.5.378 → 2.0 boundary (`DateTime`→`DateTimeUtc`, `Guid`→`Uuid`,
-  `byte[]`→`ByteString`, `XmlElement`→`Opc.Ua.XmlElement`) are pinned through
-  a small override table; everything else (primitives, built-in
-  unrenamed types, model-compiled user types) falls back to semantic lookup
-  in the consumer's compilation; and
+  `byte[]`→`ByteString`) are pinned through a small override table; the legacy
+  `XmlElementCollection` interpretation is pinned to `System.Xml.XmlElement`
+  to disambiguate it from `Opc.Ua.XmlElement`. Everything else resolves from
+  consumer source declarations, then from exact `System.<Type>` or
+  `Opc.Ua.<Type>` metadata names; and
 - a **compatibility shim** assembly (`Opc.Ua.MigrationAnalyzer.Core.dll`) that
   re-supplies the obsolete extension surface 2.0 moved or removed, so most
   consumer projects still compile after the upgrade.
 
-> ℹ **The generator emits `internal` types by design** — they never leak through
-> the consumer's public API surface. If your consumer has *public* methods or
-> properties that return / accept a `<Type>Collection`, you'll hit `CS0050:
-> Inconsistent accessibility`. That's the intended signal that your **public
-> API** has to migrate to `List<T>` / `ArrayOf<T>` first; internal call sites
-> keep compiling under the shim so you can iterate at your own pace.
+> ℹ **The generator emits `public` shim types** so legacy `<Type>Collection` usage
+> can continue compiling while you migrate incrementally. Keep treating each
+> `[Obsolete]` + `UA0002` site as a migration step to `List<T>` / `ArrayOf<T>`.
 
 ## How to migrate
 
 1. Add the 2.0 OPC UA packages **and** the MigrationAnalyzer package to your
-   consumer project:
+   consumer project. The package is public on nuget.org; the floating version
+   resolves the latest published `2.0.0-preview.N` release:
 
    ```xml
-   <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer" Version="x.y.z" PrivateAssets="all" />
+   <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer" Version="2.0.0-preview.*" PrivateAssets="all" />
    ```
 
 2. Run `dotnet build`. Your code should compile: the shim covers the
@@ -46,9 +47,14 @@ ships **three Roslyn components + a runtime shim** to help migrate from OPC UA
    rather than errors.
 3. Walk through the `UA00xx` analyzer warnings in the IDE and apply the
    offered auto-fixes. A handful (`UA0001`, `UA0011`, `UA0015`, `UA0018`,
-   `UA0021`) are `Info`-level and need a manual review. A single generator
-   diagnostic (`MIG01`) fires when the generator can't resolve a model-compiled
-   element type — add the appropriate `using` or migrate the site manually.
+   `UA0021`) are `Info`-level and need a manual review. The warning-level
+   `UA0023`–`UA0028` and `UA0030` are also diagnostic-only. A single generator
+   diagnostic (`MIG01`) fires when the generator can't resolve a unique element
+   type from consumer source or exact `System.<Type>` / `Opc.Ua.<Type>`
+   metadata names.
+   Migrate the site manually or define the legacy wrapper explicitly. Calls to
+   shimmed `SecurityPolicies` statics surface as `CS0618` messages tagged
+   `UA0029`; no analyzer reports that marker, so migrate those calls manually.
 4. Once the project is warning-free, remove the
    `OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` package reference. You are
    on clean 2.0 with no shim dependency.
@@ -74,15 +80,23 @@ ships **three Roslyn components + a runtime shim** to help migrate from OPC UA
 | UA0018 | Info     | `CertificateIdentifier.Certificate` getter                                              |
 | UA0019 | Warning  | `new DataValue(StatusCode[, ts])`                                                       |
 | UA0020 | Warning  | `EncodeableFactory.GlobalFactory` / `Create()`                                          |
-| UA0021 | Info     | `CertificateValidator` / `CertificateValidationEventArgs` (structural rename in 1.6)    |
+| UA0021 | Info     | `CertificateValidator` / `CertificateValidationEventArgs` (structural rename in 2.0)    |
 | UA0022 | Warning  | `ApplicationConfiguration.CertificateValidator` / `ServerBase.CertificateValidator` (renamed in 2.0 to `.CertificateManager`) |
+| UA0023 | Warning  | Legacy PubSub top-level types and `UaPubSubApplication.Create*`                       |
+| UA0024 | Warning  | Exposed server, session, and subscription diagnostics locks                          |
+| UA0025 | Warning  | `ILocalNode.DataLock` / `Node.DataLock`                                               |
+| UA0026 | Warning  | `BaseVariableValue.Lock`                                                              |
+| UA0027 | Warning  | `NodeBrowser.DataLock`                                                               |
+| UA0028 | Warning  | `ApplicationConfiguration.PropertiesLock`                                           |
+| UA0029 | —        | Shim/manual marker only: `SecurityPolicies` lookup and cryptography statics moved to `ISecurityPolicyRegistry`; no analyzer currently reports this ID |
+| UA0030 | Warning  | Server `ISubscription` publish-pipeline members and `SessionPublishQueue` became internal |
 
 ## What the shim provides
 
 `Opc.Ua.MigrationAnalyzer.Core.dll` is delivered as a regular reference assembly and
 re-exposes the 1.5.378 surface in two flavors:
 
-- **Moved obsolete extensions** the 1.6 libraries no longer carry inline:
+- **Moved obsolete extensions** the 2.0 libraries no longer carry inline:
   `NodeId` / `Variant` / `DataValue` null-check helpers, `Session` sync
   helpers, `Subscription` sync helpers, `ApplicationInstance` helpers,
   `ServerBase.Start` / `Stop`, `TransportChannel` APM (`BeginX` / `EndX`),
@@ -93,6 +107,9 @@ re-exposes the 1.5.378 surface in two flavors:
   - sync wrappers for
     `IUserIdentityTokenHandler.{Encrypt,Decrypt,Sign,Verify}`
   - sync + APM wrappers for the GDS / LDS client APIs.
+  - `SecurityPolicies` lookup and cryptography statics marked for manual
+    `ISecurityPolicyRegistry` migration (`UA0029`; surfaced as `CS0618`, not an
+    analyzer diagnostic).
 
 ## What the shim does NOT cover
 
@@ -107,7 +124,7 @@ Use the listed analyzer fix.
   the **UA0009** fixer.
 - Removed `<Type>Collection` wrappers such as `Int32Collection`,
   `NodeIdCollection`, etc. — use the **UA0002** fixer to rewrite to
-  `List<T>` or `ArrayOf<T>`.
+  `List<T>`, then manually use `ArrayOf<T>` at applicable API boundaries.
 
 ## Sync-over-async caveat
 
@@ -128,7 +145,7 @@ diagnostics from the failure set:
 ```xml
 <PropertyGroup>
   <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-  <NoWarn>$(NoWarn);CS0618;UA0001;UA0002;UA0003;UA0004;UA0005;UA0006;UA0007;UA0008;UA0009;UA0010;UA0011;UA0012;UA0014;UA0015;UA0018;UA0019;UA0020</NoWarn>
+  <NoWarn>$(NoWarn);CS0612;CS0618;MIG01;UA0001;UA0002;UA0003;UA0004;UA0005;UA0006;UA0007;UA0008;UA0009;UA0010;UA0011;UA0012;UA0014;UA0015;UA0018;UA0019;UA0020;UA0021;UA0022;UA0023;UA0024;UA0025;UA0026;UA0027;UA0028;UA0030</NoWarn>
 </PropertyGroup>
 ```
 
@@ -137,21 +154,39 @@ whole block once the MigrationAnalyzer package is removed.
 
 ## Packaging note
 
-The package ships **two analyzer DLLs** under `analyzers/dotnet/cs/`:
+The package ships **three Roslyn component DLLs** under
+`analyzers/dotnet/roslyn<major>.<minor>/cs/`. The .NET SDK loads that folder when its
+compiler supports the Roslyn API and ignores it otherwise, so an older host cleanly
+skips the analyzer rather than failing to load it:
 
-- `Opc.Ua.MigrationAnalyzer.dll` — the analyzer assembly. Targets `Microsoft.CodeAnalysis 4.x`
-  (the stable analyzer API) and references **only** `Microsoft.CodeAnalysis.CSharp` so it
-  loads cleanly in csc.exe's analyzer host (which ships only `Microsoft.CodeAnalysis.dll`
-  + `CSharp.dll`, not `Workspaces`). All `DiagnosticAnalyzer` types live here.
+| Roslyn API | Minimum host |
+| --- | --- |
+| 4.14 | Visual Studio 2022 17.14 / .NET SDK 9.0.300+ |
+| 5.0 | Visual Studio 2026 18.0 / .NET 10 SDK |
+
+.NET SDK 9.0.100 and 9.0.200 carry Roslyn 4.12 and 4.13 respectively; neither
+can load the package's oldest analyzer payload.
+
+Always use the latest available .NET SDK servicing release in the supported
+9.x or 10.x band; servicing releases contain the security fixes needed for
+production.
+
+- `Opc.Ua.MigrationAnalyzer.dll` — the analyzer assembly. References **only**
+  `Microsoft.CodeAnalysis.CSharp` so it loads cleanly in csc.exe's analyzer host
+  (which ships only `Microsoft.CodeAnalysis.dll` + `CSharp.dll`, not `Workspaces`).
+  All `DiagnosticAnalyzer` types live here.
 - `Opc.Ua.MigrationAnalyzer.CodeFixer.dll` — the code-fix assembly. References
   `Microsoft.CodeAnalysis.CSharp.Workspaces` and hosts all `CodeFixProvider` types.
   Loaded only by Workspaces-aware hosts (Visual Studio / `dotnet format`).
+- `Opc.Ua.MigrationAnalyzer.Generator.dll` — the source generator that emits the
+  `<Type>Collection` shims.
 
-This split is necessary because shipping a single DLL that references `Workspaces`
-silently fails to load in csc.exe at command-line build time — csc loads the assembly
-but JIT-resolution of `Workspaces` types fails (DLL not in bincore), and the analyzer
-host swallows the load failure, producing zero diagnostics. Splitting keeps the
-analyzer host happy while preserving full IDE/`dotnet format` code-fix functionality.
+The analyzer / code-fix split is necessary because shipping a single DLL that
+references `Workspaces` silently fails to load in csc.exe at command-line build time —
+csc loads the assembly but JIT-resolution of `Workspaces` types fails (DLL not in
+bincore), and the analyzer host swallows the load failure, producing zero diagnostics.
+Splitting keeps the analyzer host happy while preserving full IDE/`dotnet format`
+code-fix functionality.
 
 `RS1038` (suggesting separation) is the Roslyn rule that recommends this layout;
 it is satisfied implicitly by the two-DLL design.

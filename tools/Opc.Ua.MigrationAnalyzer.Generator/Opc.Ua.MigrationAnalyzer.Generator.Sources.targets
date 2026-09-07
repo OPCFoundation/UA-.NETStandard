@@ -1,0 +1,25 @@
+<Project>
+  <!--
+    Sources and identity of the OPC UA migration source generator, shared by
+    every Roslyn variant.
+  -->
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).MigrationAnalyzer.Generator</AssemblyName>
+    <RootNamespace>Opc.Ua.MigrationAnalyzer.Generator</RootNamespace>
+    <Description>OPC UA .NET Standard migration source generator (1.5.378 to 2.0). Emits internal [Obsolete] shim subclasses of List&lt;T&gt; for any &lt;Type&gt;Collection name (including model-compiled user types) the consumer references but that 2.0 has removed, so the consumer code keeps compiling while UA0002 guides the eventual rewrite to List&lt;T&gt; / ArrayOf&lt;T&gt;.</Description>
+    <MigrationGeneratorDirectory>$(MSBuildThisFileDirectory)</MigrationGeneratorDirectory>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <!-- RS1007: localizable resources not required for an internal source generator.
+         RS1038: shipping multiple Roslyn components in the same package is supported. -->
+    <NoWarn>$(NoWarn);RS1007;RS1038;RS2008</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.MigrationAnalyzer.Tests" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectDirectory)\' != '$(MigrationGeneratorDirectory)'">
+    <Compile Include="$(MigrationGeneratorDirectory)**\*.cs"
+             Exclude="$(MigrationGeneratorDirectory)bin\**\*.cs;$(MigrationGeneratorDirectory)obj\**\*.cs"
+             LinkBase="Shared" />
+  </ItemGroup>
+  <Import Project="$(MSBuildThisFileDirectory)..\MigrationAnalyzerVariant.targets" />
+</Project>

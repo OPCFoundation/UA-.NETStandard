@@ -65,7 +65,7 @@ namespace Opc.Ua.Core.Tests.Security
         {
             Assert.That(
                 Profiles.UaWssTransport,
-                Is.EqualTo("http://opcfoundation.org/UA-Profile/Transport/uawss-uasc-uabinary"));
+                Is.EqualTo("http://opcfoundation.org/UA-Profile/Transport/wss-uasc-uabinary"));
         }
 
         [Test]
@@ -73,7 +73,7 @@ namespace Opc.Ua.Core.Tests.Security
         {
             Assert.That(
                 Profiles.UaWssJsonTransport,
-                Is.EqualTo("http://opcfoundation.org/UA-Profile/Transport/uawss-uajson"));
+                Is.EqualTo("http://opcfoundation.org/UA-Profile/Transport/wss-uajson"));
         }
 
         [Test]
@@ -94,7 +94,7 @@ namespace Opc.Ua.Core.Tests.Security
         [TestCase("", false)]
         [TestCase("http://opcfoundation.org/UA-Profile/Transport/https-uabinary", true)]
         [TestCase("http://opcfoundation.org/UA-Profile/Transport/https-uajson", false)]
-        [TestCase("http://opcfoundation.org/UA-Profile/Transport/uawss-uasc-uabinary", false)]
+        [TestCase("http://opcfoundation.org/UA-Profile/Transport/wss-uasc-uabinary", false)]
         [TestCase("http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary", false)]
         public void IsHttpsBinaryRecognizesExactProfile(string? profileUri, bool expected)
         {
@@ -105,15 +105,15 @@ namespace Opc.Ua.Core.Tests.Security
         [TestCase("", false)]
         [TestCase("http://opcfoundation.org/UA-Profile/Transport/https-uajson", true)]
         [TestCase("http://opcfoundation.org/UA-Profile/Transport/https-uabinary", false)]
-        [TestCase("http://opcfoundation.org/UA-Profile/Transport/uawss-uajson", false)]
+        [TestCase("http://opcfoundation.org/UA-Profile/Transport/wss-uajson", false)]
         public void IsHttpsJsonRecognizesExactProfile(string? profileUri, bool expected)
         {
             Assert.That(Profiles.IsHttpsJson(profileUri), Is.EqualTo(expected));
         }
 
         [TestCase(null, false)]
-        [TestCase("http://opcfoundation.org/UA-Profile/Transport/uawss-uasc-uabinary", true)]
-        [TestCase("http://opcfoundation.org/UA-Profile/Transport/uawss-uajson", false)]
+        [TestCase("http://opcfoundation.org/UA-Profile/Transport/wss-uasc-uabinary", true)]
+        [TestCase("http://opcfoundation.org/UA-Profile/Transport/wss-uajson", false)]
         [TestCase("http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary", false)]
         public void IsWssBinaryRecognizesExactProfile(string? profileUri, bool expected)
         {
@@ -121,8 +121,8 @@ namespace Opc.Ua.Core.Tests.Security
         }
 
         [TestCase(null, false)]
-        [TestCase("http://opcfoundation.org/UA-Profile/Transport/uawss-uajson", true)]
-        [TestCase("http://opcfoundation.org/UA-Profile/Transport/uawss-uasc-uabinary", false)]
+        [TestCase("http://opcfoundation.org/UA-Profile/Transport/wss-uajson", true)]
+        [TestCase("http://opcfoundation.org/UA-Profile/Transport/wss-uasc-uabinary", false)]
         [TestCase("http://opcfoundation.org/UA-Profile/Transport/https-uajson", false)]
         public void IsWssJsonRecognizesExactProfile(string? profileUri, bool expected)
         {

@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.StateMachines
     /// <param name="NodeId">The NodeId of the <c>StateType</c> instance.</param>
     /// <param name="BrowseName">The browse name (e.g. <c>Unshelved</c>).</param>
     /// <param name="StateNumber">The state number declared by the
-    /// type (Part 16 §B.4.3). Zero when the server does not expose
+    /// type (Part 16 §4.4.8). Zero when the server does not expose
     /// the <c>StateNumber</c> property.</param>
     public sealed record FiniteStateInfo(
         NodeId NodeId,

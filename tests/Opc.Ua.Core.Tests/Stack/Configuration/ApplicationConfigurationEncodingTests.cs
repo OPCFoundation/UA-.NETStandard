@@ -76,7 +76,6 @@ namespace Opc.Ua.Core.Tests
             Assert.That(config.TransportConfigurations.IsNull, Is.False);
             Assert.That(config.Properties, Is.Not.Null);
             Assert.That(config.ExtensionObjects, Is.Not.Null);
-            Assert.That(config.PropertiesLock, Is.Not.Null);
             // CertificateManager is created lazily by ValidateAsync; it
             // is null until the configuration is validated.
             Assert.That(config.CertificateManager, Is.Null);

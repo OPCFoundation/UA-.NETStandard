@@ -335,10 +335,16 @@ namespace Opc.Ua
             var children = new List<BaseInstanceState>();
             source.GetChildren(context, children);
 
+            // Every child created below is initialized from its source right
+            // afterwards, which overwrites the NodeId a factory would hand out
+            // here, so the copy must not consume identifiers for them.
             for (int ii = 0; ii < children.Count; ii++)
             {
                 BaseInstanceState sourceChild = children[ii];
-                BaseInstanceState? child = CreateChild(context, sourceChild.BrowseName);
+                BaseInstanceState? child = CreateChild(
+                    context,
+                    sourceChild.BrowseName,
+                    assignInstanceNodeIds: false);
 
                 if (child == null)
                 {
@@ -2458,6 +2464,15 @@ namespace Opc.Ua
         public bool Initialized { get; set; }
 
         /// <summary>
+        /// True if the node has completed its create lifecycle.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Delete"/> resets this state. Removing a node from a node
+        /// manager without deleting the instance does not.
+        /// </remarks>
+        public bool IsCreated { get; private set; }
+
+        /// <summary>
         /// True if the node must be validated with the underlying system before use.
         /// </summary>
         public bool ValidationRequired => OnValidate != null;
@@ -3035,7 +3050,7 @@ namespace Opc.Ua
             Initialize(context);
 
             // Call OnBeforeCreate on all children.
-            CallOnBeforeCreate(context);
+            CallOnBeforeCreate(context, true);
 
             // override node id.
             if (!nodeId.IsNull)
@@ -3057,13 +3072,16 @@ namespace Opc.Ua
                 DisplayName = displayName;
             }
 
-            CreateInternal(context, assignNodeIds);
+            CreateInternal(context, assignNodeIds, true);
         }
 
         /// <summary>
         /// Internal create sequence without node assignments
         /// </summary>
-        private void CreateInternal(ISystemContext context, bool assignNodeIds)
+        private void CreateInternal(
+            ISystemContext context,
+            bool assignNodeIds,
+            bool forceCreateLifecycle)
         {
             // get all children.
             var children = new List<BaseInstanceState>();
@@ -3082,24 +3100,62 @@ namespace Opc.Ua
                 UpdateReferenceTargets(context, children, mappingTable);
             }
 
-            CallOnAfterCreate(context, children);
+            CallOnAfterCreate(context, children, forceCreateLifecycle);
+
+            const int maxLifecycleCompletionPasses = 100;
+            for (int pass = 0; HasUncreatedNodes(context); pass++)
+            {
+                if (pass >= maxLifecycleCompletionPasses)
+                {
+                    throw new InvalidOperationException(
+                        "The node create lifecycle did not converge because lifecycle callbacks " +
+                        "kept adding uncreated nodes.");
+                }
+
+                CallOnBeforeCreate(context, false);
+                CallOnAfterCreate(context, null, false);
+            }
 
             ClearChangeMasks(context, true);
         }
 
-        /// <summary>
-        /// Recusivesly calls OnBeforeCreate for the node and its children.
-        /// </summary>
-        private void CallOnBeforeCreate(ISystemContext context)
+        private bool HasUncreatedNodes(ISystemContext context)
         {
-            OnBeforeCreate(context, this);
+            if (!IsCreated)
+            {
+                return true;
+            }
 
             var children = new List<BaseInstanceState>();
             GetChildren(context, children);
 
             for (int ii = 0; ii < children.Count; ii++)
             {
-                children[ii].CallOnBeforeCreate(context);
+                if (children[ii].HasUncreatedNodes(context))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Recusivesly calls OnBeforeCreate for the node and its children.
+        /// </summary>
+        private void CallOnBeforeCreate(ISystemContext context, bool force)
+        {
+            if (force || !IsCreated)
+            {
+                OnBeforeCreate(context, this);
+            }
+
+            var children = new List<BaseInstanceState>();
+            GetChildren(context, children);
+
+            for (int ii = 0; ii < children.Count; ii++)
+            {
+                children[ii].CallOnBeforeCreate(context, force);
             }
         }
 
@@ -3127,7 +3183,11 @@ namespace Opc.Ua
         /// <summary>
         /// Recusivesly calls OnAfterCreate for the node and its children.
         /// </summary>
-        private void CallOnAfterCreate(ISystemContext context, List<BaseInstanceState>? children, CancellationToken ct = default)
+        private void CallOnAfterCreate(
+            ISystemContext context,
+            List<BaseInstanceState>? children,
+            bool force,
+            CancellationToken ct = default)
         {
             if (children == null)
             {
@@ -3137,10 +3197,14 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < children.Count; ii++)
             {
-                children[ii].CallOnAfterCreate(context, null, ct);
+                children[ii].CallOnAfterCreate(context, null, force, ct);
             }
 
-            OnAfterCreate(context, this, ct);
+            if (force || !IsCreated)
+            {
+                OnAfterCreate(context, this, ct);
+                IsCreated = true;
+            }
         }
 
         /// <summary>
@@ -3149,8 +3213,8 @@ namespace Opc.Ua
         public virtual void Create(ISystemContext context, NodeState source)
         {
             Initialize(context, source);
-            CallOnBeforeCreate(context);
-            CreateInternal(context, false);
+            CallOnBeforeCreate(context, true);
+            CreateInternal(context, false, true);
         }
 
         /// <summary>
@@ -3170,18 +3234,19 @@ namespace Opc.Ua
 
             OnAfterDelete(context);
 
+            IsCreated = false;
             ChangeMasks = NodeStateChangeMasks.Deleted;
             ClearChangeMasks(context, false);
         }
 
         /// <summary>
-        /// Called when the predefined node was fully created. Called
-        /// by generated code after all children have been created.
+        /// Completes the create lifecycle for a predefined node and any
+        /// children which have not already completed it.
         /// </summary>
         public void CreateAsPredefinedNode(ISystemContext context)
         {
-            CallOnBeforeCreate(context);
-            CreateInternal(context, false);
+            CallOnBeforeCreate(context, false);
+            CreateInternal(context, false, false);
         }
 
         /// <summary>
@@ -3257,7 +3322,27 @@ namespace Opc.Ua
         /// <param name="browseName">The browse name of the targets to return.</param>
         /// <param name="additionalReferences">Any additional references that should be included in the list.</param>
         /// <param name="internalOnly">Only return references that are stored in memory.</param>
-        /// <returns>A thread safe object which enumerates the references for an entity.</returns>
+        /// <returns>A browser which enumerates the references for an entity.</returns>
+        /// <remarks>
+        /// <para>
+        /// The node guards the browser build itself, so callers must not take a lock on the
+        /// node. Browser construction on a node is serialized: two concurrent calls do not
+        /// interleave their <see cref="PopulateBrowser"/> and <see cref="OnPopulateBrowser"/>
+        /// work, which is what a handler that mutates the node during population relies on.
+        /// </para>
+        /// <para>
+        /// The browser is a point-in-time copy - changes made to the node afterwards do not
+        /// appear in it. It is <b>not</b> an atomic snapshot across the node's children,
+        /// notifiers and references: writers take those collections' own locks and not the
+        /// browse lock, so a browser built while a writer is running can pair children from
+        /// before a change with references from after it. Each individual collection is read
+        /// consistently; the combination is not a transaction.
+        /// </para>
+        /// <para>
+        /// The returned browser is single-consumer: the caller owns it and must not share it
+        /// with another thread. See <see cref="NodeBrowser"/>.
+        /// </para>
+        /// </remarks>
         public virtual INodeBrowser CreateBrowser(
             ISystemContext context,
             ViewDescription? view,
@@ -3296,9 +3381,12 @@ namespace Opc.Ua
                     browser = newBrowser;
                 }
 
-                PopulateBrowser(context, browser);
+                lock (m_browseLock)
+                {
+                    PopulateBrowser(context, browser);
 
-                OnPopulateBrowser?.Invoke(context, this, browser);
+                    OnPopulateBrowser?.Invoke(context, this, browser);
+                }
 
                 newBrowser = null;
                 return browser;
@@ -3306,6 +3394,34 @@ namespace Opc.Ua
             finally
             {
                 newBrowser?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Populates the browser while holding the node's browse lock.
+        /// </summary>
+        /// <remarks>
+        /// An override of <see cref="CreateBrowser"/> that builds its own browser instead of
+        /// delegating to the base implementation must fill it through this method rather than
+        /// calling <see cref="PopulateBrowser"/> directly. Calling <see cref="PopulateBrowser"/>
+        /// straight leaves browser construction unserialized against other browses of the same
+        /// node and skips <see cref="OnPopulateBrowser"/> altogether.
+        /// </remarks>
+        /// <param name="context">The context for the current operation.</param>
+        /// <param name="browser">The browser to populate.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        protected void PopulateBrowserSynchronized(ISystemContext context, NodeBrowser browser)
+        {
+            if (browser == null)
+            {
+                throw new ArgumentNullException(nameof(browser));
+            }
+
+            lock (m_browseLock)
+            {
+                PopulateBrowser(context, browser);
+
+                OnPopulateBrowser?.Invoke(context, this, browser);
             }
         }
 
@@ -3500,6 +3616,14 @@ namespace Opc.Ua
         /// <summary>
         /// Populates the browser with references that meet the criteria.
         /// </summary>
+        /// <remarks>
+        /// Called by <see cref="PopulateBrowserSynchronized"/> while the node's browse lock is
+        /// held, so it does not run concurrently with another browse of the same node. Keep an
+        /// override to in-memory work: the lock is held for its duration, so blocking on I/O
+        /// here stalls every other browse of this node. A browser that needs to reach an
+        /// underlying system should defer that work to its own <see cref="INodeBrowser.Next"/>,
+        /// as <c>DirectoryBrowser</c> does.
+        /// </remarks>
         /// <param name="context">The context for the current operation.</param>
         /// <param name="browser">The browser to populate.</param>
         protected virtual void PopulateBrowser(ISystemContext context, NodeBrowser browser)
@@ -3813,6 +3937,34 @@ namespace Opc.Ua
             QualifiedName dataEncoding,
             ref DataValue value)
         {
+            return ReadAttributeCore(
+                context, attributeId, indexRange, dataEncoding, ref value);
+        }
+
+        /// <summary>
+        /// Reads an attribute.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately takes no node-wide lock. Reading an attribute dispatches to
+        /// caller-supplied handlers (<c>OnReadValue</c> and its siblings), and a handler may
+        /// take locks of its own. Holding a lock on the node across one puts the node into
+        /// an unknown lock order and deadlocks against any caller that takes that lock first
+        /// and then touches the node. The asynchronous read path has always snapshotted
+        /// under a lock and released before dispatching; this matches it. The individual
+        /// attribute fields guard themselves.
+        /// </remarks>
+        /// <param name="context">The context for the current operation.</param>
+        /// <param name="attributeId">The attribute id.</param>
+        /// <param name="indexRange">The index range.</param>
+        /// <param name="dataEncoding">The data encoding.</param>
+        /// <param name="value">The value.</param>
+        private ServiceResult ReadAttributeCore(
+            ISystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            ref DataValue value)
+        {
             Variant valueToRead = value.WrappedValue;
 
             _ = ServiceResult.Good;
@@ -3881,7 +4033,7 @@ namespace Opc.Ua
         /// Asynchronous sibling of
         /// <see cref="ReadAttribute(ISystemContext, uint, NumericRange, QualifiedName, ref DataValue)"/>.
         /// The default implementation simply wraps the synchronous call
-        /// inside a <c>lock(this)</c> so behaviour is bit-identical for
+        /// so behaviour is bit-identical for
         /// every <see cref="NodeState"/> that does not override it. Derived
         /// types (notably <see cref="BaseVariableState"/>) can override
         /// this method to dispatch to true asynchronous read hooks without
@@ -3910,18 +4062,7 @@ namespace Opc.Ua
         {
             ServiceResult result;
             DataValue value = seed;
-            // TODO: introduce a dedicated private lock object on NodeState —
-            // today's sync flow synchronises through `lock(source)` taken by
-            // external callers (e.g. CustomNodeManager2.Read), so the async
-            // path must lock on the same instance to preserve mutual
-            // exclusion. Switching to a private lock object requires
-            // updating every external `lock(source)` site.
-#pragma warning disable CA2002, RCS1059 // weak-identity lock on `this` is intentional: external callers synchronise via lock(source)
-            lock (this)
-#pragma warning restore CA2002, RCS1059
-            {
-                result = ReadAttribute(context, attributeId, indexRange, dataEncoding, ref value);
-            }
+            result = ReadAttribute(context, attributeId, indexRange, dataEncoding, ref value);
             return new ValueTask<(ServiceResult, DataValue)>((result, value));
         }
 
@@ -4158,6 +4299,29 @@ namespace Opc.Ua
             NumericRange indexRange,
             DataValue value)
         {
+            return WriteAttributeCore(context, attributeId, indexRange, value);
+        }
+
+        /// <summary>
+        /// Writes an attribute.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately takes no node-wide lock, for the same reason as the read path:
+        /// writing dispatches to caller-supplied handlers (<c>OnWriteValue</c> and its
+        /// siblings) which may take locks of their own, and holding a lock on the node
+        /// across one gives the node no fixed place in the lock order. The individual
+        /// attribute fields guard themselves.
+        /// </remarks>
+        /// <param name="context">The context for the current operation.</param>
+        /// <param name="attributeId">The attribute id.</param>
+        /// <param name="indexRange">The index range.</param>
+        /// <param name="value">The value.</param>
+        private ServiceResult WriteAttributeCore(
+            ISystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            DataValue value)
+        {
             Variant valueToWrite = value.WrappedValue;
 
             if (attributeId == Attributes.Value)
@@ -4223,8 +4387,8 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronous sibling of
         /// <see cref="WriteAttribute(ISystemContext, uint, NumericRange, DataValue)"/>.
-        /// The default implementation wraps the synchronous call inside a
-        /// <c>lock(this)</c> so behaviour is bit-identical for every
+        /// The default implementation wraps the synchronous call so behaviour is
+        /// bit-identical for every
         /// <see cref="NodeState"/> that does not override it. Derived
         /// types (notably <see cref="BaseVariableState"/>) can override
         /// this method to dispatch to true asynchronous write hooks
@@ -4242,15 +4406,7 @@ namespace Opc.Ua
             DataValue value,
             CancellationToken cancellationToken = default)
         {
-            ServiceResult result;
-            // TODO: introduce a dedicated private lock object on NodeState —
-            // see the sibling note in ReadAttributeAsync for the rationale.
-#pragma warning disable CA2002, RCS1059 // weak-identity lock on `this` is intentional: external callers synchronise via lock(source)
-            lock (this)
-#pragma warning restore CA2002, RCS1059
-            {
-                result = WriteAttribute(context, attributeId, indexRange, value);
-            }
+            ServiceResult result = WriteAttribute(context, attributeId, indexRange, value);
             return new ValueTask<ServiceResult>(result);
         }
 
@@ -4680,19 +4836,32 @@ namespace Opc.Ua
         /// <summary>
         /// Finds or creates the child with the specified browse name.
         /// </summary>
+        /// <remarks>
+        /// A caller that overwrites the child's NodeId immediately afterwards -
+        /// a node copy is the canonical case - passes <c>false</c> for
+        /// <paramref name="assignInstanceNodeIds"/> so the
+        /// <see cref="ISystemContext.NodeIdFactory"/> is never asked for an
+        /// identifier that is about to be discarded.
+        /// </remarks>
         /// <param name="context">The context to use.</param>
         /// <param name="browseName">The browse name.</param>
+        /// <param name="assignInstanceNodeIds">
+        /// Whether a newly created child may be given a per-instance NodeId.
+        /// Defaults to <c>true</c>, which is what materialising a child onto a
+        /// live tree wants.
+        /// </param>
         /// <returns>The child if available. Null otherwise.</returns>
         public virtual BaseInstanceState? CreateChild(
             ISystemContext context,
-            QualifiedName browseName)
+            QualifiedName browseName,
+            bool assignInstanceNodeIds = true)
         {
             if (browseName.IsNull)
             {
                 return null;
             }
 
-            return FindChild(context, browseName, true, null);
+            return FindChild(context, browseName, true, null, assignInstanceNodeIds);
         }
 
         /// <summary>
@@ -5159,6 +5328,57 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Adds a reference unless an identical one already exists.
+        /// </summary>
+        /// <remarks>
+        /// The existence check and the insert happen under the same lock, so concurrent
+        /// callers cannot both observe the reference as missing and both add it. Callers
+        /// that pair <see cref="ReferenceExists"/> with
+        /// <see cref="AddReference(NodeId, bool, ExpandedNodeId)"/> themselves must use this
+        /// method instead: the two calls each guard themselves, but the pair does not.
+        /// </remarks>
+        /// <param name="referenceTypeId">Type of the reference.</param>
+        /// <param name="isInverse">If set to <c>true</c> the reference is an inverse reference.</param>
+        /// <param name="targetId">The target of the reference.</param>
+        /// <returns>True if the reference was added, false if it already existed.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public bool AddReferenceIfMissing(
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId)
+        {
+            if (referenceTypeId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(referenceTypeId));
+            }
+
+            if (targetId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(targetId));
+            }
+
+            var reference = new NodeStateReference(referenceTypeId, isInverse, targetId);
+
+            lock (m_referencesLock)
+            {
+                m_references ??= [];
+
+                if (m_references.ContainsKey(reference))
+                {
+                    return false;
+                }
+
+                m_references.Add(reference, null);
+            }
+
+            m_changeMasks |= NodeStateChangeMasks.References;
+
+            OnReferenceAdded?.Invoke(this, referenceTypeId, isInverse, targetId);
+
+            return true;
+        }
+
+        /// <summary>
         /// Removes a reference.
         /// </summary>
         /// <param name="referenceTypeId">Type of the reference.</param>
@@ -5177,19 +5397,29 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(targetId));
             }
 
+            bool removed;
+
             lock (m_referencesLock)
             {
-                if (m_references != null &&
+                removed = m_references != null &&
                     m_references.Remove(
-                        new NodeStateReference(referenceTypeId, isInverse, targetId)))
-                {
-                    m_changeMasks |= NodeStateChangeMasks.References;
-                    OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
-                    return true;
-                }
+                        new NodeStateReference(referenceTypeId, isInverse, targetId));
             }
 
-            return false;
+            if (!removed)
+            {
+                return false;
+            }
+
+            m_changeMasks |= NodeStateChangeMasks.References;
+
+            // Raised outside the lock, matching AddReference. A handler is free to call back
+            // into this node - or into another one that browses this one - and raising it
+            // while m_referencesLock is held makes that a lock-ordering cycle against
+            // CreateBrowser, which takes the browse lock and then this one.
+            OnReferenceRemoved?.Invoke(this, referenceTypeId, isInverse, targetId);
+
+            return true;
         }
 
         /// <summary>
@@ -5348,6 +5578,16 @@ namespace Opc.Ua
         /// <summary>
         /// Finds the child with the specified browse name.
         /// </summary>
+        /// <remarks>
+        /// A type that declares children overrides this method, resolves the
+        /// ones it declares, and forwards everything else to the base. It must
+        /// pass <paramref name="assignInstanceNodeIds"/> on to every
+        /// <c>CreateOrReplace&lt;Child&gt;</c> helper it calls: a caller that
+        /// overwrites the child's NodeId immediately afterwards - a node copy is
+        /// the canonical case - declines assignment so the
+        /// <see cref="ISystemContext.NodeIdFactory"/> is never asked for an
+        /// identifier that is about to be discarded.
+        /// </remarks>
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="browseName">The browse name of the children to add.</param>
         /// <param name="createOrReplace">if set to <c>true</c> and the child does
@@ -5357,12 +5597,18 @@ namespace Opc.Ua
         /// true. If not of same type, the node state is used to initialize a new
         /// instance of the required type (for narrowing conversation to the type
         /// definition</param>
+        /// <param name="assignInstanceNodeIds">
+        /// Whether a newly created child may be given a per-instance NodeId.
+        /// Defaults to <c>true</c>, which is what materialising a child onto a
+        /// live tree wants.
+        /// </param>
         /// <returns>The child.</returns>
         protected virtual BaseInstanceState? FindChild(
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState? replacement)
+            BaseInstanceState? replacement,
+            bool assignInstanceNodeIds = true)
         {
             if (browseName.IsNull)
             {
@@ -5439,6 +5685,7 @@ namespace Opc.Ua
         private readonly Lock m_notifiersLock = new();
         private readonly Lock m_referencesLock = new();
         private readonly Lock m_childrenLock = new();
+        private readonly Lock m_browseLock = new();
         private NodeId m_nodeId;
         private QualifiedName m_browseName;
         private LocalizedText m_displayName;

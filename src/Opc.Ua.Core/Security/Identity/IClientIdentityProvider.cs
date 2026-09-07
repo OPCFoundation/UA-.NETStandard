@@ -149,6 +149,22 @@ namespace Opc.Ua.Identity
         /// gate.
         /// </summary>
         public string? CurrentEphemeralKeyPolicyUri { get; init; }
+
+        /// <summary>
+        /// The security policies the selection resolves policy URIs against.
+        /// Set this from the registry the application configured so a policy it
+        /// contributed through <c>AddSecurityPolicy</c> participates in
+        /// selection. When <see langword="null"/>,
+        /// <see cref="SecurityPolicies.Default"/> is used.
+        /// </summary>
+        public ISecurityPolicyRegistry? SecurityPolicyRegistry { get; init; }
+
+        /// <summary>
+        /// The registry <see cref="SecurityPolicyRegistry"/> resolves to,
+        /// falling back to <see cref="SecurityPolicies.Default"/>.
+        /// </summary>
+        internal ISecurityPolicyRegistry EffectiveSecurityPolicies
+            => SecurityPolicyRegistry ?? SecurityPolicies.Default;
     }
 
     /// <summary>

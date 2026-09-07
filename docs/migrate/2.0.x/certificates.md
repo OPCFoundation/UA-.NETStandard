@@ -39,6 +39,26 @@ UserIdentity userIdentity = await UserIdentity.CreateAsync(
 
 ## Certificate Management
 
+### Certificates with an empty distinguished name are always rejected
+
+A certificate whose **subject or issuer is an empty distinguished name** is now rejected with the non-suppressible `Bad_CertificateInvalid`, on every target framework. An empty name is an empty `RDNSequence`: it identifies nothing, and two unrelated issuers become indistinguishable, so the certificate can never take part in a trust decision. RFC 5280 §4.1.2.4 requires a non-empty issuer, and §4.1.2.6 only permits an empty subject for an end entity carrying a critical `subjectAltName`, which a CA may never do.
+
+On 1.5.378 the outcome depended on the platform: .NET's X.509 and PEM readers accept these certificates, so they could reach a trust list and be used. The check now runs in the validator before the trust-list lookup and the chain build, so trusting such a certificate, enabling `AutoAcceptUntrustedCertificates`, or approving the error from the validation callback will not make it pass.
+
+Reading a PEM file also skips these certificates rather than importing them. `PEMReader.ImportPublicKeysFromPEM` drops only the offending entry and returns the rest, so one malformed certificate cannot empty an otherwise usable trust list.
+
+**Migration steps:**
+
+- Re-issue any certificate that carries an empty subject or issuer. There is no configuration switch to accept one.
+- If a trust list silently shrinks after the upgrade, the dropped entries carried an empty name; `DistinguishedNameUtils.HasEmptyDistinguishedName` reports the same verdict the stack applies.
+
+```csharp
+if (DistinguishedNameUtils.HasEmptyDistinguishedName(certificate))
+{
+    // Bad_CertificateInvalid - re-issue with a real subject and issuer.
+}
+```
+
 ### Certificate and CertificateCollection wrapper types
 
 `X509Certificate2` and `X509Certificate2Collection` are no longer used directly in the public API. They are replaced by `Certificate` and `CertificateCollection` (in `Opc.Ua.Security.Certificates`).
@@ -128,6 +148,27 @@ See [CertificateManager.md](../../CertificateManager.md) for the full API refere
 | `IList<CertificateIdentifier> issuers = ...; var cert = issuers[i].Certificate;` | `IList<CertificateIssuerReference> issuers = ...; var cert = issuers[i].Certificate;` |
 
 See [CertificateManager.md](../../CertificateManager.md#migration-certificateidentifier-is-metadata-only) for the full migration walkthrough.
+
+### CertificateStoreIdentifier is a store description — `OpenStore` returns a caller-owned store
+
+`CertificateStoreIdentifier` follows the same design as `CertificateIdentifier`: it is only a *description* of a store (`StoreType` / `StorePath`), the analogue of a `CertificateIdentifier` resolving to a `Certificate`. It no longer caches a store instance.
+
+**No API was removed or changed** — existing code compiles unchanged. What changed is the ownership contract of `OpenStore`:
+
+* **Before:** `OpenStore` returned the *one* store instance cached on the identifier and shared by every caller. Disposing it destroyed shared state; the guidance was to call `Close()` and leave disposal to the identifier.
+* **After:** every `OpenStore` call creates and opens a **new** store instance that the caller owns and must dispose. Two calls never return the same instance. If `Open` fails, the instance is disposed before the exception propagates.
+
+**Migration patterns:**
+
+| Before (legacy) | After |
+|---|---|
+| `var store = id.OpenStore(telemetry); ...; store.Close();` | `using ICertificateStore store = id.OpenStore(telemetry); ...` |
+| Relying on two `OpenStore` calls observing the same instance / parsed-certificate cache | Each call is independent. A component that accesses a store repeatedly should open **one** instance, keep it for the component's lifetime, and dispose it at shutdown — the store refreshes its parsed-certificate cache itself when the backing data changes. |
+| Re-opening the store per operation for cache warmth | Hold the instance open (see `CertificateValidationCore` and the server `TrustList` for the in-tree pattern). |
+
+A caller that only ever called `Close()` on the returned store previously kept the shared cache warm; the same code now leaks the instance it owns — add a `using` or `Dispose()`. Standard IDisposable analyzers (`CA2000` / `IDE0067`) flag the pattern; no dedicated `UA00xx` migration rule exists because the API surface is unchanged.
+
+**Server `TrustList` is `IDisposable`:** the Part 12 TrustList handler now holds its trusted/issuer store instances open across operations. Hosts that create `TrustList` handlers directly (custom node managers) must dispose them at shutdown; the in-tree `ConfigurationNodeManager` and GDS `ApplicationsNodeManager` do this for the handlers they own.
 
 ### PushManagement transactions: TrustList/Certificate updates now require `ApplyChanges`
 

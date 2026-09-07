@@ -1,0 +1,46 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "pump": "http://example.com/demo/pump"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": "uav:object",
+  "id": "urn:dev:opcua:pump-01-preserved",
+  "title": "Pump 01 (explicit byte-exact NodeSet archive)",
+  "description": "An exceptional archival example that explicitly carries a byte-exact NodeSet2 baseline in a uav:nodeSet envelope. The semantic/readable vocabulary is primary, uav:nodes is an exceptional structured fallback, and this opaque envelope is emitted only when byte identity is requested or a future/unsupported construct cannot be represented structurally.",
+  "uav:browseName": "pump:Pump",
+  "uav:id": "nsu=http://example.com/demo/pump;s=Pump",
+  "uav:nodeSet": {
+    "@type": "uav:nodeSet",
+    "contentType": "application/opcua-nodeset+xml",
+    "encoding": "base64",
+    "sha256": "2612f43e0094a2ae38802ae6a5055d66415c2d81552224cfe3ab7811e9ce3868",
+    "data": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPFVBTm9kZVNldCB4bWxucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBLzIwMTEvMDMvVUFOb2RlU2V0LnhzZCIgeG1sbnM6eHNpPSJodHRwOi8vd3d3LnczLm9yZy8yMDAxL1hNTFNjaGVtYS1pbnN0YW5jZSI+CiAgPE5hbWVzcGFjZVVyaXM+CiAgICA8VXJpPmh0dHA6Ly9leGFtcGxlLmNvbS9kZW1vL3B1bXA8L1VyaT4KICA8L05hbWVzcGFjZVVyaXM+CiAgPE1vZGVscz4KICAgIDxNb2RlbCBNb2RlbFVyaT0iaHR0cDovL2V4YW1wbGUuY29tL2RlbW8vcHVtcCIgVmVyc2lvbj0iMS4wLjAiIFB1YmxpY2F0aW9uRGF0ZT0iMjAyNi0wMS0wMVQwMDowMDowMFoiPgogICAgICA8UmVxdWlyZWRNb2RlbCBNb2RlbFVyaT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBLyIgVmVyc2lvbj0iMS4wNS4wMyIgUHVibGljYXRpb25EYXRlPSIyMDIzLTEyLTE1VDAwOjAwOjAwWiIgLz4KICAgIDwvTW9kZWw+CiAgPC9Nb2RlbHM+CiAgPFVBT2JqZWN0VHlwZSBOb2RlSWQ9Im5zPTE7aT0xMDAxIiBCcm93c2VOYW1lPSIxOlB1bXBUeXBlIiBJc0Fic3RyYWN0PSJmYWxzZSI+CiAgICA8RGlzcGxheU5hbWU+UHVtcFR5cGU8L0Rpc3BsYXlOYW1lPgogICAgPFJlZmVyZW5jZXM+CiAgICAgIDxSZWZlcmVuY2UgUmVmZXJlbmNlVHlwZT0iSGFzU3VidHlwZSIgSXNGb3J3YXJkPSJmYWxzZSI+aT01ODwvUmVmZXJlbmNlPgogICAgICA8UmVmZXJlbmNlIFJlZmVyZW5jZVR5cGU9Ikhhc0NvbXBvbmVudCI+bnM9MTtpPTYwMDE8L1JlZmVyZW5jZT4KICAgIDwvUmVmZXJlbmNlcz4KICA8L1VBT2JqZWN0VHlwZT4KICA8VUFWYXJpYWJsZSBOb2RlSWQ9Im5zPTE7aT02MDAxIiBCcm93c2VOYW1lPSIxOlB1bXBTcGVlZCIgRGF0YVR5cGU9IkRvdWJsZSIgUGFyZW50Tm9kZUlkPSJucz0xO2k9MTAwMSI+CiAgICA8RGlzcGxheU5hbWU+UHVtcFNwZWVkPC9EaXNwbGF5TmFtZT4KICAgIDxSZWZlcmVuY2VzPgogICAgICA8UmVmZXJlbmNlIFJlZmVyZW5jZVR5cGU9Ikhhc1R5cGVEZWZpbml0aW9uIj5pPTYzPC9SZWZlcmVuY2U+CiAgICAgIDxSZWZlcmVuY2UgUmVmZXJlbmNlVHlwZT0iSGFzTW9kZWxsaW5nUnVsZSI+aT03ODwvUmVmZXJlbmNlPgogICAgICA8UmVmZXJlbmNlIFJlZmVyZW5jZVR5cGU9Ikhhc0NvbXBvbmVudCIgSXNGb3J3YXJkPSJmYWxzZSI+bnM9MTtpPTEwMDE8L1JlZmVyZW5jZT4KICAgIDwvUmVmZXJlbmNlcz4KICA8L1VBVmFyaWFibGU+CjwvVUFOb2RlU2V0Pgo=",
+    "profileVersion": "1.0"
+  },
+  "properties": {
+    "pumpSpeed": {
+      "@type": "uav:variable",
+      "title": "Pump Speed",
+      "uav:browseName": "pump:PumpSpeed",
+      "uav:id": "nsu=http://example.com/demo/pump;i=6001",
+      "type": "number",
+      "unit": "rpm",
+      "readOnly": true,
+      "observable": true,
+      "forms": [
+        {
+          "href": "/?id=nsu=http://example.com/demo/pump;i=6001",
+          "contentType": "application/octet-stream",
+          "op": [
+            "readproperty",
+            "observeproperty"
+          ]
+        }
+      ]
+    }
+  }
+}

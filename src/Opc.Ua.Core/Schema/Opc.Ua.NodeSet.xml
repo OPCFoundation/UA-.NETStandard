@@ -56432,7 +56432,7 @@
     <Category>Onboarding Ticket Reader</Category>
     <Documentation>https://reference.opcfoundation.org/v105/Core/docs/Part21/8.2.1</Documentation>
     <References>
-      <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=15</Reference>
     </References>
   </UADataType>
   <UAObjectType NodeId="i=26871" BrowseName="ProvisionableDeviceType">

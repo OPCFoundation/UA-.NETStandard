@@ -1,0 +1,193 @@
+#usda 1.0
+(
+    doc = """Four-axis palletizer arm for the OPC UA bin-picking Vision demo.
+
+    The commanded chain is /Palletizer/Base/J1/J2/J3/Leveling/J4/Flange:
+    J1 rotates about Z, J2 and J3 pitch about Y, and J4 rolls the tool about
+    its local X approach axis. Leveling is the mechanical parallelogram
+    compensation driven as 90 degrees - J2 - J3, keeping the gripper
+    vertically tool-down without a numerical offset-wrist solve.
+
+    Link lengths and shoulder height match BinPickingPalletizerGeometry.
+    Keep the prim and xform-op names stable: OPC UA OpenUSD live bindings
+    address them directly.
+    """
+    defaultPrim = "Palletizer"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Palletizer" (
+    kind = "component"
+)
+{
+    def Xform "Base"
+    {
+        def Cylinder "Turntable"
+        {
+            uniform token axis = "Z"
+            double height = 0.1600
+            double radius = 0.1500
+            color3f[] primvars:displayColor = [(0.16, 0.17, 0.18)]
+            rel material:binding = </Palletizer/Materials/DarkGrey>
+            double3 xformOp:translate = (0, 0, 0.0800)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Cylinder "Column"
+        {
+            uniform token axis = "Z"
+            double height = 0.2000
+            double radius = 0.1120
+            color3f[] primvars:displayColor = [(0.78, 0.79, 0.78)]
+            rel material:binding = </Palletizer/Materials/Silver>
+            double3 xformOp:translate = (0, 0, 0.1800)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Xform "J1"
+        {
+            double xformOp:rotateZ = 0.000
+            double3 xformOp:translate = (0, 0, 0.2800)
+            uniform token[] xformOpOrder = ["xformOp:rotateZ", "xformOp:translate"]
+
+            def Sphere "ShoulderHousing"
+            {
+                double radius = 0.1000
+                color3f[] primvars:displayColor = [(0.78, 0.79, 0.78)]
+                rel material:binding = </Palletizer/Materials/Silver>
+            }
+
+            def Xform "J2"
+            {
+                double xformOp:rotateY = 31.513
+                uniform token[] xformOpOrder = ["xformOp:rotateY"]
+
+                def Cylinder "UpperArm"
+                {
+                    uniform token axis = "X"
+                    double height = 0.4800
+                    double radius = 0.0470
+                    color3f[] primvars:displayColor = [(0.90, 0.90, 0.87)]
+                    rel material:binding = </Palletizer/Materials/BodyWhite>
+                    double3 xformOp:translate = (0.2400, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                }
+
+                def Xform "J3"
+                {
+                    double xformOp:rotateY = -65.890
+                    double3 xformOp:translate = (0.4800, 0, 0)
+                    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY"]
+
+                    def Sphere "ElbowHousing"
+                    {
+                        double radius = 0.0840
+                        color3f[] primvars:displayColor = [(0.16, 0.17, 0.18)]
+                        rel material:binding = </Palletizer/Materials/DarkGrey>
+                    }
+
+                    def Cylinder "Forearm"
+                    {
+                        uniform token axis = "X"
+                        double height = 0.4800
+                        double radius = 0.0420
+                        color3f[] primvars:displayColor = [(0.90, 0.90, 0.87)]
+                        rel material:binding = </Palletizer/Materials/BodyWhite>
+                        double3 xformOp:translate = (0.2400, 0, 0)
+                        uniform token[] xformOpOrder = ["xformOp:translate"]
+                    }
+
+                    def Xform "Leveling"
+                    {
+                        double xformOp:rotateY = 124.377
+                        double3 xformOp:translate = (0.4800, 0, 0)
+                        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY"]
+
+                        def Sphere "WristHousing"
+                        {
+                            double radius = 0.0640
+                            color3f[] primvars:displayColor = [(0.10, 0.38, 0.68)]
+                            rel material:binding = </Palletizer/Materials/AccentBlue>
+                        }
+
+                        def Xform "J4"
+                        {
+                            double xformOp:rotateX = 90.000
+                            uniform token[] xformOpOrder = ["xformOp:rotateX"]
+
+                            def Xform "Flange"
+                            {
+                                def Cylinder "IsoFlange"
+                                {
+                                    uniform token axis = "X"
+                                    double height = 0.0180
+                                    double radius = 0.0315
+                                    color3f[] primvars:displayColor = [(0.78, 0.79, 0.78)]
+                                    rel material:binding = </Palletizer/Materials/Silver>
+                                    double3 xformOp:translate = (0.0090, 0, 0)
+                                    uniform token[] xformOpOrder = ["xformOp:translate"]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    def Scope "Materials"
+    {
+        def Material "BodyWhite"
+        {
+            token outputs:surface.connect = </Palletizer/Materials/BodyWhite/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.90, 0.90, 0.87)
+                float inputs:roughness = 0.52
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+
+        def Material "DarkGrey"
+        {
+            token outputs:surface.connect = </Palletizer/Materials/DarkGrey/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.16, 0.17, 0.18)
+                float inputs:roughness = 0.62
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+
+        def Material "Silver"
+        {
+            token outputs:surface.connect = </Palletizer/Materials/Silver/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.78, 0.79, 0.78)
+                float inputs:roughness = 0.30
+                float inputs:metallic = 0.6
+                token outputs:surface
+            }
+        }
+
+        def Material "AccentBlue"
+        {
+            token outputs:surface.connect = </Palletizer/Materials/AccentBlue/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.10, 0.38, 0.68)
+                float inputs:roughness = 0.45
+                float inputs:metallic = 0
+                token outputs:surface
+            }
+        }
+    }
+}

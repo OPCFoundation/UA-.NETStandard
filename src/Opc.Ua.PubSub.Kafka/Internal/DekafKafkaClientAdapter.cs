@@ -27,10 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+#if NETFRAMEWORK
+using System.Runtime.InteropServices;
+#endif
 using System.Threading;
 using System.Threading.Tasks;
 using Dekaf;
@@ -51,7 +53,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
     /// <see cref="IKafkaConsumer{TKey,TValue}"/> plus a background consume
     /// loop (built on first subscribe), so a send-only or receive-only
     /// connection never instantiates the unused half. Dekaf is a pure-managed
-    /// .NET 10 Kafka client and is therefore usable by NativeAOT publishers.
+    /// Kafka client and is therefore usable by NativeAOT publishers.
     /// </remarks>
     internal sealed class DekafKafkaClientAdapter : IKafkaClientAdapter
     {
@@ -447,9 +449,32 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             {
                 foreach (Header header in headers)
                 {
-                    string headerValue = header.IsValueNull
-                        ? string.Empty
-                        : System.Text.Encoding.UTF8.GetString(header.Value.Span);
+                    string headerValue;
+                    if (header.IsValueNull)
+                    {
+                        headerValue = string.Empty;
+                    }
+#if NETFRAMEWORK
+                    else if (MemoryMarshal.TryGetArray(
+                        header.Value,
+                        out ArraySegment<byte> segment) &&
+                        segment.Array is not null)
+                    {
+                        headerValue = System.Text.Encoding.UTF8.GetString(
+                            segment.Array,
+                            segment.Offset,
+                            segment.Count);
+                    }
+                    else
+                    {
+                        headerValue = System.Text.Encoding.UTF8.GetString(header.Value.ToArray());
+                    }
+#else
+                    else
+                    {
+                        headerValue = System.Text.Encoding.UTF8.GetString(header.Value.Span);
+                    }
+#endif
                     if (string.Equals(header.Key, ContentTypeHeader, StringComparison.OrdinalIgnoreCase))
                     {
                         contentType = headerValue;
@@ -724,4 +749,3 @@ namespace Opc.Ua.PubSub.Kafka.Internal
         }
     }
 }
-#endif

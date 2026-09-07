@@ -60,7 +60,7 @@ namespace Opc.Ua.SourceGeneration
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
                 public partial class {{Tokens.NodeManagerClassName}} : global::Opc.Ua.Server.Fluent.FluentNodeManagerBase
                 {
-                    private global::Opc.Ua.Server.Fluent.NodeManagerBuilder __m_builder;
+                    private global::Opc.Ua.Server.Fluent.NodeManagerBuilder? __m_builder;
 
                     /// <summary>
                     /// Initializes a new <see cref="{{Tokens.NodeManagerClassName}}"/>.
@@ -68,7 +68,7 @@ namespace Opc.Ua.SourceGeneration
                     public {{Tokens.NodeManagerClassName}}(
                         global::Opc.Ua.Server.IServerInternal server,
                         global::Opc.Ua.ApplicationConfiguration configuration)
-                        : base(server, configuration, {{Tokens.NamespaceUri}})
+                        : base(server, configuration, {{Tokens.NamespaceUri}}{{Tokens.AdditionalNamespaceUris}})
                     {
                         SystemContext.NodeIdFactory = this;
                     }
@@ -93,7 +93,9 @@ namespace Opc.Ua.SourceGeneration
                         global::System.Threading.CancellationToken cancellationToken = default)
                     {
                         return new global::System.Threading.Tasks.ValueTask<global::Opc.Ua.NodeStateCollection>(
-                            new global::Opc.Ua.NodeStateCollection().Add{{Tokens.Namespace}}(context));
+                            global::{{Tokens.Prefix}}.{{Tokens.Namespace}}Extensions.Add{{Tokens.Namespace}}(
+                                new global::Opc.Ua.NodeStateCollection(),
+                                context));
                     }
 
                     /// <inheritdoc/>
@@ -112,7 +114,8 @@ namespace Opc.Ua.SourceGeneration
                             __nsIndex,
                             __FindRootByBrowseName,
                             __FindRootByNodeId,
-                            __FindByTypeDefinitionId);
+                            __FindByTypeDefinitionId,
+                            __FindByDataTypeId);
 
                         // Attach the FluentNodeManagerBase event-source registry
                         // to the builder so Publish(...) extensions can resolve
@@ -121,6 +124,18 @@ namespace Opc.Ua.SourceGeneration
 
                         Configure(__m_builder);
                         Configure(new {{Tokens.NodeManagerClassName}}TypedBuilder(__m_builder));
+
+                        // Register nodes created by the Configure partial(s)
+                        // through the builder's Add* methods before the
+                        // reverse-reference pass runs, so their references to
+                        // externally owned nodes are mirrored too.
+                        await RegisterAuthoredNodesAsync(__m_builder, cancellationToken).ConfigureAwait(false);
+
+                        // Mirror references from configure-created nodes to
+                        // nodes owned by other node managers (e.g. the Objects
+                        // folder) into the externalReferences dictionary.
+                        await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+
                         __m_builder.Seal();
 
                         foreach (global::Opc.Ua.NodeState __node in PredefinedNodes.Values)
@@ -154,19 +169,6 @@ namespace Opc.Ua.SourceGeneration
                             __b.Dispatcher.NotifyNodeRemoved(context, node);
                         }
                         await base.RemovePredefinedNodeAsync(context, node, referencesToRemove, cancellationToken).ConfigureAwait(false);
-                    }
-
-                    /// <inheritdoc/>
-                    protected override void OnMonitoredItemCreated(
-                        global::Opc.Ua.Server.ServerSystemContext context,
-                        global::Opc.Ua.Server.NodeHandle handle,
-                        global::Opc.Ua.Server.ISampledDataChangeMonitoredItem monitoredItem)
-                    {
-                        base.OnMonitoredItemCreated(context, handle, monitoredItem);
-                        if (__m_builder is { } __b && handle?.Node is { } __node)
-                        {
-                            __b.Dispatcher.NotifyMonitoredItemCreated(context, __node, monitoredItem);
-                        }
                     }
 
                     private global::Opc.Ua.NodeState __FindRootByBrowseName(global::Opc.Ua.QualifiedName browseName)
@@ -234,6 +236,48 @@ namespace Opc.Ua.SourceGeneration
                         }
                         return __matches;
                     }
+
+                    private global::Opc.Ua.ArrayOf<global::Opc.Ua.NodeState> __FindByDataTypeId(
+                        global::Opc.Ua.NodeId dataTypeId)
+                    {
+                        if (dataTypeId == null || dataTypeId.IsNull)
+                        {
+                            return [];
+                        }
+
+                        var __matches = new global::System.Collections.Generic.List<global::Opc.Ua.NodeState>();
+                        var __queue = new global::System.Collections.Generic.Queue<global::Opc.Ua.NodeState>();
+                        var __seen = new global::System.Collections.Generic.HashSet<global::Opc.Ua.NodeState>();
+                        var __scratch = new global::System.Collections.Generic.List<global::Opc.Ua.BaseInstanceState>();
+                        foreach (global::Opc.Ua.NodeState __root in PredefinedNodes.Values)
+                        {
+                            if (__root != null && __seen.Add(__root))
+                            {
+                                __queue.Enqueue(__root);
+                            }
+                        }
+                        while (__queue.Count > 0)
+                        {
+                            global::Opc.Ua.NodeState __current = __queue.Dequeue();
+                            if (__current is global::Opc.Ua.BaseVariableState __variable &&
+                                __variable.DataType == dataTypeId)
+                            {
+                                __matches.Add(__current);
+                            }
+                            __scratch.Clear();
+                            __current.GetChildren(SystemContext, __scratch);
+                            for (int __i = 0; __i < __scratch.Count; __i++)
+                            {
+                                global::Opc.Ua.BaseInstanceState __child = __scratch[__i];
+                                if (__child != null && __seen.Add(__child))
+                                {
+                                    __queue.Enqueue(__child);
+                                }
+                            }
+                        }
+                        return new global::Opc.Ua.ArrayOf<global::Opc.Ua.NodeState>(
+                            __matches.ToArray());
+                    }
                 }
             }
             """);
@@ -256,7 +300,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     /// <inheritdoc/>
                     public virtual global::Opc.Ua.ArrayOf<string> NamespacesUris
-                        => new global::Opc.Ua.ArrayOf<string>(new string[] { {{Tokens.NamespaceUri}} });
+                        => new global::Opc.Ua.ArrayOf<string>(new string[] { {{Tokens.NamespaceUri}}{{Tokens.AdditionalNamespaceUris}} });
 
                     /// <inheritdoc/>
                     public virtual global::System.Threading.Tasks.ValueTask<global::Opc.Ua.Server.IAsyncNodeManager> CreateAsync(

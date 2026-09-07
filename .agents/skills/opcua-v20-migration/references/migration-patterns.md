@@ -111,7 +111,8 @@ qualifiedName = qualifiedName.WithName("NewName");
 
 All `<Type>Collection` classes have been **removed**. The source generator
 (see [`source-generator.md`](source-generator.md)) emits a per-consumer
-`internal sealed [Obsolete]` shim so call sites still compile. UA0002 then
+`public sealed [Obsolete]` shim so legacy call sites and public signatures
+still compile. UA0002 then
 rewrites them. Replacement choices:
 
 | Old type | New type (immutable) | New type (mutable) |
@@ -682,7 +683,7 @@ sc = sc.WithAggregateBits(agg);
 | `CS1503: 'string' to 'QualifiedName'` | `QualifiedName.From(str)` or explicit cast |
 | `CS1503: 'string' to 'LocalizedText'` | `LocalizedText.From(str)` or explicit cast |
 | `CS1503: 'string' to 'NodeId'` | `NodeId.Parse(str)` |
-| `CS0050: Inconsistent accessibility: return type 'XxxCollection'` | Generator shim is `internal`; migrate the public API to `List<T>` / `ArrayOf<T>` first |
+| `CS0246` after removing the MigrationAnalyzer package | A generated collection shim is still referenced; migrate it to `List<T>` / `ArrayOf<T>` |
 | `MIG01` | See [`source-generator.md`](source-generator.md) resolution playbook |
 
 ---
@@ -698,7 +699,7 @@ sc = sc.WithAggregateBits(agg);
 4. **Build incrementally.** Fix one priority layer at a time and rebuild to
    track progress.
 5. **Refer to canonical docs.** The
-   [`docs/migrate/2.0.x/`](../../../../docs/migrate/2.0.x/) sub-docs are the
+   [`docs/migrate/2.0.x/`](https://github.com/OPCFoundation/UA-.NETStandard/tree/master/docs/migrate/2.0.x) sub-docs are the
    upstream source of truth — sync this skill against them on every PR.
    Use the symptom → sub-doc table in `SKILL.md` to load only the
    relevant one.

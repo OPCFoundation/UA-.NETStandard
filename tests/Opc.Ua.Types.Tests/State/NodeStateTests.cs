@@ -355,6 +355,83 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void AddReferenceIfMissingAddsTheReferenceOnce()
+        {
+            BaseObjectState node = CreateObjectNode();
+            var targetId = new ExpandedNodeId(3000, 0);
+
+            Assert.That(
+                node.AddReferenceIfMissing(ReferenceTypeIds.HasCause, false, targetId),
+                Is.True,
+                "the first call must add the reference");
+            Assert.That(
+                node.AddReferenceIfMissing(ReferenceTypeIds.HasCause, false, targetId),
+                Is.False,
+                "the second call must report the reference as already present");
+
+            var references = new List<IReference>();
+            node.GetReferences(m_context, references);
+
+            Assert.That(
+                references.Count(r =>
+                    r.ReferenceTypeId == ReferenceTypeIds.HasCause &&
+                    !r.IsInverse &&
+                    r.TargetId == targetId),
+                Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AddReferenceIfMissingRaisesOnReferenceAddedOnlyWhenItAdds()
+        {
+            BaseObjectState node = CreateObjectNode();
+            var targetId = new ExpandedNodeId(3001, 0);
+
+            int raised = 0;
+            node.OnReferenceAdded += (_, _, _, _) => raised++;
+
+            node.AddReferenceIfMissing(ReferenceTypeIds.HasCause, false, targetId);
+            node.AddReferenceIfMissing(ReferenceTypeIds.HasCause, false, targetId);
+
+            Assert.That(raised, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AddReferenceIfMissingDistinguishesDirection()
+        {
+            BaseObjectState node = CreateObjectNode();
+            var targetId = new ExpandedNodeId(3002, 0);
+
+            Assert.That(
+                node.AddReferenceIfMissing(ReferenceTypeIds.HasCause, false, targetId),
+                Is.True);
+            Assert.That(
+                node.AddReferenceIfMissing(ReferenceTypeIds.HasCause, true, targetId),
+                Is.True,
+                "the inverse reference is a different reference");
+        }
+
+        [Test]
+        public void AddReferenceIfMissingThrowsOnNullReferenceType()
+        {
+            BaseObjectState node = CreateObjectNode();
+
+            Assert.Throws<ArgumentNullException>(
+                () => node.AddReferenceIfMissing(NodeId.Null, false, new ExpandedNodeId(3003, 0)));
+        }
+
+        [Test]
+        public void AddReferenceIfMissingThrowsOnNullTarget()
+        {
+            BaseObjectState node = CreateObjectNode();
+
+            Assert.Throws<ArgumentNullException>(
+                () => node.AddReferenceIfMissing(
+                    ReferenceTypeIds.HasCause,
+                    false,
+                    ExpandedNodeId.Null));
+        }
+
+        [Test]
         public void AddChildSetsParentAndAddsToChildren()
         {
             BaseObjectState parent = CreateObjectNode();
@@ -2501,6 +2578,36 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void CopyingANodeDoesNotConsumeNodeIdsFromTheFactory()
+        {
+            var source = new MethodState(null)
+            {
+                NodeId = new NodeId(4000, 0),
+                BrowseName = QualifiedName.From("Move"),
+                DisplayName = LocalizedText.From("Move")
+            };
+            PropertyState<ArrayOf<Argument>> sourceArguments =
+                source.CreateOrReplaceInputArguments(m_context, null);
+            sourceArguments.NodeId = new NodeId(4001, 0);
+
+            var factory = new CountingNodeIdFactory();
+            var context = new SystemContext(m_telemetry)
+            {
+                NamespaceUris = m_context.NamespaceUris,
+                ServerUris = m_context.ServerUris,
+                NodeIdFactory = factory
+            };
+
+            var copy = new MethodState(null);
+            copy.Create(context, source);
+
+            Assert.That(factory.Count, Is.Zero);
+            Assert.That(copy.NodeId, Is.EqualTo(source.NodeId));
+            Assert.That(copy.InputArguments, Is.Not.Null);
+            Assert.That(copy.InputArguments.NodeId, Is.EqualTo(sourceArguments.NodeId));
+        }
+
+        [Test]
         public void AssignNodeIdsWithNoFactoryIsNoOp()
         {
             BaseObjectState node = CreateObjectNode();
@@ -2546,15 +2653,105 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
-        public void CreateAsPredefinedNodeSucceeds()
+        public void CreateAsPredefinedNodeCompletesLifecycleOnce()
         {
-            var node = new BaseObjectState(null)
-            {
-                NodeId = new NodeId(100, 0),
-                BrowseName = QualifiedName.From("Predefined"),
-                DisplayName = LocalizedText.From("Predefined")
-            };
-            Assert.DoesNotThrow(() => node.CreateAsPredefinedNode(m_context));
+            var node = new LifecycleProbeState(null);
+
+            Assert.That(node.IsCreated, Is.False);
+
+            node.CreateAsPredefinedNode(m_context);
+            node.CreateAsPredefinedNode(m_context);
+
+            Assert.That(node.IsCreated, Is.True);
+            Assert.That(node.BeforeCreateCount, Is.EqualTo(1));
+            Assert.That(node.AfterCreateCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void CreateAsPredefinedNodeCompletesLateChild()
+        {
+            var parent = new LifecycleProbeState(null);
+            parent.CreateAsPredefinedNode(m_context);
+
+            var child = new LifecycleProbeState(parent);
+            parent.AddChild(child);
+
+            parent.CreateAsPredefinedNode(m_context);
+
+            Assert.That(parent.BeforeCreateCount, Is.EqualTo(1));
+            Assert.That(parent.AfterCreateCount, Is.EqualTo(1));
+            Assert.That(child.IsCreated, Is.True);
+            Assert.That(child.BeforeCreateCount, Is.EqualTo(1));
+            Assert.That(child.AfterCreateCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void CreateAsPredefinedNodeCompletesChildAddedByOnAfterCreate()
+        {
+            var parent = new ChildCreatingState(null);
+
+            parent.CreateAsPredefinedNode(m_context);
+
+            Assert.That(parent.AddedChild, Is.Not.Null);
+            Assert.That(parent.AddedChild.IsCreated, Is.True);
+            Assert.That(parent.AddedChild.BeforeCreateCount, Is.EqualTo(1));
+            Assert.That(parent.AddedChild.AfterCreateCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void CreateAsPredefinedNodeRejectsNonConvergingLifecycle()
+        {
+            var node = new NonConvergingState(null);
+
+            Assert.That(
+                () => node.CreateAsPredefinedNode(m_context),
+                Throws.TypeOf<InvalidOperationException>()
+                    .With.Message.Contains("did not converge"));
+        }
+
+        [Test]
+        public void DeleteResetsCreatedState()
+        {
+            var node = new LifecycleProbeState(null);
+            node.CreateAsPredefinedNode(m_context);
+
+            node.Delete(m_context);
+
+            Assert.That(node.IsCreated, Is.False);
+        }
+
+        [Test]
+        public void CloneDoesNotCopyCreatedState()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.CreateAsPredefinedNode(m_context);
+
+            var clone = (BaseObjectState)node.Clone();
+
+            Assert.That(node.IsCreated, Is.True);
+            Assert.That(clone.IsCreated, Is.False);
+        }
+
+        [Test]
+        public void CreateAlwaysRunsLifecycle()
+        {
+            var node = new LifecycleProbeState(null);
+
+            node.Create(
+                m_context,
+                NodeId.Null,
+                QualifiedName.Null,
+                LocalizedText.Null,
+                false);
+            node.Create(
+                m_context,
+                NodeId.Null,
+                QualifiedName.Null,
+                LocalizedText.Null,
+                false);
+
+            Assert.That(node.BeforeCreateCount, Is.EqualTo(2));
+            Assert.That(node.AfterCreateCount, Is.EqualTo(2));
         }
 
         [Test]
@@ -2590,6 +2787,88 @@ namespace Opc.Ua.Types.Tests.State
             BaseInstanceState found = root.FindChild(m_context, path, 0);
             Assert.That(found, Is.Not.Null);
             Assert.That(found.BrowseName, Is.EqualTo(QualifiedName.From("Leaf")));
+        }
+
+        /// <summary>
+        /// Counts how often a NodeId was requested and hands out a fresh one
+        /// every time, so a test can prove a code path never reached it.
+        /// </summary>
+        private sealed class CountingNodeIdFactory : INodeIdFactory
+        {
+            public int Count { get; private set; }
+
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                Count++;
+                return new NodeId((uint)(90000 + Count), 0);
+            }
+        }
+
+        private sealed class LifecycleProbeState : BaseObjectState
+        {
+            public LifecycleProbeState(NodeState parent)
+                : base(parent)
+            {
+            }
+
+            public int BeforeCreateCount { get; private set; }
+
+            public int AfterCreateCount { get; private set; }
+
+            protected override void OnBeforeCreate(ISystemContext context, NodeState node)
+            {
+                BeforeCreateCount++;
+                base.OnBeforeCreate(context, node);
+            }
+
+            protected override void OnAfterCreate(
+                ISystemContext context,
+                NodeState node,
+                System.Threading.CancellationToken ct = default)
+            {
+                AfterCreateCount++;
+                base.OnAfterCreate(context, node, ct);
+            }
+        }
+
+        private sealed class ChildCreatingState : BaseObjectState
+        {
+            public ChildCreatingState(NodeState parent)
+                : base(parent)
+            {
+            }
+
+            public LifecycleProbeState AddedChild { get; private set; } = null!;
+
+            protected override void OnAfterCreate(
+                ISystemContext context,
+                NodeState node,
+                System.Threading.CancellationToken ct = default)
+            {
+                base.OnAfterCreate(context, node, ct);
+                if (AddedChild == null)
+                {
+                    AddedChild = new LifecycleProbeState(this);
+                    AddChild(AddedChild);
+                }
+            }
+        }
+
+        private sealed class NonConvergingState : BaseObjectState
+        {
+            public NonConvergingState(NodeState parent)
+                : base(parent)
+            {
+            }
+
+            protected override void OnAfterCreate(
+                ISystemContext context,
+                NodeState node,
+                System.Threading.CancellationToken ct = default)
+            {
+                base.OnAfterCreate(context, node, ct);
+                AddChild(new NonConvergingState(this));
+            }
         }
     }
 }

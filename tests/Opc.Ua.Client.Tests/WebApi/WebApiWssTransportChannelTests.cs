@@ -150,10 +150,16 @@ namespace Opc.Ua.Client.Tests.WebApi
             Assert.That((bool)secure.Invoke(null, [new Uri("https://localhost")])!, Is.True);
         }
 
-#if NET7_0_OR_GREATER
         [Test]
         public void ValidateServerCertificateFallsBackToTlsPolicyErrors()
         {
+            if (!WebApiWssTransportChannel.IsServerCertificateValidationSupported)
+            {
+                Assert.Ignore(
+                    "The compiled WebApiWssTransportChannel does not support custom server " +
+                    "certificate validation (requires .NET 7 or later).");
+            }
+
             using var channel = new WebApiWssTransportChannel(NUnitTelemetryContext.Create());
             MethodInfo method = typeof(WebApiWssTransportChannel).GetMethod(
                 "ValidateServerCertificate",
@@ -167,6 +173,5 @@ namespace Opc.Ua.Client.Tests.WebApi
             Assert.That(accepted, Is.True);
             Assert.That(rejected, Is.False);
         }
-#endif
     }
 }

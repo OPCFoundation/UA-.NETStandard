@@ -490,7 +490,8 @@ namespace Opc.Ua.Bindings
                 MaxMessageSize = m_settings.Configuration.MaxMessageSize,
                 ChannelLifetime = m_settings.Configuration.ChannelLifetime,
                 SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime,
-                CertificateValidator = settings.CertificateValidator
+                CertificateValidator = settings.CertificateValidator,
+                SecurityPolicyRegistry = settings.SecurityPolicyRegistry
             };
         }
 
@@ -646,7 +647,6 @@ namespace Opc.Ua.Bindings
                     {
                         try
                         {
-                            var validationChain = new X509Certificate2Collection();
                             if (chain != null && chain.ChainElements != null)
                             {
                                 int i = 0;
@@ -661,7 +661,6 @@ namespace Opc.Ua.Bindings
                                         .HttpsChannelLog10(
                                             i,
                                             element.Certificate.Subject);
-                                    validationChain.Add(element.Certificate);
                                     i++;
                                 }
                             }
@@ -671,10 +670,16 @@ namespace Opc.Ua.Bindings
                                     .HttpsChannelLog11(
                                         nameof(HttpsTransportChannel),
                                         cert.Subject);
-                                validationChain.Add(cert);
                             }
 
-                            using var validationCollection = CertificateCollection.From(validationChain);
+                            // Preserve the master branch behavior for a non-null empty chain:
+                            // validate an empty collection rather than falling back to the leaf.
+                            using CertificateCollection validationCollection = CertificateValidationHelpers
+                                .BuildValidationCertificateCollection(
+                                    cert,
+                                    chain,
+                                    CertificateValidationHelpers.EmptyChainHandling.PreserveEmptyChain);
+
                             if (m_quotas.CertificateValidator != null)
                             {
                                 // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's

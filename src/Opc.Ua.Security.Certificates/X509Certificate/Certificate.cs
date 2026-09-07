@@ -28,16 +28,14 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Globalization;
-using System.Threading;
-using System.Collections.Concurrent;
 using System.Text;
-
-#if DEBUG
-using System.Collections.Generic;
-#endif
+using System.Threading;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -63,9 +61,7 @@ namespace Opc.Ua.Security.Certificates
             m_core = new CertificateCore(
                 X509CertificateLoader.LoadCertificate(rawData));
             Interlocked.Increment(ref s_instancesCreated);
-#if DEBUG
-            Track();
-#endif
+            InitializeLeakTracking();
         }
 
 #if NET6_0_OR_GREATER
@@ -78,9 +74,7 @@ namespace Opc.Ua.Security.Certificates
             m_core = new CertificateCore(
                 X509CertificateLoader.LoadCertificate(rawData));
             Interlocked.Increment(ref s_instancesCreated);
-#if DEBUG
-            Track();
-#endif
+            InitializeLeakTracking();
         }
 #endif
 
@@ -90,14 +84,20 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="fileName">
         /// The path to a file containing DER or PEM encoded certificate data.
         /// </param>
+        /// <remarks>
+        /// The file is read before it is parsed rather than handing the path to
+        /// the platform loader. On Windows that loader reaches CryptoAPI, which
+        /// is not long-path aware, so a certificate sitting deeper than
+        /// <c>MAX_PATH</c> fails with <c>CryptographicException: The system
+        /// cannot find the path specified</c> even though the directory
+        /// enumeration that produced the path succeeded.
+        /// </remarks>
         public Certificate(string fileName)
         {
             m_core = new CertificateCore(
-                X509CertificateLoader.LoadCertificateFromFile(fileName));
+                X509CertificateLoader.LoadCertificate(File.ReadAllBytes(fileName)));
             Interlocked.Increment(ref s_instancesCreated);
-#if DEBUG
-            Track();
-#endif
+            InitializeLeakTracking();
         }
 
         /// <summary>
@@ -116,9 +116,7 @@ namespace Opc.Ua.Security.Certificates
             m_core = new CertificateCore(X509CertificateLoader.LoadPkcs12(
                 rawData, password, keyStorageFlags));
             Interlocked.Increment(ref s_instancesCreated);
-#if DEBUG
-            Track();
-#endif
+            InitializeLeakTracking();
         }
 
         /// <summary>
@@ -129,17 +127,20 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="keyStorageFlags">
         /// The storage flags to use when loading the certificate.
         /// </param>
+        /// <remarks>
+        /// Reads the file rather than passing the path to the platform loader,
+        /// for the same long-path reason described on
+        /// <see cref="Certificate(string)"/>.
+        /// </remarks>
         public Certificate(
             string fileName,
             ReadOnlySpan<char> password,
             X509KeyStorageFlags keyStorageFlags = default)
         {
-            m_core = new CertificateCore(X509CertificateLoader.LoadPkcs12FromFile(
-                fileName, password, keyStorageFlags));
+            m_core = new CertificateCore(X509CertificateLoader.LoadPkcs12(
+                File.ReadAllBytes(fileName), password, keyStorageFlags));
             Interlocked.Increment(ref s_instancesCreated);
-#if DEBUG
-            Track();
-#endif
+            InitializeLeakTracking();
         }
 
         /// <summary>
@@ -154,9 +155,34 @@ namespace Opc.Ua.Security.Certificates
             m_core = new CertificateCore(certificate ??
                 throw new ArgumentNullException(nameof(certificate)));
             Interlocked.Increment(ref s_instancesCreated);
-#if DEBUG
-            Track();
-#endif
+            InitializeLeakTracking();
+        }
+
+        /// <summary>
+        /// Private constructor that takes ownership of the provided
+        /// <see cref="X509Certificate2"/> and holds a private key alongside it
+        /// rather than attaching the key to the certificate.
+        /// </summary>
+        /// <param name="certificate">
+        /// The certificate to wrap. Must not be <c>null</c>.
+        /// </param>
+        /// <param name="detachedPrivateKey">
+        /// The private key held alongside the certificate.
+        /// </param>
+        /// <param name="ownsDetachedPrivateKey">
+        /// <c>true</c> if the key is disposed with the last reference.
+        /// </param>
+        private Certificate(
+            X509Certificate2 certificate,
+            AsymmetricAlgorithm detachedPrivateKey,
+            bool ownsDetachedPrivateKey)
+        {
+            m_core = new CertificateCore(
+                certificate ?? throw new ArgumentNullException(nameof(certificate)),
+                detachedPrivateKey,
+                ownsDetachedPrivateKey);
+            Interlocked.Increment(ref s_instancesCreated);
+            InitializeLeakTracking();
         }
 
         /// <summary>
@@ -169,9 +195,7 @@ namespace Opc.Ua.Security.Certificates
         private Certificate(CertificateCore core)
         {
             m_core = core;
-#if DEBUG
-            Track();
-#endif
+            InitializeLeakTracking();
         }
 
         /// <summary>
@@ -309,7 +333,19 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Whether the certificate has an associated private key.
         /// </summary>
-        public bool HasPrivateKey => X509.HasPrivateKey;
+        /// <remarks>
+        /// This is <c>true</c> both when the certificate itself owns a private
+        /// key and when a private key is held alongside it in detached form,
+        /// for example a key that resides in a TPM, an HSM or a remote key
+        /// service and can never be attached to the certificate object.
+        /// </remarks>
+        public bool HasPrivateKey => m_core.DetachedPrivateKey is not null || X509.HasPrivateKey;
+
+        /// <summary>
+        /// Whether the private key is held in detached form and therefore
+        /// cannot be exported with the certificate.
+        /// </summary>
+        public bool HasDetachedPrivateKey => m_core.DetachedPrivateKey is not null;
 
         /// <summary>
         /// The public key of the certificate.
@@ -369,12 +405,11 @@ namespace Opc.Ua.Security.Certificates
 
             m_core.Release();
 
-            // Only this handle has been finalised; suppress its finalizer
-            // (the DEBUG leak reporter). Other handles over the same core
-            // remain finalizable until they too are disposed.
-#pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
-            GC.SuppressFinalize(this);
-#pragma warning restore CA1816 // Dispose methods should call SuppressFinalize
+            if (m_allocationInfo != null)
+            {
+                s_allocationTracker.TryRemove(m_allocationInfo.AllocationId, out _);
+                m_allocationInfo = null;
+            }
         }
 
         /// <summary>
@@ -387,6 +422,7 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The exported certificate bytes.</returns>
         public byte[] Export(X509ContentType contentType)
         {
+            ThrowIfDetachedKeyCannotBeExported(contentType);
             return X509.Export(contentType);
         }
 
@@ -399,6 +435,7 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The exported certificate bytes.</returns>
         public byte[] Export(X509ContentType contentType, ReadOnlySpan<char> password)
         {
+            ThrowIfDetachedKeyCannotBeExported(contentType);
 #if NETFRAMEWORK
             return X509.Export(contentType, new string(password.ToArray()));
 #else
@@ -414,6 +451,11 @@ namespace Opc.Ua.Security.Certificates
         /// </returns>
         public RSA? GetRSAPrivateKey()
         {
+            if (m_core.DetachedPrivateKey is RSA detached)
+            {
+                return new NonOwningRsa(detached);
+            }
+
             return X509.GetRSAPrivateKey();
         }
 
@@ -437,6 +479,11 @@ namespace Opc.Ua.Security.Certificates
         /// </returns>
         public ECDsa? GetECDsaPrivateKey()
         {
+            if (m_core.DetachedPrivateKey is ECDsa detached)
+            {
+                return new NonOwningECDsa(detached);
+            }
+
             return X509.GetECDsaPrivateKey();
         }
 
@@ -476,6 +523,116 @@ namespace Opc.Ua.Security.Certificates
         public Certificate CopyWithPrivateKey(ECDsa privateKey)
         {
             return new Certificate(X509.CopyWithPrivateKey(privateKey));
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="Certificate"/> that holds an RSA private key
+        /// alongside this certificate without attaching it to the certificate.
+        /// </summary>
+        /// <param name="privateKey">
+        /// The RSA private key to hold. Must not be <c>null</c>.
+        /// </param>
+        /// <param name="ownsPrivateKey">
+        /// <c>true</c> if the returned certificate should dispose
+        /// <paramref name="privateKey"/> when its last reference is released;
+        /// otherwise <c>false</c>.
+        /// </param>
+        /// <returns>
+        /// A new public-key-only <see cref="Certificate"/> that reports a private
+        /// key and returns it from <see cref="GetRSAPrivateKey"/>.
+        /// </returns>
+        /// <remarks>
+        /// Use this instead of <see cref="CopyWithPrivateKey(RSA)"/> when the key
+        /// cannot be attached to an <see cref="X509Certificate2"/>. That is the
+        /// case for every key whose private material is not extractable and which
+        /// is not a platform key object: on Windows
+        /// <c>X509Certificate2.CopyWithPrivateKey</c> only has fast paths for
+        /// <c>RSACng</c> and <c>RSACryptoServiceProvider</c>, and otherwise falls
+        /// back to exporting the private parameters, which a key held in a TPM,
+        /// an HSM, a PKCS#11 token or a remote key service will refuse.
+        /// <para>
+        /// The detached key is shared by every handle created with
+        /// <see cref="AddRef"/> and is disposed once, with the last handle, when
+        /// <paramref name="ownsPrivateKey"/> is <c>true</c>. Each call to
+        /// <see cref="GetRSAPrivateKey"/> returns an independent non owning view
+        /// that the caller may dispose safely.
+        /// </para>
+        /// </remarks>
+        public Certificate CopyWithDetachedPrivateKey(RSA privateKey, bool ownsPrivateKey = true)
+        {
+            return CreateWithDetachedPrivateKey(
+                privateKey ?? throw new ArgumentNullException(nameof(privateKey)),
+                ownsPrivateKey);
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="Certificate"/> that holds an ECDsa private key
+        /// alongside this certificate without attaching it to the certificate.
+        /// </summary>
+        /// <param name="privateKey">
+        /// The ECDsa private key to hold. Must not be <c>null</c>.
+        /// </param>
+        /// <param name="ownsPrivateKey">
+        /// <c>true</c> if the returned certificate should dispose
+        /// <paramref name="privateKey"/> when its last reference is released;
+        /// otherwise <c>false</c>.
+        /// </param>
+        /// <returns>
+        /// A new public-key-only <see cref="Certificate"/> that reports a private
+        /// key and returns it from <see cref="GetECDsaPrivateKey"/>.
+        /// </returns>
+        /// <remarks>
+        /// See <see cref="CopyWithDetachedPrivateKey(RSA, bool)"/> for the rationale.
+        /// </remarks>
+        public Certificate CopyWithDetachedPrivateKey(ECDsa privateKey, bool ownsPrivateKey = true)
+        {
+            return CreateWithDetachedPrivateKey(
+                privateKey ?? throw new ArgumentNullException(nameof(privateKey)),
+                ownsPrivateKey);
+        }
+
+        private Certificate CreateWithDetachedPrivateKey(
+            AsymmetricAlgorithm privateKey,
+            bool ownsPrivateKey)
+        {
+            // A fresh public-key-only certificate is loaded so that the new handle
+            // owns its own X509Certificate2 and never aliases this one.
+            return new Certificate(
+                X509CertificateLoader.LoadCertificate(X509.RawData),
+                privateKey,
+                ownsPrivateKey);
+        }
+
+        /// <summary>
+        /// Rejects an export that would silently drop a detached private key.
+        /// </summary>
+        /// <param name="contentType">The requested export format.</param>
+        /// <exception cref="CryptographicException">
+        /// Thrown when a key bearing format is requested and the private key is
+        /// held in detached form.
+        /// </exception>
+        /// <remarks>
+        /// The inner <see cref="X509Certificate2"/> of a detached key certificate
+        /// carries no private key, so a PKCS#12 export would succeed and quietly
+        /// produce a file without one. Failing loudly is safer: a key held in a
+        /// TPM, an HSM or a remote key service is not exportable by design, and a
+        /// caller that wanted the key would otherwise be handed a useless blob.
+        /// </remarks>
+        private void ThrowIfDetachedKeyCannotBeExported(X509ContentType contentType)
+        {
+            if (m_core.DetachedPrivateKey is null)
+            {
+                return;
+            }
+
+            // X509ContentType.Pkcs12 and X509ContentType.Pfx are the same value.
+            if (contentType == X509ContentType.Pfx)
+            {
+                throw new CryptographicException(
+                    "The private key is held in detached form and cannot be exported. " +
+                    "Export the certificate without the private key, or keep the key " +
+                    "where it resides.");
+            }
         }
 
         /// <summary>
@@ -575,115 +732,211 @@ namespace Opc.Ua.Security.Certificates
             return new Certificate(m_core);
         }
 
-#if DEBUG
         /// <summary>
-        /// Track the allocation
+        /// Whether per-certificate allocation tracking is enabled for this process.
         /// </summary>
-        private void Track()
+        internal static bool LeakTrackingEnabled => s_leakTrackingEnabled;
+
+        /// <summary>
+        /// Gets or sets the diagnostic scope captured by newly allocated handles.
+        /// </summary>
+        internal static string? LeakTrackingScope
         {
-            // Cache the allocation info on the instance so the finalizer
-            // can report it even after the static tracker has lost the
-            // weak reference.
-            m_allocationInfo = new CertificateAllocationInfo(
-                this,
-                new System.Diagnostics.StackTrace(true).ToString(),
-                X509.Thumbprint);
-            s_allocationTracker.Add(m_allocationInfo);
+            get => s_leakTrackingScope.Value;
+            set => s_leakTrackingScope.Value = value;
         }
 
         /// <summary>
-        /// Detects leaked certificates: a handle that was finalized without
-        /// being disposed (its reference to the shared core was never
-        /// released). Only compiled in DEBUG builds.
+        /// Enables allocation tracking for this handle when requested.
         /// </summary>
-#pragma warning disable CA1063 // Implement IDisposable Correctly
-        ~Certificate()
-#pragma warning restore CA1063 // Implement IDisposable Correctly
+        private void InitializeLeakTracking()
         {
-            if (m_disposed == 0 && m_allocationInfo != null)
+            if (s_leakTrackingEnabled)
             {
-                s_finalizedWithLeakedRef.Add(m_allocationInfo);
+                Track();
             }
         }
 
-        private CertificateAllocationInfo? m_allocationInfo;
+        /// <summary>
+        /// Tracks the allocation until this handle is disposed.
+        /// </summary>
+        private void Track()
+        {
+            long allocationId = Interlocked.Increment(ref s_nextAllocationId);
+            m_allocationInfo = new CertificateAllocationInfo(
+                allocationId,
+                this,
+                new System.Diagnostics.StackTrace(fNeedFileInfo: false).ToString(),
+                s_leakTrackingScope.Value);
+            s_allocationTracker[allocationId] = m_allocationInfo;
+        }
 
         /// <summary>
         /// Captures allocation context for leak-detection diagnostics.
         /// </summary>
         internal sealed class CertificateAllocationInfo
         {
-            public WeakReference<Certificate> Reference { get; }
-            public string StackTrace { get; }
-            public string? Thumbprint { get; }
-            public DateTime CreatedAt { get; }
-
+            /// <summary>
+            /// Creates allocation diagnostics for a certificate handle.
+            /// </summary>
+            /// <param name="allocationId">Unique allocation identifier.</param>
+            /// <param name="certificate">The allocated certificate handle.</param>
+            /// <param name="stackTrace">Allocation stack trace.</param>
+            /// <param name="fixtureName">Optional test fixture attribution.</param>
             public CertificateAllocationInfo(
+                long allocationId,
                 Certificate certificate,
                 string stackTrace,
-                string? thumbprint)
+                string? fixtureName)
             {
+                AllocationId = allocationId;
                 Reference = new WeakReference<Certificate>(certificate);
                 StackTrace = stackTrace;
-                Thumbprint = thumbprint;
+                FixtureName = fixtureName;
                 CreatedAt = DateTime.UtcNow;
             }
+
+            /// <summary>
+            /// Gets the unique allocation identifier.
+            /// </summary>
+            public long AllocationId { get; }
+
+            /// <summary>
+            /// Gets a weak reference to the allocated certificate handle.
+            /// </summary>
+            public WeakReference<Certificate> Reference { get; }
+
+            /// <summary>
+            /// Gets the allocation stack trace.
+            /// </summary>
+            public string StackTrace { get; }
+
+            /// <summary>
+            /// Gets the optional test fixture attribution.
+            /// </summary>
+            public string? FixtureName { get; }
+
+            /// <summary>
+            /// Gets the UTC allocation time.
+            /// </summary>
+            public DateTime CreatedAt { get; }
         }
-
-        /// <summary>
-        /// Use a list of weak references for live-leak diagnostics.
-        /// ConditionalWeakTable doesn't expose enumeration on .NET
-        /// Framework, and we want the per-instance list anyway.
-        /// </summary>
-        private static readonly ConcurrentBag<CertificateAllocationInfo> s_allocationTracker = [];
-
-        /// <summary>
-        /// Set of allocation infos for Certificates that were finalised
-        /// while still holding a positive refcount (a real leak —
-        /// someone called AddRef without a matching Dispose). Cached so
-        /// the finalizer can record it before the instance dies.
-        /// </summary>
-        private static readonly ConcurrentBag<CertificateAllocationInfo> s_finalizedWithLeakedRef = [];
 
         /// <summary>
         /// Dumps allocation info for live <see cref="Certificate"/>
         /// instances that are still reachable. Useful in tests to
         /// surface the call site that created a leaking certificate.
         /// </summary>
-        public static IEnumerable<(string Thumbprint, int RefCount, DateTime CreatedAt, string StackTrace)> EnumerateLiveCertificates()
+        internal static IEnumerable<(
+            string Thumbprint,
+            int RefCount,
+            DateTime CreatedAt,
+            string StackTrace,
+            string? FixtureName)>
+            EnumerateLiveCertificates()
         {
-            foreach (CertificateAllocationInfo info in s_allocationTracker)
+            foreach (CertificateAllocationInfo info in s_allocationTracker.Values)
             {
-                if (info.Reference.TryGetTarget(out Certificate? cert))
+                if (info.Reference.TryGetTarget(out Certificate? cert) &&
+                    Volatile.Read(ref cert.m_disposed) == 0 &&
+                    cert.m_core.RefCount > 0)
                 {
                     yield return (
-                        info.Thumbprint ?? "(no thumbprint)",
+                        GetThumbprintForDiagnostics(cert),
                         cert.m_core.RefCount,
                         info.CreatedAt,
-                        info.StackTrace);
+                        info.StackTrace,
+                        info.FixtureName);
                 }
             }
         }
 
         /// <summary>
-        /// Dumps allocation info for <see cref="Certificate"/> instances
-        /// that were finalized while still holding a positive refcount
-        /// (i.e., AddRef without matching Dispose).
+        /// Reads the thumbprint without allowing a concurrent disposal to abort a leak dump.
         /// </summary>
-        public static IEnumerable<(string Thumbprint, DateTime CreatedAt, string StackTrace)> EnumerateFinalizedLeakedCertificates()
+        private static string GetThumbprintForDiagnostics(Certificate certificate)
         {
-            foreach (CertificateAllocationInfo info in s_finalizedWithLeakedRef)
+            try
             {
-                yield return (
-                    info.Thumbprint ?? "(no thumbprint)",
-                    info.CreatedAt,
-                    info.StackTrace);
+                return certificate.Thumbprint ?? "(no thumbprint)";
+            }
+            catch (CryptographicException)
+            {
+                return "(unavailable after disposal)";
             }
         }
-#endif
 
-        private static long s_instancesCreated;
-        private static long s_instancesDisposed;
+        /// <summary>
+        /// Dumps allocation info for undisposed <see cref="Certificate"/>
+        /// handles that are no longer reachable.
+        /// </summary>
+        internal static IEnumerable<(
+            DateTime CreatedAt,
+            string StackTrace,
+            string? FixtureName)>
+            EnumerateUnreachableUndisposedCertificates()
+        {
+            foreach (CertificateAllocationInfo info in s_allocationTracker.Values)
+            {
+                if (!info.Reference.TryGetTarget(out _))
+                {
+                    yield return (
+                        info.CreatedAt,
+                        info.StackTrace,
+                        info.FixtureName);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Resolves whether allocation tracking is enabled.
+        /// </summary>
+        private static bool ResolveLeakTrackingEnabled()
+        {
+            bool defaultValue;
+#if DEBUG
+            defaultValue = true;
+#else
+            defaultValue = false;
+#endif
+            bool switchFound = AppContext.TryGetSwitch(
+                c_leakTrackingSwitchName,
+                out bool switchValue);
+            return ResolveLeakTrackingEnabled(
+                switchFound,
+                switchValue,
+                Environment.GetEnvironmentVariable(c_leakTrackingEnvironmentVariable),
+                defaultValue);
+        }
+
+        /// <summary>
+        /// Resolves the allocation-tracking setting from its inputs.
+        /// </summary>
+        internal static bool ResolveLeakTrackingEnabled(
+            bool switchFound,
+            bool switchValue,
+            string? environmentValue,
+            bool defaultValue)
+        {
+            if (switchFound)
+            {
+                return switchValue;
+            }
+
+            if (string.Equals(environmentValue, "1", StringComparison.Ordinal) ||
+                string.Equals(environmentValue, bool.TrueString, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (string.Equals(environmentValue, "0", StringComparison.Ordinal) ||
+                string.Equals(environmentValue, bool.FalseString, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return defaultValue;
+        }
 
         /// <summary>
         /// Total number of <see cref="Certificate"/> instances created
@@ -711,22 +964,37 @@ namespace Opc.Ua.Security.Certificates
         {
             Interlocked.Exchange(ref s_instancesCreated, 0);
             Interlocked.Exchange(ref s_instancesDisposed, 0);
+            s_allocationTracker.Clear();
         }
 
-#if DEBUG
         /// <summary>
         /// Test-only hook used by the leak-detector self-tests to account
         /// for a certificate that is deliberately abandoned (never disposed)
-        /// in order to exercise the finalizer-based leak tracking. Balances
+        /// in order to exercise unreachable-handle tracking. Balances
         /// the global leak counters so the intentional leak does not trip
-        /// the assembly-level leak assertion. DEBUG-only and visible to
-        /// friend test assemblies via <c>InternalsVisibleTo</c>.
+        /// the assembly-level leak assertion and removes unreachable test
+        /// allocations from the tracker. Visible to friend test assemblies
+        /// via <c>InternalsVisibleTo</c>.
         /// </summary>
-        internal static void AccountForDeliberatelyLeakedInstanceForTest()
+        /// <param name="allocationStackMarker">
+        /// Method name that uniquely identifies the deliberate test allocation.
+        /// </param>
+        internal static void AccountForDeliberatelyLeakedInstanceForTest(
+            string allocationStackMarker)
         {
             Interlocked.Increment(ref s_instancesDisposed);
+            foreach (KeyValuePair<long, CertificateAllocationInfo> entry in s_allocationTracker)
+            {
+                if (!entry.Value.Reference.TryGetTarget(out _) &&
+                    entry.Value.StackTrace.Contains(
+                        allocationStackMarker,
+                        StringComparison.Ordinal))
+                {
+                    s_allocationTracker.TryRemove(entry.Key, out _);
+                    return;
+                }
+            }
         }
-#endif
 
         /// <summary>
         /// The shared, reference-counted state for a logical certificate. One
@@ -737,15 +1005,26 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private sealed class CertificateCore
         {
-            public CertificateCore(X509Certificate2 x509)
+            public CertificateCore(
+                X509Certificate2 x509,
+                AsymmetricAlgorithm? detachedPrivateKey = null,
+                bool ownsDetachedPrivateKey = true)
             {
                 X509 = x509;
+                DetachedPrivateKey = detachedPrivateKey;
+                m_ownsDetachedPrivateKey = ownsDetachedPrivateKey;
             }
 
             /// <summary>
             /// The wrapped certificate. Valid until the last reference is released.
             /// </summary>
             public X509Certificate2 X509 { get; }
+
+            /// <summary>
+            /// A private key held alongside the certificate rather than owned by
+            /// it, or <c>null</c> when the certificate owns its own key.
+            /// </summary>
+            public AsymmetricAlgorithm? DetachedPrivateKey { get; }
 
             /// <summary>
             /// The current number of owning handles. For diagnostics only.
@@ -780,10 +1059,15 @@ namespace Opc.Ua.Security.Certificates
                 if (remaining == 0)
                 {
                     X509.Dispose();
+                    if (m_ownsDetachedPrivateKey)
+                    {
+                        DetachedPrivateKey?.Dispose();
+                    }
                     Interlocked.Increment(ref s_instancesDisposed);
                 }
             }
 
+            private readonly bool m_ownsDetachedPrivateKey;
             private int m_refCount = 1;
         }
 
@@ -792,10 +1076,28 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private readonly CertificateCore m_core;
 
+        private CertificateAllocationInfo? m_allocationInfo;
+
         /// <summary>
         /// 0 while this handle is live, 1 once this handle has been disposed.
         /// Makes Dispose idempotent per handle (SA-CERT-01).
         /// </summary>
         private int m_disposed;
+
+        private const string c_leakTrackingSwitchName =
+            "Opc.Ua.Security.Certificates.CertificateLeakTracking";
+        private const string c_leakTrackingEnvironmentVariable =
+            "OPCUA_CERTIFICATE_LEAK_TRACKING";
+
+        /// <summary>
+        /// Outstanding tracked allocations, removed when their owning handle is disposed.
+        /// </summary>
+        private static readonly ConcurrentDictionary<long, CertificateAllocationInfo>
+            s_allocationTracker = new();
+        private static readonly AsyncLocal<string?> s_leakTrackingScope = new();
+        private static readonly bool s_leakTrackingEnabled = ResolveLeakTrackingEnabled();
+        private static long s_instancesCreated;
+        private static long s_instancesDisposed;
+        private static long s_nextAllocationId;
     }
 }

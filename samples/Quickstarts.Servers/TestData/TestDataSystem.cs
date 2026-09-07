@@ -179,7 +179,7 @@ namespace TestData
                     sourceTimestamp: now.AddSeconds(-(ii * 10)).AddMilliseconds(1234),
                     serverTimestamp: now.AddSeconds(-(ii * 10))));
             }
-            var opContext = new OperationContext(new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
+            using var opContext = new OperationContext(new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
             var historianContext = new HistorianOperationContext(systemContext, opContext, null, HistoryUpdateType.Insert);
 
             // The TestDataNodeManager override is synchronous (CreateAddressSpace

@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).AI.Inference</AssemblyName>
+    <!-- net48 and netstandard are deliberately absent: Microsoft.Extensions.AI
+         and the credential surface target modern .NET. The set still follows
+         $(CustomTestTarget), because a CI leg that pins the libraries to one
+         framework would otherwise leave this asking for frameworks they no
+         longer build. -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net10.0;net9.0;net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">net10.0</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <PackageId>$(PackagePrefix).Opc.Ua.AI.Inference</PackageId>
+    <RootNamespace>Opc.Ua.AI.Inference</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
+    <Nullable>enable</Nullable>
+    <Description>Inference backends for the OPC UA AI Model Management and Inference (draft) companion specification: the IInferenceBackend contract one abstraction covers a hosted service and an on-device runtime with, a Microsoft.Extensions.AI IChatClient backend, an OpenAI-compatible REST backend, and credential resolvers that keep secret material out of the address space.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Microsoft.Extensions.AI serialises tool and content payloads by
+         reflection, which native AOT warns on and this repository builds
+         warnings as errors. Nothing in the OPC UA surface needs AOT here. -->
+    <PublishAot>false</PublishAot>
+    <IsAotCompatible>false</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.AI.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.AI\Opc.Ua.AI.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

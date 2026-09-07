@@ -30,6 +30,8 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -87,6 +89,14 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
+        public void CtorWithWhitespaceRootBrowseNameThrowsArgumentException()
+        {
+            Assert.That(
+                () => new FluentNodeManagerFactory(TestNamespaceUri, _ => { }, " "),
+                Throws.TypeOf<ArgumentException>());
+        }
+
+        [Test]
         public void CtorWithValidArgumentsSetsNamespacesUris()
         {
             var factory = new FluentNodeManagerFactory(TestNamespaceUri, _ => { });
@@ -132,6 +142,113 @@ namespace Opc.Ua.Server.Tests.Hosting
             // CreateAsync only instantiates the manager; we verify it completed without error.
             Assert.That(manager, Is.Not.Null);
             Assert.That(buildCalled, Is.False, "Build callback must not be invoked during factory creation.");
+
+            ((IDisposable)manager).Dispose();
+        }
+
+        [Test]
+        public async Task CreateAddressSpaceAsyncDoesNotCreateImplicitRootFolderAsync()
+        {
+            Mock<IServerInternal> mockServer = BuildMockServer();
+            var factory = new FluentNodeManagerFactory(TestNamespaceUri, _ => { });
+
+            IAsyncNodeManager manager = await factory.CreateAsync(
+                mockServer.Object,
+                new ApplicationConfiguration(),
+                CancellationToken.None)
+                .ConfigureAwait(false);
+
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.CreateAddressSpaceAsync(externalReferences, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                externalReferences.ContainsKey(ObjectIds.ObjectsFolder),
+                Is.False);
+            Assert.That(
+                await manager.GetManagerHandleAsync(
+                    new NodeId("ReferenceServer", 1),
+                    CancellationToken.None).ConfigureAwait(false),
+                Is.Null);
+
+            ((IDisposable)manager).Dispose();
+        }
+
+        [Test]
+        public async Task ConfiguredRootFolderIsMirroredUnderObjectsFolderAsync()
+        {
+            Mock<IServerInternal> mockServer = BuildMockServer();
+            var factory = new FluentNodeManagerFactory(
+                TestNamespaceUri,
+                builder => builder.Node("ReferenceServer"),
+                "ReferenceServer");
+
+            IAsyncNodeManager manager = await factory.CreateAsync(
+                mockServer.Object,
+                new ApplicationConfiguration(),
+                CancellationToken.None)
+                .ConfigureAwait(false);
+
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.CreateAddressSpaceAsync(externalReferences, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            var rootId = new NodeId("ReferenceServer", 1);
+            Assert.That(externalReferences.ContainsKey(ObjectIds.ObjectsFolder), Is.True);
+            Assert.That(
+                externalReferences[ObjectIds.ObjectsFolder].Count(r =>
+                    r.ReferenceTypeId == ReferenceTypeIds.Organizes &&
+                    !r.IsInverse &&
+                    r.TargetId == new ExpandedNodeId(rootId)),
+                Is.EqualTo(1));
+            Assert.That(
+                await manager.GetManagerHandleAsync(rootId, CancellationToken.None)
+                    .ConfigureAwait(false),
+                Is.Not.Null);
+
+            ((IDisposable)manager).Dispose();
+        }
+
+        [Test]
+        public async Task BuildCreatedInstanceUnderObjectsFolderIsMirroredToExternalReferencesAsync()
+        {
+            Mock<IServerInternal> mockServer = BuildMockServer();
+            NodeId instanceId = NodeId.Null;
+            var factory = new FluentNodeManagerFactory(
+                TestNamespaceUri,
+                builder => instanceId = builder
+                    .CreateInstance(
+                        new QualifiedName("Boiler #2", 1),
+                        p => new BaseObjectState(p))
+                    .Configure(n => n.UnderObjectsFolder())
+                    .Node.NodeId);
+
+            IAsyncNodeManager manager = await factory.CreateAsync(
+                mockServer.Object,
+                new ApplicationConfiguration(),
+                CancellationToken.None)
+                .ConfigureAwait(false);
+
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await manager.CreateAddressSpaceAsync(externalReferences, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            // The forward Organizes edge from the Objects folder to the
+            // build-created instance must have been published for the
+            // master node manager to distribute (issue #4329).
+            Assert.That(instanceId.IsNull, Is.False);
+            Assert.That(externalReferences.ContainsKey(ObjectIds.ObjectsFolder), Is.True);
+            Assert.That(
+                externalReferences[ObjectIds.ObjectsFolder].Count(r =>
+                    r.ReferenceTypeId == ReferenceTypeIds.Organizes && !r.IsInverse),
+                Is.EqualTo(1));
+            Assert.That(
+                externalReferences[ObjectIds.ObjectsFolder]
+                    .Single(r =>
+                        r.ReferenceTypeId == ReferenceTypeIds.Organizes &&
+                        !r.IsInverse)
+                    .TargetId,
+                Is.EqualTo(new ExpandedNodeId(instanceId)));
 
             ((IDisposable)manager).Dispose();
         }
@@ -197,12 +314,56 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(factory.NamespacesUris[0], Is.EqualTo(TestNamespaceUri));
         }
 
-        // ── Helpers ──────────────────────────────────────────────────────────
+        [Test]
+        public async Task AddReferenceServerConfiguresNamedRootFolderAsync()
+        {
+            const string referenceNamespaceUri =
+                "http://opcfoundation.org/UA/ReferenceServer";
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa().AddReferenceServer();
+            using ServiceProvider sp = services.BuildServiceProvider();
+            OpcUaServerNodeManagerRegistration registration = sp
+                .GetServices<OpcUaServerNodeManagerRegistration>()
+                .Single();
+            IAsyncNodeManagerFactory factory = registration.AsyncFactory!;
+            Mock<IServerInternal> mockServer = BuildMockServer(referenceNamespaceUri);
+            IAsyncNodeManager manager = await factory.CreateAsync(
+                mockServer.Object,
+                new ApplicationConfiguration(),
+                CancellationToken.None)
+                .ConfigureAwait(false);
 
-        private static Mock<IServerInternal> BuildMockServer()
+            try
+            {
+                var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+                await manager.CreateAddressSpaceAsync(
+                    externalReferences,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                var rootId = new NodeId("ReferenceServer", 1);
+                Assert.That(
+                    externalReferences[ObjectIds.ObjectsFolder].Count(reference =>
+                        reference.ReferenceTypeId == ReferenceTypeIds.Organizes &&
+                        !reference.IsInverse &&
+                        reference.TargetId == new ExpandedNodeId(rootId)),
+                    Is.EqualTo(1));
+                Assert.That(
+                    await manager.GetManagerHandleAsync(rootId, CancellationToken.None)
+                        .ConfigureAwait(false),
+                    Is.Not.Null);
+            }
+            finally
+            {
+                ((IDisposable)manager).Dispose();
+            }
+        }
+
+        private static Mock<IServerInternal> BuildMockServer(
+            string namespaceUri = TestNamespaceUri)
         {
             var namespaceTable = new NamespaceTable();
-            namespaceTable.Append(TestNamespaceUri);
+            namespaceTable.Append(namespaceUri);
 
             var mockTelemetry = new Mock<ITelemetryContext>();
             mockTelemetry

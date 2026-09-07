@@ -93,6 +93,7 @@ namespace Opc.Ua.Server
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
             m_logger = server.Telemetry.CreateLogger<SamplingGroup>();
+            m_backgroundWork = new BackgroundTaskScope(nameof(SamplingGroup), server.Telemetry);
             m_nodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
             m_samplingRates = samplingRates ??
                 throw new ArgumentNullException(nameof(samplingRates));
@@ -132,6 +133,10 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                // Signal only: Dispose is synchronous. An in-flight sample
+                // stops at its next await once the token trips.
+                m_backgroundWork.Dispose();
+
                 lock (m_lock)
                 {
                     m_shutdownEvent.Set();
@@ -290,8 +295,9 @@ namespace Opc.Ua.Server
                 // collect first sample.
                 if (itemsToSample.Count > 0)
                 {
-                    _ = Task.Run(
-                        async () => await DoSampleAsync(itemsToSample, CancellationToken.None)
+                    m_backgroundWork.Run(
+                        nameof(DoSampleAsync),
+                        async ct => await DoSampleAsync(itemsToSample, ct)
                             .ConfigureAwait(false));
                 }
 
@@ -513,19 +519,21 @@ namespace Opc.Ua.Server
                         errors.Add(null!);
                     }
 
-                    OperationContext context;
+                    OperationContext created;
 
                     if (m_session != null)
                     {
-                        context = new OperationContext(m_session, m_diagnosticsMask);
+                        created = new OperationContext(m_session, m_diagnosticsMask);
                     }
                     else
                     {
                         // if session of the Sampling group is not set yet, use the first monitored item to create the context.
                         IMonitoredItem firstItem = items[0];
-                        context = new OperationContext(firstItem);
+                        created = new OperationContext(firstItem);
                         m_session = firstItem.Session;
                     }
+
+                    using OperationContext context = created;
 
                     // read values.
                     await m_nodeManager.ReadAsync(context, 0, itemsToRead, values, errors, cancellationToken).ConfigureAwait(false);
@@ -552,6 +560,7 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
+        private readonly BackgroundTaskScope m_backgroundWork;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private readonly IAsyncNodeManager m_nodeManager;

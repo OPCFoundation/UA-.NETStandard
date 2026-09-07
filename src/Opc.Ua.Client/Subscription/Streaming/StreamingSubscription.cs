@@ -47,7 +47,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
     /// SubscribeXxxAsync call adds a monitored item to the shared
     /// subscription and pipes notifications into a per-call channel.
     /// </summary>
-    public sealed class StreamingSubscription : IStreamingSubscription
+    public sealed class StreamingSubscription : IStreamingSubscription, IStreamingSubscriptionReadiness
     {
         private readonly ISubscriptionManager m_subscriptionManager;
         private readonly SubscriptionOptions m_subscriptionOptions;
@@ -69,7 +69,11 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         {
             m_subscriptionManager = subscriptionManager
                 ?? throw new ArgumentNullException(nameof(subscriptionManager));
-            m_subscriptionOptions = subscriptionOptions ?? new SubscriptionOptions();
+            m_subscriptionOptions = (subscriptionOptions ??
+                new SubscriptionOptions()) with
+            {
+                PublishingEnabled = true
+            };
             m_notifier = new Notifier(this);
         }
 
@@ -122,9 +126,12 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             {
                 foreach (NodeId nodeId in nodeIds)
                 {
-                    MonitoredItems.MonitoredItemOptions itemOptions = (options ?? new MonitoredItems.MonitoredItemOptions())
-                        with
-                    { StartNodeId = nodeId };
+                    MonitoredItems.MonitoredItemOptions itemOptions =
+                        (options ?? new MonitoredItems.MonitoredItemOptions())
+                            with
+                        {
+                            StartNodeId = nodeId
+                        };
 
                     string name = $"stream_data_{handle}_{nodeId}";
 
@@ -136,6 +143,11 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                     {
                         monitoredItems.Add(item);
                         subscriber.AddClientHandle(item.ClientHandle);
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(
+                            $"Could not add the monitored item for node '{nodeId}'.");
                     }
                 }
 
@@ -181,11 +193,35 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             return SubscribeEventsImpl(notifierId, filter, options, ct);
         }
 
+        /// <inheritdoc/>
+        IAsyncEnumerable<EventNotification> IStreamingSubscriptionReadiness.SubscribeEventsAsync(
+            NodeId notifierId,
+            EventFilter filter,
+            MonitoredItems.MonitoredItemOptions? options,
+            Func<IMonitoredItem, CancellationToken, ValueTask> onMonitoredItemReady,
+            CancellationToken ct)
+        {
+            if (notifierId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(notifierId));
+            }
+            if (filter == null)
+            {
+                throw new ArgumentNullException(nameof(filter));
+            }
+            if (onMonitoredItemReady == null)
+            {
+                throw new ArgumentNullException(nameof(onMonitoredItemReady));
+            }
+            return SubscribeEventsImpl(notifierId, filter, options, ct, onMonitoredItemReady);
+        }
+
         private async IAsyncEnumerable<EventNotification> SubscribeEventsImpl(
             NodeId notifierId,
             EventFilter filter,
             MonitoredItems.MonitoredItemOptions? options,
-            [EnumeratorCancellation] CancellationToken ct)
+            [EnumeratorCancellation] CancellationToken ct,
+            Func<IMonitoredItem, CancellationToken, ValueTask>? onMonitoredItemReady = null)
         {
             await EnsureSubscriptionAsync(ct).ConfigureAwait(false);
 
@@ -210,17 +246,27 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             m_subscribers[handle] = subscriber;
 
             string name = $"stream_event_{handle}_{notifierId}";
-            IMonitoredItem? item = null;
+            uint? clientHandle = null;
 
             try
             {
                 if (m_subscription!.MonitoredItems.TryAdd(
                         name,
                         new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(itemOptions),
-                        out item) &&
+                        out IMonitoredItem? item) &&
                     item != null)
                 {
-                    subscriber.AddClientHandle(item.ClientHandle);
+                    clientHandle = item.ClientHandle;
+                    subscriber.AddClientHandle(clientHandle.Value);
+                    if (onMonitoredItemReady != null)
+                    {
+                        await onMonitoredItemReady(item, ct).ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        $"Could not add the event monitored item for notifier '{notifierId}'.");
                 }
 
                 await foreach (EventNotification notification in channel.Reader
@@ -232,11 +278,11 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             finally
             {
                 m_subscribers.TryRemove(handle, out _);
-                if (item != null)
+                if (clientHandle.HasValue)
                 {
                     try
                     {
-                        m_subscription?.MonitoredItems.TryRemove(item.ClientHandle);
+                        m_subscription?.MonitoredItems.TryRemove(clientHandle.Value);
                     }
                     catch
                     {
@@ -476,7 +522,10 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             }
         }
 
-        private sealed class OptionsMonitor<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] T>
+        private sealed class OptionsMonitor<
+            [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
+        T>
             : IOptionsMonitor<T>
         {
             public OptionsMonitor(T value)

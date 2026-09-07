@@ -124,7 +124,6 @@ namespace Opc.Ua.Tests
         }
 
         /// <summary>
-        /// <summary>
         /// Arms a background watchdog that force-exits the test host
         /// process if it has not exited within <paramref name="timeout"/>.
         /// </summary>
@@ -202,11 +201,11 @@ namespace Opc.Ua.Tests
         /// hang). A genuine leak stays positive across the poll and still fails.
         /// </para>
         /// <para>
-        /// In <c>DEBUG</c> builds the failure message additionally includes
-        /// the allocation stack traces of every live (reachable) certificate
-        /// with a positive refcount and of every certificate whose finalizer
-        /// ran while still referenced, so the leak source is visible directly
-        /// in the CI test output.
+        /// When certificate allocation tracking is enabled, the failure message
+        /// additionally includes allocation stack traces for live certificates
+        /// with a positive refcount and unreachable handles that were not
+        /// disposed, so the leak source is visible directly in the CI test
+        /// output.
         /// </para>
         /// </remarks>
         /// <param name="detail">Optional caller-supplied breakdown (for
@@ -232,59 +231,154 @@ namespace Opc.Ua.Tests
                     .Append(detail);
             }
 
-            AppendDebugLeakDumps(message);
+            string fixtureSummary = CertificateLeakAttribution.BuildSummary();
+            if (!string.IsNullOrEmpty(fixtureSummary))
+            {
+                message.AppendLine()
+                    .Append(fixtureSummary);
+            }
+
+            AppendLeakDumps(message);
             Assert.Fail(message.ToString());
         }
 
         /// <summary>
-        /// Returns <see cref="Certificate.InstancesLeaked"/>, but when it is
-        /// positive, re-reads it over a short bounded poll first so that an
-        /// in-flight background disposal (fire-and-forget channel / session
-        /// cleanup) is given a brief moment to complete. The poll exits as soon
-        /// as the count reaches zero and is hard-bounded (no
-        /// <see cref="GC.WaitForPendingFinalizers"/>), so it can never hang the
-        /// test host. Suites with no leak return immediately.
+        /// Returns <see cref="Certificate.InstancesLeaked"/>, waiting first for the count to
+        /// settle so that an in-flight background disposal (fire-and-forget channel / session
+        /// cleanup) is not mistaken for a leak. The poll is hard-bounded and never calls
+        /// <see cref="GC.WaitForPendingFinalizers"/>, so it cannot hang the test host. Suites
+        /// with no outstanding instances return immediately.
         /// </summary>
+        /// <remarks>
+        /// Waiting a fixed budget cannot separate the two cases it needs to tell apart. A
+        /// genuine leak holds the count steady, while a suite still draining its background
+        /// disposals has a count that is falling - and on a loaded CI agent the drain can
+        /// outlast any budget short enough to keep a real leak's failure prompt. This waits
+        /// for <b>quiescence</b> instead: progress resets the clock, and the count is only
+        /// reported once it has stopped moving. A real leak is therefore reported sooner than
+        /// a fixed budget would, and a slow drain is given as long as it keeps making progress.
+        /// The Sessions WSS fixtures can leave the final TLS callback cleanup queued slightly
+        /// longer on loaded Linux CI agents, so the steady-count window is deliberately a few
+        /// seconds rather than a sub-second race against that transport teardown.
+        /// </remarks>
+        /// <param name="maxAttempts">Hard cap on polls, so the wait always terminates.</param>
+        /// <param name="delayMilliseconds">Delay between polls.</param>
+        /// <param name="stableReadsRequired">Consecutive unchanged reads that count as settled.</param>
         public static long WaitForOutstandingDisposals(
-            int maxAttempts = 50,
-            int delayMilliseconds = 100)
+            int maxAttempts = 600,
+            int delayMilliseconds = 100,
+            int stableReadsRequired = 50)
         {
             long leaked = Certificate.InstancesLeaked;
-            for (int i = 0; leaked > 0 && i < maxAttempts; i++)
+            if (leaked <= 0)
+            {
+                return leaked;
+            }
+
+            int stableReads = 0;
+            for (int i = 0; i < maxAttempts; i++)
             {
                 Thread.Sleep(delayMilliseconds);
-                leaked = Certificate.InstancesLeaked;
+                long current = Certificate.InstancesLeaked;
+                if (current <= 0)
+                {
+                    return current;
+                }
+
+                if (current < leaked)
+                {
+                    // Still draining - a disposal completed since the last read, so do
+                    // not start counting toward "settled" yet.
+                    stableReads = 0;
+                }
+                else if (++stableReads >= stableReadsRequired)
+                {
+                    return current;
+                }
+
+                leaked = current;
             }
             return leaked;
         }
 
         /// <summary>
-        /// Appends the DEBUG-only allocation stack traces of leaked
-        /// certificates to <paramref name="message"/>. No-op in release
-        /// builds (the per-instance tracking is compiled out).
+        /// Appends allocation stack traces of leaked certificates to
+        /// <paramref name="message"/> when allocation tracking is enabled.
         /// </summary>
-        private static void AppendDebugLeakDumps(StringBuilder message)
+        internal static void AppendLeakDumps(StringBuilder message)
         {
-#if DEBUG
-            message.AppendLine()
-                .AppendLine("LIVE LEAKED CERTIFICATES (DEBUG):");
-            foreach ((string thumbprint, int refCount, DateTime createdAt, string stackTrace) in
-                Certificate.EnumerateLiveCertificates())
+            if (!Certificate.LeakTrackingEnabled)
             {
-                message.AppendLine(FormattableString.Invariant(
-                    $"  Thumbprint={thumbprint}, RefCount={refCount}, CreatedAt={createdAt:O}"))
-                    .AppendLine(FormattableString.Invariant($"  StackTrace:\n{stackTrace}"));
+                message.AppendLine()
+                    .AppendLine(
+                        "Certificate allocation tracking was disabled. Set " +
+                        "OPCUA_CERTIFICATE_LEAK_TRACKING=1 before starting the test host " +
+                        "to include allocation stacks.");
+                return;
             }
 
-            message.AppendLine("FINALIZED-WITH-LEAKED-REF CERTIFICATES (DEBUG):");
-            foreach ((string thumbprint, DateTime createdAt, string stackTrace) in
-                Certificate.EnumerateFinalizedLeakedCertificates())
+            message.AppendLine()
+                .AppendLine("LIVE LEAKED CERTIFICATES:");
+            int liveCount = 0;
+            foreach ((
+                string thumbprint,
+                int refCount,
+                DateTime createdAt,
+                string stackTrace,
+                string fixtureName) in
+                Certificate.EnumerateLiveCertificates())
             {
-                message.AppendLine(FormattableString.Invariant(
-                    $"  Thumbprint={thumbprint}, CreatedAt={createdAt:O}"))
-                    .AppendLine(FormattableString.Invariant($"  StackTrace:\n{stackTrace}"));
+                liveCount++;
+                if (liveCount <= c_maxLeakDumpEntries)
+                {
+                    message.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "  Thumbprint={0}, RefCount={1}, CreatedAt={2:O}, Fixture={3}",
+                        thumbprint,
+                        refCount,
+                        createdAt,
+                        fixtureName ?? "(unattributed)");
+                    message.AppendLine()
+                        .AppendLine(FormattableString.Invariant($"  StackTrace:\n{stackTrace}"));
+                }
             }
-#endif
+            AppendOmittedCount(message, liveCount);
+
+            message.AppendLine("UNREACHABLE UNDISPOSED CERTIFICATES:");
+            int unreachableCount = 0;
+            foreach ((DateTime createdAt, string stackTrace, string fixtureName) in
+                Certificate.EnumerateUnreachableUndisposedCertificates())
+            {
+                unreachableCount++;
+                if (unreachableCount <= c_maxLeakDumpEntries)
+                {
+                    message.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "  CreatedAt={0:O}, Fixture={1}",
+                        createdAt,
+                        fixtureName ?? "(unattributed)");
+                    message.AppendLine()
+                        .AppendLine(FormattableString.Invariant($"  StackTrace:\n{stackTrace}"));
+                }
+            }
+            AppendOmittedCount(message, unreachableCount);
         }
+
+        /// <summary>
+        /// Appends the number of leak entries omitted by the diagnostic cap.
+        /// </summary>
+        private static void AppendOmittedCount(StringBuilder message, int count)
+        {
+            if (count > c_maxLeakDumpEntries)
+            {
+                message.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "  ... {0} additional allocation(s) omitted.",
+                    count - c_maxLeakDumpEntries);
+                message.AppendLine();
+            }
+        }
+
+        private const int c_maxLeakDumpEntries = 50;
     }
 }

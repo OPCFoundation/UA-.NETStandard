@@ -46,16 +46,24 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
     internal sealed class FakeSubscriptionManagerContext : ISubscriptionManagerContext
     {
         /// <summary>Recorded calls to <see cref="CreateSubscription"/>.</summary>
-        public List<CreateSubscriptionCall> CreateSubscriptionCalls { get; } = [];
+        public IReadOnlyList<CreateSubscriptionCall> CreateSubscriptionCalls
+            => Snapshot(m_createSubscriptionCalls);
 
         /// <summary>Recorded calls to <see cref="PublishAsync"/>.</summary>
-        public List<PublishCall> PublishCalls { get; } = [];
+        public IReadOnlyList<PublishCall> PublishCalls => Snapshot(m_publishCalls);
 
         /// <summary>Recorded calls to <see cref="TransferSubscriptionsAsync"/>.</summary>
-        public List<TransferCall> TransferCalls { get; } = [];
+        public IReadOnlyList<TransferCall> TransferCalls => Snapshot(m_transferCalls);
 
         /// <summary>Recorded calls to <see cref="DeleteSubscriptionsAsync"/>.</summary>
-        public List<DeleteCall> DeleteCalls { get; } = [];
+        public IReadOnlyList<DeleteCall> DeleteCalls => Snapshot(m_deleteCalls);
+
+        /// <summary>
+        /// Number of recorded calls to <see cref="DeleteSubscriptionsAsync"/>.
+        /// Polling loops use this instead of <see cref="DeleteCalls"/> so a
+        /// wait condition does not allocate a snapshot on every iteration.
+        /// </summary>
+        public int DeleteCallsCount => Count(m_deleteCalls);
 
         /// <summary>
         /// Required factory for <see cref="CreateSubscription"/>. Tests must
@@ -96,7 +104,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             IMessageAckQueue queue,
             SubscriptionLoadState? loadState = null)
         {
-            CreateSubscriptionCalls.Add(
+            Record(m_createSubscriptionCalls,
                 new CreateSubscriptionCall(handler, options, queue, loadState));
             return CreateSubscriptionFactory(handler, options, queue);
         }
@@ -106,7 +114,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
             CancellationToken ct = default)
         {
-            PublishCalls.Add(new PublishCall(requestHeader,
+            Record(m_publishCalls, new PublishCall(requestHeader,
                 subscriptionAcknowledgements));
             return OnPublishAsync?.Invoke(requestHeader,
                 subscriptionAcknowledgements, ct)
@@ -117,7 +125,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             RequestHeader? requestHeader, ArrayOf<uint> subscriptionIds,
             bool sendInitialValues, CancellationToken ct = default)
         {
-            TransferCalls.Add(new TransferCall(requestHeader, subscriptionIds,
+            Record(m_transferCalls, new TransferCall(requestHeader, subscriptionIds,
                 sendInitialValues));
             return OnTransferSubscriptionsAsync?.Invoke(requestHeader,
                 subscriptionIds, sendInitialValues, ct)
@@ -129,11 +137,83 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             RequestHeader? requestHeader, ArrayOf<uint> subscriptionIds,
             CancellationToken ct = default)
         {
-            DeleteCalls.Add(new DeleteCall(requestHeader, subscriptionIds));
+            Record(m_deleteCalls, new DeleteCall(requestHeader, subscriptionIds));
             return OnDeleteSubscriptionsAsync?.Invoke(requestHeader,
                 subscriptionIds, ct)
                 ?? new ValueTask<DeleteSubscriptionsResponse>(
                     new DeleteSubscriptionsResponse());
+        }
+
+        /// <summary>
+        /// Identifiers the fake session claims outside the manager's registry,
+        /// standing in for subscriptions created through the classic API.
+        /// </summary>
+        public HashSet<uint> SessionOwnedSubscriptionIds { get; } = [];
+
+        /// <inheritdoc/>
+        public int SessionSubscriptionCount => SessionOwnedSubscriptionIds.Count;
+
+        /// <summary>Recorded dispatches to session-owned subscriptions.</summary>
+        public int SessionDispatchCount => Volatile.Read(ref m_sessionDispatchCount);
+
+        public bool TryDispatchToSessionSubscription(
+            uint subscriptionId,
+            NotificationMessage message,
+            ArrayOf<uint> availableSequenceNumbers,
+            ArrayOf<string> stringTable,
+            bool moreNotifications)
+        {
+            if (!SessionOwnedSubscriptionIds.Contains(subscriptionId))
+            {
+                return false;
+            }
+            Interlocked.Increment(ref m_sessionDispatchCount);
+            return true;
+        }
+
+        private int m_sessionDispatchCount;
+
+        /// <summary>
+        /// Appends a recorded call. Publish workers run on background
+        /// threads while the test thread inspects the recordings, so the
+        /// backing lists must never be mutated without synchronization.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="recordings"></param>
+        /// <param name="call"></param>
+        private void Record<T>(List<T> recordings, T call)
+        {
+            lock (m_recordLock)
+            {
+                recordings.Add(call);
+            }
+        }
+
+        /// <summary>
+        /// Returns a stable copy of a recording so assertions cannot
+        /// observe a list that is being appended to concurrently.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="recordings"></param>
+        private IReadOnlyList<T> Snapshot<T>(List<T> recordings)
+        {
+            lock (m_recordLock)
+            {
+                return [.. recordings];
+            }
+        }
+
+        /// <summary>
+        /// Reads the number of recorded calls without allocating a snapshot.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="recordings"></param>
+        private int Count<T>(List<T> recordings)
+        {
+            lock (m_recordLock)
+            {
+                return recordings.Count;
+            }
         }
 
         internal readonly record struct CreateSubscriptionCall(
@@ -152,5 +232,11 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
 
         internal readonly record struct DeleteCall(
             RequestHeader? RequestHeader, ArrayOf<uint> SubscriptionIds);
+
+        private readonly List<CreateSubscriptionCall> m_createSubscriptionCalls = [];
+        private readonly List<PublishCall> m_publishCalls = [];
+        private readonly List<TransferCall> m_transferCalls = [];
+        private readonly List<DeleteCall> m_deleteCalls = [];
+        private readonly System.Threading.Lock m_recordLock = new();
     }
 }

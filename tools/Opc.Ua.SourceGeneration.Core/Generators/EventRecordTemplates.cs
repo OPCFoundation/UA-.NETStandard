@@ -34,7 +34,7 @@ namespace Opc.Ua.SourceGeneration
     /// <c>partial record {Type}Record : {Parent}Record</c> per OPC UA
     /// <c>ObjectType</c> that derives from <c>BaseEventType</c>. Each
     /// record declares only the fields introduced by its type;
-    /// inherited fields come from the parent record class. The
+    /// inherited fields come from the parent record. The
     /// generated chain mirrors the OPC UA event-type hierarchy.
     /// </summary>
     /// <remarks>
@@ -70,7 +70,7 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
-        /// One record class per <c>ObjectType</c>. Generated as a
+        /// One event record per <c>ObjectType</c>. Generated as a
         /// <c>partial record</c> so consumers can add convenience
         /// properties without touching the generated source.
         /// </summary>
@@ -102,9 +102,10 @@ namespace Opc.Ua.SourceGeneration
                     /// before calling <see cref="Decode"/>.
                     /// </summary>
                     public static readonly global::Opc.Ua.QualifiedName[][] StandardFields =
-                    [
+                    new global::Opc.Ua.QualifiedName[][]
+                    {
                         {{Tokens.ListOfFields}}
-                    ];
+                    };
 
                     /// <summary>
                     /// Decodes <paramref name="fields"/> into a
@@ -149,11 +150,13 @@ namespace Opc.Ua.SourceGeneration
                     /// clauses. When <c>null</c>,
                     /// <see cref="global::Opc.Ua.EventRecordDecoderRegistry.Default"/>
                     /// is used.</param>
+                    {{Tokens.EventFilterParameterDocumentation}}
                     public static global::Opc.Ua.EventFilter Build(
+                        {{Tokens.EventFilterParameters}}
                         global::Opc.Ua.EventRecordDecoderRegistry? registry = null)
                         {
                         return global::Opc.Ua.EventFilterFactory.Create(
-                            global::Opc.Ua.ObjectTypeIds.{{Tokens.SymbolicName}},
+                            {{Tokens.EventTypeId}},
                             registry);
                         }
                 }
@@ -180,7 +183,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString StandardFieldEntry = TemplateString.Parse(
             $$"""
-            {{Tokens.ChildPath}},
+            new global::Opc.Ua.QualifiedName[] { {{Tokens.ChildPath}} },
             """);
 
         /// <summary>
@@ -188,7 +191,10 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString DecodedField = TemplateString.Parse(
             $$"""
-            {{Tokens.PropertyName}} = global::Opc.Ua.EventRecordFieldReaders.{{Tokens.ClientMethod}}(fields, {{Tokens.FieldIndex}}),
+            {{Tokens.PropertyName}} =
+                global::Opc.Ua.EventRecordFieldReaders.{{Tokens.ClientMethod}}(
+                    fields,
+                    {{Tokens.FieldIndex}}),
             """);
 
         /// <summary>
@@ -212,8 +218,10 @@ namespace Opc.Ua.SourceGeneration
                 /// with <paramref name="registry"/>. Returns the
                 /// registry for chaining.
                 /// </summary>
+                /// <param name="registry">The decoder registry to update.</param>
+                {{Tokens.EventFilterParameterDocumentation}}
                 public static global::Opc.Ua.EventRecordDecoderRegistry {{Tokens.ClientMethod}}(
-                    this global::Opc.Ua.EventRecordDecoderRegistry registry)
+                    this global::Opc.Ua.EventRecordDecoderRegistry registry{{Tokens.EventFilterParameters}})
                 {
                     {{Tokens.ListOfActivatorRegistrations}}
                     return registry;
@@ -227,7 +235,7 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString DecoderRegistration = TemplateString.Parse(
             $$"""
             registry.TryRegister(
-                global::Opc.Ua.ObjectTypeIds.{{Tokens.SymbolicName}},
+                {{Tokens.EventTypeId}},
                 {{Tokens.ClassName}}.Decoder.StandardFields,
                 {{Tokens.ClassName}}.Decoder.Decode);
             """);

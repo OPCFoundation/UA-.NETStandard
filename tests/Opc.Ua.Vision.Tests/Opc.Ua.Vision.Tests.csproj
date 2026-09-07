@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <RootNamespace>Opc.Ua.Vision.Tests</RootNamespace>
+    <AssemblyName>Opc.Ua.Vision.Tests</AssemblyName>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014;CA1861;CA1859;NUnit2026;NUnit4002;NUnit2046;RCS1174</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="OpenUsd.Rendering.Silk"
+                      Condition="'$(TargetFramework)' == 'net10.0' or '$(TargetFramework)' == 'net9.0' or '$(TargetFramework)' == 'net8.0'" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.Vision\Opc.Ua.Vision.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Vision.Server\Opc.Ua.Vision.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Vision.Client\Opc.Ua.Vision.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Vision.OpenUsd\Opc.Ua.Vision.OpenUsd.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0' or '$(TargetFramework)' == 'net9.0' or '$(TargetFramework)' == 'net8.0'" />
+    <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
+  </ItemGroup>
+  <!-- The OpenUSD-backed tests depend on Opc.Ua.Vision.OpenUsd, which is .NET 8+
+       only and opts into RestrictForLegacyTfm: on a legacy CustomTestTarget leg it
+       still builds, but as an empty shell, so the reference resolves to an assembly
+       with no types in it. The condition therefore has to match the one in
+       Directory.Build.targets that produces that shell - keying off this project's
+       own TargetFramework is not enough, because it keeps building net8.0 while the
+       reference underneath it has been emptied. -->
+  <ItemGroup Condition="'$(CustomTestTarget)' == 'net48' or '$(CustomTestTarget)' == 'net472' or '$(CustomTestTarget)' == 'netstandard2.0' or '$(CustomTestTarget)' == 'netstandard2.1' or '$(TargetFramework)' == 'net48' or '$(TargetFramework)' == 'net472' or '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netstandard2.1'">
+    <Compile Remove="BlankFrameGuardTests.cs" />
+    <Compile Remove="PngEncoderTests.cs" />
+    <Compile Remove="SceneCameraCaptureProviderTests.cs" />
+    <Compile Remove="SceneCameraCaptureTypesTests.cs" />
+    <Compile Remove="OpenUsdSceneCameraCaptureServiceCollectionExtensionsTests.cs" />
+    <Compile Remove="OpenUsdCaptureLogTests.cs" />
+    <Compile Remove="VisionOpenUsdCoverageTests.cs" />
+  </ItemGroup>
+</Project>

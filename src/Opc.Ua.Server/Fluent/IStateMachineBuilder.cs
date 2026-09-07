@@ -161,7 +161,21 @@ namespace Opc.Ua.Server.Fluent
         /// The internal cause ID (e.g.
         /// <c>Methods.ProgramStateMachineType_Start</c>).
         /// </param>
-        IStateMachineBuilder<TState> WithCause(NodeId methodNodeId, uint causeId);
+        /// <param name="reportExecutable">
+        /// When <c>true</c> (the default) the method's
+        /// <c>Executable</c> / <c>UserExecutable</c> attributes are
+        /// answered from
+        /// <see cref="FiniteStateMachineState.IsCausePermitted"/>, so a
+        /// client can see which causes apply in the current state and a
+        /// call made anyway is refused with <c>Bad_NotExecutable</c>
+        /// (Part 4 §5.11.2). Pass <c>false</c> for servers that
+        /// deliberately keep the method executable at all times and
+        /// answer at call time instead.
+        /// </param>
+        IStateMachineBuilder<TState> WithCause(
+            NodeId methodNodeId,
+            uint causeId,
+            bool reportExecutable = true);
 
         /// <summary>
         /// Auto-fires <see cref="FiniteStateMachineState.DoCause"/> for

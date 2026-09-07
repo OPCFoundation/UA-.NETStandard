@@ -1,6 +1,6 @@
 # Node States and INodeCache
 
-> **When to read this:** Read this when migrating custom NodeManagers, `NodeState` clone / read / write helpers (`Clone` -> `CreateCopy`, removed `BaseVariableState` helpers), the new `INodeManager3` role-permission hooks, `OnAfterCreate(CancellationToken)`, predefined-node processing, generics on `BaseVariableState` / `BaseVariableTypeState`, or `INodeCache.InvalidateNode`.
+> **When to read this:** Read this when migrating custom NodeManagers, `NodeState` clone / read / write helpers (`Clone` -> `CreateCopy`, removed `BaseVariableState` helpers), the new `INodeManager3` role-permission hooks, `OnAfterCreate(CancellationToken)`, predefined-node processing, generics on `BaseVariableState` / `BaseVariableTypeState`, code that took `lock (node)` on a `NodeState` or used `NodeBrowser.DataLock`, or `INodeCache.InvalidateNode`.
 
 ## Node States
 
@@ -113,11 +113,195 @@ protected override void OnAfterCreate(ISystemContext context, NodeState node, Ca
 }
 ```
 
+#### Generated instance factories and the create lifecycle
+
+Source-generated `CreateInstanceOf<Type>` factories materialise the typed node
+graph and assign per-instance NodeIds, but intentionally leave the create
+lifecycle open so callers can finish assembling and configuring the subtree.
+In 2.0, registering the graph through `AddPredefinedNodeAsync`,
+`AddNodeAsync`, or the synchronous predefined-node registration path
+automatically runs `OnBeforeCreate`/`OnAfterCreate` and clears change masks
+before indexing. Asynchronous predefined-node registration repairs typed
+instance subtrees which still carry null, foreign-namespace, or
+type-declaration-colliding NodeIds before the callbacks, so they see the
+identifiers which enter the address space. Explicit NodeIds in a namespace
+owned by the node manager are preserved. Synchronous registration keeps the
+caller's identifiers; fluent helpers which materialise typed subtrees assign
+their instance child NodeIds before registration. `NodeState.IsCreated`
+exposes whether an individual node has completed that lifecycle.
+
+`AddBehaviourToPredefinedNode` and its asynchronous equivalent receive the
+created node. An override which replaces a passive node may therefore observe
+the passive node's lifecycle before returning the active replacement; the
+replacement is also completed before indexing. Keep external lifecycle side
+effects idempotent when using that legacy replacement pattern.
+
+If pre-registration code depends on values established by `OnAfterCreate`, or
+sets state or handlers which an `OnAfterCreate` override would replace, call
+`CreateAsPredefinedNode` first:
+
+```csharp
+MyMachineState machine =
+    context.CreateInstanceOfMyMachineType(parent, browseName);
+
+machine.CreateAsPredefinedNode(context);
+SeedInitialState(machine);
+
+await AddPredefinedNodeAsync(context, machine, cancellationToken);
+```
+
+`CreateAsPredefinedNode` is idempotent per node and still completes newly
+added children. It does not re-run `OnAfterCreate` on an ancestor which was
+already created, so add children whose handlers are wired by a parent callback
+before the parent's first completion, or wire those late children explicitly.
+This prevents duplicate callback execution when an explicitly completed
+subtree is later registered.
+
+#### NodeState FindChild and CreateChild state NodeId assignment
+
+`NodeState.FindChild` and `NodeState.CreateChild` now take
+`assignInstanceNodeIds` as their last parameter, and the old four argument
+`FindChild` / two argument `CreateChild` virtuals are gone. The parameter
+defaults to `true`, so **call sites keep compiling and keep the 1.5.378
+behaviour** — only overrides have to change:
+
+```csharp
+// Before
+protected override BaseInstanceState FindChild(
+    ISystemContext context,
+    QualifiedName browseName,
+    bool createOrReplace,
+    BaseInstanceState replacement)
+{
+    if (browseName.Name == BrowseNames.MyChild)
+    {
+        return createOrReplace
+            ? CreateOrReplaceMyChild(context, replacement)
+            : MyChild;
+    }
+    return base.FindChild(context, browseName, createOrReplace, replacement);
+}
+
+// After — add the parameter and pass it on
+protected override BaseInstanceState FindChild(
+    ISystemContext context,
+    QualifiedName browseName,
+    bool createOrReplace,
+    BaseInstanceState replacement,
+    bool assignInstanceNodeIds = true)
+{
+    if (browseName.Name == BrowseNames.MyChild)
+    {
+        return createOrReplace
+            ? CreateOrReplaceMyChild(context, replacement, assignInstanceNodeIds)
+            : MyChild;
+    }
+    return base.FindChild(
+        context, browseName, createOrReplace, replacement, assignInstanceNodeIds);
+}
+```
+
+A missing override raises `CS0115` (`no suitable method found to
+override`), so the compiler points at every site that needs the parameter.
+Repeat the `= true` default in the override so callers bound to your derived
+type keep the same behaviour.
+
+Why: a node copy creates each child and then initialises it from its source,
+which overwrites any NodeId minted along the way. Passing
+`assignInstanceNodeIds: false` — what `NodeState.Create(context, source)`
+now does — stops the `ISystemContext.NodeIdFactory` from being asked for
+identifiers that are immediately discarded, and leaked by factories that
+track outstanding allocations. Thread the argument into every
+`CreateOrReplace<Child>` call your override makes; source generated types
+already do. See
+[Custom node types and assignment control](../../NodeManagers.md#custom-node-types-and-assignment-control).
+
 ### INodeManager3 - new role-permission and method-resolution hooks
 
 2.0 introduces `INodeManager3`, an extension of `INodeManager2` that surfaces explicit hooks for per-role permission evaluation and for resolving the target of a `Call` request. `CustomNodeManager2` implements the new members with safe defaults that mirror the previous behavior, so node managers that already derive from `CustomNodeManager2` need no changes.
 
 Custom node managers that implement `INodeManager` / `INodeManager2` **directly** (not via `CustomNodeManager2`) silently lose the new behavior: the server probes for `INodeManager3` at the call site, and node managers that do not implement it fall through to the legacy code path. This is not a build break - it is a silent feature-availability regression. Either derive from `CustomNodeManager2` or implement `INodeManager3` explicitly to participate in role-permission evaluation and the new method-resolution contract.
+
+### NodeState guards itself; NodeBrowser is single-consumer (UA0027)
+
+In 1.5.378 a caller wanting a consistent view of a node took a lock on the node
+instance itself — `lock (source)` — and `NodeBrowser` handed its own lock to
+derived browsers through `protected object DataLock`. Both are gone in 2.0.
+
+**`NodeState` guards its own state.** Attributes, children, notifiers and
+references each have a private lock inside the node, and
+`NodeState.CreateBrowser` holds a browse lock while it assembles the browser.
+No code in the stack locks a node instance, and no caller should:
+
+```csharp
+// was
+lock (source)
+{
+    browser = source.CreateBrowser(context, view, referenceType, includeSubtypes,
+        browseDirection, default, null, false);
+}
+
+// now
+INodeBrowser browser = source.CreateBrowser(context, view, referenceType,
+    includeSubtypes, browseDirection, default, null, false);
+```
+
+Locking the node was also the only way to make a check-then-act pair atomic.
+`ReferenceExists` and `AddReference` each guard themselves, but the pair does
+not, so use `AddReferenceIfMissing`:
+
+```csharp
+// was
+lock (node)
+{
+    if (!node.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
+    {
+        node.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
+    }
+}
+
+// now
+node.AddReferenceIfMissing(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
+```
+
+**`NodeBrowser.DataLock` is removed.** A browser is single-consumer: it belongs
+to whoever created it and performs no synchronization of its own. The exposed
+lock was an inheritance-level locking contract that a derived browser could not
+reason about — nothing said how long it could be held or what else took it —
+while both server browse paths already serialize on the owning side. A derived
+browser drops the `lock` statement and keeps the body:
+
+```csharp
+// was
+public override IReference Next()
+{
+    lock (DataLock)
+    {
+        IReference reference = base.Next();
+        ...
+    }
+}
+
+// now
+public override IReference Next()
+{
+    IReference reference = base.Next();
+    ...
+}
+```
+
+If a browser really is shared between threads — the instance parked in a
+continuation point for `BrowseNext` is the canonical case — serialize it where
+it is owned, not inside the browser.
+
+**Overriding `CreateBrowser`.** A node type that builds its own browser instead
+of delegating to `base.CreateBrowser` must fill it through the new
+`protected NodeState.PopulateBrowserSynchronized`, not by calling
+`PopulateBrowser` directly. `PopulateBrowser` is invoked with the node's browse
+lock held, so an override must not block on external work such as I/O; defer
+that to the browser's own `Next()`.
+
+Analyzer `UA0027` reports every remaining `NodeBrowser.DataLock` reference.
 
 ## `INodeCache` changes
 
@@ -183,4 +367,3 @@ bool isType = await cache.IsTypeOfAsync(sub, super);
 - Related: [types.md](types.md), [alarms-model-change.md](alarms-model-change.md), [sessions-subscriptions.md](sessions-subscriptions.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
 - [Migration Guide](../../MigrationGuide.md) — landing page across versions.
-

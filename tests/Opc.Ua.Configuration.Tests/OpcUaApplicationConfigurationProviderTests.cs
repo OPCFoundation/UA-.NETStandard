@@ -365,6 +365,69 @@ namespace Opc.Ua.Configuration.Tests
             }
         }
 
+        [Test]
+        public async Task ConfigureSecurityRunsOnceAfterFirstClassOptionsForCombinedConfigurationAsync()
+        {
+            string pkiRoot = CreatePkiRoot();
+            int invocationCount = 0;
+            var provider = new OpcUaApplicationConfigurationProvider(
+                new OpcUaApplicationOptions
+                {
+                    ApplicationName = "AdvancedSecurityOptions",
+                    ApplicationUri = "urn:localhost:AdvancedSecurityOptions",
+                    ProductUri = "uri:opcfoundation.org:AdvancedSecurityOptions",
+                    PkiRoot = pkiRoot,
+                    AutoAcceptUntrustedCertificates = true,
+                    RejectSHA1SignedCertificates = true,
+                    MinimumCertificateKeySize = 2048,
+                    ConfigureSecurity = security =>
+                    {
+                        invocationCount++;
+                        security
+                            .SetMaxRejectedCertificates(17)
+                            .SetAutoAcceptUntrustedCertificates(false)
+                            .SetAddAppCertToTrustedStore(true)
+                            .SetRejectSHA1SignedCertificates(false)
+                            .SetRejectUnknownRevocationStatus(false)
+                            .SetUseValidatedCertificates(true)
+                            .SetSuppressNonceValidationErrors(true)
+                            .SetSendCertificateChain(false)
+                            .SetMinimumCertificateKeySize(3072);
+                    }
+                },
+                new TestApplicationInstanceFactory(),
+                NUnitTelemetryContext.Create(),
+                [new ClientFeature(), new ServerFeature()]);
+
+            try
+            {
+                ApplicationConfiguration configuration = await provider
+                    .GetAsync()
+                    .ConfigureAwait(false);
+
+                Assert.That(invocationCount, Is.EqualTo(1));
+                Assert.That(configuration.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
+                Assert.That(configuration.SecurityConfiguration.MaxRejectedCertificates, Is.EqualTo(17));
+                Assert.That(
+                    configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates,
+                    Is.False);
+                Assert.That(configuration.SecurityConfiguration.AddAppCertToTrustedStore, Is.True);
+                Assert.That(configuration.SecurityConfiguration.RejectSHA1SignedCertificates, Is.False);
+                Assert.That(configuration.SecurityConfiguration.RejectUnknownRevocationStatus, Is.False);
+                Assert.That(configuration.SecurityConfiguration.UseValidatedCertificates, Is.True);
+                Assert.That(configuration.SecurityConfiguration.SuppressNonceValidationErrors, Is.True);
+                Assert.That(configuration.SecurityConfiguration.SendCertificateChain, Is.False);
+                Assert.That(
+                    configuration.SecurityConfiguration.MinimumCertificateKeySize,
+                    Is.EqualTo(3072));
+            }
+            finally
+            {
+                await provider.DisposeAsync().ConfigureAwait(false);
+                DeletePkiRoot(pkiRoot);
+            }
+        }
+
         private static string CreatePkiRoot()
         {
             return Path.Combine(

@@ -174,6 +174,32 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Assert.That(captured.LastChange, Is.EqualTo(1u));
         }
 
+        [Test]
+        public async Task SubCategoryMutationBumpsAncestorLastChangeAsync()
+        {
+            // Part 17 §6.3.1/§9.2: a category's LastChange reflects the
+            // most recent change anywhere in its subtree, and the root
+            // value reflects any change at all — so a mutation on a nested
+            // category advances the parent's LastChange too, with a
+            // Changed notification per bumped category.
+            using InMemoryAliasNameStore store = CreateStore(withSubCategory: true);
+            var events = new List<AliasStoreChangedEventArgs>();
+            store.Changed += (_, e) => events.Add(e);
+
+            await store.AddAliasesAsync(s_child,
+                [new AliasAddRequest("SubX", s_t1, null, ReferenceTypeIds.AliasFor)],
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(store.GetLastChange(s_child), Is.EqualTo((uint?)1),
+                "The mutated category bumps.");
+            Assert.That(store.GetLastChange(s_root), Is.EqualTo((uint?)1),
+                "The ancestor category bumps as well.");
+            Assert.That(events, Has.Count.EqualTo(2));
+            Assert.That(events[0].CategoryId, Is.EqualTo(s_child),
+                "The mutated category notifies first.");
+            Assert.That(events[1].CategoryId, Is.EqualTo(s_root));
+        }
+
         private static readonly string[] s_rootAndSub = ["RootA", "SubA"];
 
         [Test]

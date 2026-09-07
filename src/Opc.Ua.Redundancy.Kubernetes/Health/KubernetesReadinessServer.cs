@@ -106,6 +106,10 @@ namespace Opc.Ua.Redundancy.Kubernetes
                     // expected on shutdown
                 }
             }
+
+            await DrainRequestHandlersAsync().ConfigureAwait(false);
+
+            m_handlerSlots.Dispose();
             m_cts.Dispose();
         }
 
@@ -147,7 +151,59 @@ namespace Opc.Ua.Redundancy.Kubernetes
                     return;
                 }
 
-                _ = Task.Run(() => HandleAsync(context), ct);
+                // Bound the fan-out: an unauthenticated readiness endpoint would
+                // otherwise spawn one unowned handler per inbound request, with
+                // nothing to stop a flood and nothing to wait for at shutdown.
+                try
+                {
+                    await m_handlerSlots.WaitAsync(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    context.Response.Close();
+                    return;
+                }
+
+                _ = Task.Run(
+                    async () =>
+                    {
+                        try
+                        {
+                            await HandleAsync(context).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            m_handlerSlots.Release();
+                        }
+                    },
+                    CancellationToken.None);
+            }
+        }
+
+        /// <summary>
+        /// Waits for the request handlers still in flight to finish by reclaiming
+        /// every concurrency slot.
+        /// </summary>
+        /// <remarks>
+        /// Holding all <see cref="kMaxConcurrentRequests"/> slots is only possible
+        /// once no handler owns one, so this doubles as the drain. It is bounded so a
+        /// wedged client socket cannot stall disposal indefinitely; the listener is
+        /// already closed by then, so an abandoned handler can only fail its own
+        /// response write.
+        /// </remarks>
+        private async Task DrainRequestHandlersAsync()
+        {
+            using var drainTimeout = new CancellationTokenSource(kDrainTimeout);
+            try
+            {
+                for (int i = 0; i < kMaxConcurrentRequests; i++)
+                {
+                    await m_handlerSlots.WaitAsync(drainTimeout.Token).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                m_logger?.KubernetesReadinessDrainTimedOut();
             }
         }
 
@@ -191,6 +247,9 @@ namespace Opc.Ua.Redundancy.Kubernetes
         private readonly HttpListener m_listener;
         private readonly Lock m_lock = new();
         private readonly CancellationTokenSource m_cts = new();
+        private readonly SemaphoreSlim m_handlerSlots = new(kMaxConcurrentRequests, kMaxConcurrentRequests);
+        private const int kMaxConcurrentRequests = 16;
+        private static readonly TimeSpan kDrainTimeout = TimeSpan.FromSeconds(5);
         private Task? m_loop;
         private bool m_started;
         private bool m_disposed;
@@ -204,6 +263,10 @@ namespace Opc.Ua.Redundancy.Kubernetes
         [LoggerMessage(EventId = RedundancyKubernetesEventIds.KubernetesReadinessServer + 0, Level = LogLevel.Error,
             Message = "Kubernetes readiness request failed.")]
         public static partial void KubernetesReadinessRequestFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = RedundancyKubernetesEventIds.KubernetesReadinessServer + 1, Level = LogLevel.Warning,
+            Message = "Kubernetes readiness request handlers did not drain before the shutdown timeout.")]
+        public static partial void KubernetesReadinessDrainTimedOut(this ILogger logger);
     }
 
 }

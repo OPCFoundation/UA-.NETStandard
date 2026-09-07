@@ -1,0 +1,173 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "tm": "https://www.w3.org/2019/wot/tm#",
+      "pump": "http://example.com/demo/pump",
+      "di": "http://opcfoundation.org/UA/DI/"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["Thing"],
+  "id": "urn:dev:opcua:view:pump-predictive-maintenance",
+  "title": "Pump condition view",
+  "description": "A projection document. It defines no affordance of its own: it names two source Thing Descriptions and states which of their affordances the predictive-maintenance view is assembled from, annotating the selection with maintenance semantics. The sources stay pristine and no definition is copied.",
+  "uav:scenario": "http://example.com/scenario/PredictiveMaintenance",
+  "securityDefinitions": {
+    "nosec_sc": { "scheme": "nosec" },
+    "pump_opcua_sc": {
+      "scheme": "combo",
+      "allOf": ["pump_opcua_channel_sc", "pump_opcua_authentication_sc"]
+    },
+    "pump_opcua_channel_sc": {
+      "scheme": "uav:channelsec",
+      "uav:securityMode": "SignAndEncrypt",
+      "uav:securityPolicy": "Aes256_Sha256_RsaPss"
+    },
+    "pump_opcua_authentication_sc": {
+      "scheme": "uav:authentication",
+      "uav:userIdentityToken": "UserName"
+    },
+    "identity_opcua_channel_sc": {
+      "scheme": "uav:channelsec",
+      "uav:securityMode": "SignAndEncrypt",
+      "uav:securityPolicy": "Aes256_Sha256_RsaPss"
+    }
+  },
+  "security": "nosec_sc",
+  "properties": {
+    "pumpSpeed": {
+      "@type": "uav:variable",
+      "title": "Pump speed (condition signal)",
+      "description": "The speed reading interpreted as a condition signal for the predictive-maintenance model.",
+      "uav:semanticId": "http://example.com/ontology/maintenance/ConditionSignal",
+      "uav:browseName": "pump:PumpSpeed",
+      "uav:browsePath": "/Objects/pump:Pump/pump:PumpSpeed",
+      "type": "number",
+      "unit": "rpm",
+      "readOnly": true,
+      "observable": true,
+      "forms": [
+        {
+          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=PumpSpeed",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty", "observeproperty"],
+          "security": ["pump_opcua_sc"]
+        }
+      ],
+      "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/pumpSpeed"
+    },
+    "speedSetpoint": {
+      "@type": "uav:variable",
+      "title": "Speed Setpoint",
+      "uav:browseName": "pump:SpeedSetpoint",
+      "uav:browsePath": "/Objects/pump:Pump/pump:SpeedSetpoint",
+      "type": "number",
+      "unit": "rpm",
+      "readOnly": false,
+      "observable": true,
+      "forms": [
+        {
+          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=SpeedSetpoint",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty", "writeproperty", "observeproperty"],
+          "security": ["pump_opcua_sc"]
+        }
+      ],
+      "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/speedSetpoint"
+    },
+    "dischargePressure": {
+      "@type": "uav:variable",
+      "title": "Discharge Pressure",
+      "uav:browseName": "pump:DischargePressure",
+      "uav:browsePath": "/Objects/pump:Pump/pump:DischargePressure",
+      "type": "number",
+      "unit": "bar",
+      "readOnly": true,
+      "observable": true,
+      "forms": [
+        {
+          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=DischargePressure",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty", "observeproperty"],
+          "security": ["pump_opcua_sc"]
+        }
+      ],
+      "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/dischargePressure"
+    },
+    "motorTemperature": {
+      "@type": "uav:variable",
+      "title": "Motor Temperature",
+      "uav:browseName": "pump:MotorTemperature",
+      "uav:browsePath": "/Objects/pump:Pump/pump:MotorTemperature",
+      "type": "number",
+      "unit": "Cel",
+      "readOnly": true,
+      "observable": true,
+      "forms": [
+        {
+          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=MotorTemperature",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty", "observeproperty"],
+          "security": ["pump_opcua_sc"]
+        }
+      ],
+      "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/motorTemperature"
+    },
+    "deviceSerialNumber": {
+      "@type": "uav:variable",
+      "title": "Serial Number",
+      "uav:browseName": "di:SerialNumber",
+      "uav:browsePath": "di:Identification/di:SerialNumber",
+      "uav:browsePathAnchor": "nsu=http://example.com/demo/pump;s=Pump07",
+      "type": "string",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.SerialNumber",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty"],
+          "security": ["identity_opcua_channel_sc"]
+        }
+      ],
+      "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/serialNumber"
+    },
+    "deviceManufacturer": {
+      "@type": "uav:variable",
+      "title": "Manufacturer",
+      "uav:browseName": "di:Manufacturer",
+      "uav:browsePath": "di:Identification/di:Manufacturer",
+      "uav:browsePathAnchor": "nsu=http://example.com/demo/pump;s=Pump07",
+      "type": "string",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.Manufacturer",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty"],
+          "security": ["identity_opcua_channel_sc"]
+        }
+      ],
+      "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manufacturer"
+    },
+    "deviceManual": {
+      "@type": "uav:variable",
+      "title": "Device Manual",
+      "uav:browseName": "di:DeviceManual",
+      "uav:browsePath": "di:Identification/di:DeviceManual",
+      "uav:browsePathAnchor": "nsu=http://example.com/demo/pump;s=Pump07",
+      "type": "string",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.DeviceManual",
+          "contentType": "application/octet-stream",
+          "op": ["readproperty"],
+          "security": ["identity_opcua_channel_sc"]
+        }
+      ],
+      "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manual"
+    }
+  }
+}

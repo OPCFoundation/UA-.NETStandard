@@ -187,7 +187,7 @@ namespace MemoryBuffer
                 internalOnly,
                 this);
 
-            PopulateBrowser(context, browser);
+            PopulateBrowserSynchronized(context, browser);
 
             return browser;
         }

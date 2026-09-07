@@ -73,14 +73,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             Assert.That(() => new CompositeMonitoredItemCollection(
                 [],
-                new object()),
+                new Lock()),
                 Throws.TypeOf<ArgumentException>());
         }
 
         [Test]
         public void ConstructorThrowsOnNullArguments()
         {
-            Assert.That(() => new CompositeMonitoredItemCollection(null!, new object()),
+            Assert.That(() => new CompositeMonitoredItemCollection(null!, new Lock()),
                 Throws.TypeOf<ArgumentNullException>());
             Assert.That(() => new CompositeMonitoredItemCollection(
                 [NewFake(1)], null!),
@@ -98,7 +98,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object());
+                new Lock());
 
             _ = composite.Count;
             _ = composite.Items;
@@ -133,7 +133,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             int factoryInvocations = 0;
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () =>
                 {
@@ -162,7 +162,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             int factoryInvocations = 0;
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () =>
                 {
@@ -193,7 +193,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(1);
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => secondary);
 
@@ -222,7 +222,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(10);
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => secondary);
 
@@ -232,7 +232,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var pinnedPolicy = new PartitionPlacementPolicy(1);
             var pinnedComposite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 pinnedPolicy,
                 () => secondary);
 
@@ -267,7 +267,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(1);
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => secondary);
 
@@ -294,7 +294,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(1);
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => secondary);
 
@@ -319,7 +319,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(1);
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => secondary);
 
@@ -341,7 +341,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var policy = new PartitionPlacementPolicy(1);
             var composite = new CompositeMonitoredItemCollection(
                 [primary],
-                new object(),
+                new Lock(),
                 policy,
                 () => secondary);
 
@@ -352,6 +352,29 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             string[] names = [.. composite.Items.Select(i => i.Name)];
             Array.Sort(names, StringComparer.Ordinal);
             Assert.That(names, Is.EqualTo(s_expectedAlphaBeta));
+        }
+
+        [Test]
+        public void TryRequeueRoutesToOwningPartition()
+        {
+            FakeManagedSubscription primary = NewFake(1);
+            FakeManagedSubscription secondary = NewFake(2);
+            var policy = new PartitionPlacementPolicy(1);
+            var composite = new CompositeMonitoredItemCollection(
+                [primary],
+                new Lock(),
+                policy,
+                () => secondary);
+            Assert.That(composite.TryAdd("a", MakeOptions(new V2Options()),
+                out _), Is.True);
+            Assert.That(composite.TryAdd("b", MakeOptions(new V2Options()),
+                out IMonitoredItem? item), Is.True);
+
+            Assert.That(composite.TryRequeue(item!.ClientHandle), Is.True);
+
+            var secondaryItems = (InMemoryCollection)secondary.MonitoredItems;
+            Assert.That(secondaryItems.LastRequeuedHandle,
+                Is.EqualTo(item.ClientHandle));
         }
 
         private static readonly string[] s_expectedAlphaBeta = ["a", "b"];
@@ -450,7 +473,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// from a process-global counter so handles stay unique
         /// across partition instances.
         /// </summary>
-        private sealed class InMemoryCollection : IMonitoredItemCollection
+        private sealed class InMemoryCollection :
+            IMonitoredItemCollection,
+            IMonitoredItemRetryCollection
         {
             private readonly Dictionary<string, FakeMonitoredItem> m_byName
                 = new(StringComparer.Ordinal);
@@ -460,6 +485,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             public uint Count => (uint)m_byHandle.Count;
 
             public IEnumerable<IMonitoredItem> Items => [.. m_byHandle.Values];
+
+            public uint? LastRequeuedHandle { get; private set; }
 
             public bool TryGetMonitoredItemByClientHandle(uint clientHandle,
                 [MaybeNullWhen(false)] out IMonitoredItem? monitoredItem)
@@ -509,6 +536,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     return false;
                 }
                 m_byName.Remove(item.Name);
+                return true;
+            }
+
+            public bool TryRequeue(uint clientHandle)
+            {
+                if (!m_byHandle.ContainsKey(clientHandle))
+                {
+                    return false;
+                }
+                LastRequeuedHandle = clientHandle;
                 return true;
             }
 

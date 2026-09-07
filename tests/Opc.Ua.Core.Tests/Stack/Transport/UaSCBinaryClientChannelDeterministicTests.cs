@@ -195,6 +195,123 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public void ReadAsymmetricMessageHeaderDisposesSenderChainWhenReceiverThumbprintMismatches()
+        {
+            var factory = new RecordingByteTransportFactory();
+            using var channel = new TestClientChannel(
+                m_buffers,
+                factory,
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                new FakeTimeProvider());
+
+            using Certificate sender = CreateSmallCertificate();
+            using Certificate receiver = CreateSmallCertificate();
+
+            // A valid sender certificate forces ReadAsymmetricMessageHeader to
+            // parse (and therefore allocate) the sender chain, while the bogus
+            // receiver thumbprint makes the subsequent validation throw after
+            // that allocation.
+            byte[] header = BuildAsymmetricHeader(
+                SecurityPolicies.Basic256Sha256,
+                sender.RawData,
+                new byte[TcpMessageLimits.CertificateThumbprintSize]);
+
+            // Baseline after the sender/receiver handles already exist: only the
+            // chain the header parser allocates internally may move the counters.
+            long createdBefore = Certificate.InstancesCreated;
+            long disposedBefore = Certificate.InstancesDisposed;
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => channel.CallReadAsymmetricMessageHeader(
+                    new ArraySegment<byte>(header), receiver))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadCertificateInvalid));
+
+            Assert.That(
+                Certificate.InstancesCreated - createdBefore,
+                Is.EqualTo(Certificate.InstancesDisposed - disposedBefore),
+                "the parsed sender certificate chain must be disposed when asymmetric " +
+                "header validation fails instead of being abandoned as a leaked handle.");
+        }
+
+        [Test]
+        public void ReadAsymmetricMessageHeaderDisposesSenderChainWhenReceiverCertificateMissing()
+        {
+            var factory = new RecordingByteTransportFactory();
+            using var channel = new TestClientChannel(
+                m_buffers,
+                factory,
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                new FakeTimeProvider());
+
+            using Certificate sender = CreateSmallCertificate();
+
+            byte[] header = BuildAsymmetricHeader(
+                SecurityPolicies.Basic256Sha256,
+                sender.RawData,
+                new byte[TcpMessageLimits.CertificateThumbprintSize]);
+
+            long createdBefore = Certificate.InstancesCreated;
+            long disposedBefore = Certificate.InstancesDisposed;
+
+            // No receiver certificate and no server certificate registry (client
+            // side): the parser reaches the "receiver has no matching certificate"
+            // failure after the sender chain is allocated.
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => channel.CallReadAsymmetricMessageHeader(
+                    new ArraySegment<byte>(header), receiverCertificate: null))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadCertificateInvalid));
+
+            Assert.That(
+                Certificate.InstancesCreated - createdBefore,
+                Is.EqualTo(Certificate.InstancesDisposed - disposedBefore),
+                "the parsed sender chain must be disposed when the receiver certificate is missing.");
+        }
+
+        [Test]
+        public void ReadAsymmetricMessageHeaderDisposesSenderChainWhenReceiverThumbprintMissing()
+        {
+            var factory = new RecordingByteTransportFactory();
+            using var channel = new TestClientChannel(
+                m_buffers,
+                factory,
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                new FakeTimeProvider());
+
+            using Certificate sender = CreateSmallCertificate();
+            using Certificate receiver = CreateSmallCertificate();
+
+            // A secured policy with no receiver thumbprint on the wire reaches the
+            // "receiver's certificate thumbprint was not specified" failure after
+            // the sender chain is allocated.
+            byte[] header = BuildAsymmetricHeader(
+                SecurityPolicies.Basic256Sha256,
+                sender.RawData,
+                Array.Empty<byte>());
+
+            long createdBefore = Certificate.InstancesCreated;
+            long disposedBefore = Certificate.InstancesDisposed;
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => channel.CallReadAsymmetricMessageHeader(
+                    new ArraySegment<byte>(header), receiver))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadCertificateInvalid));
+
+            Assert.That(
+                Certificate.InstancesCreated - createdBefore,
+                Is.EqualTo(Certificate.InstancesDisposed - disposedBefore),
+                "the parsed sender chain must be disposed when the receiver thumbprint is absent.");
+        }
+
+        [Test]
         public void VerifyMessageTypeWithWrongTypeThrowsBadTcpMessageTypeInvalid()
         {
             byte[] header = BuildTypeAndSize(TcpMessageType.Error, 8);
@@ -226,7 +343,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             uint sendBufferSize, uint receiveBufferSize)
         {
             ServiceResultException ex = await RunHandshakeToFaultAsync(
-                channel => channel.FeedIncomingMessage(
+                channel => channel.FeedIncomingMessageAsync(
                     TcpMessageType.Acknowledge,
                     new ArraySegment<byte>(BuildAcknowledge(sendBufferSize, receiveBufferSize))))
                 .ConfigureAwait(false);
@@ -271,7 +388,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 factory.LastReceiveBufferSize,
                 Is.EqualTo(configuredBufferSize - kCookieLength));
 
-            channel.FeedIncomingMessage(
+            await channel.FeedIncomingMessageAsync(
                 TcpMessageType.Acknowledge,
                 new ArraySegment<byte>(BuildAcknowledge(64 * 1024, 64 * 1024)));
 
@@ -285,7 +402,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 channel.TestTransportReceiveBufferSize,
                 Is.EqualTo((64 * 1024) - kCookieLength));
 
-            channel.FeedIncomingMessage(
+            await channel.FeedIncomingMessageAsync(
                 TcpMessageType.Error,
                 new ArraySegment<byte>(BuildErrorChunk((uint)StatusCodes.BadServerHalted)));
 
@@ -309,7 +426,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         private async Task AssertConnectErrorMapsAsync(uint wireStatus)
         {
             ServiceResultException ex = await RunHandshakeToFaultAsync(
-                channel => channel.FeedIncomingMessage(
+                channel => channel.FeedIncomingMessageAsync(
                     TcpMessageType.Error, new ArraySegment<byte>(BuildErrorChunk(wireStatus))))
                 .ConfigureAwait(false);
 
@@ -320,7 +437,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public async Task ConnectAsyncFaultsOnOpenResponseWhileConnectingAsync()
         {
             ServiceResultException ex = await RunHandshakeToFaultAsync(
-                channel => channel.FeedIncomingMessage(
+                channel => channel.FeedIncomingMessageAsync(
                     TcpMessageType.Open,
                     new ArraySegment<byte>(BuildChunk(TcpMessageType.Open, _ => { }))))
                 .ConfigureAwait(false);
@@ -332,7 +449,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public async Task ConnectAsyncFaultsOnUnknownMessageTypeAsync()
         {
             ServiceResultException ex = await RunHandshakeToFaultAsync(
-                channel => channel.FeedIncomingMessage(
+                channel => channel.FeedIncomingMessageAsync(
                     0x00FFFFFFu, new ArraySegment<byte>([])))
                 .ConfigureAwait(false);
 
@@ -381,8 +498,63 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
         }
 
+        /// <summary>
+        /// The gate is not re-entrant, so the open-response path — which reaches
+        /// this with the gate held — must tear the channel down without taking
+        /// it again. Before this was propagated, an oversized OpenSecureChannel
+        /// response deadlocked the receive loop against itself.
+        /// </summary>
+        [Test]
+        [CancelAfter(15000)]
+        public void DoMessageLimitsExceededWithTheGateHeldDoesNotDeadlock()
+        {
+            var timeProvider = new FakeTimeProvider();
+            using var channel = new TestClientChannel(
+                m_buffers,
+                new RecordingByteTransportFactory(),
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                timeProvider);
+            channel.CurrentState = TcpChannelState.Opening;
+
+            channel.ForceMessageLimitsExceededUnderGate();
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+        }
+
+        [Test]
+        public async Task ClosedTransportWriteCompletesWithoutGateReentryAsync()
+        {
+            using var channel = new TestClientChannel(
+                m_buffers,
+                new RecordingByteTransportFactory(),
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                new FakeTimeProvider());
+            byte[] buffer = m_buffers.TakeBuffer(
+                16,
+                nameof(ClosedTransportWriteCompletesWithoutGateReentryAsync));
+            var buffers = new BufferCollection { new ArraySegment<byte>(buffer, 0, 16) };
+
+            Task beginWrite = Task.Run(() => channel.BeginClosedTransportWriteUnderGate(buffers));
+
+            Assert.That(
+                await CompletesWithinAsync(beginWrite, 30).ConfigureAwait(false),
+                Is.True,
+                "begin write re-entered its own channel gate");
+            await beginWrite.ConfigureAwait(false);
+            Assert.That(
+                await CompletesWithinAsync(channel.WriteCompletion, 30).ConfigureAwait(false),
+                Is.True,
+                "closed transport write completion was not reported");
+        }
+
         private async Task<ServiceResultException> RunHandshakeToFaultAsync(
-            Action<TestClientChannel> feed)
+            Func<TestClientChannel, ValueTask<bool>> feed)
         {
             var timeProvider = new FakeTimeProvider();
             var transport = new RecordingByteTransport();
@@ -406,7 +578,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 "channel never sent the Hello message");
             Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Connecting));
 
-            feed(channel);
+            await feed(channel).ConfigureAwait(false);
 
             Assert.That(
                 await CompletesWithinAsync(connectTask, 30).ConfigureAwait(false),
@@ -482,6 +654,29 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 {
                     encoder.WriteByte(null, b);
                 }
+                size = encoder.Close();
+            }
+            return TrimTo(buffer, size);
+        }
+
+        private byte[] BuildAsymmetricHeader(
+            string securityPolicyUri, byte[] senderCertificate, byte[] receiverThumbprint)
+        {
+            // Matches the field order ReadAsymmetricMessageHeader decodes: it
+            // first skips the message-type and size UInt32s, then reads the
+            // secure channel id, the security policy uri, the sender
+            // certificate blob, and the receiver certificate thumbprint.
+            byte[] buffer = new byte[senderCertificate.Length + 1024];
+            int size;
+            using (var stream = new MemoryStream(buffer, 0, buffer.Length))
+            using (var encoder = new BinaryEncoder(stream, m_context, false))
+            {
+                encoder.WriteUInt32(null, TcpMessageType.Open); // message type
+                encoder.WriteUInt32(null, 0); // size placeholder
+                encoder.WriteUInt32(null, 0); // secure channel id
+                encoder.WriteString(null, securityPolicyUri);
+                encoder.WriteByteString(null, senderCertificate);
+                encoder.WriteByteString(null, receiverThumbprint);
                 size = encoder.Close();
             }
             return TrimTo(buffer, size);
@@ -577,15 +772,27 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public int TestTransportReceiveBufferSize => TransportReceiveBufferSize;
 
+            public Task WriteCompletion => m_writeCompletion.Task;
+
+            public void BeginClosedTransportWriteUnderGate(BufferCollection buffers)
+            {
+                using (Gate.Enter())
+                {
+                    BeginWriteMessage(buffers, null);
+                }
+            }
+
             public void SetupReverseTransport(IUaSCByteTransport transport)
             {
                 ReverseSocket = true;
                 Transport = transport;
             }
 
-            public bool FeedIncomingMessage(uint messageType, ArraySegment<byte> chunk)
+            public ValueTask<bool> FeedIncomingMessageAsync(
+                uint messageType,
+                ArraySegment<byte> chunk)
             {
-                return HandleIncomingMessage(messageType, chunk);
+                return HandleIncomingMessageAsync(messageType, chunk, CancellationToken.None);
             }
 
             public bool FeedError(ArraySegment<byte> chunk)
@@ -593,9 +800,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return ProcessErrorMessage(chunk);
             }
 
-            public void ForceMessageLimitsExceeded()
+            public void ForceMessageLimitsExceeded(bool gateHeld = false)
             {
-                DoMessageLimitsExceeded();
+                DoMessageLimitsExceeded(gateHeld);
+            }
+
+            public void ForceMessageLimitsExceededUnderGate()
+            {
+                using (Gate.Enter())
+                {
+                    DoMessageLimitsExceeded(gateHeld: true);
+                }
             }
 
             public static ServiceResult CallReadErrorMessageBody(BinaryDecoder decoder)
@@ -613,6 +828,34 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 ReadAndVerifyMessageTypeAndSize(decoder, expectedMessageType, count);
             }
+
+            public (uint ChannelId, CertificateCollection? SenderChain, string SecurityPolicyUri)
+                CallReadAsymmetricMessageHeader(
+                    ArraySegment<byte> buffer, Certificate? receiverCertificate)
+            {
+                using var decoder = new BinaryDecoder(buffer, Quotas.MessageContext);
+                Certificate? receiver = receiverCertificate;
+                ReadAsymmetricMessageHeader(
+                    decoder,
+                    ref receiver,
+                    out uint channelId,
+                    out CertificateCollection? senderChain,
+                    out string securityPolicyUri);
+                return (channelId, senderChain, securityPolicyUri);
+            }
+
+            protected override void HandleWriteComplete(
+                BufferCollection? buffers,
+                object? state,
+                int bytesWritten,
+                ServiceResult result)
+            {
+                base.HandleWriteComplete(buffers, state, bytesWritten, result);
+                m_writeCompletion.TrySetResult(true);
+            }
+
+            private readonly TaskCompletionSource<bool> m_writeCompletion =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         private sealed class RecordingByteTransportFactory : IUaSCByteTransportFactory

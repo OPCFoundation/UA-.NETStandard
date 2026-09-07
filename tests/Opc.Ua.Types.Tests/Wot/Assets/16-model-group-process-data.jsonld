@@ -1,0 +1,31 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "tm": "https://www.w3.org/2019/wot/tm#"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["tm:ThingModel", "uav:projection"],
+  "id": "urn:example:model:pump-asset:process-data",
+  "title": "Process data",
+  "description": "The type-level data set. Its members are member declarations of the pump Thing Model, so the group is realized once per instance of the type rather than once in an address space.",
+  "uav:scenario": "http://example.com/scenario/AssetManagement",
+  "uav:projects": [
+    {
+      "uav:sourceName": "pumpType",
+      "href": "./02-thing-model-pump.jsonld",
+      "type": "application/tm+json",
+      "uav:routing": "source"
+    }
+  ],
+  "properties": {
+    "pumpSpeed": {
+      "tm:ref": "./02-thing-model-pump.jsonld#/properties/pumpSpeed"
+    },
+    "dischargePressure": {
+      "tm:ref": "./02-thing-model-pump.jsonld#/properties/dischargePressure"
+    }
+  }
+}

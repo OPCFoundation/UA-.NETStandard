@@ -322,6 +322,21 @@ namespace Opc.Ua.Server.TestFramework
                 lifetime).ConfigureAwait(false);
         }
 
+        public async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+            RequestHeader requestHeader,
+            uint subscriptionId,
+            ArrayOf<uint> monitoredItemIds,
+            CancellationToken ct = default)
+        {
+            using var lifetime = new RequestLifetime(ct);
+            return await m_server.DeleteMonitoredItemsAsync(
+                SecureChannelContext,
+                requestHeader,
+                subscriptionId,
+                monitoredItemIds,
+                lifetime).ConfigureAwait(false);
+        }
+
         public async ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             RequestHeader requestHeader,
             ArrayOf<uint> subscriptionIds,

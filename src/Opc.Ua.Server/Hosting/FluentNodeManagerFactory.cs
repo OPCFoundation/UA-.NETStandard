@@ -38,14 +38,24 @@ namespace Opc.Ua.Server.Hosting
 {
     internal sealed class FluentNodeManagerFactory : IAsyncNodeManagerFactory
     {
-        public FluentNodeManagerFactory(string namespaceUri, Action<INodeManagerBuilder> build)
+        public FluentNodeManagerFactory(
+            string namespaceUri,
+            Action<INodeManagerBuilder> build,
+            string? rootBrowseName = null)
         {
             if (string.IsNullOrWhiteSpace(namespaceUri))
             {
                 throw new ArgumentException("Namespace URI must not be empty.", nameof(namespaceUri));
             }
+            if (rootBrowseName != null && string.IsNullOrWhiteSpace(rootBrowseName))
+            {
+                throw new ArgumentException(
+                    "Root browse name must not be empty.",
+                    nameof(rootBrowseName));
+            }
             m_namespaceUri = namespaceUri;
             m_build = build ?? throw new ArgumentNullException(nameof(build));
+            m_rootBrowseName = rootBrowseName;
             NamespacesUris = [namespaceUri];
         }
 
@@ -63,13 +73,15 @@ namespace Opc.Ua.Server.Hosting
                 configuration,
                 logger,
                 m_namespaceUri,
-                m_build);
+                m_build,
+                m_rootBrowseName);
 #pragma warning restore CA2000
             return new ValueTask<IAsyncNodeManager>(manager);
         }
 
         private readonly Action<INodeManagerBuilder> m_build;
         private readonly string m_namespaceUri;
+        private readonly string? m_rootBrowseName;
     }
 
     internal sealed class FluentNodeManager : FluentNodeManagerBase
@@ -79,12 +91,14 @@ namespace Opc.Ua.Server.Hosting
             ApplicationConfiguration configuration,
             ILogger logger,
             string namespaceUri,
-            Action<INodeManagerBuilder> build)
+            Action<INodeManagerBuilder> build,
+            string? rootBrowseName)
             : base(server, configuration, logger, namespaceUri)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_namespaceUri = namespaceUri ?? throw new ArgumentNullException(nameof(namespaceUri));
             m_build = build ?? throw new ArgumentNullException(nameof(build));
+            m_rootBrowseName = rootBrowseName;
         }
 
         public override async ValueTask CreateAddressSpaceAsync(
@@ -96,34 +110,51 @@ namespace Opc.Ua.Server.Hosting
                 throw new ArgumentNullException(nameof(externalReferences));
             }
             ushort namespaceIndex = (ushort)m_server.NamespaceUris.GetIndex(m_namespaceUri);
-            FolderState root = CreateRootFolder(namespaceIndex);
-            if (!externalReferences.TryGetValue(ObjectIds.ObjectsFolder, out IList<IReference>? references))
-            {
-                externalReferences[ObjectIds.ObjectsFolder] = references = [];
-            }
-            references.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, root.NodeId));
-            await AddPredefinedNodeAsync(root, cancellationToken).ConfigureAwait(false);
+
             NodeManagerBuilder builder = CreateFluentBuilder(namespaceIndex);
+
+            // Staged before the build delegate runs, so it can parent nodes to
+            // the root by NodeId or reach it by browse path.
+            if (m_rootBrowseName != null)
+            {
+                builder.Add(CreateRootFolder(namespaceIndex, m_rootBrowseName));
+            }
+
             m_build(builder);
+
+            // Register nodes the build delegate created through the builder's
+            // Add* methods before the reverse-reference pass runs.
+            await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
+
+            // Mirror references from build-created nodes to nodes owned by
+            // other node managers (e.g. the Objects folder) into the
+            // externalReferences dictionary before sealing the builder.
+            await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+
             builder.Seal();
         }
 
-        private static FolderState CreateRootFolder(ushort namespaceIndex)
+        /// <summary>
+        /// Builds the root folder with an explicit string NodeId, which stays
+        /// the address clients browse. The builder supplies the inverse
+        /// Organizes reference to the Objects folder.
+        /// </summary>
+        private static FolderState CreateRootFolder(
+            ushort namespaceIndex,
+            string browseName)
         {
-            const string browseName = "ReferenceServer";
-            var root = new FolderState(null)
+            return new FolderState(null)
             {
                 NodeId = new NodeId(browseName, namespaceIndex),
                 BrowseName = new QualifiedName(browseName, namespaceIndex),
                 DisplayName = new LocalizedText(browseName),
                 TypeDefinitionId = ObjectTypeIds.FolderType
             };
-            root.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
-            return root;
         }
 
         private readonly Action<INodeManagerBuilder> m_build;
         private readonly IServerInternal m_server;
         private readonly string m_namespaceUri;
+        private readonly string? m_rootBrowseName;
     }
 }

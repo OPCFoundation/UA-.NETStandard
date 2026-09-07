@@ -141,18 +141,7 @@ namespace Opc.Ua.Redundancy.Server
 
                 // Keep prior generations so readers that captured an older manifest can complete safely.
                 // Reclamation requires reader pinning or an external retention policy.
-                uint[] removedIds;
-                lock (m_definitionCache.Lock)
-                {
-                    removedIds = [.. m_definitionCache.Subscriptions.Keys.Where(id => !liveIds.Contains(id))];
-                    m_definitionCache.Subscriptions.Clear();
-                    foreach (StoredSubscription subscription in snapshot)
-                    {
-                        m_definitionCache.Subscriptions.Add(
-                            subscription.Id,
-                            CloneSubscription(subscription));
-                    }
-                }
+                uint[] removedIds = m_definitionCache.ReplaceAll(snapshot, liveIds);
 
                 foreach (uint subscriptionId in removedIds)
                 {
@@ -199,19 +188,9 @@ namespace Opc.Ua.Redundancy.Server
             List<StoredSubscription> subscriptions = restored.Values
                 .OrderBy(static subscription => subscription.Id)
                 .ToList();
-            lock (m_definitionCache.Lock)
-            {
-                m_definitionCache.Subscriptions.Clear();
-                foreach (StoredSubscription subscription in subscriptions)
-                {
-                    m_definitionCache.Subscriptions.Add(
-                        subscription.Id,
-                        CloneSubscription(subscription));
-                }
-            }
+            m_definitionCache.ReplaceAll(subscriptions);
 
-            return new RestoreSubscriptionResult(true, subscriptions);
-        }
+            return new RestoreSubscriptionResult(true, subscriptions);        }
 
         /// <inheritdoc/>
         public IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(uint monitoredItemId)
@@ -261,17 +240,8 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ArgumentNullException(nameof(createdSubscriptions));
             }
 
-            List<StoredSubscription> restoredSubscriptions;
-            lock (m_definitionCache.Lock)
-            {
-                var liveIds = new HashSet<uint>(createdSubscriptions.Keys);
-                restoredSubscriptions =
-                [
-                    .. m_definitionCache.Subscriptions
-                        .Where(pair => liveIds.Contains(pair.Key))
-                        .Select(static pair => CloneSubscription(pair.Value))
-                ];
-            }
+            List<StoredSubscription> restoredSubscriptions = m_definitionCache
+                .CloneWhere(new HashSet<uint>(createdSubscriptions.Keys));
             await StoreSubscriptionsAsync(restoredSubscriptions, cancellationToken).ConfigureAwait(false);
 
             if (m_queueFactory != null)
@@ -990,6 +960,8 @@ namespace Opc.Ua.Redundancy.Server
             return new StoredMonitoredItem
             {
                 IsRestored = item.IsRestored,
+                IsDeleted = item.IsDeleted,
+                IsDetached = item.IsDetached,
                 AlwaysReportUpdates = item.AlwaysReportUpdates,
                 AttributeId = item.AttributeId,
                 ClientHandle = item.ClientHandle,
@@ -1012,7 +984,8 @@ namespace Opc.Ua.Redundancy.Server
                 SourceSamplingInterval = item.SourceSamplingInterval,
                 SubscriptionId = item.SubscriptionId,
                 TimestampsToReturn = item.TimestampsToReturn,
-                TypeMask = item.TypeMask
+                TypeMask = item.TypeMask,
+                FilteredRetainConditionIds = item.FilteredRetainConditionIds
             };
         }
 
@@ -1032,7 +1005,7 @@ namespace Opc.Ua.Redundancy.Server
             encoder.WriteInt32(null, DefinitionFormatVersion);
             encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
             encoder.WriteStringArray(null, m_context.ServerUris.ToArrayOf());
-            EncodeSubscription(encoder, subscription);
+            EncodeSubscription(encoder, subscription, DefinitionFormatVersion);
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : ByteString.From(buffer);
         }
@@ -1157,7 +1130,8 @@ namespace Opc.Ua.Redundancy.Server
         {
             using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
             int version = decoder.ReadInt32(null);
-            if (version != DefinitionFormatVersion)
+            if (version < LegacyDefinitionFormatVersion ||
+                version > DefinitionFormatVersion)
             {
                 throw new ServiceResultException(StatusCodes.BadDecodingError, "Unsupported subscription record version.");
             }
@@ -1165,7 +1139,7 @@ namespace Opc.Ua.Redundancy.Server
             ArrayOf<string?> namespaceUris = decoder.ReadStringArray(null);
             ArrayOf<string?> serverUris = decoder.ReadStringArray(null);
             decoder.SetMappingTables(CreateNamespaceTable(namespaceUris), CreateStringTable(serverUris));
-            StoredSubscription subscription = DecodeSubscription(decoder);
+            StoredSubscription subscription = DecodeSubscription(decoder, version);
             if (decoder.Position != payload.Length)
             {
                 throw new ServiceResultException(
@@ -1193,7 +1167,10 @@ namespace Opc.Ua.Redundancy.Server
             return new SnapshotManifest(new Guid(generationBytes.ToArray()), recordCount);
         }
 
-        private static void EncodeSubscription(BinaryEncoder encoder, StoredSubscription subscription)
+        private static void EncodeSubscription(
+            BinaryEncoder encoder,
+            StoredSubscription subscription,
+            int version)
         {
             encoder.WriteUInt32(null, subscription.Id);
             encoder.WriteBoolean(null, subscription.IsDurable);
@@ -1218,11 +1195,11 @@ namespace Opc.Ua.Redundancy.Server
             encoder.WriteInt32(null, items.Count);
             foreach (StoredMonitoredItem item in items)
             {
-                EncodeMonitoredItem(encoder, item);
+                EncodeMonitoredItem(encoder, item, version);
             }
         }
 
-        private static StoredSubscription DecodeSubscription(BinaryDecoder decoder)
+        private static StoredSubscription DecodeSubscription(BinaryDecoder decoder, int version)
         {
             var subscription = new StoredSubscription
             {
@@ -1252,13 +1229,16 @@ namespace Opc.Ua.Redundancy.Server
             var items = new List<IStoredMonitoredItem>(itemCount);
             for (int ii = 0; ii < itemCount; ii++)
             {
-                items.Add(DecodeMonitoredItem(decoder));
+                items.Add(DecodeMonitoredItem(decoder, version));
             }
             subscription.MonitoredItems = items;
             return subscription;
         }
 
-        private static void EncodeMonitoredItem(BinaryEncoder encoder, StoredMonitoredItem item)
+        private static void EncodeMonitoredItem(
+            BinaryEncoder encoder,
+            StoredMonitoredItem item,
+            int version)
         {
             encoder.WriteBoolean(null, item.IsRestored);
             encoder.WriteBoolean(null, item.AlwaysReportUpdates);
@@ -1284,9 +1264,18 @@ namespace Opc.Ua.Redundancy.Server
             encoder.WriteUInt32(null, item.SubscriptionId);
             encoder.WriteEnumerated(null, item.TimestampsToReturn);
             encoder.WriteInt32(null, item.TypeMask);
+            if (version >= LifecycleStateDefinitionFormatVersion)
+            {
+                encoder.WriteBoolean(null, item.IsDeleted);
+                encoder.WriteBoolean(null, item.IsDetached);
+            }
+            if (version >= FilteredRetainDefinitionFormatVersion)
+            {
+                encoder.WriteStringArray(null, item.FilteredRetainConditionIds);
+            }
         }
 
-        private static StoredMonitoredItem DecodeMonitoredItem(BinaryDecoder decoder)
+        private static StoredMonitoredItem DecodeMonitoredItem(BinaryDecoder decoder, int version)
         {
             var item = new StoredMonitoredItem
             {
@@ -1320,6 +1309,16 @@ namespace Opc.Ua.Redundancy.Server
             item.SubscriptionId = decoder.ReadUInt32(null);
             item.TimestampsToReturn = decoder.ReadEnumerated<TimestampsToReturn>(null);
             item.TypeMask = decoder.ReadInt32(null);
+            if (version >= LifecycleStateDefinitionFormatVersion)
+            {
+                item.IsDeleted = decoder.ReadBoolean(null);
+                item.IsDetached = decoder.ReadBoolean(null);
+            }
+            if (version >= FilteredRetainDefinitionFormatVersion)
+            {
+                // the keys are written by the monitored item and never null.
+                item.FilteredRetainConditionIds = decoder.ReadStringArray(null)!;
+            }
             return item;
         }
 
@@ -1400,7 +1399,10 @@ namespace Opc.Ua.Redundancy.Server
                 "/";
         }
 
-        private const int DefinitionFormatVersion = 1;
+        private const int LegacyDefinitionFormatVersion = 1;
+        private const int LifecycleStateDefinitionFormatVersion = 2;
+        private const int FilteredRetainDefinitionFormatVersion = 3;
+        private const int DefinitionFormatVersion = FilteredRetainDefinitionFormatVersion;
         private const int DefinitionSnapshotManifestFormatVersion = 1;
         private const int ContinuationPointFormatVersion = 1;
         private const int LegacyRetransmissionStateFormatVersion = 1;
@@ -1441,13 +1443,88 @@ namespace Opc.Ua.Redundancy.Server
 
         private int m_overflowWarningWritten;
 
+        /// <summary>
+        /// The definitions cached per shared store, and the lock that guards
+        /// them.
+        /// </summary>
+        /// <remarks>
+        /// The lock is private: callers ask the cache to perform an operation
+        /// rather than taking its lock and reaching into
+        /// <c>Subscriptions</c> themselves. <see cref="SnapshotCommitLock"/> is
+        /// deliberately separate and still handed out, because it sequences an
+        /// asynchronous commit across <c>await</c> points, which a
+        /// <see cref="System.Threading.Lock"/> cannot span.
+        /// </remarks>
         private sealed class SharedDefinitionCache
         {
-            public Lock Lock { get; } = new();
-
             public SemaphoreSlim SnapshotCommitLock { get; } = new(1, 1);
 
-            public Dictionary<uint, StoredSubscription> Subscriptions { get; } = [];
+            /// <summary>
+            /// Replaces every cached definition with <paramref name="subscriptions"/>,
+            /// reporting the ids that were cached before and are not in the
+            /// replacement.
+            /// </summary>
+            /// <param name="subscriptions">The definitions to cache.</param>
+            /// <param name="liveIds">The ids considered still live.</param>
+            public uint[] ReplaceAll(
+                IEnumerable<StoredSubscription> subscriptions,
+                HashSet<uint> liveIds)
+            {
+                lock (m_lock)
+                {
+                    uint[] removedIds =
+                        [.. m_subscriptions.Keys.Where(id => !liveIds.Contains(id))];
+                    Fill(subscriptions);
+                    return removedIds;
+                }
+            }
+
+            /// <summary>
+            /// Replaces every cached definition with <paramref name="subscriptions"/>.
+            /// </summary>
+            /// <param name="subscriptions">The definitions to cache.</param>
+            public void ReplaceAll(IEnumerable<StoredSubscription> subscriptions)
+            {
+                lock (m_lock)
+                {
+                    Fill(subscriptions);
+                }
+            }
+
+            /// <summary>
+            /// Returns a clone of every cached definition whose id is in
+            /// <paramref name="liveIds"/>.
+            /// </summary>
+            /// <remarks>
+            /// The definitions are cloned inside the critical section, so the
+            /// caller never sees a cached instance and cannot observe one being
+            /// replaced while it reads.
+            /// </remarks>
+            /// <param name="liveIds">The ids to return.</param>
+            public List<StoredSubscription> CloneWhere(HashSet<uint> liveIds)
+            {
+                lock (m_lock)
+                {
+                    return
+                    [
+                        .. m_subscriptions
+                            .Where(pair => liveIds.Contains(pair.Key))
+                            .Select(static pair => CloneSubscription(pair.Value))
+                    ];
+                }
+            }
+
+            private void Fill(IEnumerable<StoredSubscription> subscriptions)
+            {
+                m_subscriptions.Clear();
+                foreach (StoredSubscription subscription in subscriptions)
+                {
+                    m_subscriptions.Add(subscription.Id, CloneSubscription(subscription));
+                }
+            }
+
+            private readonly Lock m_lock = new();
+            private readonly Dictionary<uint, StoredSubscription> m_subscriptions = [];
         }
 
         private sealed class PendingRetransmissionState

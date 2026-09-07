@@ -46,49 +46,73 @@ namespace Opc.Ua
     /// holds a type that cannot be projected to the requested type —
     /// the same contract the legacy decoder offered.
     /// </remarks>
-    internal static class EventRecordFieldReaders
+    public static class EventRecordFieldReaders
     {
+        /// <summary>
+        /// Reads a ByteString event field or returns its null value.
+        /// </summary>
         public static ByteString GetByteString(IReadOnlyList<Variant> fields, int index)
         {
             return index < fields.Count && fields[index].TryGetValue(out ByteString v)
                         ? v : default;
         }
 
+        /// <summary>
+        /// Reads a string event field or returns <c>null</c>.
+        /// </summary>
         public static string? GetString(IReadOnlyList<Variant> fields, int index)
         {
             return index < fields.Count && fields[index].TryGetValue(out string v)
                         ? v : null;
         }
 
+        /// <summary>
+        /// Reads a DateTime event field or returns its default value.
+        /// </summary>
         public static DateTime GetDateTime(IReadOnlyList<Variant> fields, int index)
         {
             return index < fields.Count && fields[index].TryGetValue(out DateTimeUtc v)
                         ? (DateTime)v : default;
         }
 
+        /// <summary>
+        /// Reads a LocalizedText event field or returns its null value.
+        /// </summary>
         public static LocalizedText GetLocalizedText(IReadOnlyList<Variant> fields, int index)
         {
             return index < fields.Count && fields[index].TryGetValue(out LocalizedText v)
                         ? v : LocalizedText.Null;
         }
 
+        /// <summary>
+        /// Reads a UInt16 event field or returns zero.
+        /// </summary>
         public static ushort GetUInt16(IReadOnlyList<Variant> fields, int index)
         {
             return index < fields.Count && fields[index].TryGetValue(out ushort v)
                         ? v : (ushort)0;
         }
 
+        /// <summary>
+        /// Reads a Boolean event field or returns <c>false</c>.
+        /// </summary>
         public static bool GetBool(IReadOnlyList<Variant> fields, int index)
         {
             return index < fields.Count && fields[index].TryGetValue(out bool v) && v;
         }
 
+        /// <summary>
+        /// Reads a StatusCode event field or returns its default value.
+        /// </summary>
         public static StatusCode GetStatusCode(IReadOnlyList<Variant> fields, int index)
         {
             return index < fields.Count && fields[index].TryGetValue(out StatusCode v)
                         ? v : default;
         }
 
+        /// <summary>
+        /// Reads an optional Boolean event field.
+        /// </summary>
         public static bool? GetNullableBool(IReadOnlyList<Variant> fields, int index)
         {
             if (index >= fields.Count || fields[index].IsNull)
@@ -98,6 +122,9 @@ namespace Opc.Ua
             return fields[index].TryGetValue(out bool v) ? v : null;
         }
 
+        /// <summary>
+        /// Reads an optional Double event field.
+        /// </summary>
         public static double? GetNullableDouble(IReadOnlyList<Variant> fields, int index)
         {
             if (index >= fields.Count || fields[index].IsNull)
@@ -107,6 +134,9 @@ namespace Opc.Ua
             return fields[index].TryGetValue(out double v) ? v : null;
         }
 
+        /// <summary>
+        /// Reads an optional DateTime event field.
+        /// </summary>
         public static DateTime? GetNullableDateTime(IReadOnlyList<Variant> fields, int index)
         {
             if (index >= fields.Count || fields[index].IsNull)
@@ -116,6 +146,9 @@ namespace Opc.Ua
             return fields[index].TryGetValue(out DateTimeUtc v) ? (DateTime)v : null;
         }
 
+        /// <summary>
+        /// Reads an optional LocalizedText array event field.
+        /// </summary>
         public static LocalizedText[]? GetLocalizedTextArray(IReadOnlyList<Variant> fields, int index)
         {
             if (index >= fields.Count || fields[index].IsNull)
@@ -126,10 +159,75 @@ namespace Opc.Ua
                 ? arr.ToArray() : null;
         }
 
+        /// <summary>
+        /// Reads a NodeId event field or returns its null value.
+        /// </summary>
         public static NodeId GetNodeId(IReadOnlyList<Variant> fields, int index)
         {
             return index < fields.Count && fields[index].TryGetValue(out NodeId v)
                         ? v : NodeId.Null;
+        }
+
+        /// <summary>
+        /// Reads an optional NodeId array event field.
+        /// </summary>
+        public static NodeId[]? GetNodeIdArray(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            if (fields[index].TryGetValue(out ArrayOf<NodeId> values))
+            {
+                return values.ToArray();
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Decodes an optional structured event field.
+        /// </summary>
+        /// <typeparam name="T">The generated structured data type.</typeparam>
+        public static T? GetEncodeable<T>(IReadOnlyList<Variant> fields, int index)
+            where T : class, IEncodeable
+        {
+            if (index >= fields.Count)
+            {
+                return null;
+            }
+            if (fields[index].TryGetValue(out ExtensionObject extension) &&
+                extension.TryGetValue(out T? value))
+            {
+                return value;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Decodes an optional array of structured event fields.
+        /// </summary>
+        /// <typeparam name="T">The generated structured data type.</typeparam>
+        public static T[]? GetEncodeableArray<T>(IReadOnlyList<Variant> fields, int index)
+            where T : class, IEncodeable
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            if (!fields[index].TryGetValue(out ArrayOf<ExtensionObject> extensions))
+            {
+                return null;
+            }
+            var values = new T[extensions.Count];
+            for (int i = 0; i < extensions.Count; i++)
+            {
+                if (!extensions[i].TryGetValue(out T? value))
+                {
+                    return null;
+                }
+                values[i] = value;
+            }
+            return values;
         }
     }
 }

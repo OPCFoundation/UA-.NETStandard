@@ -60,9 +60,14 @@ namespace Opc.Ua.Client
                 ?? throw new ArgumentNullException(nameof(context));
             m_logger = context.Telemetry
                 .CreateLogger<ClassicSubscriptionEngine>();
+            m_eventLogger = context.Telemetry
+                .CreateLogger(ClientEventIds.LegacyCategoryName);
             m_minPublishRequestCount = kDefaultPublishRequestCount;
             m_maxPublishRequestCount = kMaxPublishRequestCountMax;
             m_timeProvider = timeProvider ?? TimeProvider.System;
+            m_backgroundWork = new BackgroundTaskScope(
+                nameof(ClassicSubscriptionEngine),
+                context.Telemetry);
         }
 
         /// <inheritdoc/>
@@ -124,19 +129,30 @@ namespace Opc.Ua.Client
         {
             int publishCount = GetDesiredPublishRequestCount(true);
 
-            // refill pipeline. Send at least one publish request
-            // if subscriptions are active.
-            if (publishCount > 0 && BeginPublish(timeout))
+            if (publishCount <= 0)
             {
-                int startCount = fullQueue
-                    ? 1
-                    : GoodPublishRequestCount + 1;
-                for (int ii = startCount; ii < publishCount; ii++)
+                return;
+            }
+
+            // Refill the pipeline up to the desired count. The reservation is
+            // the real bound: it counts the requests the session still expects
+            // plus the ones sent but not yet recorded, so this both refuses to
+            // overshoot and still refills a pipeline whose requests the session
+            // has written off.
+            int startCount = fullQueue
+                ? 0
+                : GoodPublishRequestCount;
+            for (int ii = startCount; ii < publishCount; ii++)
+            {
+                if (!TryReservePublishRequest(publishCount, out _))
                 {
-                    if (!BeginPublish(timeout))
-                    {
-                        break;
-                    }
+                    break;
+                }
+
+                if (!BeginPublishCore(timeout))
+                {
+                    Interlocked.Decrement(ref m_unrecordedPublishRequests);
+                    break;
                 }
             }
         }
@@ -195,15 +211,68 @@ namespace Opc.Ua.Client
         protected virtual void Dispose(bool disposing)
         {
             m_disposed = true;
+            if (disposing)
+            {
+                // Signal only: Dispose is synchronous. The throttled republish and
+                // the orphan cleanup both stop as soon as the token trips.
+                m_backgroundWork.Dispose();
+            }
         }
 
         /// <summary>
         /// Sends a publish request to the server.
         /// </summary>
+        /// <remarks>
+        /// This is the recovery nudge behind
+        /// <see cref="Subscription.HandleOnKeepAliveStopped"/>: a subscription
+        /// that has seen no notification asks for one more publish so the
+        /// server has a request to answer. It is bounded by the same
+        /// reservation as the automatic top up, because sending past the
+        /// desired count cannot help - the server already holds that many
+        /// requests and answers the surplus with
+        /// <see cref="StatusCodes.BadTooManyPublishRequests"/> - while every
+        /// subscription firing this nudge at once would otherwise multiply the
+        /// pipeline by the number of subscriptions. A drained pipeline always
+        /// has room, so the nudge still gets through when it is the outstanding
+        /// requests that have stopped coming back.
+        /// </remarks>
         /// <param name="timeout">The timeout for publish requests
         /// in milliseconds.</param>
-        /// <returns>True if the request was sent successfully.</returns>
+        /// <returns>
+        /// True if the pipeline holds the requested publish request when this
+        /// returns, whether it was sent here or was already outstanding.
+        /// </returns>
         internal bool BeginPublish(int timeout)
+        {
+            // At least one, so an empty pipeline is always refillable even
+            // when no subscription has been created yet.
+            int limit = Math.Max(1, GetDesiredPublishRequestCount(false));
+
+            if (!TryReservePublishRequest(limit, out _))
+            {
+                // The pipeline already holds the requests this nudge asks for,
+                // so the caller's intent is met without sending. Sending anyway
+                // cannot help: the server holds that many requests already and
+                // answers the surplus with BadTooManyPublishRequests.
+                return true;
+            }
+
+            if (!BeginPublishCore(timeout))
+            {
+                Interlocked.Decrement(ref m_unrecordedPublishRequests);
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Sends a publish request. The caller must have reserved the request
+        /// in <see cref="m_unrecordedPublishRequests"/>. The reservation is
+        /// released here once the session has recorded the request, or by the
+        /// caller if this returns <c>false</c>.
+        /// </summary>
+        private bool BeginPublishCore(int timeout)
         {
             // do not publish if reconnecting or the session is in closed state.
             if (!m_context.Connected)
@@ -214,13 +283,13 @@ namespace Opc.Ua.Client
 
             if (m_context.Reconnecting)
             {
-                m_logger.PublishSkippedSessionReconnect();
+                m_logger.PublishSkippedSessionReconnect(m_context.SessionId);
                 return false;
             }
 
             if (m_context.Closing)
             {
-                m_logger.PublishCancelledSessionClosed();
+                m_logger.PublishCancelledSessionClosed(m_context.SessionId);
                 return false;
             }
 
@@ -267,9 +336,9 @@ namespace Opc.Ua.Client
                     Utils.IncrementIdentifier(ref PublishCounter)
             };
 
-            m_logger.PUBLISHRequestHandleSENT(requestHeader.RequestHandle);
-            CoreClientUtils.EventLog.PublishStart(
-                (int)requestHeader.RequestHandle);
+            m_eventLogger.ClientEventPublishStart(
+                (int)requestHeader.RequestHandle,
+                m_context.SessionId);
 
             try
             {
@@ -284,6 +353,13 @@ namespace Opc.Ua.Client
                     activity,
                     requestHeader.RequestHandle,
                     DataTypes.PublishRequest);
+
+                // The session now counts this request, so the reservation that
+                // stood in for it is released. Releasing after the record is
+                // published keeps the total conservative: the request is
+                // briefly counted twice rather than not at all.
+                Interlocked.Decrement(ref m_unrecordedPublishRequests);
+
                 task.ConfigureAwait(false)
                     .GetAwaiter()
                     .OnCompleted(() => OnPublishComplete(
@@ -318,9 +394,9 @@ namespace Opc.Ua.Client
                 requestHeader.RequestHandle,
                 DataTypes.PublishRequest);
 
-            m_logger.PUBLISHRequestHandleRECEIVED(requestHeader.RequestHandle);
-            CoreClientUtils.EventLog.PublishStop(
-                (int)requestHeader.RequestHandle);
+            m_eventLogger.ClientEventPublishStop(
+                (int)requestHeader.RequestHandle,
+                sessionId);
 
             // Bail out early if the session has been disposed.
             if (m_context.Disposed)
@@ -376,9 +452,10 @@ namespace Opc.Ua.Client
                             m_logger.Log(
                                 logLevel,
                                 "Publish Ack Response. ResultCode={StatusCode}; " +
-                                "SubscriptionId={SubscriptionId}",
+                                "SubscriptionId={SubscriptionId}; SessionId={SessionId}",
                                 code,
-                                subscriptionId);
+                                subscriptionId,
+                                sessionId);
                         }
                         // only show the first error as warning
                         logLevel = LogLevel.Trace;
@@ -400,12 +477,10 @@ namespace Opc.Ua.Client
                     return;
                 }
 
-                m_logger.NOTIFICATIONRECEIVEDSubIdSubscriptionIdSeqNoSequenceNumber(
-                    subscriptionId,
-                    notificationMessage.SequenceNumber);
-                CoreClientUtils.EventLog.NotificationReceived(
+                m_eventLogger.ClientEventNotificationReceived(
                     (int)subscriptionId,
-                    (int)notificationMessage.SequenceNumber);
+                    (int)notificationMessage.SequenceNumber,
+                    sessionId);
 
                 // process response.
                 ProcessPublishResponse(
@@ -431,14 +506,16 @@ namespace Opc.Ua.Client
                 {
                     m_logger.PublishRequestHandleSubscriptionCountErrorMessage(
                         requestHeader.RequestHandle,
-                        e.Message);
+                        e.Message,
+                        sessionId);
                 }
                 else
                 {
                     m_logger.PublishRequestHandleReconnectingReconnectingErrorMessage(
                         requestHeader.RequestHandle,
                         m_context.Reconnecting,
-                        e.Message);
+                        e.Message,
+                        sessionId);
                 }
 
                 // raise an error event.
@@ -504,7 +581,9 @@ namespace Opc.Ua.Client
                     {
                         m_tooManyPublishRequests =
                             tooManyPublishRequests;
-                        m_logger.PUBLISHTooManyRequestsSetLimit(m_tooManyPublishRequests);
+                        m_logger.PUBLISHTooManyRequestsSetLimit(
+                            m_tooManyPublishRequests,
+                            sessionId);
                     }
                     return;
                 }
@@ -550,17 +629,20 @@ namespace Opc.Ua.Client
                         m_logger.PUBLISHRequestHandleUnhandledErrorStatusCodeDuring(
                             e,
                             requestHeader.RequestHandle,
-                            error.StatusCode);
+                            error.StatusCode,
+                            sessionId);
                     }
 
                     // throttle the next publish to reduce
                     // server load
-                    _ = Task.Run(async () =>
-                    {
-                        await m_timeProvider.Delay(TimeSpan.FromMilliseconds(100))
-                            .ConfigureAwait(false);
-                        QueueBeginPublish();
-                    });
+                    m_backgroundWork.Run(
+                        "ThrottleNextPublish",
+                        async ct =>
+                        {
+                            await m_timeProvider.Delay(TimeSpan.FromMilliseconds(100), ct)
+                                .ConfigureAwait(false);
+                            QueueBeginPublish();
+                        });
                     return;
                 }
             }
@@ -699,27 +781,32 @@ namespace Opc.Ua.Client
             // deleted.
             if (subscription != null)
             {
-#if DEBUG
-                // Validate publish time and reject old values.
-                if (notificationMessage.PublishTime.AddMilliseconds(
-                    subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount) <
-                    DateTimeUtc.Now)
+                // The publish-time validation below is diagnostics only, so
+                // skip the comparisons and the local-time conversions unless
+                // the messages would actually be emitted.
+                if (m_logger.IsEnabled(LogLevel.Trace))
                 {
-                    m_logger.PublishTimePublishTimePublishResponseTooOld(
-                        notificationMessage.PublishTime.ToLocalTime(),
-                        subscription.Id);
+                    // Validate publish time and reject old values.
+                    if (notificationMessage.PublishTime.AddMilliseconds(
+                        subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount) <
+                        DateTimeUtc.Now)
+                    {
+                        m_logger.PublishTimePublishTimePublishResponseTooOld(
+                            notificationMessage.PublishTime.ToLocalTime(),
+                            subscription.Id);
+                    }
+
+                    // Validate publish time and reject future values.
+                    if (notificationMessage.PublishTime >
+                        DateTimeUtc.Now.AddMilliseconds(
+                            subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount))
+                    {
+                        m_logger.PublishTimePublishTimePublishResponseNewerThan(
+                            notificationMessage.PublishTime.ToLocalTime(),
+                            subscription.Id);
+                    }
                 }
 
-                // Validate publish time and reject future values.
-                if (notificationMessage.PublishTime >
-                    DateTimeUtc.Now.AddMilliseconds(
-                        subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount))
-                {
-                    m_logger.PublishTimePublishTimePublishResponseNewerThan(
-                        notificationMessage.PublishTime.ToLocalTime(),
-                        subscription.Id);
-                }
-#endif
                 // save the information that more notifications
                 // are expected
                 notificationMessage.MoreNotifications = moreNotifications;
@@ -744,16 +831,23 @@ namespace Opc.Ua.Client
                 !subscriptionCreationInProgress)
             {
                 // Delete abandoned subscription from server.
-                m_logger.ReceivedPublishResponseUnknownSubscriptionIdSubscriptionId(subscriptionId);
+                m_logger.ReceivedPublishResponseUnknownSubscriptionIdSubscriptionId(
+                    subscriptionId,
+                    m_context.SessionId);
 
-                _ = Task.Run(
-                    () => m_context.DeleteOrphanedSubscriptionAsync(subscriptionId));
+                m_backgroundWork.Run(
+                    "DeleteOrphanedSubscription",
+                    async _ => await m_context
+                        .DeleteOrphanedSubscriptionAsync(subscriptionId)
+                        .ConfigureAwait(false));
             }
             else
             {
                 // Do not delete publish requests of stale
                 // subscriptions
-                m_logger.ReceivedPublishResponseUnknownSubscriptionIdSubscriptionId2(subscriptionId);
+                m_logger.ReceivedPublishResponseUnknownSubscriptionIdSubscriptionId2(
+                    subscriptionId,
+                    m_context.SessionId);
             }
         }
 
@@ -768,18 +862,73 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            int requestCount = GoodPublishRequestCount;
             int minPublishRequestCount = GetDesiredPublishRequestCount(false);
 
-            if (requestCount < minPublishRequestCount)
-            {
-                BeginPublish(m_context.OperationTimeout);
-            }
-            else
+            // Reserve the slot before issuing. Reading a count and then
+            // sending is a check-then-act: concurrent publish completions all
+            // observe the same value, all conclude they are below the limit,
+            // and each sends a request, overshooting by the number of
+            // completions that overlap.
+            if (!TryReservePublishRequest(minPublishRequestCount, out int requestCount))
             {
                 m_logger.PUBLISHDidNotSendAnotherPublish(
                     requestCount,
-                    minPublishRequestCount);
+                    minPublishRequestCount,
+                    m_context.SessionId);
+                return;
+            }
+
+            if (!BeginPublishCore(m_context.OperationTimeout))
+            {
+                Interlocked.Decrement(ref m_unrecordedPublishRequests);
+            }
+        }
+
+        /// <summary>
+        /// Atomically reserves capacity for one more publish request if fewer
+        /// than <paramref name="limit"/> are outstanding.
+        /// </summary>
+        /// <remarks>
+        /// Outstanding means the requests the session still expects to return
+        /// (<see cref="ISubscriptionEngineContext.GoodPublishRequestCount"/>)
+        /// plus the requests this engine has sent that the session has not
+        /// recorded yet. The session's count is authoritative: it drops a
+        /// request as soon as the session writes it off, which is what
+        /// <see cref="Session.OnKeepAlive"/> does to the whole pipeline when
+        /// keep alives recover. Counting only what this engine has sent would
+        /// hold those write offs forever and the pipeline would never refill.
+        /// The unrecorded count closes the opposite gap: the session only
+        /// counts a request once <c>AsyncRequestStarted</c> has recorded it,
+        /// which happens after the request was issued, so concurrent callers
+        /// would otherwise all read the same lagging value and each send.
+        /// </remarks>
+        /// <param name="limit">The maximum number of outstanding requests.</param>
+        /// <param name="outstanding">The number observed outstanding.</param>
+        /// <returns>True if a slot was reserved.</returns>
+        private bool TryReservePublishRequest(int limit, out int outstanding)
+        {
+            while (true)
+            {
+                // Read the unrecorded count first. A request that moves from
+                // unrecorded to recorded between the two reads is then counted
+                // twice rather than missed, which errs towards sending less.
+                int unrecorded = Volatile.Read(ref m_unrecordedPublishRequests);
+                int current = m_context.GoodPublishRequestCount + unrecorded;
+
+                if (current >= limit)
+                {
+                    outstanding = current;
+                    return false;
+                }
+
+                if (Interlocked.CompareExchange(
+                        ref m_unrecordedPublishRequests,
+                        unrecorded + 1,
+                        unrecorded) == unrecorded)
+                {
+                    outstanding = current;
+                    return true;
+                }
             }
         }
 
@@ -863,7 +1012,7 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(acknowledgementsToSend));
             }
 
-            Debug.Assert(Monitor.IsEntered(m_acknowledgementsToSendLock));
+            Debug.Assert(m_acknowledgementsToSendLock.IsHeldByCurrentThread);
 
             acknowledgementsToSend.Add(new SubscriptionAcknowledgement
             {
@@ -977,14 +1126,16 @@ namespace Opc.Ua.Client
             {
                 m_logger.MessageSubscriptionIdSequenceNumberNoLongerAvailable(
                     subscriptionId,
-                    sequenceNumber);
+                    sequenceNumber,
+                    m_context.SessionId);
             }
             else if (error.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
             {
                 m_logger.MessageSubscriptionIdSequenceNumberExceededSizeLimits(
                     e,
                     subscriptionId,
-                    sequenceNumber);
+                    sequenceNumber,
+                    m_context.SessionId);
                 lock (m_acknowledgementsToSendLock)
                 {
                     AddAcknowledgementToSend(
@@ -1013,10 +1164,13 @@ namespace Opc.Ua.Client
         private const int kPublishRequestSequenceNumberOutdatedThreshold = 100;
         private readonly ISubscriptionEngineContext m_context;
         private readonly ILogger m_logger;
+        private readonly ILogger m_eventLogger;
         private readonly TimeProvider m_timeProvider;
-        private readonly object m_acknowledgementsToSendLock = new();
+        private readonly BackgroundTaskScope m_backgroundWork;
+        private readonly Lock m_acknowledgementsToSendLock = new();
         private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
         internal uint PublishCounter;
+        private int m_unrecordedPublishRequests;
         private int m_tooManyPublishRequests;
         private int m_minPublishRequestCount;
         private int m_maxPublishRequestCount;
@@ -1033,28 +1187,40 @@ namespace Opc.Ua.Client
         public static partial void PublishSkippedSessionNotConnected(this ILogger logger);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 1, Level = LogLevel.Warning,
-            Message = "Publish skipped due to session reconnect")]
-        public static partial void PublishSkippedSessionReconnect(this ILogger logger);
+            Message = "Publish skipped due to session reconnect, SessionId={SessionId}")]
+        public static partial void PublishSkippedSessionReconnect(this ILogger logger, NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 2, Level = LogLevel.Warning,
-            Message = "Publish cancelled due to session closed")]
-        public static partial void PublishCancelledSessionClosed(this ILogger logger);
+            Message = "Publish cancelled due to session closed, SessionId={SessionId}")]
+        public static partial void PublishCancelledSessionClosed(this ILogger logger, NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 3, Level = LogLevel.Warning,
             Message = "Publish skipped due to session lost connection. Last successful keepalive: {LastKeepAlive}")]
         public static partial void PublishSkippedSessionLostConnectionLast(this ILogger logger, DateTime lastKeepAlive);
 
-        [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 4, Level = LogLevel.Trace,
-            Message = "PUBLISH #{RequestHandle} SENT")]
-        public static partial void PUBLISHRequestHandleSENT(this ILogger logger, uint requestHandle);
+        [LoggerMessage(
+            EventId = ClientEventIds.LegacyPublishStartId,
+            EventName = "PublishStart",
+            Level = LogLevel.Trace,
+            Message = "PUBLISH #{RequestHandle} SENT, SessionId={SessionId}")]
+        public static partial void ClientEventPublishStart(
+            this ILogger logger,
+            int requestHandle,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 5, Level = LogLevel.Error,
             Message = "Unexpected error sending publish request.")]
         public static partial void UnexpectedErrorSendingPublishRequest(this ILogger logger, Exception? exception);
 
-        [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 6, Level = LogLevel.Trace,
-            Message = "PUBLISH #{RequestHandle} RECEIVED")]
-        public static partial void PUBLISHRequestHandleRECEIVED(this ILogger logger, uint requestHandle);
+        [LoggerMessage(
+            EventId = ClientEventIds.LegacyPublishStopId,
+            EventName = "PublishStop",
+            Level = LogLevel.Trace,
+            Message = "PUBLISH #{RequestHandle} RECEIVED, SessionId={SessionId}")]
+        public static partial void ClientEventPublishStop(
+            this ILogger logger,
+            int requestHandle,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 7, Level = LogLevel.Warning,
             Message = "Publish response discarded because session id changed: Old {PreviousSessionId} != New" +
@@ -1064,31 +1230,40 @@ namespace Opc.Ua.Client
             NodeId? previousSessionId,
             NodeId? sessionId);
 
-        [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 8, Level = LogLevel.Trace,
-            Message = "NOTIFICATION RECEIVED: SubId={SubscriptionId}, SeqNo={SequenceNumber}")]
-        public static partial void NOTIFICATIONRECEIVEDSubIdSubscriptionIdSeqNoSequenceNumber(
+        [LoggerMessage(
+            EventId = ClientEventIds.LegacyNotificationReceivedId,
+            EventName = "NotificationReceived",
+            Level = LogLevel.Trace,
+            Message = "NOTIFICATION RECEIVED: SubId={SubscriptionId}, SeqNo={SequenceNumber}," +
+                " SessionId={SessionId}")]
+        public static partial void ClientEventNotificationReceived(
             this ILogger logger,
-            uint subscriptionId,
-            uint sequenceNumber);
+            int subscriptionId,
+            int sequenceNumber,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 9, Level = LogLevel.Warning,
             Message = "No new publish sent because of reconnect in progress.")]
         public static partial void NoNewPublishSentReconnectProgress(this ILogger logger);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 10, Level = LogLevel.Warning,
-            Message = "Publish #{RequestHandle}, Subscription count = 0, Error: {Message}")]
+            Message = "Publish #{RequestHandle}, Subscription count = 0, Error: {Message}," +
+                " SessionId={SessionId}")]
         public static partial void PublishRequestHandleSubscriptionCountErrorMessage(
             this ILogger logger,
             uint requestHandle,
-            string message);
+            string message,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 11, Level = LogLevel.Error,
-            Message = "Publish #{RequestHandle}, Reconnecting={Reconnecting}, Error: {Message}")]
+            Message = "Publish #{RequestHandle}, Reconnecting={Reconnecting}, Error: {Message}," +
+                " SessionId={SessionId}")]
         public static partial void PublishRequestHandleReconnectingReconnectingErrorMessage(
             this ILogger logger,
             uint requestHandle,
             bool reconnecting,
-            string message);
+            string message,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 12, Level = LogLevel.Information,
             Message = "Publish abandoned after error {Message} due to session {SessionId} reconnecting")]
@@ -1114,16 +1289,22 @@ namespace Opc.Ua.Client
             NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 15, Level = LogLevel.Information,
-            Message = "PUBLISH - Too many requests, set limit to GoodPublishRequestCount={GoodRequestCount}.")]
-        public static partial void PUBLISHTooManyRequestsSetLimit(this ILogger logger, int goodRequestCount);
+            Message = "PUBLISH - Too many requests, set limit to GoodPublishRequestCount={GoodRequestCount}." +
+                " SessionId={SessionId}")]
+        public static partial void PUBLISHTooManyRequestsSetLimit(
+            this ILogger logger,
+            int goodRequestCount,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 16, Level = LogLevel.Error,
-            Message = "PUBLISH #{RequestHandle} - Unhandled error {StatusCode} during Publish.")]
+            Message = "PUBLISH #{RequestHandle} - Unhandled error {StatusCode} during Publish." +
+                " SessionId={SessionId}")]
         public static partial void PUBLISHRequestHandleUnhandledErrorStatusCodeDuring(
             this ILogger logger,
             Exception? exception,
             uint requestHandle,
-            StatusCode statusCode);
+            StatusCode statusCode,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 17, Level = LogLevel.Warning,
             Message = "SessionId {SessionId}, SubscriptionId {SubscriptionId}, Sequence number={SequenceNumber}" +
@@ -1168,39 +1349,47 @@ namespace Opc.Ua.Client
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 22, Level = LogLevel.Warning,
             Message = "Received Publish Response for Unknown SubscriptionId={SubscriptionId}. Deleting abandoned" +
-                " subscription from server.")]
+                " subscription from server. SessionId={SessionId}")]
         public static partial void ReceivedPublishResponseUnknownSubscriptionIdSubscriptionId(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 23, Level = LogLevel.Warning,
-            Message = "Received Publish Response for Unknown SubscriptionId={SubscriptionId}. Ignored.")]
+            Message = "Received Publish Response for Unknown SubscriptionId={SubscriptionId}. Ignored." +
+                " SessionId={SessionId}")]
         public static partial void ReceivedPublishResponseUnknownSubscriptionIdSubscriptionId2(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 24, Level = LogLevel.Debug,
             Message = "PUBLISH - Did not send another publish request. " +
-                "GoodPublishRequestCount={GoodRequestCount}, MinPublishRequestCount={MinRequestCount}")]
+                "GoodPublishRequestCount={GoodRequestCount}, MinPublishRequestCount={MinRequestCount}," +
+                " SessionId={SessionId}")]
         public static partial void PUBLISHDidNotSendAnotherPublish(
             this ILogger logger,
             int goodRequestCount,
-            int minRequestCount);
+            int minRequestCount,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 25, Level = LogLevel.Warning,
-            Message = "Message {SubscriptionId}-{SequenceNumber} no longer available.")]
+            Message = "Message {SubscriptionId}-{SequenceNumber} no longer available. SessionId={SessionId}")]
         public static partial void MessageSubscriptionIdSequenceNumberNoLongerAvailable(
             this ILogger logger,
             uint subscriptionId,
-            uint sequenceNumber);
+            uint sequenceNumber,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 26, Level = LogLevel.Error,
-            Message = "Message {SubscriptionId}-{SequenceNumber} exceeded size limits, ignored.")]
+            Message = "Message {SubscriptionId}-{SequenceNumber} exceeded size limits, ignored." +
+                " SessionId={SessionId}")]
         public static partial void MessageSubscriptionIdSequenceNumberExceededSizeLimits(
             this ILogger logger,
             Exception? exception,
             uint subscriptionId,
-            uint sequenceNumber);
+            uint sequenceNumber,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 27, Level = LogLevel.Error,
             Message = "Unexpected error sending republish request.")]

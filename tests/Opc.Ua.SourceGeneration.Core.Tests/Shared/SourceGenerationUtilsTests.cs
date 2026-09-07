@@ -43,6 +43,37 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
     [Parallelizable]
     public class SourceGenerationUtilsTests
     {
+        [TestCase("Foo", false, "foo")]
+        [TestCase("foo", false, "foo")]
+        [TestCase("Class", false, "@class")]
+        [TestCase("@class", false, "@class")]
+        [TestCase("some-value", false, "some_value")]
+        [TestCase("1 Value", false, "_1value")]
+        [TestCase("Class", true, "Class")]
+        [TestCase("__arglist", false, "@__arglist")]
+        [TestCase("__makeref", false, "@__makeref")]
+        [TestCase("__reftype", false, "@__reftype")]
+        [TestCase("__refvalue", false, "@__refvalue")]
+        public void ToCSharpIdentifierCanonicalizesAndEscapes(
+            string input,
+            bool upperCamelCase,
+            string expected)
+        {
+            Assert.That(
+                input.ToCSharpIdentifier(upperCamelCase),
+                Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void AsStringLiteralEscapesUnicodeLineSeparators()
+        {
+            const string value = "Next\u0085Line\u2028Paragraph\u2029End";
+
+            Assert.That(
+                value.AsStringLiteral(),
+                Is.EqualTo("\"Next\\u0085Line\\u2028Paragraph\\u2029End\""));
+        }
+
         /// <summary>
         /// Tests that IsNull returns the expected result for various XmlQualifiedName inputs.
         /// </summary>

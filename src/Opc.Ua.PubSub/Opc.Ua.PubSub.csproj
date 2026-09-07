@@ -21,6 +21,8 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.PubSub.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.PubSub.Diagnostics.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.PubSub.Udp.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>

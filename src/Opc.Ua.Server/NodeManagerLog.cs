@@ -43,5 +43,18 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.NodeManager + 1, Level = LogLevel.Trace,
             Message = "WRITE: NodeId={NodeId} Value={Value} Range={Range}")]
         public static partial void Write(this ILogger logger, NodeId nodeId, Variant value, string? range);
+
+        [LoggerMessage(EventId = ServerEventIds.NodeManager + 2, Level = LogLevel.Debug,
+            Message = "Cleared historical access advertisement for NodeId={NodeId} because no historian provider is wired.")]
+        public static partial void HistoryAdvertisementCleared(this ILogger logger, NodeId nodeId);
+
+        [LoggerMessage(EventId = ServerEventIds.NodeManager + 3, Level = LogLevel.Debug,
+            Message = "Completed the create lifecycle while registering NodeId={NodeId}, " +
+                "BrowseName={BrowseName}. Call CreateAsPredefinedNode before registration " +
+                "when configuration depends on OnAfterCreate.")]
+        public static partial void PredefinedNodeLifecycleCompletedAtRegistration(
+            this ILogger logger,
+            NodeId nodeId,
+            QualifiedName browseName);
     }
 }

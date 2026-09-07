@@ -107,7 +107,10 @@ namespace Opc.Ua.Sessions.Tests
         [OneTimeTearDown]
         public async Task OneTimeTearDownAsync()
         {
-            m_clientFixture?.Dispose();
+            if (m_clientFixture != null)
+            {
+                await m_clientFixture.DisposeAsync().ConfigureAwait(false);
+            }
             if (m_serverFixture != null)
             {
                 await m_serverFixture.StopAsync().ConfigureAwait(false);

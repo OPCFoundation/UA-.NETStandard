@@ -11,6 +11,6 @@
 -->
 <ItemGroup>
   <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer"
-                    Version="2.0.*-*"
+                    Version="2.0.0-preview.*"
                     PrivateAssets="all" />
 </ItemGroup>

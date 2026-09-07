@@ -40,13 +40,13 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
 {
     /// <summary>
     /// UA0021: Detect references to the legacy <c>Opc.Ua.CertificateValidator</c> class and
-    /// <c>Opc.Ua.CertificateValidationEventArgs</c>, which were removed in 1.6 in favour of the
+    /// <c>Opc.Ua.CertificateValidationEventArgs</c>, which were removed in 2.0 in favour of the
     /// new <c>ICertificateManager</c> / <c>ICertificateValidatorEx</c> /
     /// <c>CertificateValidationResult</c> pipeline.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Diagnostic-only: the 1.5.378 -> 1.6 change is <b>structural</b> (event-based per-error
+    /// Diagnostic-only: the 1.5.378 -> 2.0 change is <b>structural</b> (event-based per-error
     /// accept handler became an async <c>ValidateAsync</c> call returning a
     /// <c>CertificateValidationResult</c>, with per-error accept logic moving to
     /// <c>CertificateValidationOptions.AcceptError</c>). There is therefore no accompanying
@@ -58,7 +58,7 @@ namespace Opc.Ua.MigrationAnalyzer.Analyzers
     /// <item>If the legacy type is present in the compilation (via the 1.5.378 stack or the shim
     /// package), fire when an <c>[Obsolete]</c>-marked type with the matching full name is
     /// referenced.</item>
-    /// <item>If the legacy type has been genuinely removed (consumer is on the bare 1.6 stack
+    /// <item>If the legacy type has been genuinely removed (consumer is on the bare 2.0 stack
     /// and the call site no longer compiles), fall back to a syntactic match on the bare
     /// identifier name, scoped to source files that import any <c>Opc.Ua</c> namespace (bare
     /// <c>using Opc.Ua;</c> or any sub-namespace such as <c>using Opc.Ua.Server;</c>) or that

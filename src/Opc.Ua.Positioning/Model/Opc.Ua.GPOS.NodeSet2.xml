@@ -1,0 +1,2706 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+ * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+-->
+
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://opcfoundation.org/UA/GPOS/</Uri>
+    <Uri>http://opcfoundation.org/UA/RSL/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/GPOS/" Version="1.0.0" PublicationDate="2025-09-25T00:00:00Z" ModelVersion="1.0.0">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.05" PublicationDate="2025-06-30T00:00:00Z" />
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/RSL/" Version="1.00.1" PublicationDate="2023-01-12T00:00:00Z" />
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="Byte">i=3</Alias>
+    <Alias Alias="UInt32">i=7</Alias>
+    <Alias Alias="Float">i=10</Alias>
+    <Alias Alias="Double">i=11</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="DateTime">i=13</Alias>
+    <Alias Alias="ByteString">i=15</Alias>
+    <Alias Alias="NodeId">i=17</Alias>
+    <Alias Alias="LocalizedText">i=21</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasEncoding">i=38</Alias>
+    <Alias Alias="HasDescription">i=39</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="IdType">i=256</Alias>
+    <Alias Alias="NumericRange">i=291</Alias>
+    <Alias Alias="EnumValueType">i=7594</Alias>
+    <Alias Alias="3DCartesianCoordinates">i=18810</Alias>
+    <Alias Alias="3DOrientation">i=18812</Alias>
+    <Alias Alias="3DGeographicCoordinateDataType">ns=1;i=3003</Alias>
+    <Alias Alias="GlobalLocationDataType">ns=1;i=3004</Alias>
+    <Alias Alias="GroundControlPointDataType">ns=1;i=3005</Alias>
+    <Alias Alias="GlobalPositionDataType">ns=1;i=3006</Alias>
+  </Aliases>
+  <Extensions>
+    <Extension>
+      <ua:ModelInfo Hash="Xeqyn5la5KzPNuVASVIzSQ==" Version="1.8.1" Tool="UaModeler" xmlns:ua="http://unifiedautomation.com/Configuration/NodeSet.xsd" />
+    </Extension>
+  </Extensions>
+  <UADataType NodeId="ns=1;i=3003" BrowseName="1:3DGeographicCoordinateDataType" SymbolicName="S3DGeographicCoordinateDataType">
+    <DisplayName>3DGeographicCoordinateDataType</DisplayName>
+    <Description>Represents a geographic coordinate</Description>
+    <Category>GPOS GlobalPosition</Category>
+    <Documentation>https://reference.opcfoundation.org/GPOS/v100/docs/9.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5014</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5015</Reference>
+    </References>
+    <Definition Name="1:3DGeographicCoordinateDataType" SymbolicName="S3DGeographicCoordinateDataType">
+      <Field Name="Longitude" DataType="Double">
+        <Description>MUST be interpreted according to the CoordinateReferenceSystem</Description>
+      </Field>
+      <Field Name="Latitude" DataType="Double">
+        <Description>MUST be interpreted according to the CoordinateReferenceSystem</Description>
+      </Field>
+      <Field Name="Elevation" DataType="Double" IsOptional="true">
+        <Description>MUST be interpreted according to the ElevationReference. If floor, the height relative to specific floor in meter</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=6007" BrowseName="1:3DGeographicCoordinateDataType" SymbolicName="S3DGeographicCoordinateDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6001" DataType="String">
+    <DisplayName>3DGeographicCoordinateDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasDescription" IsForward="false">ns=1;i=5014</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6001</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">3DGeographicCoordinateDataType</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6017" BrowseName="1:3DGeographicCoordinateDataType" SymbolicName="S3DGeographicCoordinateDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6004" DataType="String">
+    <DisplayName>3DGeographicCoordinateDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasDescription" IsForward="false">ns=1;i=5015</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6004</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='3DGeographicCoordinateDataType']</uax:String>
+    </Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3006" BrowseName="1:GlobalPositionDataType">
+    <DisplayName>GlobalPositionDataType</DisplayName>
+    <Description>Represents a global position</Description>
+    <Category>GPOS GlobalPosition</Category>
+    <Documentation>https://reference.opcfoundation.org/GPOS/v100/docs/9.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=3003</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5001</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5002</Reference>
+    </References>
+    <Definition Name="1:GlobalPositionDataType">
+      <Field Name="Accuracy" DataType="Double" IsOptional="true">
+        <Description>The horizontal accuracy of the position in meters.</Description>
+      </Field>
+      <Field Name="Floor" DataType="Float" IsOptional="true">
+        <Description>A logical and non-localized representation for a building floor. Floor 0 represents the floor designated as 'ground'. Negative numbers indicate floors below the ground floor and positive numbers indicate floors above the ground floor. When implemented, the floor value MUST match described logical numbering scheme, which can be different from any numbering used within a building. Values can be expressed as an integer value, or as a float as required for mezzanine floor levels.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=6018" BrowseName="1:GlobalPositionDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6001" DataType="String">
+    <DisplayName>GlobalPositionDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasDescription" IsForward="false">ns=1;i=5001</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6001</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">GlobalPositionDataType</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6040" BrowseName="1:GlobalPositionDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6004" DataType="String">
+    <DisplayName>GlobalPositionDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasDescription" IsForward="false">ns=1;i=5002</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6004</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='GlobalPositionDataType']</uax:String>
+    </Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3004" BrowseName="1:GlobalLocationDataType">
+    <DisplayName>GlobalLocationDataType</DisplayName>
+    <Description>Represents a global location</Description>
+    <Category>GPOS GlobalLocation</Category>
+    <Documentation>https://reference.opcfoundation.org/GPOS/v100/docs/9.3</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5004</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5005</Reference>
+    </References>
+    <Definition Name="1:GlobalLocationDataType">
+      <Field Name="Position" DataType="GlobalPositionDataType" />
+      <Field Name="Orientation" DataType="3DOrientation" IsOptional="true">
+        <Description>Informs about an orientation typically with respect to a position. In mathematics, orientation defines a geometric notion.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=6041" BrowseName="1:GlobalLocationDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6001" DataType="String">
+    <DisplayName>GlobalLocationDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasDescription" IsForward="false">ns=1;i=5004</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6001</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">GlobalLocationDataType</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6042" BrowseName="1:GlobalLocationDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6004" DataType="String">
+    <DisplayName>GlobalLocationDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasDescription" IsForward="false">ns=1;i=5005</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6004</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='GlobalLocationDataType']</uax:String>
+    </Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3005" BrowseName="2:GroundControlPointDataType">
+    <DisplayName>GroundControlPointDataType</DisplayName>
+    <Description>Defines a pair of coordinates - local and global - to allow geo-references from local coordinate to a global coordinate system</Description>
+    <Category>GPOS Zones</Category>
+    <Documentation>https://reference.opcfoundation.org/GPOS/v100/docs/9.4</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5008</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=5009</Reference>
+    </References>
+    <Definition Name="2:GroundControlPointDataType">
+      <Field Name="GlobalPosition" DataType="3DGeographicCoordinateDataType">
+        <Description>Position in a global coordinate reference system</Description>
+      </Field>
+      <Field Name="LocalPosition" DataType="3DCartesianCoordinates">
+        <Description>Local position in metric coordinates (in meter)</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=6044" BrowseName="1:GroundControlPointDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6001" DataType="String">
+    <DisplayName>GroundControlPointDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasDescription" IsForward="false">ns=1;i=5008</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6001</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">GroundControlPointDataType</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6052" BrowseName="1:GroundControlPointDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6004" DataType="String">
+    <DisplayName>GroundControlPointDataType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
+      <Reference ReferenceType="HasDescription" IsForward="false">ns=1;i=5009</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6004</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='GroundControlPointDataType']</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6001" BrowseName="1:TypeDictionary" SymbolicName="TypeDictionary_BinarySchema" ReleaseStatus="Deprecated" DataType="ByteString">
+    <DisplayName>TypeDictionary</DisplayName>
+    <Description>Collects the data type descriptions of http://opcfoundation.org/UA/GPOS/</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=72</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=93</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6007</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6003</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6041</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6018</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6044</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6002</Reference>
+    </References>
+    <Value>
+      <uax:ByteString xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">PG9wYzpUeXBlRGljdGlvbmFyeSB4bWxuczp1YT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBLyIgR
+        GVmYXVsdEJ5dGVPcmRlcj0iTGl0dGxlRW5kaWFuIiB4bWxuczp0bnM9Imh0dHA6Ly9vcGNmb
+        3VuZGF0aW9uLm9yZy9VQS9HUE9TLyIgeG1sbnM6eHNpPSJodHRwOi8vd3d3LnczLm9yZy8yM
+        DAxL1hNTFNjaGVtYS1pbnN0YW5jZSIgVGFyZ2V0TmFtZXNwYWNlPSJodHRwOi8vb3BjZm91b
+        mRhdGlvbi5vcmcvVUEvR1BPUy8iIHhtbG5zOm9wYz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub
+        3JnL0JpbmFyeVNjaGVtYS8iPgogPG9wYzpJbXBvcnQgTmFtZXNwYWNlPSJodHRwOi8vb3BjZ
+        m91bmRhdGlvbi5vcmcvVUEvIi8+CiA8b3BjOlN0cnVjdHVyZWRUeXBlIEJhc2VUeXBlPSJ1Y
+        TpFeHRlbnNpb25PYmplY3QiIE5hbWU9IjNER2VvZ3JhcGhpY0Nvb3JkaW5hdGVEYXRhVHlwZ
+        SI+CiAgPG9wYzpEb2N1bWVudGF0aW9uPlJlcHJlc2VudHMgYSBnZW9ncmFwaGljIGNvb3Jka
+        W5hdGU8L29wYzpEb2N1bWVudGF0aW9uPgogIDxvcGM6RmllbGQgVHlwZU5hbWU9Im9wYzpCa
+        XQiIE5hbWU9IkVsZXZhdGlvblNwZWNpZmllZCIvPgogIDxvcGM6RmllbGQgTGVuZ3RoPSIzM
+        SIgVHlwZU5hbWU9Im9wYzpCaXQiIE5hbWU9IlJlc2VydmVkMSIvPgogIDxvcGM6RmllbGQgV
+        HlwZU5hbWU9Im9wYzpEb3VibGUiIE5hbWU9IkxvbmdpdHVkZSIvPgogIDxvcGM6RmllbGQgV
+        HlwZU5hbWU9Im9wYzpEb3VibGUiIE5hbWU9IkxhdGl0dWRlIi8+CiAgPG9wYzpGaWVsZCBTd
+        2l0Y2hGaWVsZD0iRWxldmF0aW9uU3BlY2lmaWVkIiBUeXBlTmFtZT0ib3BjOkRvdWJsZSIgT
+        mFtZT0iRWxldmF0aW9uIi8+CiA8L29wYzpTdHJ1Y3R1cmVkVHlwZT4KIDxvcGM6U3RydWN0d
+        XJlZFR5cGUgQmFzZVR5cGU9InRuczozREdlb2dyYXBoaWNDb29yZGluYXRlRGF0YVR5cGUiI
+        E5hbWU9Ikdsb2JhbFBvc2l0aW9uRGF0YVR5cGUiPgogIDxvcGM6RG9jdW1lbnRhdGlvbj5SZ
+        XByZXNlbnRzIGEgZ2xvYmFsIHBvc2l0aW9uPC9vcGM6RG9jdW1lbnRhdGlvbj4KICA8b3BjO
+        kZpZWxkIFR5cGVOYW1lPSJvcGM6Qml0IiBOYW1lPSJFbGV2YXRpb25TcGVjaWZpZWQiLz4KI
+        CA8b3BjOkZpZWxkIFR5cGVOYW1lPSJvcGM6Qml0IiBOYW1lPSJBY2N1cmFjeVNwZWNpZmllZ
+        CIvPgogIDxvcGM6RmllbGQgVHlwZU5hbWU9Im9wYzpCaXQiIE5hbWU9IkZsb29yU3BlY2lma
+        WVkIi8+CiAgPG9wYzpGaWVsZCBMZW5ndGg9IjI5IiBUeXBlTmFtZT0ib3BjOkJpdCIgTmFtZ
+        T0iUmVzZXJ2ZWQxIi8+CiAgPG9wYzpGaWVsZCBUeXBlTmFtZT0ib3BjOkRvdWJsZSIgU291c
+        mNlVHlwZT0idG5zOjNER2VvZ3JhcGhpY0Nvb3JkaW5hdGVEYXRhVHlwZSIgTmFtZT0iTG9uZ
+        2l0dWRlIi8+CiAgPG9wYzpGaWVsZCBUeXBlTmFtZT0ib3BjOkRvdWJsZSIgU291cmNlVHlwZ
+        T0idG5zOjNER2VvZ3JhcGhpY0Nvb3JkaW5hdGVEYXRhVHlwZSIgTmFtZT0iTGF0aXR1ZGUiL
+        z4KICA8b3BjOkZpZWxkIFN3aXRjaEZpZWxkPSJFbGV2YXRpb25TcGVjaWZpZWQiIFR5cGVOY
+        W1lPSJvcGM6RG91YmxlIiBTb3VyY2VUeXBlPSJ0bnM6M0RHZW9ncmFwaGljQ29vcmRpbmF0Z
+        URhdGFUeXBlIiBOYW1lPSJFbGV2YXRpb24iLz4KICA8b3BjOkZpZWxkIFN3aXRjaEZpZWxkP
+        SJBY2N1cmFjeVNwZWNpZmllZCIgVHlwZU5hbWU9Im9wYzpEb3VibGUiIE5hbWU9IkFjY3VyY
+        WN5Ii8+CiAgPG9wYzpGaWVsZCBTd2l0Y2hGaWVsZD0iRmxvb3JTcGVjaWZpZWQiIFR5cGVOY
+        W1lPSJvcGM6RmxvYXQiIE5hbWU9IkZsb29yIi8+CiA8L29wYzpTdHJ1Y3R1cmVkVHlwZT4KI
+        DxvcGM6U3RydWN0dXJlZFR5cGUgQmFzZVR5cGU9InVhOkV4dGVuc2lvbk9iamVjdCIgTmFtZ
+        T0iR2xvYmFsTG9jYXRpb25EYXRhVHlwZSI+CiAgPG9wYzpEb2N1bWVudGF0aW9uPlJlcHJlc
+        2VudHMgYSBnbG9iYWwgbG9jYXRpb248L29wYzpEb2N1bWVudGF0aW9uPgogIDxvcGM6Rmllb
+        GQgVHlwZU5hbWU9Im9wYzpCaXQiIE5hbWU9Ik9yaWVudGF0aW9uU3BlY2lmaWVkIi8+CiAgP
+        G9wYzpGaWVsZCBMZW5ndGg9IjMxIiBUeXBlTmFtZT0ib3BjOkJpdCIgTmFtZT0iUmVzZXJ2Z
+        WQxIi8+CiAgPG9wYzpGaWVsZCBUeXBlTmFtZT0idG5zOkdsb2JhbFBvc2l0aW9uRGF0YVR5c
+        GUiIE5hbWU9IlBvc2l0aW9uIi8+CiAgPG9wYzpGaWVsZCBTd2l0Y2hGaWVsZD0iT3JpZW50Y
+        XRpb25TcGVjaWZpZWQiIFR5cGVOYW1lPSJ1YTozRE9yaWVudGF0aW9uIiBOYW1lPSJPcmllb
+        nRhdGlvbiIvPgogPC9vcGM6U3RydWN0dXJlZFR5cGU+CiA8b3BjOlN0cnVjdHVyZWRUeXBlI
+        EJhc2VUeXBlPSJ1YTpFeHRlbnNpb25PYmplY3QiIE5hbWU9Ikdyb3VuZENvbnRyb2xQb2lud
+        ERhdGFUeXBlIj4KICA8b3BjOkRvY3VtZW50YXRpb24+RGVmaW5lcyBhIHBhaXIgb2YgY29vc
+        mRpbmF0ZXMgLSBsb2NhbCBhbmQgZ2xvYmFsIC0gdG8gYWxsb3cgZ2VvLXJlZmVyZW5jZXMgZ
+        nJvbSBsb2NhbCBjb29yZGluYXRlIHRvIGEgZ2xvYmFsIGNvb3JkaW5hdGUgc3lzdGVtPC9vc
+        GM6RG9jdW1lbnRhdGlvbj4KICA8b3BjOkZpZWxkIFR5cGVOYW1lPSJ0bnM6M0RHZW9ncmFwa
+        GljQ29vcmRpbmF0ZURhdGFUeXBlIiBOYW1lPSJHbG9iYWxQb3NpdGlvbiIvPgogIDxvcGM6R
+        mllbGQgVHlwZU5hbWU9InVhOjNEQ2FydGVzaWFuQ29vcmRpbmF0ZXMiIE5hbWU9IkxvY2FsU
+        G9zaXRpb24iLz4KIDwvb3BjOlN0cnVjdHVyZWRUeXBlPgo8L29wYzpUeXBlRGljdGlvbmFye
+        T4K</uax:ByteString>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6003" BrowseName="Deprecated" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6001" DataType="Boolean">
+    <DisplayName>Deprecated</DisplayName>
+    <Description>Indicates that all of the DataType definitions represented by the DataTypeDictionaryType are available through a DataTypeDefinition Attribute.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6001</Reference>
+    </References>
+    <Value>
+      <uax:Boolean xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">true</uax:Boolean>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6002" BrowseName="NamespaceUri" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6001" DataType="String">
+    <DisplayName>NamespaceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6001</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/GPOS/</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6004" BrowseName="1:TypeDictionary" SymbolicName="TypeDictionary_XmlSchema" ReleaseStatus="Deprecated" DataType="ByteString">
+    <DisplayName>TypeDictionary</DisplayName>
+    <Description>Collects the data type descriptions of http://opcfoundation.org/UA/GPOS/</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=72</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=92</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6017</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6006</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6042</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6040</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6052</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6005</Reference>
+    </References>
+    <Value>
+      <uax:ByteString xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">PHhzOnNjaGVtYSB4bWxuczp1YT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBLzIwMDgvMDIvVHlwZ
+        XMueHNkIiB4bWxuczp0bnM9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS9HUE9TL1R5c
+        GVzLnhzZCIgdGFyZ2V0TmFtZXNwYWNlPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvR
+        1BPUy9UeXBlcy54c2QiIHhtbG5zOnhzPSJodHRwOi8vd3d3LnczLm9yZy8yMDAxL1hNTFNja
+        GVtYSIgZWxlbWVudEZvcm1EZWZhdWx0PSJxdWFsaWZpZWQiPgogPHhzOmltcG9ydCBuYW1lc
+        3BhY2U9Imh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS8yMDA4LzAyL1R5cGVzLnhzZCIvP
+        gogPHhzOmNvbXBsZXhUeXBlIG5hbWU9IjNER2VvZ3JhcGhpY0Nvb3JkaW5hdGVEYXRhVHlwZ
+        SI+CiAgPHhzOmFubm90YXRpb24+CiAgIDx4czpkb2N1bWVudGF0aW9uPlJlcHJlc2VudHMgY
+        SBnZW9ncmFwaGljIGNvb3JkaW5hdGU8L3hzOmRvY3VtZW50YXRpb24+CiAgPC94czphbm5vd
+        GF0aW9uPgogIDx4czpzZXF1ZW5jZT4KICAgPHhzOmVsZW1lbnQgdHlwZT0ieHM6dW5zaWduZ
+        WRJbnQiIG1pbk9jY3Vycz0iMCIgbmFtZT0iRW5jb2RpbmdNYXNrIi8+CiAgIDx4czplbGVtZ
+        W50IHR5cGU9InhzOmRvdWJsZSIgbWluT2NjdXJzPSIwIiBtYXhPY2N1cnM9IjEiIG5hbWU9I
+        kxvbmdpdHVkZSIvPgogICA8eHM6ZWxlbWVudCB0eXBlPSJ4czpkb3VibGUiIG1pbk9jY3Vyc
+        z0iMCIgbWF4T2NjdXJzPSIxIiBuYW1lPSJMYXRpdHVkZSIvPgogICA8eHM6ZWxlbWVudCB0e
+        XBlPSJ4czpkb3VibGUiIG1pbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSIxIiBuYW1lPSJFbGV2Y
+        XRpb24iLz4KICA8L3hzOnNlcXVlbmNlPgogPC94czpjb21wbGV4VHlwZT4KIDx4czplbGVtZ
+        W50IHR5cGU9InRuczozREdlb2dyYXBoaWNDb29yZGluYXRlRGF0YVR5cGUiIG5hbWU9IjNER
+        2VvZ3JhcGhpY0Nvb3JkaW5hdGVEYXRhVHlwZSIvPgogPHhzOmNvbXBsZXhUeXBlIG5hbWU9I
+        kxpc3RPZjNER2VvZ3JhcGhpY0Nvb3JkaW5hdGVEYXRhVHlwZSI+CiAgPHhzOnNlcXVlbmNlP
+        gogICA8eHM6ZWxlbWVudCBuaWxsYWJsZT0idHJ1ZSIgdHlwZT0idG5zOjNER2VvZ3JhcGhpY
+        0Nvb3JkaW5hdGVEYXRhVHlwZSIgbWluT2NjdXJzPSIwIiBtYXhPY2N1cnM9InVuYm91bmRlZ
+        CIgbmFtZT0iM0RHZW9ncmFwaGljQ29vcmRpbmF0ZURhdGFUeXBlIi8+CiAgPC94czpzZXF1Z
+        W5jZT4KIDwveHM6Y29tcGxleFR5cGU+CiA8eHM6ZWxlbWVudCBuaWxsYWJsZT0idHJ1ZSIgd
+        HlwZT0idG5zOkxpc3RPZjNER2VvZ3JhcGhpY0Nvb3JkaW5hdGVEYXRhVHlwZSIgbmFtZT0iT
+        GlzdE9mM0RHZW9ncmFwaGljQ29vcmRpbmF0ZURhdGFUeXBlIi8+CiA8eHM6Y29tcGxleFR5c
+        GUgbmFtZT0iR2xvYmFsUG9zaXRpb25EYXRhVHlwZSI+CiAgPHhzOmFubm90YXRpb24+CiAgI
+        Dx4czpkb2N1bWVudGF0aW9uPlJlcHJlc2VudHMgYSBnbG9iYWwgcG9zaXRpb248L3hzOmRvY
+        3VtZW50YXRpb24+CiAgPC94czphbm5vdGF0aW9uPgogIDx4czpjb21wbGV4Q29udGVudCBta
+        XhlZD0iZmFsc2UiPgogICA8eHM6ZXh0ZW5zaW9uIGJhc2U9InRuczozREdlb2dyYXBoaWNDb
+        29yZGluYXRlRGF0YVR5cGUiPgogICAgPHhzOnNlcXVlbmNlPgogICAgIDx4czplbGVtZW50I
+        HR5cGU9InhzOmRvdWJsZSIgbWluT2NjdXJzPSIwIiBtYXhPY2N1cnM9IjEiIG5hbWU9IkFjY
+        3VyYWN5Ii8+CiAgICAgPHhzOmVsZW1lbnQgdHlwZT0ieHM6ZmxvYXQiIG1pbk9jY3Vycz0iM
+        CIgbWF4T2NjdXJzPSIxIiBuYW1lPSJGbG9vciIvPgogICAgPC94czpzZXF1ZW5jZT4KICAgP
+        C94czpleHRlbnNpb24+CiAgPC94czpjb21wbGV4Q29udGVudD4KIDwveHM6Y29tcGxleFR5c
+        GU+CiA8eHM6ZWxlbWVudCB0eXBlPSJ0bnM6R2xvYmFsUG9zaXRpb25EYXRhVHlwZSIgbmFtZ
+        T0iR2xvYmFsUG9zaXRpb25EYXRhVHlwZSIvPgogPHhzOmNvbXBsZXhUeXBlIG5hbWU9Ikxpc
+        3RPZkdsb2JhbFBvc2l0aW9uRGF0YVR5cGUiPgogIDx4czpzZXF1ZW5jZT4KICAgPHhzOmVsZ
+        W1lbnQgbmlsbGFibGU9InRydWUiIHR5cGU9InRuczpHbG9iYWxQb3NpdGlvbkRhdGFUeXBlI
+        iBtaW5PY2N1cnM9IjAiIG1heE9jY3Vycz0idW5ib3VuZGVkIiBuYW1lPSJHbG9iYWxQb3Npd
+        GlvbkRhdGFUeXBlIi8+CiAgPC94czpzZXF1ZW5jZT4KIDwveHM6Y29tcGxleFR5cGU+CiA8e
+        HM6ZWxlbWVudCBuaWxsYWJsZT0idHJ1ZSIgdHlwZT0idG5zOkxpc3RPZkdsb2JhbFBvc2l0a
+        W9uRGF0YVR5cGUiIG5hbWU9Ikxpc3RPZkdsb2JhbFBvc2l0aW9uRGF0YVR5cGUiLz4KIDx4c
+        zpjb21wbGV4VHlwZSBuYW1lPSJHbG9iYWxMb2NhdGlvbkRhdGFUeXBlIj4KICA8eHM6YW5ub
+        3RhdGlvbj4KICAgPHhzOmRvY3VtZW50YXRpb24+UmVwcmVzZW50cyBhIGdsb2JhbCBsb2Nhd
+        GlvbjwveHM6ZG9jdW1lbnRhdGlvbj4KICA8L3hzOmFubm90YXRpb24+CiAgPHhzOnNlcXVlb
+        mNlPgogICA8eHM6ZWxlbWVudCB0eXBlPSJ4czp1bnNpZ25lZEludCIgbWluT2NjdXJzPSIwI
+        iBuYW1lPSJFbmNvZGluZ01hc2siLz4KICAgPHhzOmVsZW1lbnQgdHlwZT0idG5zOkdsb2Jhb
+        FBvc2l0aW9uRGF0YVR5cGUiIG1pbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSIxIiBuYW1lPSJQb
+        3NpdGlvbiIvPgogICA8eHM6ZWxlbWVudCB0eXBlPSJ1YTozRE9yaWVudGF0aW9uIiBtaW5PY
+        2N1cnM9IjAiIG1heE9jY3Vycz0iMSIgbmFtZT0iT3JpZW50YXRpb24iLz4KICA8L3hzOnNlc
+        XVlbmNlPgogPC94czpjb21wbGV4VHlwZT4KIDx4czplbGVtZW50IHR5cGU9InRuczpHbG9iY
+        WxMb2NhdGlvbkRhdGFUeXBlIiBuYW1lPSJHbG9iYWxMb2NhdGlvbkRhdGFUeXBlIi8+CiA8e
+        HM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mR2xvYmFsTG9jYXRpb25EYXRhVHlwZSI+CiAgP
+        HhzOnNlcXVlbmNlPgogICA8eHM6ZWxlbWVudCBuaWxsYWJsZT0idHJ1ZSIgdHlwZT0idG5zO
+        kdsb2JhbExvY2F0aW9uRGF0YVR5cGUiIG1pbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSJ1bmJvd
+        W5kZWQiIG5hbWU9Ikdsb2JhbExvY2F0aW9uRGF0YVR5cGUiLz4KICA8L3hzOnNlcXVlbmNlP
+        gogPC94czpjb21wbGV4VHlwZT4KIDx4czplbGVtZW50IG5pbGxhYmxlPSJ0cnVlIiB0eXBlP
+        SJ0bnM6TGlzdE9mR2xvYmFsTG9jYXRpb25EYXRhVHlwZSIgbmFtZT0iTGlzdE9mR2xvYmFsT
+        G9jYXRpb25EYXRhVHlwZSIvPgogPHhzOmNvbXBsZXhUeXBlIG5hbWU9Ikdyb3VuZENvbnRyb
+        2xQb2ludERhdGFUeXBlIj4KICA8eHM6YW5ub3RhdGlvbj4KICAgPHhzOmRvY3VtZW50YXRpb
+        24+RGVmaW5lcyBhIHBhaXIgb2YgY29vcmRpbmF0ZXMgLSBsb2NhbCBhbmQgZ2xvYmFsIC0gd
+        G8gYWxsb3cgZ2VvLXJlZmVyZW5jZXMgZnJvbSBsb2NhbCBjb29yZGluYXRlIHRvIGEgZ2xvY
+        mFsIGNvb3JkaW5hdGUgc3lzdGVtPC94czpkb2N1bWVudGF0aW9uPgogIDwveHM6YW5ub3Rhd
+        Glvbj4KICA8eHM6c2VxdWVuY2U+CiAgIDx4czplbGVtZW50IHR5cGU9InRuczozREdlb2dyY
+        XBoaWNDb29yZGluYXRlRGF0YVR5cGUiIG1pbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSIxIiBuY
+        W1lPSJHbG9iYWxQb3NpdGlvbiIvPgogICA8eHM6ZWxlbWVudCB0eXBlPSJ1YTozRENhcnRlc
+        2lhbkNvb3JkaW5hdGVzIiBtaW5PY2N1cnM9IjAiIG1heE9jY3Vycz0iMSIgbmFtZT0iTG9jY
+        WxQb3NpdGlvbiIvPgogIDwveHM6c2VxdWVuY2U+CiA8L3hzOmNvbXBsZXhUeXBlPgogPHhzO
+        mVsZW1lbnQgdHlwZT0idG5zOkdyb3VuZENvbnRyb2xQb2ludERhdGFUeXBlIiBuYW1lPSJHc
+        m91bmRDb250cm9sUG9pbnREYXRhVHlwZSIvPgogPHhzOmNvbXBsZXhUeXBlIG5hbWU9Ikxpc
+        3RPZkdyb3VuZENvbnRyb2xQb2ludERhdGFUeXBlIj4KICA8eHM6c2VxdWVuY2U+CiAgIDx4c
+        zplbGVtZW50IG5pbGxhYmxlPSJ0cnVlIiB0eXBlPSJ0bnM6R3JvdW5kQ29udHJvbFBvaW50R
+        GF0YVR5cGUiIG1pbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIG5hbWU9Ikdyb
+        3VuZENvbnRyb2xQb2ludERhdGFUeXBlIi8+CiAgPC94czpzZXF1ZW5jZT4KIDwveHM6Y29tc
+        GxleFR5cGU+CiA8eHM6ZWxlbWVudCBuaWxsYWJsZT0idHJ1ZSIgdHlwZT0idG5zOkxpc3RPZ
+        kdyb3VuZENvbnRyb2xQb2ludERhdGFUeXBlIiBuYW1lPSJMaXN0T2ZHcm91bmRDb250cm9sU
+        G9pbnREYXRhVHlwZSIvPgo8L3hzOnNjaGVtYT4K</uax:ByteString>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6006" BrowseName="Deprecated" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6004" DataType="Boolean">
+    <DisplayName>Deprecated</DisplayName>
+    <Description>Indicates that all of the DataType definitions represented by the DataTypeDictionaryType are available through a DataTypeDefinition Attribute.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6004</Reference>
+    </References>
+    <Value>
+      <uax:Boolean xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">true</uax:Boolean>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6005" BrowseName="NamespaceUri" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=6004" DataType="String">
+    <DisplayName>NamespaceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6004</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/GPOS/Types.xsd</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariableType NodeId="ns=1;i=2006" BrowseName="1:GlobalPositionType" DataType="GlobalPositionDataType">
+    <DisplayName>GlobalPositionType</DisplayName>
+    <Description>Describes a point (i.e. a position) in 2 or 3 dimensions. Important: A Point object shall be interpreted according to the CoordinateReferenceSystem.</Description>
+    <Category>GPOS GlobalPosition</Category>
+    <Documentation>https://reference.opcfoundation.org/GPOS/v100/docs/8.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6028</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6033</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6030</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6049</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6012</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6029</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6027</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6038</Reference>
+    </References>
+  </UAVariableType>
+  <UAVariable NodeId="ns=1;i=6028" BrowseName="1:Accuracy" ParentNodeId="ns=1;i=2006" DataType="Double" AccessLevel="3">
+    <DisplayName>Accuracy</DisplayName>
+    <Description>The horizontal accuracy of the position in meters.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2006</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6033" BrowseName="1:CoordinateReferenceSystem" ParentNodeId="ns=1;i=2006" DataType="UInt32" AccessLevel="3">
+    <DisplayName>CoordinateReferenceSystem</DisplayName>
+    <Description>A projection identifier defining the projection of the provided location coordinate. The CoordinateReferenceSystem shall be either a valid EPSG identifier (https://epsg.io) or 'local' if the location is provided as a relative coordinate of the floor plan. For best interoperability and worldwide coverage, WGS84 (EPSG:4326) should be the preferred projection (as used also by GPS).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=11238</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2006</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6034</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6035</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6034" BrowseName="EnumValues" ParentNodeId="ns=1;i=6033" DataType="EnumValueType" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>EnumValues</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>0</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>local</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>4326</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>GPS</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32601</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 1N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32602</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 2N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32603</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 3N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32604</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 4N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32605</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 5N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32606</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 6N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32607</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 7N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32608</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 8N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32609</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 9N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32610</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 10N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32611</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 11N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32612</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 12N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32613</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 13N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32614</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 14N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32615</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 15N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32616</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 16N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32617</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 17N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32618</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 18N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32619</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 19N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32620</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 20N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32621</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 21N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32622</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 22N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32623</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 23N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32624</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 24N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32625</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 25N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32626</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 26N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32627</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 27N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32628</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 28N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32629</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 29N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32630</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 30N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32631</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 31N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32632</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 32N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32633</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 33N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32634</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 34N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32635</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 35N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32636</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 36N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32637</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 37N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32638</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 38N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32639</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 39N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32640</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 40N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32641</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 41N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32642</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 42N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32643</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 43N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32644</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 44N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32645</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 45N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32646</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 46N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32647</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 47N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32648</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 48N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32649</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 49N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32650</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 50N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32651</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 51N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32652</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 52N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32653</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 53N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32654</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 54N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32655</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 55N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32656</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 56N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32657</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 57N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32658</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 58N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32659</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 59N</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32661</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UPS North (N,E)</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32701</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 1S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32702</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 2S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32703</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 3S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32704</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 4S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32705</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 5S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32706</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 6S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32707</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 7S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32708</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 8S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32709</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 9S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32710</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 10S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32711</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 11S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32712</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 12S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32713</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 13S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32714</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 14S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32715</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 15S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32716</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 16S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32717</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 17S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32718</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 18S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32719</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 19S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32720</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 20S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32721</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 21S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32722</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 22S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32723</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 23S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32724</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 24S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32725</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 25S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32726</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 26S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32727</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 27S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32728</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 28S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32729</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 29S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32730</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 30S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32731</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 31S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32732</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 32S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32733</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 33S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32734</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 34S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32735</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 35S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32736</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 36S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32737</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 37S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32738</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 38S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32739</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 39S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32740</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 40S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32741</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 41S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32742</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 42S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32743</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 43S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32744</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 44S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32745</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 45S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32746</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 46S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32747</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 47S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32748</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 48S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32749</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 49S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32750</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 50S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32751</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 51S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32752</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 52S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32753</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 53S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32754</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 54S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32755</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 55S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32756</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 56S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32757</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 57S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32758</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 58S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32759</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UTM zone 59S</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>32761</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>UPS South (N,E)</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6035" BrowseName="ValueAsText" ParentNodeId="ns=1;i=6033" DataType="LocalizedText">
+    <DisplayName>ValueAsText</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6033</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6030" BrowseName="1:Elevation" ParentNodeId="ns=1;i=2006" DataType="Double" AccessLevel="3">
+    <DisplayName>Elevation</DisplayName>
+    <Description>MUST be interpreted according to the ElevationReference. If floor, the height relative to specific floor in meter</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2006</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6049" BrowseName="1:ElevationReference" ParentNodeId="ns=1;i=2006" DataType="Byte" AccessLevel="3">
+    <DisplayName>ElevationReference</DisplayName>
+    <Description>An elevation reference hint for the position's Elevation. If present it shall be either 'floor' or 'wgs84'. If set to 'floor' the Elevation shall be assumed to be relative to the floor level in meter. If set to 'wgs84' the Elevation shall be treated as WGS84 ellipsoidal height. For the majority of applications an accurate geographic height may not be available. Therefore ElevationReference shall be assumed 'floor' by default if it is not present.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=11238</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2006</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6050</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6051</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6050" BrowseName="EnumValues" ParentNodeId="ns=1;i=6049" DataType="EnumValueType" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>EnumValues</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6049</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>0</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>floor</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>1</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>wgs84</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6051" BrowseName="ValueAsText" ParentNodeId="ns=1;i=6049" DataType="LocalizedText">
+    <DisplayName>ValueAsText</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6049</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6012" BrowseName="1:Floor" ParentNodeId="ns=1;i=2006" DataType="Float" AccessLevel="3">
+    <DisplayName>Floor</DisplayName>
+    <Description>A logical and non-localized representation for a building floor. Floor 0 represents the floor designated as 'ground'. Negative numbers indicate floors below the ground floor and positive numbers indicate floors above the ground floor. When implemented, the floor value MUST match described logical numbering scheme, which can be different from any numbering used within a building. Values can be expressed as an integer value, or as a float as required for mezzanine floor levels.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2006</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6029" BrowseName="1:Latitude" ParentNodeId="ns=1;i=2006" DataType="Double" AccessLevel="3">
+    <DisplayName>Latitude</DisplayName>
+    <Description>MUST be interpreted according to the CoordinateReferenceSystem</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2006</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6027" BrowseName="1:Longitude" ParentNodeId="ns=1;i=2006" DataType="Double" AccessLevel="3">
+    <DisplayName>Longitude</DisplayName>
+    <Description>MUST be interpreted according to the CoordinateReferenceSystem</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2006</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6038" BrowseName="1:SourceId" ParentNodeId="ns=1;i=2006" DataType="NodeId" AccessLevel="3">
+    <DisplayName>SourceId</DisplayName>
+    <Description>Reference to the zone or provider calculating the position</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=2006</Reference>
+    </References>
+  </UAVariable>
+  <UAVariableType NodeId="ns=1;i=2003" BrowseName="1:GlobalLocationType" DataType="GlobalLocationDataType">
+    <DisplayName>GlobalLocationType</DisplayName>
+    <Description>Defines the location of an object - in a global coordinate reference system</Description>
+    <Category>GPOS GlobalLocation</Category>
+    <Documentation>https://reference.opcfoundation.org/GPOS/v100/docs/8.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=2;i=2003</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6008</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6009</Reference>
+    </References>
+  </UAVariableType>
+  <UAVariable NodeId="ns=1;i=6008" BrowseName="2:Orientation" ParentNodeId="ns=1;i=2003" DataType="3DOrientation" AccessLevel="3">
+    <DisplayName>Orientation</DisplayName>
+    <Description>Informs about an orientation typically with respect to a position. In mathematics, orientation defines a geometric notion.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=18781</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2003</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6014</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6015</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6016</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6014" BrowseName="A" ParentNodeId="ns=1;i=6008" DataType="Double">
+    <DisplayName>A</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6008</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6015" BrowseName="B" ParentNodeId="ns=1;i=6008" DataType="Double">
+    <DisplayName>B</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6008</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6016" BrowseName="C" ParentNodeId="ns=1;i=6008" DataType="Double">
+    <DisplayName>C</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6008</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6009" BrowseName="2:Position" ParentNodeId="ns=1;i=2003" DataType="GlobalPositionDataType" AccessLevel="3">
+    <DisplayName>Position</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=2006</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=2003</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6036</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6032</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6031</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6039</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6036" BrowseName="1:CoordinateReferenceSystem" ParentNodeId="ns=1;i=6009" DataType="UInt32" AccessLevel="3">
+    <DisplayName>CoordinateReferenceSystem</DisplayName>
+    <Description>A projection identifier defining the projection of the provided location coordinate. The CoordinateReferenceSystem shall be either a valid EPSG identifier (https://epsg.io) or 'local' if the location is provided as a relative coordinate of the floor plan. For best interoperability and worldwide coverage, WGS84 (EPSG:4326) should be the preferred projection (as used also by GPS).</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=11238</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6009</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6037</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6048</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6037" BrowseName="EnumValues" ParentNodeId="ns=1;i=6036" DataType="EnumValueType" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>EnumValues</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6036</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>0</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>local</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>4326</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>GPS</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description />
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6048" BrowseName="ValueAsText" ParentNodeId="ns=1;i=6036" DataType="LocalizedText">
+    <DisplayName>ValueAsText</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6036</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6032" BrowseName="1:Latitude" ParentNodeId="ns=1;i=6009" DataType="Double" AccessLevel="3">
+    <DisplayName>Latitude</DisplayName>
+    <Description>MUST be interpreted according to the CoordinateReferenceSystem</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6031" BrowseName="1:Longitude" ParentNodeId="ns=1;i=6009" DataType="Double" AccessLevel="3">
+    <DisplayName>Longitude</DisplayName>
+    <Description>MUST be interpreted according to the CoordinateReferenceSystem</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6039" BrowseName="1:SourceId" ParentNodeId="ns=1;i=6009" DataType="NodeId" AccessLevel="3">
+    <DisplayName>SourceId</DisplayName>
+    <Description>Reference to the zone or provider calculating the position</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=6009</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1005" BrowseName="1:ZoneType">
+    <DisplayName>ZoneType</DisplayName>
+    <Description>Defines an area, in which a local location is computed, e.g. via a RTLS or an proximity based system like RFID. For that reason it might have a set of GroundControlPoints defining the extent or just a point and a radius.</Description>
+    <Category>GPOS Zones</Category>
+    <Documentation>https://reference.opcfoundation.org/GPOS/v100/docs/7.1.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6010</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6011</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6047</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6013</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6045</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6046</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6026</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6043</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=6010" BrowseName="1:Building" ParentNodeId="ns=1;i=1005" DataType="String" AccessLevel="3">
+    <DisplayName>Building</DisplayName>
+    <Description>Name of the building</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6011" BrowseName="1:Floor" ParentNodeId="ns=1;i=1005" DataType="String" AccessLevel="3">
+    <DisplayName>Floor</DisplayName>
+    <Description>Name of the floor</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6047" BrowseName="1:GroundControlPoints" ParentNodeId="ns=1;i=1005" DataType="GroundControlPointDataType" ValueRank="1" ArrayDimensions="0" AccessLevel="3">
+    <DisplayName>GroundControlPoints</DisplayName>
+    <Description>Points defining the extent of the zone</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6013" BrowseName="1:IncompleteConfiguration" ParentNodeId="ns=1;i=1005" DataType="Boolean" AccessLevel="3">
+    <DisplayName>IncompleteConfiguration</DisplayName>
+    <Description>Indicates if the configuration is complete. FALSE if configuration is complete.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6045" BrowseName="1:Position" ParentNodeId="ns=1;i=1005" DataType="3DGeographicCoordinateDataType" AccessLevel="3">
+    <DisplayName>Position</DisplayName>
+    <Description>Describes a point (i.e. a position) in 2 or 3 dimensions.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6046" BrowseName="1:Radius" ParentNodeId="ns=1;i=1005" DataType="Double" AccessLevel="3">
+    <DisplayName>Radius</DisplayName>
+    <Description>For proximity-based systems. Describes the zone as a circular region with a given radius in meters around the position.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6026" BrowseName="1:Site" ParentNodeId="ns=1;i=1005" DataType="String" AccessLevel="3">
+    <DisplayName>Site</DisplayName>
+    <Description>Name of the site</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6043" BrowseName="1:ZoneId" ParentNodeId="ns=1;i=1005" DataType="String" AccessLevel="3">
+    <DisplayName>ZoneId</DisplayName>
+    <Description>A unique identifier of the zone (e.g. a GUID).</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1005</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5013" BrowseName="1:GlobalLocations">
+    <DisplayName>GlobalLocations</DisplayName>
+    <Category>GPOS Zones</Category>
+    <Documentation>https://reference.opcfoundation.org/GPOS/v100/docs/10.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">i=31915</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5007" BrowseName="1:http://opcfoundation.org/UA/GPOS/" SymbolicName="http___opcfoundation_org_UA_GPOS_">
+    <DisplayName>http://opcfoundation.org/UA/GPOS/</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/GPOS/v100/docs/12.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=11616</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6019</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6020</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6021</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6022</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6023</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6024</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6025</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=11715</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6019" BrowseName="IsNamespaceSubset" ParentNodeId="ns=1;i=5007" DataType="Boolean">
+    <DisplayName>IsNamespaceSubset</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5007</Reference>
+    </References>
+    <Value>
+      <uax:Boolean xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">false</uax:Boolean>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6020" BrowseName="NamespacePublicationDate" ParentNodeId="ns=1;i=5007" DataType="DateTime">
+    <DisplayName>NamespacePublicationDate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5007</Reference>
+    </References>
+    <Value>
+      <uax:DateTime xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">2025-09-25T00:00:00Z</uax:DateTime>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6021" BrowseName="NamespaceUri" ParentNodeId="ns=1;i=5007" DataType="String">
+    <DisplayName>NamespaceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5007</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/GPOS/</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6022" BrowseName="NamespaceVersion" ParentNodeId="ns=1;i=5007" DataType="String">
+    <DisplayName>NamespaceVersion</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5007</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1.0.0</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6023" BrowseName="StaticNodeIdTypes" ParentNodeId="ns=1;i=5007" DataType="IdType" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>StaticNodeIdTypes</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5007</Reference>
+    </References>
+    <Value>
+      <uax:ListOfInt32 xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:Int32>0</uax:Int32>
+            </uax:ListOfInt32>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6024" BrowseName="StaticNumericNodeIdRange" ParentNodeId="ns=1;i=5007" DataType="NumericRange" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>StaticNumericNodeIdRange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5007</Reference>
+    </References>
+    <Value>
+      <uax:ListOfString xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" />
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6025" BrowseName="StaticStringNodeIdPattern" ParentNodeId="ns=1;i=5007" DataType="String">
+    <DisplayName>StaticStringNodeIdPattern</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5007</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"></uax:String>
+    </Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5001" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3006</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6018</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5002" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3006</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6040</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5004" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3004</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6041</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5005" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3004</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6042</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5008" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3005</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6044</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5009" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3005</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6052</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5014" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3003</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6007</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5015" BrowseName="Default XML" SymbolicName="DefaultXml">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=3003</Reference>
+      <Reference ReferenceType="HasDescription">ns=1;i=6017</Reference>
+    </References>
+  </UAObject>
+</UANodeSet>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ========================================================================
+     Secondary model for the coverage harness (issue #4251 follow-up). It
+     declares its own namespace and depends on the primary CoverageTest model
+     (RequiredModel), so it exercises cross-namespace NodeIds and references:
+       - SecondaryObjectType is a HasSubtype of the primary CoverageObjectType.
+       - SecondaryInstance is a HasComponent child of the primary CoverageRoot
+         (a cross-namespace / cross-NodeManager reference resolved through the
+         master's reverse-reference mechanism).
+     ======================================================================== -->
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+           xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+           xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://opcfoundation.org/UA/CoverageTest/</Uri>
+    <Uri>http://opcfoundation.org/UA/CoverageTest/Secondary/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/CoverageTest/Secondary/"
+           Version="1.0.0"
+           PublicationDate="2024-06-01T00:00:00Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/"
+                     PublicationDate="2023-12-15T00:00:00Z"
+                     Version="1.05.03" />
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/CoverageTest/"
+                     PublicationDate="2024-06-01T00:00:00Z"
+                     Version="1.2.3" />
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Int32">i=6</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+  </Aliases>
+
+  <!-- Object type in the secondary namespace, subtyped from the primary
+       CoverageObjectType (cross-namespace HasSubtype). -->
+  <UAObjectType NodeId="ns=2;i=6001" BrowseName="2:SecondaryObjectType">
+    <DisplayName>SecondaryObjectType</DisplayName>
+    <Description>Secondary-namespace object type derived from the primary type.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=5210</Reference>
+    </References>
+  </UAObjectType>
+
+  <!-- Instance in the secondary namespace, HasComponent child of the primary
+       CoverageRoot (cross-namespace / cross-NodeManager reference). -->
+  <UAObject NodeId="ns=2;i=6010" BrowseName="2:SecondaryInstance" ParentNodeId="ns=1;i=5400">
+    <DisplayName>SecondaryInstance</DisplayName>
+    <Description>Secondary-namespace instance parented under the primary root.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=6001</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=5400</Reference>
+    </References>
+  </UAObject>
+</UANodeSet>

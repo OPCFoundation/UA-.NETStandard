@@ -266,6 +266,7 @@ namespace Opc.Ua.Server.AliasNames
             }
 
             bool changed = false;
+            List<AliasStoreChangedEventArgs>? notifications = null;
             await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -309,7 +310,7 @@ namespace Opc.Ua.Server.AliasNames
 
                 if (changed)
                 {
-                    entry.LastChange = unchecked(entry.LastChange + 1);
+                    notifications = BumpLastChangeWithAncestors(categoryId);
                 }
             }
             finally
@@ -317,11 +318,7 @@ namespace Opc.Ua.Server.AliasNames
                 m_semaphore.Release();
             }
 
-            if (changed)
-            {
-                Changed?.Invoke(this,
-                    new AliasStoreChangedEventArgs(categoryId, entry.LastChange));
-            }
+            RaiseChanged(notifications);
             return results;
         }
 
@@ -357,6 +354,7 @@ namespace Opc.Ua.Server.AliasNames
             }
 
             bool changed = false;
+            List<AliasStoreChangedEventArgs>? notifications = null;
             await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -411,7 +409,7 @@ namespace Opc.Ua.Server.AliasNames
 
                 if (changed)
                 {
-                    entry.LastChange = unchecked(entry.LastChange + 1);
+                    notifications = BumpLastChangeWithAncestors(categoryId);
                 }
             }
             finally
@@ -419,12 +417,25 @@ namespace Opc.Ua.Server.AliasNames
                 m_semaphore.Release();
             }
 
-            if (changed)
-            {
-                Changed?.Invoke(this,
-                    new AliasStoreChangedEventArgs(categoryId, entry.LastChange));
-            }
+            RaiseChanged(notifications);
             return results;
+        }
+
+        /// <summary>
+        /// Raises <see cref="Changed"/> for every bumped category, mutated
+        /// child first, ancestors after — outside the store lock so
+        /// handlers can call back into the store.
+        /// </summary>
+        private void RaiseChanged(List<AliasStoreChangedEventArgs>? notifications)
+        {
+            if (notifications == null)
+            {
+                return;
+            }
+            foreach (AliasStoreChangedEventArgs notification in notifications)
+            {
+                Changed?.Invoke(this, notification);
+            }
         }
 
         /// <inheritdoc/>
@@ -433,7 +444,9 @@ namespace Opc.Ua.Server.AliasNames
             m_semaphore.Dispose();
         }
 
-        private void RegisterCategoryRecursive(AliasNameCategoryDescriptor descriptor)
+        private void RegisterCategoryRecursive(
+            AliasNameCategoryDescriptor descriptor,
+            NodeId? parentId = null)
         {
             if (!m_categories.TryAdd(descriptor.NodeId, new CategoryEntry(descriptor)))
             {
@@ -441,10 +454,42 @@ namespace Opc.Ua.Server.AliasNames
                     "Duplicate category NodeId: " + descriptor.NodeId,
                     nameof(descriptor));
             }
+            if (parentId != null)
+            {
+                m_parentByCategory[descriptor.NodeId] = parentId.Value;
+            }
             foreach (AliasNameCategoryDescriptor child in descriptor.SubCategories)
             {
-                RegisterCategoryRecursive(child);
+                RegisterCategoryRecursive(child, descriptor.NodeId);
             }
+        }
+
+        /// <summary>
+        /// Bumps the mutated category's <c>LastChange</c> and — per Part 17
+        /// §6.3.1/§9.2, where a category's <c>LastChange</c> reflects the
+        /// most recent change anywhere in its subtree and the root
+        /// <c>Aliases</c> value reflects any change at all — every ancestor
+        /// category's too. Returns one notification per bumped category;
+        /// the caller raises them outside the store lock.
+        /// </summary>
+        private List<AliasStoreChangedEventArgs> BumpLastChangeWithAncestors(
+            NodeId categoryId)
+        {
+            var notifications = new List<AliasStoreChangedEventArgs>();
+            NodeId current = categoryId;
+            while (m_categories.TryGetValue(current, out CategoryEntry? entry))
+            {
+                entry.LastChange = unchecked(entry.LastChange + 1);
+                notifications.Add(
+                    new AliasStoreChangedEventArgs(current, entry.LastChange));
+
+                if (!m_parentByCategory.TryGetValue(current, out NodeId parent))
+                {
+                    break;
+                }
+                current = parent;
+            }
+            return notifications;
         }
 
         private void CollectMatches(
@@ -578,6 +623,14 @@ namespace Opc.Ua.Server.AliasNames
         }
 
         private readonly Dictionary<NodeId, CategoryEntry> m_categories = [];
+
+        /// <summary>
+        /// Child-to-parent category map used to propagate
+        /// <c>LastChange</c> bumps to ancestors (Part 17 §6.3.1/§9.2).
+        /// Categories form a strict tree within one store — registration
+        /// rejects duplicate ids.
+        /// </summary>
+        private readonly Dictionary<NodeId, NodeId> m_parentByCategory = [];
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
 
         private readonly record struct MappingKey(

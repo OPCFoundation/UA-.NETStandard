@@ -54,6 +54,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [TestCase(DtlsCipherSuite.TlsSha384Sha384)]
         public void SealOpenRoundTripSucceeds(DtlsCipherSuite cipherSuite)
         {
+            SkipIfAeadUnsupported(cipherSuite);
             byte[] secret = CreateSecret(cipherSuite);
             byte[] payload = [0x01, 0x02, 0x03, 0x04, 0x05];
             using var writer = new DtlsRecordProtection(CreateProfile(cipherSuite), secret, epoch: 1);
@@ -69,6 +70,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         public void SealOpenChaChaRoundTripSucceedsWhenSupported()
         {
 #if NET8_0_OR_GREATER
+            SkipIfAeadUnsupported(DtlsCipherSuite.TlsChaCha20Poly1305Sha256);
             if (!ChaCha20Poly1305.IsSupported)
             {
                 Assert.Ignore("ChaCha20-Poly1305 is not supported by this platform.");
@@ -90,6 +92,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [Test]
         public void OpenReplayThrowsCryptographicException()
         {
+            SkipIfAeadUnsupported(DtlsCipherSuite.TlsAes128GcmSha256);
             byte[] secret = CreateSecret(DtlsCipherSuite.TlsAes128GcmSha256);
             byte[] payload = [0xaa, 0xbb, 0xcc];
             using var writer = new DtlsRecordProtection(
@@ -120,6 +123,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [Test]
         public void ForgedRecordDoesNotPoisonReplayWindow()
         {
+            SkipIfAeadUnsupported(DtlsCipherSuite.TlsAes128GcmSha256);
             byte[] secret = CreateSecret(DtlsCipherSuite.TlsAes128GcmSha256);
             byte[] payload = [0x01, 0x02, 0x03, 0x04];
             using var writer = new DtlsRecordProtection(
@@ -147,6 +151,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [TestCase(DtlsCipherSuite.TlsSha384Sha384)]
         public void SequenceNumberMaskRoundTripsAcrossRecords(DtlsCipherSuite cipherSuite)
         {
+            SkipIfAeadUnsupported(cipherSuite);
             byte[] secret = CreateSecret(cipherSuite);
             using var writer = new DtlsRecordProtection(CreateProfile(cipherSuite), secret, epoch: 1);
             using var reader = new DtlsRecordProtection(CreateProfile(cipherSuite), secret, epoch: 1);
@@ -163,6 +168,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [Test]
         public void SequenceNumberReconstructionSurvivesSixteenBitWraparound()
         {
+            SkipIfAeadUnsupported(DtlsCipherSuite.TlsAes128GcmSha256);
             // SA-DTLS-CRYPTO-03: the 16-bit on-wire sequence number must be
             // reconstructed to the sender's full 64-bit counter, so records keep
             // decrypting past 2^16 in an epoch (the AEAD nonce stays aligned).
@@ -184,6 +190,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [Test]
         public async Task ParallelAeadProtectionSerializesSequenceAndCryptoUseAsync()
         {
+            SkipIfAeadUnsupported(DtlsCipherSuite.TlsAes128GcmSha256);
             const int recordCount = 64;
             byte[] secret = CreateSecret(DtlsCipherSuite.TlsAes128GcmSha256);
             using var writer = new DtlsRecordProtection(
@@ -225,6 +232,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         [Test]
         public void SealRejectsSequenceNumberExhaustion()
         {
+            SkipIfAeadUnsupported(DtlsCipherSuite.TlsAes128GcmSha256);
             byte[] secret = CreateSecret(DtlsCipherSuite.TlsAes128GcmSha256);
             using var writer = new DtlsRecordProtection(
                 CreateProfile(DtlsCipherSuite.TlsAes128GcmSha256),
@@ -262,6 +270,17 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 epoch: 1);
             reader.Dispose();
             Assert.That(() => reader.Dispose(), Throws.Nothing);
+        }
+
+        private static void SkipIfAeadUnsupported(DtlsCipherSuite cipherSuite)
+        {
+            if (DtlsRecordProtection.IsAeadCipherSuite(cipherSuite) &&
+                !DtlsRecordProtection.IsAeadSupported)
+            {
+                Assert.Ignore(
+                    "AEAD DTLS record protection requires .NET 8 or later; the stack assembly " +
+                    "under test was compiled without it.");
+            }
         }
 
         private static byte[] CreateSecret(DtlsCipherSuite cipherSuite)

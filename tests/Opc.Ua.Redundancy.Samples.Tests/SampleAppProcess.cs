@@ -50,7 +50,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         /// starts the sample application.
         /// </summary>
         /// <param name="name">A short, human-readable name used to prefix captured output.</param>
-        /// <param name="applicationDirectory">The sample application directory name under <c>samples/</c>.</param>
+        /// <param name="applicationDirectory">The sample application path under <c>samples/</c>.</param>
         /// <param name="assemblyName">The sample application assembly (dll) name without extension.</param>
         /// <param name="arguments">The command-line arguments passed to the sample application.</param>
         /// <param name="environment">Additional environment variables set for the process.</param>
@@ -59,7 +59,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             string applicationDirectory,
             string assemblyName,
             IReadOnlyList<string> arguments,
-            IReadOnlyDictionary<string, string>? environment = null)
+            IReadOnlyDictionary<string, string?>? environment = null)
         {
             Name = name;
             string dll = LocateApplicationAssembly(applicationDirectory, assemblyName);
@@ -80,7 +80,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
 
             if (environment != null)
             {
-                foreach (KeyValuePair<string, string> variable in environment)
+                foreach (KeyValuePair<string, string?> variable in environment)
                 {
                     startInfo.Environment[variable.Key] = variable.Value;
                 }

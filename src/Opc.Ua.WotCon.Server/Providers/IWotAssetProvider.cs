@@ -110,5 +110,39 @@ namespace Opc.Ua.WotCon.Server
             IReadOnlyList<Variant> inputs,
             IList<Variant> outputs,
             CancellationToken ct);
+
+        /// <summary>
+        /// Begins observing the WoT event affordance <paramref name="tag"/>
+        /// (OPC 10100-1 §6.3.10). The provider must call
+        /// <paramref name="callback"/> for every occurrence the asset reports
+        /// until <see cref="UnsubscribeEventAsync"/> is invoked with the same
+        /// <paramref name="subscriberId"/>.
+        /// </summary>
+        /// <param name="tag">The event affordance to observe.</param>
+        /// <param name="subscriberId">
+        /// Identifies this subscription so it can be cancelled independently
+        /// of other subscribers to the same affordance.
+        /// </param>
+        /// <param name="callback">Invoked for every event occurrence.</param>
+        /// <param name="ct">Cancellation token.</param>
+        ValueTask SubscribeEventAsync(
+            WotEventTag tag,
+            uint subscriberId,
+            OnWotEvent callback,
+            CancellationToken ct);
+
+        /// <summary>
+        /// Stops an event subscription previously started by
+        /// <see cref="SubscribeEventAsync"/>.
+        /// </summary>
+        /// <param name="tag">The event affordance to stop observing.</param>
+        /// <param name="subscriberId">
+        /// The identifier supplied to <see cref="SubscribeEventAsync"/>.
+        /// </param>
+        /// <param name="ct">Cancellation token.</param>
+        ValueTask UnsubscribeEventAsync(
+            WotEventTag tag,
+            uint subscriberId,
+            CancellationToken ct);
     }
 }

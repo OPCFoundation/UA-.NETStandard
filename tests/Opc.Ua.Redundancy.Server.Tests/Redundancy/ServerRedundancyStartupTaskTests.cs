@@ -287,6 +287,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             ServerObjectState serverObject = manager.FindPredefinedNode<ServerObjectState>(ObjectIds.Server);
             server.Setup(s => s.ServerObject).Returns(serverObject);
             server.Setup(s => s.DiagnosticsNodeManager).Returns(manager);
+            server.Setup(s => s.FindNodeManagers<IPredefinedNodeSubtypeReplacer>()).Returns([manager]);
             return new LoadedDiagnosticsServer(server, manager);
         }
 

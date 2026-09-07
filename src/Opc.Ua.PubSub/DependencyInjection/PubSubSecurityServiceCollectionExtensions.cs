@@ -170,7 +170,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     endpoint,
                     sp.GetRequiredService<ApplicationConfiguration>(),
                     sp.GetRequiredService<ITelemetryContext>(),
-                    sp.GetService<TimeProvider>() ?? TimeProvider.System),
+                    sp.GetService<TimeProvider>() ?? TimeProvider.System,
+                    securityPolicies: sp.GetService<ISecurityPolicyRegistry>()),
                 ownsSecurityKeyService: true,
                 configure);
         }
@@ -229,7 +230,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(securityKeyServiceFactory));
             }
-            if (PubSubSecurityPolicyRegistry.GetByUri(securityPolicyUri) is null)
+            if (PubSubSecurityPolicyRegistry.Default.GetByUri(securityPolicyUri) is null)
             {
                 throw new ArgumentException(
                     $"Unknown PubSub security policy URI '{securityPolicyUri}'.",
@@ -247,7 +248,10 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.AddSingleton<IPubSubSecurityKeyProvider>(sp =>
             {
-                IPubSubSecurityPolicy policy = PubSubSecurityPolicyRegistry.GetByUri(securityPolicyUri)!;
+                IPubSubSecurityPolicyRegistry registry =
+                    sp.GetService<IPubSubSecurityPolicyRegistry>() ??
+                    PubSubSecurityPolicyRegistry.Default;
+                IPubSubSecurityPolicy policy = registry.GetByUri(securityPolicyUri)!;
                 PullSecurityKeyProviderOptions options = sp
                     .GetRequiredService<IOptionsMonitor<PullSecurityKeyProviderOptions>>()
                     .Get(securityGroupId);
@@ -337,7 +341,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 var server = new InMemoryPubSubKeyServiceServer(
                     sp.GetService<TimeProvider>() ?? TimeProvider.System,
                     sp.GetRequiredService<ITelemetryContext>(),
-                    keyStore: sp.GetRequiredService<IPubSubSecurityKeyStore>());
+                    keyStore: sp.GetRequiredService<IPubSubSecurityKeyStore>(),
+                    securityPolicies: sp.GetService<IPubSubSecurityPolicyRegistry>());
                 configure?.Invoke(server);
                 return server;
             });

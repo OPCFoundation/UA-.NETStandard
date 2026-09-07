@@ -83,6 +83,29 @@ Uncertain-quality samples as Bad when computing aggregate `StatusCode`s (unless 
 definition states otherwise). Clients that require the previous behavior should send an explicit
 `AggregateConfiguration` with `TreatUncertainAsBad = false` instead of `UseServerCapabilitiesDefaults = true`.
 
+### MIG01 resolution playbook
+
+The migration analyzer's source generator emits temporary
+`<Type>Collection : List<T>` compatibility wrappers. It reports `MIG01` when
+it cannot identify one element type for a referenced legacy wrapper:
+
+```text
+MIG01: Cannot resolve a unique element type 'Foo' for legacy wrapper 'FooCollection'.
+```
+
+The generator checks, in order:
+
+1. Its catalog of element types renamed across the 1.5.378 → 2.0 boundary.
+2. A unique matching type declared in the consumer compilation.
+3. Metadata types named exactly `System.<Type>` or `Opc.Ua.<Type>`.
+
+A `using` directive, `PackageReference`, or `ProjectReference` does not extend
+the metadata search to arbitrary dependency namespaces. Resolve the warning by
+replacing the wrapper with the intended fully qualified `List<T>` or
+`ArrayOf<T>`. If the legacy wrapper must remain temporarily, define that
+wrapper explicitly in consumer source so the unresolved reference binds and
+the generator does not try to synthesize it.
+
 ### Project Structure
 
 New `Opc.Ua` project as an intermediate project. Impact:
@@ -97,4 +120,3 @@ New `Opc.Ua` project as an intermediate project. Impact:
 - Related: [types.md](types.md), [encoders.md](encoders.md), [node-states.md](node-states.md).
 - [2.0 migration index](README.md) — analyzer quick-start + symptom → sub-doc table.
 - [Migration Guide](../../MigrationGuide.md) — landing page across versions.
-

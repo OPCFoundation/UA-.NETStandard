@@ -409,9 +409,123 @@ parent FSM already declares its sub-state machines as part of the
 type definition. Observe them through the client-side sub-SM
 accessors below.
 
-While suspended, the child FSM's `DoTransition` and `DoCause`
-return `BadInvalidState`. The flag is exposed publicly as
-`FluentFiniteStateMachineState.IsSuspended` for diagnostics.
+`WithSubStateMachine` and `WithInitialState` are order-independent:
+whichever is called second brings the sub-SM in line with the
+parent's current state. (`WithInitialState` goes through `SetState`,
+which is not a transition and so still runs no user lifecycle
+handler — but it does re-arm timed transitions and synchronize
+sub-state machines.)
+
+A state declared with `isInitial: true` is applied automatically when
+the machine is created and its state node is materialized as an
+`InitialStateType` (OPC 10000-16 §4.4.10), so the minimal example
+above is fully functional without an explicit `WithInitialState`
+call; call `WithInitialState` to start in a different state. A
+sub-state machine's declared initial state is applied only while its
+parent is in the attached state.
+
+While suspended, the child FSM's `CurrentState` and `LastTransition`
+read with `Bad_StateNotActive` (per OPC 10000-16 §4.4.6), and its
+`DoTransition` / `DoCause` return `BadStateNotActive`. The flag is
+exposed publicly as `FluentFiniteStateMachineState.IsSuspended` for
+diagnostics.
+
+The resulting address space follows Part 16 §4.4.16 and the standard
+NodeSets:
+
+```
+LimitAlarm            --HasComponent-->       Active   (StateType)
+Active                --HasSubStateMachine--> LimitState
+LimitAlarm            --HasComponent-->       LimitState
+```
+
+`HasSubStateMachine` is a **non-hierarchical** reference, so it
+cannot double as the parent/child reference — the sub-SM is a
+`HasComponent` child of the state machine and the spec reference
+hangs off the parent *state* node.
+
+### Server side — materialized state and transition nodes
+
+To give `HasSubStateMachine` a state node to hang off — and to make
+`CurrentState/Id` and `LastTransition/Id` resolve to something a
+client can actually browse — `FluentFiniteStateMachineState`
+materializes a node per declared state and transition when the machine
+is created. All of them are `HasComponent` children of the machine.
+
+**States** — one `StateType` node each, carrying a `StateNumber`
+property equal to the numeric state id. `CurrentState/Id` points at
+the node for the current state and tracks it across transitions, and
+the optional `AvailableStates` property lists them, so
+`GetAvailableStatesAsync` works against a fluent-built server.
+
+**Transitions** — one `TransitionType` node each, carrying a
+`TransitionNumber` property and the Part 16 §4.4.11 references:
+
+* `FromState` / `ToState` to the two state nodes;
+* `HasEffect` to `TransitionEventType`, unless the transition was
+  declared with `hasEffect: false` — forward-only, matching how
+  companion NodeSets declare it (the target is a standard node owned
+  by another node manager, so no inverse edge is registered there);
+* `HasCause` to the method node, added by `WithCause(methodNodeId)`
+  for every transition the cause can trigger.
+
+`AvailableTransitions` lists them, and the optional `LastTransition`
+variable is materialized too — without it the base class has nowhere
+to record a completed transition and `ObserveFiniteTransitionsAsync`
+has nothing to subscribe to.
+
+NodeIds are **per instance**, derived from the machine's own NodeId,
+so several machines built from one definition coexist in a single
+address space. Use `sm.GetStateId(nodeId)` / `sm.GetTransitionId(nodeId)`
+and their inverses `sm.GetStateNodeId(stateId)` /
+`sm.GetTransitionNodeId(transitionId)` to move between a NodeId and
+the numeric id used by `AddState` / `AddTransition` / `OnCause` and
+the lifecycle hooks — never parse the NodeId's identifier directly.
+
+Element nodes land in the namespace given to `UseElementNamespace`,
+or in the state machine's own namespace when that was not called or
+the URI is not registered with the server (the element namespace
+defaults to the OPC UA namespace, which must never host vendor
+nodes).
+
+Because element NodeIds are derived from browse names, browse names
+must be unique across states and transitions (and must not shadow the
+standard `CurrentState` / `LastTransition` / `AvailableStates` /
+`AvailableTransitions` children); the builder rejects duplicates when
+the definition freezes.
+
+Cost is one node plus one property per declared state and transition,
+per machine instance — worth weighing for servers that instantiate
+many machines.
+
+### Executable causes
+
+A cause is a Method, and whether it may fire depends on the state the
+machine is in. Part 3 §5.7 defines `Executable` / `UserExecutable` as
+exactly that question, and Part 4 §5.11.2 has `Call` refuse a Method
+that is not executable with `Bad_NotExecutable`.
+
+`WithCause(methodNodeId)` therefore answers both attributes from
+`IsCausePermitted(context, causeId, checkUserAccessRights)` alongside
+installing the call handler — `Executable` ignoring user rights,
+`UserExecutable` running the machine's `OnCheckUserPermission`
+callback as well. A client can read them after every transition and
+offer only the causes that currently apply, instead of duplicating the
+server's state table or calling one to find out.
+
+Pass `reportExecutable: false` to opt out, for servers that
+deliberately keep their methods executable and answer at call time.
+
+The stack-shipped `ProgramStateMachineState` does the same for its own
+`Start` / `Suspend` / `Resume` / `Halt` / `Reset` methods when they are
+created, so a Program server no longer repeats the wiring per method.
+Those five are optional placeholders on the type, so only the ones an
+instance declares are wired, matched on browse name alone — a subtype
+that redeclares them puts them in its own namespace. Call
+`WireCauseMethods(context)` yourself if you add one to an
+already-created instance; `Create` rebuilds the child list from the
+type template, so children added by hand before it are not there when
+the automatic pass runs.
 
 ### Client side — sub-SM observation
 
@@ -419,10 +533,16 @@ return `BadInvalidState`. The flag is exposed publicly as
 FiniteStateMachineTypeClient parent =
     new FiniteStateMachineTypeClient(session, alarmId, telemetry);
 
-// Resolve the sub-SM attached to a parent state:
+// The state NodeId comes from AvailableStates ...
+IReadOnlyList<FiniteStateInfo> states =
+    await parent.GetAvailableStatesAsync(ct);
+NodeId activeStateId = states.First(s => s.BrowseName.Name == "Active").NodeId;
+
+// ... or from a snapshot's CurrentStateId, to reach the sub-SM of
+// whatever state the machine is in right now.
 FiniteStateMachineTypeClient? limitSm =
     await parent.GetSubStateMachineAsync(
-        parentStateNodeId: alarmStateNodeId, telemetry, ct);
+        parentStateNodeId: activeStateId, telemetry, ct);
 
 if (limitSm != null)
 {
@@ -494,18 +614,16 @@ Vendor models that add their own `<opc:Object>` children on a custom
 ObjectType benefit automatically; the generator emits the same shape
 for every Object child it encounters.
 
-### Per-spec `HasSubStateMachine` placement (deferred)
+### Fluent builder behavior — `HasSubStateMachine` is on the state node
 
-Part 16 §B.3 places the `HasSubStateMachine` reference on the parent
-state node, not the FSM root. The fluent builder currently attaches
-the reference from the FSM root because `FluentFiniteStateMachineState`
-does not materialize per-state instance NodeStates — state nodes are
-shared across all instances of the type. Browsing
-`HasSubStateMachine` from the FSM root via `GetSubStateMachineAsync`
-and the typed accessors above works against this wiring; clients that
-strictly browse from the state node will not discover the sub-SM. A
-future iteration may materialize per-state instance nodes to align
-with the spec; this is tracked but deliberately deferred.
+Earlier fluent-builder implementations attached `HasSubStateMachine` to the state machine
+**root**, because the fluent builder did not materialize state nodes.
+It now sits on the parent **state** node per Part 16 §4.4.16, and the
+root reference is gone.
+
+Callers that passed the state machine's `ObjectId` to
+`GetSubStateMachineAsync` must pass a state NodeId instead — from
+`GetAvailableStatesAsync` or from a snapshot's `CurrentStateId`.
 
 ## Extensibility recipes
 
@@ -519,7 +637,9 @@ with the spec; this is tracked but deliberately deferred.
   cause id is derived from the method NodeId's numeric identifier
   (OPC UA convention); the cause→transition mapping is whatever the
   underlying FSM declared (`OnCause(...)` in definition mode or
-  hardcoded in a stack/vendor subclass).
+  hardcoded in a stack/vendor subclass). It also answers the method's
+  `Executable` / `UserExecutable` attributes from `IsCausePermitted`
+  — see [Executable causes](#executable-causes).
 * **Drive auto-transitions.** `WithTimedTransition(fromStateId,
   timeout, transitionId, causeId)` arms a `System.Threading.Timer`
   on every entry into `fromStateId` (including the initial state)
@@ -540,6 +660,9 @@ with the spec; this is tracked but deliberately deferred.
   the layering behavior on top of pre-existing delegates.
 * `tests/Opc.Ua.Server.Tests/StateMachines/FluentFiniteStateMachineStateTests.cs`
   covers the table projections.
+* `tests/Opc.Ua.Server.Tests/StateMachines/StateMachineBuilderCauseExecutableTests.cs`
+  and `tests/Opc.Ua.Core.Tests/Stack/State/ProgramStateMachineStateTests.cs`
+  cover the `Executable` / `UserExecutable` reporting of causes.
 * The Part 9 conformance tests in
   `tests/Opc.Ua.History.Tests/AlarmsAndConditions*.cs` exercise
   `AlarmClient.GetShelvingStateAsync` and
@@ -556,5 +679,5 @@ with the spec; this is tracked but deliberately deferred.
   — the four DI SU state machines, the typed
   `SoftwareUpdateClient.StateMachine` partial, and the server-side
   `On*StateChanged` instrumentation hooks.
-- [Source-generated NodeManagers](SourceGeneratedNodeManagers.md) —
+- [Source-generated NodeManagers](NodeManagers.md#source-generated-node-managers) —
   how vendor NodeSets get their `*TypeClient` proxies emitted.

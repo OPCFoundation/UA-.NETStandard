@@ -1,5 +1,12 @@
 # OPC Foundation UA .NET Standard Reference Server
 
+## Additional samples
+
+- [OPC 10000-21 onboarding registrar/client](Gds/README.md) — loads the
+  generated Onboarding companion model, binds the standard registrar
+  administration methods to an injected ticket store, and drives a secure
+  register/unregister round trip with a PowerShell script.
+
 ## Introduction
 
 This document is referring to the CTT version 1.04.9.398.
@@ -23,7 +30,7 @@ Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to set
 ## Start the server
 
 1. Open a command prompt.
-2. Navigate to the folder **samples/ConsoleReferenceServer**.
+2. Navigate to the folder **samples/Reference/ConsoleReferenceServer**.
 3. To run the server sample type `dotnet run --project ConsoleReferenceServer.csproj`. The server is now running and waiting for the connection of the UACTT.
 
 ## UACTT test certificates

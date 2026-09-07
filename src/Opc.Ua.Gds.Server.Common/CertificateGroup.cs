@@ -43,7 +43,7 @@ using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509Aut
 
 namespace Opc.Ua.Gds.Server
 {
-    public class CertificateGroup : ICertificateGroup, IDisposable
+    public class CertificateGroup : ICertificateGroup
     {
         /// <inheritdoc/>
         public NodeId Id { get; set; }

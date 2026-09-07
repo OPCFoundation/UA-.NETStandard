@@ -115,6 +115,37 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public void CreateLimitAlarmAddsEventSourceReferencesAndPromotesNotifier()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, _) = CreateBuilder();
+            INodeBuilder nb = b.Node(new NodeId("Root", kNs));
+
+            IAlarmBuilder<NonExclusiveLimitAlarmState> first = nb.CreateLimitAlarm(
+                new QualifiedName("OverTemp", kNs));
+            _ = nb.CreateLimitAlarm(new QualifiedName("OverPressure", kNs));
+
+            var references = new List<IReference>();
+            root.GetReferences(b.Context, references);
+            Assert.That(
+                root.EventNotifier & EventNotifiers.SubscribeToEvents,
+                Is.Not.Zero);
+            Assert.That(
+                references,
+                Has.Exactly(2).Matches<IReference>(reference =>
+                    reference.ReferenceTypeId == ReferenceTypeIds.HasEventSource &&
+                    !reference.IsInverse));
+
+            references.Clear();
+            first.Alarm.GetReferences(b.Context, references);
+            Assert.That(
+                references,
+                Has.Exactly(1).Matches<IReference>(reference =>
+                    reference.ReferenceTypeId == ReferenceTypeIds.HasEventSource &&
+                    reference.IsInverse &&
+                    reference.TargetId == root.NodeId));
+        }
+
+        [Test]
         public void WithLimitsSetsAllFour()
         {
             (NodeManagerBuilder b, _, _) = CreateBuilder();
@@ -254,6 +285,18 @@ namespace Opc.Ua.Server.Tests.Fluent
                 () => nullBuilder.CreateLimitAlarm(new QualifiedName("X", kNs)));
             Assert.Throws<ArgumentNullException>(
                 () => nb.CreateLimitAlarm(QualifiedName.Null));
+        }
+
+        [Test]
+        public void CreateLimitAlarmOnVariableThrowsBadTypeMismatch()
+        {
+            (NodeManagerBuilder b, _, BaseDataVariableState src) = CreateBuilder();
+            IVariableBuilder<double> variable = b.Variable<double>(src.NodeId);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => variable.CreateLimitAlarm(new QualifiedName("OverTemp", kNs)));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
         }
     }
 }

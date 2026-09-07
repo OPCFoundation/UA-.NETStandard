@@ -38,15 +38,13 @@ namespace Opc.Ua.PubSub.Application
 {
     /// <summary>
     /// Adapter that exposes a legacy <see cref="IUaPubSubDataStore"/>
-    /// as an <see cref="IPublishedDataSetSource"/> so that the
-    /// migration shim can drive the new runtime with the
-    /// 1.04-era data-store contract.
+    /// as an <see cref="IPublishedDataSetSource"/> so the fluent builder can
+    /// drive the new runtime with the 1.04-era data-store contract.
     /// </summary>
     /// <remarks>
-    /// Used exclusively by the <c>UaPubSubApplication</c>
-    /// migration shim documented in
-    /// <c>docs/migrate/2.0.x/pubsub.md</c>. Internal because callers
-    /// outside the shim should adopt
+    /// Used by <c>PubSubApplicationBuilder.WithDataStore(...)</c>, documented
+    /// in <c>docs/migrate/2.0.x/pubsub.md</c>. Internal because callers should
+    /// adopt
     /// <see cref="IPublishedDataSetSource"/> directly.
     /// </remarks>
     internal sealed class DataStoreBackedPublishedDataSetSource : IPublishedDataSetSource

@@ -86,6 +86,20 @@ namespace Opc.Ua.Server.Historian
         }
 
         /// <summary>
+        /// Configures the builder to use the bundled
+        /// <see cref="InMemoryHistorianProvider"/> and returns the builder so
+        /// that historian configuration reads as a single fluent chain. The
+        /// created provider is owned by the builder and remains reachable
+        /// through <see cref="Provider"/> for callers that need to register
+        /// more variables later.
+        /// </summary>
+        public HistorianBuilder UseInMemoryProvider(InMemoryHistorianOptions? options = null)
+        {
+            UseInMemory(options);
+            return this;
+        }
+
+        /// <summary>
         /// Configures the builder to use the supplied provider.
         /// </summary>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="provider"/> is <c>null</c>.</exception>

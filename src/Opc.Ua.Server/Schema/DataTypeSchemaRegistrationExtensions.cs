@@ -180,7 +180,7 @@ namespace Opc.Ua.Server
             DataTypeDefinitionRegistry registry,
             CancellationToken cancellationToken)
         {
-            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
             ArrayOf<ReadValueId> nodesToRead =
             [
                 new ReadValueId

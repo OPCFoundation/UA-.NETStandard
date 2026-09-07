@@ -59,7 +59,8 @@ namespace Opc.Ua.Pcap.Models
         public IReadOnlyList<string> Addresses { get; init; } = [];
 
         /// <summary>
-        /// The link-layer type (e.g. <c>Ethernet</c>).
+        /// The link-layer type (e.g. <c>Ethernet</c>), or <c>null</c>
+        /// when the device is not open.
         /// </summary>
         public string? LinkType { get; init; }
 

@@ -26,6 +26,14 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <!-- ICaptureSource.StartAsync itself is intentionally NOT annotated, because most
+         capture sources do not need SharpPcap's dynamic-loading requirement.
+         NicCaptureSource.StartAsync keeps [RequiresDynamicCode]/[RequiresUnreferencedCode]
+         so trim/AOT-analyzed callers still get warned when calling that concrete method
+         directly. The IL2046/IL3051 interface-mismatch diagnostics on the implementation
+         are intentionally suppressed in NicCaptureSource.cs with justification, rather
+         than opting the whole assembly out of trim/AOT analysis. -->
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics.Tests" />

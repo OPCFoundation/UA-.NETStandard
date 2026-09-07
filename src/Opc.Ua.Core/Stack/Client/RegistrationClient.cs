@@ -77,7 +77,7 @@ namespace Opc.Ua
                 null,
                 context,
                 null,
-                ct).ConfigureAwait(false);
+                ct: ct).ConfigureAwait(false);
 
             return new RegistrationClient(channel, context.Telemetry)
             {

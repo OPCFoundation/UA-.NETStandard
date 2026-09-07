@@ -974,8 +974,15 @@ namespace Opc.Ua.Core.Encoders.Tests
             {
                 BuiltInType.DataValue,
                 DataValue.FromStatusCode(StatusCodes.BadNotWritable),
-                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable.Code}}}}}""",
-                $$$"""{"StatusCode":{"Code":{{{StatusCodes.BadNotWritable.Code}}}, "Symbol":"{{{nameof(StatusCodes.BadNotWritable)}}}"}}"""
+                $$$"""{"Status":{"Code":{{{StatusCodes.BadNotWritable.Code}}}}}""",
+                $$$"""
+                {
+                    "Status": {
+                        "Code": {{{StatusCodes.BadNotWritable.Code}}},
+                        "Symbol": "{{{nameof(StatusCodes.BadNotWritable)}}}"
+                    }
+                }
+                """
             },
             {
                 BuiltInType.Enumeration,
@@ -1143,7 +1150,7 @@ namespace Opc.Ua.Core.Encoders.Tests
 
             Assert.That(result, Is.Not.Empty);
             Assert.That(result, Is.Not.Null);
-            TestContext.Out.WriteLine("Result:");
+            TestOutput.WriteLine("Result:");
             _ = PrettifyAndValidateJson(result);
         }
 
@@ -1218,7 +1225,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             }
             string result1 = Encoding.UTF8.GetString(memoryStream.ToArray());
             Assert.That(result1, Is.Not.Empty);
-            TestContext.Out.WriteLine("Result1:");
+            TestOutput.WriteLine("Result1:");
             _ = PrettifyAndValidateJson(result1);
 
             // recycle the StreamWriter, ensure the result is equal
@@ -1229,7 +1236,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             }
             string result2 = Encoding.UTF8.GetString(memoryStream.ToArray());
             Assert.That(result2, Is.Not.Empty);
-            TestContext.Out.WriteLine("Result2:");
+            TestOutput.WriteLine("Result2:");
             _ = PrettifyAndValidateJson(result2);
             Assert.That(result2, Is.EqualTo(result1));
 
@@ -1241,7 +1248,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 TestEncoding(jsonEncoder);
                 string result3 = jsonEncoder.CloseAndReturnText();
                 Assert.That(result3, Is.Not.Empty);
-                TestContext.Out.WriteLine("Result3:");
+                TestOutput.WriteLine("Result3:");
                 _ = PrettifyAndValidateJson(result3);
                 Assert.That(result3, Is.EqualTo(result1));
             }
@@ -1269,13 +1276,13 @@ namespace Opc.Ua.Core.Encoders.Tests
             {
                 result1 = Encoding.UTF8.GetString(sequence.Sequence);
                 Assert.IsNotEmpty(result1);
-                TestContext.Out.WriteLine("Result1:");
+                TestOutput.WriteLine("Result1:");
                 _ = PrettifyAndValidateJson(result1);
             }
 #else
             string result1 = Encoding.UTF8.GetString(memoryStream.ToArray());
             Assert.That(result1, Is.Not.Empty);
-            TestContext.Out.WriteLine("Result1:");
+            TestOutput.WriteLine("Result1:");
             _ = PrettifyAndValidateJson(result1);
 #endif
 
@@ -1287,7 +1294,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             }
             string result2 = Encoding.UTF8.GetString(memoryStream.ToArray());
             Assert.That(result2, Is.Not.Empty);
-            TestContext.Out.WriteLine("Result2:");
+            TestOutput.WriteLine("Result2:");
             _ = PrettifyAndValidateJson(result2);
             Assert.That(result2, Is.EqualTo(result1));
 
@@ -1299,7 +1306,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 TestEncoding(jsonEncoder);
                 string result3 = jsonEncoder.CloseAndReturnText();
                 Assert.That(result3, Is.Not.Empty);
-                TestContext.Out.WriteLine("Result3:");
+                TestOutput.WriteLine("Result3:");
                 _ = PrettifyAndValidateJson(result3);
                 Assert.That(result3, Is.EqualTo(result1));
             }
@@ -1329,7 +1336,7 @@ namespace Opc.Ua.Core.Encoders.Tests
         public void TestWriteSingleEncodeableWithoutName()
         {
             string expected = /*lang=json,strict*/ """{"Test":{"Foo":"bar_1"}}""";
-            TestContext.Out.WriteLine("Expected:");
+            TestOutput.WriteLine("Expected:");
             expected = PrettifyAndValidateJson(expected);
 
             using var encodeable = new FooBarEncodeable();
@@ -1338,10 +1345,10 @@ namespace Opc.Ua.Core.Encoders.Tests
 
             string encoded = encoder.CloseAndReturnText();
 
-            TestContext.Out.WriteLine("Encoded:");
-            TestContext.Out.WriteLine(encoded);
+            TestOutput.WriteLine("Encoded:");
+            TestOutput.WriteLine(encoded);
 
-            TestContext.Out.WriteLine("Formatted Encoded:");
+            TestOutput.WriteLine("Formatted Encoded:");
             encoded = PrettifyAndValidateJson(encoded);
 
             Assert.That(encoded, Is.EqualTo(expected));
@@ -1355,7 +1362,7 @@ namespace Opc.Ua.Core.Encoders.Tests
         {
             const string expected = /*lang=json,strict*/
                 """{"bar_1":{"Foo":"bar_1"}}""";
-            TestContext.Out.WriteLine("Expected:");
+            TestOutput.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
             using var encodeable = new FooBarEncodeable();
@@ -1364,10 +1371,10 @@ namespace Opc.Ua.Core.Encoders.Tests
 
             string encoded = encoder.CloseAndReturnText();
 
-            TestContext.Out.WriteLine("Encoded:");
-            TestContext.Out.WriteLine(encoded);
+            TestOutput.WriteLine("Encoded:");
+            TestOutput.WriteLine(encoded);
 
-            TestContext.Out.WriteLine("Formatted Encoded:");
+            TestOutput.WriteLine("Formatted Encoded:");
             _ = PrettifyAndValidateJson(encoded);
 
             Assert.That(encoded, Is.EqualTo(expected));
@@ -1381,7 +1388,7 @@ namespace Opc.Ua.Core.Encoders.Tests
         {
             const string expected = /*lang=json,strict*/
                 """{"bar_1":{"Foo":"bar_1"}}""";
-            TestContext.Out.WriteLine("Expected:");
+            TestOutput.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
             using var encodeable = new DynamicEncodeable(
@@ -1399,10 +1406,10 @@ namespace Opc.Ua.Core.Encoders.Tests
 
             string encoded = encoder.CloseAndReturnText();
 
-            TestContext.Out.WriteLine("Encoded:");
-            TestContext.Out.WriteLine(encoded);
+            TestOutput.WriteLine("Encoded:");
+            TestOutput.WriteLine(encoded);
 
-            TestContext.Out.WriteLine("Formatted Encoded:");
+            TestOutput.WriteLine("Formatted Encoded:");
             _ = PrettifyAndValidateJson(encoded);
 
             Assert.That(encoded, Is.EqualTo(expected));
@@ -1428,7 +1435,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                     </uax:Body>
                 </uax:ExtensionObject>
                 """;
-            TestContext.Out.WriteLine("Expected XML:");
+            TestOutput.WriteLine("Expected XML:");
             expectedXml = PrettifyAndValidateXml(Encoding.UTF8.GetBytes(expectedXml));
 
             var encodeable = new DynamicEncodeable(
@@ -1468,7 +1475,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                     encoder.WriteExtensionObject(null, extensionObject);
                     xmlWriter.Flush();
                 }
-                TestContext.Out.WriteLine("Formatted Encoded:");
+                TestOutput.WriteLine("Formatted Encoded:");
                 encodedXml = PrettifyAndValidateXml(ms.ToArray());
             }
             Assert.That(encodedXml, Is.EqualTo(expectedXml));
@@ -1500,13 +1507,13 @@ namespace Opc.Ua.Core.Encoders.Tests
 
                 encodedJson = encoder.CloseAndReturnText();
 
-                TestContext.Out.WriteLine("Expected Json:");
+                TestOutput.WriteLine("Expected Json:");
                 _ = PrettifyAndValidateJson(expectedJson);
 
-                TestContext.Out.WriteLine("Encoded Json:");
-                TestContext.Out.WriteLine(encodedJson);
+                TestOutput.WriteLine("Encoded Json:");
+                TestOutput.WriteLine(encodedJson);
 
-                TestContext.Out.WriteLine("Formatted Encoded Json:");
+                TestOutput.WriteLine("Formatted Encoded Json:");
                 _ = PrettifyAndValidateJson(encodedJson);
             }
             Assert.That(encodedJson, Is.EqualTo(expectedJson));
@@ -1531,7 +1538,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             const string expected = /*lang=json,strict*/
                 """{"bar_1":{"Foo":"bar_1"},"bar_2":{"Foo":"bar_2"},"bar_3":{"Foo":"bar_3"}}""";
 
-            TestContext.Out.WriteLine("Expected:");
+            TestOutput.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
             var encodeables = new List<FooBarEncodeable> { new(), new(), new() };
@@ -1544,10 +1551,10 @@ namespace Opc.Ua.Core.Encoders.Tests
                 }
 
                 string encoded = encoder.CloseAndReturnText();
-                TestContext.Out.WriteLine("Encoded:");
-                TestContext.Out.WriteLine(encoded);
+                TestOutput.WriteLine("Encoded:");
+                TestOutput.WriteLine(encoded);
 
-                TestContext.Out.WriteLine("Formatted Encoded:");
+                TestOutput.WriteLine("Formatted Encoded:");
                 _ = PrettifyAndValidateJson(encoded);
 
                 Assert.That(encoded, Is.EqualTo(expected));
@@ -1595,7 +1602,7 @@ namespace Opc.Ua.Core.Encoders.Tests
         )]
         public void TestFieldValueEscapedEncodeable(string fieldname, string foo, string expected)
         {
-            TestContext.Out.WriteLine("Expected:");
+            TestOutput.WriteLine("Expected:");
             expected = PrettifyAndValidateJson(expected);
 
             using var encodeable = new FooBarEncodeable(fieldname, foo);
@@ -1603,10 +1610,10 @@ namespace Opc.Ua.Core.Encoders.Tests
             encoder.WriteEncodeable(encodeable.FieldName, encodeable);
 
             string encoded = encoder.CloseAndReturnText();
-            TestContext.Out.WriteLine("Encoded:");
-            TestContext.Out.WriteLine(encoded);
+            TestOutput.WriteLine("Encoded:");
+            TestOutput.WriteLine(encoded);
 
-            TestContext.Out.WriteLine("Formatted Encoded:");
+            TestOutput.WriteLine("Formatted Encoded:");
             encoded = PrettifyAndValidateJson(encoded);
 
             Assert.That(encoded, Is.EqualTo(expected));
@@ -1626,7 +1633,7 @@ namespace Opc.Ua.Core.Encoders.Tests
         )]
         public void TestFieldValueEscapedArray(string fieldname, string foo, string expected)
         {
-            TestContext.Out.WriteLine("Expected:");
+            TestOutput.WriteLine("Expected:");
             expected = PrettifyAndValidateJson(expected);
 
             using var encodeable = new FooBarEncodeable(fieldname, foo);
@@ -1635,10 +1642,10 @@ namespace Opc.Ua.Core.Encoders.Tests
             encoder.WriteEncodeableArray(encodeable.FieldName, list);
 
             string encoded = encoder.CloseAndReturnText();
-            TestContext.Out.WriteLine("Encoded:");
-            TestContext.Out.WriteLine(encoded);
+            TestOutput.WriteLine("Encoded:");
+            TestOutput.WriteLine(encoded);
 
-            TestContext.Out.WriteLine("Formatted Encoded:");
+            TestOutput.WriteLine("Formatted Encoded:");
             encoded = PrettifyAndValidateJson(encoded);
 
             Assert.That(encoded, Is.EqualTo(expected));
@@ -1658,7 +1665,7 @@ namespace Opc.Ua.Core.Encoders.Tests
         )]
         public void TestFieldValueEscapedVariant(string fieldname, string foo, string expected)
         {
-            TestContext.Out.WriteLine("Expected:");
+            TestOutput.WriteLine("Expected:");
             expected = PrettifyAndValidateJson(expected);
 
             using var encodeable = new FooBarEncodeable(fieldname, foo);
@@ -1667,10 +1674,10 @@ namespace Opc.Ua.Core.Encoders.Tests
             encoder.WriteVariant(encodeable.FieldName, variant);
 
             string encoded = encoder.CloseAndReturnText();
-            TestContext.Out.WriteLine("Encoded:");
-            TestContext.Out.WriteLine(encoded);
+            TestOutput.WriteLine("Encoded:");
+            TestOutput.WriteLine(encoded);
 
-            TestContext.Out.WriteLine("Formatted Encoded:");
+            TestOutput.WriteLine("Formatted Encoded:");
             encoded = PrettifyAndValidateJson(encoded);
 
             Assert.That(encoded, Is.EqualTo(expected));
@@ -1725,7 +1732,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             var expandedNodeId = ExpandedNodeId.Parse(expectedNodeIdString);
 
             string stringifiedExpandedNodeId = expandedNodeId.ToString();
-            TestContext.Out.WriteLine(stringifiedExpandedNodeId);
+            TestOutput.WriteLine(stringifiedExpandedNodeId);
             Assert.That(stringifiedExpandedNodeId, Is.EqualTo(expectedNodeIdString));
         }
 
@@ -1756,7 +1763,7 @@ namespace Opc.Ua.Core.Encoders.Tests
         /// <summary>
         /// Validate that the DateTime format strings return an equal result.
         /// </summary>
-        private static void DateTimeEncodeStringTest(DateTimeUtc testDateTime)
+        private void DateTimeEncodeStringTest(DateTimeUtc testDateTime)
         {
             string resultString = testDateTime.ToString(
                 "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
@@ -1774,7 +1781,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             Assert.That(resultString, Is.Not.Null);
             Assert.That(resultO, Is.Not.Null);
 
-            TestContext.Out.WriteLine(
+            TestOutput.WriteLine(
                 """Encoded: "o": {0} "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK": {1}""",
                 resultO,
                 resultString);
@@ -1793,7 +1800,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             Assert.That(decodedXmlString, Is.Not.EqualTo(DateTime.MinValue));
             Assert.That(decodedXmlO, Is.Not.EqualTo(DateTime.MinValue));
 
-            TestContext.Out.WriteLine(
+            TestOutput.WriteLine(
                 "Decoded Xml: {0} {1}",
                 decodedXmlO.ToString("o"),
                 decodedXmlString.ToString("o"));
@@ -1813,7 +1820,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             Assert.That(successString, Is.True);
             Assert.That(successO, Is.True);
 
-            TestContext.Out
+            TestOutput
                 .WriteLine("Decoded: {0} {1}", decodedO.ToString("o"), decodedString.ToString("o"));
             Assert.That(decodedString, Is.EqualTo(decodedO));
             Assert.That(decodedO, Is.EqualTo(testDateTime));
@@ -1871,7 +1878,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             {
                 if (!noExpectedValidation)
                 {
-                    TestContext.Out.WriteLine("Expected:");
+                    TestOutput.WriteLine("Expected:");
                     _ = PrettifyAndValidateJson(expected);
                 }
 
@@ -1881,10 +1888,10 @@ namespace Opc.Ua.Core.Encoders.Tests
                     encodeables.ToArrayOf());
 
                 string encoded = encoder.CloseAndReturnText();
-                TestContext.Out.WriteLine("Encoded:");
-                TestContext.Out.WriteLine(encoded);
+                TestOutput.WriteLine("Encoded:");
+                TestOutput.WriteLine(encoded);
 
-                TestContext.Out.WriteLine("Formatted Encoded:");
+                TestOutput.WriteLine("Formatted Encoded:");
                 _ = PrettifyAndValidateJson(encoded);
 
                 Assert.That(encoded, Is.EqualTo(expected));

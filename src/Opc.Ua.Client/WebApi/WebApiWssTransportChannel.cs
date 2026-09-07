@@ -103,6 +103,27 @@ namespace Opc.Ua.Client.WebApi
             m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
+        /// <summary>
+        /// Gets a value indicating whether this compiled assembly performs
+        /// custom OPC UA server certificate validation for outbound WSS
+        /// connections.
+        /// </summary>
+        /// <remarks>
+        /// The custom validation callback relies on
+        /// <c>ClientWebSocketOptions.RemoteCertificateValidationCallback</c>,
+        /// which is only available on .NET 7 or later. When the assembly is
+        /// compiled for an older target framework (for example
+        /// <c>netstandard2.1</c>) the callback cannot be wired up and this
+        /// probe returns <see langword="false"/>, allowing callers and tests to
+        /// react at runtime instead of assuming compile-time availability.
+        /// </remarks>
+        public static bool IsServerCertificateValidationSupported =>
+#if NET7_0_OR_GREATER
+            true;
+#else
+            false;
+#endif
+
         /// <inheritdoc/>
         public string UriScheme => Utils.UriSchemeOpcWssOpenApi;
 
@@ -176,7 +197,8 @@ namespace Opc.Ua.Client.WebApi
                 MaxMessageSize = settings.Configuration.MaxMessageSize,
                 ChannelLifetime = settings.Configuration.ChannelLifetime,
                 SecurityTokenLifetime = settings.Configuration.SecurityTokenLifetime,
-                CertificateValidator = settings.CertificateValidator
+                CertificateValidator = settings.CertificateValidator,
+                SecurityPolicyRegistry = settings.SecurityPolicyRegistry
             };
 
             string subProtocol = string.IsNullOrEmpty(m_userOptions.BearerToken)
@@ -534,24 +556,8 @@ namespace Opc.Ua.Client.WebApi
         {
             try
             {
-                var validationChain = new X509Certificate2Collection();
-                if (chain != null && chain.ChainElements != null)
-                {
-                    foreach (X509ChainElement element in chain.ChainElements)
-                    {
-                        validationChain.Add(element.Certificate);
-                    }
-                }
-                else if (certificate is X509Certificate2 x509)
-                {
-                    validationChain.Add(x509);
-                }
-                else if (certificate != null)
-                {
-                    validationChain.Add(new X509Certificate2(certificate));
-                }
-
-                using var validationCollection = CertificateCollection.From(validationChain);
+                using CertificateCollection validationCollection = CertificateValidationHelpers
+                    .BuildValidationCertificateCollection(certificate, chain);
                 ICertificateValidatorEx? validator = m_quotas?.CertificateValidator;
                 if (validator != null)
                 {
@@ -598,6 +604,7 @@ namespace Opc.Ua.Client.WebApi
                 return false;
             }
         }
+
 #endif
 
         /// <summary>

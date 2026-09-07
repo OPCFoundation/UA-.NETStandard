@@ -70,6 +70,9 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(sut.PublishState, Is.EqualTo(PublishState.Completed));
             Assert.That(m_completion.CompletedSubscriptions,
                 Is.EqualTo(new uint[] { 3 }));
+            // The subscription must be retired by identity, not only by id.
+            Assert.That(m_completion.CompletedProcessors,
+                Is.EqualTo(new IMessageProcessor[] { sut }));
         }
 
         [Test]

@@ -46,6 +46,53 @@ namespace Opc.Ua.Security.Certificates
     public static class PEMReader
     {
         /// <summary>
+        /// The maximum number of certificates returned from a single blob.
+        /// </summary>
+        private const int kMaxCertificates = 99;
+
+        /// <summary>
+        /// Bounds a run of blocks that cannot be parsed, so a pathological blob
+        /// cannot spin even if a future parser were to fail without consuming
+        /// its input. It deliberately does not bound the blob as a whole: a
+        /// private key may legitimately follow more certificates than that.
+        /// </summary>
+        private const int kMaxConsecutiveUnparseableBlocks = 1000;
+
+        /// <summary>
+        /// Reads the next object from the PEM stream, skipping any block this
+        /// version of BouncyCastle refuses to parse.
+        /// </summary>
+        /// <remarks>
+        /// BouncyCastle 2.7.0 and later reject a certificate that violates
+        /// RFC 5280, an empty issuer distinguished name being the case seen in
+        /// practice. The offending block has already been consumed by the time
+        /// the exception surfaces, so reading on skips just that entry rather
+        /// than abandoning the whole file: one malformed certificate must not
+        /// hide the private key, or the valid certificates, that follow it.
+        /// </remarks>
+        /// <param name="pemReader">
+        /// The reader to advance.
+        /// </param>
+        /// <returns>
+        /// The next object that could be parsed, or null at the end of the blob.
+        /// </returns>
+        private static object? ReadNextObject(PemReader pemReader)
+        {
+            for (int skipped = 0; skipped <= kMaxConsecutiveUnparseableBlocks; skipped++)
+            {
+                try
+                {
+                    return pemReader.ReadObject();
+                }
+                catch (PemException)
+                {
+                    // Skip the block and keep reading.
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Checks if the PEM data contains a private key.
         /// </summary>
         /// <param name="pemDataBlob">The PEM data as a byte span.</param>
@@ -57,7 +104,7 @@ namespace Opc.Ua.Security.Certificates
             using var pemReader = new PemReader(reader);
             try
             {
-                object pemObject = pemReader.ReadObject();
+                object? pemObject = ReadNextObject(pemReader);
                 while (pemObject != null)
                 {
                     // Check for AsymmetricCipherKeyPair (private key)
@@ -75,7 +122,7 @@ namespace Opc.Ua.Security.Certificates
                     {
                         return true;
                     }
-                    pemObject = pemReader.ReadObject();
+                    pemObject = ReadNextObject(pemReader);
                 }
             }
             finally
@@ -87,7 +134,8 @@ namespace Opc.Ua.Security.Certificates
 
         /// <summary>
         /// Import multiple X509 certificates from PEM data.
-        /// Supports a maximum of 99 certificates in the PEM data.
+        /// Returns at most 99 certificates. Any certificate carrying an empty
+        /// subject or issuer name is skipped rather than imported.
         /// </summary>
         /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
         /// <returns>The certificates.</returns>
@@ -101,17 +149,30 @@ namespace Opc.Ua.Security.Certificates
                 int certCount = 0;
                 try
                 {
-                    object pemObject = pemReader.ReadObject();
-                    while (pemObject != null && certCount < 99)
+                    object? pemObject = ReadNextObject(pemReader);
+                    while (pemObject != null && certCount < kMaxCertificates)
                     {
                         if (pemObject is Org.BouncyCastle.X509.X509Certificate bcCert)
                         {
                             byte[] rawData = bcCert.GetEncoded();
                             var cert = new X509Certificate2(rawData);
-                            certificates.Add(cert);
-                            certCount++;
+
+                            // Keep the same rule as the .NET PEM reader used on the
+                            // other target frameworks: a certificate with an empty
+                            // subject or issuer name identifies nothing and can never
+                            // take part in a trust decision.
+                            if (DistinguishedNameUtils.HasEmptyDistinguishedName(cert))
+                            {
+                                cert.Dispose();
+                            }
+                            else
+                            {
+                                certificates.Add(cert);
+                                certCount++;
+                            }
                         }
-                        pemObject = pemReader.ReadObject();
+
+                        pemObject = ReadNextObject(pemReader);
                     }
                 }
                 finally
@@ -174,7 +235,7 @@ namespace Opc.Ua.Security.Certificates
             try
             {
                 // find the private key in the PEM blob
-                object pemObject = pemReader.ReadObject();
+                object? pemObject = ReadNextObject(pemReader);
                 while (pemObject != null)
                 {
                     if (pemObject is Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair keypair)
@@ -198,7 +259,7 @@ namespace Opc.Ua.Security.Certificates
                     }
 
                     // read next object
-                    pemObject = pemReader.ReadObject();
+                    pemObject = ReadNextObject(pemReader);
                 }
             }
             finally

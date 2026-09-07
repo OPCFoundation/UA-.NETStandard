@@ -39,7 +39,8 @@ namespace Opc.Ua.Server
     /// implementation lives in <see cref="RoleManager"/>; integrators that
     /// want to back roles with a custom store (e.g. an LDAP directory or a
     /// database) implement this interface and inject an instance via
-    /// <see cref="IServerInternal.SetRoleManager"/>.
+    /// <see cref="StandardServer.CreateRoleManager"/>, or by registering it in
+    /// the service container.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -119,13 +120,15 @@ namespace Opc.Ua.Server
         ServiceResult RemoveApplication(NodeId roleId, string applicationUri);
 
         /// <summary>
-        /// Adds an endpoint per Part 18 §4.4.9.
+        /// Adds an endpoint per Part 18 §4.4.9. Default-valued fields act as
+        /// wildcards during endpoint comparison per Part 18 §4.4.2.
         /// </summary>
         /// <returns>
         /// <c>Good</c> on success;
         /// <c>Bad_NodeIdUnknown</c> if the role is unknown;
         /// <c>Bad_RequestNotAllowed</c> if the role is reserved;
-        /// <c>Bad_InvalidArgument</c> if the endpoint is null or its URL is empty;
+        /// <c>Bad_InvalidArgument</c> if the endpoint is null or every field has
+        /// its default value;
         /// <c>Bad_AlreadyExists</c> if an equivalent endpoint already exists.
         /// </returns>
         ServiceResult AddEndpoint(NodeId roleId, EndpointType endpoint);
@@ -181,10 +184,15 @@ namespace Opc.Ua.Server
         /// <param name="roleName">The browse name for the new role.</param>
         /// <param name="namespaceUri">
         /// The namespace URI qualifying the browse name; if null or empty the
-        /// server's default namespace is used.
+        /// server's default namespace is used. Per Part 18 §4.2.2 this argument
+        /// qualifies the BrowseName only — it never selects the namespace the
+        /// new role's NodeId is allocated in, which stays server-assigned.
         /// </param>
         /// <param name="namespaces">Namespace table used to resolve the URI.</param>
-        /// <param name="defaultNamespaceIndex">Namespace index used when a fresh NodeId is allocated.</param>
+        /// <param name="defaultNamespaceIndex">
+        /// Namespace index a fresh NodeId is allocated in. Implementations must
+        /// allocate an identifier that is not already in use.
+        /// </param>
         /// <param name="newRoleId">On success, the new role's NodeId.</param>
         /// <returns>
         /// <c>Good</c> on success;

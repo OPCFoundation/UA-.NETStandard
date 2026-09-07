@@ -35,13 +35,13 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
@@ -68,6 +68,23 @@ namespace Opc.Ua.Client.Tests.Stack.Client
     public sealed class ClientChannelManagerManagedTests
     {
         private static readonly ICertificateFactory s_factory = DefaultCertificateFactory.Instance;
+
+        /// <summary>
+        /// How long a test waits for an asynchronous operation it has already
+        /// unblocked to be observed as complete.
+        /// </summary>
+        /// <remarks>
+        /// This is a hang detector, not a latency assertion. These tests drive a
+        /// fake clock, so the work under test finishes in microseconds; what is
+        /// being waited on is purely the thread-pool scheduling of the
+        /// continuation chain. On a saturated CI agent the pool injects threads
+        /// at roughly one per second, so a short budget times out while the
+        /// operation is merely queued - the channel has already faulted and its
+        /// completion source has already been signalled. Keep this generous
+        /// enough that it never fires on a healthy run, and far below the
+        /// blame-hang timeout so a genuine deadlock still fails the job quickly.
+        /// </remarks>
+        private static readonly TimeSpan s_completionTimeout = TimeSpan.FromSeconds(60);
 
         [Test]
         public void ChannelKeyEqualityIsValueBased()
@@ -789,7 +806,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     }));
 
                 Task reconnectTask = sut.ReconnectAsync(ch, default).AsTask();
-                await reconnectEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await reconnectEntered.Task.WaitAsync(s_completionTimeout).ConfigureAwait(false);
                 Task<IServiceResponse> sendTask = ch.SendRequestAsync(
                     new ReadRequest { RequestHeader = new RequestHeader() },
                     default).AsTask();
@@ -922,10 +939,11 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                             StatusCodes.BadConnectionClosed, "simulated in-flight drop");
                     });
 
-                ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await ch.SendRequestAsync(
+                ServiceResultException ex = await AssertThrowsAsync<ServiceResultException>(
+                    ch.SendRequestAsync(
                         new WriteRequest { RequestHeader = new RequestHeader() },
-                        default).AsTask().ConfigureAwait(false));
+                        default).AsTask(),
+                    TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
                 Assert.That(ex, Is.Not.Null);
                 Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
@@ -978,10 +996,11 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                             StatusCodes.BadNodeIdUnknown, "non-transient application error");
                     });
 
-                ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await ch.SendRequestAsync(
+                ServiceResultException ex = await AssertThrowsAsync<ServiceResultException>(
+                    ch.SendRequestAsync(
                         new ReadRequest { RequestHeader = new RequestHeader() },
-                        default).AsTask().ConfigureAwait(false));
+                        default).AsTask(),
+                    TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
                 Assert.That(ex, Is.Not.Null);
                 Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
@@ -1146,10 +1165,11 @@ namespace Opc.Ua.Client.Tests.Stack.Client
 
         [Test]
         [NonParallelizable]
-        public async Task EventSourceFiresStateTransitionsAsync()
+        public async Task StructuredLogsCaptureStateTransitionsAsync()
         {
-            using var listener = new ChannelEventListener();
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var loggerProvider = new RecordingLoggerProvider();
+            ITelemetryContext telemetry = DefaultTelemetry.Create(
+                builder => builder.AddProvider(loggerProvider));
             (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut(telemetry);
             try
             {
@@ -1166,22 +1186,29 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 await sut.ReconnectAsync(ch, default).ConfigureAwait(false);
                 ch.Dispose();
 
-                // ch.Dispose() is non-blocking; the ParticipantDetached
-                // and ChannelClosed EventSource events fire from the
-                // background teardown task, so poll for them before the
-                // hard assertions.
+                // ch.Dispose() is non-blocking; teardown logs are emitted by
+                // the background cleanup task.
                 await WaitForConditionAsync(
-                    () => listener.EventNames.Contains("ParticipantDetached") &&
-                        listener.EventNames.Contains("ChannelClosed"),
+                    () => loggerProvider.Records.Any(record =>
+                            record.EventId.Name == "ParticipantDetached") &&
+                        loggerProvider.Records.Any(record =>
+                            record.EventId.Name == "ChannelClosed"),
                     "ParticipantDetached + ChannelClosed events").ConfigureAwait(false);
 
-                Assert.That(listener.EventNames, Does.Contain("StateChanged"), listener.FormatEvents());
-                Assert.That(listener.EventNames, Does.Contain("ReconnectStarted"), listener.FormatEvents());
-                Assert.That(listener.EventNames, Does.Contain("ReconnectCompleted"), listener.FormatEvents());
-                Assert.That(listener.EventNames, Does.Contain("ParticipantAttached"), listener.FormatEvents());
-                Assert.That(listener.EventNames, Does.Contain("ParticipantDetached"), listener.FormatEvents());
-                Assert.That(listener.EventNames, Does.Contain("ChannelOpened"), listener.FormatEvents());
-                Assert.That(listener.EventNames, Does.Contain("ChannelClosed"), listener.FormatEvents());
+                RecordedLogRecord[] records = loggerProvider.Records
+                    .Where(record => record.CategoryName == "Opc.Ua.ChannelManager")
+                    .ToArray();
+                string formatted = string.Join(
+                    Environment.NewLine,
+                    records.Select(record => $"{record.EventId.Name} {record.Message}"));
+                string?[] eventNames = records.Select(record => record.EventId.Name).ToArray();
+                Assert.That(eventNames, Does.Contain("StateChanged"), formatted);
+                Assert.That(eventNames, Does.Contain("ReconnectStarted"), formatted);
+                Assert.That(eventNames, Does.Contain("ReconnectCompleted"), formatted);
+                Assert.That(eventNames, Does.Contain("ParticipantAttached"), formatted);
+                Assert.That(eventNames, Does.Contain("ParticipantDetached"), formatted);
+                Assert.That(eventNames, Does.Contain("ChannelOpened"), formatted);
+                Assert.That(eventNames, Does.Contain("ChannelClosed"), formatted);
             }
             finally
             {
@@ -1241,8 +1268,11 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 IManagedTransportChannel ch = await sut.GetAsync(participant, default).ConfigureAwait(false);
                 var budget = new RetryBudget(TimeSpan.Zero, timeProvider);
 
-                ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await sut.ReconnectAsync(ch, budget, default).AsTask().ConfigureAwait(false));
+                // Await rather than Assert.ThrowsAsync: see AssertThrowsAsync.
+                Task exhaustedReconnect = sut.ReconnectAsync(ch, budget, default).AsTask();
+                ServiceResultException ex = await AssertThrowsAsync<ServiceResultException>(
+                    exhaustedReconnect,
+                    s_completionTimeout).ConfigureAwait(false);
 
                 Assert.That(ex, Is.Not.Null);
                 Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
@@ -1280,8 +1310,15 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 object originalEntry = GetLeaseEntry(ch);
                 var exhaustedBudget = new RetryBudget(TimeSpan.Zero, timeProvider);
 
-                _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await sut.ReconnectAsync(ch, exhaustedBudget, default).AsTask().ConfigureAwait(false));
+                // Await rather than Assert.ThrowsAsync: see AssertThrowsAsync.
+                // This test drives a fake clock from this thread, so blocking
+                // here would prevent the clock from ever moving again.
+                Task faultedReconnect = sut
+                    .ReconnectAsync(ch, exhaustedBudget, default)
+                    .AsTask();
+                await AssertThrowsAsync<ServiceResultException>(
+                    faultedReconnect,
+                    s_completionTimeout).ConfigureAwait(false);
 
                 Assert.That(ch.State, Is.EqualTo(ChannelState.Faulted));
 
@@ -1296,7 +1333,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     await Task.Delay(10).ConfigureAwait(false);
                 }
 
-                await reconnectTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await reconnectTask.WaitAsync(s_completionTimeout).ConfigureAwait(false);
 
                 object freshEntry = GetLeaseEntry(ch);
                 ManagedChannelDiagnostic diagnostic = sut.GetChannelDiagnostics()
@@ -1323,7 +1360,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
         [Test]
         public async Task ReconnectAsyncWithBudgetShrinksDelayToFitRemainingAsync()
         {
-            var timeProvider = new FakeTimeProvider();
+            var timeProvider = new ObservableFakeTimeProvider();
             var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
             {
                 MinDelay = TimeSpan.FromSeconds(10),
@@ -1347,15 +1384,20 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     }
                 };
 
+                // Arm before starting the reconnect so the waiter cannot be
+                // satisfied by an unrelated timer created earlier in the run.
+                Task<bool> shrunkBackoff = timeProvider.WaitForTimersCreatedAsync();
                 Task reconnectTask = sut.ReconnectAsync(ch, budget, default).AsTask();
-                await reconnecting.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await reconnecting.Task.WaitAsync(s_completionTimeout).ConfigureAwait(false);
+                await shrunkBackoff.WaitAsync(s_completionTimeout).ConfigureAwait(false);
 
                 Assert.That(reconnectTask.IsCompleted, Is.False);
 
                 timeProvider.Advance(TimeSpan.FromMilliseconds(100));
 
-                ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await reconnectTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
+                ServiceResultException ex = await AssertThrowsAsync<ServiceResultException>(
+                    reconnectTask,
+                    s_completionTimeout).ConfigureAwait(false);
 
                 Assert.That(ex, Is.Not.Null);
                 Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
@@ -1373,7 +1415,92 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             }
         }
 
-        // ---- helpers ----
+        [Test]
+        public async Task ReconnectAsyncWithExhaustedPolicyDoesNotSwapTheEntryAsync()
+        {
+            var timeProvider = new ObservableFakeTimeProvider();
+            var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
+            {
+                MinDelay = TimeSpan.FromMilliseconds(10),
+                MaxDelay = TimeSpan.FromMilliseconds(10),
+                MaxAttempts = 0
+            };
+            (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) =
+                CreateMockedSut(reconnectPolicy: reconnectPolicy, timeProvider: timeProvider);
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                var participant = new TestParticipant("p1", endpoint);
+                IManagedTransportChannel ch = await sut.GetAsync(participant, default).ConfigureAwait(false);
+
+                // Deliberately generous. The policy, not the budget, is what ends this
+                // cycle: GetDelay returns the infinite sentinel as soon as the attempt
+                // count reaches MaxAttempts, before the budget is ever consulted. A
+                // race check that only asked whether the budget still had room would
+                // see plenty here, mistake the deliberate stop for a lost race against
+                // a concurrent close, and swap the entry to run a second, unbudgeted
+                // reconnect cycle behind the swap back-off.
+                var budget = new RetryBudget(TimeSpan.FromMinutes(1), timeProvider);
+
+                ServiceResultException ex = await AssertThrowsAsync<ServiceResultException>(
+                    sut.ReconnectAsync(ch, budget, default).AsTask(),
+                    s_completionTimeout).ConfigureAwait(false);
+
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+                Assert.That(ch.State, Is.EqualTo(ChannelState.Faulted));
+                Assert.That(GetInternalIntProperty(ch, "SwapCount"), Is.Zero);
+                chMock.Verify(c => c.ReconnectAsync(
+                        It.IsAny<ITransportWaitingConnection?>(),
+                        It.IsAny<CancellationToken>()),
+                    Times.Never);
+                ch.Dispose();
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Awaits <paramref name="task"/> and returns the exception it faulted
+        /// with, failing the test if it succeeded or threw something else.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately not <c>Assert.ThrowsAsync</c>. That blocks the calling
+        /// thread until the task completes - sync over async - so on a
+        /// constrained CI agent it can starve the very continuation it is
+        /// waiting for, and it has no timeout, so the block is unbounded. Tests
+        /// that drive a fake clock from the test thread cannot survive either:
+        /// the clock cannot advance while the thread is blocked, NUnit's runner
+        /// thread never returns, and the whole test host hangs until the blame
+        /// collector kills it.
+        /// </remarks>
+        private static async Task<TException> AssertThrowsAsync<TException>(
+            Task task,
+            TimeSpan timeout)
+            where TException : Exception
+        {
+            try
+            {
+                await task.WaitAsync(timeout).ConfigureAwait(false);
+            }
+            catch (TException expected)
+            {
+                return expected;
+            }
+            catch (Exception other)
+            {
+                Assert.Fail(
+                    $"Expected {typeof(TException).Name} but got " +
+                    $"{other.GetType().Name}: {other}");
+                throw;
+            }
+
+            Assert.Fail(
+                $"Expected {typeof(TException).Name} but the operation completed successfully.");
+            throw new InvalidOperationException("unreachable");
+        }
 
         private static (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) CreateMockedSut(
             ITelemetryContext? telemetry = null,
@@ -1887,7 +2014,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             public async Task<Activity> WaitForStoppedActivityAsync(string operationName)
             {
                 Activity activity = await m_stoppedActivity.Task
-                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .WaitAsync(s_completionTimeout)
                     .ConfigureAwait(false);
 
                 Assert.That(activity.OperationName, Is.EqualTo(operationName));
@@ -1903,72 +2030,6 @@ namespace Opc.Ua.Client.Tests.Stack.Client
 
             private readonly TaskCompletionSource<Activity> m_stoppedActivity = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-        }
-
-        private sealed class ChannelEventListener : EventListener
-        {
-            public ConcurrentQueue<ChannelEventRecord> Events { get; } = new();
-
-            public IEnumerable<string> EventNames => Events.Select(e => e.Name);
-
-            public string FormatEvents()
-            {
-                var builder = new StringBuilder();
-                // ConcurrentQueue enumeration is snapshot-stable so it
-                // races safely with concurrent EventWritten callbacks
-                // arriving on the EventSource's worker thread.
-                foreach (ChannelEventRecord record in Events)
-                {
-                    builder.Append(record.Name);
-                    if (record.Payload.Count > 0)
-                    {
-                        builder.Append(' ')
-                            .AppendJoin(
-                            ", ",
-                            record.Payload.Select(p => $"{p.Key}={p.Value}"));
-                    }
-                    builder.AppendLine();
-                }
-                return builder.ToString();
-            }
-
-            protected override void OnEventSourceCreated(EventSource eventSource)
-            {
-                if (eventSource.Name == "Opc.Ua.ChannelManager")
-                {
-                    EnableEvents(eventSource, EventLevel.LogAlways);
-                }
-            }
-
-            protected override void OnEventWritten(EventWrittenEventArgs eventData)
-            {
-                string name = eventData.EventName ?? eventData.EventId.ToString(CultureInfo.InvariantCulture);
-                var payload = new Dictionary<string, object?>();
-                IList<object?>? payloadValues = eventData.Payload;
-                IList<string>? payloadNames = eventData.PayloadNames;
-                if (payloadValues != null)
-                {
-                    for (int i = 0; i < payloadValues.Count; i++)
-                    {
-                        string key = payloadNames?[i] ?? i.ToString(CultureInfo.InvariantCulture);
-                        payload[key] = payloadValues[i];
-                    }
-                }
-                Events.Enqueue(new ChannelEventRecord(name, payload));
-            }
-        }
-
-        private sealed class ChannelEventRecord
-        {
-            public ChannelEventRecord(string name, Dictionary<string, object?> payload)
-            {
-                Name = name;
-                Payload = payload;
-            }
-
-            public string Name { get; }
-
-            public Dictionary<string, object?> Payload { get; }
         }
 
         private sealed class ChannelMetricListener : IDisposable
@@ -2122,6 +2183,82 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                     ?? ParticipantReconnectResult.Reactivated;
                 return new ValueTask<ParticipantReconnectResult>(result);
             }
+        }
+
+        /// <summary>
+        /// A <see cref="FakeTimeProvider"/> that lets a test wait until the code
+        /// under test has actually registered its back-off timers.
+        /// </summary>
+        /// <remarks>
+        /// Waiting is deliberately <b>relative</b>: a waiter is armed for "N
+        /// more timers from now" rather than for "the Nth timer of the run".
+        /// Absolute numbering is a race - anything else that happens to create a
+        /// timer on this provider first (an earlier reconnect in the same test,
+        /// or manager housekeeping) consumes the low numbers, the waiter then
+        /// completes before the timer the test cares about exists, and the
+        /// subsequent Advance fires nothing. The reconnect is left parked on a
+        /// fake clock that nobody will move again, which hangs the test - and,
+        /// because NUnit blocks the runner thread, the whole test host.
+        /// </remarks>
+        private sealed class ObservableFakeTimeProvider : FakeTimeProvider
+        {
+            public override ITimer CreateTimer(
+                TimerCallback callback,
+                object? state,
+                TimeSpan dueTime,
+                TimeSpan period)
+            {
+                ITimer timer = base.CreateTimer(callback, state, dueTime, period);
+
+                List<TaskCompletionSource<bool>>? ready = null;
+                lock (m_lock)
+                {
+                    m_timerCount++;
+                    for (int i = m_waiters.Count - 1; i >= 0; i--)
+                    {
+                        if (m_timerCount >= m_waiters[i].Target)
+                        {
+                            (ready ??= []).Add(m_waiters[i].Completion);
+                            m_waiters.RemoveAt(i);
+                        }
+                    }
+                }
+
+                if (ready != null)
+                {
+                    foreach (TaskCompletionSource<bool> completion in ready)
+                    {
+                        completion.TrySetResult(true);
+                    }
+                }
+
+                return timer;
+            }
+
+            /// <summary>
+            /// Returns a task that completes once <paramref name="count"/>
+            /// further timers have been created, counted from this call. Arm it
+            /// <b>before</b> starting the operation whose timers are awaited.
+            /// </summary>
+            public Task<bool> WaitForTimersCreatedAsync(int count = 1)
+            {
+                if (count < 1)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(count));
+                }
+
+                var completion = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                lock (m_lock)
+                {
+                    m_waiters.Add((m_timerCount + count, completion));
+                }
+                return completion.Task;
+            }
+
+            private readonly System.Threading.Lock m_lock = new();
+            private readonly List<(int Target, TaskCompletionSource<bool> Completion)> m_waiters = [];
+            private int m_timerCount;
         }
     }
 }

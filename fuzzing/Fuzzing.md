@@ -113,8 +113,8 @@ public class EncoderTests : FuzzTargetTestsBase
    the IDE.
 8. **Update this `Fuzzing.md`.** Add a row to the area table.
 
-The Azure pipelines (`test.yml` / `testcc.yml`) automatically run every `*.Fuzz.Tests` project
-under the `[Category("Fuzzing")]` filter.
+The Azure pipeline test template (`.azurepipelines/test.yml`) automatically runs every
+`*.Fuzz.Tests` project under the `[Category("Fuzzing")]` filter.
 
 ## Areas in detail
 

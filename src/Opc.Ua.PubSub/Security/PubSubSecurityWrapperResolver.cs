@@ -96,10 +96,18 @@ namespace Opc.Ua.PubSub.Security
         /// <param name="policySelector">
         /// Optional callback mapping a connection plus SecurityGroupId to
         /// the <see cref="IPubSubSecurityPolicy"/> bundle to use. Defaults
-        /// to <see cref="PubSubAes256CtrPolicy"/>.
+        /// to the PubSub-Aes256-CTR bundle taken from
+        /// <paramref name="policies"/>.
         /// </param>
         /// <param name="replayWindowSize">
         /// Receive-side replay history size. Defaults to 1024.
+        /// </param>
+        /// <param name="policies">
+        /// Policy bundles available to the default selector, normally the ones
+        /// registered in the container. A bundle registered here performs the
+        /// per-message cryptography, so a bundle constructed over a hardware or
+        /// validated crypto provider is honoured. Defaults to the built-in
+        /// platform bundles in <see cref="PubSubSecurityPolicyRegistry"/>.
         /// </param>
         public PubSubSecurityWrapperResolver(
             IEnumerable<IPubSubSecurityKeyProvider> keyProviders,
@@ -107,7 +115,8 @@ namespace Opc.Ua.PubSub.Security
             TimeProvider? timeProvider = null,
             INonceProvider? nonceProvider = null,
             Func<PubSubConnectionDataType, string, IPubSubSecurityPolicy?>? policySelector = null,
-            int replayWindowSize = 1024)
+            int replayWindowSize = 1024,
+            IEnumerable<IPubSubSecurityPolicy>? policies = null)
         {
             if (keyProviders is null)
             {
@@ -137,9 +146,35 @@ namespace Opc.Ua.PubSub.Security
             m_logger = telemetry.CreateLogger<PubSubSecurityWrapperResolver>();
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_nonceProvider = nonceProvider;
+
+            IPubSubSecurityPolicy? registered = SelectByUri(
+                policies,
+                PubSubSecurityPolicyUri.PubSubAes256Ctr);
+
             m_policySelector = policySelector
-                ?? ((_, _) => PubSubAes256CtrPolicy.Instance);
+                ?? ((_, _) => registered ?? PubSubAes256CtrPolicy.Instance);
             m_replayWindowSize = replayWindowSize;
+        }
+
+        private static IPubSubSecurityPolicy? SelectByUri(
+            IEnumerable<IPubSubSecurityPolicy>? policies,
+            string policyUri)
+        {
+            if (policies is null)
+            {
+                return null;
+            }
+
+            foreach (IPubSubSecurityPolicy policy in policies)
+            {
+                if (policy is not null &&
+                    string.Equals(policy.PolicyUri, policyUri, StringComparison.Ordinal))
+                {
+                    return policy;
+                }
+            }
+
+            return null;
         }
 
         /// <inheritdoc/>

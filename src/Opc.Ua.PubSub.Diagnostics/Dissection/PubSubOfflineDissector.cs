@@ -244,7 +244,7 @@ namespace Opc.Ua.PubSub.Pcap
                     return secured.Result;
                 }
 
-                IPubSubSecurityPolicy? policy = PubSubSecurityPolicyRegistry.GetByUri(keyMaterial.SecurityPolicyUri);
+                IPubSubSecurityPolicy? policy = PubSubSecurityPolicyRegistry.Default.GetByUri(keyMaterial.SecurityPolicyUri);
                 if (policy is null)
                 {
                     return secured.Result with
@@ -325,7 +325,7 @@ namespace Opc.Ua.PubSub.Pcap
                     cancellationToken).ConfigureAwait(false);
             }
 
-            IPubSubSecurityPolicy[] policies = [.. PubSubSecurityPolicyRegistry.All];
+            IPubSubSecurityPolicy[] policies = [.. PubSubSecurityPolicyRegistry.Default.Policies];
             for (int index = 0; index < policies.Length; index++)
             {
                 IPubSubSecurityPolicy policy = policies[index];

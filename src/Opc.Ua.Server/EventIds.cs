@@ -47,6 +47,7 @@ namespace Opc.Ua
         public const int AliasNameNodeManager = 10;
         public const int ApplicationConfigurationFile = 20;
         public const int AuditEvents = 30;
+        public const int CertificateAlarmScheduler = 580;
         public const int CertificateGroupAlarmMonitor = 60;
         public const int ConfigurationNodeManager = 70;
         public const int DataChangeMonitoredItemQueue = 110;
@@ -59,8 +60,11 @@ namespace Opc.Ua
         public const int JsonUserDatabase = 190;
         public const int MasterNodeManager = 200;
         public const int MonitoredItem = 230;
+        public const int MonitoredSourceRegistry = 240;
         public const int MonitoredItemQueue = 250;
         public const int MonitoredNode = 260;
+        public const int NamespaceMetadataPublisher = 270;
+        public const int NamespaceMetadataRegistry = 570;
         public const int NodeManager = 280;
         public const int OpcUaServerHostedService = 290;
         public const int PushConfigurationTransactionCoordinator = 300;
@@ -81,5 +85,25 @@ namespace Opc.Ua
         public const int SubscriptionManager = 500;
         public const int TrustList = 540;
         public const int UserManagementBinding = 550;
+        public const int RuntimeNodeSetNodeManager = 560;
+    }
+
+    /// <summary>
+    /// Retained event ids for the removed "OPC-UA-Server" <c>EventSource</c> provider.
+    /// </summary>
+    /// <remarks>
+    /// See docs/DeveloperGuide.md, "Narrow exception: retained EventSource-compatibility
+    /// ids". These are the literal legacy numeric ids, scoped to the "OPC-UA-Server"
+    /// <see cref="Microsoft.Extensions.Logging.ILogger"/> category, so they intentionally
+    /// overlap the ordinary per-class offsets in <see cref="ServerEventIds"/> above. Id 1
+    /// (the legacy <c>SendResponse</c> event) was never implemented by the provider and is
+    /// intentionally left unused.
+    /// </remarks>
+    internal static class ServerCompatibilityEventIds
+    {
+        public const string CategoryName = "OPC-UA-Server";
+        public const int ServerCall = 2;
+        public const int SessionState = 3;
+        public const int MonitoredItemReady = 4;
     }
 }

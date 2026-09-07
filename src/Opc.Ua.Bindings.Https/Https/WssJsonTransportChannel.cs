@@ -359,20 +359,8 @@ namespace Opc.Ua.Bindings
             }
             try
             {
-                var collection = new System.Security.Cryptography.X509Certificates.X509Certificate2Collection();
-                if (chain?.ChainElements != null)
-                {
-                    foreach (System.Security.Cryptography.X509Certificates.X509ChainElement element
-                        in chain.ChainElements)
-                    {
-                        collection.Add(element.Certificate);
-                    }
-                }
-                else
-                {
-                    collection.Add(cert);
-                }
-                using var validation = CertificateCollection.From(collection);
+                using CertificateCollection validation = CertificateValidationHelpers
+                    .BuildValidationCertificateCollection(cert, chain);
 #pragma warning disable CA2025
                 CertificateValidationResult result = validator
                     .ValidateAsync(validation, ct: default)
@@ -387,6 +375,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
         }
+
 #endif
 
         private static ServiceResultException BadNotConnected()

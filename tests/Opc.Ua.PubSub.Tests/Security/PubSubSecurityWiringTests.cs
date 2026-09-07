@@ -72,6 +72,48 @@ namespace Opc.Ua.PubSub.Tests.Security
         }
 
         [Test]
+        public async Task DependencyInjectionRoutesPubSubCryptoThroughTheRegisteredProviderAsync()
+        {
+            var provider = new RecordingSymmetricProvider();
+
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            services
+                .AddOpcUa()
+                .AddCryptoProvider(builder => builder
+                    .For(CryptoPurpose.ChannelSymmetric)
+                    .Use(provider))
+                .AddPubSub();
+            services.AddSingleton<IPubSubSecurityKeyProvider>(CreateKeyProvider(DemoGroup));
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            var resolver = sp.GetRequiredService<IPubSubSecurityWrapperResolver>();
+
+            PubSubSecurityContext? context = resolver.Resolve(
+                SecuredConfiguration().Connections[0]);
+            Assert.That(context, Is.Not.Null);
+
+            byte[] prefix = [0xB1, 0x10, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00];
+            byte[] plaintext =
+            [
+                0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+                0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F
+            ];
+
+            await context!.Wrapper
+                .WrapAsync(prefix, plaintext, context.WrapOptions)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(provider.EncryptCount, Is.GreaterThan(0),
+                    "A container-registered provider must perform the PubSub encryption.");
+                Assert.That(provider.SignCount, Is.GreaterThan(0),
+                    "A container-registered provider must produce the PubSub signature.");
+            });
+        }
+
+        [Test]
         public void BuildSecuredConnectionWithoutKeySourceThrows()
         {
             PubSubApplicationBuilder builder = new PubSubApplicationBuilder(
@@ -232,6 +274,112 @@ namespace Opc.Ua.PubSub.Tests.Security
                 m_isConnected = false;
                 return default;
             }
+        }
+
+        /// <summary>
+        /// Stands in for a provider-backed module: counts the operations that
+        /// reach it and defers the arithmetic to the platform.
+        /// </summary>
+        private sealed class RecordingSymmetricProvider : ICryptoProvider, ISymmetricCryptoProvider
+        {
+            public int EncryptCount => Volatile.Read(ref m_encryptCount);
+
+            public int SignCount => Volatile.Read(ref m_signCount);
+
+            public string Name => "Recording";
+
+            public CryptoValidationStatus Validation
+                => new(CryptoValidationLevel.Uncertified, "test double");
+
+            public ArrayOf<CryptoCapability> Capabilities { get; } =
+                new(new[] { new CryptoCapability(CryptoPurpose.ChannelSymmetric) });
+
+            public bool Supports(SymmetricEncryptionAlgorithm algorithm)
+            {
+                return PlatformSymmetricCryptoProvider.Instance.Supports(algorithm);
+            }
+
+            public bool Supports(SymmetricSignatureAlgorithm algorithm)
+            {
+                return PlatformSymmetricCryptoProvider.Instance.Supports(algorithm);
+            }
+
+            public void Encrypt(
+                SymmetricEncryptionAlgorithm algorithm,
+                ReadOnlySpan<byte> key,
+                ReadOnlySpan<byte> iv,
+                ReadOnlySpan<byte> plaintext,
+                Span<byte> ciphertext)
+            {
+                Interlocked.Increment(ref m_encryptCount);
+                PlatformSymmetricCryptoProvider.Instance
+                    .Encrypt(algorithm, key, iv, plaintext, ciphertext);
+            }
+
+            public void Decrypt(
+                SymmetricEncryptionAlgorithm algorithm,
+                ReadOnlySpan<byte> key,
+                ReadOnlySpan<byte> iv,
+                ReadOnlySpan<byte> ciphertext,
+                Span<byte> plaintext)
+            {
+                PlatformSymmetricCryptoProvider.Instance
+                    .Decrypt(algorithm, key, iv, ciphertext, plaintext);
+            }
+
+            public void EncryptAuthenticated(
+                SymmetricEncryptionAlgorithm algorithm,
+                ReadOnlySpan<byte> key,
+                ReadOnlySpan<byte> nonce,
+                ReadOnlySpan<byte> plaintext,
+                Span<byte> ciphertext,
+                Span<byte> tag,
+                ReadOnlySpan<byte> associatedData)
+            {
+                PlatformSymmetricCryptoProvider.Instance.EncryptAuthenticated(
+                    algorithm, key, nonce, plaintext, ciphertext, tag, associatedData);
+            }
+
+            public bool DecryptAuthenticated(
+                SymmetricEncryptionAlgorithm algorithm,
+                ReadOnlySpan<byte> key,
+                ReadOnlySpan<byte> nonce,
+                ReadOnlySpan<byte> ciphertext,
+                ReadOnlySpan<byte> tag,
+                Span<byte> plaintext,
+                ReadOnlySpan<byte> associatedData)
+            {
+                return PlatformSymmetricCryptoProvider.Instance.DecryptAuthenticated(
+                    algorithm, key, nonce, ciphertext, tag, plaintext, associatedData);
+            }
+
+            public int GetSignatureLength(SymmetricSignatureAlgorithm algorithm)
+            {
+                return PlatformSymmetricCryptoProvider.Instance.GetSignatureLength(algorithm);
+            }
+
+            public void Sign(
+                SymmetricSignatureAlgorithm algorithm,
+                ReadOnlySpan<byte> key,
+                ReadOnlySpan<byte> data,
+                Span<byte> signature)
+            {
+                Interlocked.Increment(ref m_signCount);
+                PlatformSymmetricCryptoProvider.Instance.Sign(algorithm, key, data, signature);
+            }
+
+            public bool Verify(
+                SymmetricSignatureAlgorithm algorithm,
+                ReadOnlySpan<byte> key,
+                ReadOnlySpan<byte> data,
+                ReadOnlySpan<byte> signature)
+            {
+                return PlatformSymmetricCryptoProvider.Instance
+                    .Verify(algorithm, key, data, signature);
+            }
+
+            private int m_encryptCount;
+            private int m_signCount;
         }
     }
 }

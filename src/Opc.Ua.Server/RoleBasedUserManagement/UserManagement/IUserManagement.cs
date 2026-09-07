@@ -68,7 +68,8 @@ namespace Opc.Ua.Server.UserManagement
     /// (<see cref="UserConfigurationMask"/> + description) in memory.
     /// Integrators that need to persist metadata across server restarts can
     /// implement this interface directly and inject the instance via
-    /// <see cref="IServerInternal.SetUserManagement"/>.
+    /// <see cref="StandardServer.CreateUserManagement"/>, or by registering it
+    /// in the service container.
     /// </remarks>
     public interface IUserManagement
     {

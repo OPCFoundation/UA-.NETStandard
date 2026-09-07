@@ -1,0 +1,53 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "ua": "http://opcfoundation.org/UA/",
+      "tm": "https://www.w3.org/2019/wot/tm#"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["Thing", "uav:projection"],
+  "id": "urn:dev:opcua:asset:pump-01",
+  "title": "Pump 01 asset",
+  "description": "An asset authored as projections. It selects its own identity and organizes four groups, each of which is a projection that selects its members from the pump Thing Description. Nothing is copied and the pump is unaware that it is grouped.",
+  "uav:scenario": "http://example.com/scenario/AssetManagement",
+  "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+  "security": "nosec_sc",
+  "uav:projects": [
+    {
+      "uav:sourceName": "identity",
+      "href": "./06-anchored-paths-and-device-identity.jsonld",
+      "type": "application/td+json",
+      "uav:routing": "source",
+      "uav:selectAll": true
+    }
+  ],
+  "links": [
+    {
+      "rel": "ua:Organizes",
+      "href": "./10-group-process-data.jsonld",
+      "uav:refName": "ProcessData",
+      "type": "application/td+json"
+    },
+    {
+      "rel": "ua:Organizes",
+      "href": "./11-group-condition-data.jsonld",
+      "uav:refName": "ConditionData",
+      "type": "application/td+json"
+    },
+    {
+      "rel": "ua:Organizes",
+      "href": "./12-group-alarms.jsonld",
+      "uav:refName": "Alarms",
+      "type": "application/td+json"
+    },
+    {
+      "rel": "ua:Organizes",
+      "href": "./13-group-management.jsonld",
+      "uav:refName": "Management",
+      "type": "application/td+json"
+    }
+  ]
+}

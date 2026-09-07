@@ -66,6 +66,7 @@ namespace Opc.Ua.Client
         private IReconnectPolicy? m_reconnectPolicy;
         private IServerRedundancyHandler? m_redundancyHandler;
         private ISessionFactory? m_sessionFactory;
+        private ISecurityPolicyRegistry? m_securityPolicies;
         private IClientChannelManager? m_channelManager;
         private Action<HttpStandardResilienceOptions>? m_httpsResilience;
         private WebApiClientOptions? m_webApiOptions;
@@ -673,6 +674,22 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Use a specific security policy registry. The session and the
+        /// channels it opens resolve policy URIs against this set, so a policy
+        /// the application contributed through <c>AddSecurityPolicy</c> is
+        /// usable end to end. By default,
+        /// <see cref="SecurityPolicies.Default"/> is used.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public ManagedSessionBuilder UseSecurityPolicies(
+            ISecurityPolicyRegistry securityPolicies)
+        {
+            m_securityPolicies = securityPolicies
+                ?? throw new ArgumentNullException(nameof(securityPolicies));
+            return this;
+        }
+
+        /// <summary>
         /// Returns the immutable options snapshot accumulated so far.
         /// </summary>
         public ManagedSessionOptions Build()
@@ -704,7 +721,8 @@ namespace Opc.Ua.Client
                 new DefaultSessionFactory(m_telemetry)
                 {
                     SubscriptionEngineFactory = engineFactory,
-                    TimeProvider = opts.TimeProvider
+                    TimeProvider = opts.TimeProvider,
+                    SecurityPolicyRegistry = m_securityPolicies
                 };
 
             IReconnectPolicy reconnect =
@@ -734,7 +752,9 @@ namespace Opc.Ua.Client
                                 DefaultTransportBindingRegistry.WithDefaultTcp(),
                                 ownedHttpClientFactory)),
                         reconnectPolicy: null,
-                        timeProvider: opts.TimeProvider);
+                        timeProvider: opts.TimeProvider,
+                        options: null,
+                        securityPolicies: m_securityPolicies);
                     ownedHttpClientFactory = null;
                 }
                 else if (channelManager == null && IsWebApiEndpoint(opts.Endpoint))
@@ -744,7 +764,9 @@ namespace Opc.Ua.Client
                         m_telemetry,
                         BuildChannelBindings(DefaultTransportBindingRegistry.WithDefaultTcp()),
                         reconnectPolicy: null,
-                        timeProvider: opts.TimeProvider);
+                        timeProvider: opts.TimeProvider,
+                        options: null,
+                        securityPolicies: m_securityPolicies);
                 }
 #pragma warning restore CA2000
             }

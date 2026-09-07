@@ -88,9 +88,10 @@ namespace Opc.Ua.Server
         ValueTask StartupAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Stops the session manager and closes all sessions.
+        /// Stops the session manager and closes all sessions, waiting for the session
+        /// monitor loop to exit before returning.
         /// </summary>
-        void Shutdown();
+        ValueTask ShutdownAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Clears all tracked failed authentication attempts and lockouts.

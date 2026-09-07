@@ -101,8 +101,11 @@ namespace Opc.Ua.Server.Tests.AliasNames
         }
 
         [Test]
-        public async Task AddAliasesRejectsTargetServersShorterThanAliasNamesAsync()
+        public async Task AddAliasesAcceptsTargetServersShorterThanAliasNamesAsync()
         {
+            // Part 17 §6.3.4 exempts TargetServers from the equal-length
+            // requirement — a caller with local targets may pass an empty
+            // or shorter array, and a missing entry means "local server".
             (AliasNameStoreRegistry registry, InMemoryAliasNameStore store) =
                 CreateRegistryWithCapableStore();
             using (registry)
@@ -123,9 +126,39 @@ namespace Opc.Ua.Server.Tests.AliasNames
                         CancellationToken.None)
                     .ConfigureAwait(false);
 
+                Assert.That(result.ServiceResult, Is.Null.Or.Property("StatusCode")
+                    .Property("Code").EqualTo(StatusCodes.Good),
+                    "A short TargetServers array is legal per Part 17 §6.3.4.");
+                Assert.That(result.ErrorCodes.Count, Is.EqualTo(2));
+                Assert.That(StatusCode.IsGood(result.ErrorCodes[0]), Is.True);
+                Assert.That(StatusCode.IsGood(result.ErrorCodes[1]), Is.True,
+                    "The entry without a TargetServers value is treated as local.");
+            }
+        }
+
+        [Test]
+        public async Task AddAliasesRejectsAllEmptyArraysAsync()
+        {
+            // Part 17 §6.3.4: Bad_InvalidArgument when all arrays are empty.
+            (AliasNameStoreRegistry registry, InMemoryAliasNameStore store) =
+                CreateRegistryWithCapableStore();
+            using (registry)
+            using (store)
+            {
+                AddAliasesToCategoryMethodStateResult result = await AliasNameMethodDispatcher
+                    .AddAliasesAsync(
+                        registry,
+                        s_categoryId,
+                        default,
+                        default,
+                        default,
+                        ReferenceTypeIds.AliasFor,
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+
                 Assert.That(result.ServiceResult.StatusCode.Code,
                     Is.EqualTo(StatusCodes.BadInvalidArgument),
-                    "TargetServers shorter than AliasNames must surface as BadInvalidArgument.");
+                    "Empty request arrays must surface as BadInvalidArgument.");
             }
         }
 

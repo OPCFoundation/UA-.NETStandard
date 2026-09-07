@@ -32,15 +32,25 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Threading;
+using Microsoft.Extensions.Logging;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Stress.Tests.Channels.Helpers
 {
     /// <summary>
-    /// Collects channel-manager metrics and EventSource records during stress tests.
+    /// Collects channel-manager metrics and structured diagnostic-log records during stress tests.
     /// </summary>
+    /// <remarks>
+    /// Structured channel-manager records are captured through a dedicated
+    /// <see cref="ITelemetryContext"/> (<see cref="Telemetry"/>) that owns a
+    /// <see cref="RecordingLoggerProvider"/>. Call sites must construct the
+    /// <see cref="ClientChannelManager"/> under test with <see cref="Telemetry"/>
+    /// so its structured logs flow into this collector; the wiring is explicit
+    /// and is torn down when the collector is disposed, rather than being
+    /// registered permanently into a shared logger factory.
+    /// </remarks>
     public sealed class MetricsCollector : IDisposable
     {
         /// <summary>
@@ -48,7 +58,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
         /// </summary>
         public MetricsCollector()
         {
-            m_eventListener = new ChannelManagerEventListener(this);
+            m_loggerProvider = new RecordingLoggerProvider();
+            m_telemetry = DefaultTelemetry.Create(
+                builder => builder.AddProvider(m_loggerProvider));
             m_meterListener = new MeterListener
             {
                 InstrumentPublished = (instrument, listener) =>
@@ -67,6 +79,13 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
         }
 
         /// <summary>
+        /// Gets the telemetry context that call sites must pass into the
+        /// <see cref="ClientChannelManager"/> under test so its structured
+        /// channel-manager logs are captured by this collector.
+        /// </summary>
+        public ITelemetryContext Telemetry => m_telemetry;
+
+        /// <summary>
         /// Gets the measurements captured so far.
         /// </summary>
         public IReadOnlyList<MetricMeasurement> Measurements
@@ -81,12 +100,13 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
         }
 
         /// <summary>
-        /// Gets the EventSource records captured so far.
+        /// Gets the structured channel-manager log records captured so far.
         /// </summary>
         public IReadOnlyList<EventRecord> Events
         {
             get
             {
+                CaptureNewLogRecords();
                 lock (m_lock)
                 {
                     return [.. m_events];
@@ -136,7 +156,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
         }
 
         /// <summary>
-        /// Counts EventSource records with the supplied event name.
+        /// Counts structured channel-manager log records with the supplied event name.
         /// </summary>
         /// <param name="eventName">The event name.</param>
         /// <returns>The number of matching records.</returns>
@@ -147,6 +167,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
             {
                 throw new ArgumentNullException(nameof(eventName));
             }
+
+            CaptureNewLogRecords();
 
             int count = 0;
             lock (m_lock)
@@ -172,7 +194,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
         }
 
         /// <summary>
-        /// Stops collecting metrics and events.
+        /// Stops collecting metrics and structured channel-manager logs.
         /// </summary>
         public void Dispose()
         {
@@ -187,7 +209,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
             }
 
             m_meterListener.Dispose();
-            m_eventListener.Dispose();
+            (m_telemetry as IDisposable)?.Dispose();
+            m_loggerProvider.Dispose();
             GC.SuppressFinalize(this);
         }
 
@@ -205,10 +228,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
             DateTimeOffset Timestamp);
 
         /// <summary>
-        /// A captured EventSource record.
+        /// A captured structured channel-manager log record.
         /// </summary>
-        /// <param name="Name">The event name.</param>
-        /// <param name="Payload">The event payload keyed by payload name.</param>
+        /// <param name="Name">The <c>EventId.Name</c> of the log record.</param>
+        /// <param name="Payload">The structured log properties keyed by name.</param>
         /// <param name="Timestamp">The capture timestamp.</param>
         public record EventRecord(
             string Name,
@@ -287,75 +310,68 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
             }
         }
 
-        private void AddEvent(EventWrittenEventArgs eventData)
+        /// <summary>
+        /// Converts any not-yet-observed <see cref="RecordingLoggerProvider"/> records
+        /// belonging to the channel-manager category into <see cref="EventRecord"/>
+        /// instances, stamping each with the time it was first observed.
+        /// </summary>
+        private void CaptureNewLogRecords()
         {
-            string name = eventData.EventName ?? eventData.EventId.ToString(CultureInfo.InvariantCulture);
-            var payload = new Dictionary<string, object?>();
-            ReadOnlyCollection<object?>? payloadValues = eventData.Payload;
-            ReadOnlyCollection<string>? payloadNames = eventData.PayloadNames;
-            if (payloadValues != null)
-            {
-                for (int i = 0; i < payloadValues.Count; i++)
-                {
-                    string key = payloadNames != null && i < payloadNames.Count
-                        ? payloadNames[i]
-                        : i.ToString(CultureInfo.InvariantCulture);
-                    payload[key] = payloadValues[i];
-                }
-            }
-
-            var record = new EventRecord(
-                name,
-                new ReadOnlyDictionary<string, object?>(payload),
-                TimeProvider.System.GetUtcNow());
+            IReadOnlyList<RecordedLogRecord> records = m_loggerProvider.Records;
             lock (m_lock)
             {
-                if (!m_disposed)
+                if (m_disposed)
                 {
-                    m_events.Add(record);
+                    return;
                 }
+
+                for (int i = m_capturedLogRecordCount; i < records.Count; i++)
+                {
+                    RecordedLogRecord record = records[i];
+                    if (!string.Equals(record.CategoryName, ChannelManagerName, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    string name = record.EventId.Name ??
+                        record.EventId.Id.ToString(CultureInfo.InvariantCulture);
+                    m_events.Add(
+                        new EventRecord(
+                            name,
+                            CreatePayload(record.Properties),
+                            TimeProvider.System.GetUtcNow()));
+                }
+
+                m_capturedLogRecordCount = records.Count;
             }
         }
 
-        private sealed class ChannelManagerEventListener : EventListener
+        private static ReadOnlyDictionary<string, object?> CreatePayload(
+            IReadOnlyDictionary<string, object?> properties)
         {
-            public ChannelManagerEventListener(MetricsCollector owner)
+            var payload = new Dictionary<string, object?>(properties.Count, StringComparer.Ordinal);
+            foreach (KeyValuePair<string, object?> property in properties)
             {
-                m_owner = owner;
-                foreach (EventSource eventSource in EventSource.GetSources())
+                if (string.Equals(property.Key, "{OriginalFormat}", StringComparison.Ordinal))
                 {
-                    EnableIfChannelManager(eventSource);
+                    continue;
                 }
+
+                payload[property.Key] = property.Value;
             }
 
-            protected override void OnEventSourceCreated(EventSource eventSource)
-            {
-                EnableIfChannelManager(eventSource);
-            }
-
-            protected override void OnEventWritten(EventWrittenEventArgs eventData)
-            {
-                m_owner?.AddEvent(eventData);
-            }
-
-            private void EnableIfChannelManager(EventSource eventSource)
-            {
-                if (string.Equals(eventSource.Name, ChannelManagerName, StringComparison.Ordinal))
-                {
-                    EnableEvents(eventSource, EventLevel.LogAlways);
-                }
-            }
-
-            private readonly MetricsCollector? m_owner;
+            return new ReadOnlyDictionary<string, object?>(payload);
         }
 
         private const string ChannelManagerName = "Opc.Ua.ChannelManager";
         private const string ChannelMetricPrefix = "opc.ua.channel.";
         private readonly Lock m_lock = new();
         private readonly MeterListener m_meterListener;
-        private readonly ChannelManagerEventListener m_eventListener;
+        private readonly RecordingLoggerProvider m_loggerProvider;
+        private readonly ITelemetryContext m_telemetry;
         private readonly List<MetricMeasurement> m_measurements = [];
         private readonly List<EventRecord> m_events = [];
+        private int m_capturedLogRecordCount;
         private bool m_disposed;
     }
 }

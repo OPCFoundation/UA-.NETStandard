@@ -44,14 +44,8 @@ namespace Opc.Ua.Gds.Server.Hosting
     /// stores, user database, optional token / key-credential / managed
     /// application stores).
     /// </summary>
-    public interface IGdsServerBuilder
+    public interface IGdsServerBuilder : IOpcUaTransportBuilder
     {
-        /// <summary>
-        /// Underlying service collection. Use it to register additional
-        /// services the GDS implementation may need.
-        /// </summary>
-        IServiceCollection Services { get; }
-
         /// <summary>
         /// Registers the in-box in-memory GDS stores:
         /// <see cref="LinqApplicationsDatabase"/> for applications and

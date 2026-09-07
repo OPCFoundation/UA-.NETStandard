@@ -179,6 +179,63 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void AddMandatoryRoles_MustChangePasswordSet_DiscardsAlreadyGrantedRoles()
+        {
+            // Regression: an identity that already carries elevated roles (for
+            // example granted by an ImpersonateUser callback) must be reduced to
+            // the Anonymous role, not merged with it. OPC 10000-18 5.2.8 requires
+            // the activated Session to have "only the Role Anonymous".
+            var userManagement = new Mock<IUserManagement>();
+            userManagement.Setup(u => u.MustChangePassword("alice")).Returns(true);
+            m_serverMock.Setup(s => s.UserManagement).Returns(userManagement.Object);
+
+            using TestableSessionManager manager = CreateManager();
+            var elevated = new RoleBasedIdentity(
+                CreateUserNameIdentity("alice"),
+                [Role.SecurityAdmin, Role.ConfigureAdmin],
+                m_serverMock.Object.NamespaceUris);
+            Mock<ISession> sessionMock = CreateSessionMock();
+            OperationContext context = CreateOperationContext(MessageSecurityMode.SignAndEncrypt);
+
+            Assert.That(
+                elevated.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin),
+                Is.True,
+                "precondition: the identity starts out with an elevated role");
+
+            IUserIdentity result = manager.PublicAddMandatoryRoles(
+                sessionMock.Object,
+                context,
+                elevated);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    result.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Anonymous),
+                    Is.True,
+                    "the restricted Session must hold the Anonymous role");
+                Assert.That(
+                    result.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin),
+                    Is.False,
+                    "the previously granted SecurityAdmin role must be discarded");
+                Assert.That(
+                    result.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_ConfigureAdmin),
+                    Is.False,
+                    "the previously granted ConfigureAdmin role must be discarded");
+                Assert.That(
+                    result.GrantedRoleIds.Count,
+                    Is.EqualTo(1),
+                    "no role other than Anonymous may remain");
+                Assert.That(
+                    ((RoleBasedIdentity)result).Roles,
+                    Is.EquivalentTo(new[] { Role.Anonymous }),
+                    "the Roles collection must be reduced to Anonymous as well");
+                // ChangePassword still has to identify the caller.
+                Assert.That(result.TokenType, Is.EqualTo(UserTokenType.UserName));
+                Assert.That(result.DisplayName, Is.EqualTo("alice"));
+            });
+        }
+
+        [Test]
         public void AddMandatoryRoles_MustChangePasswordClear_GrantsNormalRoles()
         {
             var userManagement = new Mock<IUserManagement>();

@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
@@ -43,7 +44,7 @@ namespace Opc.Ua.Client
     /// <see cref="ManagedSession"/> instances that handle reconnection
     /// and failover automatically.
     /// </remarks>
-    public class DefaultSessionFactory : ISessionFactory
+    public class DefaultSessionFactory : ISessionFactory, ISecurityPolicyRegistryProvider
     {
         /// <summary>
         /// The default instance of the factory.
@@ -76,6 +77,16 @@ namespace Opc.Ua.Client
         /// <see cref="TimeProvider.System"/>.
         /// </summary>
         public TimeProvider? TimeProvider { get; init; }
+
+        /// <summary>
+        /// Optional security policy registry forwarded to every channel and
+        /// <see cref="Session"/> created by this factory. Set it to the
+        /// registry composed through <c>AddSecurityPolicy</c> to make policies
+        /// registered by an application reachable by its own sessions. When
+        /// <see langword="null"/>, <see cref="SecurityPolicies.Default"/> is
+        /// used.
+        /// </summary>
+        public ISecurityPolicyRegistry? SecurityPolicyRegistry { get; init; }
 
         /// <summary>
         /// Obsolete default constructor
@@ -225,17 +236,97 @@ namespace Opc.Ua.Client
                 }
             } while (connection == null);
 
-            return await CreateAsync(
-                configuration,
+            // A reverse connection the manager delivers can already have been
+            // closed by the server before the secure-channel handshake runs: a
+            // server rotates and times out the outbound connections it offers,
+            // so the one matched here - especially after a discovery round
+            // (updateBeforeConnect) consumed an earlier one - may be stale. That
+            // surfaces as BadConnectionClosed / BadNotConnected on first use.
+            // Rather than failing the whole connect, request a freshly delivered
+            // connection and retry a bounded number of times.
+            return await CreateReverseConnectSessionWithRetryAsync(
                 connection,
-                endpoint,
-                false,
-                checkDomain,
-                sessionName,
-                sessionTimeout,
-                userIdentity,
-                preferredLocales,
+                (resolved, token) => CreateAsync(
+                    configuration,
+                    resolved,
+                    endpoint,
+                    false,
+                    checkDomain,
+                    sessionName,
+                    sessionTimeout,
+                    userIdentity,
+                    preferredLocales,
+                    token),
+                token => reverseConnectManager.WaitForConnectionAsync(
+                    endpoint.EndpointUrl!,
+                    endpoint.ReverseConnect?.ServerUri,
+                    token),
+                kMaxReverseConnectAttempts,
+                Telemetry?.CreateLogger<DefaultSessionFactory>(),
+                endpoint.EndpointUrl,
                 ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Creates a session from a reverse connection, retrying with a freshly
+        /// delivered connection when an attempt fails because the delivered
+        /// connection was already closed/dropped by the server. Bounded by
+        /// <paramref name="maxAttempts"/> so a genuinely unreachable server still
+        /// fails; non-transient failures and cancellation surface immediately.
+        /// </summary>
+        internal static async Task<ISession> CreateReverseConnectSessionWithRetryAsync(
+            ITransportWaitingConnection initialConnection,
+            Func<ITransportWaitingConnection, CancellationToken, Task<ISession>> createSessionAsync,
+            Func<CancellationToken, Task<ITransportWaitingConnection>> resolveFreshConnectionAsync,
+            int maxAttempts,
+            ILogger? logger,
+            Uri? endpointUrl,
+            CancellationToken ct)
+        {
+            ITransportWaitingConnection connection = initialConnection;
+            for (int attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    return await createSessionAsync(connection, ct).ConfigureAwait(false);
+                }
+                catch (ServiceResultException sre) when (
+                    attempt < maxAttempts &&
+                    !ct.IsCancellationRequested &&
+                    IsStaleReverseConnectionStatus(sre.StatusCode))
+                {
+                    if (logger != null)
+                    {
+                        logger.LogWarning(
+                            "Reverse connection to {EndpointUrl} was stale ({StatusCode}); " +
+                            "retrying with a fresh connection (attempt {Attempt} of {Max}).",
+                            endpointUrl,
+                            sre.StatusCode,
+                            attempt,
+                            maxAttempts);
+                    }
+
+                    connection = await resolveFreshConnectionAsync(ct).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Maximum number of reverse-connect attempts (initial plus retries)
+        /// before a stale reverse connection is surfaced as a failure.
+        /// </summary>
+        private const int kMaxReverseConnectAttempts = 3;
+
+        /// <summary>
+        /// Whether a status code from a reverse-connect attempt indicates the
+        /// delivered connection was already closed/dropped by the server and a
+        /// fresh connection should be requested instead of failing.
+        /// </summary>
+        private static bool IsStaleReverseConnectionStatus(StatusCode statusCode)
+        {
+            return statusCode == StatusCodes.BadConnectionClosed
+                || statusCode == StatusCodes.BadNotConnected
+                || statusCode == StatusCodes.BadSecureChannelClosed;
         }
 
         /// <inheritdoc/>
@@ -266,7 +357,9 @@ namespace Opc.Ua.Client
             // update endpoint description using the discovery endpoint.
             if (endpoint.UpdateBeforeConnect && connection == null)
             {
-                await endpoint.UpdateFromServerAsync(messageContext.Telemetry, ct).ConfigureAwait(false);
+                await endpoint
+                    .UpdateFromServerAsync(configuration, messageContext.Telemetry, ct)
+                    .ConfigureAwait(false);
                 endpointDescription = endpoint.Description;
                 // UpdateFromServerAsync re-reads Configuration from the discovery response;
                 // it is set whenever the description was updated successfully.
@@ -310,7 +403,8 @@ namespace Opc.Ua.Client
                         channelClientCertificate,
                         channelClientCertificateChain,
                         messageContext,
-                        ct).ConfigureAwait(false);
+                        securityPolicies: SecurityPolicyRegistry,
+                        ct: ct).ConfigureAwait(false);
                 }
                 else
                 {
@@ -321,7 +415,8 @@ namespace Opc.Ua.Client
                         channelClientCertificate,
                         channelClientCertificateChain,
                         messageContext,
-                        ct).ConfigureAwait(false);
+                        securityPolicies: SecurityPolicyRegistry,
+                        ct: ct).ConfigureAwait(false);
                 }
 
                 // Ownership of the cert and chain has been transferred to the
@@ -410,7 +505,8 @@ namespace Opc.Ua.Client
                 availableEndpoints,
                 discoveryProfileUris,
                 SubscriptionEngineFactory,
-                TimeProvider)
+                TimeProvider,
+                SecurityPolicyRegistry)
             {
                 ReturnDiagnostics = ReturnDiagnostics
             };

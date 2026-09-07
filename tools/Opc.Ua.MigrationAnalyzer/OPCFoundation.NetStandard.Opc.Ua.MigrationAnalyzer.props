@@ -1,19 +1,15 @@
 <Project>
   <!--
-    Auto-imported into consumer csproj when this NuGet package is installed.
-    Performs two jobs:
-    1. Adds the analyzer DLL as an <Analyzer> item. NuGet restore does not
-       auto-register analyzers/dotnet/cs/ from hand-authored .nuspec packages
-       (the SDK-pack flow does, but we use NuspecFile mode). Injecting the
-       <Analyzer> here works around that.
-    2. (Future) Could add per-rule MSBuild flags or severity overrides.
+    Auto-imported into the consumer csproj when this NuGet package is installed.
+
+    The analyzer, code-fix and generator assemblies are registered by NuGet
+    itself: it picks the highest `analyzers/dotnet/roslyn<major>.<minor>/cs`
+    folder the consuming compiler supports and adds every assembly in it as an
+    `Analyzer` item. Injecting them here as well would force one specific Roslyn
+    variant to load in addition to the one NuGet selected, which duplicates the
+    diagnostic IDs and can break the analyzer host.
+
+    The file is kept as the hook for per-rule MSBuild flags or severity
+    overrides.
   -->
-  <ItemGroup>
-    <Analyzer Include="$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.dll"
-              Condition="Exists('$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.dll')" />
-    <Analyzer Include="$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.CodeFixer.dll"
-              Condition="Exists('$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.CodeFixer.dll')" />
-    <Analyzer Include="$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.Generator.dll"
-              Condition="Exists('$(MSBuildThisFileDirectory)..\analyzers\dotnet\cs\Opc.Ua.MigrationAnalyzer.Generator.dll')" />
-  </ItemGroup>
 </Project>

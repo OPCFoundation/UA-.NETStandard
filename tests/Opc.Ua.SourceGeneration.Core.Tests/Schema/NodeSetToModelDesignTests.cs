@@ -32,8 +32,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Xml;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Opc.Ua.Export;
+using Opc.Ua.SourceGeneration;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Schema.Model.Tests
@@ -53,8 +56,76 @@ namespace Opc.Ua.Schema.Model.Tests
     {
         private const string OpcUaNamespaceUri = "http://opcfoundation.org/UA/";
         private const string CrossModelNamespaceUri = "http://test.org/UA/CrossModel/Types";
+        private const string SameNamedArgumentsNamespaceUri =
+            "http://test.org/UA/SameNamedMethodArguments/";
         private const string NodeSetResource = "CrossModelTypes.NodeSet2.xml";
+        private const string SameNamedArgumentsResource =
+            "SameNamedMethodArguments.NodeSet2.xml";
         private const string DesignResource = "TestDataDesign.xml";
+        private const string ViewImportNodeSet = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                <NamespaceUris>
+                    <Uri>http://test.org/UA/ViewImport/</Uri>
+                </NamespaceUris>
+                <Models>
+                    <Model ModelUri="http://test.org/UA/ViewImport/"
+                        PublicationDate="2026-08-12T00:00:00Z"
+                        Version="1.0.0" />
+                </Models>
+                <Aliases>
+                    <Alias Alias="HasSubtype">i=45</Alias>
+                    <Alias Alias="HasTypeDefinition">i=40</Alias>
+                    <Alias Alias="Organizes">i=35</Alias>
+                </Aliases>
+                <UAReferenceType NodeId="i=33" BrowseName="HierarchicalReferences" IsAbstract="true">
+                    <DisplayName>HierarchicalReferences</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+                    </References>
+                </UAReferenceType>
+                <UAReferenceType NodeId="i=35" BrowseName="Organizes">
+                    <DisplayName>Organizes</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+                    </References>
+                </UAReferenceType>
+                <UAObjectType NodeId="i=58" BrowseName="BaseObjectType">
+                    <DisplayName>BaseObjectType</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+                    </References>
+                </UAObjectType>
+                <UAObject NodeId="ns=1;s=Views" BrowseName="1:Views">
+                    <DisplayName>Views</DisplayName>
+                    <References>
+                        <Reference ReferenceType="Organizes">ns=1;s=Views_Operations</Reference>
+                        <Reference ReferenceType="Organizes">ns=1;s=Views_Engineering</Reference>
+                        <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+                    </References>
+                </UAObject>
+                <UAView NodeId="ns=1;s=Views_Operations"
+                    BrowseName="1:Operations"
+                    ParentNodeId="ns=1;s=Views"
+                    ContainsNoLoops="true">
+                    <DisplayName>Operations</DisplayName>
+                    <References>
+                        <Reference ReferenceType="Organizes" IsForward="false">i=87</Reference>
+                    </References>
+                </UAView>
+                <UAView NodeId="ns=1;s=Views_Engineering"
+                    BrowseName="1:Engineering"
+                    ParentNodeId="ns=1;s=Views"
+                    ContainsNoLoops="true">
+                    <DisplayName>Engineering</DisplayName>
+                    <References>
+                        <Reference ReferenceType="Organizes" IsForward="false">i=87</Reference>
+                    </References>
+                </UAView>
+            </UANodeSet>
+            """;
 
         private VirtualFileSystem m_fileSystem;
 
@@ -201,6 +272,159 @@ namespace Opc.Ua.Schema.Model.Tests
             InvalidDataException ex = Assert.Throws<InvalidDataException>(
                 () => importer.Import("Test", "CrossModel"));
             Assert.That(ex.Message, Does.Contain("WidgetType"));
+        }
+
+        [Test]
+        public void ImportPreservesSameNamedInputAndOutputArgumentNames()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            string path = ResourcePath(SameNamedArgumentsResource);
+            var nodesets = new NodesetFileCollection(
+                [(path, new NodesetFileOptions())],
+                [],
+                m_fileSystem,
+                telemetry);
+            List<string> designFiles = nodesets.GetDesignFileListForModel(
+                SameNamedArgumentsNamespaceUri,
+                out _);
+            Assert.That(designFiles, Is.Not.Null);
+
+            IFileSystem fileSystem = typeof(Generators).Assembly
+                .AsFileSystem("Opc.Ua.SourceGeneration.Design")
+                .WithFallback(m_fileSystem);
+            IModelDesign model = fileSystem.OpenModelDesign(
+                new DesignFileCollection { Targets = designFiles },
+                [],
+                telemetry,
+                useAllowSubtypes: false);
+            MethodDesign method = model.GetNodeDesigns()
+                .OfType<MethodDesign>()
+                .Single(x => x.SymbolicName?.Name == "RoundTripMethodType");
+            string[] expectedInputNames =
+            [
+                "Foo",
+                "foo",
+                "Class",
+                "VersionId",
+                "Await",
+                "Ct",
+                "cT",
+                "CancellationToken",
+                "Context",
+                "ObjectId",
+                "Method",
+                "InputArguments",
+                "Results",
+                "_result",
+                "_foo",
+                "_",
+                "Nameof",
+                "__arglist",
+                "__makeref",
+                "__reftype",
+                "__refvalue"
+            ];
+            string[] expectedOutputNames =
+            [
+                "VersionId",
+                "class",
+                "Changed",
+                "OutputArguments",
+                "ServiceResult",
+                "Quote\"Name",
+                "Back\\Slash",
+                "Line\nBreak",
+                "Δelta雪",
+                "Foo",
+                "RoundTripMethodStateResult",
+                "Next\u0085Line",
+                "Line\u2028Separator",
+                "Paragraph\u2029Separator"
+            ];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(method.InputArguments, Has.Length.EqualTo(expectedInputNames.Length));
+                Assert.That(
+                    method.InputArguments.Select(argument => argument.Name),
+                    Is.EqualTo(expectedInputNames));
+                Assert.That(method.OutputArguments, Has.Length.EqualTo(expectedOutputNames.Length));
+                Assert.That(
+                    method.OutputArguments.Select(argument => argument.Name),
+                    Is.EqualTo(expectedOutputNames));
+            });
+        }
+
+        /// <summary>
+        /// Verifies importing views as top-level nodes keeps their organizing folder references.
+        /// </summary>
+        [Test]
+        public void ImportPreservesFolderOrganizesReferencesToViews()
+        {
+            const string path = "memory://ViewImport.NodeSet2.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(ViewImportNodeSet));
+
+            var settings = new NodeSetReaderSettings();
+            NodeSetToModelDesign importer = new(
+                m_fileSystem,
+                path,
+                settings,
+                CreateTelemetry());
+
+            ModelDesign model = importer.Import("ViewImport", "ViewImport");
+            ObjectDesign viewsFolder = model.Items
+                .OfType<ObjectDesign>()
+                .Single(x => x.SymbolicName?.Name == "Views");
+            string[] expectedViews = ["Operations", "Engineering"];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(model.Items.OfType<ViewDesign>().Select(x => x.SymbolicName?.Name), Is.EquivalentTo(
+                    expectedViews));
+                Assert.That(viewsFolder.Children?.Items, Is.Null.Or.Empty);
+                Assert.That(viewsFolder.References, Has.Length.EqualTo(2));
+                Assert.That(viewsFolder.References.Select(x => x.ReferenceType.Name), Is.All.EqualTo("Organizes"));
+                Assert.That(viewsFolder.References.Select(x => x.IsInverse), Is.All.False);
+                Assert.That(viewsFolder.References.Select(x => x.TargetId.Name), Is.EquivalentTo(
+                    expectedViews));
+            });
+        }
+
+        [Test]
+        public void TypeSymbolicNameUsesNodeIdNamespace()
+        {
+            var symbolicId = new XmlQualifiedName(
+                "GroundControlPointDataType",
+                "http://opcfoundation.org/UA/GPOS/");
+            var symbolicName = new XmlQualifiedName(
+                "GroundControlPointDataType",
+                "http://opcfoundation.org/UA/RSL/");
+
+            XmlQualifiedName normalized = NodeSetToModelDesign.NormalizeSymbolicNameNamespace(
+                new UADataType(),
+                symbolicId,
+                symbolicName);
+
+            Assert.That(normalized.Name, Is.EqualTo(symbolicName.Name));
+            Assert.That(normalized.Namespace, Is.EqualTo(symbolicId.Namespace));
+        }
+
+        [Test]
+        public void InstanceSymbolicNameKeepsBrowseNameNamespace()
+        {
+            var symbolicId = new XmlQualifiedName(
+                "Position",
+                "http://opcfoundation.org/UA/GPOS/");
+            var symbolicName = new XmlQualifiedName(
+                "Position",
+                "http://opcfoundation.org/UA/RSL/");
+
+            XmlQualifiedName normalized = NodeSetToModelDesign.NormalizeSymbolicNameNamespace(
+                new UAVariable(),
+                symbolicId,
+                symbolicName);
+            Assert.That(normalized, Is.SameAs(symbolicName));
+            Assert.That(normalized, Is.SameAs(symbolicName));
         }
 
         private static ITelemetryContext CreateTelemetry()

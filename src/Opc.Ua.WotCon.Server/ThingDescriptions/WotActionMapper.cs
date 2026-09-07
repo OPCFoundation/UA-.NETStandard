@@ -63,7 +63,7 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
                     new Argument
                     {
                         Name = schema.Title ?? "value",
-                        DataType = DataTypeIds.BaseDataType,
+                        DataType = Ua.DataTypeIds.BaseDataType,
                         ValueRank = ValueRanks.Scalar,
                         Description = BuildSchemaDescription(schema)
                     }
@@ -90,7 +90,7 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
 
             if (!WotPropertyMapper.TryMapPrimitive(jsonType, out NodeId dataType))
             {
-                dataType = DataTypeIds.BaseDataType;
+                dataType = Ua.DataTypeIds.BaseDataType;
             }
 
             return new Argument

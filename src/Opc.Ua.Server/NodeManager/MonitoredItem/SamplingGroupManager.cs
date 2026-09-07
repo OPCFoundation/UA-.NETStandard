@@ -327,7 +327,10 @@ namespace Opc.Ua.Server
                 storedMonitoredItem);
 
             // start sampling.
-            StartMonitoring(new OperationContext(monitoredItem), monitoredItem, savedOwnerIdentity);
+            using (var startContext = new OperationContext(monitoredItem))
+            {
+                StartMonitoring(startContext, monitoredItem, savedOwnerIdentity);
+            }
 
             // return item.
             return monitoredItem;

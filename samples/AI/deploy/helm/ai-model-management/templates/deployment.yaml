@@ -1,0 +1,176 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ai-model-management.fullname" . }}
+  labels:
+    {{- include "ai-model-management.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "ai-model-management.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ai-model-management.selectorLabels" . | nindent 8 }}
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if and .Values.credentials.create .Values.credentials.value }}
+        # Rolls the pods when the credential changes. The annotation carries a
+        # digest of the credential's NAME and reference, never of the value:
+        # Pod annotations are readable by anyone with `get pods`, which is granted
+        # far more widely than `get secrets`, and a digest of a low-entropy secret
+        # is recoverable offline. The name changes when the release does, which is
+        # the case this exists to cover on the demo-only inline path.
+        checksum/credentials: {{ printf "%s/%s" (include "ai-model-management.credentialSecretName" .) .Values.backend.credentialReference | sha256sum }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "ai-model-management.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: server
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: opcua
+              containerPort: {{ .Values.server.port }}
+              protocol: TCP
+          env:
+            - name: host
+              value: {{ .Values.server.host | quote }}
+            - name: port
+              value: {{ .Values.server.port | quote }}
+
+            # What this Server publishes.
+            - name: AiModelManagement__PrimaryDeploymentId
+              value: {{ .Values.ai.primaryDeploymentId | quote }}
+            - name: AiModelManagement__FallbackDeploymentId
+              value: {{ .Values.ai.fallbackDeploymentId | quote }}
+            - name: AiModelManagement__EnableFallback
+              value: {{ .Values.ai.enableFallback | quote }}
+            - name: AiModelManagement__EnableCatalogue
+              value: {{ .Values.ai.enableCatalogue | quote }}
+            - name: AiModelManagement__SourceId
+              value: {{ .Values.ai.sourceId | quote }}
+
+            # The endpoint the primary deployment reaches. Note what is NOT here:
+            # the credential. Only its name travels, and the value is read from a
+            # mounted file by the one component that needs it.
+            - name: InferenceBackend__Site
+              value: {{ .Values.backend.site | quote }}
+            - name: InferenceBackend__EndpointUri
+              value: {{ .Values.backend.endpointUri | quote }}
+            - name: InferenceBackend__ChatCompletionsPath
+              value: {{ .Values.backend.chatCompletionsPath | quote }}
+            - name: InferenceBackend__ProbePath
+              value: {{ .Values.backend.probePath | quote }}
+            - name: InferenceBackend__Authentication
+              value: {{ .Values.backend.authentication | quote }}
+            - name: InferenceBackend__CredentialReference
+              value: {{ .Values.backend.credentialReference | quote }}
+            - name: InferenceBackend__ApiKeyHeader
+              value: {{ .Values.backend.apiKeyHeader | quote }}
+            - name: InferenceBackend__CredentialDirectory
+              value: {{ .Values.credentials.mountPath | quote }}
+            - name: InferenceBackend__DataJurisdiction
+              value: {{ .Values.backend.dataJurisdiction | quote }}
+            - name: InferenceBackend__EgressPermitted
+              value: {{ .Values.backend.egressPermitted | quote }}
+            - name: InferenceBackend__RetainsInput
+              value: {{ .Values.backend.retainsInput | quote }}
+            - name: InferenceBackend__MaxInlinePayloadSize
+              value: {{ .Values.backend.maxInlinePayloadSize | quote }}
+            {{- range $index, $model := .Values.backend.models }}
+            - name: InferenceBackend__Models__{{ $index }}__Publisher
+              value: {{ $model.publisher | quote }}
+            - name: InferenceBackend__Models__{{ $index }}__Name
+              value: {{ $model.name | quote }}
+            - name: InferenceBackend__Models__{{ $index }}__Version
+              value: {{ $model.version | quote }}
+            {{- if $model.taskKind }}
+            - name: InferenceBackend__Models__{{ $index }}__TaskKind
+              value: {{ $model.taskKind | quote }}
+            {{- end }}
+            {{- end }}
+
+            # The fallback's own endpoint, which is the point of it.
+            - name: FallbackInferenceBackend__Enabled
+              value: {{ .Values.fallbackBackend.enabled | quote }}
+            {{- if .Values.fallbackBackend.enabled }}
+            - name: FallbackInferenceBackend__Site
+              value: {{ .Values.fallbackBackend.site | quote }}
+            - name: FallbackInferenceBackend__EndpointUri
+              value: {{ .Values.fallbackBackend.endpointUri | quote }}
+            - name: FallbackInferenceBackend__Authentication
+              value: {{ .Values.fallbackBackend.authentication | quote }}
+            - name: FallbackInferenceBackend__DataJurisdiction
+              value: {{ .Values.fallbackBackend.dataJurisdiction | quote }}
+            - name: FallbackInferenceBackend__EgressPermitted
+              value: {{ .Values.fallbackBackend.egressPermitted | quote }}
+            - name: FallbackInferenceBackend__RetainsInput
+              value: {{ .Values.fallbackBackend.retainsInput | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if .Values.probes.liveness.enabled }}
+          livenessProbe:
+            tcpSocket:
+              port: opcua
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+          {{- end }}
+          {{- if .Values.probes.readiness.enabled }}
+          readinessProbe:
+            tcpSocket:
+              port: opcua
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: pki
+              mountPath: /app/pki
+            {{- if include "ai-model-management.hasCredential" . }}
+            - name: credentials
+              mountPath: {{ .Values.credentials.mountPath }}
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: pki
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "ai-model-management.fullname" . }}-pki
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- if include "ai-model-management.hasCredential" . }}
+        - name: credentials
+          secret:
+            secretName: {{ include "ai-model-management.credentialSecretName" . }}
+            defaultMode: 0400
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

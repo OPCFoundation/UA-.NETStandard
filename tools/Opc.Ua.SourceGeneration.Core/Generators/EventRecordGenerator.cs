@@ -40,7 +40,7 @@ namespace Opc.Ua.SourceGeneration
     /// Generates strongly-typed event-record classes for every OPC UA
     /// <c>ObjectType</c> whose base-type chain ends at
     /// <c>BaseEventType</c>. Each emitted record derives from the
-    /// record of its parent ObjectType (forming an inheritance chain
+    /// class of its parent ObjectType (forming an inheritance chain
     /// that mirrors the OPC UA event-type hierarchy) and exposes one
     /// init-only property per directly-declared field on the type.
     /// </summary>
@@ -195,6 +195,28 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.ClassName, className);
             context.Template.AddReplacement(Tokens.BaseClassName, baseClassName);
             context.Template.AddReplacement(Tokens.AccessModifier, newModifier);
+            bool isStandardEventType = string.Equals(
+                objectType.SymbolicId.Namespace,
+                Namespaces.OpcUa,
+                StringComparison.Ordinal);
+            context.Template.AddReplacement(
+                Tokens.EventFilterParameters,
+                isStandardEventType
+                    ? string.Empty
+                    : "global::Opc.Ua.NamespaceTable namespaceUris,\n                        ");
+            context.Template.AddReplacement(
+                Tokens.EventFilterParameterDocumentation,
+                isStandardEventType
+                    ? string.Empty
+                    : "/// <param name=\"namespaceUris\">The session namespace table.</param>");
+            context.Template.AddReplacement(
+                Tokens.EventTypeId,
+                isStandardEventType
+                    ? CoreUtils.Format("global::Opc.Ua.ObjectTypeIds.{0}", typeName)
+                    : CoreUtils.Format(
+                        "global::Opc.Ua.ExpandedNodeId.ToNodeId(global::{0}.ObjectTypeIds.{1}, namespaceUris)",
+                        m_context.ModelDesign.TargetNamespace.Prefix,
+                        typeName));
 
             List<FieldEntry> ownFields = CollectDeclaredFields(objectType);
             context.Template.AddReplacement(
@@ -239,18 +261,29 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private static bool WriteTemplate_StandardFieldEntry(IWriteContext context)
+        private bool WriteTemplate_StandardFieldEntry(IWriteContext context)
         {
             if (context.Target is not FieldEntry field)
             {
                 return false;
             }
+            string browseNames = string.Equals(
+                field.NamespaceUri,
+                Namespaces.OpcUa,
+                StringComparison.Ordinal)
+                ? "global::Opc.Ua.BrowseNames"
+                : CoreUtils.Format(
+                    "global::{0}.BrowseNames",
+                    m_context.ModelDesign.TargetNamespace.Prefix);
             string path = field.IsTwoStateVariableId
                 ? CoreUtils.Format(
-                    "[global::Opc.Ua.QualifiedName.From(global::Opc.Ua.BrowseNames.{0}), global::Opc.Ua.QualifiedName.From(global::Opc.Ua.BrowseNames.Id)]",
+                    "global::Opc.Ua.QualifiedName.From({0}.{1}), " +
+                    "global::Opc.Ua.QualifiedName.From(global::Opc.Ua.BrowseNames.Id)",
+                    browseNames,
                     field.BrowseName)
                 : CoreUtils.Format(
-                    "[global::Opc.Ua.QualifiedName.From(global::Opc.Ua.BrowseNames.{0})]",
+                    "global::Opc.Ua.QualifiedName.From({0}.{1})",
+                    browseNames,
                     field.BrowseName);
             context.Template.AddReplacement(Tokens.ChildPath, path);
             return context.Template.Render();
@@ -264,11 +297,13 @@ namespace Opc.Ua.SourceGeneration
             }
             context.Template.AddReplacement(Tokens.PropertyName, field.PropertyName);
             context.Template.AddReplacement(Tokens.ClientMethod, field.ReaderMethod);
-            context.Template.AddReplacement(Tokens.FieldIndex, field.FieldIndex.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            context.Template.AddReplacement(
+                Tokens.FieldIndex,
+                field.FieldIndex.ToString(System.Globalization.CultureInfo.InvariantCulture));
             return context.Template.Render();
         }
 
-        private static bool WriteTemplate_RegistrationExtension(IWriteContext context)
+        private bool WriteTemplate_RegistrationExtension(IWriteContext context)
         {
             if (context.Target is not RegistrationContext reg)
             {
@@ -276,6 +311,20 @@ namespace Opc.Ua.SourceGeneration
             }
             context.Template.AddReplacement(Tokens.ClassName, reg.ClassName);
             context.Template.AddReplacement(Tokens.ClientMethod, reg.MethodName);
+            bool isStandardModel = string.Equals(
+                m_context.ModelDesign.TargetNamespace.Value,
+                Namespaces.OpcUa,
+                StringComparison.Ordinal);
+            context.Template.AddReplacement(
+                Tokens.EventFilterParameters,
+                isStandardModel
+                    ? string.Empty
+                    : ", global::Opc.Ua.NamespaceTable namespaceUris");
+            context.Template.AddReplacement(
+                Tokens.EventFilterParameterDocumentation,
+                isStandardModel
+                    ? string.Empty
+                    : "/// <param name=\"namespaceUris\">The session namespace table.</param>");
             context.Template.AddReplacement(
                 Tokens.ListOfActivatorRegistrations,
                 EventRecordTemplates.DecoderRegistration,
@@ -284,7 +333,7 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private static bool WriteTemplate_DecoderRegistration(IWriteContext context)
+        private bool WriteTemplate_DecoderRegistration(IWriteContext context)
         {
             if (context.Target is not ObjectTypeDesign type)
             {
@@ -295,6 +344,9 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.ClassName,
                 CoreUtils.Format("{0}Record", typeName));
+            context.Template.AddReplacement(
+                Tokens.EventTypeId,
+                FormatEventTypeId(typeName));
             return context.Template.Render();
         }
 
@@ -418,7 +470,8 @@ namespace Opc.Ua.SourceGeneration
                         Description = SanitizeDescription(
                             property.Description?.Value),
                         BrowseName = browseName,
-                        ReaderMethod = MapReaderMethod(dotnet),
+                        NamespaceUri = child.SymbolicId?.Namespace,
+                        ReaderMethod = MapReaderMethod(property.DataTypeNode, dotnet),
                         IsTwoStateVariableId = false
                     });
                     continue;
@@ -436,6 +489,7 @@ namespace Opc.Ua.SourceGeneration
                             Description = SanitizeDescription(
                                 $"Id of the {browseName} TwoStateVariable."),
                             BrowseName = browseName,
+                            NamespaceUri = child.SymbolicId?.Namespace,
                             ReaderMethod = "GetNullableBool",
                             IsTwoStateVariableId = true
                         });
@@ -450,7 +504,8 @@ namespace Opc.Ua.SourceGeneration
                         Description = SanitizeDescription(
                             variable.Description?.Value),
                         BrowseName = browseName,
-                        ReaderMethod = MapReaderMethod(dotnetVar),
+                        NamespaceUri = child.SymbolicId?.Namespace,
+                        ReaderMethod = MapReaderMethod(variable.DataTypeNode, dotnetVar),
                         IsTwoStateVariableId = false
                     });
                 }
@@ -505,7 +560,7 @@ namespace Opc.Ua.SourceGeneration
         /// <c>INullable</c>; check <c>.IsNull</c> rather than wrapping
         /// in <c>Nullable&lt;Variant&gt;</c>.
         /// </summary>
-        private static string MapDataType(DataTypeDesign dataType, ValueRank rank)
+        private string MapDataType(DataTypeDesign dataType, ValueRank rank)
         {
             if (dataType == null)
             {
@@ -528,7 +583,7 @@ namespace Opc.Ua.SourceGeneration
             return typeName;
         }
 
-        private static string MapScalarDataType(DataTypeDesign dataType)
+        private string MapScalarDataType(DataTypeDesign dataType)
         {
             switch (dataType.SymbolicId?.Name)
             {
@@ -580,7 +635,7 @@ namespace Opc.Ua.SourceGeneration
                 case "StatusCode":
                     return "global::Opc.Ua.StatusCode";
                 default:
-                    return "global::Opc.Ua.Variant";
+                    return ResolveCustomDataType(dataType);
             }
         }
 
@@ -593,7 +648,7 @@ namespace Opc.Ua.SourceGeneration
         /// those fields (and notably the <c>Variant</c> fallback for
         /// unmapped data types is not populated).
         /// </summary>
-        private static string MapReaderMethod(string dotnetType)
+        private string MapReaderMethod(DataTypeDesign dataType, string dotnetType)
         {
             switch (dotnetType)
             {
@@ -611,6 +666,8 @@ namespace Opc.Ua.SourceGeneration
                     return "GetByteString";
                 case "global::Opc.Ua.NodeId":
                     return "GetNodeId";
+                case "global::Opc.Ua.NodeId[]?":
+                    return "GetNodeIdArray";
                 case "global::Opc.Ua.LocalizedText":
                     return "GetLocalizedText";
                 case "global::Opc.Ua.StatusCode":
@@ -618,8 +675,79 @@ namespace Opc.Ua.SourceGeneration
                 case "global::Opc.Ua.LocalizedText[]?":
                     return "GetLocalizedTextArray";
                 default:
+                    if (!dataType.IsStructure ||
+                        string.Equals(
+                            dataType.SymbolicId?.Namespace,
+                            Namespaces.OpcUa,
+                            StringComparison.Ordinal) ||
+                        dotnetType == "global::Opc.Ua.Variant" ||
+                        dotnetType == "global::Opc.Ua.Variant[]?")
+                    {
+                        return null;
+                    }
+                    if (dotnetType != null &&
+                        dotnetType.EndsWith("[]?", StringComparison.Ordinal) &&
+                        dotnetType.StartsWith("global::", StringComparison.Ordinal))
+                    {
+                        return CoreUtils.Format(
+                            "GetEncodeableArray<{0}>",
+                            dotnetType[..^3]);
+                    }
+                    if (dotnetType != null &&
+                        dotnetType.StartsWith("global::", StringComparison.Ordinal))
+                    {
+                        return CoreUtils.Format("GetEncodeable<{0}>", dotnetType);
+                    }
                     return null;
             }
+        }
+
+        private string ResolveCustomDataType(DataTypeDesign dataType)
+        {
+            string name = dataType.SymbolicId?.Name;
+            string uri = dataType.SymbolicId?.Namespace;
+            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(uri))
+            {
+                return "global::Opc.Ua.Variant";
+            }
+            if (string.Equals(uri, Namespaces.OpcUa, StringComparison.Ordinal))
+            {
+                return "global::Opc.Ua.Variant";
+            }
+            if (string.Equals(
+                uri,
+                m_context.ModelDesign.TargetNamespace.Value,
+                StringComparison.Ordinal))
+            {
+                return CoreUtils.Format("global::{0}.{1}", GetOutputNamespace(), name);
+            }
+            Namespace[] namespaces = m_context.ModelDesign.Namespaces;
+            if (namespaces != null)
+            {
+                foreach (Namespace ns in namespaces)
+                {
+                    if (string.Equals(ns?.Value, uri, StringComparison.Ordinal) &&
+                        !string.IsNullOrWhiteSpace(ns.Prefix))
+                    {
+                        return CoreUtils.Format("global::{0}.{1}", ns.Prefix, name);
+                    }
+                }
+            }
+            return "global::Opc.Ua.Variant";
+        }
+
+        private string FormatEventTypeId(string typeName)
+        {
+            return string.Equals(
+                m_context.ModelDesign.TargetNamespace.Value,
+                Namespaces.OpcUa,
+                StringComparison.Ordinal)
+                ? CoreUtils.Format("global::Opc.Ua.ObjectTypeIds.{0}", typeName)
+                : CoreUtils.Format(
+                    "global::Opc.Ua.ExpandedNodeId.ToNodeId(" +
+                    "global::{0}.ObjectTypeIds.{1}, namespaceUris)",
+                    m_context.ModelDesign.TargetNamespace.Prefix,
+                    typeName);
         }
 
         private static string SanitizeDescription(string description)
@@ -742,6 +870,7 @@ namespace Opc.Ua.SourceGeneration
             public string DotNetType { get; set; }
             public string Description { get; set; }
             public string BrowseName { get; set; }
+            public string NamespaceUri { get; set; }
             public string ReaderMethod { get; set; }
             public bool IsTwoStateVariableId { get; set; }
             public int FieldIndex { get; set; }

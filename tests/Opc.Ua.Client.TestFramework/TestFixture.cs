@@ -97,6 +97,10 @@ namespace Opc.Ua.Client.TestFramework
             // CloseSession.
             ServerFixture.Config.ServerConfiguration.AuditingEnabled = true;
 
+            // Let a derived fixture adjust the server configuration before the
+            // server is started.
+            ConfigureServer(ServerFixture.Config);
+
             ReferenceServer = await ServerFixture.StartAsync().ConfigureAwait(false);
 
             // Attach the mock response controller so individual tests
@@ -251,6 +255,21 @@ namespace Opc.Ua.Client.TestFramework
                     "skipping this teardown so the test host does not exceed the " +
                     "--blame-hang-timeout. References will be released for finalization.");
                 Session = null;
+                if (ServerFixture != null)
+                {
+                    try
+                    {
+                        // Call ServerFixture.StopAsync even in the skip path so certificate
+                        // managers are disposed and the certificate-leak counter does not
+                        // stay positive. ServerFixture.StopAsync has its own teardown watchdog.
+                        await ServerFixture.StopAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogError(ex, "Error stopping server during teardown (early-skip path).");
+                    }
+                }
+
                 ServerFixture = null;
                 ClientFixture = null;
                 return;
@@ -311,9 +330,25 @@ namespace Opc.Ua.Client.TestFramework
 
                 if (s_skipRemainingTeardowns)
                 {
-                    // Skip all remaining teardown steps for this fixture too; they would
+                    // Skip session-dependent teardown steps for this fixture too; they would
                     // likely also block and there is no point in paying the cost since
-                    // the process is going to exit anyway.
+                    // the process is going to exit anyway.  Call ServerFixture.StopAsync()
+                    // regardless: its own skip-remaining guard releases certificate managers
+                    // and nulls the heavyweight references, which prevents the certificate-
+                    // leak counter from staying positive and causing AssertNoCertificateLeaks
+                    // to fail at the end of the assembly run.
+                    if (ServerFixture != null)
+                    {
+                        try
+                        {
+                            await ServerFixture.StopAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            m_logger.LogError(ex, "Error stopping server during teardown (skip path).");
+                        }
+                    }
+
                     ServerFixture = null;
                     ClientFixture = null;
                     return;
@@ -333,7 +368,10 @@ namespace Opc.Ua.Client.TestFramework
                 await Task.Delay(100).ConfigureAwait(false);
             }
 
-            ClientFixture?.Dispose();
+            if (ClientFixture != null)
+            {
+                await ClientFixture.DisposeAsync().ConfigureAwait(false);
+            }
 
             try
             {
@@ -380,6 +418,17 @@ namespace Opc.Ua.Client.TestFramework
         {
             Telemetry = NUnitTelemetryContext.Create();
             m_logger = Telemetry.CreateLogger<TestFixture>();
+        }
+
+        /// <summary>
+        /// Lets a derived fixture adjust the configuration of the in-process reference
+        /// server before it is started. The default implementation does nothing.
+        /// </summary>
+        /// <param name="configuration">
+        /// The configuration of the server that is about to be started.
+        /// </param>
+        protected virtual void ConfigureServer(ApplicationConfiguration configuration)
+        {
         }
 
         /// <summary>

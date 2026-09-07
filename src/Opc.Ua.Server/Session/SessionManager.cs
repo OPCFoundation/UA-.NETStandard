@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -142,6 +143,9 @@ namespace Opc.Ua.Server
                 m_shutdownEvent.Set();
                 m_shutdownEvent.Dispose();
                 m_semaphoreSlim.Dispose();
+                m_workerCts?.Cancel();
+                m_workerCts?.Dispose();
+                m_workerCts = null;
             }
         }
 
@@ -157,12 +161,12 @@ namespace Opc.Ua.Server
                 // start thread to monitor sessions.
                 m_shutdownEvent.Reset();
 
-                // TODO: Await the task completion in shutdown and pass cancellation token
-                _ = Task.Factory.StartNew(
-                    () => MonitorSessionsAsync(m_minSessionTimeout),
-                    default,
-                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
-                    TaskScheduler.Default);
+                // Recreated on every startup: a token source cannot be reset once
+                // ShutdownAsync has cancelled it, and the manager supports restart.
+                m_workerCts?.Dispose();
+                m_workerCts = new CancellationTokenSource();
+
+                m_monitorWorkerTask = StartSessionMonitor(m_workerCts.Token);
             }
             finally
             {
@@ -171,13 +175,64 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Stops the session manager and closes all sessions.
+        /// Starts the session monitor loop and returns a task that completes when the
+        /// loop has actually exited.
         /// </summary>
-        public virtual void Shutdown()
+        /// <remarks>
+        /// The inner <c>AsTask</c> plus <c>Unwrap</c> matter: <see cref="Task.Factory"/>
+        /// hands back a task that completes as soon as the loop first yields, so
+        /// awaiting the raw <see cref="Task.Factory"/> result would only await the
+        /// scheduling of the loop and let shutdown race ahead of it.
+        /// </remarks>
+        private Task StartSessionMonitor(CancellationToken cancellationToken)
         {
-            // stop the monitoring thread.
+            return Task.Factory.StartNew(
+                    static state =>
+                    {
+                        (SessionManager manager, CancellationToken ct) =
+                            ((SessionManager, CancellationToken))state!;
+                        return manager
+                            .MonitorSessionsAsync(manager.m_minSessionTimeout, ct)
+                            .AsTask();
+                    },
+                    (this, cancellationToken),
+                    CancellationToken.None,
+                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                    TaskScheduler.Default)
+                .Unwrap();
+        }
+
+        /// <summary>
+        /// Stops the session manager and closes all sessions, waiting for the session
+        /// monitor loop to exit before returning.
+        /// </summary>
+        public virtual async ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
+        {
+            // stop the monitoring loop.
             m_shutdownEvent.Set();
 
+            // Cancel so the monitor's inter-cycle delay is abandoned immediately
+            // instead of running to the end of its sleep cycle.
+            m_workerCts?.Cancel();
+
+            Task? monitorWorkerTask = m_monitorWorkerTask;
+            if (monitorWorkerTask is not null)
+            {
+                await monitorWorkerTask.ConfigureAwait(false);
+                m_monitorWorkerTask = null;
+            }
+
+            m_workerCts?.Dispose();
+            m_workerCts = null;
+
+            CloseAllSessions();
+        }
+
+        /// <summary>
+        /// Disposes every tracked session and empties the session table.
+        /// </summary>
+        private void CloseAllSessions()
+        {
             // dispose of session objects using a snapshot.
             KeyValuePair<NodeId, ISession>[] sessions = [.. m_sessions];
             m_sessions.Clear();
@@ -270,8 +325,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create server nonce.
-                tempNonce = Nonce.CreateNonce(
-                    channelContext.EndpointDescription!.SecurityPolicyUri!);
+                tempNonce = Nonce.CreateNonce(kSessionNonceLength);
                 serverNonceObject = tempNonce;
 
                 // assign client name.
@@ -298,6 +352,13 @@ namespace Opc.Ua.Server
                     m_maxRequestAge,
                     m_maxBrowseContinuationPoints);
                 tempNonce = null; // ownership transferred to session
+                m_sessionActivationStates.Add(
+                    session,
+                    new SessionActivationState(
+                        channelContext.ClientChannelCertificate.ToByteString(),
+                        channelContext.EndpointDescription!.SecurityPolicyUri ??
+                            SecurityPolicies.None,
+                        channelContext.EndpointDescription.SecurityMode));
 
                 // Reserve the session slot while holding the lock so the session
                 // count cap and client-nonce uniqueness stay enforced atomically.
@@ -375,6 +436,13 @@ namespace Opc.Ua.Server
             ISession? restoredSession = null;
             IUserIdentityTokenHandler? newIdentity = null;
             string? clientKey = null;
+            SemaphoreSlim? activationLock = null;
+            ByteString serverNonce = default;
+            ServiceResult activationStatus = ServiceResult.Good;
+            string? clientUserId = null;
+            UserTokenType clientUserTokenType = UserTokenType.Anonymous;
+            long activationSequence = 0;
+            bool contextChanged = false;
 
             // fast path no lock
             if (!m_sessions.TryGetValue(authenticationToken, out _) && !SupportsSessionRestore)
@@ -456,138 +524,244 @@ namespace Opc.Ua.Server
                     m_semaphoreSlim.Release();
                 }
 
-                ByteString serverNonce;
-                UserTokenPolicy? userTokenPolicy;
-                // Note: session lookup, lockout and expiry failures above are not
-                // authentication failures and deliberately do NOT record a
-                // brute-force attempt - only a failed client-signature or user
-                // identity validation below does, so a timed-out or unknown session
-                // cannot lock out a legitimate client.
+                if (!m_sessionActivationStates.TryGetValue(
+                        session,
+                        out SessionActivationState? activationState))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The Session transfer security state is unavailable.");
+                }
+                await activationState.Lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+                activationLock = activationState.Lock;
 
-                // Verify the client signature outside the global lock. This is the
-                // CPU-bound part of activation (RSA/ECDSA verify); keeping it out of
-                // the session-manager lock lets concurrent activations verify in
-                // parallel. It operates only on this session's state, which is
-                // guarded by the session's own lock inside ValidateBeforeActivate.
                 try
                 {
-                    // create new server nonce.
-                    serverNonceObject = Nonce.CreateNonce(
-                        context.ChannelContext!.EndpointDescription!.SecurityPolicyUri!);
+                    if (!m_sessions.TryGetValue(authenticationToken, out ISession? currentSession) ||
+                        !ReferenceEquals(currentSession, session))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                    }
 
-                    // validate before activation.
-                    session.ValidateBeforeActivate(
+                    SecureChannelContext channelContext = context.ChannelContext!;
+                    bool isNewChannel = activationState.RequiresNewChannelChecks ||
+                        (session.Activated &&
+                            !session.IsSecureChannelValid(channelContext.SecureChannelId));
+
+                    EndpointDescription currentEndpoint =
+                        channelContext.EndpointDescription!;
+                    if (isNewChannel &&
+                        (!string.Equals(
+                            activationState.SecurityPolicyUri,
+                            currentEndpoint.SecurityPolicyUri,
+                            StringComparison.Ordinal) ||
+                        activationState.SecurityMode != currentEndpoint.SecurityMode))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityPolicyRejected);
+                    }
+
+                    bool requiresClientCertificate =
+                        currentEndpoint.SecurityMode != MessageSecurityMode.None ||
+                        !string.Equals(
+                            currentEndpoint.SecurityPolicyUri,
+                            SecurityPolicies.None,
+                            StringComparison.Ordinal);
+                    if (isNewChannel &&
+                        ((requiresClientCertificate &&
+                            activationState.OriginalClientChannelCertificate.IsEmpty) ||
+                        activationState.OriginalClientChannelCertificate !=
+                            channelContext.ClientChannelCertificate.ToByteString()))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "The SecureChannel client certificate does not match the original channel.");
+                    }
+
+                    UserTokenPolicy? userTokenPolicy;
+                    // Note: session lookup, lockout and expiry failures above are not
+                    // authentication failures and deliberately do NOT record a
+                    // brute-force attempt - only a failed client-signature or user
+                    // identity validation below does, so a timed-out or unknown session
+                    // cannot lock out a legitimate client.
+
+                    try
+                    {
+                        // Session nonces are application nonces, independent of
+                        // SecureChannel policy nonce or ephemeral-key sizes.
+                        serverNonceObject = Nonce.CreateNonce(kSessionNonceLength);
+
+                        (newIdentity, userTokenPolicy) = await session
+                            .ValidateBeforeActivateAsync(
+                                context,
+                                clientSignature!,
+                                userIdentityToken,
+                                userTokenSignature!,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+
+                        if (isNewChannel &&
+                            currentEndpoint.SecurityMode ==
+                                MessageSecurityMode.Sign &&
+                            newIdentity is AnonymousIdentityTokenHandler)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadIdentityChangeNotSupported,
+                                "Anonymous sessions cannot move to a Sign-only SecureChannel.");
+                        }
+
+                        serverNonce = serverNonceObject.Data.ToByteString();
+                    }
+                    catch (ServiceResultException)
+                    {
+                        RecordFailedAuthentication(clientKey!);
+                        throw;
+                    }
+
+                    IUserIdentity? identity = null;
+                    IUserIdentity? effectiveIdentity = null;
+                    ServiceResult? error = null;
+                    UserIdentity? tempIdentity = null;
+
+                    try
+                    {
+                        (
+                            identity,
+                            effectiveIdentity,
+                            error) = await AuthenticateUserIdentityAsync(
+                                session,
+                                newIdentity!,
+                                userTokenPolicy,
+                                currentEndpoint,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+
+                        // parse the token manually if the identity is not provided.
+                        if (identity == null)
+                        {
+                            tempIdentity = newIdentity != null
+                                ? new UserIdentity(newIdentity)
+                                : new UserIdentity();
+                            identity = tempIdentity;
+                        }
+
+                        // use the identity as the effectiveIdentity if not provided.
+                        effectiveIdentity ??= identity;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception e)
+                    {
+                        RecordFailedAuthentication(clientKey);
+
+                        if (e is not ServiceResultException)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadIdentityTokenInvalid,
+                                e,
+                                "Could not validate user identity token: {0}",
+                                newIdentity!);
+                        }
+                        throw;
+                    }
+
+                    // check for validation error.
+                    if (ServiceResult.IsBad(error))
+                    {
+                        RecordFailedAuthentication(clientKey);
+                        throw new ServiceResultException(error!);
+                    }
+
+                    // Compare the continuity key rather than the diagnostic
+                    // ClientUserId so neither a different issuer/subject split nor
+                    // a different token type carrying the same identifier can be
+                    // mistaken for the original owner (OPC 10000-4 5.7.3.1).
+                    clientUserId = ClientUserIdResolver.ResolveContinuityKey(
+                        newIdentity!,
+                        identity);
+                    clientUserTokenType = newIdentity!.TokenType;
+                    if (isNewChannel &&
+                        (!activationState.HasClientUserId ||
+                        !string.Equals(
+                            activationState.ClientUserId,
+                            clientUserId,
+                            StringComparison.Ordinal)))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadIdentityChangeNotSupported,
+                            "The user identity does not match the identity associated with the Session.");
+                    }
+
+                    // Clear failed authentication attempts on successful activation,
+                    // but only for non-anonymous identities. An anonymous login must not
+                    // reset the lockout counter that was accumulated from failed
+                    // username/certificate attempts — otherwise an attacker can reset the
+                    // counter by interleaving anonymous logins between password guesses.
+                    if (newIdentity is not (null or AnonymousIdentityTokenHandler))
+                    {
+                        ClearFailedAuthentication(clientKey);
+                    }
+
+                    // Add mandatory roles based on session/channel security context (e.g., TrustedApplication).
+                    effectiveIdentity = AddMandatoryRoles(session, context, effectiveIdentity);
+
+                    // Per Part 18 §5.2.8: when the authenticated user has the
+                    // MustChangePassword bit set on UserManagement, the activation
+                    // response shall carry Good_PasswordChangeRequired so the
+                    // client knows to prompt for a new password. The role
+                    // restriction is enforced separately by AddMandatoryRoles.
+                    activationStatus = ComputeActivationStatus(effectiveIdentity);
+
+                    contextChanged = session.Activate(
                         context,
-                        clientSignature!,
-                        userIdentityToken,
-                        userTokenSignature!,
-                        out newIdentity,
-                        out userTokenPolicy);
-
-                    serverNonce = serverNonceObject.Data.ToByteString();
-                }
-                catch (ServiceResultException)
-                {
-                    RecordFailedAuthentication(clientKey!);
-                    throw;
-                }
-                IUserIdentity? identity = null;
-                IUserIdentity? effectiveIdentity = null;
-                ServiceResult? error = null;
-                UserIdentity? tempIdentity = null;
-
-                try
-                {
-                    (
+                        newIdentity!,
                         identity,
                         effectiveIdentity,
-                        error) = await AuthenticateUserIdentityAsync(
-                            session,
-                            newIdentity!,
-                            userTokenPolicy,
-                            context.ChannelContext!.EndpointDescription!,
-                            cancellationToken)
-                        .ConfigureAwait(false);
+                        localeIds,
+                        serverNonceObject);
+                    serverNonceObject = null; // ownership transferred to session
+                    tempIdentity = null; // ownership transferred to session
+                    activationState.ClientUserId = clientUserId;
+                    activationState.ClientUserTokenType = clientUserTokenType;
+                    activationState.HasClientUserId = true;
+                    activationState.RequiresNewChannelChecks = false;
 
-                    // parse the token manually if the identity is not provided.
-                    if (identity == null)
-                    {
-                        tempIdentity = newIdentity != null
-                            ? new UserIdentity(newIdentity)
-                            : new UserIdentity();
-                        identity = tempIdentity;
-                    }
-
-                    // use the identity as the effectiveIdentity if not provided.
-                    effectiveIdentity ??= identity;
+                    // Stamp the activation while the gate is still held so a
+                    // listener that persists activation state can discard a write
+                    // that a newer concurrent activation has already superseded.
+                    activationSequence = ++activationState.ActivationSequence;
                 }
-                catch (Exception e)
+                finally
                 {
-                    RecordFailedAuthentication(clientKey);
-
-                    if (e is not ServiceResultException)
-                    {
-                        throw ServiceResultException.Create(
-                        StatusCodes.BadIdentityTokenInvalid,
-                        e,
-                        "Could not validate user identity token: {0}",
-                        newIdentity!);
-                    }
-                    throw;
+                    activationLock.Release();
+                    activationLock = null;
                 }
 
-                // check for validation error.
-                if (ServiceResult.IsBad(error))
-                {
-                    RecordFailedAuthentication(clientKey);
-                    throw new ServiceResultException(error!);
-                }
+                await OnSessionActivatedAsync(
+                    authenticationToken,
+                    session,
+                    serverNonce,
+                    clientUserTokenType,
+                    clientUserId,
+                    activationSequence,
+                    cancellationToken).ConfigureAwait(false);
 
-                // Clear failed authentication attempts on successful activation,
-                // but only for non-anonymous identities. An anonymous login must not
-                // reset the lockout counter that was accumulated from failed
-                // username/certificate attempts — otherwise an attacker can reset the
-                // counter by interleaving anonymous logins between password guesses.
-                if (newIdentity is not (null or AnonymousIdentityTokenHandler))
-                {
-                    ClearFailedAuthentication(clientKey);
-                }
-
-                // Add mandatory roles based on session/channel security context (e.g., TrustedApplication).
-                effectiveIdentity = AddMandatoryRoles(session, context, effectiveIdentity);
-
-                // Per Part 18 §5.2.8: when the authenticated user has the
-                // MustChangePassword bit set on UserManagement, the activation
-                // response shall carry Good_PasswordChangeRequired so the
-                // client knows to prompt for a new password. The role
-                // restriction is enforced separately by AddMandatoryRoles.
-                ServiceResult activationStatus = ComputeActivationStatus(effectiveIdentity);
-
-                // activate session.
-
-                bool contextChanged = session.Activate(
-                    context,
-                    newIdentity!,
-                    identity,
-                    effectiveIdentity,
-                    localeIds,
-                    serverNonceObject);
-                serverNonceObject = null; // ownership transferred to session
-                tempIdentity = null; // ownership transferred to session
-
-                // raise session related event.
+                // External callbacks run after the activation transaction has
+                // committed and released its per-Session gate.
                 if (contextChanged)
                 {
                     RaiseSessionEvent(session, SessionEventReason.Activated);
                 }
 
-                // indicates that the identity context for the session has changed.
                 return (contextChanged, serverNonce, activationStatus);
             }
             finally
             {
                 restoredSession?.Dispose();
                 serverNonceObject?.Dispose();
+                activationLock?.Release();
             }
         }
 
@@ -600,28 +774,50 @@ namespace Opc.Ua.Server
         public virtual async ValueTask CloseSessionAsync(NodeId sessionId, CancellationToken cancellationToken = default)
         {
             ISession? session = null;
+            NodeId authenticationToken = NodeId.Null;
 
             // thread safe search for the session.
             foreach (KeyValuePair<NodeId, ISession> current in m_sessions)
             {
                 if (current.Value.Id == sessionId)
                 {
-#pragma warning disable CA2000 // Disposed correctly later
-                    if (!m_sessions.TryRemove(current.Key, out session))
-#pragma warning restore CA2000
-                    {
-                        // found but was already removed by another thread
-                        return;
-                    }
+                    authenticationToken = current.Key;
+                    session = current.Value;
                     break;
                 }
             }
 
-            // close the session if removed.
+            // close the session if found.
             if (session != null)
             {
+                SemaphoreSlim activationLock = m_sessionActivationStates.GetValue(
+                    session,
+                    _ => new SessionActivationState(
+                        default,
+                        SecurityPolicies.None,
+                        MessageSecurityMode.None)).Lock;
+                await activationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+                bool removed = false;
                 try
                 {
+                    await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        if (!m_sessions.TryGetValue(
+                                authenticationToken,
+                                out ISession? currentSession) ||
+                            !ReferenceEquals(currentSession, session) ||
+                            !m_sessions.TryRemove(authenticationToken, out _))
+                        {
+                            return;
+                        }
+                        removed = true;
+                    }
+                    finally
+                    {
+                        m_semaphoreSlim.Release();
+                    }
+
                     // raise session related event.
                     RaiseSessionEvent(session, SessionEventReason.Closing);
 
@@ -630,15 +826,106 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    session.Dispose();
-
-                    // update diagnostics.
-                    lock (m_server.DiagnosticsWriteLock)
+                    try
                     {
-                        m_server.ServerDiagnostics.CurrentSessionCount--;
+                        if (removed)
+                        {
+                            session.Dispose();
+
+                            // update diagnostics.
+                            m_server.UpdateServerDiagnostics(diagnostics =>
+                            {
+                                diagnostics.CurrentSessionCount--;
+                            });
+                        }
+                    }
+                    finally
+                    {
+                        activationLock.Release();
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Supplies the original transfer security state for a Session restored
+        /// by <see cref="RestoreSessionAsync"/>.
+        /// </summary>
+        protected void SetRestoredSessionTransferSecurityState(
+            ISession session,
+            ByteString originalClientChannelCertificate,
+            string securityPolicyUri,
+            MessageSecurityMode securityMode,
+            UserTokenType clientUserTokenType,
+            string? clientUserId)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            if (string.IsNullOrEmpty(securityPolicyUri))
+            {
+                throw new ArgumentException(
+                    "A security policy URI is required.",
+                    nameof(securityPolicyUri));
+            }
+            if (clientUserTokenType is < UserTokenType.Anonymous or
+                > UserTokenType.IssuedToken)
+            {
+                throw new ArgumentOutOfRangeException(nameof(clientUserTokenType));
+            }
+            if ((clientUserTokenType == UserTokenType.Anonymous) !=
+                (clientUserId == null))
+            {
+                throw new ArgumentException(
+                    "Anonymous ClientUserIds must be null and non-anonymous ClientUserIds must be non-null.",
+                    nameof(clientUserId));
+            }
+
+            SessionActivationState state = m_sessionActivationStates.GetValue(
+                session,
+                _ => new SessionActivationState(
+                    originalClientChannelCertificate,
+                    securityPolicyUri,
+                    securityMode));
+            state.OriginalClientChannelCertificate = originalClientChannelCertificate;
+            state.SecurityPolicyUri = securityPolicyUri;
+            state.SecurityMode = securityMode;
+            state.ClientUserTokenType = clientUserTokenType;
+            state.ClientUserId = clientUserId;
+            state.HasClientUserId = true;
+            state.RequiresNewChannelChecks = true;
+        }
+
+        /// <summary>
+        /// Called after activation state has committed and the per-Session
+        /// activation gate has been released.
+        /// </summary>
+        /// <param name="authenticationToken">The Session authentication token.</param>
+        /// <param name="session">The activated Session.</param>
+        /// <param name="serverNonce">The nonce issued by this activation.</param>
+        /// <param name="clientUserTokenType">The activated user token type.</param>
+        /// <param name="clientUserId">
+        /// The identity continuity key of the activated owner, or <c>null</c> when
+        /// the Session is anonymous.
+        /// </param>
+        /// <param name="activationSequence">
+        /// A per-Session sequence number that increases with every successful
+        /// activation. Implementations that persist activation state outside the
+        /// activation gate use it to discard writes that a newer concurrent
+        /// activation has already superseded.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected virtual ValueTask OnSessionActivatedAsync(
+            NodeId authenticationToken,
+            ISession session,
+            ByteString serverNonce,
+            UserTokenType clientUserTokenType,
+            string? clientUserId,
+            long activationSequence,
+            CancellationToken cancellationToken)
+        {
+            return default;
         }
 
         /// <summary>
@@ -702,8 +989,8 @@ namespace Opc.Ua.Server
                 session.ValidateDiagnosticInfo(requestHeader);
 
                 // Lazily reconcile the RoleManager subscription. The
-                // RoleManager may be injected after SessionManager
-                // construction (see IServerInternal.SetRoleManager), so we
+                // RoleManager is bound during server startup, after
+                // SessionManager construction, so we
                 // can't subscribe at startup; the first request that flows
                 // through a fully-initialized server wires it up.
                 EnsureRoleManagerSubscription();
@@ -779,7 +1066,7 @@ namespace Opc.Ua.Server
                     {
                         channelCert = Certificate.FromRawData(rawCert.RawData);
                     }
-                    channelAppUri = session.SessionDiagnostics?.ClientDescription?.ApplicationUri;
+                    channelAppUri = session.ClientApplicationUri;
                 }
                 catch (Exception ex)
                 {
@@ -865,20 +1152,18 @@ namespace Opc.Ua.Server
             OperationContext context,
             IUserIdentity effectiveIdentity)
         {
-            // Part 18 §5.2.8 — restrict the session to the Anonymous role if
-            // the user has MustChangePassword set. The ChangePassword method
-            // is callable by USERNAME sessions regardless of role; once the
-            // password is changed the next ActivateSession will see
-            // MustChangePassword == false and grant the full role set.
+            // Part 18 5.2.8 - the Session "shall have only the Role Anonymous" if
+            // the user has MustChangePassword set, so every other role and any
+            // role-derived privilege of the impersonated identity is discarded
+            // rather than merged. The ChangePassword method is callable by
+            // USERNAME sessions regardless of role; once the password is changed
+            // the next ActivateSession will see MustChangePassword == false and
+            // grant the full role set.
             if (effectiveIdentity.TokenType == UserTokenType.UserName &&
                 !string.IsNullOrEmpty(effectiveIdentity.DisplayName) &&
                 m_server.UserManagement?.MustChangePassword(effectiveIdentity.DisplayName) == true)
             {
-                if (effectiveIdentity is RoleBasedIdentity rbiMustChange)
-                {
-                    return rbiMustChange.WithAdditionalRoles([Role.Anonymous], m_server.NamespaceUris);
-                }
-                return new RoleBasedIdentity(
+                return RoleBasedIdentity.CreateRestricted(
                     effectiveIdentity,
                     [Role.Anonymous],
                     m_server.NamespaceUris);
@@ -1000,7 +1285,7 @@ namespace Opc.Ua.Server
                 // Build a minimal OperationContext to satisfy the
                 // AddMandatoryRoles signature; only ChannelContext is
                 // consulted (for the endpoint).
-                var refreshContext = new OperationContext(
+                using var refreshContext = new OperationContext(
                     new RequestHeader(),
                     secureChannelContext,
                     RequestType.Unknown,
@@ -1052,11 +1337,9 @@ namespace Opc.Ua.Server
         /// event.
         /// </summary>
         /// <remarks>
-        /// <see cref="IServerInternal.SetRoleManager"/> may be called after
-        /// SessionManager construction, and the RoleManager instance can be
-        /// swapped at runtime (e.g. by integrators wiring a persistence
-        /// backend). The subscription is reconciled lazily on each request
-        /// so the wiring works regardless of injection order.
+        /// The RoleManager is bound during server startup, which can happen after
+        /// SessionManager construction. The subscription is reconciled lazily on each
+        /// request so the wiring works regardless of binding order.
         /// </remarks>
         private void EnsureRoleManagerSubscription()
         {
@@ -1216,13 +1499,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Periodically checks if the sessions have timed out.
         /// </summary>
-        private async ValueTask MonitorSessionsAsync(object data)
+        private async ValueTask MonitorSessionsAsync(
+            int sleepCycle,
+            CancellationToken cancellationToken = default)
         {
             try
             {
                 m_logger.ServerSessionMonitorThreadStarted();
-
-                int sleepCycle = Convert.ToInt32(data, CultureInfo.InvariantCulture);
 
                 while (true)
                 {
@@ -1233,15 +1516,18 @@ namespace Opc.Ua.Server
                         if (session.HasExpired)
                         {
                             // update diagnostics.
-                            lock (m_server.DiagnosticsWriteLock)
+                            m_server.UpdateServerDiagnostics(diagnostics =>
                             {
-                                m_server.ServerDiagnostics.SessionTimeoutCount++;
-                            }
+                                diagnostics.SessionTimeoutCount++;
+                            });
 
                             // raise audit event for session closed because of timeout
                             m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
 
-                            await m_server.CloseSessionAsync(null!, session.Id, false)
+                            // Deliberately not cancellable: a close already under way
+                            // must finish so the session is torn down cleanly even when
+                            // shutdown has cancelled the monitor loop.
+                            await m_server.CloseSessionAsync(null!, session.Id, false, CancellationToken.None)
                                 .ConfigureAwait(false);
                         }
                         // if a session had no activity for the last m_minSessionTimeout milliseconds, send a keep alive event.
@@ -1252,12 +1538,26 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    if (m_shutdownEvent.WaitOne(sleepCycle))
+                    if (m_shutdownEvent.WaitOne(0))
                     {
                         m_logger.ServerSessionMonitorThreadExitedNormally();
                         break;
                     }
+
+                    // Asynchronous so the sleep does not park a thread-pool thread for
+                    // the whole cycle, and so shutdown can abandon it immediately.
+                    await m_timeProvider
+                        .Delay(TimeSpan.FromMilliseconds(sleepCycle), cancellationToken)
+                        .ConfigureAwait(false);
                 }
+            }
+            catch (ObjectDisposedException)
+            {
+                m_logger.ServerSessionMonitorThreadExitedNormally();
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                m_logger.ServerSessionMonitorThreadExitedNormally();
             }
             catch (Exception e)
             {
@@ -1270,8 +1570,12 @@ namespace Opc.Ua.Server
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
         private readonly NodeIdDictionary<ISession> m_sessions;
+        private readonly ConditionalWeakTable<ISession, SessionActivationState>
+            m_sessionActivationStates = new();
         private uint m_lastSessionId;
         private readonly ManualResetEvent m_shutdownEvent;
+        private Task? m_monitorWorkerTask;
+        private CancellationTokenSource? m_workerCts;
 
         private readonly int m_minSessionTimeout;
         private readonly int m_maxSessionTimeout;
@@ -1301,6 +1605,52 @@ namespace Opc.Ua.Server
         /// <see cref="EnsureRoleManagerSubscription"/>.
         /// </summary>
         private IRoleManager? m_subscribedRoleManager;
+
+        /// <summary>
+        /// The length of the Session nonces this Server issues in the
+        /// CreateSession and ActivateSession responses.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-4 5.7.2.2 (Table 15) requires this nonce to be between 32 and
+        /// 128 bytes for every SecurityPolicy, so it is deliberately independent of
+        /// the SecureChannel policy nonce length. Deriving it from the policy would
+        /// emit a 16 byte nonce for the legacy Basic128Rsa15 policy, which is below
+        /// the range a conformant Client accepts, and would needlessly generate an
+        /// ephemeral key pair for the ECC policies. The ECC ephemeral key is a
+        /// separate value carried in the AdditionalParameters ECDHKey entry.
+        /// </remarks>
+        private const int kSessionNonceLength = 32;
+
+        private sealed class SessionActivationState
+        {
+            public SessionActivationState(
+                ByteString originalClientChannelCertificate,
+                string securityPolicyUri,
+                MessageSecurityMode securityMode)
+            {
+                OriginalClientChannelCertificate = originalClientChannelCertificate;
+                SecurityPolicyUri = securityPolicyUri;
+                SecurityMode = securityMode;
+            }
+
+            public SemaphoreSlim Lock { get; } = new(1, 1);
+
+            public ByteString OriginalClientChannelCertificate { get; set; }
+
+            public string SecurityPolicyUri { get; set; }
+
+            public MessageSecurityMode SecurityMode { get; set; }
+
+            public UserTokenType ClientUserTokenType { get; set; }
+
+            public string? ClientUserId { get; set; }
+
+            public bool HasClientUserId { get; set; }
+
+            public bool RequiresNewChannelChecks { get; set; }
+
+            public long ActivationSequence { get; set; }
+        }
 
         /// <inheritdoc/>
         public event SessionEventHandler SessionCreated
@@ -1466,7 +1816,7 @@ namespace Opc.Ua.Server
                 return session.ClientCertificate.Thumbprint;
             }
 
-            string? applicationUri = session?.SessionDiagnostics?.ClientDescription?.ApplicationUri;
+            string? applicationUri = session?.ClientApplicationUri;
             if (!string.IsNullOrEmpty(applicationUri))
             {
                 return applicationUri!;

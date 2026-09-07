@@ -39,10 +39,10 @@ namespace Opc.Ua.PubSub.Kafka
     /// Backs the TLS transport surface required by
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/Annex-B.2">
     /// Part 14 Annex B.2 Apache Kafka transport</see>. Unlike the MQTT
-    /// transport, the underlying librdkafka client consumes certificate
-    /// and key material through file-system paths rather than the OPC UA
-    /// certificate store, so this POCO references PEM file locations. No
-    /// private key material is embedded in configuration files.
+    /// transport, the Kafka client consumes certificate and key material
+    /// through file-system paths rather than the OPC UA certificate store,
+    /// so this POCO references PEM file locations. No private key material
+    /// is embedded in configuration files.
     /// </remarks>
     public sealed class KafkaTlsOptions
     {
@@ -66,23 +66,20 @@ namespace Opc.Ua.PubSub.Kafka
         /// <summary>
         /// Path to a PEM file containing the certificate authority (CA)
         /// certificates that form the trust chain used to validate the
-        /// broker certificate. Maps to the librdkafka
-        /// <c>ssl.ca.location</c> property. <see langword="null"/> defers
-        /// to the platform / runtime default trust store.
+        /// broker certificate. <see langword="null"/> defers to the
+        /// platform / runtime default trust store.
         /// </summary>
         public string? CaCertificatePath { get; set; }
 
         /// <summary>
         /// Path to a PEM file containing the client certificate presented
-        /// during the TLS handshake for mutual TLS. Maps to the
-        /// librdkafka <c>ssl.certificate.location</c> property.
+        /// during the TLS handshake for mutual TLS.
         /// </summary>
         public string? ClientCertificatePath { get; set; }
 
         /// <summary>
         /// Path to a PEM file containing the client private key that
-        /// matches <see cref="ClientCertificatePath"/>. Maps to the
-        /// librdkafka <c>ssl.key.location</c> property.
+        /// matches <see cref="ClientCertificatePath"/>.
         /// </summary>
         public string? ClientKeyPath { get; set; }
 

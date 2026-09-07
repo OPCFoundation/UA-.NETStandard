@@ -66,7 +66,7 @@ namespace Quickstarts.Servers
                         Timestamp = DateTime.UtcNow,
                         TimeoutHint = 10000
                     };
-                    var context = new OperationContext(requestHeader, null, RequestType.Call, RequestLifetime.None);
+                    using var context = new OperationContext(requestHeader, null, RequestType.Call, RequestLifetime.None);
                     (ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) = await server.CurrentInstance.NodeManager.CallAsync(
                         context,
                         methodsToCall)

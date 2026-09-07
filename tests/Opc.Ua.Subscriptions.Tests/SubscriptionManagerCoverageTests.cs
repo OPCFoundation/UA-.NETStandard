@@ -265,7 +265,8 @@ namespace Opc.Ua.Subscriptions.Tests
             SubscriptionManager manager = CreateManager(context);
             await using (manager.ConfigureAwait(false))
             {
-                await manager.CompleteAsync(999u, CancellationToken.None).ConfigureAwait(false);
+                await manager.CompleteAsync(new StubManagedSubscription { Id = 999u }, 999u,
+                    CancellationToken.None).ConfigureAwait(false);
                 Assert.That(manager.Count, Is.Zero);
             }
             Assert.That(context.PublishCallCount, Is.Zero);
@@ -500,7 +501,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 manager.Add(handler, SinglePartitionOptions());
                 Assert.That(manager.Count, Is.EqualTo(1));
 
-                await manager.CompleteAsync(1u, CancellationToken.None).ConfigureAwait(false);
+                await manager.CompleteAsync(subscription, 1u, CancellationToken.None).ConfigureAwait(false);
 
                 Assert.That(manager.Count, Is.Zero);
                 Assert.That(manager.Items, Is.Empty);
@@ -582,6 +583,8 @@ namespace Opc.Ua.Subscriptions.Tests
         /// </summary>
         private sealed class StubSubscriptionManagerContext : ISubscriptionManagerContext
         {
+            public int SessionSubscriptionCount => 0;
+
             public int CreateSubscriptionCallCount { get; private set; }
 
             public IMessageAckQueue? LastCreateQueue { get; private set; }
@@ -638,6 +641,21 @@ namespace Opc.Ua.Subscriptions.Tests
             {
                 return new ValueTask<DeleteSubscriptionsResponse>(
                     new DeleteSubscriptionsResponse());
+            }
+
+            /// <summary>
+            /// Reports that no subscription in this test is owned by the session
+            /// outside the manager's registry, so every identifier falls through
+            /// to the manager's own handling.
+            /// </summary>
+            public bool TryDispatchToSessionSubscription(
+                uint subscriptionId,
+                NotificationMessage message,
+                ArrayOf<uint> availableSequenceNumbers,
+                ArrayOf<string> stringTable,
+                bool moreNotifications)
+            {
+                return false;
             }
 
             private int m_publishCallCount;

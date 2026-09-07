@@ -3108,15 +3108,18 @@ namespace Opc.Ua.Sample
         /// <param name="monitoredItems">The set of monitoring items to update.</param>
         /// <param name="processedItems">The list of bool with items that were already processed.</param>
         /// <param name="errors">Any errors.</param>
+        /// <param name="transferOptions">Options that describe the transfer execution.</param>
         public virtual void TransferMonitoredItems(
             OperationContext context,
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
-            IList<ServiceResult> errors)
+            IList<ServiceResult> errors,
+            MonitoredItemTransferOptions transferOptions)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IList<IMonitoredItem> transferredItems = [];
+            bool deferInitialValues = transferOptions.DeferInitialValues;
             lock (Lock)
             {
                 for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -3138,7 +3141,7 @@ namespace Opc.Ua.Sample
                     processedItems[ii] = true;
                     transferredItems.Add(monitoredItems[ii]);
 
-                    if (sendInitialValues)
+                    if (sendInitialValues && !deferInitialValues)
                     {
                         monitoredItems[ii].SetupResendDataTrigger();
                     }

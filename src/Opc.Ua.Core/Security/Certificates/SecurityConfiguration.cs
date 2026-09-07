@@ -69,8 +69,26 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public void Validate(ITelemetryContext telemetry)
         {
+            if (m_rejectedCertificateTypes.Count > 0)
+            {
+                ILogger<SecurityConfiguration> logger = telemetry
+                    .CreateLogger<SecurityConfiguration>();
+                logger.UnsupportedApplicationCertificateTypes(
+                    m_rejectedCertificateTypes.Count,
+                    string.Join(", ", m_rejectedCertificateTypes));
+            }
+
             if (m_applicationCertificates.IsNull || m_applicationCertificates.Count == 0)
             {
+                if (m_rejectedCertificateTypes.Count > 0)
+                {
+                    throw ServiceResultException.ConfigurationError(
+                        "No supported application certificate configured: {0} certificate identifier(s) " +
+                        "were rejected because their CertificateType is not supported ({1}).",
+                        m_rejectedCertificateTypes.Count,
+                        string.Join(", ", m_rejectedCertificateTypes));
+                }
+
                 throw ServiceResultException.ConfigurationError(
                     "ApplicationCertificate must be specified.");
             }
@@ -135,10 +153,9 @@ namespace Opc.Ua
             }
             try
             {
-                ICertificateStore store = storeIdentifier!.OpenStore(telemetry) ??
+                using ICertificateStore store = storeIdentifier!.OpenStore(telemetry) ??
                     throw ServiceResultException.ConfigurationError(
                         "Failed to open {0} store", storeName);
-                store.Close();
             }
             catch (Exception ex)
             {
@@ -279,80 +296,11 @@ namespace Opc.Ua
             var securityPolicies = new List<string> { SecurityPolicies.None };
             foreach (CertificateIdentifier applicationCertificate in m_applicationCertificates)
             {
-                if (applicationCertificate.CertificateType.IsNull)
-                {
-                    securityPolicies.Add(SecurityPolicies.Basic256Sha256);
-                    securityPolicies.Add(SecurityPolicies.Aes128_Sha256_RsaOaep);
-                    securityPolicies.Add(SecurityPolicies.Aes256_Sha256_RsaPss);
-                    securityPolicies.Add(SecurityPolicies.RSA_DH_AesGcm);
-                    securityPolicies.Add(SecurityPolicies.RSA_DH_ChaChaPoly);
-                    continue;
-                }
-                if (applicationCertificate.CertificateType.TryGetValue(out uint identifier))
-                {
-                    switch (identifier)
-                    {
-                        case ObjectTypes.EccNistP256ApplicationCertificateType:
-                            securityPolicies.Add(SecurityPolicies.ECC_nistP256);
-                            securityPolicies.Add(SecurityPolicies.ECC_nistP256_AesGcm);
-                            securityPolicies.Add(SecurityPolicies.ECC_nistP256_ChaChaPoly);
-                            break;
-                        case ObjectTypes.EccNistP384ApplicationCertificateType:
-                            securityPolicies.Add(SecurityPolicies.ECC_nistP256);
-                            securityPolicies.Add(SecurityPolicies.ECC_nistP256_AesGcm);
-                            securityPolicies.Add(SecurityPolicies.ECC_nistP256_ChaChaPoly);
-                            securityPolicies.Add(SecurityPolicies.ECC_nistP384);
-                            securityPolicies.Add(SecurityPolicies.ECC_nistP384_AesGcm);
-                            securityPolicies.Add(SecurityPolicies.ECC_nistP384_ChaChaPoly);
-                            break;
-                        case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
-                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1);
-                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1_AesGcm);
-                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly);
-                            break;
-                        case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
-                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1);
-                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1_AesGcm);
-                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly);
-                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP384r1);
-                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP384r1_AesGcm);
-                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly);
-                            break;
-                        case ObjectTypes.EccCurve25519ApplicationCertificateType:
-                            securityPolicies.Add(SecurityPolicies.ECC_curve25519);
-                            securityPolicies.Add(SecurityPolicies.ECC_curve25519_AesGcm);
-                            securityPolicies.Add(SecurityPolicies.ECC_curve25519_ChaChaPoly);
-                            break;
-                        case ObjectTypes.EccCurve448ApplicationCertificateType:
-                            securityPolicies.Add(SecurityPolicies.ECC_curve448);
-                            securityPolicies.Add(SecurityPolicies.ECC_curve448_AesGcm);
-                            securityPolicies.Add(SecurityPolicies.ECC_curve448_ChaChaPoly);
-                            break;
-                        case ObjectTypes.RsaMinApplicationCertificateType:
-                            securityPolicies.Add(SecurityPolicies.Basic128Rsa15);
-                            securityPolicies.Add(SecurityPolicies.Basic256);
-                            break;
-                        case ObjectTypes.ApplicationCertificateType:
-                        case ObjectTypes.RsaSha256ApplicationCertificateType:
-                            securityPolicies.Add(SecurityPolicies.Basic256Sha256);
-                            securityPolicies.Add(SecurityPolicies.Aes128_Sha256_RsaOaep);
-                            securityPolicies.Add(SecurityPolicies.Aes256_Sha256_RsaPss);
-                            securityPolicies.Add(SecurityPolicies.RSA_DH_AesGcm);
-                            securityPolicies.Add(SecurityPolicies.RSA_DH_ChaChaPoly);
-                            goto case ObjectTypes.RsaMinApplicationCertificateType;
-                    }
-                }
+                securityPolicies.AddRange(
+                    SecurityPolicies.Default.GetSupportedUrisForCertificateType(applicationCertificate.CertificateType));
             }
-            // filter based on platform support
-            var result = new List<string>();
-            foreach (string securityPolicyUri in securityPolicies.Distinct())
-            {
-                if (SecurityPolicies.GetDisplayName(securityPolicyUri) != null)
-                {
-                    result.Add(securityPolicyUri);
-                }
-            }
-            return result;
+
+            return securityPolicies.Distinct().ToArrayOf();
         }
     }
 
@@ -365,8 +313,15 @@ namespace Opc.Ua
             Message = "Failed to open {StoreName} store")]
         public static partial void SecurityConfigurationLogMessage0(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string storeName);
-    }
 
+        [LoggerMessage(EventId = CoreEventIds.SecurityConfiguration + 1, Level = LogLevel.Warning,
+            Message = "{Count} application certificate identifier(s) were dropped from " +
+                "ApplicationCertificates because their CertificateType is not supported: {CertificateTypes}")]
+        public static partial void UnsupportedApplicationCertificateTypes(
+            this ILogger logger,
+            int count,
+            string certificateTypes);
+    }
 }

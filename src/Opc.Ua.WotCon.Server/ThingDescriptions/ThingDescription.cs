@@ -75,6 +75,49 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         /// <summary>WoT actions keyed by action name (OPC 10100-1 §6.3.9).</summary>
         [JsonPropertyName("actions")]
         public Dictionary<string, WotAction>? Actions { get; set; }
+
+        /// <summary>WoT events keyed by event name (OPC 10100-1 §6.3.10).</summary>
+        [JsonPropertyName("events")]
+        public Dictionary<string, WotEvent>? Events { get; set; }
+    }
+
+    /// <summary>
+    /// W3C WoT event definition. An event affordance surfaces as an OPC UA
+    /// EventType (a <c>BaseEventType</c> subtype) whose event fields are
+    /// derived from the event's <c>data</c> schema per OPC 10100-1 §6.3.10.
+    /// </summary>
+    public sealed class WotEvent
+    {
+        /// <summary>Optional title.</summary>
+        [JsonPropertyName("title")]
+        public string? Title { get; set; }
+
+        /// <summary>Optional description.</summary>
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
+
+        /// <summary>
+        /// Schema of the event payload. Each member becomes an event field
+        /// on the materialized EventType.
+        /// </summary>
+        [JsonPropertyName("data")]
+        public WotActionSchema? Data { get; set; }
+
+        /// <summary>
+        /// Optional OPC UA ConditionType BrowseName for an alarm/condition event.
+        /// </summary>
+        [JsonPropertyName("uav:conditionType")]
+        public string? ConditionType { get; set; }
+
+        /// <summary>
+        /// Definitive OPC UA ConditionType NodeId for an alarm/condition event.
+        /// </summary>
+        [JsonPropertyName("uav:conditionTypeId")]
+        public string? ConditionTypeId { get; set; }
+
+        /// <summary>Protocol binding forms.</summary>
+        [JsonPropertyName("forms")]
+        public List<JsonElement>? Forms { get; set; }
     }
 
     /// <summary>
@@ -157,6 +200,18 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         /// <summary>Output JSON schema. Same rules as <see cref="Input"/>.</summary>
         [JsonPropertyName("output")]
         public WotActionSchema? Output { get; set; }
+
+        /// <summary>
+        /// Optional OPC UA Condition Method this action invokes.
+        /// </summary>
+        [JsonPropertyName("uav:conditionAction")]
+        public string? ConditionAction { get; set; }
+
+        /// <summary>
+        /// Optional event affordance whose Condition this action acts on.
+        /// </summary>
+        [JsonPropertyName("uav:actsOn")]
+        public string? ActsOn { get; set; }
 
         /// <summary>Forms — protocol-binding specific endpoints.</summary>
         [JsonPropertyName("forms")]

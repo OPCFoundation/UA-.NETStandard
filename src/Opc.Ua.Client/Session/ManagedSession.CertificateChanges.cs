@@ -170,11 +170,15 @@ namespace Opc.Ua.Client
             {
                 case CertificateChangeKind.ApplicationCertificateUpdated:
                     // Own-certificate rotation always needs reload +
-                    // reconnect — no validation can save it. Fire-and-
-                    // forget on the thread pool; the inner session's
-                    // reconnect lock serialises with any in-flight
-                    // ReconnectAsync (see HandleApplicationCertificateUpdatedAsync).
-                    _ = Task.Run(() => HandleApplicationCertificateUpdatedAsync(evt));
+                    // reconnect — no validation can save it. Scheduled on the
+                    // scope so the reload is awaited when the session shuts
+                    // down; the inner session's reconnect lock serialises with
+                    // any in-flight ReconnectAsync (see
+                    // HandleApplicationCertificateUpdatedAsync).
+                    m_backgroundWork.Run(
+                        nameof(HandleApplicationCertificateUpdatedAsync),
+                        async _ => await HandleApplicationCertificateUpdatedAsync(evt)
+                            .ConfigureAwait(false));
                     break;
                 case CertificateChangeKind.TrustListUpdated:
                 case CertificateChangeKind.CrlUpdated:

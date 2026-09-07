@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://test.org/UA/DeclarationBackedMethodConsumer/</Uri>
+    <Uri>http://test.org/UA/DeclarationBackedMethod/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://test.org/UA/DeclarationBackedMethodConsumer/"
+           PublicationDate="2026-07-25T00:00:00Z"
+           Version="1.0.0">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/"
+                     PublicationDate="2024-01-01T00:00:00Z"
+                     Version="1.05.03" />
+      <RequiredModel ModelUri="http://test.org/UA/DeclarationBackedMethod/"
+                     PublicationDate="2024-01-01T00:00:00Z"
+                     Version="1.0.0" />
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+  </Aliases>
+
+  <UAObjectType NodeId="ns=1;i=3000" BrowseName="1:DerivedControllerType">
+    <DisplayName>DerivedControllerType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=2;i=1000</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=3001</Reference>
+    </References>
+  </UAObjectType>
+
+  <UAMethod NodeId="ns=1;i=3001" BrowseName="2:Adjust" ParentNodeId="ns=1;i=3000">
+    <DisplayName>Adjust</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAMethod>
+</UANodeSet>

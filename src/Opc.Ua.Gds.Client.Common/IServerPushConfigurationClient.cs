@@ -87,8 +87,11 @@ namespace Opc.Ua.Gds.Client
         /// <summary>Raised on every keep-alive callback.</summary>
         event KeepAliveEventHandler? KeepAlive;
 
-        /// <summary>Raised when monitored item notifications change server status.</summary>
-        event MonitoredItemNotificationEventHandler? ServerStatusChanged;
+        /// <summary>
+        /// Raised when the state of the connected server changes, and once for
+        /// the state observed by the first keep-alive after a connect.
+        /// </summary>
+        event EventHandler<ServerStatusChangedEventArgs>? ServerStatusChanged;
 
         /// <summary>Clears the cached <see cref="AdminCredentials"/>.</summary>
         void ResetCredentials();
@@ -224,8 +227,14 @@ namespace Opc.Ua.Gds.Client
             NodeId certificateTypeId,
             CancellationToken ct = default);
 
-        /// <summary>Lists the certificates configured on the server.</summary>
-        /// <remarks>Calls the <c>GetCertificates</c> method on <c>ServerConfigurationType</c> (OPC 10000-12 §7.10.7).</remarks>
+        /// <summary>
+        /// Lists the certificates configured on the server.
+        /// </summary>
+        /// <remarks>
+        /// Calls the <c>GetCertificates</c> method on <c>ServerConfigurationType</c>
+        /// (OPC 10000-12 §7.10.8). Passing <see cref="NodeId.Null"/> selects the
+        /// default application group.
+        /// </remarks>
         ValueTask<(ArrayOf<NodeId> certificateTypeIds, ArrayOf<ByteString> certificates)> GetCertificatesAsync(
             NodeId certificateGroupId,
             CancellationToken ct = default);

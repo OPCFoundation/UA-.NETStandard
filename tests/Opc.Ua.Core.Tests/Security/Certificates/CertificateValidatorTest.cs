@@ -2237,6 +2237,75 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
+        /// A certificate whose subject or issuer is an empty distinguished name
+        /// identifies nothing (RFC 5280 §4.1.2.4), so it is rejected with the
+        /// non-suppressible Bad_CertificateInvalid on every target framework -
+        /// even when it is trusted, auto-accept is on and the AcceptError
+        /// callback approves everything.
+        /// </summary>
+        [Test]
+        public async Task EmptyDistinguishedNameIsRejectedAndNotSuppressibleAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            using Certificate emptyDn = LoadFirstEmptyDnCertificate();
+            Assert.That(
+                DistinguishedNameUtils.HasEmptyDistinguishedName(emptyDn),
+                Is.True,
+                "The asset must carry an empty distinguished name.");
+
+            using var validator = TemporaryCertificateManager.Create(telemetry);
+
+            // Trusting it must not help: the certificate is structurally unusable.
+            await validator.TrustedStore.AddAsync(emptyDn).ConfigureAwait(false);
+
+            CertificateManager certValidator = validator.Update();
+            certValidator.AutoAcceptUntrustedCertificates = true;
+            var approver = new CertValidationApprover(
+                [
+                    StatusCodes.BadCertificateInvalid,
+                    StatusCodes.BadCertificateUntrusted
+                ]);
+            certValidator.AcceptError = approver.AcceptError;
+
+            CertificateValidationResult result = await certValidator
+                .ValidateAsync(emptyDn, ct: CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.IsValid, Is.False);
+                Assert.That(
+                    result.StatusCode,
+                    Is.EqualTo(StatusCodes.BadCertificateInvalid));
+                Assert.That(
+                    approver.AcceptedCount,
+                    Is.Zero,
+                    "Bad_CertificateInvalid must never be offered for suppression.");
+            });
+
+            certValidator.AcceptError = null;
+        }
+
+        /// <summary>
+        /// Loads the first certificate of the empty distinguished name asset.
+        /// </summary>
+        private static Certificate LoadFirstEmptyDnCertificate()
+        {
+            string path = Opc.Ua.Tests.TestUtils
+                .EnumerateTestAssets("Test_chain_empty_dn.pem")
+                .First();
+            string text = System.IO.File.ReadAllText(path);
+            const string begin = "-----BEGIN CERTIFICATE-----";
+            const string end = "-----END CERTIFICATE-----";
+            int start = text.IndexOf(begin, StringComparison.Ordinal) + begin.Length;
+            int stop = text.IndexOf(end, StringComparison.Ordinal);
+            byte[] der = Convert.FromBase64String(
+                new string([.. text[start..stop].Where(c => !char.IsWhiteSpace(c))]));
+            return Certificate.FromRawData(der);
+        }
+
+        /// <summary>
         /// Verify the issuer KeyUsage helper enforces the CA KeyUsage required
         /// by OPC 10000-6 §6.2.4 Table 52 (keyCertSign and cRLSign) and treats
         /// an absent / empty KeyUsage as non-compliant (issue #3944).

@@ -56,7 +56,8 @@ namespace Opc.Ua.Client
     /// delegated to the inner session.
     /// </para>
     /// </remarks>
-    public partial class ManagedSession : IManagedSession
+    public partial class ManagedSession : IManagedSession,
+        ModelChange.INamespaceTableRefresher
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedSession"/>
@@ -231,7 +232,8 @@ namespace Opc.Ua.Client
                 {
                     ReturnDiagnostics = dsf.ReturnDiagnostics,
                     SubscriptionEngineFactory = engineFactory,
-                    TimeProvider = timeProvider ?? dsf.TimeProvider
+                    TimeProvider = timeProvider ?? dsf.TimeProvider,
+                    SecurityPolicyRegistry = dsf.SecurityPolicyRegistry
                 };
             }
 
@@ -257,6 +259,7 @@ namespace Opc.Ua.Client
                 connectGate)
             {
                 m_engineFactory = engineFactory,
+                m_securityPolicies = ResolveSecurityPolicies(sessionFactory),
                 m_reverseConnectManager = reverseConnectManager
             };
 
@@ -800,16 +803,47 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// A positive <paramref name="timeout"/> bounds the wait for the
+        /// connection state machine to settle in
+        /// <see cref="ConnectionState.Closed"/>; when it expires the call
+        /// returns <see cref="StatusCodes.BadTimeout"/> and the close continues
+        /// in the background.
+        /// </remarks>
         public async Task<StatusCode> CloseAsync(
             int timeout,
             bool closeChannel,
             CancellationToken ct = default)
         {
+            // Picked up by HandleCloseSessionAsync, which performs the actual
+            // close on the worker of the state machine.
+            m_closeTimeout = timeout;
+            m_closeChannel = closeChannel;
+
             StateMachine.RequestClose();
 
-            await StateMachine.WaitForClosedAsync(ct).ConfigureAwait(false);
+            if (timeout > 0)
+            {
+                using var bounded = CancellationTokenSource
+                    .CreateLinkedTokenSource(ct);
+                bounded.CancelAfter(timeout);
+                try
+                {
+                    await StateMachine.WaitForClosedAsync(bounded.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                    when (!ct.IsCancellationRequested)
+                {
+                    return StatusCodes.BadTimeout;
+                }
+            }
+            else
+            {
+                await StateMachine.WaitForClosedAsync(ct).ConfigureAwait(false);
+            }
 
-            return StatusCodes.Good;
+            return m_closeResult;
         }
 
         /// <inheritdoc/>
@@ -932,18 +966,12 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<StatusCode> CloseAsync(
+        public Task<StatusCode> CloseAsync(
             CancellationToken ct = default)
         {
-            StateMachine.RequestClose();
-            Session? session = m_session;
-            if (session != null)
-            {
-                return await session.CloseAsync(ct)
-                    .ConfigureAwait(false);
-            }
-
-            return StatusCodes.Good;
+            // Both overloads close through the state machine so that they
+            // report the same status and leave the machine in the same state.
+            return CloseAsync(0, closeChannel: true, ct);
         }
 
         /// <inheritdoc/>
@@ -1037,7 +1065,8 @@ namespace Opc.Ua.Client
                                 SessionFactory.Telemetry,
                                 SessionFactory.ReturnDiagnostics,
                                 m_timeProvider,
-                                m_engineFactory);
+                                m_engineFactory,
+                                m_securityPolicies);
                         }
 
                         session = (Session)await reverseFactory.CreateAsync(
@@ -1070,6 +1099,7 @@ namespace Opc.Ua.Client
                             m_preferredLocales,
                             m_engineFactory,
                             m_timeProvider,
+                            m_securityPolicies,
                             ct).ConfigureAwait(false);
                     }
                     else
@@ -1155,6 +1185,17 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
+            Session? session = m_session;
+            if (session == null)
+            {
+                // Nothing to reactivate: the initial connect failed before it
+                // created an inner session, and the state machine went straight
+                // from Connecting to Reconnecting. Run a full connect so the
+                // reconnect policy retries it. Reporting Good instead would
+                // move the state machine to Connected with no inner session.
+                return await HandleConnectAsync(ct).ConfigureAwait(false);
+            }
+
             try
             {
                 m_logger.ManagedSessionReconnecting();
@@ -1162,57 +1203,53 @@ namespace Opc.Ua.Client
                 using (await m_serviceLock.WriterLockAsync(ct)
                     .ConfigureAwait(false))
                 {
-                    Session? session = m_session;
-                    if (session != null)
+                    try
                     {
-                        try
+                        await session.ReconnectAsync(
+                                budget,
+                                ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException sre) when (
+                        sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
+                        session.ManagedChannel?.State is ChannelState.Closed or ChannelState.Faulted)
+                    {
+                        ConfiguredEndpoint? alternateEndpoint =
+                            SelectNextNetworkEndpoint(ConfiguredEndpoint);
+                        if (alternateEndpoint == null)
                         {
-                            await session.ReconnectAsync(
-                                    budget,
-                                    ct)
-                                .ConfigureAwait(false);
+                            m_logger.ManagedSessionManagedChannelFaultedRecreatingSession(sre);
                         }
-                        catch (ServiceResultException sre) when (
-                            sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
-                            session.ManagedChannel?.State is ChannelState.Closed or ChannelState.Faulted)
+                        else
                         {
-                            ConfiguredEndpoint? alternateEndpoint =
-                                SelectNextNetworkEndpoint(ConfiguredEndpoint);
-                            if (alternateEndpoint == null)
-                            {
-                                m_logger.ManagedSessionManagedChannelFaultedRecreatingSession(sre);
-                            }
-                            else
-                            {
-                                m_logger.ManagedSessionManagedChannelFaultedRecreatingSession2(sre);
-                            }
-                            await session.RecreateInPlaceAsync(
-                                    endpoint: alternateEndpoint,
-                                    budget: budget,
-                                    ct: ct)
-                                .ConfigureAwait(false);
+                            m_logger.ManagedSessionManagedChannelFaultedRecreatingSession2(sre);
                         }
-                        catch (ServiceResultException sre) when (
-                            RequiresSessionRecreate(sre.StatusCode))
-                        {
-                            // The server-side session can no longer be reactivated
-                            // by a plain reconnect: e.g. under load the server
-                            // processed an ActivateSession (rotating its nonce) but
-                            // the response was lost, so every subsequent reconnect
-                            // signs the now-stale nonce and is rejected with
-                            // BadApplicationSignatureInvalid forever. Fall back to a
-                            // fresh CreateSession/ActivateSession, which establishes
-                            // a new nonce and recovers the session instead of
-                            // looping on the unrecoverable reactivate.
-                            m_logger.ManagedSessionReconnectRejectedStatusRecreatingSession(
-                                sre,
-                                sre.StatusCode);
-                            await session.RecreateInPlaceAsync(
-                                    endpoint: null,
-                                    budget: budget,
-                                    ct: ct)
-                                .ConfigureAwait(false);
-                        }
+                        await session.RecreateInPlaceAsync(
+                                endpoint: alternateEndpoint,
+                                budget: budget,
+                                ct: ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException sre) when (
+                        RequiresSessionRecreate(sre.StatusCode))
+                    {
+                        // The server-side session can no longer be reactivated
+                        // by a plain reconnect: e.g. under load the server
+                        // processed an ActivateSession (rotating its nonce) but
+                        // the response was lost, so every subsequent reconnect
+                        // signs the now-stale nonce and is rejected with
+                        // BadApplicationSignatureInvalid forever. Fall back to a
+                        // fresh CreateSession/ActivateSession, which establishes
+                        // a new nonce and recovers the session instead of
+                        // looping on the unrecoverable reactivate.
+                        m_logger.ManagedSessionReconnectRejectedStatusRecreatingSession(
+                            sre,
+                            sre.StatusCode);
+                        await session.RecreateInPlaceAsync(
+                                endpoint: null,
+                                budget: budget,
+                                ct: ct)
+                            .ConfigureAwait(false);
                     }
                 }
 
@@ -1273,6 +1310,8 @@ namespace Opc.Ua.Client
         private static bool RequiresSessionRecreate(StatusCode statusCode)
         {
             return statusCode == StatusCodes.BadApplicationSignatureInvalid ||
+                statusCode == StatusCodes.BadSecurityChecksFailed ||
+                statusCode == StatusCodes.BadIdentityChangeNotSupported ||
                 statusCode == StatusCodes.BadSessionIdInvalid ||
                 statusCode == StatusCodes.BadSessionClosed ||
                 statusCode == StatusCodes.BadSessionNotActivated ||
@@ -1387,16 +1426,27 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    await session
-                        .CloseAsync(ct)
+                    m_closeResult = await session
+                        .CloseAsync(m_closeTimeout, m_closeChannel, ct)
                         .ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
                     m_logger.ManagedSessionSessionCloseFailed(ex);
+                    m_closeResult = StatusCodes.Bad;
                 }
 
-                session.Dispose();
+                // Disposing a session closes and disposes its transport
+                // channel, so the channel has to be released first when the
+                // caller asked to keep it open.
+                if (m_closeChannel)
+                {
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    await session.DisposeKeepingChannelAsync().ConfigureAwait(false);
+                }
             }
         }
 
@@ -1797,6 +1847,18 @@ namespace Opc.Ua.Client
             cts?.Cancel();
         }
 
+        /// <summary>
+        /// Returns the security policy registry the session factory was
+        /// composed with, so a policy the application contributed through
+        /// <c>AddSecurityPolicy</c> also reaches the sessions this managed
+        /// session creates and re-creates.
+        /// </summary>
+        private static ISecurityPolicyRegistry? ResolveSecurityPolicies(
+            ISessionFactory sessionFactory)
+        {
+            return (sessionFactory as ISecurityPolicyRegistryProvider)?.SecurityPolicyRegistry;
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -1847,6 +1909,11 @@ namespace Opc.Ua.Client
             UnsubscribeCertificateChanges();
             await StopRevalidationLoopAsync().ConfigureAwait(false);
 
+            // After unsubscribing (no new work can arrive) and before the inner
+            // session goes away: a certificate reload already scheduled
+            // reconnects through it.
+            await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
+
             // Tear down streaming subscription and model change tracker
             // before closing the session so any in-flight publish work
             // completes against a still-valid session.
@@ -1863,7 +1930,7 @@ namespace Opc.Ua.Client
                 UnwireSessionEvents(session);
                 try
                 {
-                    await session.CloseAsync(default)
+                    await session.DisposeAsync()
                         .ConfigureAwait(false);
                 }
                 catch (Exception ex)
@@ -1871,7 +1938,6 @@ namespace Opc.Ua.Client
                     m_logger.ManagedSessionDisposeCloseFailed(ex);
                 }
 
-                session.Dispose();
             }
 
             GC.SuppressFinalize(this);
@@ -1937,6 +2003,7 @@ namespace Opc.Ua.Client
         private ReverseConnectManager? m_reverseConnectManager;
         private readonly IClientConnectGate? m_connectGate;
         private ISubscriptionEngineFactory? m_engineFactory;
+        private ISecurityPolicyRegistry? m_securityPolicies;
         private int m_channelReconnectInProgress;
         private ServerRedundancyInfo? m_redundancyInfo;
         private readonly Lock m_identityRefreshLock = new();
@@ -1945,11 +2012,16 @@ namespace Opc.Ua.Client
         // TODO: move ManagedSession to async-only disposal.
         private CancellationTokenSource? m_identityRefreshCancellation;
 #pragma warning restore CA2213
+        private readonly BackgroundTaskScope m_backgroundWork =
+            new(nameof(ManagedSession), AmbientMessageContext.Telemetry);
         private Task? m_identityRefreshTask;
         private TaskCompletionSource<object?>? m_identityRefreshAttemptCompletion;
         private long m_identityRefreshAttemptVersion;
         private long m_identityRefreshCompletedVersion;
         private long m_identityRefreshObservedVersion;
+        private int m_closeTimeout;
+        private bool m_closeChannel = true;
+        private StatusCode m_closeResult = StatusCodes.Good;
         private int m_disposed;
     }
 

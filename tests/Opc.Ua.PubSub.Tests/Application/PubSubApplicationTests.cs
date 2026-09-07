@@ -30,8 +30,11 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.DataSets;
+using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Tests.Application
@@ -96,6 +99,136 @@ namespace Opc.Ua.PubSub.Tests.Application
             {
                 Assert.Pass();
             }
+        }
+
+        [Test]
+        public async Task BuildWithEventSamplerCreatesEventPublishedDataSetAsync()
+        {
+            var eventSource = new PublishedEventsDataType
+            {
+                EventNotifier = new NodeId("notifier", 1),
+                SelectedFields =
+                [
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType
+                    }
+                ]
+            };
+            var publishedDataSet = new PublishedDataSetDataType
+            {
+                Name = "events",
+                DataSetMetaData = new DataSetMetaDataType
+                {
+                    Fields = [new FieldMetaData { Name = "Message" }]
+                },
+                DataSetSource = new ExtensionObject(eventSource)
+            };
+            var configuration = new PubSubConfigurationDataType
+            {
+                PublishedDataSets = [publishedDataSet],
+                Connections =
+                [
+                    new PubSubConnectionDataType
+                    {
+                        Name = "connection",
+                        TransportProfileUri = Profiles.PubSubUdpUadpTransport,
+                        Address = new ExtensionObject(
+                            new NetworkAddressUrlDataType
+                            {
+                                Url = "opc.udp://localhost:4840"
+                            }),
+                        WriterGroups =
+                        [
+                            new WriterGroupDataType
+                            {
+                                Name = "group",
+                                WriterGroupId = 1,
+                                PublishingInterval = 1_000,
+                                SecurityMode = MessageSecurityMode.None,
+                                DataSetWriters =
+                                [
+                                    new DataSetWriterDataType
+                                    {
+                                        Name = "writer",
+                                        DataSetWriterId = 1,
+                                        DataSetName = publishedDataSet.Name
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            };
+            var source = new Mock<IPublishedDataSetSource>();
+            source
+                .Setup(s => s.BuildMetaData())
+                .Returns(publishedDataSet.DataSetMetaData);
+            source
+                .As<IEventSampler>()
+                .SetupGet(s => s.Name)
+                .Returns(publishedDataSet.Name);
+            var transportFactory = new Mock<IPubSubTransportFactory>();
+            transportFactory
+                .SetupGet(f => f.TransportProfileUri)
+                .Returns(Profiles.PubSubUdpUadpTransport);
+            await using IPubSubApplication app =
+                new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+                    .WithApplicationId("event-source-test")
+                    .UseConfiguration(configuration)
+                    .AddDataSetSource("events", source.Object)
+                    .UseAllStandardEncoders()
+                    .AddTransportFactory(transportFactory.Object)
+                    .Build();
+
+            IPublishedDataSet runtimeDataSet =
+                app.Connections[0].WriterGroups[0].DataSetWriters[0].PublishedDataSet;
+
+            Assert.That(runtimeDataSet, Is.TypeOf<EventPublishedDataSet>());
+        }
+
+        [Test]
+        public async Task StartAsyncWhenConnectionEnableFailsPropagatesTransportFailureAsync()
+        {
+            var expected = new NotSupportedException("transport unavailable");
+            var transportFactory = new Mock<IPubSubTransportFactory>();
+            transportFactory
+                .SetupGet(f => f.TransportProfileUri)
+                .Returns(Profiles.PubSubUdpUadpTransport);
+            transportFactory
+                .Setup(f => f.Create(
+                    It.IsAny<PubSubConnectionDataType>(),
+                    It.IsAny<ITelemetryContext>(),
+                    It.IsAny<TimeProvider>()))
+                .Throws(expected);
+
+            await using IPubSubApplication app =
+                new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+                    .WithApplicationId("transport-failure-test")
+                    .UseConfiguration(new PubSubConfigurationDataType
+                    {
+                        Connections =
+                        [
+                            new PubSubConnectionDataType
+                            {
+                                Name = "failing",
+                                TransportProfileUri = Profiles.PubSubUdpUadpTransport,
+                                Address = new ExtensionObject(new NetworkAddressUrlDataType
+                                {
+                                    Url = "opc.udp://239.0.0.1:49322"
+                                })
+                            }
+                        ],
+                        PublishedDataSets = []
+                    })
+                    .UseAllStandardEncoders()
+                    .AddTransportFactory(transportFactory.Object)
+                    .Build();
+
+            Assert.That(
+                async () => await app.StartAsync(CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<NotSupportedException>().With.Message.EqualTo(expected.Message));
+            Assert.That(app.State.State, Is.EqualTo(PubSubState.Disabled));
         }
 
         private static IPubSubApplication NewEmptyApplication()

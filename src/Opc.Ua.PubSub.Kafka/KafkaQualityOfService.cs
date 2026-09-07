@@ -80,8 +80,7 @@ namespace Opc.Ua.PubSub.Kafka
 
     /// <summary>
     /// Broker acknowledgement level requested from the Kafka producer.
-    /// Numeric values match the librdkafka <c>acks</c> wire encoding so
-    /// the adapter can map without an extra lookup.
+    /// Numeric values match the Kafka <c>acks</c> setting.
     /// </summary>
     /// <remarks>
     /// Backs the <c>acks</c> selector described in
@@ -115,8 +114,8 @@ namespace Opc.Ua.PubSub.Kafka
     /// </summary>
     /// <remarks>
     /// Carries the two producer knobs that realise the Part 14 Annex B.2
-    /// delivery guarantee so the Confluent-backed adapter can apply them
-    /// without re-deriving the mapping.
+    /// delivery guarantee so Kafka client adapters can apply them without
+    /// re-deriving the mapping.
     /// </remarks>
     /// <param name="Acks">Broker acknowledgement level.</param>
     /// <param name="EnableIdempotence">

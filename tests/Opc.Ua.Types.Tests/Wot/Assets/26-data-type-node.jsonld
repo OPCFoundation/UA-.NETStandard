@@ -1,0 +1,65 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "ua": "http://opcfoundation.org/UA/",
+      "pump": "http://example.com/demo/pump"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["tm:ThingModel", "uav:dataType"],
+  "id": "urn:dev:opcua:pump-measurement-data-type",
+  "uav:bindingVersion": "1.1",
+  "uav:profile": ["WoT-ModelVocabulary", "WoT-DataTypeDefinition"],
+  "title": "MeasurementDataType",
+  "description": "The DataType Node a pump measurement is encoded with. The document projects the DataType Node itself: the uav:dataType annotation records which NodeClass it is, and the ordered definition travels in uav:dataTypeDefinitions, so a reverse conversion recreates a DataType rather than an ObjectType of the same BrowseName.",
+  "uav:browseName": "pump:MeasurementDataType",
+  "uav:id": "nsu=http://example.com/demo/pump;i=3010",
+  "uav:dataTypeDefinitions": [
+    {
+      "@id": "urn:example:pump#MeasurementDataType",
+      "@type": "uav:StructureDefinition",
+      "uav:dataTypeName": "pump:MeasurementDataType",
+      "uav:dataTypeId": "nsu=http://example.com/demo/pump;i=3010",
+      "uav:dataTypeSubtypeOf": {
+        "uav:dataTypeName": "ua:Structure",
+        "uav:dataTypeId": "i=22"
+      },
+      "uav:isAbstract": false,
+      "uav:structureType": "Structure",
+      "uav:defaultEncodingId": "nsu=http://example.com/demo/pump;i=3011",
+      "uav:binaryEncodingId": "nsu=http://example.com/demo/pump;i=3011",
+      "uav:xmlEncodingId": "nsu=http://example.com/demo/pump;i=3012",
+      "uav:jsonEncodingId": "nsu=http://example.com/demo/pump;i=3013",
+      "uav:fields": [
+        {
+          "@type": "uav:StructureField",
+          "uav:fieldName": "Value",
+          "uav:fieldDataTypeName": "ua:Double",
+          "uav:fieldDataTypeId": "i=11",
+          "uav:valueRank": -1,
+          "uav:isOptional": false,
+          "uav:allowSubtypes": false
+        },
+        {
+          "@type": "uav:StructureField",
+          "uav:fieldName": "Timestamp",
+          "uav:fieldDataTypeName": "ua:DateTime",
+          "uav:fieldDataTypeId": "i=13",
+          "uav:valueRank": -1,
+          "uav:isOptional": false,
+          "uav:allowSubtypes": false
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "rel": "ua:HasSubtype",
+      "href": "i=22",
+      "uav:refName": "Structure",
+      "uav:refId": "i=45"
+    }
+  ]
+}

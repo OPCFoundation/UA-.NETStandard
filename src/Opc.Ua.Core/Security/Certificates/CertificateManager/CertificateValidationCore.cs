@@ -708,14 +708,27 @@ namespace Opc.Ua
             // Capture the immutable trust-list state once for this validation.
             TrustListState state = m_state;
 
-            // check for previously validated certificate.
-            if (UseValidatedCertificates &&
-                m_validatedCertificates.TryGetValue(
-                    certificate.Thumbprint,
-                    out byte[]? certificate2) &&
-                Utils.IsEqual(certificate2, certificate.RawData))
+            // A certificate whose subject or issuer is an empty distinguished name
+            // identifies nothing: two unrelated issuers become indistinguishable, so
+            // it can never take part in a trust decision. RFC 5280 §4.1.2.4 requires a
+            // non-empty issuer, and §4.1.2.6 only permits an empty subject for an end
+            // entity carrying a critical subjectAltName, which a CA may never do.
+            // Rejected here, ahead of the trust-list lookup and the chain build, so
+            // the outcome is the same on every target framework rather than depending
+            // on whether the platform parser happens to accept such a certificate.
+            // BadCertificateInvalid is deliberately not suppressible.
+            foreach (Certificate toCheck in certificates)
             {
-                return;
+                if (DistinguishedNameUtils.HasEmptyDistinguishedName(toCheck))
+                {
+                    throw new ServiceResultException(new ServiceResult(
+                        null,
+                        StatusCodes.BadCertificateInvalid,
+                        LocalizedText.From(
+                            "Certificate contains an empty subject or issuer distinguished name."),
+                        null,
+                        (ServiceResult?)null));
+                }
             }
 
             CertificateIssuerReference? trustedCertificate =
@@ -735,6 +748,31 @@ namespace Opc.Ua
                     .ConfigureAwait(false);
 
                 ServiceResult? sresult = PopulateSresultWithValidationErrors(validationErrors);
+
+                // Check for a previously validated certificate. Deliberately
+                // placed AFTER the issuer walk: GetIssuersAsync is what
+                // evaluates the revocation lists, so a cached certificate
+                // that has been revoked since it was first validated (e.g.
+                // by a freshly pushed CRL) is never waved through on the
+                // thumbprint alone. Only an ACTUAL revocation blocks the
+                // fast path - a certificate enters the cache after a
+                // successful validation or an explicitly accepted
+                // suppressible error (e.g. RevocationUnknown when the CA
+                // publishes no CRL), and re-raising such an accepted error
+                // on every validation would re-fire the accept callback per
+                // connection and permanently defeat the cache for exactly
+                // the certificates it was written for. On a cache hit the
+                // expensive chain-policy build below is skipped, which is
+                // the performance intent of UseValidatedCertificates.
+                if (UseValidatedCertificates &&
+                    !HasRevocationError(validationErrors) &&
+                    m_validatedCertificates.TryGetValue(
+                        certificate.Thumbprint,
+                        out byte[]? certificate2) &&
+                    Utils.IsEqual(certificate2, certificate.RawData))
+                {
+                    return;
+                }
 
                 // setup policy chain
                 var policy = new X509ChainPolicy
@@ -1244,15 +1282,21 @@ namespace Opc.Ua
                 return cached;
             }
 
-            // OpenStore itself returns a single cached instance per identifier,
-            // so a benign race here resolves to the same store instance.
+            // OpenStore creates a new caller-owned store instance; a racing
+            // thread may have cached its own instance first, in which case
+            // this one must be disposed.
             ICertificateStore? store = storeIdentifier.OpenStore(m_telemetry);
             if (store == null)
             {
                 return null;
             }
 
-            return m_stores.GetOrAdd(storeIdentifier, store);
+            ICertificateStore added = m_stores.GetOrAdd(storeIdentifier, store);
+            if (!ReferenceEquals(added, store))
+            {
+                store.Dispose();
+            }
+            return added;
         }
 
         /// <summary>
@@ -1657,6 +1701,30 @@ namespace Opc.Ua
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Reports whether the issuer walk found an actual revocation
+        /// (<see cref="StatusCodes.BadCertificateRevoked"/> or
+        /// <see cref="StatusCodes.BadCertificateIssuerRevoked"/>) for any
+        /// certificate in the chain. Unknown-revocation statuses do not
+        /// count: they are suppressible and, when previously accepted, must
+        /// not defeat the validated-certificate fast path.
+        /// </summary>
+        private static bool HasRevocationError(
+            Dictionary<Certificate, ServiceResultException> validationErrors)
+        {
+            foreach (ServiceResultException error in validationErrors.Values)
+            {
+                if (error != null &&
+                    (error.StatusCode == StatusCodes.BadCertificateRevoked ||
+                        error.StatusCode == StatusCodes.BadCertificateIssuerRevoked))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static ServiceResult? PopulateSresultWithValidationErrors(

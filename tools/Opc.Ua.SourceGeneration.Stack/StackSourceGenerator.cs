@@ -28,30 +28,20 @@
  * ======================================================================*/
 
 using Microsoft.CodeAnalysis;
-using IIncrementalGenerator = SGF.IncrementalGenerator;
-using IncrementalGeneratorAttribute = SGF.IncrementalGeneratorAttribute;
-using IncrementalGeneratorInitializationContext = SGF.SgfInitializationContext;
 
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
     /// Generates server and client models using the model generator library
     /// </summary>
-    [IncrementalGenerator]
-    public class StackSourceGenerator : IIncrementalGenerator
+    [Generator(LanguageNames.CSharp)]
+    public sealed class StackSourceGenerator : IIncrementalGenerator
     {
         /// <inheritdoc/>
-        public StackSourceGenerator()
-            : base(SourceGenerator.Name)
+        public void Initialize(IncrementalGeneratorInitializationContext context)
         {
-        }
+            SourceGenerator.AttachDebuggerIfRequested();
 
-        /// <inheritdoc/>
-        public override void OnInitialize(IncrementalGeneratorInitializationContext context)
-        {
-#if DEBUGX
-            AttachDebugger();
-#endif
             // Collect options
             IncrementalValueProvider<StackGenerationOptions> options =
                 context.AnalyzerConfigOptionsProvider
@@ -62,11 +52,12 @@ namespace Opc.Ua.SourceGeneration
 
             context.RegisterSourceOutput(
                 settings.Combine(options),
-                (context, combination) => new StackGeneration(
+                static (context, combination) => SourceGenerator.Guard(
                     context,
-                    combination.Left,
-                    combination.Right,
-                    Logger).Emit(context.CancellationToken));
+                    () => new StackGeneration(
+                        context,
+                        combination.Left,
+                        combination.Right).Emit(context.CancellationToken)));
         }
     }
 }

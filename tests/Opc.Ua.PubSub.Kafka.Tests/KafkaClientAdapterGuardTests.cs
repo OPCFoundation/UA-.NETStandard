@@ -27,12 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Dekaf.Consumer;
+using Dekaf.Serialization;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Kafka.Internal;
 using Opc.Ua.PubSub.Tests;
@@ -41,11 +42,11 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.PubSub.Kafka.Tests
 {
     /// <summary>
-    /// Guard tests for the default Dekaf-backed Kafka adapter that do not require a broker.
+    /// Guard tests for Kafka client adapters that do not require a broker.
     /// </summary>
     [TestFixture]
     [Category("Unit")]
-    [TestSpec("B.2", Summary = "Kafka default adapter guard behavior")]
+    [TestSpec("B.2", Summary = "Kafka client adapter guard behavior")]
     [CancelAfter(10000)]
     public sealed class KafkaClientAdapterGuardTests
     {
@@ -58,16 +59,28 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             Assert.That(
                 () => new DekafKafkaClientAdapter(NUnitTelemetryContext.Create(), null!),
                 Throws.TypeOf<ArgumentNullException>());
+            Assert.That(
+                () => new ConfluentKafkaClientAdapter(null!, TimeProvider.System),
+                Throws.TypeOf<ArgumentNullException>());
+            Assert.That(
+                () => new ConfluentKafkaClientAdapter(NUnitTelemetryContext.Create(), null!),
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
-        public void FactoryCreatesDekafAdapter()
+        public void FactoriesCreateRequestedAdapters()
         {
-            var factory = new DekafKafkaClientFactory();
+            var dekafFactory = new DekafKafkaClientFactory();
+            var confluentFactory = new ConfluentKafkaClientFactory();
 
-            object adapter = factory.Create(NUnitTelemetryContext.Create(), TimeProvider.System);
+            object dekafAdapter = dekafFactory.Create(NUnitTelemetryContext.Create(), TimeProvider.System);
+            object confluentAdapter = confluentFactory.Create(NUnitTelemetryContext.Create(), TimeProvider.System);
 
-            Assert.That(adapter, Is.InstanceOf<DekafKafkaClientAdapter>());
+            Assert.Multiple(() =>
+            {
+                Assert.That(dekafAdapter, Is.InstanceOf<DekafKafkaClientAdapter>());
+                Assert.That(confluentAdapter, Is.InstanceOf<ConfluentKafkaClientAdapter>());
+            });
         }
 
         [Test]
@@ -154,6 +167,42 @@ namespace Opc.Ua.PubSub.Kafka.Tests
                 Throws.TypeOf<ObjectDisposedException>());
             Assert.That(async () => await adapter.UnsubscribeAsync([], CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
+        }
+
+        [Test]
+        public async Task DispatchRecordWithNullHeaderMapsEmptyValueAsync()
+        {
+            await using var adapter = new DekafKafkaClientAdapter(
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+            KafkaIncomingMessageEventArgs? received = null;
+            adapter.IncomingMessage += (_, args) => received = args;
+
+            InvokeDispatchRecord(adapter, CreateConsumeResult(new Header("x-null", (byte[]?)null)));
+
+            Assert.That(received, Is.Not.Null);
+            Assert.That(received!.Message.Headers, Is.Not.Null);
+            Assert.That(received.Message.Headers!["x-null"], Is.Empty);
+        }
+
+        [Test]
+        public async Task DispatchRecordWithUtf8HeaderDecodesValueAsync()
+        {
+            await using var adapter = new DekafKafkaClientAdapter(
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+            KafkaIncomingMessageEventArgs? received = null;
+            adapter.IncomingMessage += (_, args) => received = args;
+            const string headerValue = "Gr\u00FC\u00DFe";
+
+            InvokeDispatchRecord(
+                adapter,
+                CreateConsumeResult(
+                    new Header("x-text", System.Text.Encoding.UTF8.GetBytes(headerValue))));
+
+            Assert.That(received, Is.Not.Null);
+            Assert.That(received!.Message.Headers, Is.Not.Null);
+            Assert.That(received.Message.Headers!["x-text"], Is.EqualTo(headerValue));
         }
 
         [Test]
@@ -285,6 +334,41 @@ namespace Opc.Ua.PubSub.Kafka.Tests
                 Throws.TypeOf<InvalidOperationException>());
         }
 
+        private static ConsumeResult<byte[], byte[]> CreateConsumeResult(params Header[] headers)
+        {
+            return new ConsumeResult<byte[], byte[]>(
+                topic: KafkaTestHelper.JsonTopic,
+                partition: 0,
+                offset: 1,
+                keyData: ReadOnlyMemory<byte>.Empty,
+                isKeyNull: true,
+                valueData: ReadOnlyMemory<byte>.Empty,
+                isValueNull: true,
+                headers: headers,
+                timestampMs: 0,
+                timestampType: TimestampType.NotAvailable,
+                leaderEpoch: null,
+                keyDeserializer: null,
+                valueDeserializer: null);
+        }
+
+        private static void InvokeDispatchRecord(
+            DekafKafkaClientAdapter adapter,
+            ConsumeResult<byte[], byte[]> result)
+        {
+            MethodInfo method = typeof(DekafKafkaClientAdapter).GetMethod(
+                "DispatchRecord",
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
+            try
+            {
+                method.Invoke(adapter, [result]);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException is not null)
+            {
+                throw ex.InnerException;
+            }
+        }
+
         private static T InvokePrivate<T>(string methodName, params object?[] args)
         {
             MethodInfo method = typeof(DekafKafkaClientAdapter).GetMethod(
@@ -343,4 +427,3 @@ namespace Opc.Ua.PubSub.Kafka.Tests
         }
     }
 }
-#endif

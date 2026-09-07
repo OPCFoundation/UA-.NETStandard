@@ -7,7 +7,7 @@
 #pragma warning disable CA2000
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Reflection;
+using System.Linq;
 using BenchmarkDotNet.Attributes;
 using Moq;
 using NUnit.Framework;
@@ -28,6 +28,14 @@ namespace Opc.Ua.Server.Tests
     {
         private SystemContext m_systemContext;
         private IFilterContext m_filterContext;
+        private MonitoredItemQueueFactory m_queueFactory;
+
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+            m_queueFactory?.Dispose();
+            m_queueFactory = null;
+        }
 
         internal static readonly LocalizedText InService = new("en", "In Service");
         internal static readonly LocalizedText OutOfService = new("en", "Out of Service");
@@ -55,7 +63,7 @@ namespace Opc.Ua.Server.Tests
             alarm.SetLimitState(systemContext, desiredState);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
-            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using TestableMonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
             CanSendFilteredAlarm(monitoredItem, GetFilterContext(telemetry), filter, alarm, pass, telemetry);
         }
 
@@ -81,7 +89,7 @@ namespace Opc.Ua.Server.Tests
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: !pass, telemetry);
 
-            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using TestableMonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
             CanSendFilteredAlarm(monitoredItem, context, filter, alarm, pass, telemetry);
         }
 
@@ -97,7 +105,7 @@ namespace Opc.Ua.Server.Tests
             IFilterContext context = GetFilterContext(telemetry);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: !pass, telemetry);
-            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using TestableMonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
             CanSendFilteredAlarm(monitoredItem, context, filter, certificateType, pass, telemetry);
         }
 
@@ -116,7 +124,7 @@ namespace Opc.Ua.Server.Tests
             alarm.SetLimitState(GetSystemContext(telemetry), LimitAlarmStates.Inactive);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
-            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using TestableMonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             CanSendFilteredAlarm(monitoredItem, GetFilterContext(telemetry), filter, alarm, expected: false, telemetry);
         }
@@ -136,7 +144,7 @@ namespace Opc.Ua.Server.Tests
             IFilterContext filterContext = GetFilterContext(telemetry);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
-            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using TestableMonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             SystemContext systemContext = GetSystemContext(telemetry);
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
@@ -175,7 +183,7 @@ namespace Opc.Ua.Server.Tests
                 telemetry: telemetry);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
-            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using TestableMonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             SystemContext systemContext = GetSystemContext(telemetry);
             IFilterContext filterContext = GetFilterContext(telemetry);
@@ -211,7 +219,7 @@ namespace Opc.Ua.Server.Tests
                 telemetry: telemetry);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
-            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using TestableMonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             SystemContext systemContext = GetSystemContext(telemetry);
             IFilterContext filterContext = GetFilterContext(telemetry);
@@ -279,7 +287,7 @@ namespace Opc.Ua.Server.Tests
             };
             _ = filter.Validate(filterContext);
 
-            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using TestableMonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             // 16 States in Table B.3
 
@@ -384,8 +392,335 @@ namespace Opc.Ua.Server.Tests
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
         }
 
+        /// <summary>
+        /// ConditionRefresh puts the ConditionState itself into the event list rather than
+        /// an InstanceStateSnapshot, so filtered retain has to recognise that shape too.
+        /// </summary>
+        [Test]
+        public void ConditionStateTargetParticipatesInFilteredRetain()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: true,
+                filterRetainValue: true,
+                telemetry: telemetry);
+
+            SystemContext systemContext = GetSystemContext(telemetry);
+            IFilterContext filterContext = GetFilterContext(telemetry);
+            EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
+            using TestableMonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
+            Assert.That(
+                monitoredItem.CanSendFilteredAlarmForTest(filterContext, filter, alarm),
+                Is.True,
+                "the alarm passes the where clause");
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = false;
+            Assert.That(
+                monitoredItem.CanSendFilteredAlarmForTest(filterContext, filter, alarm),
+                Is.True,
+                "leaving filter scope produces the trailing event");
+
+            Assert.That(
+                monitoredItem.CanSendFilteredAlarmForTest(filterContext, filter, alarm),
+                Is.False,
+                "the trailing event is sent once");
+        }
+
+        /// <summary>
+        /// A branch shares its parent's NodeId, so tracking by NodeId alone would let one of
+        /// them consume the entry the other relies on.
+        /// </summary>
+        [Test]
+        public void BranchesDoNotShareFilteredRetainState()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: true,
+                filterRetainValue: true,
+                telemetry: telemetry);
+
+            SystemContext systemContext = GetSystemContext(telemetry);
+            IFilterContext filterContext = GetFilterContext(telemetry);
+            EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
+            using TestableMonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
+
+            var branch = (ExclusiveLevelAlarmState)alarm.CreateBranch(systemContext, new NodeId(1, 1));
+            Assert.That(branch, Is.Not.Null);
+            Assert.That(branch.NodeId, Is.EqualTo(alarm.NodeId), "a branch keeps the parent NodeId");
+
+            // both are in scope; each has to claim its own entry.
+            Assert.That(
+                monitoredItem.CanSendFilteredAlarmForTest(filterContext, filter, alarm),
+                Is.True);
+            Assert.That(
+                monitoredItem.CanSendFilteredAlarmForTest(filterContext, filter, branch),
+                Is.True);
+
+            // the branch leaves scope and consumes its own entry only.
+            branch.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            Assert.That(
+                monitoredItem.CanSendFilteredAlarmForTest(filterContext, filter, branch),
+                Is.True,
+                "the branch gets its trailing event");
+            Assert.That(
+                monitoredItem.CanSendFilteredAlarmForTest(filterContext, filter, branch),
+                Is.False);
+
+            // the parent is untouched by that and still gets its own trailing event.
+            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            Assert.That(
+                monitoredItem.CanSendFilteredAlarmForTest(filterContext, filter, alarm),
+                Is.True,
+                "the parent entry survived the branch transition");
+        }
+
+        /// <summary>
+        /// SupportsFilteredRetain is not an instance child, so nothing that copies a
+        /// condition by walking its children carries it. CreateBranch copies it explicitly.
+        /// </summary>
+        [Test]
+        [TestCase(false)]
+        [TestCase(true)]
+        public void BranchInheritsSupportsFilteredRetain(bool supportsFilteredRetain)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: true,
+                filterRetainValue: supportsFilteredRetain,
+                telemetry: telemetry);
+
+            var branch = (ConditionState)alarm.CreateBranch(
+                GetSystemContext(telemetry),
+                new NodeId(1, 1));
+
+            Assert.That(branch, Is.Not.Null);
+            Assert.That(branch.SupportsFilteredRetain, Is.Not.Null);
+            Assert.That(branch.SupportsFilteredRetain.Value, Is.EqualTo(supportsFilteredRetain));
+            Assert.That(
+                branch.SupportsFilteredRetain,
+                Is.Not.SameAs(alarm.SupportsFilteredRetain),
+                "the branch owns its copy");
+        }
+
+        /// <summary>
+        /// A condition that never opted in must not get a property out of thin air.
+        /// </summary>
+        [Test]
+        public void BranchWithoutSupportsFilteredRetainStaysUnset()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: false,
+                filterRetainValue: false,
+                telemetry: telemetry);
+
+            var branch = (ConditionState)alarm.CreateBranch(
+                GetSystemContext(telemetry),
+                new NodeId(1, 1));
+
+            Assert.That(branch, Is.Not.Null);
+            Assert.That(branch.SupportsFilteredRetain, Is.Null);
+        }
+
+        /// <summary>
+        /// Part 9 provides SupportsFilteredRetain on the ConditionType only, and the standard
+        /// nodeset declares no modelling rule for it, so condition instances must not expose
+        /// it as an address space child.
+        /// </summary>
+        [Test]
+        public void SupportsFilteredRetainIsNotAnInstanceChild()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            SystemContext systemContext = GetSystemContext(telemetry);
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: true,
+                filterRetainValue: true,
+                telemetry: telemetry);
+
+            var children = new List<BaseInstanceState>();
+            alarm.GetChildren(systemContext, children);
+
+            Assert.That(
+                children.Any(child =>
+                    child.BrowseName.Name == BrowseNames.SupportsFilteredRetain),
+                Is.False);
+            Assert.That(
+                alarm.FindChild(
+                    systemContext,
+                    QualifiedName.From(BrowseNames.SupportsFilteredRetain)),
+                Is.Null);
+        }
+
+        /// <summary>
+        /// Every entry means "this condition passed the previous where clause", so keeping
+        /// them across a where clause change would produce a trailing event against a filter
+        /// that never saw the condition pass.
+        /// </summary>
+        [Test]
+        public void ModifyAttributesDiscardsFilteredRetainWhenWhereClauseChanges()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: true,
+                filterRetainValue: true,
+                telemetry: telemetry);
+
+            SystemContext systemContext = GetSystemContext(telemetry);
+            IFilterContext filterContext = GetFilterContext(telemetry);
+            EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
+            using TestableMonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true, telemetry);
+
+            // a where clause the condition has never been evaluated against.
+            var replacement = new EventFilter
+            {
+                SelectClauses = GetSelectFields(),
+                WhereClause = GetStateFilter()
+            };
+            _ = replacement.Validate(filterContext);
+
+            monitoredItem.ModifyAttributes(
+                DiagnosticsMasks.All,
+                TimestampsToReturn.Server,
+                3,
+                replacement,
+                replacement,
+                null,
+                1000.0,
+                10,
+                false);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = false;
+            CanSendFilteredAlarm(
+                monitoredItem,
+                filterContext,
+                replacement,
+                alarm,
+                expected: false,
+                telemetry);
+        }
+
+        /// <summary>
+        /// A modification that leaves the where clause alone - a new queue size, say - has to
+        /// keep the bookkeeping, otherwise the trailing event is lost.
+        /// </summary>
+        [Test]
+        public void ModifyAttributesKeepsFilteredRetainWhenWhereClauseIsUnchanged()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: true,
+                filterRetainValue: true,
+                telemetry: telemetry);
+
+            SystemContext systemContext = GetSystemContext(telemetry);
+            IFilterContext filterContext = GetFilterContext(telemetry);
+            EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
+            using TestableMonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
+            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true, telemetry);
+
+            EventFilter sameFilter = GetHighOnlyEventFilter(addClauses: true, telemetry);
+
+            monitoredItem.ModifyAttributes(
+                DiagnosticsMasks.All,
+                TimestampsToReturn.Server,
+                3,
+                sameFilter,
+                sameFilter,
+                null,
+                1000.0,
+                20,
+                false);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = false;
+            CanSendFilteredAlarm(
+                monitoredItem,
+                filterContext,
+                sameFilter,
+                alarm,
+                expected: true,
+                telemetry);
+        }
+
+        /// <summary>
+        /// A durable subscription has to carry the bookkeeping across a restart, otherwise
+        /// the first transition out of filter scope after the restart is dropped.
+        /// </summary>
+        [Test]
+        public void FilteredRetainSurvivesADurableRoundTrip()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: true,
+                filterRetainValue: true,
+                telemetry: telemetry);
+
+            SystemContext systemContext = GetSystemContext(telemetry);
+            IFilterContext filterContext = GetFilterContext(telemetry);
+            EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
+
+            IStoredMonitoredItem stored;
+            using (TestableMonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry))
+            {
+                alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+                alarm.Retain.Value = true;
+                CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected: true, telemetry);
+
+                stored = monitoredItem.ToStorableMonitoredItem();
+            }
+
+            Assert.That(stored.FilteredRetainConditionIds.IsNull, Is.False);
+            Assert.That(stored.FilteredRetainConditionIds.Count, Is.EqualTo(1));
+
+            using TestableMonitoredItem restored = RestoreMonitoredItem(stored, telemetry);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = false;
+            CanSendFilteredAlarm(restored, filterContext, filter, alarm, expected: true, telemetry);
+            CanSendFilteredAlarm(restored, filterContext, filter, alarm, expected: false, telemetry);
+        }
+
+        /// <summary>
+        /// An item with nothing to track stores nothing.
+        /// </summary>
+        [Test]
+        public void NothingIsStoredWhenNoConditionIsTracked()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
+            using TestableMonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+
+            Assert.That(
+                monitoredItem.ToStorableMonitoredItem().FilteredRetainConditionIds.IsNull,
+                Is.True);
+        }
+
         private void CanSendFilteredAlarm(
-            MonitoredItem monitoredItem,
+            TestableMonitoredItem monitoredItem,
             IFilterContext context,
             EventFilter filter,
             BaseObjectState alarm,
@@ -397,14 +732,11 @@ namespace Opc.Ua.Server.Tests
             var eventSnapshot = new InstanceStateSnapshot();
             eventSnapshot.Initialize(systemContext, alarm);
 
-            const BindingFlags eFlags = BindingFlags.Instance | BindingFlags.NonPublic;
-            MethodInfo methodInfo = typeof(MonitoredItem).GetMethod("CanSendFilteredAlarm", eFlags);
             Debug.WriteLine("Expecting " + expected.ToString());
-            object result = methodInfo.Invoke(monitoredItem, [context, filter, eventSnapshot]);
 
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.GetType().Name, Is.EqualTo("Boolean"));
-            Assert.That((bool)result, Is.EqualTo(expected));
+            Assert.That(
+                monitoredItem.CanSendFilteredAlarmForTest(context, filter, eventSnapshot),
+                Is.EqualTo(expected));
         }
 
         private ExclusiveLevelAlarmState GetExclusiveLevelAlarm(
@@ -640,23 +972,13 @@ namespace Opc.Ua.Server.Tests
             return m_filterContext;
         }
 
-        private MonitoredItem CreateMonitoredItem(MonitoringFilter filter, ITelemetryContext telemetry)
+        private TestableMonitoredItem CreateMonitoredItem(
+            MonitoringFilter filter,
+            ITelemetryContext telemetry)
         {
-            var serverMock = new Mock<IServerInternal>();
-
-            SystemContext systemContext = GetSystemContext(telemetry);
-            serverMock.Setup(s => s.Telemetry).Returns(telemetry);
-            serverMock.Setup(s => s.NamespaceUris).Returns(systemContext.NamespaceUris);
-            serverMock.Setup(s => s.TypeTree).Returns((TypeTable)systemContext.TypeTable);
-            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
-            serverMock.Setup(s => s.MonitoredItemQueueFactory)
-                .Returns(queueFactory);
-
-            var nodeMangerMock = new Mock<IAsyncNodeManager>();
-
-            return new MonitoredItem(
-                serverMock.Object,
-                nodeMangerMock.Object,
+            return new TestableMonitoredItem(
+                CreateServer(telemetry),
+                new Mock<IAsyncNodeManager>().Object,
                 null,
                 1,
                 2,
@@ -672,6 +994,98 @@ namespace Opc.Ua.Server.Tests
                 10,
                 false,
                 1000);
+        }
+
+        private TestableMonitoredItem RestoreMonitoredItem(
+            IStoredMonitoredItem storedMonitoredItem,
+            ITelemetryContext telemetry)
+        {
+            return new TestableMonitoredItem(
+                CreateServer(telemetry),
+                new Mock<IAsyncNodeManager>().Object,
+                null,
+                storedMonitoredItem);
+        }
+
+        private IServerInternal CreateServer(ITelemetryContext telemetry)
+        {
+            var serverMock = new Mock<IServerInternal>();
+
+            SystemContext systemContext = GetSystemContext(telemetry);
+            serverMock.Setup(s => s.Telemetry).Returns(telemetry);
+            serverMock.Setup(s => s.NamespaceUris).Returns(systemContext.NamespaceUris);
+            serverMock.Setup(s => s.TypeTree).Returns((TypeTable)systemContext.TypeTable);
+
+            // the factory has to outlive every item the fixture builds, so it is owned by
+            // the fixture rather than by the call that hands it to a monitored item.
+            m_queueFactory ??= new MonitoredItemQueueFactory(telemetry);
+            serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(m_queueFactory);
+
+            return serverMock.Object;
+        }
+
+        /// <summary>
+        /// Exposes the protected filtered retain evaluation so the suite does not have to
+        /// reach for it by reflection, where a signature change would compile cleanly and
+        /// only fail at run time.
+        /// </summary>
+        private sealed class TestableMonitoredItem : MonitoredItem
+        {
+            public TestableMonitoredItem(
+                IServerInternal server,
+                IAsyncNodeManager nodeManager,
+                object managerHandle,
+                uint subscriptionId,
+                uint id,
+                ReadValueId itemToMonitor,
+                DiagnosticsMasks diagnosticsMasks,
+                TimestampsToReturn timestampsToReturn,
+                MonitoringMode monitoringMode,
+                uint clientHandle,
+                MonitoringFilter originalFilter,
+                MonitoringFilter filterToUse,
+                Range range,
+                double samplingInterval,
+                uint queueSize,
+                bool discardOldest,
+                double sourceSamplingInterval)
+                : base(
+                    server,
+                    nodeManager,
+                    managerHandle,
+                    subscriptionId,
+                    id,
+                    itemToMonitor,
+                    diagnosticsMasks,
+                    timestampsToReturn,
+                    monitoringMode,
+                    clientHandle,
+                    originalFilter,
+                    filterToUse,
+                    range,
+                    samplingInterval,
+                    queueSize,
+                    discardOldest,
+                    sourceSamplingInterval)
+            {
+            }
+
+            public TestableMonitoredItem(
+                IServerInternal server,
+                IAsyncNodeManager nodeManager,
+                object managerHandle,
+                IStoredMonitoredItem storedMonitoredItem)
+                : base(server, nodeManager, managerHandle, storedMonitoredItem)
+            {
+            }
+
+            public bool CanSendFilteredAlarmForTest(
+                IFilterContext context,
+                EventFilter filter,
+                IFilterTarget instance)
+            {
+                return CanSendFilteredAlarm(context, filter, instance);
+            }
         }
     }
 }

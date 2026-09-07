@@ -28,5 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Opc.Ua.Tests;
 
 [assembly: CLSCompliant(false)]
+[assembly: CertificateLeakAttribution]

@@ -28,16 +28,25 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Identity;
+using Opc.Ua.Server;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Client.TestFramework
 {
     public sealed class TokenValidatorMock : ITokenValidator, IDisposable
     {
+        public const string DefaultIssuer = "urn:opcfoundation:tests:jwt";
+        public const string DefaultSubject = "local-issued-token-user";
+
         public IssuedIdentityTokenHandler LastIssuedToken { get; set; }
+
+        public string? Issuer { get; set; } = DefaultIssuer;
+
+        public string? Subject { get; set; } = DefaultSubject;
 
         public void Dispose()
         {
@@ -48,7 +57,23 @@ namespace Opc.Ua.Client.TestFramework
         {
             LastIssuedToken = issuedToken.Copy();
 
-            return new UserIdentity(issuedToken);
+            var claims = new Dictionary<string, object?>();
+            if (Issuer != null)
+            {
+                claims["iss"] = Issuer;
+            }
+            if (Subject != null)
+            {
+                claims["sub"] = Subject;
+            }
+
+            return new JwtUserIdentity(
+                issuedToken,
+                claims,
+                [],
+                [],
+                Issuer,
+                Subject);
         }
     }
 

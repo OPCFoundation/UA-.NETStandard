@@ -31,6 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.MetaData;
 
 namespace Opc.Ua.PubSub.DataSets
 {
@@ -50,10 +52,8 @@ namespace Opc.Ua.PubSub.DataSets
     /// the returned snapshot maps one-to-one onto
     /// <see cref="PublishedEventsDataType.SelectedFields"/>.
     /// </remarks>
-    public sealed class EventPublishedDataSet
+    public sealed class EventPublishedDataSet : IPublishedDataSet
     {
-        private readonly IEventSampler m_sampler;
-
         /// <summary>
         /// Initializes a new <see cref="EventPublishedDataSet"/>.
         /// </summary>
@@ -141,7 +141,7 @@ namespace Opc.Ua.PubSub.DataSets
         /// </summary>
         /// <param name="cancellationToken">Cancellation token.</param>
         public async ValueTask<ArrayOf<ArrayOf<Encoding.DataSetField>>>
-            SampleAsync(CancellationToken cancellationToken = default)
+            SampleEventsAsync(CancellationToken cancellationToken = default)
         {
             IReadOnlyList<IReadOnlyList<Variant>> rows =
                 await m_sampler.SampleEventsAsync(
@@ -178,5 +178,75 @@ namespace Opc.Ua.PubSub.DataSets
             return result.ToArrayOf<Encoding.DataSetField[], ArrayOf<Encoding.DataSetField>>(
                 static row => row);
         }
+
+        /// <inheritdoc/>
+        public Uuid DataSetClassId => MetaData.DataSetClassId == Guid.Empty
+            ? Uuid.Empty
+            : new Uuid(MetaData.DataSetClassId);
+
+        /// <summary>
+        /// Raised when the metadata definition changes. An event dataset
+        /// projects a fixed field selection, so the definition is fixed for the
+        /// lifetime of the dataset and this is never raised.
+        /// </summary>
+        public event EventHandler<DataSetMetaDataChangedEventArgs>? MetaDataChanged
+        {
+            add { }
+            remove { }
+        }
+
+        /// <summary>
+        /// Returns the next pending occurrence as a snapshot declaring
+        /// <see cref="PubSubDataSetMessageType.Event"/>.
+        /// </summary>
+        /// <remarks>
+        /// An event dataset has no current state to sample: each of its samples
+        /// is one occurrence. This satisfies the general
+        /// <see cref="IPublishedDataSet"/> contract by draining one occurrence
+        /// per publish cycle. <see cref="Groups.EventDataSetWriter"/> drains
+        /// every pending occurrence in a single cycle and is what a writer group
+        /// uses; this path exists so an event dataset behaves correctly for any
+        /// caller that only knows the general contract.
+        /// </remarks>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public async ValueTask<PublishedDataSetSnapshot> SampleAsync(
+            CancellationToken cancellationToken = default)
+        {
+            ArrayOf<Encoding.DataSetField> occurrence = [];
+            lock (m_pendingGate)
+            {
+                if (m_pending.Count != 0)
+                {
+                    occurrence = m_pending.Dequeue();
+                }
+            }
+            if (occurrence.Count == 0)
+            {
+                ArrayOf<ArrayOf<Encoding.DataSetField>> rows =
+                    await SampleEventsAsync(cancellationToken).ConfigureAwait(false);
+                lock (m_pendingGate)
+                {
+                    for (int i = 0; i < rows.Count; i++)
+                    {
+                        m_pending.Enqueue(rows[i]);
+                    }
+                    if (m_pending.Count != 0)
+                    {
+                        occurrence = m_pending.Dequeue();
+                    }
+                }
+            }
+            ConfigurationVersionDataType version = MetaData.ConfigurationVersion
+                ?? new ConfigurationVersionDataType();
+            var sampledAt = DateTimeUtc.From(DateTimeOffset.UtcNow);
+            return occurrence.Count == 0
+                ? new PublishedDataSetSnapshot(version, [], sampledAt)
+                : new PublishedDataSetSnapshot(version, occurrence, sampledAt,
+                    PubSubDataSetMessageType.Event);
+        }
+
+        private readonly IEventSampler m_sampler;
+        private readonly Lock m_pendingGate = new();
+        private readonly Queue<ArrayOf<Encoding.DataSetField>> m_pending = new();
     }
 }

@@ -214,6 +214,11 @@ namespace Opc.Ua
                 return false;
             }
 
+            if (startId == targetId)
+            {
+                return true;
+            }
+
             lock (m_lock)
             {
                 if (!m_nodes.TryGetValue(startId, out TypeInfo? typeInfo))
@@ -348,6 +353,15 @@ namespace Opc.Ua
             if (value.IsNull)
             {
                 return false;
+            }
+
+            // In-memory encodeable bodies carry their DataTypeId directly,
+            // while decoded binary/xml bodies carry the encoding NodeId.
+            // Accept the direct DataTypeId (or one of its subtypes) before
+            // consulting the encoding map.
+            if (IsTypeOf(value.TypeId, expectedTypeId))
+            {
+                return true;
             }
 
             // may still match if the extension type is an encoding for the expected type.
@@ -610,7 +624,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Adds an encoding for an existing data type.
+        /// Adds an encoding for an existing data type. Registering the
+        /// same encoding again is a no-op that still succeeds.
         /// </summary>
         public bool AddEncoding(NodeId dataTypeId, ExpandedNodeId encodingId)
         {
@@ -632,7 +647,7 @@ namespace Opc.Ua
                 {
                     typeInfo.Encodings = [localId];
                 }
-                else
+                else if (System.Array.IndexOf(typeInfo.Encodings, localId) < 0)
                 {
                     var encodings = new NodeId[typeInfo.Encodings.Length + 1];
                     System.Array.Copy(typeInfo.Encodings, encodings, typeInfo.Encodings.Length);
@@ -676,6 +691,11 @@ namespace Opc.Ua
                     typeInfo = new TypeInfo();
                     m_nodes.Add(subTypeId, typeInfo);
                 }
+                else if (typeInfo.SuperType != null &&
+                    !ReferenceEquals(typeInfo.SuperType, superTypeInfo))
+                {
+                    typeInfo.SuperType.RemoveSubType(subTypeId);
+                }
 
                 // update the info.
                 typeInfo.NodeId = subTypeId;
@@ -692,6 +712,7 @@ namespace Opc.Ua
                     {
                         m_encodings.Remove(encoding);
                     }
+                    typeInfo.Encodings = null;
                 }
 
                 // add reference type.
@@ -772,7 +793,7 @@ namespace Opc.Ua
             /// </summary>
             /// <param name="nodeId">The node identifier.</param>
             /// <returns>
-            /// 	<c>true</c> if this node is type of the specified NodeId otherwise, <c>false</c>.
+            /// <c>true</c> if this node is type of the specified NodeId otherwise, <c>false</c>.
             /// </returns>
             public bool IsTypeOf(NodeId nodeId)
             {

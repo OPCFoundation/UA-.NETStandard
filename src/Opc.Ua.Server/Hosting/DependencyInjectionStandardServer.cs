@@ -54,6 +54,7 @@ namespace Opc.Ua.Server.Hosting
             : base(telemetry, timeProvider)
         {
             m_services = services ?? throw new ArgumentNullException(nameof(services));
+            SecurityPolicyRegistry = m_services.GetService<ISecurityPolicyRegistry>();
         }
 
         /// <inheritdoc/>
@@ -119,6 +120,15 @@ namespace Opc.Ua.Server.Hosting
         {
             return m_services.GetService<IRoleManager>() ??
                 base.CreateRoleManager(server, configuration);
+        }
+
+        /// <inheritdoc/>
+        protected override UserManagement.IUserManagement? CreateUserManagement(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            return m_services.GetService<UserManagement.IUserManagement>() ??
+                base.CreateUserManagement(server, configuration);
         }
 
         /// <inheritdoc/>

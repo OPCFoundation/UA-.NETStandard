@@ -57,6 +57,29 @@ namespace Opc.Ua.Bindings
         public ICertificateValidatorEx? CertificateValidator { get; set; }
 
         /// <summary>
+        /// Selects the crypto provider for operations performed on the channel,
+        /// or <c>null</c> to use platform cryptography.
+        /// </summary>
+        /// <remarks>
+        /// The channel resolves a provider once, when it is opened, and holds the
+        /// result for its lifetime, in the same way it caches the security policy
+        /// on its token. Nothing on a per message path consults this.
+        /// </remarks>
+        public ICryptoProviderRegistry? CryptoProviders { get; set; }
+
+        /// <summary>
+        /// The security policies the channel negotiates against, or <c>null</c>
+        /// to use <see cref="SecurityPolicies.Default"/>.
+        /// </summary>
+        /// <remarks>
+        /// Set this from the registry the application configured so a policy it
+        /// contributed through <c>AddSecurityPolicy</c> is reachable by a peer.
+        /// Leaving it <c>null</c> keeps the built-in policy set, which is what a
+        /// caller that configures nothing gets.
+        /// </remarks>
+        public ISecurityPolicyRegistry? SecurityPolicyRegistry { get; set; }
+
+        /// <summary>
         /// The maximum size for a message sent or received.
         /// </summary>
         public int MaxMessageSize { get; set; }

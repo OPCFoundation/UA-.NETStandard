@@ -4,7 +4,7 @@
 [![NuGet Downloads](https://img.shields.io/nuget/dt/OPCFoundation.NetStandard.Opc.Ua)](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
 [![Build](https://opcfoundation.visualstudio.com/opcua-netstandard/_apis/build/status/OPCFoundation.UA-.NETStandard?branchName=master)](https://opcfoundation.visualstudio.com/opcua-netstandard/_build/latest?definitionId=14&branchName=master)
 [![Tests](https://img.shields.io/azure-devops/tests/opcfoundation/opcua-netstandard/14/master?style=plastic&label=Tests)](https://opcfoundation.visualstudio.com/opcua-netstandard/_test/analytics?definitionId=14&contextType=build)
-[![Coverage](https://codecov.io/gh/OPCFoundation/UA-.NETStandard/branch/master/graph/badge.svg?token=vDf5AnilUt)](https://codecov.io/gh/OPCFoundation/UA-.NETStandard)
+[![Coverage](https://img.shields.io/azure-devops/coverage/opcfoundation/opcua-netstandard/14/master?style=plastic&label=Coverage)](https://opcfoundation.visualstudio.com/opcua-netstandard/_build/latest?definitionId=14&branchName=master)
 
 > 🆕 **This is version 2.0 of the OPC UA .NET Standard Stack (current `master`).**
 >
@@ -22,7 +22,7 @@ across industrial control, manufacturing, energy, and IoT systems.
 ## 📦 What it is
 
 - **A full-stack OPC UA implementation** — Core / Client / Server /
-  PubSub / GDS / LDS / Complex Types / Device Integration libraries
+  PubSub / GDS / LDS / Complex Types / Device Integration / Positioning libraries
   built on .NET, with UA-TCP and HTTPS transports.
 - **Cross-platform** — runs on .NET 10, .NET 9, .NET 8 (LTS),
   .NET Framework 4.8, and .NET Standard 2.1; ships
@@ -34,8 +34,12 @@ across industrial control, manufacturing, energy, and IoT systems.
 - **Companion-spec coverage** — Part 9 (Alarms & Conditions), Part 11
   (Historical Access), Part 13 (Aggregates), Part 16 (State Machines),
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File
-  Transfer), Part 100 (Device Integration), OPC 10100-1 (WoT
-  Connectivity).
+  Transfer), Part 100 (Device Integration), Parts 210/211 (Relative
+  Spatial Location and Global Positioning), OPC-10030 (ISA-95 Common
+  Model) with OPC-10031-4 Job Control V1/V2, OPC 30270 / OPC UA for Asset
+  Administration Shell V2 and V3, OPC 10100-1
+  (WoT Connectivity), OPC 40001-1 (Industrial Automation), OPC 40010-1
+  (Robotics).
 - **Modern developer surface** — first-class `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so
@@ -60,68 +64,41 @@ the [Developer Guide](docs/DeveloperGuide.md#packages-platform-support-and-versi
 are published to nuget.org under the `OPCFoundation.NetStandard`
 prefix — the meta package
 [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
-pulls in everything, or pick the split
-`OPCFoundation.NetStandard.Opc.Ua.Core` / `.Client` / `.Server` /
-`.Bindings.Https` packages directly. Preview builds for every successful
-`master` build are available in the
-[Azure DevOps opcua-preview feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local).
+pulls in everything, or reference individual packages directly, e.g.
+`OPCFoundation.NetStandard.Opc.Ua.Client` for clients or
+`OPCFoundation.NetStandard.Opc.Ua.Server` for servers. Preview builds from
+every successful `master` build are available from the
+[GitHub Packages NuGet feed](https://nuget.pkg.github.com/OPCFoundation/index.json).
+Official public 2.0 preview releases are also on nuget.org. Enable prerelease
+packages and use `2.0.0-preview.*` to float to the latest published
+`2.0.0-preview.N` release.
 
-### Sample applications
+### Samples
 
-Each sample has its own `README.md` with build and run instructions.
-
-**Reference applications**
-
-- [Console Reference Server](samples/ConsoleReferenceServer/README.md) —
-  the certified reference server (with Quickstarts, CTT, and Mono
-  configs). Also ships as a
-  [Docker container](docs/ContainerReferenceServer.md).
-- [Console Reference Client](samples/ConsoleReferenceClient/README.md) —
-  cross-platform reference client demonstrating sessions, subscriptions,
-  browsing, and method calls.
-- [Console LDS Server](samples/ConsoleLdsServer) — a standalone
-  Local Discovery Server built on `Opc.Ua.Lds.Server`.
-
-**PubSub samples**
-
-- [Console Reference PubSub Client](samples/ConsoleReferencePubSubClient/README.md) —
-  one executable with `publisher`, `subscriber`, and `external` (external-server
-  adapter) modes across the supported transport profiles.
-
-**Minimal / Device-Integration samples**
-
-- [Minimal Calc Server](samples/MinimalCalcServer) — minimal
-  server built on the source-generated NodeManager pipeline (Calc
-  model).
-- [Minimal Boiler Server](samples/MinimalBoilerServer) — minimal
-  Boiler-model server with the fluent state-machine builder;
-  Native-AOT publishable.
-- [Pump Device Integration Server](samples/PumpDeviceIntegrationServer/README.md) —
-  minimal Device Integration (Part 100) server using
-  `Opc.Ua.Di.Server`'s fluent builder.
-
-More sample projects are maintained in the companion
-[OPC UA .NET Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples)
-repository.
+The stack also includes a large collection of
+[platform-independent sample applications](docs/samples.md) that turn its
+core services and companion models into runnable client/server workflows.
+More applications, including platform-specific examples, are available in
+the companion
+[OPC UA .NET Samples repository](https://github.com/OPCFoundation/UA-.NETStandard-Samples).
 
 ### Developer tools
 
-- [OPC UA MCP Server](tools/Opc.Ua.Mcp/README.md) — installable .NET tool and container that exposes OPC UA client operations as MCP tools for LLMs and Copilot.
+- [OPC UA MCP Server](tools/Opc.Ua.Mcp/README.md) — installable .NET tool and container that exposes OPC UA client operations as MCP tools for LLMs and Copilot. The tools also ship as libraries (`…Opc.Ua.Mcp.Core`, `.PubSub`, `.Diagnostics`, `.PubSub.Diagnostics`) so an application can embed them next to its own MCP tools.
 
 ## 🔧 Migrating from 1.5.378 to 2.0
 
 The 2.0 release introduces breaking API changes, and comes with a full
 [prescriptive migration guide](docs/MigrationGuide.md) that links to
-[per-area documentation](docs/migrate/2.0.x/README.md) covering
-telemetry, packages, source generation, types, encoders, node states,
-identity, certificates, configuration, sessions / subscriptions,
-alarms / model change, and TimeProvider.
+[per-area documentation](docs/migrate/2.0.x/README.md) for the migration
+sub-topics.
 
 Most of the mechanical migration work is automated:
 
 - **`OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer` NuGet** —
-  install it in your project to get analyzer warnings (`UA0001`–`UA0022`)
-  + one-click code fixes for the patterns in the guide. Setup steps
+  install it in your project to get 26 analyzer rules through `UA0030`
+  (excluding `UA0013`, `UA0016`, `UA0017`, and the shim-only `UA0029`) plus
+  one-click code fixes for the patterns in the guide. Setup steps
   are in the package's
   [NugetREADME.md](tools/Opc.Ua.MigrationAnalyzer/NugetREADME.md).
 - **Migration agent skill** — the
@@ -130,6 +107,14 @@ Most of the mechanical migration work is automated:
   the NuGet, running `dotnet format analyzers` to apply auto-fixes,
   and handling the small residual manual patterns. The skill knows
   which sub-doc to load for each symptom so it stays context-efficient.
+
+Copilot CLI discovers the skill automatically inside a clone. To install it
+for use in any repository:
+
+```bash
+copilot plugin marketplace add OPCFoundation/UA-.NETStandard
+copilot plugin install opcua-v20-migration@opcua-dotnet
+```
 
 If you are still on 1.x and not ready to upgrade, stay on the
 [`master378`](https://github.com/OPCFoundation/UA-.NETStandard/tree/master378)
@@ -163,7 +148,5 @@ vulnerabilities via the process documented in
   [`docs/migrate/2.0.x/`](docs/migrate/2.0.x/README.md)).
 - [OPC UA Online Reference](https://reference.opcfoundation.org/) —
   the official OPC 10000 series specification index.
-- [OPC UA .NET Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) —
-  companion repository with more sample applications.
-- [Preview NuGet feed](https://opcfoundation.visualstudio.com/opcua-netstandard/_packaging?_a=feed&feed=opcua-preview%40Local) —
-  prerelease builds from Azure DevOps.
+- [Preview Nuget package feed](https://nuget.pkg.github.com/OPCFoundation/index.json) —
+  prerelease builds from every successful `master` build.

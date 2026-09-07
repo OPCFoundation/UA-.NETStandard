@@ -120,7 +120,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests
         /// Compile <paramref name="userSource"/> WITHOUT the OPC UA stub surface, so
         /// analyzers that branch on "is the legacy symbol present in the compilation?"
         /// take their symbol-absent fallback. Used by tests that exercise UA0021's
-        /// syntactic-fallback path (when the consumer is on bare 1.6 and the legacy
+        /// syntactic-fallback path (when the consumer is on bare 2.0 and the legacy
         /// <c>CertificateValidator</c>/<c>CertificateValidationEventArgs</c> types are
         /// no longer defined anywhere).
         /// </summary>

@@ -347,16 +347,22 @@ namespace Opc.Ua.Schema.Model
 
             m_designFilePaths[Ua.Types.Namespaces.OpcUa] = string.Empty;
 
+            // load the design files.
+            List<Namespace> namespaces = GetNamespaceList(designFilePaths);
+
             // Apply any dependency payloads that were registered via ImportDependency()
             // before validation began. Their type entries become visible
             // to the dependency-loading pass below, so downstream
             // NodeSet2/ModelDesign inputs can resolve cross-namespace
             // references (e.g. BaseType lookups) without those upstream
-            // models being present in AdditionalFiles.
-            ApplyPendingDependencies();
-
-            // load the design files.
-            List<Namespace> namespaces = GetNamespaceList(designFilePaths);
+            // models being present in AdditionalFiles. Models backed by a
+            // design file are skipped: the explicit file always wins over
+            // the payload (loading a design file on top of the same
+            // payload-materialized nodes would otherwise fail with
+            // duplicate symbolic ids).
+            ApplyPendingDependencies(new HashSet<string>(
+                namespaces.Where(x => x.FilePath != null).Select(x => x.Value),
+                StringComparer.Ordinal));
 
             // The primary target (designFilePaths[0]) is loaded separately
             // below. It is identified by its FilePath, not by list index,
@@ -364,35 +370,58 @@ namespace Opc.Ua.Schema.Model
             // namespaces ahead of the namespaces they reference) is allowed
             // to move a dependency that imports the primary target ahead of
             // it. Skipping purely by "ii > 0" would then double-load the
-            // primary target as a dependency.
-            for (int ii = namespaces.Count - 1; ii >= 0; ii--)
+            // primary target as a dependency. Namespaces after the target
+            // in the list cannot reference it and are loaded first (in
+            // reverse order, so referenced models load before the models
+            // that reference them); namespaces before the target may import
+            // it (e.g. a downstream model of the same compilation supplied
+            // as a dependency) and can only be loaded once the target
+            // itself has been loaded.
+            int targetIndex = namespaces.FindIndex(x => x.FilePath == inputPath);
+
+            var dependencyModels = new List<ModelDesign>();
+
+            for (int ii = namespaces.Count - 1; ii > targetIndex; ii--)
             {
-                if (namespaces[ii].FilePath == null ||
-                    namespaces[ii].FilePath == inputPath)
-                {
-                    continue;
-                }
-
-                ModelDesign dependency = LoadDesignFile(
-                    namespaces,
-                    namespaces[ii].FilePath,
-                    null,
-                    validateDictionary: false);
-
-                if (dependency.Namespaces != null)
-                {
-                    Namespace ns = dependency.Namespaces
-                        .FirstOrDefault(x => x.Value == dependency.TargetNamespace);
-                    namespaces[ii].Name = ns.Name;
-                    namespaces[ii].Prefix = ns.Prefix;
-                    namespaces[ii].XmlPrefix = ns.XmlPrefix;
-                }
+                LoadDependencyDesignFile(namespaces, ii, dependencyModels);
             }
+
+            // With every upstream model loaded, re-link the payload-imported
+            // declarations (their base types may live in a design file that
+            // was not loaded when the payloads were applied) and link the
+            // data types and instances of the dependency designs that were
+            // loaded without full dictionary validation. Without this, a
+            // target structure that subtypes a dependency structure inherits
+            // fields whose DataTypeNode is unresolved and whose parent
+            // classification is the BasicDataType enum default, and a target
+            // instance of a dependency-declared type inherits children whose
+            // TypeDefinitionNode / DataTypeNode are unresolved, crashing or
+            // corrupting the schema and code generators.
+            LinkDependencyChildren();
+            LinkDependencyDataTypes(m_payloadDataTypes);
+            foreach (ModelDesign dependency in dependencyModels)
+            {
+                LinkDependencyDataTypes(dependency.Items);
+                LinkDependencyInstances(dependency.Items);
+            }
+
+            int upstreamDependencyCount = dependencyModels.Count;
 
             ModelDesign targetModel = LoadDesignFile(
                 namespaces,
                 designFilePaths[0],
                 identifierFilePath);
+
+            for (int ii = targetIndex - 1; ii >= 0; ii--)
+            {
+                LoadDependencyDesignFile(namespaces, ii, dependencyModels);
+            }
+
+            for (int ii = upstreamDependencyCount; ii < dependencyModels.Count; ii++)
+            {
+                LinkDependencyDataTypes(dependencyModels[ii].Items);
+                LinkDependencyInstances(dependencyModels[ii].Items);
+            }
 
             // set a default xml namespace.
             if (string.IsNullOrEmpty(targetModel.TargetXmlNamespace))
@@ -1577,6 +1606,49 @@ namespace Opc.Ua.Schema.Model
                         "Node {Node} does not have a valid NodeId.",
                         node);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Loads the design file backing <paramref name="namespaces"/>[<paramref name="index"/>]
+        /// as a dependency (without dictionary validation), records the
+        /// loaded model in <paramref name="dependencyModels"/> and copies
+        /// the authoritative namespace metadata of the loaded model back
+        /// into the namespace list. No-op for namespaces without a backing
+        /// file.
+        /// </summary>
+        private void LoadDependencyDesignFile(
+            List<Namespace> namespaces,
+            int index,
+            List<ModelDesign> dependencyModels)
+        {
+            if (namespaces[index].FilePath == null)
+            {
+                return;
+            }
+
+            ModelDesign dependency = LoadDesignFile(
+                namespaces,
+                namespaces[index].FilePath,
+                null,
+                validateDictionary: false);
+
+            // NodeSet2 dependencies are fully linked and classified by
+            // NodeSetToModelDesign during import; only ModelDesign
+            // dependencies skip dictionary validation and need the
+            // deferred data type linking.
+            if (!dependency.IsSourceNodeSet)
+            {
+                dependencyModels.Add(dependency);
+            }
+
+            if (dependency.Namespaces != null)
+            {
+                Namespace ns = dependency.Namespaces
+                    .FirstOrDefault(x => x.Value == dependency.TargetNamespace);
+                namespaces[index].Name = ns.Name;
+                namespaces[index].Prefix = ns.Prefix;
+                namespaces[index].XmlPrefix = ns.XmlPrefix;
             }
         }
 
@@ -3531,6 +3603,8 @@ namespace Opc.Ua.Schema.Model
                 }
 
                 method.OutputArguments = parameters;
+                method.HasArguments =
+                    MethodDesignArgumentResolver.HasMethodArguments(method);
             }
         }
 
@@ -4229,16 +4303,12 @@ namespace Opc.Ua.Schema.Model
             {
                 if (instance.TypeDefinition != null)
                 {
-                    method.MethodType = this.FindNode<MethodDesign>(
+                    method.MethodType ??= this.FindNode<MethodDesign>(
                         instance.TypeDefinition,
                         instance.SymbolicId.Name,
                         "TypeDefinition");
 
                     method.Description = method.MethodType.Description;
-                    method.InputArguments = method.MethodType.InputArguments;
-                    method.OutputArguments = method.MethodType.OutputArguments;
-                    method.HasArguments = (method.InputArguments != null && method.InputArguments.Length > 0) ||
-                        (method.OutputArguments != null && method.OutputArguments.Length > 0);
 
                     //if (!method.ModellingRuleSpecified || method.ModellingRule == ModellingRule.None)
                     //{
@@ -4268,8 +4338,14 @@ namespace Opc.Ua.Schema.Model
                     //}
                 }
 
+                MethodDesign methodDefinition =
+                    MethodDesignArgumentResolver.ResolveMethodDefinition(method);
+                method.InputArguments = methodDefinition.InputArguments ?? [];
+                method.OutputArguments = methodDefinition.OutputArguments ?? [];
                 ValidateParameters(method, method.InputArguments);
                 ValidateParameters(method, method.OutputArguments);
+                method.HasArguments =
+                    MethodDesignArgumentResolver.HasMethodArguments(method);
 
                 if (method.Parent != null)
                 {
@@ -4698,9 +4774,23 @@ namespace Opc.Ua.Schema.Model
                 mergedInstance = instance.Copy();
 
                 if (instance is MethodDesign method)
-
                 {
-                    ((MethodDesign)mergedInstance).MethodDeclarationNode = method;
+                    var mergedMethod = (MethodDesign)mergedInstance;
+                    // The merged copy overrides the instance declaration it was
+                    // copied from, so that declaration is what a caller may pass
+                    // to Call as the MethodId. Pointing the link at the copy
+                    // itself would make MethodDeclarationId self referential and
+                    // the supertype's MethodId would no longer resolve.
+                    mergedMethod.MethodDeclarationNode ??=
+                        method.MethodDeclarationNode ?? method;
+                    MethodDesign methodDefinition =
+                        MethodDesignArgumentResolver.ResolveMethodDefinition(mergedMethod);
+                    mergedMethod.InputArguments =
+                        methodDefinition.InputArguments ?? [];
+                    mergedMethod.OutputArguments =
+                        methodDefinition.OutputArguments ?? [];
+                    mergedMethod.HasArguments =
+                        MethodDesignArgumentResolver.HasMethodArguments(mergedMethod);
                 }
             }
             else
@@ -5083,6 +5173,41 @@ namespace Opc.Ua.Schema.Model
             MethodDesign mergedMethod,
             MethodDesign method)
         {
+            bool overridesType = method.TypeDefinition != null ||
+                method.MethodType != null;
+            bool overridesArguments =
+                MethodDesignArgumentResolver.HasDeclaredArguments(method);
+            bool overridesDeclaration = method.MethodDeclarationNode != null;
+
+            if (overridesType || overridesArguments || overridesDeclaration)
+            {
+                MethodDesign inheritedDeclaration = mergedMethod.MethodDeclarationNode;
+                mergedMethod.TypeDefinition = method.TypeDefinition;
+                mergedMethod.TypeDefinitionNode = null;
+                mergedMethod.MethodType = method.MethodType;
+                // An override that keeps the inherited signature stays callable
+                // with the MethodId of the declaration it overrides, so that
+                // link is preserved. Only a signature change makes the override
+                // a declaration in its own right - pointing the link at the
+                // override otherwise would make MethodDeclarationId self
+                // referential and the supertype's MethodId would stop
+                // resolving in Call.
+                mergedMethod.MethodDeclarationNode =
+                    method.MethodDeclarationNode ??
+                    (inheritedDeclaration != null &&
+                        MethodDesignArgumentResolver.HaveSameMethodSignature(
+                            inheritedDeclaration,
+                            method)
+                            ? inheritedDeclaration
+                            : mergedMethod);
+                mergedMethod.InputArguments =
+                    MethodDesignArgumentResolver.ResolveMethodInputs(method);
+                mergedMethod.OutputArguments =
+                    MethodDesignArgumentResolver.ResolveMethodOutputs(method);
+            }
+            mergedMethod.HasArguments =
+                MethodDesignArgumentResolver.HasMethodArguments(mergedMethod);
+
             if (method.NonExecutableSpecified)
             {
                 mergedMethod.NonExecutable = method.NonExecutable;
@@ -5660,12 +5785,13 @@ namespace Opc.Ua.Schema.Model
                     depth + 1);
             }
 
-            if (parent.TypeDefinition != null && parent is MethodDesign)
+            if (parent.TypeDefinition != null && parent is MethodDesign method)
             {
-                MethodDesign methodType = this.FindNode<MethodDesign>(
-                    parent.TypeDefinition,
-                    parent.SymbolicId.Name,
-                    "MethodType");
+                MethodDesign methodType = method.MethodType ??
+                    this.FindNode<MethodDesign>(
+                        parent.TypeDefinition,
+                        parent.SymbolicId.Name,
+                        "MethodType");
 
                 if (methodType != null)
                 {
@@ -6155,10 +6281,15 @@ namespace Opc.Ua.Schema.Model
         /// Called from inside <c>ValidateModel</c> right after the
         /// node-table reset and the built-in OpcUa model load, so all
         /// stored dependency entries are registered before dependency
-        /// design files are processed.
+        /// design files are processed. Payloads for models in
+        /// <paramref name="modelUrisWithDesignFile"/> are skipped: those
+        /// models are loaded from their design file, which is
+        /// authoritative.
         /// </summary>
-        internal void ApplyPendingDependencies()
+        internal void ApplyPendingDependencies(
+            ISet<string> modelUrisWithDesignFile = null)
         {
+            m_payloadDataTypes.Clear();
             if (m_pendingDependencies == null || m_pendingDependencies.Count == 0)
             {
                 return;
@@ -6166,6 +6297,11 @@ namespace Opc.Ua.Schema.Model
             EnsureDependencyTablesInitialised();
             foreach (PendingDependency pending in m_pendingDependencies)
             {
+                if (modelUrisWithDesignFile?.Contains(
+                    pending.Dependency.ModelUri) == true)
+                {
+                    continue;
+                }
                 ApplyDependency(pending.Dependency);
             }
             // Cross-dependency references can now resolve.
@@ -6202,6 +6338,13 @@ namespace Opc.Ua.Schema.Model
                     continue;
                 }
                 m_nodes[symbolicId] = design;
+
+                if (design is DataTypeDesign payloadDataType)
+                {
+                    // Collected so ValidateModel can link the fields and
+                    // classification once all design files are loaded.
+                    m_payloadDataTypes.Add(payloadDataType);
+                }
 
                 if (entry.NumericId != 0)
                 {
@@ -6273,6 +6416,11 @@ namespace Opc.Ua.Schema.Model
             if (!string.IsNullOrEmpty(entry.StringId))
             {
                 design.StringId = entry.StringId;
+            }
+
+            if (design is DataTypeDesign dataTypeDesign)
+            {
+                dataTypeDesign.IsEnumeration = entry.IsEnumeration;
             }
 
             if (design is DataTypeDesign dt && entry.Fields != null && entry.Fields.Count > 0)
@@ -6371,24 +6519,115 @@ namespace Opc.Ua.Schema.Model
                 }
                 variable.ValueRank = (ValueRank)c.ValueRank;
                 variable.ValueRankSpecified = c.ValueRank != (int)ValueRank.Scalar;
+                variable.AccessLevel = (AccessLevel)c.AccessLevel;
+                variable.AccessLevelSpecified = c.AccessLevelSpecified;
+                variable.RawAccessLevel = c.RawAccessLevel;
+                variable.RawUserAccessLevel = c.RawUserAccessLevel;
+                variable.MinimumSamplingInterval = c.MinimumSamplingInterval;
+                variable.MinimumSamplingIntervalSpecified =
+                    c.MinimumSamplingIntervalSpecified;
+                variable.Historizing = c.Historizing;
+                variable.HistorizingSpecified = c.HistorizingSpecified;
+                if (c.DefaultValueXml != null)
+                {
+                    variable.DefaultValue = ParseDependencyDefaultValue(
+                        c.DefaultValueXml);
+                }
             }
             else if (instance is MethodDesign method)
             {
-                // Methods carry their own argument lists; the TypeDefinition
-                // would point at a MethodType (a separate MethodDesign in
-                // the upstream model) which is NOT carried by the dependency
-                // payload, so clear it to avoid a downstream
-                // FindNode<MethodDesign> failure during ValidateInstance.
-                method.TypeDefinition = null;
                 method.InputArguments = MaterialiseMethodArgs(c.InputArguments);
                 method.OutputArguments = MaterialiseMethodArgs(c.OutputArguments);
                 method.HasArguments = method.InputArguments.Length > 0 ||
                     method.OutputArguments.Length > 0;
+
+                if (!string.IsNullOrEmpty(c.MethodStateName))
+                {
+                    var methodStateIdentity = new XmlQualifiedName(
+                        c.MethodStateName,
+                        c.MethodStateNamespace ?? string.Empty);
+                    var methodState = new MethodDesign
+                    {
+                        SymbolicId = methodStateIdentity,
+                        SymbolicName = methodStateIdentity,
+                        BrowseName = c.MethodStateName,
+                        InputArguments = method.InputArguments,
+                        OutputArguments = method.OutputArguments,
+                        HasArguments = method.HasArguments,
+                        IsDeclaration = true
+                    };
+
+                    if (method.TypeDefinition != null)
+                    {
+                        method.MethodType = methodState;
+                    }
+                    else
+                    {
+                        method.MethodDeclarationNode = methodState;
+                    }
+                }
+                else
+                {
+                    // Legacy payloads flattened method arguments without
+                    // preserving the upstream method state identity.
+                    method.TypeDefinition = null;
+                }
+
+                if (!string.IsNullOrEmpty(c.MethodDeclarationName))
+                {
+                    var declarationIdentity = new XmlQualifiedName(
+                        c.MethodDeclarationName,
+                        c.MethodDeclarationNamespace ?? string.Empty);
+                    MethodDesign declaration =
+                        method.MethodDeclarationNode?.SymbolicId == declarationIdentity
+                            ? method.MethodDeclarationNode
+                            : new MethodDesign
+                            {
+                                SymbolicId = declarationIdentity,
+                                SymbolicName = declarationIdentity,
+                                BrowseName = c.MethodDeclarationName,
+                                InputArguments = method.InputArguments,
+                                OutputArguments = method.OutputArguments,
+                                HasArguments = method.HasArguments,
+                                IsDeclaration = true
+                            };
+                    if (method.TypeDefinition == null &&
+                        method.MethodDeclarationNode != null &&
+                        !ReferenceEquals(declaration, method.MethodDeclarationNode))
+                    {
+                        declaration.MethodDeclarationNode =
+                            method.MethodDeclarationNode;
+                    }
+                    if (c.MethodDeclarationNumericId != 0)
+                    {
+                        declaration.NumericId = c.MethodDeclarationNumericId;
+                        declaration.NumericIdSpecified = true;
+                    }
+                    if (!string.IsNullOrEmpty(c.MethodDeclarationStringId))
+                    {
+                        declaration.StringId = c.MethodDeclarationStringId;
+                    }
+                    method.MethodDeclarationNode = declaration;
+                }
             }
             // Mark as inherited-declaration so consumer code paths
             // that iterate children for emission can short-circuit.
             instance.IsDeclaration = true;
             return instance;
+        }
+
+        private static System.Xml.XmlElement ParseDependencyDefaultValue(
+            string value)
+        {
+            using var textReader = new StringReader(value);
+            using XmlReader reader = XmlReader.Create(
+                textReader,
+                CoreUtils.DefaultXmlReaderSettings());
+            var document = new XmlDocument();
+            document.Load(reader);
+            return document.DocumentElement ??
+                throw new InvalidDataException(
+                    "Dependency default value XML has no document element.");
         }
 
         private static Parameter[] MaterialiseMethodArgs(
@@ -6464,11 +6703,293 @@ namespace Opc.Ua.Schema.Model
                     {
                         variable.DataTypeNode = dtNode as DataTypeDesign;
                     }
+                    if (instance is MethodDesign method)
+                    {
+                        LinkDependencyMethodArguments(method.InputArguments);
+                        LinkDependencyMethodArguments(method.OutputArguments);
+                    }
+                }
+            }
+        }
+
+        private void LinkDependencyMethodArguments(Parameter[] arguments)
+        {
+            if (arguments == null)
+            {
+                return;
+            }
+            foreach (Parameter argument in arguments)
+            {
+                if (argument?.DataType != null &&
+                    argument.DataTypeNode == null &&
+                    m_nodes.TryGetValue(argument.DataType, out NodeDesign dataType))
+                {
+                    argument.DataTypeNode = dataType as DataTypeDesign;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Links the instances of a dependency model that did not go
+        /// through <see cref="ValidateDictionary"/> (design files loaded
+        /// as dependencies): resolves the TypeDefinitionNode /
+        /// DataTypeNode of the types' children and standalone instances,
+        /// and the data types of variable types and method arguments, the
+        /// way <see cref="ValidateInstance"/> and <see cref="ValidateType"/>
+        /// do for the target model. A target instance whose TypeDefinition
+        /// is a dependency-declared type inherits these children into its
+        /// hierarchy, and the node state generator dereferences the links.
+        /// Resolution is best effort: references that cannot be resolved
+        /// are left null rather than failing the load.
+        /// </summary>
+        private void LinkDependencyInstances(IEnumerable<NodeDesign> nodes)
+        {
+            if (nodes == null)
+            {
+                return;
+            }
+
+            foreach (NodeDesign node in nodes)
+            {
+                if (node is VariableTypeDesign variableType &&
+                    variableType.DataTypeNode == null &&
+                    !IsNull(variableType.DataType) &&
+                    m_nodes.TryGetValue(variableType.DataType, out NodeDesign dataType))
+                {
+                    variableType.DataTypeNode = dataType as DataTypeDesign;
+                }
+
+                if (node is InstanceDesign instance)
+                {
+                    LinkDependencyInstance(instance);
+                }
+
+                if (node.Children?.Items != null)
+                {
+                    LinkDependencyInstances(node.Children.Items);
+                }
+            }
+        }
+
+        private void LinkDependencyInstance(InstanceDesign instance)
+        {
+            NodeDesign typeDefinition = null;
+
+            if (!IsNull(instance.TypeDefinition))
+            {
+                m_nodes.TryGetValue(instance.TypeDefinition, out typeDefinition);
+            }
+
+            if (instance is ObjectDesign objectDesign &&
+                objectDesign.TypeDefinitionNode == null)
+            {
+                objectDesign.TypeDefinitionNode = typeDefinition as ObjectTypeDesign;
+            }
+
+            if (instance is VariableDesign variable)
+            {
+                if (variable.TypeDefinitionNode == null)
+                {
+                    variable.TypeDefinitionNode = typeDefinition as VariableTypeDesign;
+                }
+
+                // Mirror ValidateInstance: a variable that does not restrict
+                // the data type inherits the restriction of its variable type.
+                if (variable.TypeDefinitionNode is VariableTypeDesign variableType &&
+                    (variable.DataType == null || variable.DataType == s_baseDataTypeQn))
+                {
+                    variable.DataType = variableType.DataType;
+
+                    if (!variable.ValueRankSpecified &&
+                        variableType.ValueRank != ValueRank.ScalarOrArray)
+                    {
+                        variable.ValueRank = variableType.ValueRank;
+                        variable.ValueRankSpecified = true;
+                    }
+                }
+
+                if (variable.DataTypeNode == null &&
+                    !IsNull(variable.DataType) &&
+                    m_nodes.TryGetValue(variable.DataType, out NodeDesign dataType))
+                {
+                    variable.DataTypeNode = dataType as DataTypeDesign;
+                }
+
+                if (variable.DefaultValue != null && variable.DecodedValue == null)
+                {
+                    try
+                    {
+                        using var decoder = new XmlDecoder(variable.DefaultValue, m_context);
+                        Variant variant = decoder.ReadVariantValue(null, default);
+                        if (!variant.TypeInfo.IsUnknown)
+                        {
+                            variable.ValueRank =
+                                variant.TypeInfo.ValueRank == ValueRanks.Scalar ?
+                                    ValueRank.Scalar : ValueRank.Array;
+                            variable.ValueRankSpecified = true;
+                            variable.DecodedValue =
+                                variant.AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        if (m_logger.IsEnabled(LogLevel.Debug))
+                        {
+                            m_logger.LogDebug(e,
+                                "Could not decode the default value of dependency instance {Name}.",
+                                instance.SymbolicId.Name);
+                        }
+                    }
+                }
+            }
+
+            if (instance is MethodDesign method)
+            {
+                method.MethodType ??= typeDefinition as MethodDesign;
+
+                MethodDesign methodDefinition =
+                    MethodDesignArgumentResolver.ResolveMethodDefinition(method);
+                method.InputArguments = methodDefinition.InputArguments ?? [];
+                method.OutputArguments = methodDefinition.OutputArguments ?? [];
+                LinkDependencyMethodArguments(method.InputArguments);
+                LinkDependencyMethodArguments(method.OutputArguments);
+
+                if (!UseAllowSubtypes &&
+                    m_nodes.TryGetValue(s_structureQn, out NodeDesign structureNode) &&
+                    structureNode is DataTypeDesign structureDesign)
+                {
+                    foreach (Parameter argument in method.InputArguments)
+                    {
+                        if (argument?.DataTypeNode != null &&
+                            IsTypeOf(argument.DataTypeNode, s_structureQn) &&
+                            argument.AllowSubTypes)
+                        {
+                            argument.DataTypeNode = structureDesign;
+                        }
+                    }
+
+                    foreach (Parameter argument in method.OutputArguments)
+                    {
+                        if (argument?.DataTypeNode != null &&
+                            IsTypeOf(argument.DataTypeNode, s_structureQn) &&
+                            argument.AllowSubTypes)
+                        {
+                            argument.DataTypeNode = structureDesign;
+                        }
+                    }
+                }
+
+                method.HasArguments =
+                    MethodDesignArgumentResolver.HasMethodArguments(method);
+                // Mirror ValidateInstance: a child method carries the
+                // InputArguments / OutputArguments argument properties as
+                // children, so a target instance of the dependency type
+                // materialises them into its hierarchy. Guarded by the
+                // symbolic id so an already validated or linked method is
+                // not extended twice.
+                if (method.Parent != null &&
+                    !m_nodes.ContainsKey(new XmlQualifiedName(
+                        NodeDesign.CreateSymbolicId(
+                            method.SymbolicId.Name,
+                            "InputArguments"),
+                        method.SymbolicId.Namespace)))
+                {
+                    var children = new List<InstanceDesign>();
+
+                    if (method.Children != null && method.Children.Items != null)
+                    {
+                        children.AddRange(method.Children.Items);
+                    }
+                    if (method.InputArguments != null)
+                    {
+                        children.Add(CreateArgumentProperty(method, "InputArguments"));
+                    }
+                    if (method.OutputArguments != null)
+                    {
+                        children.Add(CreateArgumentProperty(method, "OutputArguments"));
+                    }
+                    if (children.Count > 0)
+                    {
+                        method.Children = new ListOfChildren
+                        {
+                            Items = [.. children]
+                        };
+                        method.HasChildren = true;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Links the data types of a dependency model that did not go
+        /// through <see cref="ValidateDictionary"/> (design files loaded as
+        /// dependencies, payload-materialised declarations): classifies
+        /// each data type (IsStructure / IsEnumeration / BasicDataType) and
+        /// resolves the DataTypeNode and Parent of its fields. The
+        /// generators need this whenever a target type references a
+        /// dependency data type — most notably when a target structure
+        /// subtypes a dependency structure and inherits its fields.
+        /// Resolution is best effort: references that cannot be resolved
+        /// are left null rather than failing the load.
+        /// </summary>
+        private void LinkDependencyDataTypes(IEnumerable<NodeDesign> nodes)
+        {
+            if (nodes == null)
+            {
+                return;
+            }
+
+            foreach (NodeDesign node in nodes)
+            {
+                if (node is not DataTypeDesign dataType)
+                {
+                    continue;
+                }
+
+                dataType.IsStructure |= IsTypeOf(dataType, s_structureQn);
+                dataType.IsEnumeration |=
+                    IsTypeOf(dataType, s_enumerationQn) ||
+                    dataType.IsOptionSet;
+                dataType.BasicDataType = dataType.DetermineBasicDataType();
+
+                if (dataType.Fields == null)
+                {
+                    continue;
+                }
+
+                foreach (Parameter parameter in dataType.Fields)
+                {
+                    parameter.Parent ??= dataType;
+
+                    if (parameter.DataTypeNode == null &&
+                        !IsNull(parameter.DataType) &&
+                        m_nodes.TryGetValue(
+                            parameter.DataType,
+                            out NodeDesign parameterDataType))
+                    {
+                        parameter.DataTypeNode =
+                            parameterDataType as DataTypeDesign;
+                    }
+
+                    // Mirror ValidateParameters: without UseAllowSubtypes a
+                    // structure field that allows subtypes degrades to the
+                    // abstract Structure (ExtensionObject on the wire).
+                    if (parameter.DataTypeNode != null &&
+                        parameter.AllowSubTypes &&
+                        !UseAllowSubtypes &&
+                        IsTypeOf(parameter.DataTypeNode, s_structureQn) &&
+                        m_nodes.TryGetValue(
+                            s_structureQn,
+                            out NodeDesign structure))
+                    {
+                        parameter.DataTypeNode = structure as DataTypeDesign;
+                    }
                 }
             }
         }
 
         private List<PendingDependency> m_pendingDependencies;
+        private readonly List<DataTypeDesign> m_payloadDataTypes = [];
 
         private sealed record PendingDependency(ModelDependencyV1 Dependency, string Prefix, string Name);
     }

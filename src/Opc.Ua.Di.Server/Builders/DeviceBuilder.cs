@@ -330,7 +330,7 @@ namespace Opc.Ua.Di.Server.Builders
             created.BrowseName = new QualifiedName(
                 created.BrowseName.Name,
                 Manager.DiNamespaceIndex);
-            created.NodeId = Context.NodeIdFactory.New(Context, created);
+            created.NodeId = Context.RequireNodeIdFactory().New(Context, created);
             typed.Value = value;
 
             Manager.AddPredefinedNodeAsync(

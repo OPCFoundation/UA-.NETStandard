@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
@@ -47,9 +48,12 @@ namespace Opc.Ua.Client.ModelChange
     {
         private readonly IStreamingSubscription m_streaming;
         private readonly INodeCache? m_nodeCache;
+        private readonly INamespaceTableRefresher? m_namespaceTables;
         private readonly ILogger m_logger;
+        private readonly Lock m_stateLock = new();
         private CancellationTokenSource? m_cts;
         private Task? m_pumpTask;
+        private Task? m_startReadyTask;
         private bool m_disposed;
 
         /// <inheritdoc/>
@@ -61,45 +65,97 @@ namespace Opc.Ua.Client.ModelChange
         /// <summary>
         /// Initializes a new model change tracker.
         /// </summary>
+        /// <param name="streaming">Streaming subscription used to
+        /// receive the server's model change events.</param>
+        /// <param name="nodeCache">Optional node cache to invalidate
+        /// when changes arrive.</param>
+        /// <param name="logger">Optional logger.</param>
+        /// <param name="namespaceTables">Optional namespace table to
+        /// refresh when a change indicates that the server namespace
+        /// array may have changed. Pass <c>null</c> to never refresh.
+        /// <see cref="Session"/> and <see cref="ManagedSession"/> both
+        /// implement <see cref="INamespaceTableRefresher"/>.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="streaming"/>
+        /// is <c>null</c>.</exception>
         public ModelChangeTracker(
             IStreamingSubscription streaming,
             INodeCache? nodeCache = null,
-            ILogger? logger = null)
+            ILogger? logger = null,
+            INamespaceTableRefresher? namespaceTables = null)
         {
             m_streaming = streaming ?? throw new ArgumentNullException(nameof(streaming));
             m_nodeCache = nodeCache;
+            m_namespaceTables = namespaceTables;
             m_logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
         }
 
         /// <inheritdoc/>
-        public ValueTask StartTrackingAsync(CancellationToken ct = default)
+        public async ValueTask StartTrackingAsync(CancellationToken ct = default)
         {
-            if (IsTracking)
+            ct.ThrowIfCancellationRequested();
+
+            bool ownsStart = false;
+            Task readyTask;
+
+            lock (m_stateLock)
             {
-                return default;
+                if (IsTracking)
+                {
+                    readyTask = m_startReadyTask ?? Task.CompletedTask;
+                }
+                else
+                {
+                    var ready = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+
+                    m_cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    // Capture the token before launching the pump task so a racing
+                    // StopTrackingAsync (which nulls m_cts) cannot NRE the lambda.
+                    CancellationToken pumpToken = m_cts.Token;
+                    m_startReadyTask = ready.Task;
+                    m_pumpTask = Task.Run(
+                        () => PumpAsync(ready, pumpToken),
+                        CancellationToken.None);
+                    IsTracking = true;
+                    ownsStart = true;
+                    readyTask = ready.Task;
+                }
             }
 
-            m_cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            // Capture the token before launching the pump task so a racing
-            // StopTrackingAsync (which nulls m_cts) cannot NRE the lambda.
-            CancellationToken pumpToken = m_cts.Token;
-            m_pumpTask = Task.Run(() => PumpAsync(pumpToken), pumpToken);
-            IsTracking = true;
-
-            return default;
+            try
+            {
+                await readyTask.ConfigureAwait(false);
+            }
+            catch
+            {
+                if (ownsStart)
+                {
+                    await StopTrackingAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                throw;
+            }
         }
 
         /// <inheritdoc/>
         public async ValueTask StopTrackingAsync(CancellationToken ct = default)
         {
-            if (!IsTracking)
-            {
-                return;
-            }
+            Task? pumpTask;
+            CancellationTokenSource? cts;
 
-            IsTracking = false;
-            CancellationTokenSource? cts = m_cts;
-            m_cts = null;
+            lock (m_stateLock)
+            {
+                if (!IsTracking)
+                {
+                    return;
+                }
+
+                IsTracking = false;
+                cts = m_cts;
+                pumpTask = m_pumpTask;
+                m_cts = null;
+                m_pumpTask = null;
+                m_startReadyTask = null;
+            }
 
             if (cts != null)
             {
@@ -113,17 +169,16 @@ namespace Opc.Ua.Client.ModelChange
                 }
             }
 
-            if (m_pumpTask != null)
+            if (pumpTask != null)
             {
                 try
                 {
-                    await m_pumpTask.ConfigureAwait(false);
+                    await pumpTask.ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
                     // expected
                 }
-                m_pumpTask = null;
             }
 
             cts?.Dispose();
@@ -140,7 +195,7 @@ namespace Opc.Ua.Client.ModelChange
             await StopTrackingAsync().ConfigureAwait(false);
         }
 
-        private async Task PumpAsync(CancellationToken ct)
+        private async Task PumpAsync(TaskCompletionSource<bool> ready, CancellationToken ct)
         {
             try
             {
@@ -152,20 +207,69 @@ namespace Opc.Ua.Client.ModelChange
                     QueueSize = 50
                 };
 
-                IAsyncEnumerable<EventNotification> source =
-                    m_streaming.SubscribeEventsAsync(ObjectIds.Server, filter, options, ct);
+                IAsyncEnumerable<EventNotification> source = SubscribeModelChangeEvents(
+                    filter, options, ready, ct);
                 await foreach (EventNotification notification in source.ConfigureAwait(false))
                 {
-                    HandleNotification(notification);
+                    await HandleNotificationAsync(notification, ct).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException)
             {
+                ready.TrySetCanceled(ct);
                 // graceful shutdown
             }
             catch (Exception ex)
             {
+                ready.TrySetException(ex);
                 m_logger.ModelChangeTrackerPumpFailed(ex);
+            }
+        }
+
+        private IAsyncEnumerable<EventNotification> SubscribeModelChangeEvents(
+            EventFilter filter,
+            MonitoringOptions options,
+            TaskCompletionSource<bool> ready,
+            CancellationToken ct)
+        {
+            if (m_streaming is IStreamingSubscriptionReadiness readiness)
+            {
+                return readiness.SubscribeEventsAsync(
+                    ObjectIds.Server,
+                    filter,
+                    options,
+                    async (item, itemCt) =>
+                    {
+                        await WaitForMonitoredItemCreatedAsync(item, itemCt).ConfigureAwait(false);
+                        ready.TrySetResult(true);
+                    },
+                    ct);
+            }
+
+            ready.TrySetResult(true);
+            return m_streaming.SubscribeEventsAsync(ObjectIds.Server, filter, options, ct);
+        }
+
+        private static async ValueTask WaitForMonitoredItemCreatedAsync(
+            IMonitoredItem item,
+            CancellationToken ct)
+        {
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                if (item.Created)
+                {
+                    return;
+                }
+
+                if (item is IMonitoredItemApplyState { HasPendingChanges: false } &&
+                    ServiceResult.IsBad(item.Error))
+                {
+                    throw new ServiceResultException(item.Error);
+                }
+
+                await Task.Delay(10, ct).ConfigureAwait(false);
             }
         }
 
@@ -185,7 +289,9 @@ namespace Opc.Ua.Client.ModelChange
             return filter;
         }
 
-        private void HandleNotification(EventNotification notification)
+        private async ValueTask HandleNotificationAsync(
+            EventNotification notification,
+            CancellationToken ct)
         {
             Variant[] fields = notification.Fields.ToArray() ?? [];
             if (fields.Length < 3)
@@ -217,6 +323,13 @@ namespace Opc.Ua.Client.ModelChange
                 requiresFullInvalidation = true;
             }
 
+            // Refresh the namespace table before anything else so
+            // subscribers that re-browse from the ModelChanged handler —
+            // and the per-node cache invalidation below — see NodeIds
+            // from namespaces the server has just added.
+            bool namespaceTableRefreshed = await TryRefreshNamespaceTablesAsync(
+                changes, requiresFullInvalidation, ct).ConfigureAwait(false);
+
             try
             {
                 if (requiresFullInvalidation)
@@ -239,11 +352,86 @@ namespace Opc.Ua.Client.ModelChange
             try
             {
                 ModelChanged?.Invoke(this,
-                    new ModelChangedEventArgs(changes, requiresFullInvalidation));
+                    new ModelChangedEventArgs(changes, requiresFullInvalidation,
+                        namespaceTableRefreshed));
             }
             catch (Exception ex)
             {
                 m_logger.ModelChangeTrackerSubscriberThrew(ex);
+            }
+        }
+
+        /// <summary>
+        /// Re-reads the server namespace table when the reported change
+        /// indicates that the server namespace array may have changed.
+        /// A failure is logged and swallowed: the model change itself
+        /// must still be surfaced and the pump must keep running.
+        /// </summary>
+        /// <returns><c>true</c> when the table was refreshed.</returns>
+        private async ValueTask<bool> TryRefreshNamespaceTablesAsync(
+            IReadOnlyList<ModelChange> changes,
+            bool requiresFullInvalidation,
+            CancellationToken ct)
+        {
+            INamespaceTableRefresher? namespaceTables = m_namespaceTables;
+            if (namespaceTables == null ||
+                !RequiresNamespaceTableRefresh(namespaceTables, changes,
+                    requiresFullInvalidation))
+            {
+                return false;
+            }
+            try
+            {
+                await namespaceTables.FetchNamespaceTablesAsync(ct)
+                    .ConfigureAwait(false);
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                m_logger.ModelChangeTrackerFailedRefreshNamespaceTables(ex);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Whether a reported change means the client's namespace table
+        /// can no longer be trusted. A server that appends a namespace
+        /// uri while running (for example when a NodeManager is
+        /// registered live) updates <c>Server_NamespaceArray</c> and
+        /// reports the change without per-node detail, so an
+        /// unqualified change is treated as a namespace change too.
+        /// </summary>
+        private static bool RequiresNamespaceTableRefresh(
+            INamespaceTableRefresher namespaceTables,
+            IReadOnlyList<ModelChange> changes,
+            bool requiresFullInvalidation)
+        {
+            if (requiresFullInvalidation)
+            {
+                return true;
+            }
+            int knownNamespaces = namespaceTables.NamespaceUris.Count;
+            foreach (ModelChange change in changes)
+            {
+                if (change.AffectedNode == VariableIds.Server_NamespaceArray)
+                {
+                    return true;
+                }
+                if (IsUnresolvable(change.AffectedNode, knownNamespaces) ||
+                    IsUnresolvable(change.TypeDefinition, knownNamespaces))
+                {
+                    return true;
+                }
+            }
+            return false;
+
+            static bool IsUnresolvable(NodeId nodeId, int knownNamespaces)
+            {
+                return !nodeId.IsNull && nodeId.NamespaceIndex >= knownNamespaces;
             }
         }
 
@@ -277,6 +465,12 @@ namespace Opc.Ua.Client.ModelChange
         [LoggerMessage(EventId = ClientEventIds.ModelChangeTracker + 2, Level = LogLevel.Error,
             Message = "ModelChangeTracker subscriber threw")]
         public static partial void ModelChangeTrackerSubscriberThrew(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ModelChangeTracker + 3, Level = LogLevel.Warning,
+            Message = "ModelChangeTracker failed to refresh the namespace table")]
+        public static partial void ModelChangeTrackerFailedRefreshNamespaceTables(
+            this ILogger logger,
+            Exception? exception);
     }
 
 }

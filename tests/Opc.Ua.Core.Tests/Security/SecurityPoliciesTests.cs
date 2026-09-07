@@ -30,6 +30,8 @@
 // CA2000: certificates are disposed by using declarations in each test.
 #pragma warning disable CA2000
 using System;
+using System.Collections.Generic;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -41,31 +43,175 @@ namespace Opc.Ua.Core.Tests.Security
     [Category("Security")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [Parallelizable]
+    [NonParallelizable]
     public class SecurityPoliciesTests
     {
         [Test]
         public void LookupHelpersHandleKnownShortFullAndUnknownPolicies()
         {
-            SecurityPolicyInfo none = SecurityPolicies.GetInfo(null);
+            SecurityPolicyInfo none = SecurityPolicies.Default.GetInfo(null);
             Assert.That(none, Is.SameAs(SecurityPolicyInfo.None));
-            Assert.That(SecurityPolicies.GetInfo(string.Empty), Is.SameAs(SecurityPolicyInfo.None));
+            Assert.That(SecurityPolicies.Default.GetInfo(string.Empty), Is.SameAs(SecurityPolicyInfo.None));
 
-            SecurityPolicyInfo basicByUri = SecurityPolicies.GetInfo(SecurityPolicies.Basic256Sha256);
-            SecurityPolicyInfo basicByName = SecurityPolicies.GetInfo(nameof(SecurityPolicies.Basic256Sha256));
+            SecurityPolicyInfo basicByUri = SecurityPolicies.Default.GetInfo(SecurityPolicies.Basic256Sha256);
+            SecurityPolicyInfo basicByName = SecurityPolicies.Default.GetInfo(nameof(SecurityPolicies.Basic256Sha256));
             Assert.That(basicByUri, Is.Not.Null);
             Assert.That(basicByName, Is.SameAs(basicByUri));
-            Assert.That(SecurityPolicies.GetUri(nameof(SecurityPolicies.Basic256Sha256)), Is.EqualTo(SecurityPolicies.Basic256Sha256));
-            Assert.That(SecurityPolicies.GetDisplayName(SecurityPolicies.Basic256Sha256), Is.EqualTo(nameof(SecurityPolicies.Basic256Sha256)));
-            Assert.That(SecurityPolicies.IsValidSecurityPolicyUri(SecurityPolicies.Basic256Sha256), Is.True);
+            Assert.That(SecurityPolicies.Default.GetUri(nameof(SecurityPolicies.Basic256Sha256)), Is.EqualTo(SecurityPolicies.Basic256Sha256));
+            Assert.That(SecurityPolicies.Default.GetDisplayName(SecurityPolicies.Basic256Sha256), Is.EqualTo(nameof(SecurityPolicies.Basic256Sha256)));
+            Assert.That(SecurityPolicies.Default.IsValidSecurityPolicyUri(SecurityPolicies.Basic256Sha256), Is.True);
 
-            Assert.That(SecurityPolicies.GetInfo("UnknownPolicy"), Is.Null);
-            Assert.That(SecurityPolicies.GetUri("UnknownPolicy"), Is.Null);
-            Assert.That(SecurityPolicies.GetDisplayName("urn:unknown"), Is.Null);
-            Assert.That(SecurityPolicies.IsValidSecurityPolicyUri("urn:unknown"), Is.False);
-            Assert.That(SecurityPolicies.GetDisplayNames(), Does.Contain(nameof(SecurityPolicies.Basic256Sha256)));
-            Assert.That(SecurityPolicies.GetDefaultDeprecatedUris(), Does.Contain(SecurityPolicies.Basic256));
-            Assert.That(SecurityPolicies.GetDefaultUris(), Does.Contain(SecurityPolicies.Basic256Sha256));
+            Assert.That(SecurityPolicies.Default.GetInfo("UnknownPolicy"), Is.Null);
+            Assert.That(SecurityPolicies.Default.GetUri("UnknownPolicy"), Is.Null);
+            Assert.That(SecurityPolicies.Default.GetDisplayName("urn:unknown"), Is.Null);
+            Assert.That(SecurityPolicies.Default.IsValidSecurityPolicyUri("urn:unknown"), Is.False);
+            Assert.That(SecurityPolicies.Default.GetDisplayNames(), Does.Contain(nameof(SecurityPolicies.Basic256Sha256)));
+            Assert.That(SecurityPolicies.Default.GetDefaultDeprecatedUris(), Does.Contain(SecurityPolicies.Basic256));
+            Assert.That(SecurityPolicies.Default.GetDefaultUris(), Does.Contain(SecurityPolicies.Basic256Sha256));
+        }
+
+        [Test]
+        public void RegisterRejectsNullAndDuplicatePolicies()
+        {
+            Assert.That(
+                () => SecurityPolicies.Default.Register(null!),
+                Throws.TypeOf<ArgumentNullException>().With.Property("ParamName").EqualTo("securityPolicy"));
+
+            var policy = new SecurityPolicyInfo(SecurityPolicies.BaseUri + "TestDuplicatePolicy")
+            {
+                PlatformSupport = () => true
+            };
+
+            using IDisposable registration = SecurityPolicies.Default.Register(policy);
+
+            Assert.That(
+                () => SecurityPolicies.Default.Register(new SecurityPolicyInfo(policy.Uri, "OtherName")),
+                Throws.TypeOf<InvalidOperationException>());
+            Assert.That(
+                () => SecurityPolicies.Default.Register(new SecurityPolicyInfo(SecurityPolicies.BaseUri + "OtherPolicy", policy.Name)),
+                Throws.TypeOf<InvalidOperationException>());
+            Assert.That(
+                () => SecurityPolicies.Default.Register(new SecurityPolicyInfo(SecurityPolicyInfo.Basic256Sha256)),
+                Throws.TypeOf<InvalidOperationException>());
+        }
+
+        [Test]
+        public void RegisterLightsUpCurvePoliciesFromOutsideCore()
+        {
+            using IDisposable curve25519 = SecurityPolicies.Default.Register(
+                WithPlatformSupport(SecurityPolicyInfo.ECC_curve25519, isDefaultEcc: true),
+                replaceExisting: true);
+            using IDisposable curve25519AesGcm = SecurityPolicies.Default.Register(
+                WithPlatformSupport(SecurityPolicyInfo.ECC_curve25519_AesGcm, isDefaultEcc: false),
+                replaceExisting: true);
+            using IDisposable curve25519ChaChaPoly = SecurityPolicies.Default.Register(
+                WithPlatformSupport(SecurityPolicyInfo.ECC_curve25519_ChaChaPoly, isDefaultEcc: false),
+                replaceExisting: true);
+            using IDisposable curve448 = SecurityPolicies.Default.Register(
+                WithPlatformSupport(SecurityPolicyInfo.ECC_curve448, isDefaultEcc: true),
+                replaceExisting: true);
+            using IDisposable curve448AesGcm = SecurityPolicies.Default.Register(
+                WithPlatformSupport(SecurityPolicyInfo.ECC_curve448_AesGcm, isDefaultEcc: false),
+                replaceExisting: true);
+            using IDisposable curve448ChaChaPoly = SecurityPolicies.Default.Register(
+                WithPlatformSupport(SecurityPolicyInfo.ECC_curve448_ChaChaPoly, isDefaultEcc: false),
+                replaceExisting: true);
+
+            string[] policyUris =
+            [
+                SecurityPolicies.ECC_curve25519,
+                SecurityPolicies.ECC_curve25519_AesGcm,
+                SecurityPolicies.ECC_curve25519_ChaChaPoly,
+                SecurityPolicies.ECC_curve448,
+                SecurityPolicies.ECC_curve448_AesGcm,
+                SecurityPolicies.ECC_curve448_ChaChaPoly
+            ];
+
+            Assert.Multiple(() =>
+            {
+                foreach (string policyUri in policyUris)
+                {
+                    SecurityPolicyInfo info = SecurityPolicies.Default.GetInfo(policyUri);
+                    Assert.That(info, Is.Not.Null, policyUri);
+                    Assert.That(SecurityPolicies.Default.GetUri(info.Name), Is.EqualTo(policyUri), policyUri);
+                    Assert.That(SecurityPolicies.Default.GetDisplayName(policyUri), Is.EqualTo(info.Name), policyUri);
+                    Assert.That(SecurityPolicies.Default.GetDisplayNames(), Does.Contain(info.Name), policyUri);
+                }
+
+                Assert.That(SecurityPolicies.Default.GetDefaultEccUris(), Does.Contain(SecurityPolicies.ECC_curve25519));
+                Assert.That(SecurityPolicies.Default.GetDefaultEccUris(), Does.Contain(SecurityPolicies.ECC_curve448));
+                Assert.That(
+                    CertificateIdentifier.MapSecurityPolicyToCertificateTypes(SecurityPolicies.ECC_curve25519),
+                    Does.Contain(ObjectTypeIds.EccCurve25519ApplicationCertificateType));
+                Assert.That(
+                    CertificateIdentifier.MapSecurityPolicyToCertificateTypes(SecurityPolicies.ECC_curve448),
+                    Does.Contain(ObjectTypeIds.EccCurve448ApplicationCertificateType));
+                Assert.That(
+                    CryptoUtils.GetCurveFromCertificateTypeId(ObjectTypeIds.EccCurve25519ApplicationCertificateType),
+                    Is.Not.Null);
+                Assert.That(
+                    CryptoUtils.GetCurveFromCertificateTypeId(ObjectTypeIds.EccCurve448ApplicationCertificateType),
+                    Is.Not.Null);
+            });
+        }
+
+        /// <summary>
+        /// A policy contributed through the container reaches the registry that
+        /// container owns, and deliberately does not reach anyone else's.
+        /// </summary>
+        /// <remarks>
+        /// Before the policy set became an object this registered into
+        /// process-wide state, so one application's policy was visible to every
+        /// other application in the process.
+        /// </remarks>
+        [Test]
+        public void AddSecurityPolicyRegistersPoliciesThroughDependencyInjection()
+        {
+            var policy = new SecurityPolicyInfo(SecurityPolicies.BaseUri + "DependencyInjectionPolicy")
+            {
+                PlatformSupport = () => true,
+                IsDefault = true,
+                SupportedCertificateTypes = [ObjectTypeIds.RsaSha256ApplicationCertificateType]
+            };
+
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddSecurityPolicy(policy);
+
+            using (ServiceProvider provider = services.BuildServiceProvider())
+            {
+                var registry = provider.GetRequiredService<ISecurityPolicyRegistry>();
+
+                Assert.That(registry, Is.Not.Null);
+                Assert.That(registry.GetInfo(policy.Uri), Is.SameAs(policy));
+                Assert.That(registry.GetDefaultUris(), Does.Contain(policy.Uri));
+
+                // The container's registry owns the policy; the fallback does not.
+                Assert.That(SecurityPolicies.Default.GetInfo(policy.Uri), Is.Null);
+            }
+
+            Assert.That(SecurityPolicies.Default.GetInfo(policy.Uri), Is.Null);
+        }
+
+        [TestCaseSource(nameof(SecurityConfigurationSupportedPolicyCases))]
+        public void SecurityConfigurationBuildsExpectedSupportedPolicySet(
+            bool hasCertificateType,
+            NodeId certificateType,
+            string[] expectedPolicyUris)
+        {
+            SecurityConfiguration securityConfiguration = hasCertificateType
+                ? new SecurityConfiguration
+                {
+                    ApplicationCertificates =
+                    [
+                        CreateCertificateIdentifier(certificateType)
+                    ]
+                }
+                : new SecurityConfiguration
+                {
+                    ApplicationCertificate = new CertificateIdentifier()
+                };
+
+            Assert.That(securityConfiguration.SupportedSecurityPolicies, Is.EqualTo(SupportedOnly(expectedPolicyUris)));
         }
 
         [Test]
@@ -74,18 +220,18 @@ namespace Opc.Ua.Core.Tests.Security
             ILogger logger = NUnitTelemetryContext.Create().CreateLogger<SecurityPoliciesTests>();
             byte[] plainText = [1, 2, 3];
 
-            EncryptedData encrypted = SecurityPolicies.Encrypt(null, string.Empty, plainText, logger);
+            EncryptedData encrypted = SecurityPolicies.Default.Encrypt(null, string.Empty, plainText);
             Assert.That(encrypted.Algorithm, Is.Null);
             Assert.That(encrypted.Data, Is.EqualTo(plainText));
-            Assert.That(SecurityPolicies.Decrypt(null, string.Empty, encrypted, logger), Is.EqualTo(plainText));
-            Assert.That(SecurityPolicies.Decrypt(null, string.Empty, null, logger), Is.Null);
+            Assert.That(SecurityPolicies.Default.Decrypt(null, string.Empty, encrypted), Is.EqualTo(plainText));
+            Assert.That(SecurityPolicies.Default.Decrypt(null, string.Empty, null), Is.Null);
 
             using Certificate certificate = CertificateBuilder
                 .Create("CN=SecurityPolicies NoOp")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            SignatureData emptyPolicySignature = SecurityPolicies.CreateSignatureData(
+            SignatureData emptyPolicySignature = SecurityPolicies.Default.CreateSignatureData(
                 string.Empty,
                 certificate,
                 null,
@@ -95,15 +241,15 @@ namespace Opc.Ua.Core.Tests.Security
                 null,
                 null);
             Assert.That(emptyPolicySignature.Algorithm, Is.Null);
-            Assert.That(SecurityPolicies.VerifySignatureData(null, string.Empty, certificate, null, null, null, null, null, null), Is.True);
+            Assert.That(SecurityPolicies.Default.VerifySignatureData(null, string.Empty, certificate, null, null, null, null, null, null), Is.True);
 
-            SignatureData noneSignature = SecurityPolicies.CreateSignatureData(
+            SignatureData noneSignature = SecurityPolicies.Default.CreateSignatureData(
                 SecurityPolicyInfo.None,
                 certificate,
                 plainText);
             Assert.That(noneSignature.Algorithm, Is.Null);
             Assert.That(noneSignature.Signature.IsNull, Is.True);
-            Assert.That(SecurityPolicies.VerifySignatureData(noneSignature, SecurityPolicyInfo.None, certificate, plainText), Is.True);
+            Assert.That(SecurityPolicies.Default.VerifySignatureData(noneSignature, SecurityPolicyInfo.None, certificate, plainText), Is.True);
         }
 
         [Test]
@@ -113,11 +259,11 @@ namespace Opc.Ua.Core.Tests.Security
             var encrypted = new EncryptedData { Algorithm = "unknown", Data = [1] };
 
             ServiceResultException encryptException = Assert.Throws<ServiceResultException>(
-                () => SecurityPolicies.Encrypt(null, "UnknownPolicy", [1], logger));
+                () => SecurityPolicies.Default.Encrypt(null, "UnknownPolicy", [1]));
             Assert.That(encryptException.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
 
             ServiceResultException decryptException = Assert.Throws<ServiceResultException>(
-                () => SecurityPolicies.Decrypt(null, "UnknownPolicy", encrypted, logger));
+                () => SecurityPolicies.Default.Decrypt(null, "UnknownPolicy", encrypted));
             Assert.That(decryptException.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
 
             using Certificate certificate = CertificateBuilder
@@ -126,11 +272,11 @@ namespace Opc.Ua.Core.Tests.Security
                 .CreateForRSA();
 
             ServiceResultException createException = Assert.Throws<ServiceResultException>(
-                () => SecurityPolicies.CreateSignatureData("UnknownPolicy", certificate, [1]));
+                () => SecurityPolicies.Default.CreateSignatureData("UnknownPolicy", certificate, [1]));
             Assert.That(createException.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
 
             ServiceResultException verifyException = Assert.Throws<ServiceResultException>(
-                () => SecurityPolicies.VerifySignatureData(new SignatureData(), "UnknownPolicy", certificate, [1]));
+                () => SecurityPolicies.Default.VerifySignatureData(new SignatureData(), "UnknownPolicy", certificate, [1]));
             Assert.That(verifyException.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
         }
 
@@ -140,7 +286,7 @@ namespace Opc.Ua.Core.Tests.Security
         [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss, SecurityAlgorithms.RsaOaepSha256)]
         public void RsaEncryptDecryptRoundTripsForSupportedPolicies(string policyUri, string expectedAlgorithm)
         {
-            if (SecurityPolicies.GetInfo(policyUri) == null)
+            if (SecurityPolicies.Default.GetInfo(policyUri) == null)
             {
                 Assert.Ignore("Policy is not supported by this platform.");
             }
@@ -152,11 +298,11 @@ namespace Opc.Ua.Core.Tests.Security
                 .CreateForRSA();
             byte[] plainText = [10, 20, 30, 40];
 
-            EncryptedData encrypted = SecurityPolicies.Encrypt(certificate, policyUri, plainText, logger);
+            EncryptedData encrypted = SecurityPolicies.Default.Encrypt(certificate, policyUri, plainText);
             Assert.That(encrypted.Algorithm, Is.EqualTo(expectedAlgorithm));
             Assert.That(encrypted.Data, Is.Not.EqualTo(plainText));
 
-            byte[] decrypted = SecurityPolicies.Decrypt(certificate, policyUri, encrypted, logger);
+            byte[] decrypted = SecurityPolicies.Default.Decrypt(certificate, policyUri, encrypted);
             Assert.That(decrypted, Is.EqualTo(plainText));
         }
 
@@ -165,7 +311,7 @@ namespace Opc.Ua.Core.Tests.Security
         [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss)]
         public void SignatureDataRoundTripsForSupportedRsaPolicies(string policyUri)
         {
-            if (SecurityPolicies.GetInfo(policyUri) == null)
+            if (SecurityPolicies.Default.GetInfo(policyUri) == null)
             {
                 Assert.Ignore("Policy is not supported by this platform.");
             }
@@ -176,13 +322,13 @@ namespace Opc.Ua.Core.Tests.Security
                 .CreateForRSA();
             byte[] data = [1, 3, 5, 7, 9];
 
-            SignatureData signature = SecurityPolicies.CreateSignatureData(policyUri, certificate, data);
+            SignatureData signature = SecurityPolicies.Default.CreateSignatureData(policyUri, certificate, data);
             Assert.That(signature.Algorithm, Is.Not.Null);
             Assert.That(signature.Signature.IsNull, Is.False);
-            Assert.That(SecurityPolicies.VerifySignatureData(signature, policyUri, certificate, data), Is.True);
+            Assert.That(SecurityPolicies.Default.VerifySignatureData(signature, policyUri, certificate, data), Is.True);
 
             ServiceResultException sre = Assert.Throws<ServiceResultException>(
-                () => SecurityPolicies.VerifySignatureData(
+                () => SecurityPolicies.Default.VerifySignatureData(
                     new SignatureData { Algorithm = "unexpected", Signature = signature.Signature },
                     policyUri,
                     certificate,
@@ -198,7 +344,7 @@ namespace Opc.Ua.Core.Tests.Security
         [TestCase(5)]
         public void EnhancedSignatureDataSignsEveryChannelInput(int inputIndex)
         {
-            if (SecurityPolicies.GetInfo(SecurityPolicies.RSA_DH_AesGcm) == null)
+            if (SecurityPolicies.Default.GetInfo(SecurityPolicies.RSA_DH_AesGcm) == null)
             {
                 Assert.Ignore("Policy is not supported by this platform.");
             }
@@ -217,7 +363,7 @@ namespace Opc.Ua.Core.Tests.Security
                 [5, 15],
                 [6, 16]
             ];
-            SignatureData signature = SecurityPolicies.CreateSignatureData(
+            SignatureData signature = SecurityPolicies.Default.CreateSignatureData(
                 SecurityPolicies.RSA_DH_AesGcm,
                 certificate,
                 inputs[0],
@@ -249,7 +395,7 @@ namespace Opc.Ua.Core.Tests.Security
             Certificate certificate,
             byte[][] inputs)
         {
-            return SecurityPolicies.VerifySignatureData(
+            return SecurityPolicies.Default.VerifySignatureData(
                 signature,
                 SecurityPolicies.RSA_DH_AesGcm,
                 certificate,
@@ -259,6 +405,143 @@ namespace Opc.Ua.Core.Tests.Security
                 inputs[3],
                 inputs[4],
                 inputs[5]);
+        }
+
+        private static SecurityPolicyInfo WithPlatformSupport(SecurityPolicyInfo policy, bool isDefaultEcc)
+        {
+            return new SecurityPolicyInfo(policy)
+            {
+                PlatformSupport = () => true,
+                IsDefaultEcc = isDefaultEcc
+            };
+        }
+
+        private static IEnumerable<TestCaseData> SecurityConfigurationSupportedPolicyCases()
+        {
+            yield return new TestCaseData(
+                false,
+                NodeId.Null,
+                new[]
+                {
+                    SecurityPolicies.None,
+                    SecurityPolicies.Basic256Sha256,
+                    SecurityPolicies.Aes128_Sha256_RsaOaep,
+                    SecurityPolicies.Aes256_Sha256_RsaPss,
+                    SecurityPolicies.RSA_DH_AesGcm,
+                    SecurityPolicies.RSA_DH_ChaChaPoly
+                }).SetName("SecurityConfigurationBuildsExpectedSupportedPolicySetForNullCertificateType");
+
+            yield return new TestCaseData(
+                true,
+                ObjectTypeIds.ApplicationCertificateType,
+                new[]
+                {
+                    SecurityPolicies.None,
+                    SecurityPolicies.Basic256Sha256,
+                    SecurityPolicies.Aes128_Sha256_RsaOaep,
+                    SecurityPolicies.Aes256_Sha256_RsaPss,
+                    SecurityPolicies.RSA_DH_AesGcm,
+                    SecurityPolicies.RSA_DH_ChaChaPoly,
+                    SecurityPolicies.Basic128Rsa15,
+                    SecurityPolicies.Basic256
+                }).SetName("SecurityConfigurationBuildsExpectedSupportedPolicySetForApplicationCertificateType");
+
+            yield return new TestCaseData(
+                true,
+                ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                new[]
+                {
+                    SecurityPolicies.None,
+                    SecurityPolicies.Basic256Sha256,
+                    SecurityPolicies.Aes128_Sha256_RsaOaep,
+                    SecurityPolicies.Aes256_Sha256_RsaPss,
+                    SecurityPolicies.RSA_DH_AesGcm,
+                    SecurityPolicies.RSA_DH_ChaChaPoly,
+                    SecurityPolicies.Basic128Rsa15,
+                    SecurityPolicies.Basic256
+                }).SetName("SecurityConfigurationBuildsExpectedSupportedPolicySetForRsaSha256CertificateType");
+
+            yield return new TestCaseData(
+                true,
+                ObjectTypeIds.RsaMinApplicationCertificateType,
+                new[]
+                {
+                    SecurityPolicies.None,
+                    SecurityPolicies.Basic128Rsa15,
+                    SecurityPolicies.Basic256
+                }).SetName("SecurityConfigurationBuildsExpectedSupportedPolicySetForRsaMinCertificateType");
+
+            yield return new TestCaseData(
+                true,
+                ObjectTypeIds.EccNistP256ApplicationCertificateType,
+                new[]
+                {
+                    SecurityPolicies.None,
+                    SecurityPolicies.ECC_nistP256,
+                    SecurityPolicies.ECC_nistP256_AesGcm,
+                    SecurityPolicies.ECC_nistP256_ChaChaPoly
+                }).SetName("SecurityConfigurationBuildsExpectedSupportedPolicySetForEccNistP256CertificateType");
+
+            yield return new TestCaseData(
+                true,
+                ObjectTypeIds.EccNistP384ApplicationCertificateType,
+                new[]
+                {
+                    SecurityPolicies.None,
+                    SecurityPolicies.ECC_nistP256,
+                    SecurityPolicies.ECC_nistP256_AesGcm,
+                    SecurityPolicies.ECC_nistP256_ChaChaPoly,
+                    SecurityPolicies.ECC_nistP384,
+                    SecurityPolicies.ECC_nistP384_AesGcm,
+                    SecurityPolicies.ECC_nistP384_ChaChaPoly
+                }).SetName("SecurityConfigurationBuildsExpectedSupportedPolicySetForEccNistP384CertificateType");
+
+            yield return new TestCaseData(
+                true,
+                ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType,
+                new[]
+                {
+                    SecurityPolicies.None,
+                    SecurityPolicies.ECC_brainpoolP256r1,
+                    SecurityPolicies.ECC_brainpoolP256r1_AesGcm,
+                    SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly
+                }).SetName("SecurityConfigurationBuildsExpectedSupportedPolicySetForEccBrainpoolP256r1CertificateType");
+
+            yield return new TestCaseData(
+                true,
+                ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType,
+                new[]
+                {
+                    SecurityPolicies.None,
+                    SecurityPolicies.ECC_brainpoolP256r1,
+                    SecurityPolicies.ECC_brainpoolP256r1_AesGcm,
+                    SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly,
+                    SecurityPolicies.ECC_brainpoolP384r1,
+                    SecurityPolicies.ECC_brainpoolP384r1_AesGcm,
+                    SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly
+                }).SetName("SecurityConfigurationBuildsExpectedSupportedPolicySetForEccBrainpoolP384r1CertificateType");
+        }
+
+        private static string[] SupportedOnly(string[] policyUris)
+        {
+            var supportedPolicyUris = new List<string>();
+            foreach (string policyUri in policyUris)
+            {
+                if (policyUri == SecurityPolicies.None || SecurityPolicies.Default.GetDisplayName(policyUri) != null)
+                {
+                    supportedPolicyUris.Add(policyUri);
+                }
+            }
+
+            return [.. supportedPolicyUris];
+        }
+
+        private static CertificateIdentifier CreateCertificateIdentifier(NodeId certificateType)
+        {
+            return new CertificateIdentifier
+            {
+                CertificateType = certificateType
+            };
         }
     }
 }

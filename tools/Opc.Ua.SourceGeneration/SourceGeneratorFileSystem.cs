@@ -114,6 +114,12 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <inheritdoc/>
+        public void Replace(string sourcePath, string destinationPath)
+        {
+            throw new NotSupportedException("Write not allowed");
+        }
+
+        /// <inheritdoc/>
         public Stream OpenWrite(string path)
         {
             throw new NotSupportedException("Write not allowed");

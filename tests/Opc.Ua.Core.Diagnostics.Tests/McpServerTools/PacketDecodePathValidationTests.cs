@@ -143,85 +143,14 @@ namespace Opc.Ua.Pcap.Tests.McpServerTools
 
         private static MethodInfo GetResolveAndValidateDecodePathMethod()
         {
-            Assembly assembly = LoadMcpAssembly();
-            Type? toolType = assembly.GetType("Opc.Ua.Mcp.Tools.PacketDecodeTools", throwOnError: false);
+            Type toolType = McpAssemblyProbe.GetRequiredType("Opc.Ua.Mcp.Tools.PacketDecodeTools");
 
-            Assert.That(toolType, Is.Not.Null);
-
-            MethodInfo? method = toolType!.GetMethod(
+            MethodInfo? method = toolType.GetMethod(
                 "ResolveAndValidateDecodePath",
                 BindingFlags.Static | BindingFlags.NonPublic);
 
             Assert.That(method, Is.Not.Null);
             return method!;
-        }
-
-        private static Assembly LoadMcpAssembly()
-        {
-            string repoRoot = FindRepositoryRoot();
-            string configuration = GetBuildConfiguration();
-            string? assemblyPath = Path.Combine(
-                repoRoot,
-                "tools",
-                "Opc.Ua.Mcp",
-                "bin",
-                configuration,
-                "net10.0",
-                "Opc.Ua.Mcp.dll");
-
-            if (!File.Exists(assemblyPath))
-            {
-                string binPath = Path.Combine(repoRoot, "tools", "Opc.Ua.Mcp", "bin");
-                assemblyPath = Directory.Exists(binPath)
-                    ? Directory.EnumerateFiles(binPath, "Opc.Ua.Mcp.dll", SearchOption.AllDirectories)
-                        .FirstOrDefault()
-                    : null;
-            }
-
-            if (string.IsNullOrEmpty(assemblyPath) || !File.Exists(assemblyPath))
-            {
-                Assert.Ignore(
-                    "The net10.0 Opc.Ua.Mcp assembly is not built for this CI leg " +
-                    "(the MCP server only targets net10.0); skipping the reflective MCP server test.");
-            }
-
-            return Assembly.LoadFrom(assemblyPath!);
-        }
-
-        private static string FindRepositoryRoot()
-        {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-
-            while (directory != null)
-            {
-                if (File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
-                {
-                    return directory.FullName;
-                }
-
-                directory = directory.Parent;
-            }
-
-            Assert.Fail("Unable to locate repository root.");
-            throw new InvalidOperationException("Unable to locate repository root.");
-        }
-
-        private static string GetBuildConfiguration()
-        {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-
-            while (directory != null)
-            {
-                if (string.Equals(directory.Name, "Debug", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(directory.Name, "Release", StringComparison.OrdinalIgnoreCase))
-                {
-                    return directory.Name;
-                }
-
-                directory = directory.Parent;
-            }
-
-            return "Debug";
         }
 
         private static string CreateAllowedRoot()

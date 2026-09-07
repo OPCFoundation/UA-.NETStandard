@@ -121,23 +121,24 @@ sequenceDiagram
 
 ## Usage Inside the Server
 
-The generated Create<SymoblicId> and CreateInstanceOf<SymoblicId> methods (static extension 
-method to ISystemContext) create a new type or instance of a type (respectively) and returns 
-it with all mandatory children set (for the instantiation) and with all children set for the
-type (but then the child will only define the "modelling rule" for the instance.
+The generated `Create<SymbolicId>` and `CreateInstanceOf<SymbolicId>`
+extension methods create a type declaration or a typed instance,
+respectively. The instance factory materialises all mandatory children and
+assigns per-instance NodeIds when a browse name and `NodeIdFactory` are
+available.
 
-CreateInstanceOf<SymoblicId> does call Initialize(ITelemetryContext) method.  TODO:
+The returned instance has not completed its create lifecycle. Node manager
+registration completes `OnBeforeCreate`/`OnAfterCreate` and clears change
+masks before indexing it. Asynchronous registration assigns any required
+NodeIds first; synchronous predefined-node registration preserves
+caller-assigned NodeIds. Call `CreateAsPredefinedNode` explicitly when code
+must read lifecycle-established state, or set state or handlers which
+`OnAfterCreate` would otherwise replace, before registration.
 
-The caller can then add optional children and place holders as needed using "Add<ChildName>()" 
-and "Add<ChildName>(QualifiedName browseName)" methods (for optional children and placeholders
-defined in the type definition). 
-
-These internally call Create<SymoblicId>(this, forInstance: true) to create the optional 
-children of the instantiated type.
-
-No "user" initialization calls are needed after the Create<SymoblicId> method is called.
-User can add additional references and children to all states using AddChild/AddReference
-and so on.
+The caller can add optional children and placeholders with the generated
+`Add<ChildName>()` methods. These call
+`Create<SymbolicId>(this, forInstance: true)` internally. Additional
+references and children can be attached with `AddReference` and `AddChild`.
         
 ### Legacy behavior
         

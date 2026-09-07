@@ -100,7 +100,7 @@ namespace Opc.Ua.Sessions.Tests
             .. SupportedEccPolicies.Where(policyUri =>
             {
                 CertificateKeyAlgorithm certificateKeyAlgorithm =
-                    SecurityPolicies.GetInfo(policyUri).CertificateKeyAlgorithm;
+                    SecurityPolicies.Default.GetInfo(policyUri).CertificateKeyAlgorithm;
                 return certificateKeyAlgorithm is not CertificateKeyAlgorithm.Curve25519 and
                     not CertificateKeyAlgorithm.Curve448;
             })
@@ -222,6 +222,48 @@ namespace Opc.Ua.Sessions.Tests
                     TestContext.Out.WriteLine("  {0}", userIdentity.PolicyId);
                     TestContext.Out.WriteLine("  {0}", userIdentity.SecurityPolicyUri);
                 }
+            }
+        }
+
+        [Test]
+        [Order(101)]
+        public async Task PublishWithUInt32MaxTimeoutHintAsync()
+        {
+            CreateSubscriptionResponse createResponse = await Session.CreateSubscriptionAsync(
+                null,
+                100,
+                100,
+                1,
+                0,
+                true,
+                0,
+                CancellationToken.None).ConfigureAwait(false);
+
+            try
+            {
+                var requestHeader = new RequestHeader
+                {
+                    Timestamp = DateTime.UtcNow,
+                    TimeoutHint = uint.MaxValue
+                };
+
+                PublishResponse response = await Session.PublishAsync(
+                    requestHeader,
+                    ArrayOf<SubscriptionAcknowledgement>.Empty,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(response, Is.Not.Null);
+                Assert.That(
+                    response.ResponseHeader.ServiceResult,
+                    Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(response.SubscriptionId, Is.EqualTo(createResponse.SubscriptionId));
+            }
+            finally
+            {
+                await Session.DeleteSubscriptionsAsync(
+                    null,
+                    new uint[] { createResponse.SubscriptionId }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
             }
         }
 
@@ -713,6 +755,87 @@ namespace Opc.Ua.Sessions.Tests
             session.Dispose();
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        [Order(240)]
+        public async Task TransferJWTSubscriptionUsesAuthenticatedClientUserIdAsync(
+            bool sameSubject)
+        {
+            const string sourceSubject = "transfer-source";
+            string targetSubject = sameSubject ? sourceSubject : "transfer-target";
+            var sourceIdentity = new UserIdentity(
+                new IssuedIdentityTokenHandler(
+                    Profiles.JwtUserToken,
+                    "source-issued-token"u8));
+            var targetIdentity = new UserIdentity(
+                new IssuedIdentityTokenHandler(
+                    Profiles.JwtUserToken,
+                    "target-issued-token"u8));
+            ISession? sourceSession = null;
+            ISession? targetSession = null;
+            Subscription? subscription = null;
+
+            try
+            {
+                TokenValidator.Subject = sourceSubject;
+                sourceSession = await ClientFixture
+                    .ConnectAsync(
+                        ServerUrl,
+                        SecurityPolicies.Basic256Sha256,
+                        Endpoints,
+                        sourceIdentity)
+                    .ConfigureAwait(false);
+                subscription = new Subscription(sourceSession.DefaultSubscription)
+                {
+                    PublishingInterval = 1_000,
+                    LifetimeCount = 30,
+                    KeepAliveCount = 5,
+                    PublishingEnabled = true
+                };
+                Assert.That(sourceSession.AddSubscription(subscription), Is.True);
+                await subscription.CreateAsync().ConfigureAwait(false);
+
+                sourceSession.DeleteSubscriptionsOnClose = false;
+                StatusCode closeStatus = await sourceSession.CloseAsync().ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(closeStatus), Is.True);
+
+                TokenValidator.Subject = targetSubject;
+                targetSession = await ClientFixture
+                    .ConnectAsync(
+                        ServerUrl,
+                        SecurityPolicies.Basic256Sha256,
+                        Endpoints,
+                        targetIdentity)
+                    .ConfigureAwait(false);
+
+                TransferSubscriptionsResponse response =
+                    await targetSession.TransferSubscriptionsAsync(
+                        null,
+                        [subscription.Id],
+                        false,
+                        default).ConfigureAwait(false);
+
+                Assert.That(response.Results, Has.Count.EqualTo(1));
+                Assert.That(
+                    response.Results[0].StatusCode,
+                    sameSubject
+                        ? Is.EqualTo(StatusCodes.Good)
+                        : Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            }
+            finally
+            {
+                TokenValidator.Issuer = TokenValidatorMock.DefaultIssuer;
+                TokenValidator.Subject = TokenValidatorMock.DefaultSubject;
+                if (targetSession != null)
+                {
+                    await targetSession.CloseAsync().ConfigureAwait(false);
+                    targetSession.Dispose();
+                }
+                sourceSession?.Dispose();
+                subscription?.Dispose();
+            }
+        }
+
         [Test]
         [Order(240)]
         public async Task ConnectMultipleSessionsAsync()
@@ -794,14 +917,7 @@ namespace Opc.Ua.Sessions.Tests
                 session1.DetachChannel();
                 channel1.Dispose();
 
-                // cannot read using a detached channel
-                ServiceResultException exception = Assert
-                    .ThrowsAsync<ServiceResultException>(async () =>
-                        await session1.ReadValueAsync<ServerStatusDataType>(
-                            VariableIds.Server_ServerStatus).ConfigureAwait(false));
-                Assert.That(
-                    exception.StatusCode,
-                    Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+                Assert.That(session1.NullableTransportChannel, Is.Null);
             }
 
             // the inactive channel

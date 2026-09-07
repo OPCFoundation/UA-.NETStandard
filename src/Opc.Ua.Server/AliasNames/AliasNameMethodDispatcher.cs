@@ -125,14 +125,19 @@ namespace Opc.Ua.Server.AliasNames
             NodeId targetReferenceType,
             CancellationToken ct)
         {
-            if (aliasNames.Count != targetNodes.Count ||
-                aliasNames.Count != targetServers.Count)
+            // Part 17 §6.3.4: Bad_InvalidArgument when the array sizes of
+            // all arguments EXCEPT TargetServers differ, or all arrays are
+            // empty. TargetServers is exempt — a caller with only local
+            // targets may pass an empty (or shorter) array, and a missing
+            // entry means the target is on the local server.
+            if (aliasNames.Count == 0 ||
+                aliasNames.Count != targetNodes.Count)
             {
                 return new AddAliasesToCategoryMethodStateResult
                 {
                     ServiceResult = ServiceResult.Create(
                         StatusCodes.BadInvalidArgument,
-                        "AliasNames, TargetNodes and TargetServers must have equal length."),
+                        "AliasNames and TargetNodes must be non-empty and of equal length."),
                     ErrorCodes = default
                 };
             }
@@ -143,7 +148,7 @@ namespace Opc.Ua.Server.AliasNames
                 requests.Add(new AliasAddRequest(
                     aliasNames[i] ?? string.Empty,
                     targetNodes[i],
-                    targetServers[i],
+                    i < targetServers.Count ? targetServers[i] : null,
                     targetReferenceType));
             }
 
@@ -170,13 +175,16 @@ namespace Opc.Ua.Server.AliasNames
             ArrayOf<ExpandedNodeId> targetNodes,
             CancellationToken ct)
         {
-            if (aliasNames.Count != targetNodes.Count)
+            // Part 17 §6.3.5: Bad_InvalidArgument when the array sizes
+            // differ or the arrays are empty.
+            if (aliasNames.Count == 0 ||
+                aliasNames.Count != targetNodes.Count)
             {
                 return new DeleteAliasesFromCategoryMethodStateResult
                 {
                     ServiceResult = ServiceResult.Create(
                         StatusCodes.BadInvalidArgument,
-                        "AliasNames and TargetNodes must have equal length."),
+                        "AliasNames and TargetNodes must be non-empty and of equal length."),
                     ErrorCodes = default
                 };
             }
@@ -198,6 +206,27 @@ namespace Opc.Ua.Server.AliasNames
                 ServiceResult = result,
                 ErrorCodes = codes.ToArrayOf()
             };
+        }
+
+        /// <summary>
+        /// The default authorization gate for the Part 17 mutation methods
+        /// (<c>AddAliasesToCategory</c>/<c>DeleteAliasesFromCategory</c>):
+        /// the caller must hold the <c>SecurityAdmin</c> role AND be on a
+        /// <c>SignAndEncrypt</c> channel.
+        /// </summary>
+        internal static bool HasSecureAdminAccess(ISystemContext context)
+        {
+            if (context is SessionSystemContext { OperationContext: OperationContext op } session)
+            {
+                if (op.ChannelContext?.EndpointDescription?.SecurityMode !=
+                    MessageSecurityMode.SignAndEncrypt)
+                {
+                    return false;
+                }
+                return session.UserIdentity?.GrantedRoleIds
+                    .Contains(ObjectIds.WellKnownRole_SecurityAdmin) == true;
+            }
+            return false;
         }
 
         private static ArrayOf<T> ToArrayOf<T>(IReadOnlyList<T> items)

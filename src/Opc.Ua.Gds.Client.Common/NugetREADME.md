@@ -14,6 +14,11 @@ Reference this package from any application or tool that needs to
 talk to a GDS — typically a provisioning utility, a certificate
 authority bridge, or a server that uses GDS-driven push management.
 
+For OPC 10000-21 registrar administration, `OnboardingClient` calls the
+standard `DeviceRegistrarAdminType` instance with specification-native
+`ArrayOf<ByteString>` ticket inputs and returns `ArrayOf<StatusCode>`.
+Register it through `.AddGdsClient().AddOnboardingClient()`.
+
 ## Target frameworks
 
 `net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`,

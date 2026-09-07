@@ -669,6 +669,73 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// A validation can race manager disposal and enqueue a rejected
+        /// chain after the rejected-certificate processor's channel has been
+        /// completed. The refused enqueue must release the per-certificate
+        /// references it took for the queued request instead of abandoning
+        /// them with it — an abandoned request pins each certificate's core
+        /// for the life of the process and surfaced as an intermittent
+        /// one-certificate leak in the test assemblies' teardown leak
+        /// detector on slow CI agents.
+        /// </summary>
+        [Test]
+        public async Task RejectCertificateAsyncAfterDisposeDoesNotLeakChainAsync()
+        {
+            string rejectedPath = CreateTempDir();
+            await using var manager = new CertificateManager(m_telemetry);
+            Certificate cert = CertificateBuilder
+                .Create("CN=RejectedAfterDispose")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            try
+            {
+                manager.RegisterTrustList(TrustListIdentifier.Rejected, rejectedPath);
+
+                // Prime the processor so the disposed manager still holds one,
+                // then dispose the manager: DisposeAsync drains the processor
+                // and completes its channel, so later writes are refused.
+                using (var primed = new CertificateCollection { cert })
+                {
+                    await manager.RejectCertificateAsync(primed).ConfigureAwait(false);
+                }
+                await manager.DisposeAsync().ConfigureAwait(false);
+
+                // The late enqueue is refused; it must neither throw for this
+                // benign teardown race nor keep the references taken for the
+                // refused request.
+                using (var late = new CertificateCollection { cert })
+                {
+                    Assert.DoesNotThrowAsync(async () =>
+                        await manager.RejectCertificateAsync(late).ConfigureAwait(false));
+                }
+            }
+            finally
+            {
+                cert.Dispose();
+            }
+
+            // cert held the sole surviving reference. After its Dispose every
+            // owning handle over the core must be gone, so AddRef must refuse.
+            Certificate leakedReference = null;
+            try
+            {
+                leakedReference = cert.AddRef();
+            }
+            catch (ObjectDisposedException)
+            {
+                // expected: no reference survived the refused enqueue.
+            }
+
+            if (leakedReference != null)
+            {
+                leakedReference.Dispose();
+                Assert.Fail(
+                    "The refused enqueue abandoned its request without releasing " +
+                    "the per-certificate references taken for it.");
+            }
+        }
+
         [Test]
         public void FactoryCreateFromSecurityConfiguration()
         {
@@ -1328,6 +1395,72 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 cleanup.Open(x509StorePath);
                 await cleanup.DeleteAsync(publicKey.Thumbprint).ConfigureAwait(false);
             }
+        }
+
+        [Test]
+        public async Task NotifyTrustListChangedInvalidatesCustomTrustListCoreAsync()
+        {
+            // Regression: NotifyTrustListChanged must not leave the cached
+            // validation core of a CUSTOM trust list validating against
+            // stale trust material - only the three well-known cores were
+            // dropped before.
+            using var manager = new CertificateManager(m_telemetry);
+            var customList = new TrustListIdentifier("NotifyCustomList");
+            string trustedPath = CreateTempDir();
+            manager.RegisterTrustList(customList, trustedPath);
+
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=Custom Core Invalidation Cert")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using (ICertificateStore store = manager.OpenTrustedStore(customList))
+            {
+                await store.AddAsync(certificate).ConfigureAwait(false);
+            }
+
+            // First validation creates and caches the custom core.
+            CertificateValidationResult before = await manager
+                .ValidateAsync(certificate, customList)
+                .ConfigureAwait(false);
+            Assert.That(before.IsValid, Is.True,
+                $"trusted certificate must validate but was {before.StatusCode}");
+
+            // Remove the trust anchor behind the manager's back, then
+            // announce the change: the cached custom core must be dropped so
+            // the next validation observes the updated store.
+            using (ICertificateStore store = manager.OpenTrustedStore(customList))
+            {
+                Assert.That(
+                    await store.DeleteAsync(certificate.Thumbprint).ConfigureAwait(false),
+                    Is.True);
+            }
+
+            // The cached custom core must exist before and be dropped by the
+            // notification (the store's own change detection could mask a
+            // stale core in the behavioral assertion below, so check the
+            // cache directly).
+            System.Collections.IDictionary customCores = GetCustomCores(manager);
+            Assert.That(customCores, Has.Count.EqualTo(1), "validation must have cached the custom core");
+
+            manager.NotifyTrustListChanged(customList, trustChanged: true, crlChanged: false);
+
+            Assert.That(customCores, Has.Count.Zero, "the notification must drop the cached custom core");
+
+            CertificateValidationResult after = await manager
+                .ValidateAsync(certificate, customList)
+                .ConfigureAwait(false);
+            Assert.That(after.IsValid, Is.False,
+                "the removed certificate must no longer validate after the change notification");
+        }
+
+        private static System.Collections.IDictionary GetCustomCores(CertificateManager manager)
+        {
+            System.Reflection.FieldInfo field = typeof(CertificateManager).GetField(
+                "m_customCores",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Field m_customCores not found.");
+            return (System.Collections.IDictionary)field.GetValue(manager)!;
         }
 
         private string CreateTempDir()

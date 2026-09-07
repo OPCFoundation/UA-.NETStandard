@@ -75,6 +75,35 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             GenerateStack(generationType, telemetry, out _);
         }
 
+        [Test]
+        public void EncodedTicketUsesByteStringSupertype()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> generatedText = GenerateStack(
+                StackGenerationType.Models,
+                telemetry,
+                out _);
+            string nodeStates = generatedText.Single(pair =>
+                pair.Key.EndsWith(
+                    "Opc.Ua.NodeStates.ex.g.cs",
+                    System.StringComparison.Ordinal)).Value;
+            const string declaration =
+                "internal static global::Opc.Ua.DataTypeState CreateEncodedTicket(";
+            int declarationIndex = nodeStates.IndexOf(
+                declaration,
+                System.StringComparison.Ordinal);
+
+            Assert.That(declarationIndex, Is.GreaterThanOrEqualTo(0));
+            int initializerEnd = System.Math.Min(
+                declarationIndex + 1500,
+                nodeStates.Length);
+            string encodedTicketInitializer =
+                nodeStates[declarationIndex..initializerEnd];
+            Assert.That(
+                encodedTicketInitializer,
+                Does.Contain("state.SuperTypeId = global::Opc.Ua.NodeId.Create(15u,"));
+        }
+
         [Theory]
         public async Task GenerateAndCompileStackTestAsync(
             OptimizationLevel optimizationLevel,
@@ -95,7 +124,10 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             using var xmlStream = new MemoryStream();
             bool success = optimizationLevel
                 .CreateCompilation()
-                .AddCode(generatedText.WithOpcUaCoreStubs(), LanguageVersion.Latest) // Only support latest - internal use only
+                .AddCode(
+                    generatedText.WithOpcUaCoreStubs(
+                        includeBaseEventTypeRecord: false),
+                    LanguageVersion.Latest) // Only support latest - internal use only
                 .WithAnalyzers(withAnalyzers, out CompilationWithAnalyzers compilationWithAnalyzers)
                 .Emit(peStream, xmlDocumentationStream: xmlStream)
                 .Check(TestContext.Out, out int errorCount, out int warnCount);
@@ -173,7 +205,10 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             using var xmlStream = new MemoryStream();
             bool success = optimizationLevel
                 .CreateCompilation("Opc.Ua.Test")
-                .AddCode(generatedText.WithOpcUaCoreStubs(), LanguageVersion.Latest)
+                .AddCode(
+                    generatedText.WithOpcUaCoreStubs(
+                        includeBaseEventTypeRecord: false),
+                    LanguageVersion.Latest)
                 .Emit(peStream, xmlDocumentationStream: xmlStream)
                 .Check(TestContext.Out, out int errorCount, out int warnCount);
         }

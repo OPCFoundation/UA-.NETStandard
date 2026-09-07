@@ -110,7 +110,7 @@ namespace Opc.Ua.Di.Server.Builders
                 DisplayName = new LocalizedText("SupportInfo"),
                 ReferenceTypeId = Types.ReferenceTypeIds.HasInterface
             };
-            info.NodeId = device.Context.NodeIdFactory.New(device.Context, info);
+            info.NodeId = device.Context.RequireNodeIdFactory().New(device.Context, info);
             device.Device.AddChild(info);
             device.Manager.AddPredefinedNodeAsync(info, CancellationToken.None)
                 .AsTask().GetAwaiter().GetResult();

@@ -1,0 +1,40 @@
+<Project>
+  <!--
+    Build settings shared by every source generator variant. A variant is one
+    build of a generator against one Roslyn API version; the variant projects
+    only set `$(RoslynApiVersion)` and import the generator's `*.Sources.targets`,
+    which in turn imports this file.
+
+    The generator assembly is handed to the compiler on its own (`@(Analyzer)`
+    for project references, `analyzers/dotnet/<roslyn>/cs` for the NuGet
+    package), so its whole runtime closure has to travel with it. Keeping
+    `CopyLocalLockFileAssemblies` on means the closure lands in the output
+    directory, from where both delivery paths pick it up by globbing - adding a
+    dependency therefore never requires a project file change.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>Opc.Ua.SourceGeneration</RootNamespace>
+    <Description>OPC UA source generation Library</Description>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <!-- Packaging is owned by the sibling `*.Pack` project. -->
+    <IsPackable>false</IsPackable>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AssemblySearchPath_UseOutDir>true</AssemblySearchPath_UseOutDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" VersionOverride="$(RoslynApiVersion)" />
+    <!-- Microsoft.CodeAnalysis.CSharp declares an exact [version] range on
+         Microsoft.CodeAnalysis.Common, so the central pin has to be overridden
+         in lockstep or restore fails with NU1109. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.Common" VersionOverride="$(RoslynApiVersion)" />
+    <PackageReference Update="NETStandard.Library" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)Opc.Ua.SourceGeneration.Core\Opc.Ua.SourceGeneration.Core.csproj">
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
+  </ItemGroup>
+</Project>

@@ -44,6 +44,31 @@ var sessionFactory =
 ManagedSession session = await sessionFactory(ct);
 ```
 
+Applications that already own a classic configuration XML file can pass
+it directly — `AddClient("MyClient.Config.xml", ...)`, or as a `Stream`
+for embedded resources — and keep every setting from the file while
+adopting dependency injection. The document loads on first use; set
+`OpcUaClientOptions.LoadConfigurationOnStart` to have the host load and
+validate it during `StartAsync`, and read it back through the public
+`OpcUaClientOptions.ConfigurationProvider`.
+
+## Reverse connect lifecycle
+
+`ReverseConnectManager` uses an asynchronous, cancellation-aware lifecycle:
+
+```csharp
+await using var manager = new ReverseConnectManager(telemetry);
+manager.AddEndpoint(new Uri("opc.tcp://client-host:65300"));
+await manager.StartServiceAsync(reverseConnectConfiguration, ct);
+
+ITransportWaitingConnection connection =
+    await manager.WaitForConnectionAsync(serverEndpoint, serverUri, ct);
+```
+
+The synchronous `StartService`, `RegisterWaitingConnection`, and `Dispose` methods remain as obsolete compatibility wrappers. New applications should use `StartServiceAsync`, `RegisterWaitingConnectionAsync`, and `DisposeAsync`.
+
+When configured through `AddClient(...)`, a Generic Host starts the singleton manager eagerly through an internal hosted service. Applications using only `ServiceCollection` get lazy startup from `WaitForConnectionAsync` or `RegisterWaitingConnectionAsync`. Register an `IReverseConnectConfigurationProvider` to asynchronously validate or transform the effective listener configuration before activation.
+
 ## Target frameworks
 
 `net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`,

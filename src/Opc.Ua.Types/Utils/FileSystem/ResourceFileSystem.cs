@@ -139,6 +139,12 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void Replace(string sourcePath, string destinationPath)
+        {
+            throw new IOException("Resource file system is not writeable");
+        }
+
+        /// <inheritdoc/>
         public DateTime GetLastWriteTime(string path)
         {
             return DateTime.MinValue;

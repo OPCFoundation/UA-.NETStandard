@@ -434,18 +434,30 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
-        /// Clone method
+        /// Clone/MemberwiseClone methods for a class. Clone delegates to
+        /// MemberwiseClone, which starts from a shallow copy of the whole
+        /// object - carrying every field, including inherited ones - and
+        /// then deep copies this class's own reference-typed fields. A
+        /// derived class hides MemberwiseClone and chains into the base
+        /// implementation via base.MemberwiseClone(), matching the shape
+        /// emitted by the model-based generator.
         /// </summary>
         public static readonly TemplateString CloneMethod = TemplateString.Parse(
             $$"""
             /// <inheritdoc/>
             public {{Tokens.AccessModifier}} object Clone()
             {
-                {{Tokens.ClassName}} clone = new {{Tokens.ClassName}}();
+                return ({{Tokens.ClassName}})this.MemberwiseClone();
+            }
+
+            /// <inheritdoc/>
+            public new object MemberwiseClone()
+            {
+                {{Tokens.ClassName}} clone = ({{Tokens.ClassName}})base.MemberwiseClone();
                 {{Tokens.ListOfClonedFields}}
                 return clone;
             }
-            
+
             """);
 
         /// <summary>

@@ -55,8 +55,22 @@ jobs:
       with:
         dotnet-version: '10.x'
     # https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages#c-compiler-flags-injected-by-codeql-for-manual-builds
+    #
+    # CustomTestTarget pins the build to a single target framework (see
+    # targets.props). A default build multi-targets up to six frameworks, so
+    # CodeQL would extract every source file - and every source generated file,
+    # which EmitCompilerGeneratedFiles materializes on disk and which alone is
+    # tens of megabytes per project - once per framework. That duplication grew
+    # the database until "codeql database interpret-results" ran out of memory
+    # on the hosted runner. Analyzing one framework covers the same sources
+    # once and keeps the database within the runner's memory budget.
     - name: Build Solution
       run: |
-        dotnet build "UA.slnx" -c Release /p:UseSharedCompilation=false /p:EmitCompilerGeneratedFiles=true
+        dotnet build "UA.slnx" -c Release -p:CustomTestTarget=net10.0 -p:UseSharedCompilation=false -p:EmitCompilerGeneratedFiles=true
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
+      with:
+        # Interpreting results in parallel keeps a result set and its source
+        # snippets in memory per thread. Two threads bound the peak memory of
+        # the step that previously failed with an out of memory error.
+        threads: 2

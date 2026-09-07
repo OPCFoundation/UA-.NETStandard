@@ -1,0 +1,35 @@
+<Project>
+  <!--
+    Sources and identity of the OPC UA migration analyzer, shared by every
+    Roslyn variant. The primary project lives in this folder and picks the
+    sources up through the SDK's default globs; variants live in a sibling
+    folder and glob-link them, so a new source file never needs a project edit.
+  -->
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).MigrationAnalyzer</AssemblyName>
+    <RootNamespace>Opc.Ua.MigrationAnalyzer</RootNamespace>
+    <Description>OPC UA .NET Standard migration analyzers and code fixers (1.5.378 to 2.0).</Description>
+    <MigrationAnalyzerDirectory>$(MSBuildThisFileDirectory)</MigrationAnalyzerDirectory>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <!-- RS1007: localizable resources not required for internal analyzer messages.
+         RS1038: shipping analyzers + code fixes in one assembly is supported - the
+                 NuGet host provides Workspaces in IDE scenarios, and the analyzer
+                 itself doesn't reference Workspaces types. -->
+    <NoWarn>$(NoWarn);RS1007;RS1038</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.MigrationAnalyzer.Tests" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectDirectory)\' != '$(MigrationAnalyzerDirectory)'">
+    <Compile Include="$(MigrationAnalyzerDirectory)**\*.cs"
+             Exclude="$(MigrationAnalyzerDirectory)bin\**\*.cs;$(MigrationAnalyzerDirectory)obj\**\*.cs"
+             LinkBase="Shared" />
+    <AdditionalFiles Include="$(MigrationAnalyzerDirectory)AnalyzerReleases.*.md" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectDirectory)\' == '$(MigrationAnalyzerDirectory)'">
+    <!-- Roslyn release tracking files. -->
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
+  <Import Project="$(MSBuildThisFileDirectory)..\MigrationAnalyzerVariant.targets" />
+</Project>

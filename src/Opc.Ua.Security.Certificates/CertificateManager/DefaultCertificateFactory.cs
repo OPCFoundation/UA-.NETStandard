@@ -334,6 +334,15 @@ namespace Opc.Ua.Security.Certificates
                         X509KeyStorageFlags.Exportable));
 #pragma warning restore CA2000
                 }
+                catch (CryptographicException)
+                {
+                    // The key is not extractable, which means it is not an
+                    // ephemeral handle owned by a soon to be disposed caller but
+                    // a key that lives elsewhere: in a TPM, an HSM, a PKCS#11
+                    // token or a remote key service. There is nothing to detach,
+                    // and the certificate is already safe to hand on.
+                    return combined.AddRef();
+                }
                 finally
                 {
                     Array.Clear(passcode, 0, passcode.Length);

@@ -57,6 +57,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
             "SharpPcap requires dynamic native libpcap/Npcap loading and is not NativeAOT/trimming safe.";
 
         private readonly ILogger m_logger;
+        private readonly BackgroundTaskScope m_backgroundWork;
         private readonly Lock m_lock = new();
 
         private LibPcapLiveDevice? m_device;
@@ -82,6 +83,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
         {
             ILoggerFactory factory = loggerFactory ?? NullLoggerFactory.Instance;
             m_logger = factory.CreateLogger<NicCaptureSource>();
+            m_backgroundWork = new BackgroundTaskScope(nameof(NicCaptureSource));
         }
 
         /// <inheritdoc/>
@@ -102,8 +104,22 @@ namespace Opc.Ua.Pcap.Capture.Sources
         public long ByteCount => Interlocked.Read(ref m_byteCount);
 
         /// <inheritdoc/>
+        // ICaptureSource.StartAsync is deliberately unannotated because most capture
+        // sources do not need SharpPcap's dynamic-loading requirement. Keeping the
+        // Requires* attributes here (rather than removing them to satisfy the
+        // analyzer) means any AOT/trim-analyzed caller that invokes
+        // NicCaptureSource.StartAsync directly still gets warned/fails; only the
+        // mismatch with the interface member itself is suppressed below.
         [RequiresDynamicCode(kSharpPcapDynamicLoadingMessage)]
         [RequiresUnreferencedCode(kSharpPcapDynamicLoadingMessage)]
+        [UnconditionalSuppressMessage("AOT", "IL3051",
+            Justification = "ICaptureSource.StartAsync is intentionally unannotated; only " +
+                "NicCaptureSource needs SharpPcap's dynamic-loading requirement, so this " +
+                "implementation is intentionally stricter than the interface it implements.")]
+        [UnconditionalSuppressMessage("Trimming", "IL2046",
+            Justification = "ICaptureSource.StartAsync is intentionally unannotated; only " +
+                "NicCaptureSource needs SharpPcap's dynamic-loading requirement, so this " +
+                "implementation is intentionally stricter than the interface it implements.")]
         public ValueTask StartAsync(StartCaptureRequest request, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(request);
@@ -271,6 +287,10 @@ namespace Opc.Ua.Pcap.Capture.Sources
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
+            // A best-effort device stop may already be running against the same
+            // handle StopAsync is about to close.
+            await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
+
             try
             {
                 await StopAsync(CancellationToken.None).ConfigureAwait(false);
@@ -281,6 +301,32 @@ namespace Opc.Ua.Pcap.Capture.Sources
             }
 
             GC.SuppressFinalize(this);
+        }
+
+        internal static string CreateOpenFailureMessage(
+            string interfaceName,
+            Exception exception,
+            string? additionalContext = null)
+        {
+            PcapError? error = exception is PcapException pcapException
+                ? pcapException.Error
+                : null;
+            return CreateOpenFailureMessage(interfaceName, error, additionalContext);
+        }
+
+        internal static string CreateOpenFailureMessage(
+            string interfaceName,
+            PcapError? error,
+            string? additionalContext = null)
+        {
+            string reason = error is PcapError.PermissionDenied or PcapError.PromiscuousPermissionDenied
+                ? "Permission denied. Grant packet-capture privileges (for example CAP_NET_RAW on Linux) " +
+                    "or run the process elevated."
+                : "Verify that libpcap / Npcap is installed and that the interface is available.";
+
+            return additionalContext is null
+                ? $"Unable to open interface '{interfaceName}'. {reason}"
+                : $"Unable to open interface '{interfaceName}'. {reason} {additionalContext}";
         }
 
         private static LibPcapLiveDevice SelectDevice(string interfaceName)
@@ -312,7 +358,8 @@ namespace Opc.Ua.Pcap.Capture.Sources
 
             return selected ??
                 throw new PcapDiagnosticsException(
-                    $"Interface '{interfaceName}' was not found. Use list_interfaces to discover available interfaces.");
+                    $"Interface '{interfaceName}' was not found. " +
+                    "Use list_interfaces to discover available interfaces.");
         }
 
         private void OpenDevice(LibPcapLiveDevice selected, bool promiscuous)
@@ -321,25 +368,35 @@ namespace Opc.Ua.Pcap.Capture.Sources
             {
                 selected.Open(promiscuous ? DeviceModes.Promiscuous : DeviceModes.None, read_timeout: 1000);
             }
-            catch (Exception ex) when (promiscuous)
+            catch (Exception firstException) when (promiscuous)
             {
-                m_logger.OpenInterfacePromiscuousModeFailed(ex, selected.Name);
+                m_logger.OpenInterfacePromiscuousModeFailed(firstException, selected.Name);
+                selected.Close();
                 try
                 {
                     selected.Open(DeviceModes.None, read_timeout: 1000);
                 }
-                catch (Exception retryEx)
+                catch (Exception retryException)
                 {
                     throw new PcapDiagnosticsException(
-                        $"Unable to open interface '{selected.Name}' — is libpcap / Npcap installed and permitted?",
-                        retryEx);
+                        CreateOpenFailureMessage(
+                            selected.Name,
+                            retryException,
+                            $"The promiscuous-mode attempt also failed: {firstException.Message}"),
+                        retryException);
                 }
-
             }
             catch (Exception ex)
             {
                 throw new PcapDiagnosticsException(
-                    $"Unable to open interface '{selected.Name}' — is libpcap / Npcap installed and permitted?", ex);
+                    CreateOpenFailureMessage(selected.Name, ex),
+                    ex);
+            }
+
+            if (!selected.Opened)
+            {
+                throw new PcapDiagnosticsException(
+                    $"SharpPcap did not open interface '{selected.Name}'.");
             }
         }
 
@@ -380,7 +437,13 @@ namespace Opc.Ua.Pcap.Capture.Sources
             if (bytes > m_maxBytes || frames > m_maxFrames || DateTimeOffset.UtcNow - m_startedAt > m_maxDuration)
             {
                 m_stopRequested = true;
-                _ = Task.Run(StopDeviceCaptureBestEffort);
+                m_backgroundWork.Run(
+                    nameof(StopDeviceCaptureBestEffort),
+                    _ =>
+                    {
+                        StopDeviceCaptureBestEffort();
+                        return default;
+                    });
             }
         }
 

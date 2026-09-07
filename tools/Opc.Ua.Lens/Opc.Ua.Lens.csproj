@@ -1,0 +1,95 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <AssemblyName>UaLens</AssemblyName>
+    <OutputType>Exe</OutputType>
+    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Lens</PackageId>
+    <Company>OPC Foundation</Company>
+    <Description>UaLens — multi-tab Avalonia desktop client for OPC UA.</Description>
+    <PackageProjectUrl>https://github.com/OPCFoundation/UA-.NETStandard</PackageProjectUrl>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <PackageTags>opc-ua;opcua;client;avalonia;dotnet-tool</PackageTags>
+    <Copyright>Copyright © 2025 OPC Foundation, Inc</Copyright>
+    <RootNamespace>UaLens</RootNamespace>
+    <Nullable>enable</Nullable>
+    <LangVersion>14.0</LangVersion>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app-icon.ico</ApplicationIcon>
+    <UseAvalonia>true</UseAvalonia>
+    <!-- CA1873: upstream's repo-wide source-generated-logging migration
+         (#3908) enabled this analyzer, which flags UaLens's direct
+         ILogger.Log* call sites (expensive interpolated/ToString args).
+         Suppressed for now; TODO: migrate UaLens logging to
+         source-generated [LoggerMessage] partials and remove CA1873. -->
+    <NoWarn>$(NoWarn);CS0618;EXTOBS0001;CA1812;CA1873</NoWarn>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PublishAot Condition="'$(PublishAotEnabled)' != 'false'">true</PublishAot>
+    <TrimMode>full</TrimMode>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <NoWarn>$(NoWarn);IL2026;IL2070;IL2075;IL2104;IL3050;IL3051;IL3053</NoWarn>
+    <!-- Lock the nullable migration in: any future regression that
+         introduces a CS86xx becomes a build break instead of a silent
+         warning. -->
+    <WarningsAsErrors>$(WarningsAsErrors);nullable</WarningsAsErrors>
+    <!-- Ship the net10.0 build as a `dotnet tool` (global tool).
+         net8.0 / net9.0 still compile as normal Avalonia executables
+         but are not packed as tools.  IsPackable + the tool-specific
+         properties are intentionally gated to net10.0 only because
+         PackAsTool / ToolCommandName / PackageType cannot be set on
+         net8 / net9 (no Avalonia AOT, different runtime).  Consequence:
+         `dotnet pack` from this project needs an explicit
+         `-f net10.0` (or `-p:TargetFramework=net10.0`) — without it
+         pack tries to bundle per-TFM nupkgs and fails because the net8
+         / net9 outputs aren't built. -->
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>ualens</ToolCommandName>
+    <PackageType>DotnetTool</PackageType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- App icon (PNG for window/taskbar via Avalonia; ICO consumed by
+         <ApplicationIcon> for the Windows .exe resource). -->
+    <AvaloniaResource Include="Assets\app-icon.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- UaLens ships its own package-local NugetREADME.md (packed at the
+         package root) so the nuget.org landing page describes UaLens. -->
+    <None Include="NugetREADME.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="ScottPlot.Avalonia" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.ResourceMonitoring" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Client.Common\Opc.Ua.Gds.Client.Common.csproj" />
+  </ItemGroup>
+
+  <!--
+    All Wave 1 / Wave 3a tab apps (Subscription, EventView, Historian,
+    Performance, GdsPush) have landed and are compiled in.  Add a
+    <Compile Remove ... /> block here when a new wave's files temporarily
+    don't build against the active SDK snapshot.
+  -->
+</Project>

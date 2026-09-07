@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -44,8 +43,7 @@ namespace Opc.Ua.Configuration
     /// <remarks>
     /// This builder uses a fluent staged-interface pattern: callers progress through
     /// <see cref="ApplicationInstance.Build(string, string)"/> (which initializes
-    /// <see cref="ApplicationConfiguration.TransportQuotas"/> and
-    /// <see cref="ApplicationConfiguration.TraceConfiguration"/>),
+    /// <see cref="ApplicationConfiguration.TransportQuotas"/>),
     /// then through <see cref="AsClient"/>/<see cref="AsServer(string[], string[])"/>
     /// (which initialize <see cref="ApplicationConfiguration.ClientConfiguration"/>
     /// and <see cref="ApplicationConfiguration.ServerConfiguration"/> respectively),
@@ -365,11 +363,6 @@ namespace Opc.Ua.Configuration
                 AddSecurityPolicies();
             }
 
-            // Legacy Utils trace pipeline; kept for 1.5.378 -> 2.0 migration.
-#pragma warning disable CS0618 // Type or member is obsolete
-            ApplicationConfiguration.TraceConfiguration?.ApplySettings();
-#pragma warning restore CS0618 // Type or member is obsolete
-
             await ApplicationConfiguration.ValidateAsync(ApplicationInstance.ApplicationType, ct)
                 .ConfigureAwait(false);
 
@@ -494,7 +487,7 @@ namespace Opc.Ua.Configuration
             MessageSecurityMode securityMode,
             string securityPolicy)
         {
-            if (!SecurityPolicies.IsValidSecurityPolicyUri(securityPolicy))
+            if (!SecurityPolicies.Default.IsValidSecurityPolicyUri(securityPolicy))
             {
                 throw new ArgumentException("Unknown security policy", nameof(securityPolicy));
             }
@@ -885,11 +878,11 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerOptions SetMinMetadataSamplingInterval(
-            int minMetadataSamplingInterval)
+        public IApplicationConfigurationBuilderServerOptions SetMinSupportedSamplingInterval(
+            double minSupportedSamplingInterval)
         {
-            ApplicationConfiguration.ServerConfiguration!.MinMetadataSamplingInterval
-                = minMetadataSamplingInterval;
+            ApplicationConfiguration.ServerConfiguration!.MinSupportedSamplingInterval
+                = minSupportedSamplingInterval;
             return this;
         }
 
@@ -1103,29 +1096,6 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderTraceConfiguration SetOutputFilePath(
-            string outputFilePath)
-        {
-            ApplicationConfiguration.TraceConfiguration!.OutputFilePath = outputFilePath;
-            return this;
-        }
-
-        /// <inheritdoc/>
-        public IApplicationConfigurationBuilderTraceConfiguration SetDeleteOnLoad(bool deleteOnLoad)
-        {
-            ApplicationConfiguration.TraceConfiguration!.DeleteOnLoad = deleteOnLoad;
-            return this;
-        }
-
-        /// <inheritdoc/>
-        public IApplicationConfigurationBuilderTraceConfiguration SetTraceMasks(int traceMasks)
-        {
-            ApplicationConfiguration.TraceConfiguration!.TraceMasks = traceMasks;
-            return this;
-        }
-
-        /// <inheritdoc/>
-        [Experimental("UA_NETStandard_1")]
         public IApplicationConfigurationBuilderExtension AddExtension<T>(
             XmlQualifiedName elementName,
             T value,
@@ -1393,11 +1363,11 @@ namespace Opc.Ua.Configuration
             bool policyNone = false)
         {
             // create list of supported policies
-            List<string> defaultPolicyUris = [.. SecurityPolicies
+            List<string> defaultPolicyUris = [.. SecurityPolicies.Default
                 .GetDefaultUris()];
             if (deprecated)
             {
-                defaultPolicyUris.AddRange(SecurityPolicies.GetDefaultDeprecatedUris());
+                defaultPolicyUris.AddRange(SecurityPolicies.Default.GetDefaultDeprecatedUris());
             }
 
 #if NET5_0_OR_GREATER
@@ -1432,7 +1402,7 @@ namespace Opc.Ua.Configuration
         private void AddEccSecurityPolicies(bool sign = false)
         {
             // create list of supported policies
-            string[] defaultPolicyUris = SecurityPolicies.GetDefaultEccUris();
+            string[] defaultPolicyUris = SecurityPolicies.Default.GetDefaultEccUris();
             MessageSecurityMode securityMode = sign
                 ? MessageSecurityMode.Sign
                 : MessageSecurityMode.SignAndEncrypt;

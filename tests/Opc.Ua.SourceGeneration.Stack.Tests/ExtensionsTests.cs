@@ -630,7 +630,9 @@ namespace Test
                 [$"build_property.{SourceGenerator.Name}MyProp".ToLowerInvariant()] = "42"
             });
 
-            int result = options.GetValue("MyProp", s => int.Parse(s, System.Globalization.CultureInfo.InvariantCulture));
+            int result = options.GetValue(
+                "MyProp",
+                s => int.Parse(s, System.Globalization.CultureInfo.InvariantCulture));
 
             Assert.That(result, Is.EqualTo(42));
         }
@@ -831,7 +833,7 @@ namespace Test
         [Test]
         public void IsIdentifierFileReturnsTrueForCsv()
         {
-            var text = EmbeddedAdditionalText.Create("ids.csv");
+            var text = EmbeddedAdditionalText.Create("ids.csv", "Name,1,ObjectType");
 
             Assert.That(text.IsIdentifierFile(), Is.True);
         }
@@ -880,16 +882,20 @@ namespace Test
             using var fileSystem = new VirtualFileSystem();
             var telemetry = new NullTelemetry();
 
-            NodesetFileCollection collection = files.ToNodeSetFileCollection(fileSystem, telemetry);
+            NodesetFileCollection collection = files.ToNodeSetFileCollection(
+                [],
+                fileSystem,
+                telemetry);
 
             Assert.That(collection, Is.Not.Null);
         }
 
         private sealed class EmbeddedAdditionalText : AdditionalText
         {
-            private EmbeddedAdditionalText(string path)
+            private EmbeddedAdditionalText(string path, string content)
             {
                 Path = path;
+                m_text = SourceText.From(content);
             }
 
             public override string Path { get; }
@@ -897,13 +903,17 @@ namespace Test
             public override SourceText GetText(
                 System.Threading.CancellationToken cancellationToken = default)
             {
-                return SourceText.From(string.Empty);
+                return m_text;
             }
 
-            public static EmbeddedAdditionalText Create(string path)
+            public static EmbeddedAdditionalText Create(
+                string path,
+                string content = "")
             {
-                return new EmbeddedAdditionalText(path);
+                return new EmbeddedAdditionalText(path, content);
             }
+
+            private readonly SourceText m_text;
         }
 
         private sealed class NullTelemetry : TelemetryContextBase

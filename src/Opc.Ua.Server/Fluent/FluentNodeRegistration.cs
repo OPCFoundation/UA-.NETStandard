@@ -40,5 +40,28 @@ namespace Opc.Ua.Server.Fluent
                 manager.AddPredefinedNodeSynchronously(node);
             }
         }
+
+        internal static void RegisterAlarmEventSource(
+            INodeManagerBuilder builder,
+            NodeState source)
+        {
+            BaseObjectState? firstSource = null;
+            for (NodeState? current = source; current != null;)
+            {
+                if (current is BaseObjectState notifier)
+                {
+                    firstSource ??= notifier;
+                    notifier.EventNotifier |= EventNotifiers.SubscribeToEvents;
+                }
+
+                current = current is BaseInstanceState instance ? instance.Parent : null;
+            }
+
+            if (firstSource != null &&
+                builder.NodeManager is AsyncCustomNodeManager manager)
+            {
+                manager.AddRootNotifierSynchronously(firstSource);
+            }
+        }
     }
 }

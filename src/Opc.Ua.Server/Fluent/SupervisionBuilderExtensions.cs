@@ -153,13 +153,47 @@ namespace Opc.Ua.Server.Fluent
             AlarmConditionState alarm,
             bool active)
         {
-            if (alarm.ActiveState?.Id != null)
+            // A Condition that is disabled or has no ActiveState must not
+            // report. EnabledState is mandatory on ConditionType, so a null
+            // here means the alarm is malformed rather than merely disabled.
+            if (alarm.ActiveState?.Id == null ||
+                alarm.EnabledState?.Id?.Value != true)
             {
-                alarm.ActiveState.Id.Value = active;
-                alarm.ActiveState.Value = new LocalizedText(active ? "Active" : "Inactive");
-                alarm.Time?.Value = DateTimeUtc.Now;
-                alarm.ClearChangeMasks(context, includeChildren: true);
+                return;
             }
+
+            DateTimeUtc now = DateTimeUtc.Now;
+            if (active)
+            {
+                alarm.SetAcknowledgedState(context, acknowledged: false);
+                if (alarm.ConfirmedState != null)
+                {
+                    alarm.SetConfirmedState(context, confirmed: false);
+                }
+            }
+            alarm.SetActiveState(context, active);
+            alarm.SetSeverity(
+                context,
+                active ? EventSeverity.High : EventSeverity.Low);
+
+            alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+            alarm.Time!.Value = now;
+            alarm.ReceiveTime!.Value = now;
+            alarm.Message!.Value = new LocalizedText(
+                string.Format(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    "Alarm '{0}' {1}.",
+                    alarm.BrowseName.Name,
+                    active ? "active" : "inactive"));
+            alarm.Retain!.Value =
+                active ||
+                !alarm.AckedState!.Id!.Value ||
+                (alarm.ConfirmedState != null && !alarm.ConfirmedState.Id!.Value);
+            alarm.ClearChangeMasks(context, includeChildren: true);
+
+            var eventSnapshot = new InstanceStateSnapshot();
+            eventSnapshot.Initialize(context, alarm);
+            alarm.ReportEvent(context, eventSnapshot);
         }
 
         private static EdgeTracker AttachEdgeTracker(BaseVariableState variable)
@@ -227,7 +261,6 @@ namespace Opc.Ua.Server.Fluent
                 m_last = current;
 
                 if (current && !previous)
-
                 {
                     RisingEdge?.Invoke(context);
                 }

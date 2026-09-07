@@ -87,6 +87,19 @@ namespace Opc.Ua.Server.StateMachines
     }
 
     /// <summary>
+    /// The shape shared by state and transition definitions — what the
+    /// element-node materialization needs to treat them uniformly.
+    /// </summary>
+    internal interface IStateMachineElementDefinition
+    {
+        /// <summary>The element's numeric id.</summary>
+        uint Id { get; }
+
+        /// <summary>The element's browse name.</summary>
+        string BrowseName { get; }
+    }
+
+    /// <summary>
     /// Definition of a single state in a Part 16 state machine.
     /// </summary>
     /// <param name="Id">The state's numeric id (used as the
@@ -98,7 +111,7 @@ namespace Opc.Ua.Server.StateMachines
     public sealed record StateMachineStateDefinition(
         uint Id,
         string BrowseName,
-        bool IsInitial = false);
+        bool IsInitial = false) : IStateMachineElementDefinition;
 
     /// <summary>
     /// Definition of a transition between two states.
@@ -114,7 +127,7 @@ namespace Opc.Ua.Server.StateMachines
         string BrowseName,
         uint FromStateId,
         uint ToStateId,
-        bool HasEffect = true);
+        bool HasEffect = true) : IStateMachineElementDefinition;
 
     /// <summary>
     /// Maps a cause (method NodeId) plus current state to the

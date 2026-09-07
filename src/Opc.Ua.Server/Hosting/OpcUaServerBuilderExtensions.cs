@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -161,6 +162,189 @@ namespace Microsoft.Extensions.DependencyInjection
                 ActivatorOpcUaServerFactory<TServer>>());
 
             return new OpcUaServerBuilder(builder.Services);
+        }
+
+        /// <summary>
+        /// Registers an OPC UA server hosted as an <see cref="IHostedService"/>
+        /// whose <see cref="ApplicationConfiguration"/> is loaded from an
+        /// existing OPC UA XML configuration file
+        /// (e.g. <c>MyServer.Config.xml</c>).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This is the migration path for applications that already own a
+        /// configuration file: every setting in the file (base addresses,
+        /// security policies, certificate stores, transport quotas, operation
+        /// limits, ...) is applied as-is, exactly as when the file is loaded
+        /// through <c>ApplicationInstance.LoadApplicationConfigurationAsync</c>.
+        /// Node managers, identity authenticators, roles and the other
+        /// <see cref="IOpcUaServerBuilder"/> registrations compose with the
+        /// loaded file the same way they compose with option-built
+        /// configurations.
+        /// </para>
+        /// <para>
+        /// Equivalent to
+        /// <see cref="AddServer(IOpcUaBuilder, Action{OpcUaServerOptions})"/>
+        /// with <see cref="OpcUaServerOptions.ConfigurationFile"/> and
+        /// <see cref="OpcUaServerOptions.ConfigureLoadedConfiguration"/> set.
+        /// </para>
+        /// </remarks>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configurationFile">Path to the application
+        /// configuration XML file. A relative path is resolved against the
+        /// current working directory.</param>
+        /// <param name="configure">Optional callback invoked with the loaded
+        /// <see cref="ApplicationConfiguration"/> before certificates are
+        /// checked and the server starts; use it to override individual
+        /// settings from code.</param>
+        /// <returns>An <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configurationFile"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="configurationFile"/>
+        /// is empty or white space.</exception>
+        /// <exception cref="InvalidOperationException">An OPC UA server
+        /// is already registered.</exception>
+        public static IOpcUaServerBuilder AddServer(
+            this IOpcUaBuilder builder,
+            string configurationFile,
+            Action<ApplicationConfiguration>? configure = null)
+        {
+            ValidateConfigurationFilePath(configurationFile);
+            return builder.AddServer(options =>
+            {
+                options.ConfigurationFile = configurationFile;
+                options.ConfigureLoadedConfiguration = configure;
+            });
+        }
+
+        /// <summary>
+        /// Registers an OPC UA server hosted as an <see cref="IHostedService"/>
+        /// using a custom <see cref="StandardServer"/> subclass whose
+        /// <see cref="ApplicationConfiguration"/> is loaded from an existing
+        /// OPC UA XML configuration file (e.g. <c>MyServer.Config.xml</c>).
+        /// </summary>
+        /// <remarks>
+        /// See <see cref="AddServer(IOpcUaBuilder, string, Action{ApplicationConfiguration})"/>
+        /// for how the configuration file is applied.
+        /// </remarks>
+        /// <typeparam name="TServer">The server type created by the hosted service.</typeparam>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configurationFile">Path to the application
+        /// configuration XML file. A relative path is resolved against the
+        /// current working directory.</param>
+        /// <param name="configure">Optional callback invoked with the loaded
+        /// <see cref="ApplicationConfiguration"/> before certificates are
+        /// checked and the server starts.</param>
+        /// <returns>An <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configurationFile"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="configurationFile"/>
+        /// is empty or white space.</exception>
+        /// <exception cref="InvalidOperationException">An OPC UA server
+        /// is already registered.</exception>
+        public static IOpcUaServerBuilder AddServer<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TServer>(
+                this IOpcUaBuilder builder,
+                string configurationFile,
+                Action<ApplicationConfiguration>? configure = null)
+            where TServer : StandardServer
+        {
+            ValidateConfigurationFilePath(configurationFile);
+            return builder.AddServer<TServer>(options =>
+            {
+                options.ConfigurationFile = configurationFile;
+                options.ConfigureLoadedConfiguration = configure;
+            });
+        }
+
+        /// <summary>
+        /// Registers an OPC UA server hosted as an <see cref="IHostedService"/>
+        /// whose <see cref="ApplicationConfiguration"/> is loaded from a
+        /// stream containing an OPC UA XML configuration document, e.g. an
+        /// embedded resource.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// See <see cref="AddServer(IOpcUaBuilder, string, Action{ApplicationConfiguration})"/>
+        /// for how the loaded configuration is applied. Equivalent to
+        /// <see cref="AddServer(IOpcUaBuilder, Action{OpcUaServerOptions})"/>
+        /// with <see cref="OpcUaServerOptions.ConfigurationStream"/> and
+        /// <see cref="OpcUaServerOptions.ConfigureLoadedConfiguration"/> set.
+        /// </para>
+        /// <para>
+        /// The stream must remain open until the host starts the server; it
+        /// is read once and disposed by the hosted service during startup.
+        /// </para>
+        /// </remarks>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configurationStream">Stream containing the
+        /// application configuration XML document.</param>
+        /// <param name="configure">Optional callback invoked with the loaded
+        /// <see cref="ApplicationConfiguration"/> before certificates are
+        /// checked and the server starts; use it to override individual
+        /// settings from code.</param>
+        /// <returns>An <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configurationStream"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">An OPC UA server
+        /// is already registered.</exception>
+        public static IOpcUaServerBuilder AddServer(
+            this IOpcUaBuilder builder,
+            Stream configurationStream,
+            Action<ApplicationConfiguration>? configure = null)
+        {
+            if (configurationStream is null)
+            {
+                throw new ArgumentNullException(nameof(configurationStream));
+            }
+
+            return builder.AddServer(options =>
+            {
+                options.ConfigurationStream = configurationStream;
+                options.ConfigureLoadedConfiguration = configure;
+            });
+        }
+
+        /// <summary>
+        /// Registers an OPC UA server hosted as an <see cref="IHostedService"/>
+        /// using a custom <see cref="StandardServer"/> subclass whose
+        /// <see cref="ApplicationConfiguration"/> is loaded from a stream
+        /// containing an OPC UA XML configuration document, e.g. an embedded
+        /// resource.
+        /// </summary>
+        /// <remarks>
+        /// See <see cref="AddServer(IOpcUaBuilder, Stream, Action{ApplicationConfiguration})"/>
+        /// for how the stream is applied and its lifetime.
+        /// </remarks>
+        /// <typeparam name="TServer">The server type created by the hosted service.</typeparam>
+        /// <param name="builder">The OPC UA builder.</param>
+        /// <param name="configurationStream">Stream containing the
+        /// application configuration XML document.</param>
+        /// <param name="configure">Optional callback invoked with the loaded
+        /// <see cref="ApplicationConfiguration"/> before certificates are
+        /// checked and the server starts.</param>
+        /// <returns>An <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// or <paramref name="configurationStream"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">An OPC UA server
+        /// is already registered.</exception>
+        public static IOpcUaServerBuilder AddServer<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TServer>(
+                this IOpcUaBuilder builder,
+                Stream configurationStream,
+                Action<ApplicationConfiguration>? configure = null)
+            where TServer : StandardServer
+        {
+            if (configurationStream is null)
+            {
+                throw new ArgumentNullException(nameof(configurationStream));
+            }
+
+            return builder.AddServer<TServer>(options =>
+            {
+                options.ConfigurationStream = configurationStream;
+                options.ConfigureLoadedConfiguration = configure;
+            });
         }
 
         /// <summary>
@@ -838,7 +1022,23 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers the reusable binder that backs existing FileDirectoryType nodes with file-system providers.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddFileDirectoryBinder(this IOpcUaServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton<IFileDirectoryBinder, FileDirectoryBinder>();
+            return builder;
+        }
+
+        /// <summary>
         /// Registers a fluent node manager built from a namespace URI and configuration callback.
+        /// The callback creates and places every node; no implicit root node is added.
         /// </summary>
         /// <param name="builder">The server builder.</param>
         /// <param name="namespaceUri">Namespace URI owned by the fluent node manager.</param>
@@ -855,10 +1055,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            var factory = new FluentNodeManagerFactory(namespaceUri, build);
-            builder.Services.AddSingleton<IAsyncNodeManagerFactory>(factory);
-            builder.Services.AddSingleton(new OpcUaServerNodeManagerRegistration(factory));
-            return builder;
+            return RegisterFluentNodeManager(builder, namespaceUri, build);
         }
 
         /// <summary>
@@ -1064,11 +1261,12 @@ namespace Microsoft.Extensions.DependencyInjection
                 options.IncludeUnsecurePolicyNone = false;
                 configure?.Invoke(options);
             });
-            return serverBuilder
-                .AddRoleManager<RoleManager>()
-                .AddNodeManager(
-                    "http://opcfoundation.org/UA/ReferenceServer",
-                    nodeManager => nodeManager.Node("ReferenceServer"));
+            serverBuilder.AddRoleManager<RoleManager>();
+            return RegisterFluentNodeManager(
+                serverBuilder,
+                "http://opcfoundation.org/UA/ReferenceServer",
+                nodeManager => nodeManager.Node("ReferenceServer"),
+                "ReferenceServer");
         }
 
         /// <summary>
@@ -1133,6 +1331,21 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder
                 .AddHistorian(historian)
                 .AddFileSystem(rootDirectory, mountName, isWritable);
+        }
+
+        private static IOpcUaServerBuilder RegisterFluentNodeManager(
+            IOpcUaServerBuilder builder,
+            string namespaceUri,
+            Action<INodeManagerBuilder> build,
+            string? rootBrowseName = null)
+        {
+            var factory = new FluentNodeManagerFactory(
+                namespaceUri,
+                build,
+                rootBrowseName);
+            builder.Services.AddSingleton<IAsyncNodeManagerFactory>(factory);
+            builder.Services.AddSingleton(new OpcUaServerNodeManagerRegistration(factory));
+            return builder;
         }
 
         private static void RegisterDefaultIdentityAuthenticators(
@@ -1223,6 +1436,20 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
+        private static void ValidateConfigurationFilePath(string configurationFile)
+        {
+            if (configurationFile is null)
+            {
+                throw new ArgumentNullException(nameof(configurationFile));
+            }
+            if (string.IsNullOrWhiteSpace(configurationFile))
+            {
+                throw new ArgumentException(
+                    "The configuration file path must not be empty.",
+                    nameof(configurationFile));
+            }
+        }
+
         private static void EnsureFirstRegistration(IServiceCollection services)
         {
             foreach (ServiceDescriptor d in services)
@@ -1283,84 +1510,29 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddHostedService<OpcUaServerHostedService>();
             services.AddOpcUa().AddApplicationInstance();
             services.TryAddSingleton<IOpcUaServerFactory, DefaultOpcUaServerFactory>();
+            services.TryAddSingleton<HostedNodeManagerLifecycle>();
+            services.TryAddSingleton<INodeManagerLifecycle>(services =>
+                services.GetRequiredService<HostedNodeManagerLifecycle>());
             RegisterFallbackAnonymousAuthenticator(services);
         }
 
         private static IRoleManager CreateConfiguredRoleManager(IServiceProvider services)
         {
-            var roleManager = new RoleManager();
-            RoleConfigurationOptions options = services.GetRequiredService<IOptions<RoleConfigurationOptions>>().Value;
-            ApplyRoleConfiguration(roleManager, options);
+            // The configured roles are staged rather than applied here: a role
+            // gets a server-assigned NodeId, and the server's namespace table
+            // does not exist yet while the container is being built. The
+            // RoleStateBinding applies them once the address space is up, which
+            // is also what makes them appear under the RoleSet (Part 18 §4.2).
+            var roleManager = new RoleManager
+            {
+                PendingConfiguration = services
+                    .GetRequiredService<IOptions<RoleConfigurationOptions>>().Value
+            };
+
+            // Settings on roles that already exist — the nine well-known ones —
+            // take effect immediately; the rest wait for the address space.
+            roleManager.ApplyPendingConfiguration(namespaces: null);
             return roleManager;
-        }
-
-        private static void ApplyRoleConfiguration(RoleManager roleManager, RoleConfigurationOptions options)
-        {
-            var namespaces = new NamespaceTable();
-            namespaces.Append(Opc.Ua.Namespaces.OpcUa);
-            foreach (RoleDefinitionOptions role in options.Roles)
-            {
-                if (string.IsNullOrWhiteSpace(role.Name))
-                {
-                    continue;
-                }
-
-                NodeId roleId = ResolveOrCreateRole(roleManager, namespaces, role);
-                foreach (RoleIdentityMappingOptions identity in role.Identities)
-                {
-                    roleManager.AddIdentity(roleId, new IdentityMappingRuleType
-                    {
-                        CriteriaType = identity.CriteriaType,
-                        Criteria = identity.Criteria
-                    });
-                }
-                foreach (string application in role.Applications)
-                {
-                    roleManager.AddApplication(roleId, application);
-                }
-                foreach (EndpointType endpoint in role.Endpoints)
-                {
-                    roleManager.AddEndpoint(roleId, endpoint);
-                }
-                roleManager.SetApplicationsExclude(roleId, role.ApplicationsExclude);
-                roleManager.SetEndpointsExclude(roleId, role.EndpointsExclude);
-                roleManager.SetCustomConfiguration(roleId, role.CustomConfiguration);
-            }
-        }
-
-        private static NodeId ResolveOrCreateRole(
-            RoleManager roleManager,
-            NamespaceTable namespaces,
-            RoleDefinitionOptions role)
-        {
-            foreach (NodeId roleId in roleManager.RoleIds)
-            {
-                RoleEntry? entry = roleManager.GetRole(roleId);
-                if (string.Equals(entry?.BrowseName, role.Name, StringComparison.Ordinal))
-                {
-                    return roleId;
-                }
-            }
-
-            string? namespaceUri = role.NamespaceUri;
-            ushort namespaceIndex = 1;
-            if (!string.IsNullOrEmpty(namespaceUri))
-            {
-                namespaceIndex = namespaces.GetIndexOrAppend(namespaceUri);
-            }
-
-            ServiceResult result = roleManager.AddRole(
-                role.Name,
-                namespaceUri,
-                namespaces,
-                namespaceIndex,
-                out NodeId newRoleId);
-            if (ServiceResult.IsBad(result))
-            {
-                throw new InvalidOperationException(
-                    $"Role '{role.Name}' could not be configured: {result}.");
-            }
-            return newRoleId;
         }
 
         private static void RegisterFallbackAnonymousAuthenticator(IServiceCollection services)
@@ -1443,6 +1615,8 @@ namespace Microsoft.Extensions.DependencyInjection
             BindString(section, nameof(OpcUaServerOptions.ProductUri), value => options.ProductUri = value);
             BindString(section, nameof(OpcUaServerOptions.SubjectName), value => options.SubjectName = value);
             BindString(section, nameof(OpcUaServerOptions.PkiRoot), value => options.PkiRoot = value);
+            BindString(section, nameof(OpcUaServerOptions.ConfigurationFile),
+                value => options.ConfigurationFile = value);
             BindString(section, nameof(OpcUaServerOptions.RegistrationEndpointUrl),
                 value => options.RegistrationEndpointUrl = value);
             BindBoolean(section, nameof(OpcUaServerOptions.AutoAcceptUntrustedCertificates),
@@ -1957,10 +2131,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             public IOpcUaServerBuilder AddNodeManager(string namespaceUri, Action<INodeManagerBuilder> build)
             {
-                var factory = new FluentNodeManagerFactory(namespaceUri, build);
-                Services.AddSingleton<IAsyncNodeManagerFactory>(factory);
-                Services.AddSingleton(new OpcUaServerNodeManagerRegistration(factory));
-                return this;
+                return RegisterFluentNodeManager(this, namespaceUri, build);
             }
 
             public IOpcUaServerBuilder AddSyncNodeManager<

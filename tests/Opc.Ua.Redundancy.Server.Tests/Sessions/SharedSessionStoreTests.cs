@@ -40,6 +40,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
@@ -106,6 +107,15 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(loaded.SecurityMode, Is.EqualTo(entry.SecurityMode));
             Assert.That(loaded.EndpointUrl, Is.EqualTo(entry.EndpointUrl));
             Assert.That(loaded.SessionTimeout, Is.EqualTo(entry.SessionTimeout));
+            Assert.That(loaded.SecurityStateVersion, Is.EqualTo(entry.SecurityStateVersion));
+            Assert.That(
+                loaded.OriginalClientChannelCertificate,
+                Is.EqualTo(entry.OriginalClientChannelCertificate));
+            Assert.That(loaded.ClientUserId, Is.EqualTo(entry.ClientUserId));
+            Assert.That(loaded.ClientUserTokenType, Is.EqualTo(entry.ClientUserTokenType));
+            Assert.That(
+                loaded.HasActivatedUserIdentity,
+                Is.EqualTo(entry.HasActivatedUserIdentity));
             Assert.That(
                 loaded.ClientDescription.ApplicationUri,
                 Is.EqualTo(entry.ClientDescription.ApplicationUri));
@@ -194,6 +204,69 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task CorruptSessionEntryIsRejectedAndLoggedAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var logger = new RecordingLogger<SharedKeyValueSessionStore>();
+            var store = new SharedKeyValueSessionStore(kv, m_context, null, logger);
+            var authenticationToken = new NodeId("tok-corrupt", NamespaceIndex);
+            string key = SharedKeyValueSessionStore.KeyFor(authenticationToken);
+            await kv.SetAsync(key, ByteString.From(new byte[] { 1, 2, 3, 4 })).ConfigureAwait(false);
+
+            SharedSessionEntry? loaded = await store
+                .TryGetAsync(authenticationToken)
+                .ConfigureAwait(false);
+
+            Assert.That(loaded, Is.Null);
+            Assert.That(logger.Level, Is.EqualTo(LogLevel.Warning));
+            Assert.That(logger.Message, Does.Contain(key));
+            Assert.That(logger.Exception, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task LegacyEntryDecodesWithoutSecurityStateForFailClosedRestoreAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new SharedKeyValueSessionStore(kv, m_context);
+            SharedSessionEntry entry = NewEntry("tok-legacy");
+            await kv.SetAsync(
+                SharedKeyValueSessionStore.KeyFor(entry.AuthenticationToken),
+                EncodeLegacyEntry(entry)).ConfigureAwait(false);
+
+            SharedSessionEntry? loaded = await store
+                .TryGetAsync(entry.AuthenticationToken)
+                .ConfigureAwait(false);
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded!.SecurityStateVersion, Is.Zero);
+            Assert.That(loaded.OriginalClientChannelCertificate.IsNull, Is.True);
+            Assert.That(loaded.ClientUserId, Is.Null);
+        }
+
+        [Test]
+        public async Task VersionOneEntryDecodesForVersionTolerantFailClosedRestoreAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new SharedKeyValueSessionStore(kv, m_context);
+            SharedSessionEntry entry = NewEntry("tok-version-one");
+            await kv.SetAsync(
+                SharedKeyValueSessionStore.KeyFor(entry.AuthenticationToken),
+                EncodeVersionOneEntry(entry)).ConfigureAwait(false);
+
+            SharedSessionEntry? loaded = await store
+                .TryGetAsync(entry.AuthenticationToken)
+                .ConfigureAwait(false);
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded!.SecurityStateVersion, Is.EqualTo(1));
+            Assert.That(
+                loaded.OriginalClientChannelCertificate,
+                Is.EqualTo(entry.OriginalClientChannelCertificate));
+            Assert.That(loaded.ClientUserId, Is.EqualTo(entry.ClientUserId));
+            Assert.That(loaded.HasActivatedUserIdentity, Is.False);
+        }
+
+        [Test]
         public async Task KeyspaceDoesNotExposeRawTokenAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
@@ -256,9 +329,14 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 SessionName = "Session " + token,
                 CreatedAt = DateTimeUtc.Now,
                 LastActivatedAt = DateTimeUtc.Now,
-                ServerNonce = ByteString.From(new byte[] { 40, 50, 60, 70 }),
+                ServerNonce = ByteString.From(CreateBytes(32, 40)),
                 ClientNonce = ByteString.From(new byte[] { 1, 2, 3, 4 }),
                 ClientCertificateChain = ByteString.From(new byte[] { 5, 6, 7, 8, 9 }),
+                SecurityStateVersion = SharedSessionEntry.CurrentSecurityStateVersion,
+                OriginalClientChannelCertificate = ByteString.From(CreateBytes(64, 5)),
+                ClientUserId = "ExactUser",
+                ClientUserTokenType = UserTokenType.UserName,
+                HasActivatedUserIdentity = true,
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
                 SecurityMode = (int)MessageSecurityMode.SignAndEncrypt,
                 EndpointUrl = "opc.tcp://localhost:4840",
@@ -271,6 +349,94 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 },
                 SecretMaterial = ByteString.From(new byte[] { 10, 20, 30 })
             };
+        }
+
+        private ByteString EncodeLegacyEntry(SharedSessionEntry entry)
+        {
+            using var encoder = new BinaryEncoder(m_context);
+            WriteLegacyFields(encoder, entry);
+            return ByteString.From(encoder.CloseAndReturnBuffer());
+        }
+
+        private ByteString EncodeVersionOneEntry(SharedSessionEntry entry)
+        {
+            using var encoder = new BinaryEncoder(m_context);
+            WriteLegacyFields(encoder, entry);
+            encoder.WriteUInt32(null, 1);
+            encoder.WriteByteString(null, entry.OriginalClientChannelCertificate);
+            encoder.WriteString(null, entry.ClientUserId);
+            return ByteString.From(encoder.CloseAndReturnBuffer());
+        }
+
+        private static void WriteLegacyFields(
+            BinaryEncoder encoder,
+            SharedSessionEntry entry)
+        {
+            encoder.WriteNodeId(null, entry.SessionId);
+            encoder.WriteNodeId(null, entry.AuthenticationToken);
+            encoder.WriteString(null, entry.SessionName);
+            encoder.WriteInt64(null, entry.CreatedAt);
+            encoder.WriteInt64(null, entry.LastActivatedAt);
+            encoder.WriteByteString(null, entry.ServerNonce);
+            encoder.WriteByteString(null, entry.ClientNonce);
+            encoder.WriteByteString(null, entry.ClientCertificateChain);
+            encoder.WriteString(null, entry.SecurityPolicyUri);
+            encoder.WriteInt32(null, entry.SecurityMode);
+            encoder.WriteString(null, entry.EndpointUrl);
+            encoder.WriteDouble(null, entry.SessionTimeout);
+            encoder.WriteEncodeable(null, entry.ClientDescription);
+            encoder.WriteByteString(null, entry.SecretMaterial);
+        }
+
+        private static byte[] CreateBytes(int length, byte seed)
+        {
+            byte[] bytes = new byte[length];
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                bytes[i] = (byte)(seed + i);
+            }
+            return bytes;
+        }
+
+        private sealed class RecordingLogger<T> : ILogger<T>
+        {
+            public LogLevel? Level { get; private set; }
+
+            public string? Message { get; private set; }
+
+            public Exception? Exception { get; private set; }
+
+            public IDisposable BeginScope<TState>(TState state)
+                where TState : notnull
+            {
+                return NullScope.Instance;
+            }
+
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return true;
+            }
+
+            public void Log<TState>(
+                LogLevel logLevel,
+                EventId eventId,
+                TState state,
+                Exception? exception,
+                Func<TState, Exception?, string> formatter)
+            {
+                Level = logLevel;
+                Message = formatter(state, exception);
+                Exception = exception;
+            }
+        }
+
+        private sealed class NullScope : IDisposable
+        {
+            public static NullScope Instance { get; } = new();
+
+            public void Dispose()
+            {
+            }
         }
     }
 }

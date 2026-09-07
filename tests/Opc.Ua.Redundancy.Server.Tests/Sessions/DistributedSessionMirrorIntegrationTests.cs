@@ -106,6 +106,15 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             Assert.That(entry, Is.Not.Null, "the session must be mirrored to the shared store on activate");
             Assert.That(entry!.AuthenticationToken, Is.EqualTo(header.AuthenticationToken));
+            Assert.That(
+                entry.SecurityStateVersion,
+                Is.EqualTo(SharedSessionEntry.CurrentSecurityStateVersion));
+            Assert.That(entry.ClientUserId, Is.Null);
+            Assert.That(entry.ClientUserTokenType, Is.EqualTo(UserTokenType.Anonymous));
+            Assert.That(entry.HasActivatedUserIdentity, Is.True);
+            Assert.That(
+                entry.OriginalClientChannelCertificate,
+                Is.EqualTo(context.ClientChannelCertificate.ToByteString()));
 
             // Encrypted at rest: a protector with a different key fails closed.
             using var wrongKey = new AesCbcHmacRecordProtector(MakeKey(2));

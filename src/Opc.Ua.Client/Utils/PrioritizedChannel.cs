@@ -29,6 +29,7 @@
 
 #if !NET8_0_OR_GREATER
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 #endif
 
@@ -275,7 +276,7 @@ namespace System.Threading.Channels
         private readonly IComparer<T> m_comparer;
         private readonly List<T> m_heap;
         private readonly SemaphoreSlim m_semaphore;
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private bool m_completed;
     }
 #endif

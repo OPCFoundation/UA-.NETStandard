@@ -1,0 +1,156 @@
+# Values for the AI Model Management sample.
+#
+# The two shapes worth knowing about are a hosted endpoint reached with a
+# credential, and an on-device runtime reached over loopback with none. Both are
+# the same chart with a different `backend` block; see README.md.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/opcfoundation/modelmanagementserver
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+server:
+  # Port the OPC UA endpoint listens on.
+  port: 62640
+  # 0.0.0.0 so the endpoint is reachable from outside the pod.
+  host: "0.0.0.0"
+
+service:
+  type: ClusterIP
+  port: 62640
+  annotations: {}
+
+# What this Server publishes.
+ai:
+  primaryDeploymentId: primary
+  fallbackDeploymentId: fallback
+  # A fallback deployment and the FallsBackTo reference from the primary to it.
+  # Off by default because the default backend is already on the machine: there
+  # is nowhere useful to fall back TO, and a fallback that always fails is worse
+  # than none. Turn it on together with fallbackBackend.enabled.
+  enableFallback: false
+  enableCatalogue: true
+  sourceId: model-source
+
+# The endpoint the primary deployment reaches.
+#
+# The default is an on-device runtime on loopback with no credential, because
+# that is the shape that installs and runs without anything else existing. For a
+# hosted endpoint see values-cloud.yaml.
+backend:
+  # OnServer, EdgeOffServer or Cloud. This is what a client reads from
+  # InferenceLocation, so it should describe where inference actually runs -
+  # it is an operational fact, not a label.
+  site: OnServer
+  endpointUri: "http://localhost:5273/"
+  chatCompletionsPath: "v1/chat/completions"
+  probePath: "v1/models"
+  # Anonymous, ApiKey, BearerToken or WorkloadIdentity.
+  authentication: Anonymous
+  # Names the key WITHIN the mounted Secret - or, for WorkloadIdentity, the token
+  # scope being requested. Never the secret itself: this value is published in the
+  # address space so a client can tell whether the right credential is configured,
+  # and a client that could read the value could use it.
+  credentialReference: ""
+  apiKeyHeader: api-key
+  # Where the data goes. Egress is not made false by encryption, which answers
+  # who can read data in flight and not where the data went.
+  dataJurisdiction: "on-premises"
+  egressPermitted: false
+  retainsInput: false
+  # Published before a client calls rather than discovered from a rejection.
+  maxInlinePayloadSize: 65536
+  models: []
+  # - publisher: contoso
+  #   name: weld-inspect
+  #   version: 2.1.0
+  #   taskKind: classification
+
+# The fallback deployment's own endpoint. Deliberately a separate block: a
+# fallback reached through the same endpoint and credentials as the primary is a
+# retry, not a fallback, and fails for every reason the primary just failed for.
+fallbackBackend:
+  enabled: false
+  site: OnServer
+  endpointUri: "http://localhost:5273/"
+  authentication: Anonymous
+  dataJurisdiction: "on-premises"
+  egressPermitted: false
+  retainsInput: false
+
+# The credential, mounted as a file.
+#
+# `existingSecret` is the option to use in anything real: the value never passes
+# through Helm, so it is not in the release history, not in `helm get values`,
+# and not in whatever holds the values file.
+credentials:
+  existingSecret: ""
+  # Creates a Secret from `value`. For local clusters and demonstrations only.
+  create: false
+  value: ""
+  mountPath: /var/run/secrets/ai
+
+# The certificate store. A Server that regenerates its application instance
+# certificate on every restart has to be re-trusted on every restart.
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClass: ""
+  accessMode: ReadWriteOnce
+
+# A TCP probe proves the listener accepts connections. It does NOT prove the
+# Server is serving the address space - only an OPC UA client can do that, and
+# an exec probe running one costs a process launch per probe. The trade is
+# deliberate; see README.md.
+probes:
+  liveness:
+    enabled: true
+    initialDelaySeconds: 20
+    periodSeconds: 20
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    failureThreshold: 3
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
+
+# UID 1654 is the `app` user the .NET base images ship.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1654
+  fsGroup: 1654
+  fsGroupChangePolicy: OnRootMismatch
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+
+serviceAccount:
+  create: true
+  name: ""
+  # Workload identity is annotated here rather than configured in the app,
+  # because which identity a pod runs as is the platform's business.
+  annotations: {}
+
+extraEnv: []

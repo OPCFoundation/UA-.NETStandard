@@ -49,7 +49,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         private const string GroupId = "group-1";
 
         private static IPubSubSecurityPolicy Policy =>
-            PubSubSecurityPolicyRegistry.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
+            PubSubSecurityPolicyRegistry.Default.GetByUri(PubSubSecurityPolicyUri.PubSubAes128Ctr)!;
 
         private static PullSecurityKeyProviderOptions DefaultOptions(int futureKeys = 2)
         {

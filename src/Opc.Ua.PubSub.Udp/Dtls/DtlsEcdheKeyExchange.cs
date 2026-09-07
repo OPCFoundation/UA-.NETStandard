@@ -62,6 +62,25 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         public DtlsNamedCurve Curve { get; }
 
         /// <summary>
+        /// Gets a value indicating whether raw ECDHE shared-secret derivation
+        /// (<see cref="DeriveSharedSecret"/>) is available in this compiled
+        /// assembly.
+        /// </summary>
+        /// <remarks>
+        /// Extracting the raw ECDHE shared secret requires
+        /// <c>ECDiffieHellman.DeriveRawSecretAgreement</c>, which is only
+        /// available on .NET 8 or later. When the assembly is compiled for an
+        /// older target framework (for example <c>netstandard2.1</c>) this probe
+        /// returns <see langword="false"/>.
+        /// </remarks>
+        public static bool IsRawSharedSecretSupported =>
+#if NET8_0_OR_GREATER
+            true;
+#else
+            false;
+#endif
+
+        /// <summary>
         /// Encoded ephemeral public key share sent to the peer.
         /// </summary>
         public byte[] PublicKey { get; }

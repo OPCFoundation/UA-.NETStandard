@@ -680,6 +680,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var mockSession = new Mock<ISession>();
             mockSession.Setup(s => s.EffectiveIdentity).Returns(new Mock<IUserIdentity>().Object);
             mockSession.Setup(s => s.PreferredLocales).Returns([]);
+            mockSession.Setup(s => s.ContinuationPoints).Returns(
+                new SessionContinuationPoints(
+                    () => NodeId.Null, maxBrowse: 10, maxHistory: 10, store: null));
 
             var namespaceTable = new NamespaceTable();
             namespaceTable.Append(TestNamespaceUri);

@@ -131,7 +131,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         /// <summary>
         /// Opens the embedded test NodeSet2 resource stream.
         /// </summary>
-        private static Stream OpenTestStream()
+        internal static Stream OpenTestStream()
         {
             Stream stream = typeof(RuntimeNodeSetTestServer).Assembly
                 .GetManifestResourceStream(kResourceName);

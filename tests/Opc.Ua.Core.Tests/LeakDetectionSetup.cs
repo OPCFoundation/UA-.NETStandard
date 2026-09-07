@@ -82,29 +82,32 @@ namespace Opc.Ua.Core.Tests
                     System.IO.File.AppendAllText(path,
                         $"  net={net,4} created={kv.Value.created,4} disposed={kv.Value.disposed,4}  {kv.Key}\n");
                 }
-#if DEBUG
-                // In Debug builds, also dump the allocation stack of any
-                // live (reachable) certificate that still has a positive
-                // refcount. These are the actual leaks.
-                System.IO.File.AppendAllText(path, "\nLIVE LEAKED CERTIFICATES (DEBUG):\n");
-                foreach ((string thumbprint, int refCount, DateTime createdAt, string stackTrace) in
-                    Certificate.EnumerateLiveCertificates())
+                if (Certificate.LeakTrackingEnabled)
                 {
-                    System.IO.File.AppendAllText(path,
-                        $"\n  Thumbprint={thumbprint}, RefCount={refCount}, " +
-                        $"CreatedAt={createdAt:O}\n  StackTrace:\n{stackTrace}\n");
+                    System.IO.File.AppendAllText(path, "\nLIVE LEAKED CERTIFICATES:\n");
+                    foreach ((
+                        string thumbprint,
+                        int refCount,
+                        DateTime createdAt,
+                        string stackTrace,
+                        string fixtureName) in
+                        Certificate.EnumerateLiveCertificates())
+                    {
+                        System.IO.File.AppendAllText(path,
+                            $"\n  Thumbprint={thumbprint}, RefCount={refCount}, " +
+                            $"CreatedAt={createdAt:O}, Fixture={fixtureName ?? "(unattributed)"}\n" +
+                            $"  StackTrace:\n{stackTrace}\n");
+                    }
+                    System.IO.File.AppendAllText(path, "\nUNREACHABLE UNDISPOSED CERTIFICATES:\n");
+                    foreach ((DateTime createdAt, string stackTrace, string fixtureName) in
+                        Certificate.EnumerateUnreachableUndisposedCertificates())
+                    {
+                        System.IO.File.AppendAllText(path,
+                            $"\n  CreatedAt={createdAt:O}, " +
+                            $"Fixture={fixtureName ?? "(unattributed)"}\n" +
+                            $"  StackTrace:\n{stackTrace}\n");
+                    }
                 }
-                // Certificates whose finaliser ran while their refcount was
-                // still > 0 (AddRef without matching Dispose).
-                System.IO.File.AppendAllText(path, "\nFINALIZED-WITH-LEAKED-REF CERTIFICATES (DEBUG):\n");
-                foreach ((string thumbprint, DateTime createdAt, string stackTrace) in
-                    Certificate.EnumerateFinalizedLeakedCertificates())
-                {
-                    System.IO.File.AppendAllText(path,
-                        $"\n  Thumbprint={thumbprint}, " +
-                        $"CreatedAt={createdAt:O}\n  StackTrace:\n{stackTrace}\n");
-                }
-#endif
             }
             catch
             {

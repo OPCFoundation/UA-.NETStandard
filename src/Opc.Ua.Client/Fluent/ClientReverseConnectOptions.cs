@@ -43,10 +43,13 @@ namespace Opc.Ua.Client
     /// <remarks>
     /// When <see cref="OpcUaClientOptions.ReverseConnect"/> is set, the DI
     /// container registers a singleton
-    /// <see cref="ReverseConnectManager"/> that opens the configured
-    /// listener endpoints on first resolution. Consumers awaiting an
-    /// inbound reverse-hello message resolve the manager and call
-    /// <see cref="ReverseConnectManager.WaitForConnectionAsync"/>.
+    /// <see cref="ReverseConnectManager"/> plus an internal hosted service
+    /// that opens the configured listener endpoints asynchronously on host
+    /// start. When no host is present the manager starts lazily on first
+    /// use. Consumers awaiting an inbound reverse-hello message resolve the
+    /// manager and call
+    /// <see cref="ReverseConnectManager.WaitForConnectionAsync"/>, which
+    /// ensures the manager is started.
     /// </remarks>
     public sealed class ClientReverseConnectOptions
     {

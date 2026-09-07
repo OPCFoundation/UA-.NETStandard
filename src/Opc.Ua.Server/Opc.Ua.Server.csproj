@@ -13,9 +13,6 @@
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(NoHttps)' == 'true'">
-    <DefineConstants>$(DefineConstants);NOHTTPS</DefineConstants>
-  </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Server.TestFramework" />
@@ -29,13 +26,13 @@
     <InternalsVisibleTo Include="Opc.Ua.History.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Lds.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Security.Tests" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" Condition="'$(NoHttps)' != 'true'" />
     <ProjectReference Include="..\Opc.Ua.Core.Schema\Opc.Ua.Core.Schema.csproj" />
     <ProjectReference Include="..\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
   </ItemGroup>

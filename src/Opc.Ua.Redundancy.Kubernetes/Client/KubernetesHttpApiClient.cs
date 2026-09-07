@@ -207,7 +207,8 @@ namespace Opc.Ua.Redundancy.Kubernetes
 #pragma warning restore CA2000, CA5400
             if (File.Exists(caPath))
             {
-                X509Certificate2 root = X509CertificateLoader.LoadCertificateFromFile(caPath);
+                X509Certificate2 root = X509CertificateLoader.LoadCertificate(
+                    File.ReadAllBytes(caPath));
                 handler.ServerCertificateCustomValidationCallback = (request, certificate, chain, errors) =>
                     ValidateServerCertificate(
                         root,

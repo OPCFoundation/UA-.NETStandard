@@ -4,12 +4,35 @@ An MCP (Model Context Protocol) server that exposes OPC UA Part 4 service calls 
 
 ## Features
 
-- **64 MCP tools** covering all OPC UA Part 4 service sets (except session management), plus PKI, configuration, NodeSet export, and OPC UA-aware packet capture
-- **Both stdio and HTTP/SSE** transports
-- **JSON representation** of all OPC UA types for LLM-friendly interactions
+- **Profile-based tool catalog** covering all OPC UA Part 4 service sets (except session management), plus PKI, configuration, NodeSet export, PubSub, and OPC UA-aware packet capture. The default `full` profile exposes every tool below; smaller profiles (`core`, `services`, `administration`, `pubsub`, `diagnostics`) expose a bounded subset — see [Tool Profiles](../../docs/McpServer.md#tool-profiles)
+- **Both stdio and Streamable HTTP** transports (HTTP is exposed only at `/mcp`; `--transport sse` is a deprecated alias for `--transport http`)
+- **JSON representation** of all OPC UA types for LLM-friendly interactions; scalar `Variant` values preserve typed `false` and `0` values rather than treating default values as `null`
 - **Session management** via Connect/Disconnect tools
+- **Embeddable** — the tools ship as libraries so an application can offer OPC UA tools to an LLM alongside its own, without forking or shelling out; see [Embedding](#embedding-the-tools-in-your-own-server)
 
-### Tool Inventory
+### OPC UA sessions and the stateless MCP protocol
+
+The server is built on the ModelContextProtocol 2.x SDK, which follows the 2026-07-28 specification revision
+and is **stateless by default**: there is no `initialize` handshake and no `Mcp-Session-Id`, and every request
+carries what it needs.
+
+An OPC UA session is a different thing, and the distinction matters. It is a real, long-lived, secured
+connection to a server — application state rather than protocol state. `Connect` opens one and returns a
+**name**, and later tool calls pass that name back. Passing an explicit identifier is exactly the shape the
+stateless model asks for, so the two fit together well.
+
+What it does assume is that the same process handles both calls. `Connect` on one instance and `Read` on
+another will not find the session, because the connection lives in the process that opened it. A single server
+process — which is what both the stdio and HTTP hosts are — is therefore the supported deployment. Running
+several instances behind a load balancer would need either session affinity or a shared connection broker,
+and neither is provided here.
+
+### Tool Inventory (`full` profile)
+
+The tables below list every tool available in the default `full` profile. Running with
+`--profile core|services|administration|pubsub|diagnostics|robotics|vision`
+exposes only the tool classes relevant to that profile — see
+[Tool Profiles](../../docs/McpServer.md#tool-profiles) for the mapping.
 
 | Service Set | Tools | Description |
 |---|---|---|
@@ -22,10 +45,35 @@ An MCP (Model Context Protocol) server that exposes OPC UA Part 4 service calls 
 | MonitoredItem | CreateMonitoredItems, ModifyMonitoredItems, SetMonitoringMode, SetTriggering, DeleteMonitoredItems | Data change monitoring |
 | Discovery | FindServers, FindServersOnNetwork, RegisterServer, RegisterServer2 | Server discovery and registration |
 | PKI Management | ListCertificates, TrustCertificate, RemoveCertificate, GetPkiStorePaths | Manage certificate trust lists |
-| Configuration | GetConfiguration, SetConfiguration | View/modify client settings for current session |
+| Configuration | GetConfiguration, SetTransportConfiguration, SetClientConfiguration, SetSecurityConfiguration, SetConfiguration | View/modify in-memory client settings; SetConfiguration is the full-profile compatibility tool |
 | NodeSet Export | ExportNodeSet, ExportNodeSetPerNamespace | Export address space to NodeSet2 XML |
 | Convenience | ReadValue, ReadValues, WriteValue, BrowseAll, CallMethod, ReadNode, Cancel | Simplified operations |
 | Packet Capture | list_interfaces, start_capture, stop_capture, list_captures, get_capture, capture_now, list_active_channels, dump_keys, decode_pcap_with_keys, summarize_service_calls, replay_pcap, stop_replay, list_replays | OPC UA-aware packet capture, offline decode, service-call summaries, replay |
+
+## Embedding the tools in your own server
+
+The tools live in libraries, so an application that wants OPC UA tools *and* its
+own application-level tools composes them instead of running this executable:
+
+```csharp
+builder.Services.AddOpcUaMcpCore();
+
+builder.Services.AddMcpServer()
+    .WithStdioServerTransport()
+    .WithOpcUaMcpFilters()
+    .WithOpcUaCoreTools(McpToolProfile.Services)
+    .WithTools<MyApplicationTools>();
+```
+
+| Package | Tools |
+|---|---|
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Core` | Part 4 services, connection, configuration, PKI, NodeSet export |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub` | PubSub runtime, actions, discovery |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics` | UA-TCP capture, decode, replay |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp` | this ready-to-run `opcua-mcp` tool |
+
+See [Architecture](../../docs/McpServer.md#architecture) for the full picture.
 
 ## Documentation
 

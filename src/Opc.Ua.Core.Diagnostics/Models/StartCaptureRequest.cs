@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.ComponentModel;
+using System.Text.Json.Serialization;
+using Opc.Ua.Pcap.Serialization;
+
 namespace Opc.Ua.Pcap.Models
 {
     /// <summary>
@@ -37,6 +41,10 @@ namespace Opc.Ua.Pcap.Models
         /// <summary>
         /// The kind of source to create.
         /// </summary>
+        [Description(
+            "Capture source: nic | inproc-client | inproc-server | replay. " +
+            "CLR names such as InProcessClient are also accepted.")]
+        [JsonConverter(typeof(CaptureSourceKindJsonConverter))]
         public CaptureSourceKind Source { get; init; } = CaptureSourceKind.InProcessClient;
 
         /// <summary>
@@ -67,9 +75,11 @@ namespace Opc.Ua.Pcap.Models
         /// For in-process sources this overrides the conventional
         /// <c>capture.pcap</c> file name inside <see cref="SessionFolder"/>;
         /// when <c>null</c> (default) the conventional name is used. Absolute
-        /// paths are written verbatim; relative paths are resolved against
-        /// <see cref="SessionFolder"/>. The <see cref="CaptureSourceKind.Replay"/>
-        /// source requires this property to be set.
+        /// paths inside the configured capture base folder are used
+        /// unchanged; relative paths are resolved against
+        /// <see cref="SessionFolder"/>. The
+        /// <see cref="CaptureSourceKind.Replay"/> source requires this
+        /// property to be set.
         /// </remarks>
         public string? PcapFilePath { get; init; }
 
@@ -83,12 +93,12 @@ namespace Opc.Ua.Pcap.Models
         /// <c>keys.uakeys.json</c> file name inside
         /// <see cref="SessionFolder"/>; when <c>null</c> (default) the
         /// conventional name is used. Absolute paths are written
-        /// verbatim; relative paths are resolved against
+        /// unchanged when they are inside the configured capture base
+        /// folder; relative paths are resolved against
         /// <see cref="SessionFolder"/>. The sibling NSS-format
-        /// <c>*.uakeys.txt</c> file is derived by changing the
-        /// extension. For <see cref="CaptureSourceKind.Replay"/> the
-        /// keylog is optional; without it the source can only replay
-        /// raw bytes, not decode them.
+        /// <c>*.uakeys.txt</c> file is derived by changing the extension. For
+        /// <see cref="CaptureSourceKind.Replay"/> the keylog is optional;
+        /// without it the source can only replay raw bytes, not decode them.
         /// </remarks>
         public string? KeyLogFilePath { get; init; }
 

@@ -537,6 +537,46 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        public async Task ValidatedCertificateFastPathDoesNotSkipRevocationAsync()
+        {
+            // Regression: the UseValidatedCertificates fast path must never
+            // bypass the CRL check. A certificate cached as valid that is
+            // subsequently revoked (e.g. by a freshly pushed CRL) must fail
+            // its next validation with BadCertificateRevoked, not be waved
+            // through on the cached thumbprint.
+            string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            core.UseValidatedCertificates = true;
+
+            using (CertificateCollection first = Chain(m_leaf))
+            {
+                CertificateValidationResult firstResult = await core.ValidateAsync(
+                    first, null, null, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(firstResult.IsValid, Is.True, "pre-revocation validation must succeed");
+            }
+
+            // Revoke the leaf with a CRL issued by the trusted root and add
+            // it to the trusted store the core validates against.
+            using var revoked = new CertificateCollection { m_leaf };
+            X509CRL crl = DefaultCertificateIssuer.Instance.RevokeCertificates(
+                m_rootCa,
+                null,
+                revoked);
+            using (var store = new DirectoryCertificateStore(m_telemetry))
+            {
+                store.Open(trustedDir, noPrivateKeys: true);
+                await store.AddCRLAsync(crl).ConfigureAwait(false);
+            }
+
+            using CertificateCollection second = Chain(m_leaf);
+            CertificateValidationResult secondResult = await core.ValidateAsync(
+                second, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(secondResult.IsValid, Is.False, "revoked certificate must not validate");
+            Assert.That(secondResult.StatusCode, Is.EqualTo(StatusCodes.BadCertificateRevoked));
+        }
+
+        [Test]
         public async Task GetIssuersAsyncWithTrustedRootReturnsTrueAsync()
         {
             string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);

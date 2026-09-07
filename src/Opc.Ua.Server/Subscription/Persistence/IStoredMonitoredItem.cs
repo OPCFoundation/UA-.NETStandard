@@ -40,6 +40,18 @@ namespace Opc.Ua.Server
         bool IsRestored { get; set; }
 
         /// <summary>
+        /// Whether the monitored node was deleted while the item was monitoring it. A restored
+        /// item keeps reporting the node as missing until a compatible node is added again.
+        /// </summary>
+        bool IsDeleted { get; set; }
+
+        /// <summary>
+        /// Whether the item is detached from the NodeManager that used to own it, which is the
+        /// state it is left in when its node manager is retired or its node is deleted.
+        /// </summary>
+        bool IsDetached { get; set; }
+
+        /// <summary>
         /// Alwasys report Updates
         /// </summary>
         bool AlwaysReportUpdates { get; set; }
@@ -153,6 +165,19 @@ namespace Opc.Ua.Server
         /// The type mask
         /// </summary>
         int TypeMask { get; set; }
+
+        /// <summary>
+        /// The conditions that currently pass the item's event filter and are tracked for
+        /// filtered retain (OPC UA Part 9, B.1.4).
+        /// </summary>
+        /// <remarks>
+        /// Without this state a durable subscription drops the first transition out of
+        /// filter scope after a restart, because the item no longer knows that the client
+        /// had ever been told about the condition. The entries are opaque keys built by the
+        /// monitored item; a store only has to round-trip them. A null or empty array both
+        /// mean nothing is being tracked.
+        /// </remarks>
+        ArrayOf<string> FilteredRetainConditionIds { get; set; }
 
         /// <summary>
         /// An optional data-change queue pre-hydrated by an asynchronous

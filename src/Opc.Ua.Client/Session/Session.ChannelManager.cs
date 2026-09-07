@@ -49,8 +49,8 @@ namespace Opc.Ua.Client
         /// per-kind cardinality (one series per "Session", "Client",
         /// …) instead of accumulating one permanent series per session
         /// instance. The full per-instance identifier is preserved on
-        /// distributed-trace Activity tags and EventSource events so
-        /// individual sessions remain correlatable in traces.
+        /// distributed-trace Activity tags and structured channel-manager
+        /// logs so individual sessions remain correlatable.
         /// </remarks>
         public string ParticipantId { get; } = "Session-" + Guid.NewGuid().ToString("N");
 
@@ -78,7 +78,7 @@ namespace Opc.Ua.Client
         /// Internal hook used by <see cref="CreateAsync(IClientChannelManager,
         /// ApplicationConfiguration, ConfiguredEndpoint, bool, bool, string,
         /// uint, IUserIdentity, ArrayOf{string}, ISubscriptionEngineFactory,
-        /// TimeProvider, CancellationToken)"/>
+        /// TimeProvider, ISecurityPolicyRegistry, CancellationToken)"/>
         /// to bind a freshly constructed Session to its managed channel
         /// while the channel-manager participant factory is running.
         /// </summary>
@@ -113,6 +113,11 @@ namespace Opc.Ua.Client
                 return ParticipantReconnectResult.Reactivated;
             }
 
+            if (RequiresSessionRecreation(channel))
+            {
+                return ParticipantReconnectResult.RequiresSessionRecreate;
+            }
+
             try
             {
                 // Pass the wrapper back in as the "channel" so the
@@ -127,6 +132,10 @@ namespace Opc.Ua.Client
                 return ParticipantReconnectResult.Reactivated;
             }
             catch (ServiceResultException sre) when (
+                sre.StatusCode == StatusCodes.BadApplicationSignatureInvalid ||
+                sre.StatusCode == StatusCodes.BadSecurityChecksFailed ||
+                sre.StatusCode == StatusCodes.BadIdentityChangeNotSupported ||
+                sre.StatusCode == StatusCodes.BadSecureChannelIdInvalid ||
                 sre.StatusCode == StatusCodes.BadSessionIdInvalid ||
                 sre.StatusCode == StatusCodes.BadSessionClosed ||
                 sre.StatusCode == StatusCodes.BadSessionNotActivated)
@@ -142,8 +151,7 @@ namespace Opc.Ua.Client
                 sre.StatusCode == StatusCodes.BadUserAccessDenied ||
                 sre.StatusCode == StatusCodes.BadCertificateUntrusted ||
                 sre.StatusCode == StatusCodes.BadCertificateInvalid ||
-                sre.StatusCode == StatusCodes.BadCertificateUriInvalid ||
-                sre.StatusCode == StatusCodes.BadSecurityChecksFailed)
+                sre.StatusCode == StatusCodes.BadCertificateUriInvalid)
             {
                 m_logger.SessionSessionIdFatalParticipantErrorDuring(
                     sre,
@@ -161,6 +169,47 @@ namespace Opc.Ua.Client
                     SessionId);
                 return ParticipantReconnectResult.TransientFailure;
             }
+        }
+
+        /// <summary>
+        /// Determines whether the Session must be recreated rather than
+        /// reactivated on the new channel because an Anonymous identity is used
+        /// with a Sign-only SecureChannel. OPC 10000-4 §5.7.3.1 states: "If an
+        /// Anonymous UserIdentityToken is used, then ActivateSession over a new
+        /// SecureChannel shall fail if the SecureChannel is using Sign." The
+        /// Session therefore cannot be transferred to the new channel and must be
+        /// recreated with a fresh CreateSession/ActivateSession exchange.
+        /// </summary>
+        private bool RequiresAnonymousSignSessionRecreation()
+        {
+            return (m_identity?.TokenType ?? UserTokenType.Anonymous) == UserTokenType.Anonymous &&
+                m_endpoint.Description.SecurityMode == MessageSecurityMode.Sign;
+        }
+
+        private bool RequiresSessionRecreation(ITransportChannel channel)
+        {
+            if (RequiresAnonymousSignSessionRecreation())
+            {
+                return true;
+            }
+
+            ByteString sessionClientCertificate;
+            lock (m_lock)
+            {
+                sessionClientCertificate = m_sessionClientCertificate;
+            }
+
+            // A client certificate on the new channel that differs from the one
+            // bound to the Session means the ApplicationInstanceCertificate was
+            // rotated. OPC 10000-4 §5.7.3.1 requires the Server to verify that the
+            // Certificate used to create the new SecureChannel is the same as the
+            // one used for the original SecureChannel; a rotated certificate would
+            // make ActivateSession transfer fail (Bad_SecurityChecksFailed), so the
+            // Session must be recreated instead of reactivated.
+            byte[] channelClientCertificate = channel.ClientChannelCertificate;
+            return !sessionClientCertificate.IsEmpty &&
+                channelClientCertificate is { Length: > 0 } &&
+                sessionClientCertificate != channelClientCertificate.ToByteString();
         }
 
         async ValueTask IRecreateAwareReconnectParticipant.RecreateAsync(CancellationToken ct)
@@ -222,6 +271,8 @@ namespace Opc.Ua.Client
         /// <param name="engineFactory">Optional subscription engine
         /// factory (defaults to the classic engine).</param>
         /// <param name="timeProvider">Optional <see cref="TimeProvider"/>.</param>
+        /// <param name="securityPolicies">Optional security policy registry. When
+        /// <c>null</c>, <see cref="SecurityPolicies.Default"/> is used.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>The opened session.</returns>
         /// <exception cref="ArgumentNullException">A required argument is
@@ -238,6 +289,7 @@ namespace Opc.Ua.Client
             ArrayOf<string> preferredLocales = default,
             ISubscriptionEngineFactory? engineFactory = null,
             TimeProvider? timeProvider = null,
+            ISecurityPolicyRegistry? securityPolicies = null,
             CancellationToken ct = default)
         {
             if (manager == null)
@@ -261,7 +313,7 @@ namespace Opc.Ua.Client
             if (updateBeforeConnect)
             {
                 await endpoint
-                    .UpdateFromServerAsync(probeContext.Telemetry, ct)
+                    .UpdateFromServerAsync(configuration, probeContext.Telemetry, ct)
                     .ConfigureAwait(false);
             }
 
@@ -298,7 +350,8 @@ namespace Opc.Ua.Client
                             endpoint,
                             probeContext,
                             engineFactory,
-                            timeProvider);
+                            timeProvider,
+                            securityPolicies);
                         session.BindManagedChannel(manager, channel);
                         return session;
                     },

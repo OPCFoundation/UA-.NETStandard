@@ -323,14 +323,16 @@ namespace Opc.Ua.Server
         /// Transfers a set of monitored items.
         /// </summary>
         /// <remarks>
-        /// Queue initial values from monitored items in the node managers.
+        /// Queue initial values from monitored items in the node managers unless
+        /// <paramref name="transferOptions"/> requests deferred initial values.
         /// </remarks>
         void TransferMonitoredItems(
             OperationContext context,
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
-            IList<ServiceResult> errors);
+            IList<ServiceResult> errors,
+            MonitoredItemTransferOptions transferOptions);
 
         /// <summary>
         /// Changes the monitoring mode for a set of monitored items.
@@ -616,7 +618,8 @@ namespace Opc.Ua.Server
         /// Transfers a set of monitored items.
         /// </summary>
         /// <remarks>
-        /// Queue initial values from monitored items in the node managers.
+        /// Queue initial values from monitored items in the node managers unless
+        /// <paramref name="transferOptions"/> requests deferred initial values.
         /// </remarks>
         ValueTask TransferMonitoredItemsAsync(
             OperationContext context,
@@ -624,7 +627,22 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IList<bool> processedItems,
             IList<ServiceResult> errors,
+            MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default);
+
+    }
+
+    /// <summary>
+    /// Describes how a monitored-item transfer callback is being executed.
+    /// </summary>
+    public sealed class MonitoredItemTransferOptions
+    {
+        /// <summary>
+        /// Gets or sets a value indicating whether node managers shall defer
+        /// calls to <see cref="IMonitoredItem.SetupResendDataTrigger"/> until
+        /// the owning subscription commits the transfer.
+        /// </summary>
+        public bool DeferInitialValues { get; set; }
     }
 
     /// <summary>
@@ -713,7 +731,8 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Adds a single node defined by <paramref name="item"/>. The implementation
-        /// owns the parent node identified by <see cref="AddNodesItem.ParentNodeId"/>.
+        /// owns the target namespace identified by the requested NodeId, or by the
+        /// BrowseName when the Server assigns the NodeId.
         /// </summary>
         /// <param name="context">The operation context.</param>
         /// <param name="item">The AddNodesItem to process.</param>

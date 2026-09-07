@@ -44,7 +44,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     /// A monitored item that can be extended to add extra
     /// information as context in the subscription.
     /// </summary>
-    internal abstract class MonitoredItem : IMonitoredItem, IAsyncDisposable
+    internal abstract class MonitoredItem :
+        IMonitoredItem,
+        IMonitoredItemApplyState,
+        IAsyncDisposable
     {
         /// <inheritdoc/>
         public string Name { get; }
@@ -57,6 +60,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         /// <inheritdoc/>
         public bool Created => ServerId != 0;
+
+        /// <inheritdoc/>
+        public bool HasPendingChanges => !m_pendingChanges.IsEmpty;
 
         /// <inheritdoc/>
         public ServiceResult Error { get; private set; }
@@ -798,6 +804,34 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             return m_pendingChanges.TryDequeue(out Change? completed) &&
                 change == completed;
+        }
+
+        /// <summary>
+        /// Requeue the current desired state after a final apply failure or
+        /// when the item otherwise remains unapplied.
+        /// </summary>
+        /// <returns>
+        /// <c>true</c> if a fresh apply change was queued.
+        /// </returns>
+        internal bool TryRequeue()
+        {
+            if (m_disposedValue || HasPendingChanges)
+            {
+                return false;
+            }
+            MonitoredItemOptions options = m_options.CurrentValue;
+            if (options.StartNodeId.IsNull)
+            {
+                return false;
+            }
+            if (Created &&
+                ServiceResult.IsGood(Error) &&
+                CurrentMonitoringMode == options.MonitoringMode)
+            {
+                return false;
+            }
+            m_pendingChanges.Enqueue(new Change(this, options, null));
+            return true;
         }
 
         /// <summary>

@@ -1,0 +1,29 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "ua": "http://opcfoundation.org/UA/",
+      "pump": "http://example.com/demo/pump"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["tm:ThingModel", "uav:referenceType"],
+  "id": "urn:dev:opcua:pump-material-reference",
+  "uav:bindingVersion": "1.1",
+  "uav:profile": ["WoT-ModelVocabulary", "WoT-NativeMapping"],
+  "title": "MaterialReference",
+  "description": "The ReferenceType Node a pump uses to reference the material it moves. The document projects the ReferenceType itself, so it carries the two Attributes no link rel can state: the InverseName a rel uses to point backwards along the Reference, and the Symmetric flag that decides whether there is a second direction at all.",
+  "uav:browseName": "pump:MaterialReference",
+  "uav:id": "nsu=http://example.com/demo/pump;i=5001",
+  "uav:inverseName": "MaterialReferencedBy",
+  "uav:symmetric": false,
+  "links": [
+    {
+      "rel": "ua:HasSubtype",
+      "href": "i=32",
+      "uav:refName": "NonHierarchicalReferences",
+      "uav:refId": "i=45"
+    }
+  ]
+}

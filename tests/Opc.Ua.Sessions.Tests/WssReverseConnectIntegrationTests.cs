@@ -72,6 +72,14 @@ namespace Opc.Ua.Sessions.Tests
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
+            if (!HttpsTransportListener.IsWssTransportSupported)
+            {
+                Assert.Ignore(
+                    "The WSS transport listener is unavailable in this build of " +
+                    "Opc.Ua.Bindings.Https (the netstandard2.1 Kestrel hosting cannot open a " +
+                    "WebSocket listener on a modern .NET runtime).");
+            }
+
             m_telemetry = NUnitTelemetryContext.Create();
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
@@ -126,7 +134,10 @@ namespace Opc.Ua.Sessions.Tests
         [OneTimeTearDown]
         public async Task OneTimeTearDownAsync()
         {
-            m_clientFixture?.Dispose();
+            if (m_clientFixture != null)
+            {
+                await m_clientFixture.DisposeAsync().ConfigureAwait(false);
+            }
             if (m_serverFixture != null)
             {
                 await m_serverFixture.StopAsync().ConfigureAwait(false);
@@ -181,4 +192,3 @@ namespace Opc.Ua.Sessions.Tests
 }
 
 #endif // NET5_0_OR_GREATER
-

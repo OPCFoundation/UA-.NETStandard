@@ -155,7 +155,10 @@ namespace Opc.Ua.Server.Fluent
             return this;
         }
 
-        public IStateMachineBuilder<TState> WithCause(NodeId methodNodeId, uint causeId)
+        public IStateMachineBuilder<TState> WithCause(
+            NodeId methodNodeId,
+            uint causeId,
+            bool reportExecutable = true)
         {
             if (methodNodeId.IsNull)
             {
@@ -194,6 +197,26 @@ namespace Opc.Ua.Server.Fluent
                 inputArguments,
                 outputArguments) => machine.DoCause(
                     context, m, capturedCauseId, inputArguments, outputArguments);
+
+            if (reportExecutable)
+            {
+                // Part 3 §5.7: Executable / UserExecutable answer "may
+                // this Method be called right now"; for a Part 16 cause
+                // that is exactly IsCausePermitted. Without this the
+                // attributes stay at the node's construction value
+                // (true) and a client can only discover the answer by
+                // calling and being refused.
+                method.OnReadExecutable =
+                    (ISystemContext context, NodeState node, ref bool value) => {
+                        value = machine.IsCausePermitted(context, capturedCauseId, false);
+                        return ServiceResult.Good;
+                    };
+                method.OnReadUserExecutable =
+                    (ISystemContext context, NodeState node, ref bool value) => {
+                        value = machine.IsCausePermitted(context, capturedCauseId, true);
+                        return ServiceResult.Good;
+                    };
+            }
             return this;
         }
 
@@ -434,16 +457,11 @@ namespace Opc.Ua.Server.Fluent
                 return 0;
             }
 
-            NodeId value = StateMachine.CurrentState.Id.Value;
-            if (value.IsNull)
-            {
-                return 0;
-            }
-            if (!value.TryGetValue(out uint numericId))
-            {
-                return 0;
-            }
-            return numericId;
+            // One shared resolve rule: the machine's own mapping first
+            // (materialized state NodeIds), then the namespace-agnostic
+            // numeric fallback for externally-written vendor ids.
+            return StateMachines.StateMachineBuilder.ResolveStateId(
+                StateMachine, StateMachine.CurrentState.Id.Value);
         }
 
         private NodeState? ResolveNode(NodeId nodeId)

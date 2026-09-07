@@ -12,7 +12,7 @@ required for existing consumers.
 ## Contents
 
 1. [PubSub assemblies and NuGet packages renamed and split](#1-pubsub-assemblies-and-nuget-packages-renamed-and-split)
-2. [`UaPubSubApplication.Create*` and the legacy 1.04 API are removed](#2-uapubsubapplicationcreate-and-the-legacy-104-api-are-removed)
+2. [`UaPubSubApplication.Create*` and the legacy 1.04 API are replaced](#2-uapubsubapplicationcreate-and-the-legacy-104-api-are-replaced)
 3. [JSON encoder switched to System.Text.Json](#3-json-encoder-switched-to-systemtextjson)
 4. [`JsonEncodingMode` Reversible/Non-Reversible encodings removed](#4-jsonencodingmode-reversiblenon-reversible-encodings-removed)
 5. [UADP RawData bounded-field wire-compatibility break](#5-uadp-rawdata-bounded-field-wire-compatibility-break)
@@ -40,22 +40,23 @@ for address-space integration, the `...PubSub.Server` package. Add `...PubSub.Ad
 namespaces follow the assembly names (`Opc.Ua.PubSub`, `Opc.Ua.PubSub.Udp`,
 `Opc.Ua.PubSub.Mqtt`, `Opc.Ua.PubSub.Server`).
 
-The legacy 1.04 types listed in §2 are **removed** in 2.0 — there is no
-compatibility shim assembly or package. Existing code that uses the obsolete API
-must be migrated to the modern fluent builder / DI surface as described below.
+The legacy 1.04 top-level types listed in §2 are **removed** in 2.0. The sole
+bridge retained in the main PubSub assembly is the obsolete
+`IUaPubSubDataStore` interface. Existing application, connection, publisher,
+and configurator code must migrate to the modern fluent builder / DI surface.
 
-## 2. `UaPubSubApplication.Create*` and the legacy 1.04 API are removed
+## 2. `UaPubSubApplication.Create*` and the legacy 1.04 API are replaced
 
-`UaPubSubApplication.Create(...)` (and its overloads) and the legacy 1.04 PubSub
-types are **removed** in 2.0. They are not shipped as `[Obsolete]` shims and there
-is no `Opc.Ua.PubSub.Legacy` compatibility package — migrate to the fluent builder
-or the DI extensions:
+`UaPubSubApplication.Create(...)` (and its overloads) and the legacy 1.04
+application, connection, publisher, and configurator types are removed in 2.0.
+There is no `Opc.Ua.PubSub.Legacy` compatibility package. Migrate those sites
+to the fluent builder or the DI extensions:
 
 | Removed legacy type               | New replacement                                              |
 | --------------------------------- | ------------------------------------------------------------ |
 | `UaPubSubApplication`             | `IPubSubApplication` (built via `PubSubApplicationBuilder`)  |
-| `IUaPubSubConnection`             | `PubSubConnection` (sealed, immutable)                       |
-| `UaPubSubConnection`              | `PubSubConnection`                                           |
+| `IUaPubSubConnection`             | `IPubSubConnection`                                          |
+| `UaPubSubConnection`              | `PubSubConnection` (sealed runtime implementation, normally created by the builder) |
 | `IUaPublisher` / `UaPublisher`    | `IPubSubScheduler` + `WriterGroup` (engine-driven)           |
 | `UaPubSubConfigurator`            | `PubSubApplicationBuilder` (fluent) + `IPubSubConfigurationStore` |
 | `PubSubJsonEncoder` / `PubSubJsonDecoder` | `Opc.Ua.PubSub.Encoding.Json.JsonEncoder` / `JsonDecoder` (System.Text.Json) |
@@ -74,10 +75,11 @@ app.Start();
 app.Stop();
 
 // After (2.0)
-await using var app = await new PubSubApplicationBuilder()
-    .ConfigureFromXml("publisher.xml")
-    .BuildAsync();
-await app.StartAsync();
+ITelemetryContext telemetry = DefaultTelemetry.Create(
+    logging => logging.AddConsole());
+var builder = new PubSubApplicationBuilder(telemetry)
+    .UseConfigurationFile("publisher.xml");
+await using IPubSubApplication app = await builder.BuildAndStartAsync();
 // ...
 await app.StopAsync();
 ```
@@ -137,9 +139,10 @@ time. Closes [#3566](https://github.com/OPCFoundation/UA-.NETStandard/issues/356
 
 | Surface                                                      | 2.0 outcome                                                       |
 | ------------------------------------------------------------ | ----------------------------------------------------------------- |
-| `UaPubSubApplication.Create(string)` from XML config         | Compiles unchanged + `[Obsolete]` warning. Behaviour identical.   |
-| `UaPubSubApplication.Start()` / `.Stop()`                    | Compiles + `[Obsolete]`. Internally delegates to `IPubSubApplication`. |
-| Direct construction of `UaPubSubConnection` etc.             | Compiles + `[Obsolete]`. Migrate to the fluent builder.           |
+| `UaPubSubApplication.Create(string)` from XML config         | **Source break.** Replace with `PubSubApplicationBuilder.UseConfigurationFile(...)` and `BuildAndStartAsync()`. |
+| `UaPubSubApplication.Start()` / `.Stop()`                    | **Source break.** Use `IPubSubApplication` async lifecycle methods. |
+| Direct construction of `UaPubSubConnection` etc.             | **Source break.** Configure connections through the fluent builder / DI surface. |
+| `IUaPubSubDataStore`                                        | Compiles with `[Obsolete]`; `PubSubApplicationBuilder.WithDataStore(...)` adapts it temporarily. Migrate to `IPublishedDataSetSource`. |
 | Newtonsoft-based PubSub JSON formatting assumptions          | **Behavioural break.** `System.Text.Json` precision and validation rules apply. |
 | `JsonEncodingMode.Reversible` / `NonReversible`              | **Source break.** Rename to `Verbose` / `Compact`.                |
 | `DataSetFieldContentMask.RawData` with bounded strings/arrays | **Wire break.** Fields are padded and length prefixes suppressed per spec. |

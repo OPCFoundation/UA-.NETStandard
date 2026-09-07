@@ -297,12 +297,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             object data)
         {
             string encodeInfo = $"Encoder: {encoderType} Type:{structureType}";
-            TestContext.Out.WriteLine(encodeInfo);
-            TestContext.Out.WriteLine(data);
+            TestOutput.WriteLine(encodeInfo);
+            TestOutput.WriteLine(data);
             ExtensionObject expected = CreateExtensionObject(structureType, nodeId, data);
             Assert.That(expected.IsNull, Is.False, "Expected DataValue is Null, " + encodeInfo);
-            TestContext.Out.WriteLine("Expected:");
-            TestContext.Out.WriteLine(expected);
+            TestOutput.WriteLine("Expected:");
+            TestOutput.WriteLine(expected);
 
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
@@ -323,13 +323,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             switch (encoderType)
             {
                 case EncodingType.Binary:
-                    TestContext.Out.WriteLine(PrettifyAndValidateBinary(buffer));
+                    TestOutput.WriteLine(PrettifyAndValidateBinary(buffer));
                     break;
                 case EncodingType.Json:
-                    TestContext.Out.WriteLine(PrettifyAndValidateJson(buffer));
+                    TestOutput.WriteLine(PrettifyAndValidateJson(buffer));
                     break;
                 case EncodingType.Xml:
-                    TestContext.Out.WriteLine(PrettifyAndValidateXml(buffer));
+                    TestOutput.WriteLine(PrettifyAndValidateXml(buffer));
                     break;
             }
 
@@ -341,8 +341,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 decoderStream,
                 typeof(DataValue));
             ExtensionObject result = decoder.ReadExtensionObject("ExtensionObject");
-            TestContext.Out.WriteLine("Result:");
-            TestContext.Out.WriteLine(result);
+            TestOutput.WriteLine("Result:");
+            TestOutput.WriteLine(result);
             Assert.That(result.IsNull, Is.False, "Resulting DataValue is Null, " + encodeInfo);
             Assert.That(result.Encoding, Is.EqualTo(expected.Encoding), encodeInfo);
             Assert.That(result, Is.EqualTo(expected),

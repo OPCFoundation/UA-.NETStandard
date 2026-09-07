@@ -210,9 +210,14 @@ namespace Opc.Ua.Client
 
                 if (publishEventHandler != null)
                 {
-                    _ = Task.Run(
-                        () => RaisePublishNotification(
-                            publishEventHandler, notification));
+                    m_session.BackgroundWork.Run(
+                        nameof(RaisePublishNotification),
+                        _ =>
+                        {
+                            RaisePublishNotification(
+                                publishEventHandler, notification);
+                            return default;
+                        });
                 }
             }
 
@@ -296,6 +301,43 @@ namespace Opc.Ua.Client
                     subscriptionId);
             }
 
+            /// <inheritdoc/>
+            public bool TryDispatchToSessionSubscription(
+                uint subscriptionId,
+                NotificationMessage message,
+                ArrayOf<uint> availableSequenceNumbers,
+                ArrayOf<string> stringTable,
+                bool moreNotifications)
+            {
+                if (subscriptionId == 0 || message == null)
+                {
+                    return false;
+                }
+
+                Subscription? target = null;
+                foreach (Subscription subscription in m_session.Subscriptions)
+                {
+                    if (subscription.Id == subscriptionId)
+                    {
+                        target = subscription;
+                        break;
+                    }
+                }
+                if (target == null)
+                {
+                    return false;
+                }
+
+                message.MoreNotifications = moreNotifications;
+                message.StringTable = stringTable;
+                target.SaveMessageInCache(availableSequenceNumbers, message);
+
+                OnPublishNotification(
+                    target,
+                    new NotificationEventArgs(target, message, stringTable));
+                return true;
+            }
+
             private void RaisePublishNotification(
                 NotificationEventHandler callback,
                 NotificationEventArgs args)
@@ -340,5 +382,4 @@ namespace Opc.Ua.Client
             this ILogger logger,
             Exception? exception);
     }
-
 }

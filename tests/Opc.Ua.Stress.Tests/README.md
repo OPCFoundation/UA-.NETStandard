@@ -41,5 +41,4 @@ Every chaos test prints its seed at start. Re-run a failed chaos case with the p
 ## Inspecting failures
 
 Chaos failures should include the printed seed in the NUnit output. Use the same seed to reproduce the schedule.
-When a test uses `MetricsCollector`, inspect the dumped channel-manager metrics and EventSource records in the
-failure output before changing production code or widening timing windows.
+When a test uses `MetricsCollector`, inspect the dumped channel-manager metrics and structured log records in the failure output before changing production code or widening timing windows.

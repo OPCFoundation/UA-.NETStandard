@@ -106,22 +106,6 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public async Task BuildSetsDefaultTraceConfigurationAsync()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            await using (appInstance.ConfigureAwait(false))
-            {
-                appInstance.Build(ApplicationUri, ProductUri);
-
-                Assert.That(appInstance.ApplicationConfiguration.TraceConfiguration, Is.Not.Null);
-                Assert.That(
-                    appInstance.ApplicationConfiguration.TraceConfiguration.TraceMasks,
-                    Is.EqualTo(Utils.TraceMasks.None));
-            }
-        }
-
-        [Test]
         public async Task AsClientSetsClientConfigurationAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -871,6 +855,50 @@ namespace Opc.Ua.Configuration.Tests
             }
         }
 
+        /// <summary>
+        /// The certificate identifier overload of AddSecurityConfiguration must accept an
+        /// identifier which does not name a certificate type, the same way the obsolete
+        /// subject name overload does. See https://github.com/OPCFoundation/UA-.NETStandard/issues/4315.
+        /// </summary>
+        [Test]
+        public async Task AddSecurityConfigurationWithoutCertificateTypeKeepsTheCertificateAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var appInstance = new ApplicationInstance(telemetry)
+            {
+                ApplicationName = ApplicationName,
+                ApplicationType = ApplicationType.Client
+            };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                ApplicationConfiguration configuration = await appInstance
+                    .Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(
+                        [
+                            new CertificateIdentifier
+                            {
+                                StoreType = CertificateStoreType.Directory,
+                                StorePath = Path.Combine(m_pkiRoot, "own"),
+                                SubjectName = SubjectName
+                                // CertificateType deliberately not set
+                            }
+                        ],
+                        m_pkiRoot)
+                    .SetAutoAcceptUntrustedCertificates(true)
+                    .CreateAsync();
+
+                SecurityConfiguration securityConfiguration = configuration.SecurityConfiguration;
+                Assert.That(securityConfiguration.ApplicationCertificates, Has.Count.EqualTo(1));
+                Assert.That(
+                    securityConfiguration.ApplicationCertificates[0].CertificateType,
+                    Is.EqualTo(ObjectTypeIds.RsaSha256ApplicationCertificateType));
+                Assert.That(
+                    securityConfiguration.SupportedSecurityPolicies.ToArray(),
+                    Contains.Item(SecurityPolicies.Basic256Sha256));
+            }
+        }
+
         [Test]
         public async Task AddUnsecurePolicyNoneAddsPolicyWhenTrueAsync()
         {
@@ -1392,7 +1420,7 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public async Task ServerOptionsSetMinMetadataSamplingIntervalAsync()
+        public async Task ServerOptionsSetMinSupportedSamplingIntervalAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
@@ -1400,11 +1428,11 @@ namespace Opc.Ua.Configuration.Tests
             {
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
-                    .SetMinMetadataSamplingInterval(100);
+                    .SetMinSupportedSamplingInterval(100);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MinMetadataSamplingInterval,
-                    Is.EqualTo(100));
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MinSupportedSamplingInterval,
+                    Is.EqualTo(100.0));
             }
         }
 
@@ -1897,60 +1925,6 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public async Task TraceConfigurationSetOutputFilePathAsync()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            await using (appInstance.ConfigureAwait(false))
-            {
-                appInstance.Build(ApplicationUri, ProductUri)
-                    .AsClient()
-                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                    .SetOutputFilePath("trace.log");
-
-                Assert.That(
-                    appInstance.ApplicationConfiguration.TraceConfiguration.OutputFilePath,
-                    Is.EqualTo("trace.log"));
-            }
-        }
-
-        [Test]
-        public async Task TraceConfigurationSetDeleteOnLoadAsync()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            await using (appInstance.ConfigureAwait(false))
-            {
-                appInstance.Build(ApplicationUri, ProductUri)
-                    .AsClient()
-                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                    .SetDeleteOnLoad(true);
-
-                Assert.That(
-                    appInstance.ApplicationConfiguration.TraceConfiguration.DeleteOnLoad,
-                    Is.True);
-            }
-        }
-
-        [Test]
-        public async Task TraceConfigurationSetTraceMasksAsync()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            await using (appInstance.ConfigureAwait(false))
-            {
-                appInstance.Build(ApplicationUri, ProductUri)
-                    .AsClient()
-                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                    .SetTraceMasks(Utils.TraceMasks.Error | Utils.TraceMasks.Information);
-
-                Assert.That(
-                    appInstance.ApplicationConfiguration.TraceConfiguration.TraceMasks,
-                    Is.EqualTo(Utils.TraceMasks.Error | Utils.TraceMasks.Information));
-            }
-        }
-
-        [Test]
         public async Task CreateAsyncWithServerTypeAndNoServerConfigThrowsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2220,8 +2194,8 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxMessageQueueSize(100)
                     .SetMaxNotificationQueueSize(1000)
                     .SetMaxNotificationsPerPublish(5000)
+                    .SetMinSupportedSamplingInterval(100)
                     .SetMaxEventQueueSize(10000)
-                    .SetMinMetadataSamplingInterval(100)
                     .SetMaxRegistrationInterval(30000)
                     .SetNodeManagerSaveFile("nodes.xml")
                     .SetMaxPublishRequestCount(20)
@@ -2252,9 +2226,6 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxRejectedCertificates(10)
                     .SetUseValidatedCertificates(true)
                     .SetHiResClockDisabled(false)
-                    .SetOutputFilePath("trace.log")
-                    .SetDeleteOnLoad(true)
-                    .SetTraceMasks(Utils.TraceMasks.Error)
                     .CreateAsync()
                     .ConfigureAwait(false);
 

@@ -193,6 +193,36 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void GetCertificatesWithNullGroupUsesDefaultApplicationGroup()
+        {
+            ISystemContext context = CreateAdminContext();
+            ArrayOf<NodeId> expectedCertificateTypeIds = default;
+            ArrayOf<ByteString> expectedCertificates = default;
+            ArrayOf<NodeId> certificateTypeIds = default;
+            ArrayOf<ByteString> certificates = default;
+
+            ServiceResult expectedResult = m_configNode.GetCertificates.OnCall(
+                context,
+                m_configNode.GetCertificates,
+                m_configNode.NodeId,
+                ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                ref expectedCertificateTypeIds,
+                ref expectedCertificates);
+            ServiceResult result = m_configNode.GetCertificates.OnCall(
+                context,
+                m_configNode.GetCertificates,
+                m_configNode.NodeId,
+                NodeId.Null,
+                ref certificateTypeIds,
+                ref certificates);
+
+            Assert.That(ServiceResult.IsGood(expectedResult), Is.True);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(certificateTypeIds.ToList(), Is.EqualTo(expectedCertificateTypeIds.ToList()));
+            Assert.That(certificates.ToList(), Is.EqualTo(expectedCertificates.ToList()));
+        }
+
+        [Test]
         public void GetCertificatesWithInvalidGroupThrowsBadInvalidArgument()
         {
             ISystemContext context = CreateAdminContext();

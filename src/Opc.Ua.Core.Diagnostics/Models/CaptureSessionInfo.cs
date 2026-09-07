@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.ComponentModel;
+using System.Text.Json.Serialization;
+using Opc.Ua.Pcap.Serialization;
 
 namespace Opc.Ua.Pcap.Models
 {
@@ -44,6 +47,10 @@ namespace Opc.Ua.Pcap.Models
         /// <summary>
         /// The source kind.
         /// </summary>
+        [Description(
+            "Capture source: nic | inproc-client | inproc-server | replay. " +
+            "CLR names such as InProcessClient are also accepted.")]
+        [JsonConverter(typeof(CaptureSourceKindJsonConverter))]
         public CaptureSourceKind Source { get; init; }
 
         /// <summary>

@@ -93,6 +93,12 @@ namespace Opc.Ua.Sessions.Tests
             ClientFixture = new ClientFixture(telemetry: Telemetry);
 
             await ClientFixture.LoadClientConfigurationAsync(PkiRoot).ConfigureAwait(false);
+            var clientConfiguration = ClientFixture.Config.ClientConfiguration ??
+                throw new InvalidOperationException("Client configuration is missing.");
+            ReverseConnectClientConfiguration reverseConnect =
+                clientConfiguration.ReverseConnect ??= new ReverseConnectClientConfiguration();
+            // Release unmatched sockets before the server's reverse-connect timeout can close them.
+            reverseConnect.HoldTime = MaxTimeout / 2;
             await ClientFixture.StartReverseConnectHostAsync().ConfigureAwait(false);
             m_endpointUrl = new Uri(
                 Utils.ReplaceLocalhost(
@@ -108,10 +114,13 @@ namespace Opc.Ua.Sessions.Tests
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public override Task OneTimeTearDownAsync()
+        public override async Task OneTimeTearDownAsync()
         {
-            ClientFixture?.Dispose();
-            return base.OneTimeTearDownAsync();
+            if (ClientFixture != null)
+            {
+                await ClientFixture.DisposeAsync().ConfigureAwait(false);
+            }
+            await base.OneTimeTearDownAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -271,6 +280,9 @@ namespace Opc.Ua.Sessions.Tests
             session.Dispose();
         }
 
+        /// <summary>
+        /// Creates a reverse-connect session with each endpoint-refresh and domain-check combination.
+        /// </summary>
         [Theory]
         [Order(301)]
         public async Task ReverseConnect2Async(

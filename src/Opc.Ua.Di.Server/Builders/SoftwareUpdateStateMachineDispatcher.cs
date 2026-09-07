@@ -31,6 +31,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Server.StateMachines;
 
 namespace Opc.Ua.Di.Server.Builders
 {
@@ -52,118 +53,87 @@ namespace Opc.Ua.Di.Server.Builders
     /// </remarks>
     internal static class SoftwareUpdateStateMachineDispatcher
     {
-        /// <summary>
-        /// ---- well-known state identifiers (delegated to typed Ids classes) ----
-        /// PrepareForUpdate
-        /// </summary>
         internal const uint PrepareForUpdate_Idle = PrepareForUpdateStateMachineTypeIds.StateIds.Idle;
         internal const uint PrepareForUpdate_Preparing = PrepareForUpdateStateMachineTypeIds.StateIds.Preparing;
         internal const uint PrepareForUpdate_PreparedForUpdate = PrepareForUpdateStateMachineTypeIds.StateIds.PreparedForUpdate;
 
-        /// <summary>
-        /// Installation
-        /// </summary>
         internal const uint Installation_Idle = InstallationStateMachineTypeIds.StateIds.Idle;
         internal const uint Installation_Installing = InstallationStateMachineTypeIds.StateIds.Installing;
         internal const uint Installation_Error = InstallationStateMachineTypeIds.StateIds.Error;
 
-        /// <summary>
-        /// PowerCycle
-        /// </summary>
         internal const uint PowerCycle_NotWaiting = PowerCycleStateMachineTypeIds.StateIds.NotWaitingForPowerCycle;
         internal const uint PowerCycle_Waiting = PowerCycleStateMachineTypeIds.StateIds.WaitingForPowerCycle;
 
-        /// <summary>
-        /// Confirmation
-        /// </summary>
         internal const uint Confirmation_NotWaitingForConfirm = ConfirmationStateMachineTypeIds.StateIds.NotWaitingForConfirm;
         internal const uint Confirmation_WaitingForConfirm = ConfirmationStateMachineTypeIds.StateIds.WaitingForConfirm;
 
-        /// <summary>
-        /// ---- well-known transition identifiers (delegated to typed Ids classes) ----
-        /// PrepareForUpdate
-        /// </summary>
         internal const uint PrepareForUpdate_IdleToPreparing = PrepareForUpdateStateMachineTypeIds.TransitionIds.IdleToPreparing;
         internal const uint PrepareForUpdate_PreparingToIdle = PrepareForUpdateStateMachineTypeIds.TransitionIds.PreparingToIdle;
         internal const uint PrepareForUpdate_PreparingToPreparedForUpdate = PrepareForUpdateStateMachineTypeIds.TransitionIds.PreparingToPreparedForUpdate;
         internal const uint PrepareForUpdate_PreparedForUpdateToResuming = PrepareForUpdateStateMachineTypeIds.TransitionIds.PreparedForUpdateToResuming;
 
-        /// <summary>
-        /// Installation
-        /// </summary>
         internal const uint Installation_IdleToInstalling = InstallationStateMachineTypeIds.TransitionIds.IdleToInstalling;
         internal const uint Installation_InstallingToIdle = InstallationStateMachineTypeIds.TransitionIds.InstallingToIdle;
         internal const uint Installation_InstallingToError = InstallationStateMachineTypeIds.TransitionIds.InstallingToError;
         internal const uint Installation_ErrorToIdle = InstallationStateMachineTypeIds.TransitionIds.ErrorToIdle;
 
-        /// <summary>
-        /// Confirmation
-        /// </summary>
         internal const uint Confirmation_NotWaitingToWaiting = ConfirmationStateMachineTypeIds.TransitionIds.NotWaitingForConfirmToWaitingForConfirm;
         internal const uint Confirmation_WaitingToNotWaiting = ConfirmationStateMachineTypeIds.TransitionIds.WaitingForConfirmToNotWaitingForConfirm;
 
-        /// <summary>
-        /// ---- per-state browse-name + state-number lookup table ----
-        /// (StateNumber values now sourced from the generator-emitted *Ids.StateNumbers classes
-        /// so any future change in the DI model is picked up automatically.)
-        /// </summary>
-        private static readonly (uint Id, uint Number, string Name)[] s_states =
+        private static readonly ArrayOf<FiniteStateMachineEntry> s_states =
         [
-            (PrepareForUpdate_Idle,
+            new(PrepareForUpdate_Idle,
              PrepareForUpdateStateMachineTypeIds.StateNumbers.Idle, "Idle"),
-            (PrepareForUpdate_Preparing,
+            new(PrepareForUpdate_Preparing,
              PrepareForUpdateStateMachineTypeIds.StateNumbers.Preparing, "Preparing"),
-            (PrepareForUpdate_PreparedForUpdate,
+            new(PrepareForUpdate_PreparedForUpdate,
              PrepareForUpdateStateMachineTypeIds.StateNumbers.PreparedForUpdate, "PreparedForUpdate"),
-            (Installation_Idle,
+            new(Installation_Idle,
              InstallationStateMachineTypeIds.StateNumbers.Idle, "Idle"),
-            (Installation_Installing,
+            new(Installation_Installing,
              InstallationStateMachineTypeIds.StateNumbers.Installing, "Installing"),
-            (Installation_Error,
+            new(Installation_Error,
              InstallationStateMachineTypeIds.StateNumbers.Error, "Error"),
-            (PowerCycle_NotWaiting,
+            new(PowerCycle_NotWaiting,
              PowerCycleStateMachineTypeIds.StateNumbers.NotWaitingForPowerCycle, "NotWaitingForPowerCycle"),
-            (PowerCycle_Waiting,
+            new(PowerCycle_Waiting,
              PowerCycleStateMachineTypeIds.StateNumbers.WaitingForPowerCycle, "WaitingForPowerCycle"),
-            (Confirmation_NotWaitingForConfirm,
+            new(Confirmation_NotWaitingForConfirm,
              ConfirmationStateMachineTypeIds.StateNumbers.NotWaitingForConfirm, "NotWaitingForConfirm"),
-            (Confirmation_WaitingForConfirm,
+            new(Confirmation_WaitingForConfirm,
              ConfirmationStateMachineTypeIds.StateNumbers.WaitingForConfirm, "WaitingForConfirm")
         ];
 
-        /// <summary>
-        /// ---- per-transition browse-name + transition-number lookup table ----
-        /// </summary>
-        private static readonly (uint Id, uint Number, string Name)[] s_transitions =
+        private static readonly ArrayOf<FiniteStateMachineEntry> s_transitions =
         [
-            (PrepareForUpdate_IdleToPreparing,
+            new(PrepareForUpdate_IdleToPreparing,
              PrepareForUpdateStateMachineTypeIds.TransitionNumbers.IdleToPreparing,
              "IdleToPreparing"),
-            (PrepareForUpdate_PreparingToIdle,
+            new(PrepareForUpdate_PreparingToIdle,
              PrepareForUpdateStateMachineTypeIds.TransitionNumbers.PreparingToIdle,
              "PreparingToIdle"),
-            (PrepareForUpdate_PreparingToPreparedForUpdate,
+            new(PrepareForUpdate_PreparingToPreparedForUpdate,
              PrepareForUpdateStateMachineTypeIds.TransitionNumbers.PreparingToPreparedForUpdate,
              "PreparingToPreparedForUpdate"),
-            (PrepareForUpdate_PreparedForUpdateToResuming,
+            new(PrepareForUpdate_PreparedForUpdateToResuming,
              PrepareForUpdateStateMachineTypeIds.TransitionNumbers.PreparedForUpdateToResuming,
              "PreparedForUpdateToResuming"),
-            (Installation_IdleToInstalling,
+            new(Installation_IdleToInstalling,
              InstallationStateMachineTypeIds.TransitionNumbers.IdleToInstalling,
              "IdleToInstalling"),
-            (Installation_InstallingToIdle,
+            new(Installation_InstallingToIdle,
              InstallationStateMachineTypeIds.TransitionNumbers.InstallingToIdle,
              "InstallingToIdle"),
-            (Installation_InstallingToError,
+            new(Installation_InstallingToError,
              InstallationStateMachineTypeIds.TransitionNumbers.InstallingToError,
              "InstallingToError"),
-            (Installation_ErrorToIdle,
+            new(Installation_ErrorToIdle,
              InstallationStateMachineTypeIds.TransitionNumbers.ErrorToIdle,
              "ErrorToIdle"),
-            (Confirmation_NotWaitingToWaiting,
+            new(Confirmation_NotWaitingToWaiting,
              ConfirmationStateMachineTypeIds.TransitionNumbers.NotWaitingForConfirmToWaitingForConfirm,
              "NotWaitingForConfirmToWaitingForConfirm"),
-            (Confirmation_WaitingToNotWaiting,
+            new(Confirmation_WaitingToNotWaiting,
              ConfirmationStateMachineTypeIds.TransitionNumbers.WaitingForConfirmToNotWaitingForConfirm,
              "WaitingForConfirmToNotWaitingForConfirm")
         ];
@@ -178,17 +148,13 @@ namespace Opc.Ua.Di.Server.Builders
             ushort diNamespaceIndex,
             ISystemContext context)
         {
-            ApplyState(sm, initialStateId, diNamespaceIndex, context);
-            ClearLastTransition(sm);
+            CreateDispatcher(diNamespaceIndex)
+                .InitializeToInitialState(sm, initialStateId, context);
         }
 
         /// <summary>
         /// Writes <paramref name="stateId"/> into <paramref name="sm"/>'s
-        /// <c>CurrentState</c> variable. Bypasses
-        /// <see cref="FiniteStateMachineState"/>'s
-        /// <c>UpdateStateVariable</c> (which requires a
-        /// <c>StateTable</c> override the source-generated DI FSMs
-        /// don't provide).
+        /// <c>CurrentState</c> variable.
         /// </summary>
         internal static void ApplyState(
             FiniteStateMachineState sm,
@@ -196,32 +162,12 @@ namespace Opc.Ua.Di.Server.Builders
             ushort diNamespaceIndex,
             ISystemContext context)
         {
-            if (sm?.CurrentState is null)
-            {
-                return;
-            }
-            (uint _, uint number, string name) = Lookup(s_states, stateId, "Unknown");
-
-            sm.CurrentState.Value = new LocalizedText(name);
-
-            if (sm.CurrentState.Id is { } idVar)
-
-            {
-                idVar.Value = new NodeId(stateId, diNamespaceIndex);
-            }
-            if (sm.CurrentState.Number is { } numberVar)
-
-            {
-                numberVar.Value = number;
-            }
-            sm.CurrentState.ClearChangeMasks(context, includeChildren: true);
+            CreateDispatcher(diNamespaceIndex).ApplyState(sm, stateId, context);
         }
 
         /// <summary>
         /// Writes <paramref name="transitionId"/> into <paramref name="sm"/>'s
-        /// optional <c>LastTransition</c> variable (created lazily by
-        /// <see cref="EnsureLastTransition(FiniteStateMachineState, ISystemContext)"/>).
-        /// Sets <c>TransitionTime</c> to <see cref="DateTime.UtcNow"/>.
+        /// optional <c>LastTransition</c> variable.
         /// </summary>
         internal static void ApplyTransition(
             FiniteStateMachineState sm,
@@ -229,43 +175,11 @@ namespace Opc.Ua.Di.Server.Builders
             ushort diNamespaceIndex,
             ISystemContext context)
         {
-            if (sm is null)
-            {
-                return;
-            }
-            EnsureLastTransition(sm, context);
-
-            if (sm.LastTransition is null)
-
-            {
-                return;
-            }
-            (uint _, uint number, string name) = Lookup(s_transitions, transitionId, "Unknown");
-
-            sm.LastTransition.Value = new LocalizedText(name);
-
-            if (sm.LastTransition.Id is { } idVar)
-
-            {
-                idVar.Value = new NodeId(transitionId, diNamespaceIndex);
-            }
-            if (sm.LastTransition.Number is { } numberVar)
-
-            {
-                numberVar.Value = number;
-            }
-            if (sm.LastTransition.TransitionTime is { } ttVar)
-
-            {
-                ttVar.Value = DateTime.UtcNow;
-            }
-            sm.LastTransition.ClearChangeMasks(context, includeChildren: true);
+            CreateDispatcher(diNamespaceIndex).ApplyTransition(sm, transitionId, context);
         }
 
         /// <summary>
-        /// Atomically writes a state transition: sets
-        /// <c>CurrentState</c> to <paramref name="toStateId"/> and
-        /// <c>LastTransition</c> to <paramref name="transitionId"/>.
+        /// Atomically writes a state transition.
         /// </summary>
         internal static void Move(
             FiniteStateMachineState sm,
@@ -274,8 +188,7 @@ namespace Opc.Ua.Di.Server.Builders
             ushort diNamespaceIndex,
             ISystemContext context)
         {
-            ApplyState(sm, toStateId, diNamespaceIndex, context);
-            ApplyTransition(sm, transitionId, diNamespaceIndex, context);
+            CreateDispatcher(diNamespaceIndex).Move(sm, toStateId, transitionId, context);
         }
 
         /// <summary>
@@ -327,61 +240,14 @@ namespace Opc.Ua.Di.Server.Builders
             }
         }
 
-        private static void ClearLastTransition(FiniteStateMachineState sm)
+        private static FiniteStateMachineDispatcher CreateDispatcher(ushort namespaceIndex)
         {
-            if (sm?.LastTransition is null)
-            {
-                return;
-            }
-            sm.LastTransition.Value = default;
-
-            if (sm.LastTransition.Id is { } idVar)
-
-            {
-                idVar.Value = default;
-            }
-            if (sm.LastTransition.Number is { } numberVar)
-
-            {
-                numberVar.Value = 0;
-            }
-            if (sm.LastTransition.TransitionTime is { } ttVar)
-
-            {
-                ttVar.Value = DateTime.MinValue;
-            }
+            return new FiniteStateMachineDispatcher(
+                namespaceIndex,
+                s_states,
+                s_transitions);
         }
 
-        private static void EnsureLastTransition(
-            FiniteStateMachineState sm,
-            ISystemContext context)
-        {
-            if (sm.LastTransition is not null)
-            {
-                return;
-            }
-            // The generated *StateMachineState classes inherit
-            // AddLastTransition from FiniteStateMachineState; the
-            // optional child wraps the standard Part-5 LastTransition
-            // / FiniteTransitionVariableType (Value + Id + Number +
-            // TransitionTime).
-            sm.AddLastTransition(context);
-        }
-
-        private static (uint Id, uint Number, string Name) Lookup(
-            (uint Id, uint Number, string Name)[] table,
-            uint id,
-            string fallbackName)
-        {
-            for (int ii = 0; ii < table.Length; ii++)
-            {
-                if (table[ii].Id == id)
-                {
-                    return table[ii];
-                }
-            }
-            return (id, 0, fallbackName);
-        }
     }
 
     internal static partial class SoftwareUpdateStateMachineDispatcherLog

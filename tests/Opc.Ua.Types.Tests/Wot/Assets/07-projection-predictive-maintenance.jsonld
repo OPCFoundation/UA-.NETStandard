@@ -1,0 +1,44 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "tm": "https://www.w3.org/2019/wot/tm#"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": ["Thing", "uav:projection"],
+  "id": "urn:dev:opcua:view:pump-predictive-maintenance",
+  "title": "Pump condition view",
+  "description": "A projection document. It defines no affordance of its own: it names two source Thing Descriptions and states which of their affordances the predictive-maintenance view is assembled from, annotating the selection with maintenance semantics. The sources stay pristine and no definition is copied.",
+  "uav:scenario": "http://example.com/scenario/PredictiveMaintenance",
+  "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+  "security": "nosec_sc",
+  "uav:projects": [
+    {
+      "uav:sourceName": "pump",
+      "href": "./01-opcua-td-pump.jsonld",
+      "type": "application/td+json",
+      "uav:routing": "source",
+      "uav:select": [
+        { "uav:affordanceKind": "property" }
+      ]
+    },
+    {
+      "uav:sourceName": "identity",
+      "href": "./06-anchored-paths-and-device-identity.jsonld",
+      "type": "application/td+json",
+      "uav:routing": "source",
+      "uav:selectAll": true,
+      "uav:namePrefix": "device"
+    }
+  ],
+  "properties": {
+    "pumpSpeed": {
+      "tm:ref": "./01-opcua-td-pump.jsonld#/properties/pumpSpeed",
+      "title": "Pump speed (condition signal)",
+      "description": "The speed reading interpreted as a condition signal for the predictive-maintenance model.",
+      "uav:semanticId": "http://example.com/ontology/maintenance/ConditionSignal"
+    }
+  }
+}

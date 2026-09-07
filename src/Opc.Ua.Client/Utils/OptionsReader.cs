@@ -42,7 +42,7 @@ namespace Opc.Ua
     /// <typeparam name="TChange"></typeparam>
     /// <typeparam name="TOptions"></typeparam>
     internal sealed class OptionsReader<TChange, [DynamicallyAccessedMembers(
-        DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>
+        DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions> : IDisposable
         where TChange : struct
         where TOptions : class
     {
@@ -59,7 +59,7 @@ namespace Opc.Ua
                 {
                     SingleReader = true
                 });
-            options.OnChange((o, n) =>
+            m_subscription = options.OnChange((o, n) =>
             {
                 TChange? change = convert(o);
                 if (change != null)
@@ -67,6 +67,20 @@ namespace Opc.Ua
                     m_changes.Writer.TryWrite(change.Value);
                 }
             });
+        }
+
+        /// <summary>
+        /// Stops observing the options monitor.
+        /// </summary>
+        /// <remarks>
+        /// An <see cref="IOptionsMonitor{TOptions}"/> is normally a singleton, so a
+        /// reader that never released its registration would be held by it for the
+        /// life of the process and every options change would fan out to readers
+        /// nobody is draining.
+        /// </remarks>
+        public void Dispose()
+        {
+            m_subscription?.Dispose();
         }
 
         /// <summary>
@@ -90,6 +104,7 @@ namespace Opc.Ua
         }
 
         private readonly Channel<TChange> m_changes;
+        private readonly IDisposable? m_subscription;
     }
 
     /// <summary>
@@ -97,7 +112,7 @@ namespace Opc.Ua
     /// </summary>
     /// <typeparam name="TOptions"></typeparam>
     internal sealed class OptionsReader<[DynamicallyAccessedMembers(
-        DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>
+        DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions> : IDisposable
         where TOptions : class
     {
         /// <summary>
@@ -114,7 +129,7 @@ namespace Opc.Ua
                     FullMode = BoundedChannelFullMode.DropOldest
                 });
 
-            options.OnChange((o, n) =>
+            m_subscription = options.OnChange((o, n) =>
             {
                 if (o == null)
                 {
@@ -127,6 +142,20 @@ namespace Opc.Ua
                 }
                 m_changes.Writer.TryWrite(o);
             });
+        }
+
+        /// <summary>
+        /// Stops observing the options monitor.
+        /// </summary>
+        /// <remarks>
+        /// An <see cref="IOptionsMonitor{TOptions}"/> is normally a singleton, so a
+        /// reader that never released its registration would be held by it for the
+        /// life of the process and every options change would fan out to readers
+        /// nobody is draining.
+        /// </remarks>
+        public void Dispose()
+        {
+            m_subscription?.Dispose();
         }
 
         /// <summary>
@@ -150,6 +179,7 @@ namespace Opc.Ua
         }
 
         private readonly Channel<TOptions> m_changes;
+        private readonly IDisposable? m_subscription;
         private TOptions? m_current;
     }
 }

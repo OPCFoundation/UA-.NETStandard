@@ -382,6 +382,28 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Gets a value indicating whether the WSS (WebSocket Secure) transport
+        /// listener is functional in this compiled assembly.
+        /// </summary>
+        /// <remarks>
+        /// The WSS listener is hosted on Kestrel. The <c>netstandard2.1</c>
+        /// build binds against the legacy ASP.NET Core hosting packages, which
+        /// cannot open a Kestrel WebSocket listener when the assembly is loaded
+        /// on a modern .NET runtime, so the WSS transport is unavailable there.
+        /// Every other build (.NET Framework and .NET 5 or later) can open the
+        /// listener, so this probe returns <see langword="true"/> for them and
+        /// <see langword="false"/> only for the <c>netstandard2.1</c> build,
+        /// allowing callers and tests to react at runtime instead of assuming
+        /// compile-time availability.
+        /// </remarks>
+        public static bool IsWssTransportSupported =>
+#if NET5_0_OR_GREATER || NETFRAMEWORK
+            true;
+#else
+            false;
+#endif
+
+        /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public async ValueTask DisposeAsync()
@@ -570,7 +592,8 @@ namespace Opc.Ua.Bindings
                 MaxMessageSize = configuration.MaxMessageSize,
                 ChannelLifetime = configuration.ChannelLifetime,
                 SecurityTokenLifetime = configuration.SecurityTokenLifetime,
-                CertificateValidator = settings.CertificateValidator
+                CertificateValidator = settings.CertificateValidator,
+                SecurityPolicyRegistry = settings.SecurityPolicyRegistry
             };
 
             // save the callback to the server.
@@ -2398,9 +2421,8 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                using CertificateCollection validationChain = CreateCertificateChain(
-                    clientCertificate,
-                    chain);
+                using CertificateCollection validationChain = CertificateValidationHelpers
+                    .BuildValidationCertificateCollection(clientCertificate, chain);
                 // CA2025: the TLS ClientCertificateValidation callback is
                 // synchronous by contract on every supported TFM, so the async UA
                 // validator is bridged with GetAwaiter().GetResult(); the validation
@@ -2425,38 +2447,6 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        private static CertificateCollection CreateCertificateChain(
-            X509Certificate2 clientCertificate,
-            X509Chain? chain)
-        {
-            var validationChain = new CertificateCollection();
-            try
-            {
-                // CertificateCollection.Add retains an independent AddRef-owned handle.
-                if (chain?.ChainElements != null && chain.ChainElements.Count > 0)
-                {
-                    foreach (X509ChainElement element in chain.ChainElements)
-                    {
-                        using Certificate certificate = Certificate.FromRawData(
-                            element.Certificate.RawData);
-                        validationChain.Add(certificate);
-                    }
-                }
-                else
-                {
-                    using Certificate certificate = Certificate.FromRawData(
-                        clientCertificate.RawData);
-                    validationChain.Add(certificate);
-                }
-
-                return validationChain;
-            }
-            catch
-            {
-                validationChain.Dispose();
-                throw;
-            }
-        }
 
         /// <summary>
         /// Validate TLS client certificate at TLS handshake.

@@ -73,6 +73,24 @@ namespace Microsoft.Extensions.DependencyInjection
             });
             return builder;
         }
+
+        /// <summary>
+        /// Registers the Kestrel-hosted <c>opc.tcp://</c> listener and returns
+        /// the same specialized builder.
+        /// </summary>
+        /// <typeparam name="TBuilder">The specialized transport builder type.</typeparam>
+        /// <param name="builder">The OPC UA transport builder.</param>
+        /// <returns>The same <paramref name="builder"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static TBuilder AddKestrelOpcTcpTransport<TBuilder>(this TBuilder builder)
+            where TBuilder : IOpcUaTransportBuilder
+        {
+            ArgumentNullException.ThrowIfNull(builder);
+
+            IOpcUaBuilder rootBuilder = builder.Services.AddOpcUa();
+            rootBuilder.AddKestrelOpcTcpTransport();
+            return builder;
+        }
     }
 }
 #endif // NET8_0_OR_GREATER

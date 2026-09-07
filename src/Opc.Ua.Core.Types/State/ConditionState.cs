@@ -50,7 +50,28 @@ namespace Opc.Ua
             AddComment?.OnCall = OnAddCommentCalled;
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Opts this condition into filtered retain (see OPC UA Part 9, B.1.4): when the
+        /// value is true, a monitored item reports one final event as the condition leaves
+        /// the scope of that client's where clause, so the client sees Retain go false even
+        /// though the condition is unchanged on the server.
+        /// </summary>
+        /// <remarks>
+        /// Part 9 states that the SupportsFilteredRetain Property "is only provided on the
+        /// ConditionType", and the standard nodeset accordingly declares no modelling rule
+        /// for it, so condition <em>instances</em> do not carry it as an address space child.
+        /// This property is therefore deliberately not part of the instance child hierarchy:
+        /// it is not returned by <see cref="NodeState.GetChildren"/> and cannot be reached
+        /// through <c>FindChild(BrowseNames.SupportsFilteredRetain)</c>. It is the server
+        /// side switch that mirrors, per condition, what the type node advertises. A server
+        /// that wants clients to browse the flag exposes it on its ConditionType node, which
+        /// the generated address space already builds.
+        /// <para>
+        /// Because the property is not a child, nothing that copies a condition by walking
+        /// its children carries it. <see cref="CreateBranch"/> copies it explicitly, so
+        /// branches inherit the parent's setting.
+        /// </para>
+        /// </remarks>
         public PropertyState<bool>? SupportsFilteredRetain
         {
             get => m_supportsFilteredRetain;
@@ -177,6 +198,10 @@ namespace Opc.Ua
                 branchedAlarm.Initialize(context, this);
                 branchedAlarm.BranchId!.Value = branchId; // ConditionState.Initialize creates BranchId
                 branchedAlarm.AutoReportStateChanges = AutoReportStateChanges;
+                // SupportsFilteredRetain is not an instance child, so Initialize does not
+                // carry it over with the rest of the condition. Copy it here, otherwise
+                // filtered retain would be silently off for every branch.
+                CopySupportsFilteredRetain(context, branchedAlarm);
                 branchedAlarm.ReportStateChange(context, false);
 
                 string postEventId = branchedAlarm.EventId!.Value.ToHexString(); // ConditionState.Initialize creates EventId
@@ -190,6 +215,31 @@ namespace Opc.Ua
             }
 
             return state;
+        }
+
+        /// <summary>
+        /// Gives the branch its own copy of <see cref="SupportsFilteredRetain"/>.
+        /// </summary>
+        /// <remarks>
+        /// The flag is not part of the instance child hierarchy - see the remarks on
+        /// <see cref="SupportsFilteredRetain"/> - so <c>NodeState.Initialize</c>
+        /// does not carry it across when the branch is built from its parent. The branch
+        /// gets a copy rather than the parent's instance so the two nodes stay separate
+        /// address space objects.
+        /// </remarks>
+        private void CopySupportsFilteredRetain(ISystemContext context, ConditionState branch)
+        {
+            PropertyState<bool>? source = SupportsFilteredRetain;
+
+            if (source == null)
+            {
+                branch.SupportsFilteredRetain = null;
+                return;
+            }
+
+            PropertyState<bool> copy = PropertyState<bool>.With<VariantBuilder>(branch);
+            copy.Create(context, source);
+            branch.SupportsFilteredRetain = copy;
         }
 
         /// <summary>

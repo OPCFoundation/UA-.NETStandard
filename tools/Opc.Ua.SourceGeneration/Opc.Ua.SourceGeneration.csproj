@@ -1,61 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Primary build of the OPC UA model source generator, against the Roslyn API
+    that ships with Visual Studio 2026 / the .NET 10 SDK. This is the variant
+    the repository's own projects reference as an analyzer; the sibling
+    Opc.Ua.SourceGeneration.Roslyn4_8 project produces the Visual Studio 2022
+    payload from the same sources, and Opc.Ua.SourceGeneration.Pack ships both.
+  -->
+  <!-- Already imported by Directory.Packages.props; the condition keeps this project self-contained. -->
+  <Import Project="..\..\roslyn.props" Condition="'$(RoslynApiVersionVS2026)' == ''" />
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <AssemblyName>$(AssemblyPrefix).SourceGeneration</AssemblyName>
-    <RootNamespace>Opc.Ua.SourceGeneration</RootNamespace>
-    <Description>OPC UA source generation Library</Description>
-    <!-- Suppress CS8002: SourceGenerator.Foundations.Contracts is not strong-named.
-         Source generators are packaged as analyzers and not referenced at runtime. -->
-    <NoWarn>$(NoWarn);CS8002</NoWarn>
+    <RoslynApiVersion>$(RoslynApiVersionVS2026)</RoslynApiVersion>
   </PropertyGroup>
-  <!-- Package as source generator -->
-  <PropertyGroup>
-    <PackageId>$(PackagePrefix).Opc.Ua.SourceGeneration</PackageId>
-    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-    <IsPackable>true</IsPackable>
-    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageLicenseFile></PackageLicenseFile>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <NoPackageAnalysis>true</NoPackageAnalysis>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
-    <PackageId>$(PackageId).Debug</PackageId>
-  </PropertyGroup>
-  <PropertyGroup>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <AssemblySearchPath_UseOutDir>true</AssemblySearchPath_UseOutDir>
-    <SgfAddModuleInitializerAttribute>false</SgfAddModuleInitializerAttribute>
-  </PropertyGroup>
-  <ItemGroup>
-    <CompilerVisibleProperty Include="SgfAddModuleInitializerAttribute" />
-  </ItemGroup>
-  <ItemGroup>
-    <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Tests"/>
-  </ItemGroup>
-  <ItemGroup>
-    <!-- Keep Roslyn compile assets transitive for project-reference test consumers.
-         SourceGeneratorPackaging.targets suppresses package dependencies and host DLL payloads. -->
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
-    <PackageReference Include="SourceGenerator.Foundations">
-      <!-- Make private asset because assembly name comparer symbol conflict in test -->
-      <PrivateAssets>all</PrivateAssets>
-      <OutputItemType>Analyzer</OutputItemType>
-    </PackageReference>
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Update="NETStandard.Library" PrivateAssets="all" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Opc.Ua.SourceGeneration.Core\Opc.Ua.SourceGeneration.Core.csproj">
-      <PrivateAssets>all</PrivateAssets>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="OPCFoundation.Opc.Ua.SourceGeneration.props" Visible="false" Pack="true" PackagePath="build" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
-  </ItemGroup>
-  <Import Project="SourceGeneratorPackaging.targets" />
+  <Import Project="Opc.Ua.SourceGeneration.Sources.targets" />
 </Project>

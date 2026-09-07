@@ -12,8 +12,8 @@ The Reverse Connect option consists of the following elements:
 * Updated client library which support to
   * Configure a client endpoint to accept *ReverseHello* messages using a *ReverseConnectManager*.
   * A client API extension to allow applications to register for reverse connections either by callback or by waiting for the *ReverseHello* message for a specific server endpoint and application Uri combination. An optional filter for server Uris or endpoint Urls can be applied to allow multiple clients to use the same endpoint.
-* The C# [Console Reference Server](../samples/ConsoleReferenceServer) with reverse connect support in the configuration xml.
-* The C# Core [Console Reference Client](../samples/ConsoleReferenceClient) that can initiate a Reverse connection with command line options.
+* The C# [Console Reference Server](../samples/Reference/ConsoleReferenceServer) with reverse connect support in the configuration xml.
+* The C# Core [Console Reference Client](../samples/Reference/ConsoleReferenceClient) that can initiate a Reverse connection with command line options.
 * A modified C# [Aggregation Server](https://github.com/OPCFoundation/UA-.NETStandard-Samples/tree/master/Workshop/Aggregation) that supports incoming and outgoing reverse connections.
 
 ## Reverse Connect Handshake
@@ -43,13 +43,15 @@ A reverse-connect listener remains bound for the lifetime of its `ReverseConnect
 Use one shared `ReverseConnectManager` for all Servers that connect to the same Client URL. Register or wait for each Server separately by using its Server `EndpointUrl` and, preferably, its `ServerUri`. The fluent dependency-injection integration registers the manager as a singleton.
 
 ``` csharp
-using var manager = new ReverseConnectManager(telemetry);
+await using var manager = new ReverseConnectManager(telemetry);
 manager.AddEndpoint(new Uri("opc.tcp://client-host:65300"));
-manager.StartService(new ReverseConnectClientConfiguration
-{
-    HoldTime = 15000,
-    WaitTimeout = 20000
-});
+await manager.StartServiceAsync(
+    new ReverseConnectClientConfiguration
+    {
+        HoldTime = 15000,
+        WaitTimeout = 20000
+    },
+    cancellationToken).ConfigureAwait(false);
 
 Task<ITransportWaitingConnection> serverA = manager.WaitForConnectionAsync(
     new Uri("opc.tcp://server-a:4840"),
@@ -65,7 +67,41 @@ await Task.WhenAll(serverA, serverB).ConfigureAwait(false);
 
 Pass each returned `ITransportWaitingConnection` to the session factory for the corresponding Server.
 
-Do not create a separate manager for each Server when those managers use the same local listener URL. Only one listener can bind a given host and port. `StartService` validates and opens all configured listener endpoints atomically. An invalid URL reports `BadTcpEndpointUrlInvalid`, an unsupported transport retains its transport-specific status, and a bind or listener-open failure reports `BadNoCommunication`. Startup diagnostics identify the affected endpoint URLs, and listeners opened by a failed attempt are closed instead of allowing a later connection wait to time out.
+`HoldTime` controls how long an incoming `ReverseHello` that does not match any registration yet is held open before it is rejected. This matters when several Servers connect before the application has registered a waiting connection for each of them: every held connection waits for the remainder of its own hold time, also when a registration for a different Server arrives in the meantime. A Server whose hold time expires without a matching registration is rejected and reconnects on its next `ReverseHello` interval. A committed stop or dispose releases the held connections immediately.
+
+`StartServiceAsync` validates and prepares the complete listener set before it changes a running service. If activation fails after existing listeners have stopped, the manager recreates and reopens the previous configuration. Cancellation cleans partially initialized candidates and either preserves or restores the prior service. Use `await manager.StopServiceAsync(...)` for an explicit stop and `await manager.DisposeAsync()` (or `await using`) for teardown.
+
+The synchronous `StartService`, `RegisterWaitingConnection`, and `Dispose` APIs remain as obsolete compatibility wrappers. New code should use `StartServiceAsync`, `RegisterWaitingConnectionAsync`, and `DisposeAsync`; the compatibility wrappers may block a caller thread.
+
+## Dependency-injection lifecycle
+
+`AddClient(...)` registers one singleton `ReverseConnectManager`, an `IReverseConnectConfigurationProvider`, and an internal hosted service. In a .NET Generic Host, the hosted service eagerly opens configured listeners during host startup and closes them during host shutdown. In a plain `ServiceCollection` without a running host, `WaitForConnectionAsync` and `RegisterWaitingConnectionAsync` call `EnsureStartedAsync` lazily. Resolving the manager itself never blocks on listener startup.
+
+``` csharp
+services
+    .AddOpcUa()
+    .AddClient(options =>
+    {
+        options.Configuration = applicationConfiguration;
+        options.ReverseConnect = new ClientReverseConnectOptions
+        {
+            HoldTimeMs = 15000,
+            WaitTimeoutMs = 20000
+        };
+        options.ReverseConnect.ClientEndpointUrls.Add(
+            "opc.tcp://client-host:65300");
+    });
+```
+
+Applications can replace the default pass-through provider to asynchronously validate or transform the effective listener configuration before any active listener is stopped:
+
+``` csharp
+services.AddSingleton<IReverseConnectConfigurationProvider, MyProvider>();
+```
+
+Providers run outside the manager's lifecycle gate. Provider exceptions reject the candidate while the current service remains active. The former protected `OnUpdateConfiguration` hooks were removed; custom configuration logic belongs in `IReverseConnectConfigurationProvider`.
+
+Do not create a separate manager for each Server when those managers use the same local listener URL. Only one listener can bind a given host and port. An invalid URL reports `BadTcpEndpointUrlInvalid`, an unsupported transport retains its transport-specific status, and a bind or listener-open failure reports `BadNoCommunication`. Startup diagnostics identify the affected endpoint URLs, and listeners opened by a failed attempt are closed instead of allowing a later connection wait to time out.
 
 This behavior follows [OPC UA Part 6, 7.1.3](https://reference.opcfoundation.org/specs/OPC-10000-6/v1.05.07/7.1.3), which defines a separate transport connection for each reverse connection and requires Servers to maintain an available socket to each configured Client. [OPC UA Part 12, 4.4.2](https://reference.opcfoundation.org/specs/OPC-10000-12/v1.05.07/4.4.2) defines one or more Client URLs that allow Servers to connect. Clients shall validate the `ServerUri` and `EndpointUrl` as described in [OPC UA Part 2, 6.14](https://reference.opcfoundation.org/specs/OPC-10000-2/v1.05.06/6.14).
 
@@ -145,7 +181,8 @@ manager.AddEndpoint(new Uri("opc.tcp://localhost:65300"));
 // when StartService runs - too late for WSS listeners that need the
 // server certificate at bind time).
 manager.AddEndpoint(new Uri("opc.wss://localhost:65300"), config);
-manager.StartService(config);
+await manager.StartServiceAsync(config, cancellationToken)
+    .ConfigureAwait(false);
 ```
 
 The original single-parameter `AddEndpoint(Uri)` is unchanged for

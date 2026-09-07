@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -413,12 +414,84 @@ namespace Opc.Ua.Core.Tests
 
         [Test]
         /// <summary>
-        /// PropertiesLock is not null.
+        /// GetOrAddProperty runs the factory once when the key is absent.
         /// </summary>
-        public void PropertiesLockIsNotNull()
+        public void GetOrAddPropertyAddsWhenKeyIsAbsent()
         {
             var config = new ApplicationConfiguration(m_telemetry);
-            Assert.That(config.PropertiesLock, Is.Not.Null);
+            int calls = 0;
+
+            string value = config.GetOrAddProperty("key", () => { calls++; return "made"; });
+
+            Assert.That(value, Is.EqualTo("made"));
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(config.Properties["key"], Is.EqualTo("made"));
+        }
+
+        [Test]
+        /// <summary>
+        /// GetOrAddProperty does not run the factory when a value is present.
+        /// </summary>
+        public void GetOrAddPropertyDoesNotRunFactoryWhenKeyIsPresent()
+        {
+            var config = new ApplicationConfiguration(m_telemetry);
+            config.Properties["key"] = "existing";
+
+            string value = config.GetOrAddProperty<string>(
+                "key",
+                () => throw new InvalidOperationException("factory must not run"));
+
+            Assert.That(value, Is.EqualTo("existing"));
+        }
+
+        [Test]
+        /// <summary>
+        /// Concurrent callers all observe the same instance, which is what the
+        /// removed PropertiesLock was taken for.
+        /// </summary>
+        public void GetOrAddPropertyPublishesOneInstanceToConcurrentCallers()
+        {
+            var config = new ApplicationConfiguration(m_telemetry);
+            const int callers = 32;
+            using var start = new ManualResetEventSlim(false);
+
+            var results = new object[callers];
+            var threads = new Thread[callers];
+            for (int i = 0; i < callers; i++)
+            {
+                int index = i;
+                threads[i] = new Thread(() =>
+                {
+                    start.Wait();
+                    results[index] = config.GetOrAddProperty<object>("key", () => new object());
+                });
+                threads[i].Start();
+            }
+
+            start.Set();
+            foreach (Thread thread in threads)
+            {
+                thread.Join();
+            }
+
+            Assert.That(results, Is.All.SameAs(results[0]));
+            Assert.That(config.Properties["key"], Is.SameAs(results[0]));
+        }
+
+        [Test]
+        /// <summary>
+        /// GetOrAddProperty rejects a null key or factory.
+        /// </summary>
+        public void GetOrAddPropertyThrowsOnNullArguments()
+        {
+            var config = new ApplicationConfiguration(m_telemetry);
+
+            Assert.That(
+                () => config.GetOrAddProperty<string>(null!, () => "x"),
+                Throws.TypeOf<ArgumentNullException>());
+            Assert.That(
+                () => config.GetOrAddProperty<string>("key", null!),
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]

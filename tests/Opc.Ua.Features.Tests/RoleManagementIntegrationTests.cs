@@ -346,6 +346,37 @@ namespace Opc.Ua.Features.Tests
         }
 
         [Test]
+        public async Task AddRoleAsync_ModelNamespaceUri_QualifiesTheBrowseNameOnlyAsync()
+        {
+            // Per Part 18 §4.2.2 the NamespaceUri argument names the namespace
+            // of the new role's BrowseName. The NodeId stays server-assigned:
+            // allocating it in the caller's namespace lets a SecurityAdmin hand
+            // out identifiers that already belong to a node manager's model and
+            // replace its nodes.
+            string modelNamespaceUri = Quickstarts.ReferenceServer.Namespaces.ReferenceServer;
+            var modelNamespaceIndex = (ushort)m_session.NamespaceUris.GetIndex(modelNamespaceUri);
+            Assume.That(modelNamespaceIndex, Is.GreaterThan(0),
+                "The reference server must expose its model namespace.");
+
+            var client = new RoleManagementClient(m_session);
+            NodeId newRoleId = await client.AddRoleAsync(
+                "IntegrationTestRole_ModelNamespace",
+                modelNamespaceUri).ConfigureAwait(false);
+
+            Assert.That(newRoleId.NamespaceIndex, Is.Not.EqualTo(modelNamespaceIndex),
+                "The role NodeId must not be allocated in the model's namespace.");
+
+            RoleInfo role = await client.ReadRoleAsync(newRoleId).ConfigureAwait(false);
+            Assert.That(role.BrowseName.Name, Is.EqualTo("IntegrationTestRole_ModelNamespace"));
+            Assert.That(role.BrowseName.NamespaceIndex, Is.EqualTo(modelNamespaceIndex),
+                "NamespaceUri must qualify the BrowseName of the new role.");
+
+            IReadOnlyList<RoleInfo> roles = await client.ListRolesAsync().ConfigureAwait(false);
+            Assert.That(roles.Any(r => r.RoleId == newRoleId), Is.True,
+                "The new role must be browsable under the RoleSet.");
+        }
+
+        [Test]
         public async Task RemoveRoleAsync_Authorised_DropsRoleFromAddressSpaceAsync()
         {
             var client = new RoleManagementClient(m_session);

@@ -1,0 +1,69 @@
+{
+  "$comment": [
+    "Coverage gates for the UA .NET Standard stack. These are the ENFORCED rules;",
+    "see .azurepipelines/check-coverage.ps1 for the implementation and",
+    "docs/DeveloperGuide.md for the contributor-facing description.",
+    "Rates are percentages (0-100).",
+    "",
+    "codecov.io is still uploaded to, but only for reporting - its own",
+    "codecov/project and codecov/patch statuses are informational (see",
+    "codecov.yml) so that there is exactly one gate rather than two sets of",
+    "thresholds that can disagree about the same pull request.",
+    "",
+    "IMPORTANT: the coverage check is ADVISORY. Both the Azure 'Code coverage' stage and",
+    "the GitHub Actions 'code coverage' job report a clean failure when these thresholds",
+    "are missed, so the miss is visible on the pull request, but neither belongs in the",
+    "branch ruleset. The required checks are 'Tests passed' and 'build-and-test summary',",
+    "which only assert that the tests themselves passed.",
+    "",
+    "'project' is an absolute floor over the whole merged coverage report.",
+    "Ratchet minimumLineRate/minimumBranchRate upward (together with baselineLineRate)",
+    "as coverage improves - never downward to make a red check go green.",
+    "",
+    "The initial values are seeded from the last codecov project reading (73.61%) with",
+    "headroom, because the in-pipeline number had not been observed yet when the gate",
+    "was introduced.",
+    "",
+    "The report is assembled from whichever legs of the run published Cobertura fragments,",
+    "so the number moves with the matrix: the GitHub Actions job merges every test project",
+    "on ubuntu and is the most representative, the Azure stage merges only the Windows",
+    "fast-PR legs, and scheduled runs read higher because the Debug / .NET 8 / .NET 9 /",
+    "netstandard stages contribute too. Re-calibrate against the GitHub Actions figure.",
+    "",
+    "'patch' mirrors the old codecov/patch semantics: changed lines must reach",
+    "target percent, tolerating threshold percentage points. The requirement is",
+    "graduated by how much actually changed, because a percentage over a handful of",
+    "lines is noise: one uncovered line in a two-line fix reads as 50% and would fail",
+    "a flat floor, which teaches authors to ignore the check rather than fix it.",
+    "'bands' is consulted in order and the first band whose maxChangedLines covers the",
+    "patch wins; a band with enforced=false reports a warning instead of failing.",
+    "Anything larger than the last band falls through to target-threshold and is",
+    "always enforced, because at that size the percentage is meaningful and a big",
+    "untested change is exactly what the check exists to catch.",
+    "",
+    "'ignore' mirrors the exclusion list in codecov.yml so both report on the same",
+    "code - change the two together - and is applied to BOTH the project floor and",
+    "the changed-lines check."
+  ],
+  "project": {
+    "minimumLineRate": 70.0,
+    "minimumBranchRate": 60.0,
+    "baselineLineRate": 73.6,
+    "advisoryDeltaTolerance": 1.0
+  },
+  "patch": {
+    "target": 80.0,
+    "threshold": 5.0,
+    "bands": [
+      { "maxChangedLines": 10, "target": 50.0, "enforced": false },
+      { "maxChangedLines": 100, "target": 60.0, "enforced": false }
+    ]
+  },
+  "ignore": [
+    "tests/**",
+    "samples/**",
+    "**/obj/**",
+    "**/bin/**",
+    "**/*.g.cs"
+  ]
+}

@@ -1,0 +1,41 @@
+# A hosted endpoint, with a fallback on the machine.
+#
+#   helm install ai ./ai-model-management -f values-cloud.yaml \
+#        --set backend.endpointUri=https://<resource>.services.ai.azure.com/openai/ \
+#        --set credentials.existingSecret=inference-credentials
+#
+# The credential is NOT here. Create the Secret separately and name it, so the
+# value never passes through Helm and never reaches the release history:
+#
+#   kubectl create secret generic inference-credentials \
+#       --from-literal=inference-api-key=<key>
+
+backend:
+  site: Cloud
+  endpointUri: "https://example-resource.services.ai.azure.com/openai/"
+  authentication: ApiKey
+  credentialReference: inference-api-key
+  # The payload leaves the machine. Saying so is the point of the member: a
+  # client refusing to send process data off-site needs to know before it calls,
+  # and encryption does not make this false.
+  egressPermitted: true
+  retainsInput: false
+  dataJurisdiction: "eu-west"
+
+# A local model to fall back to when the link or the service is unavailable.
+# Reached separately from the primary on purpose - through the same endpoint and
+# credentials it would be a retry, and would fail for the same reason.
+ai:
+  enableFallback: true
+
+fallbackBackend:
+  enabled: true
+  site: OnServer
+  endpointUri: "http://localhost:5273/"
+  authentication: Anonymous
+  egressPermitted: false
+  retainsInput: false
+  dataJurisdiction: "on-premises"
+
+credentials:
+  existingSecret: "inference-credentials"

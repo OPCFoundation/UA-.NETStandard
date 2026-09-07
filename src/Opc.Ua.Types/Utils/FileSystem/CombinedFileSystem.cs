@@ -124,6 +124,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public void Replace(string sourcePath, string destinationPath)
+        {
+            IFileSystem writeableFs = m_usePrimaryForWrite ? m_primary : m_secondary;
+            writeableFs.Replace(sourcePath, destinationPath);
+        }
+
+        /// <inheritdoc/>
         public DateTime GetLastWriteTime(string path)
         {
             IFileSystem writeableFs = m_usePrimaryForWrite ? m_primary : m_secondary;

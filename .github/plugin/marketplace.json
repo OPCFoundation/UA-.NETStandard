@@ -1,0 +1,31 @@
+{
+  "name": "opcua-dotnet",
+  "owner": {
+    "name": "OPC Foundation"
+  },
+  "metadata": {
+    "description": "GitHub Copilot plugins for the OPC UA .NET Standard Stack.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "opcua-v20-migration",
+      "description": "Migrate OPC UA .NET Standard applications from 1.5.378 to 2.0.x with analyzers and guided fixes.",
+      "version": "1.0.0",
+      "source": ".agents",
+      "author": {
+        "name": "OPC Foundation",
+        "url": "https://opcfoundation.org/"
+      },
+      "homepage": "https://github.com/OPCFoundation/UA-.NETStandard/tree/master/.agents/skills/opcua-v20-migration",
+      "repository": "https://github.com/OPCFoundation/UA-.NETStandard",
+      "license": "MIT",
+      "keywords": [
+        "opc-ua",
+        "dotnet",
+        "migration",
+        "analyzers"
+      ]
+    }
+  ]
+}

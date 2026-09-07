@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 
 namespace Opc.Ua.Server.StateMachines
 {
@@ -70,15 +71,73 @@ namespace Opc.Ua.Server.StateMachines
         private int m_cacheVersion = -1;
 
         /// <summary>
+        /// The materialized <c>StateType</c> nodes by numeric id.
+        /// Populated once by <see cref="MaterializeStateNodes"/>; stays
+        /// <c>null</c> until then, in which case the base (numeric)
+        /// element-NodeId convention applies. The reverse direction is
+        /// resolved by scanning the nodes' <em>live</em> NodeIds — no
+        /// reverse map is kept, so a NodeId reassigned after
+        /// materialization (e.g. by a node manager's per-instance
+        /// NodeId rebase during registration) still resolves.
+        /// </summary>
+        private Dictionary<uint, BaseObjectState>? m_stateNodesById;
+
+        /// <summary>
+        /// The materialized <c>TransitionType</c> nodes by numeric id.
+        /// See <see cref="MaterializeTransitionNodes"/>.
+        /// </summary>
+        private Dictionary<uint, BaseObjectState>? m_transitionNodesById;
+
+        /// <summary>
         /// When <c>true</c>, the state machine rejects all incoming
         /// transitions and cause invocations with
-        /// <see cref="StatusCodes.BadInvalidState"/>. Used to model
+        /// <see cref="StatusCodes.BadStateNotActive"/>. Used to model
         /// the inactive state of a sub-state-machine whose parent
         /// has exited the attached state. Set by
         /// <see cref="StateMachineBuilder{TState}.WithSubStateMachine"/>
-        /// lifecycle hooks.
+        /// lifecycle hooks via <see cref="SetSuspended"/>.
         /// </summary>
-        public bool IsSuspended { get; set; }
+        public bool IsSuspended { get; private set; }
+
+        /// <summary>
+        /// Suspends or resumes the machine. Per OPC 10000-16 §4.4.6, an
+        /// inactive sub-state machine's <c>CurrentState</c> and
+        /// <c>LastTransition</c> shall read with
+        /// <see cref="StatusCodes.BadStateNotActive"/> — this applies
+        /// (and clears) that status alongside the flag.
+        /// </summary>
+        internal void SetSuspended(ISystemContext context, bool suspended)
+        {
+            IsSuspended = suspended;
+
+            StatusCode status = suspended
+                ? StatusCodes.BadStateNotActive
+                : StatusCodes.Good;
+            ApplySuspensionStatus(context, CurrentState, status);
+            ApplySuspensionStatus(context, LastTransition, status);
+        }
+
+        private static void ApplySuspensionStatus(
+            ISystemContext context,
+            BaseVariableState? variable,
+            StatusCode status)
+        {
+            if (variable == null)
+            {
+                return;
+            }
+            variable.StatusCode = status;
+            var children = new List<BaseInstanceState>();
+            variable.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child is BaseVariableState childVariable)
+                {
+                    childVariable.StatusCode = status;
+                }
+            }
+            variable.ClearChangeMasks(context, includeChildren: true);
+        }
 
         /// <inheritdoc/>
         public override bool IsCausePermitted(
@@ -103,7 +162,7 @@ namespace Opc.Ua.Server.StateMachines
         {
             if (IsSuspended)
             {
-                return StatusCodes.BadInvalidState;
+                return StatusCodes.BadStateNotActive;
             }
             return base.DoCause(context, causeMethod, causeId, inputArguments, outputArguments);
         }
@@ -118,7 +177,7 @@ namespace Opc.Ua.Server.StateMachines
         {
             if (IsSuspended)
             {
-                return StatusCodes.BadInvalidState;
+                return StatusCodes.BadStateNotActive;
             }
             return base.DoTransition(context, transitionId, causeId, inputArguments, outputArguments);
         }
@@ -137,7 +196,7 @@ namespace Opc.Ua.Server.StateMachines
         public FluentFiniteStateMachineState(
             NodeState parent,
             StateMachineDefinition definition)
-            : this(parent, FromSnapshot(definition), useHolder: true)
+            : this(parent, FromSnapshot(definition))
         {
         }
 
@@ -149,16 +208,14 @@ namespace Opc.Ua.Server.StateMachines
             NodeState parent,
             MutableStateMachineDefinition holder)
         {
-            return new FluentFiniteStateMachineState(parent, holder, useHolder: true);
+            return new FluentFiniteStateMachineState(parent, holder);
         }
 
         private FluentFiniteStateMachineState(
             NodeState parent,
-            MutableStateMachineDefinition holder,
-            bool useHolder)
+            MutableStateMachineDefinition holder)
             : base(parent)
         {
-            _ = useHolder;
             MutableDefinition = holder ?? throw new ArgumentNullException(nameof(holder));
         }
 
@@ -219,6 +276,469 @@ namespace Opc.Ua.Server.StateMachines
                 RefreshCache();
                 return m_causeMappings;
             }
+        }
+
+        /// <summary>
+        /// Materializes the state and transition nodes once the base has
+        /// resolved <c>ElementNamespaceIndex</c>. The definition is
+        /// always frozen by this point — the builder freezes before it
+        /// creates the node, and the snapshot constructor freezes on
+        /// construction.
+        /// </summary>
+        protected override void OnAfterCreate(
+            ISystemContext context,
+            NodeState node,
+            System.Threading.CancellationToken ct = default)
+        {
+            base.OnAfterCreate(context, node, ct);
+            // One prefix for everything the machine materializes, so a
+            // machine created without a NodeId still gets a single
+            // (random) prefix shared by all of its element nodes.
+            string ownerPrefix = ComposeOwnerPrefix(NodeId);
+            MaterializeStateNodes(context, ownerPrefix);
+            MaterializeTransitionNodes(context, ownerPrefix);
+        }
+
+        /// <summary>
+        /// Materializes one <c>StateType</c> node per declared state as
+        /// a <c>HasComponent</c> child of this state machine, each with
+        /// a <c>StateNumber</c> property, and publishes them through the
+        /// optional <c>AvailableStates</c> variable.
+        /// </summary>
+        /// <remarks>
+        /// Part 16 §4.4.16 hangs <c>HasSubStateMachine</c> off the parent
+        /// state node, and Part 5 has <c>CurrentState/Id</c> point at
+        /// that same node — neither is expressible while the states
+        /// exist only as <c>ElementInfo</c> table rows. Nodes are
+        /// per-instance so that several machines built from one
+        /// definition can coexist in a single address space; the
+        /// <see cref="FiniteStateMachineState.GetStateNodeId"/> /
+        /// <see cref="FiniteStateMachineState.GetStateId"/> overrides
+        /// below keep <c>CurrentState/Id</c> in step.
+        /// <para>
+        /// Idempotent — driven from <see cref="OnAfterCreate"/>, so a
+        /// machine that is never created keeps the numeric convention.
+        /// </para>
+        /// </remarks>
+        private void MaterializeStateNodes(ISystemContext context, string ownerPrefix)
+        {
+            if (m_stateNodesById != null)
+            {
+                return;
+            }
+
+            m_stateNodesById = MaterializeElementNodes(
+                MutableDefinition.States,
+                ObjectTypeIds.StateType,
+                BrowseNames.StateNumber,
+                ownerPrefix);
+
+            // OPC 10000-16 §4.4.10: the entry state is an
+            // InitialStateType (a StateType subtype), so a client can
+            // tell which state the machine activates into.
+            if (MutableDefinition.InitialStateId is uint initialStateId &&
+                m_stateNodesById.TryGetValue(
+                    initialStateId, out BaseObjectState? initialStateNode))
+            {
+                initialStateNode.TypeDefinitionId = ObjectTypeIds.InitialStateType;
+            }
+
+            AddAvailableStates(
+                context,
+                ServeLiveNodeIds(
+                    () => ReadLiveNodeIds(MutableDefinition.States, m_stateNodesById)),
+                StandardChildNodeId(ownerPrefix, BrowseNames.AvailableStates));
+        }
+
+        /// <summary>
+        /// Configures an <c>AvailableStates</c> / <c>AvailableTransitions</c>
+        /// variable to serve <paramref name="read"/> live — so the
+        /// published NodeIds stay correct even if a node manager
+        /// reassigns the element NodeIds when the machine is registered.
+        /// </summary>
+        private static Action<BaseDataVariableState<ArrayOf<NodeId>>> ServeLiveNodeIds(
+            Func<ArrayOf<NodeId>> read)
+        {
+            return available =>
+            {
+                available.Value = read();
+                available.OnSimpleReadValue =
+                    (ISystemContext ctx, NodeState node, ref Variant value) =>
+                    {
+                        value = Variant.From(read());
+                        return ServiceResult.Good;
+                    };
+            };
+        }
+
+        /// <summary>
+        /// The NodeId for a standard FiniteStateMachineType child the
+        /// machine materializes next to its element nodes. These live
+        /// in the machine's own namespace, unlike the element nodes,
+        /// which follow <see cref="ElementNodeIdNamespaceIndex"/>.
+        /// </summary>
+        private NodeId StandardChildNodeId(string ownerPrefix, string browseName)
+        {
+            return new NodeId(ownerPrefix + "_" + browseName, NodeId.NamespaceIndex);
+        }
+
+        /// <summary>
+        /// Projects the element nodes' current NodeIds in declaration
+        /// order.
+        /// </summary>
+        /// <typeparam name="T">The element definition kind.</typeparam>
+        private static ArrayOf<NodeId> ReadLiveNodeIds<T>(
+            List<T> elements,
+            Dictionary<uint, BaseObjectState>? nodesById)
+            where T : IStateMachineElementDefinition
+        {
+            if (nodesById == null)
+            {
+                return default;
+            }
+            var nodeIds = new NodeId[elements.Count];
+            for (int ii = 0; ii < nodeIds.Length; ii++)
+            {
+                nodeIds[ii] = nodesById[elements[ii].Id].NodeId;
+            }
+            return ArrayOf.Wrapped(nodeIds);
+        }
+
+        /// <summary>
+        /// Materializes one <c>TransitionType</c> node per declared
+        /// transition as a <c>HasComponent</c> child of this state
+        /// machine, each with a <c>TransitionNumber</c> property and the
+        /// Part 16 §4.4.11 <c>FromState</c> / <c>ToState</c> /
+        /// <c>HasEffect</c> references, and publishes them through the
+        /// optional <c>AvailableTransitions</c> variable.
+        /// </summary>
+        /// <remarks>
+        /// The counterpart to <see cref="MaterializeStateNodes"/>, and
+        /// what makes <c>LastTransition/Id</c> resolve to a node a
+        /// client can browse. <c>HasCause</c> is added later, by
+        /// <c>StateMachineBuilder.WithCause</c>, which is where the
+        /// cause id is tied to a concrete method node.
+        /// </remarks>
+        private void MaterializeTransitionNodes(ISystemContext context, string ownerPrefix)
+        {
+            if (m_transitionNodesById != null)
+            {
+                return;
+            }
+
+            m_transitionNodesById = MaterializeElementNodes(
+                MutableDefinition.Transitions,
+                ObjectTypeIds.TransitionType,
+                BrowseNames.TransitionNumber,
+                ownerPrefix);
+
+            foreach (StateMachineTransitionDefinition transition
+                in MutableDefinition.Transitions)
+            {
+                BaseObjectState transitionNode = m_transitionNodesById[transition.Id];
+
+                AddTransitionEndpointReference(
+                    transitionNode, ReferenceTypeIds.FromState, transition.FromStateId);
+                AddTransitionEndpointReference(
+                    transitionNode, ReferenceTypeIds.ToState, transition.ToStateId);
+
+                if (transition.HasEffect)
+                {
+                    // Part 16 §4.4.11: HasEffect names the event type the
+                    // transition causes the machine to report.
+                    transitionNode.AddReference(
+                        ReferenceTypeIds.HasEffect,
+                        false,
+                        ObjectTypeIds.TransitionEventType);
+                }
+            }
+
+            AddAvailableTransitions(
+                context,
+                ServeLiveNodeIds(
+                    () => ReadLiveNodeIds(MutableDefinition.Transitions, m_transitionNodesById)),
+                StandardChildNodeId(ownerPrefix, BrowseNames.AvailableTransitions));
+
+            // LastTransition is Optional on FiniteStateMachineType and
+            // is not created by default, which would leave the base
+            // class's UpdateTransitionVariable call a no-op and give
+            // clients nothing to subscribe to. Materialize it alongside
+            // the transitions it names.
+            if (MutableDefinition.Transitions.Count > 0)
+            {
+                AddLastTransition(
+                    context,
+                    StandardChildNodeId(ownerPrefix, BrowseNames.LastTransition));
+            }
+        }
+
+        /// <summary>
+        /// Materializes one element node per definition entry and
+        /// returns them keyed by numeric id.
+        /// </summary>
+        /// <typeparam name="T">The element definition kind.</typeparam>
+        private Dictionary<uint, BaseObjectState> MaterializeElementNodes<T>(
+            List<T> elements,
+            NodeId typeDefinitionId,
+            string numberBrowseName,
+            string ownerPrefix)
+            where T : IStateMachineElementDefinition
+        {
+            ushort elementNamespaceIndex = ElementNodeIdNamespaceIndex;
+            var nodesById = new Dictionary<uint, BaseObjectState>(elements.Count);
+            foreach (T element in elements)
+            {
+                nodesById[element.Id] = MaterializeElementNode(
+                    ownerPrefix,
+                    element.BrowseName,
+                    typeDefinitionId,
+                    numberBrowseName,
+                    element.Id,
+                    elementNamespaceIndex);
+            }
+            return nodesById;
+        }
+
+        /// <summary>
+        /// Creates one materialized element node — the shape shared by
+        /// states and transitions: a <c>HasComponent</c>
+        /// <see cref="BaseObjectState"/> child carrying a numeric
+        /// element property, with a NodeId derived from the machine's
+        /// own identifier and the element's browse name.
+        /// </summary>
+        private BaseObjectState MaterializeElementNode(
+            string ownerPrefix,
+            string browseName,
+            NodeId typeDefinitionId,
+            string numberBrowseName,
+            uint number,
+            ushort namespaceIndex)
+        {
+            string elementIdentifier = ownerPrefix + "_" + browseName;
+
+            var node = new BaseObjectState(this)
+            {
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                TypeDefinitionId = typeDefinitionId,
+                SymbolicName = browseName,
+                NodeId = new NodeId(elementIdentifier, namespaceIndex),
+                BrowseName = new QualifiedName(browseName, namespaceIndex),
+                DisplayName = new LocalizedText(browseName)
+            };
+
+            PropertyState numberProperty = node
+                .AddProperty<uint, VariantBuilder>(
+                    numberBrowseName,
+                    DataTypeIds.UInt32,
+                    ValueRanks.Scalar);
+            numberProperty.NodeId = new NodeId(
+                elementIdentifier + "_" + numberBrowseName,
+                namespaceIndex);
+            ((PropertyState<uint>)numberProperty).Value = number;
+
+            AddChild(node);
+            return node;
+        }
+
+        /// <summary>
+        /// The stable string prefix all of a machine's materialized
+        /// element NodeIds share — the machine's own <em>full</em>
+        /// NodeId string (namespace and id type included, so two
+        /// machines whose identifiers happen to coincide in different
+        /// namespaces cannot mint colliding element ids), or a random
+        /// prefix for a machine created without a NodeId.
+        /// </summary>
+        private static string ComposeOwnerPrefix(NodeId ownerNodeId)
+        {
+            return ownerNodeId.IsNull
+                ? Guid.NewGuid().ToString()
+                : ownerNodeId.ToString();
+        }
+
+        /// <summary>
+        /// Links a transition node to one of its endpoint states, in
+        /// both directions — so a client can inverse-browse
+        /// <c>FromState</c> / <c>ToState</c> from a state node to find
+        /// its transitions. Silently skips endpoints the definition
+        /// does not declare — <c>ValidateDefinition</c> already rejects
+        /// those, and a definition built by hand should not throw from
+        /// create.
+        /// </summary>
+        private void AddTransitionEndpointReference(
+            BaseObjectState transitionNode,
+            NodeId referenceTypeId,
+            uint stateId)
+        {
+            BaseObjectState? stateNode = FindStateNode(stateId);
+            if (stateNode != null)
+            {
+                transitionNode.AddReference(referenceTypeId, false, stateNode.NodeId);
+                stateNode.AddReference(referenceTypeId, true, transitionNode.NodeId);
+            }
+        }
+
+        /// <summary>
+        /// Records a <c>HasCause</c> reference from every transition the
+        /// cause can trigger to the method node that carries it, plus
+        /// the inverse on the method so inverse-browsing
+        /// <c>HasCause</c> from the method finds the transitions.
+        /// Invoked by <c>StateMachineBuilder.WithCause</c>, the only
+        /// place where a numeric cause id is bound to a real method.
+        /// </summary>
+        internal void AddCauseReferences(uint causeId, MethodState causeMethod)
+        {
+            if (m_transitionNodesById == null || causeMethod.NodeId.IsNull)
+            {
+                return;
+            }
+
+            NodeId methodNodeId = causeMethod.NodeId;
+            foreach (StateMachineCauseMapping mapping in MutableDefinition.CauseMappings)
+            {
+                // The ReferenceExists check keeps repeated WithCause
+                // calls for the same method from stacking duplicates.
+                if (mapping.CauseId == causeId &&
+                    m_transitionNodesById.TryGetValue(
+                        mapping.TransitionId, out BaseObjectState? transitionNode) &&
+                    !transitionNode.ReferenceExists(
+                        ReferenceTypeIds.HasCause, false, methodNodeId))
+                {
+                    transitionNode.AddReference(
+                        ReferenceTypeIds.HasCause, false, methodNodeId);
+                    causeMethod.AddReference(
+                        ReferenceTypeIds.HasCause, true, transitionNode.NodeId);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns the materialized <c>StateType</c> node for the given
+        /// state, or <c>null</c> when the states have not been
+        /// materialized or the id is unknown.
+        /// </summary>
+        internal BaseObjectState? FindStateNode(uint stateId)
+        {
+            if (m_stateNodesById != null &&
+                m_stateNodesById.TryGetValue(stateId, out BaseObjectState? node))
+            {
+                return node;
+            }
+            return null;
+        }
+
+        /// <inheritdoc/>
+        public override NodeId GetStateNodeId(uint stateId)
+        {
+            if (m_stateNodesById != null)
+            {
+                // Once nodes are materialized the map is authoritative —
+                // the numeric convention would mint a NodeId pointing
+                // at nothing (or at an unrelated standard node).
+                return FindStateNode(stateId)?.NodeId ?? NodeId.Null;
+            }
+            return base.GetStateNodeId(stateId);
+        }
+
+        /// <inheritdoc/>
+        public override uint GetStateId(NodeId stateNodeId)
+        {
+            if (m_stateNodesById != null)
+            {
+                // Authoritative once materialized — falling back to the
+                // base numeric convention would let any numeric NodeId
+                // in the element namespace resolve to a state this
+                // machine does not have. Resolved against the nodes'
+                // LIVE NodeIds (not a snapshot map), so ids reassigned
+                // by a node manager during registration keep resolving.
+                return FindElementId(m_stateNodesById, stateNodeId);
+            }
+            return base.GetStateId(stateNodeId);
+        }
+
+        /// <inheritdoc/>
+        public override NodeId GetTransitionNodeId(uint transitionId)
+        {
+            if (m_transitionNodesById != null)
+            {
+                // Authoritative once materialized — see GetStateNodeId.
+                return m_transitionNodesById.TryGetValue(
+                    transitionId, out BaseObjectState? node)
+                    ? node.NodeId
+                    : NodeId.Null;
+            }
+            return base.GetTransitionNodeId(transitionId);
+        }
+
+        /// <inheritdoc/>
+        public override uint GetTransitionId(NodeId transitionNodeId)
+        {
+            if (m_transitionNodesById != null)
+            {
+                // Authoritative once materialized — see GetStateId.
+                return FindElementId(m_transitionNodesById, transitionNodeId);
+            }
+            return base.GetTransitionId(transitionNodeId);
+        }
+
+        /// <summary>
+        /// Reverse-resolves an element NodeId by scanning the
+        /// materialized nodes' current NodeIds. Linear in the element
+        /// count (small by construction), allocation-free, and — unlike
+        /// a snapshot dictionary keyed by NodeId — correct even after a
+        /// node manager reassigns the element NodeIds.
+        /// </summary>
+        private static uint FindElementId(
+            Dictionary<uint, BaseObjectState> nodesById,
+            NodeId elementNodeId)
+        {
+            if (elementNodeId.IsNull)
+            {
+                return 0;
+            }
+            foreach (KeyValuePair<uint, BaseObjectState> entry in nodesById)
+            {
+                if (entry.Value.NodeId == elementNodeId)
+                {
+                    return entry.Key;
+                }
+            }
+            return 0;
+        }
+
+        /// <summary>
+        /// The namespace index that qualifies materialized state and
+        /// transition NodeIds. The element namespace defaults to the
+        /// OPC UA namespace (index 0), which must never host vendor
+        /// nodes — so the resolved element namespace is honoured only
+        /// when it is a real, registered non-default namespace, and the
+        /// machine's own namespace is used otherwise. Keying off the
+        /// resolved index (rather than off whether
+        /// <c>UseElementNamespace</c> was called) also keeps a machine
+        /// rebuilt from a <see cref="Definition"/> snapshot consistent
+        /// with the machine the snapshot was taken from.
+        /// </summary>
+        private ushort ElementNodeIdNamespaceIndex
+            => ElementNamespaceIndex != 0
+                ? ElementNamespaceIndex
+                : NodeId.NamespaceIndex;
+
+        /// <summary>
+        /// Derives a deterministic, per-instance NodeId for a state
+        /// machine element from the owning node's full NodeId string
+        /// and the element's name, so repeated builds produce stable
+        /// ids and two machines cannot mint colliding element ids —
+        /// not even machines with the same identifier in different
+        /// namespaces. (A machine with no NodeId gets a random prefix,
+        /// which is stable within one build but not across builds.)
+        /// </summary>
+        internal static NodeId ComposeElementNodeId(
+            NodeId ownerNodeId,
+            string elementName,
+            ushort namespaceIndex)
+        {
+            return new NodeId(
+                ComposeOwnerPrefix(ownerNodeId) + "_" + elementName,
+                namespaceIndex);
         }
 
         private void RefreshCache()

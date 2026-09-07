@@ -61,13 +61,14 @@ namespace Opc.Ua.Client
     /// and <c>m_userTokenSecurityPolicyUri</c> are nullable until <c>OpenAsync</c> /
     /// <c>ActivateSessionAsync</c> populates them; uses inside post-open code paths bang
     /// them to acknowledge the open-session invariant. A <c>!</c> on a return value of
-    /// <see cref="SecurityPolicies.GetInfo"/> (which returns nullable) is reused immediately
+    /// <see cref="ISecurityPolicyRegistry.GetInfo"/> (which returns nullable) is reused immediately
     /// thereafter and the implicit dereference would NRE on null, so the bang preserves the
     /// pre-nullable behavior of throwing a <see cref="NullReferenceException"/> if a
     /// caller-supplied policy URI is unknown.
     /// </para>
     /// </remarks>
     public partial class Session : SessionClientBatched, ISession,
+        ModelChange.INamespaceTableRefresher,
         ISnapshotRestore<SessionState>, ISnapshotRestore<SessionConfiguration>
     {
         private const int kReconnectTimeout = 15000;
@@ -117,6 +118,11 @@ namespace Opc.Ua.Client
         /// <param name="timeProvider">Optional <see cref="TimeProvider"/> used by the
         /// session for keep-alive timers and elapsed-time calculations. When
         /// <see langword="null"/>, <see cref="TimeProvider.System"/> is used.</param>
+        /// <param name="securityPolicies">Optional security policy registry the
+        /// session resolves policy URIs against. Pass the registry the
+        /// application configured through <c>AddSecurityPolicy</c>. When
+        /// <see langword="null"/>, <see cref="SecurityPolicies.Default"/> is
+        /// used.</param>
         /// <remarks>
         /// The application configuration is used to look up the certificate if none
         /// is provided. The clientCertificate must have the private key. This will
@@ -135,14 +141,16 @@ namespace Opc.Ua.Client
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default,
             ISubscriptionEngineFactory? engineFactory = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            ISecurityPolicyRegistry? securityPolicies = null)
             : this(
                   channel,
                   configuration,
                   endpoint,
                   channel.MessageContext ?? configuration.CreateMessageContext(),
                   engineFactory,
-                  timeProvider)
+                  timeProvider,
+                  securityPolicies)
         {
             // Build a single owned entry from the supplied certificate and
             // chain. The public ctor transfers ownership of both; the entry
@@ -168,7 +176,8 @@ namespace Opc.Ua.Client
                   template.ConfiguredEndpoint,
                   channel.MessageContext ?? template.m_configuration.CreateMessageContext(),
                   template.SubscriptionEngineFactory,
-                  template.m_timeProvider)
+                  template.m_timeProvider,
+                  template.m_securityPolicies)
         {
             // AddRef so the clone has its own reference; the template
             // retains its existing one. Both Sessions independently
@@ -237,7 +246,8 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             IServiceMessageContext messageContext,
             ISubscriptionEngineFactory? engineFactory = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            ISecurityPolicyRegistry? securityPolicies = null)
             : base(channel, messageContext.Telemetry)
         {
             if (messageContext == null)
@@ -246,12 +256,14 @@ namespace Opc.Ua.Client
             }
 
             m_timeProvider = timeProvider ?? TimeProvider.System;
+            m_securityPolicies = securityPolicies ?? SecurityPolicies.Default;
             m_telemetry = messageContext.Telemetry;
             m_logger = m_telemetry.CreateLogger<Session>();
 
             SessionFactory ??= new DefaultSessionFactory(m_telemetry)
             {
-                ReturnDiagnostics = ReturnDiagnostics
+                ReturnDiagnostics = ReturnDiagnostics,
+                SecurityPolicyRegistry = m_securityPolicies
             };
 
             NamespaceUris = new NamespaceTable();
@@ -375,54 +387,47 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private void ValidateServerNonce(
-            IUserIdentity identity,
             ByteString serverNonce,
-            string? securityPolicyUri,
             ByteString previousServerNonce,
-            MessageSecurityMode channelSecurityMode = MessageSecurityMode.None)
+            MessageSecurityMode channelSecurityMode = MessageSecurityMode.None,
+            bool isNewNonce = true)
         {
-            // skip validation if server nonce is not used for encryption.
-            if (string.IsNullOrEmpty(securityPolicyUri) ||
-                securityPolicyUri == SecurityPolicies.None)
+            if (channelSecurityMode == MessageSecurityMode.None)
             {
                 return;
             }
 
-            if (identity != null && identity.TokenType != UserTokenType.Anonymous)
-            {
-                // the server nonce should be validated if the token includes a secret.
-                if (!Nonce.ValidateNonce(
+            // OPC 10000-4 §5.7.2.2 (Table 15) requires the nonce to have a length
+            // between 32 and 128 bytes inclusive, independent of the SecurityPolicy
+            // and of the Client's own configured NonceLength. Enforce that fixed
+            // spec range and reject all-zero nonces here rather than validating the
+            // Server nonce against the Client's local NonceLength.
+            if (serverNonce.IsNull ||
+                serverNonce.Length < 32 ||
+                serverNonce.Length > 128 ||
+                !Nonce.ValidateNonce(
                     serverNonce.ToArray(),
-                    MessageSecurityMode.SignAndEncrypt,
-                    m_configuration.SecurityConfiguration.NonceLength))
+                    MessageSecurityMode.Sign,
+                    32))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNonceInvalid,
+                    "The server nonce must contain 32 to 128 non-zero bytes.");
+            }
+
+            lock (m_lock)
+            {
+                if ((!previousServerNonce.IsNull && serverNonce == previousServerNonce) ||
+                    (isNewNonce && m_serverNonceHistory.Contains(serverNonce)))
                 {
-                    if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
-                        m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
-                    {
-                        m_logger.WarningServerNonceHasNotCorrect();
-                    }
-                    else
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadNonceInvalid,
-                            "The server nonce has not the correct length or is not random enough.");
-                    }
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNonceInvalid,
+                        "The server reused a previously returned nonce.");
                 }
 
-                // check that new nonce is different from the previously returned server nonce.
-                if (!previousServerNonce.IsEmpty && serverNonce == previousServerNonce)
+                if (isNewNonce)
                 {
-                    if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
-                        m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
-                    {
-                        m_logger.WarningServerNonceEqualPreviouslyReturned();
-                    }
-                    else
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadNonceInvalid,
-                            "Server nonce is equal with previously returned nonce.");
-                    }
+                    m_serverNonceHistory.Add(ByteString.From(serverNonce.Span));
                 }
             }
         }
@@ -448,6 +453,18 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Disposes the session but leaves the underlying transport channel
+        /// open: the caller keeps the ownership of the channel and is
+        /// responsible for closing it. Used to honor a close that was
+        /// requested with <c>closeChannel: false</c>.
+        /// </summary>
+        internal async ValueTask DisposeKeepingChannelAsync()
+        {
+            ReleaseChannel();
+            await DisposeAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Core async dispose logic for the session.
         /// </summary>
         /// <param name="disposing">True if called from dispose, false otherwise.</param>
@@ -468,6 +485,10 @@ namespace Opc.Ua.Client
                     return;
                 }
 
+                // Before the keep-alive timer and the channel go away: a publish
+                // notification already dispatched still reads session state.
+                await BackgroundWork.DisposeAsync().ConfigureAwait(false);
+
                 try
                 {
                     await StopKeepAliveTimerAsync().ConfigureAwait(false);
@@ -481,8 +502,14 @@ namespace Opc.Ua.Client
                 {
                     if (Connected)
                     {
-                        await WaitForOrCancelOutstandingPublishRequestsAsync(default).ConfigureAwait(false);
-                        await base.CloseSessionAsync(null, DeleteSubscriptionsOnClose, default).ConfigureAwait(false);
+                        var request = new CloseSessionRequest
+                        {
+                            DeleteSubscriptions = DeleteSubscriptionsOnClose
+                        };
+                        UpdateRequestHeader(request, true, "CloseSession");
+                        await TransportChannel
+                            .SendRequestAsync(request, default)
+                            .ConfigureAwait(false);
                     }
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -855,7 +882,8 @@ namespace Opc.Ua.Client
                 if (StatusCode.IsGood(lastKeepAliveErrorStatusCode) ||
                     lastKeepAliveErrorStatusCode == StatusCodes.BadNoCommunication)
                 {
-                    TimeSpan elapsed = m_timeProvider.GetElapsedTime(m_lastKeepAliveTimestamp);
+                    TimeSpan elapsed = m_timeProvider.GetElapsedTime(
+                        Interlocked.Read(ref m_lastKeepAliveTimestamp));
 
                     // add a guard band to allow for network lag.
                     return TimeSpan.FromMilliseconds(
@@ -886,7 +914,7 @@ namespace Opc.Ua.Client
         /// to compute the elapsed time since the last keep alive without DateTime drift or
         /// 32-bit tick wrap.
         /// </summary>
-        public long LastKeepAliveTimestamp => m_lastKeepAliveTimestamp;
+        public long LastKeepAliveTimestamp => Interlocked.Read(ref m_lastKeepAliveTimestamp);
 
         /// <summary>
         /// Gets the number of outstanding publish or keep alive requests.
@@ -1071,7 +1099,7 @@ namespace Opc.Ua.Client
                 string? ephemeralKeyPolicyUri = !string.IsNullOrEmpty(m_userTokenSecurityPolicyUri)
                     ? m_userTokenSecurityPolicyUri
                     : m_endpoint.Description?.SecurityPolicyUri ?? SecurityPolicies.None;
-                SecurityPolicyInfo? ephemeralKeyPolicy = SecurityPolicies.GetInfo(ephemeralKeyPolicyUri!);
+                SecurityPolicyInfo? ephemeralKeyPolicy = m_securityPolicies.GetInfo(ephemeralKeyPolicyUri!);
                 m_eccServerEphemeralKey = Nonce.CreateNonce(
                     ephemeralKeyPolicy!,
                     sessionConfiguration.ServerEccEphemeralKey.ToArray());
@@ -1083,6 +1111,12 @@ namespace Opc.Ua.Client
 
             lock (m_lock)
             {
+                m_previousServerNonce = default;
+                m_serverNonceHistory.Clear();
+                if (!m_serverNonce.IsNull)
+                {
+                    m_serverNonceHistory.Add(ByteString.From(m_serverNonce.Span));
+                }
                 SessionCreated(
                     sessionConfiguration.SessionId,
                     sessionConfiguration.AuthenticationToken);
@@ -1409,7 +1443,7 @@ namespace Opc.Ua.Client
                 base.SessionCreated(sessionId, sessionCookie);
             }
 
-            m_logger.RevisedSessionTimeoutValueSessionTimeout(m_sessionTimeout);
+            m_logger.RevisedSessionTimeoutValueSessionTimeout(m_sessionTimeout, SessionId);
             m_logger.MaxResponseMessageSizeValueMaxMessageSize(
                 maxMessageSize,
                 m_maxRequestMessageSize);
@@ -1432,11 +1466,24 @@ namespace Opc.Ua.Client
                     m_clientNonce,
                     serverNonce);
 
+                // The nonce returned by CreateSession belongs to a brand-new
+                // server-side Session, so it is validated as a new nonce
+                // (isNewNonce defaults to true) and recorded in the reuse history.
+                // The lifetime history is only pre-seeded with the current nonce by
+                // Restore(); that seeded nonce is re-checked exclusively through the
+                // reactivation/reconnect paths, which pass isNewNonce:false and so
+                // never raise a false Bad_NonceInvalid for the nonce being reused as
+                // the activation signature input.
+                ValidateServerNonce(
+                    serverNonce,
+                    m_serverNonce,
+                    m_endpoint.Description.SecurityMode);
+
                 //  process additional header
                 ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
 
                 // create the client signature.
-                SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri);
 
                 // create the client signature.
                 byte[] dataToSign = securityPolicy!.GetClientSignatureData(
@@ -1447,7 +1494,7 @@ namespace Opc.Ua.Client
                     TransportChannel.ClientChannelCertificate,
                     m_clientNonce ?? []);
 
-                SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
+                SignatureData clientSignature = m_securityPolicies.CreateSignatureData(
                     securityPolicyUri,
                     m_instanceCertificateEntry?.Certificate!,
                     dataToSign);
@@ -1458,14 +1505,6 @@ namespace Opc.Ua.Client
                     // identityPolicy.SecurityPolicyUri is non-empty here; legacy BCL targets
                     // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
                     : identityPolicy.SecurityPolicyUri!;
-
-                // validate server nonce and security parameters for user identity.
-                ValidateServerNonce(
-                    identity,
-                    serverNonce,
-                    tokenSecurityPolicyUri,
-                    m_previousServerNonce,
-                    m_endpoint.Description.SecurityMode);
 
                 // remember the policy actually used to encrypt the user token
                 m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
@@ -1513,6 +1552,7 @@ namespace Opc.Ua.Client
                 RequestHeader? header = CreateRequestHeaderForActivateSession(tokenSecurityPolicyUri!);
 
                 // activate session.
+                ByteString activationRequestNonce = serverNonce;
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
                     header,
                     clientSignature,
@@ -1523,10 +1563,14 @@ namespace Opc.Ua.Client
                     ct)
                 .ConfigureAwait(false);
 
+                serverNonce = activateResponse.ServerNonce;
+                ValidateServerNonce(
+                    serverNonce,
+                    activationRequestNonce,
+                    m_endpoint.Description.SecurityMode);
+
                 //  process additional header
                 ProcessResponseAdditionalHeader(activateResponse.ResponseHeader, serverCertificate);
-
-                serverNonce = activateResponse.ServerNonce;
                 ArrayOf<StatusCode> certificateResults = activateResponse.Results;
                 ArrayOf<DiagnosticInfo> certificateDiagnosticInfos = activateResponse.DiagnosticInfos;
 
@@ -1534,7 +1578,8 @@ namespace Opc.Ua.Client
                 {
                     m_logger.ActivateSessionResultIndexResult(
                         i,
-                        certificateResults[i]);
+                        certificateResults[i],
+                        SessionId);
                 }
 
                 // fetch namespaces.
@@ -1545,8 +1590,9 @@ namespace Opc.Ua.Client
                     // save nonces.
                     m_sessionName = sessionName;
                     m_identity = identity;
-                    m_previousServerNonce = m_serverNonce;
+                    m_previousServerNonce = activationRequestNonce;
                     m_serverNonce = serverNonce;
+                    m_sessionClientCertificate = ByteString.From(clientCertificateData.Span);
                     m_serverCertificate?.Dispose();
                     m_serverCertificate = serverCertificate;
 
@@ -1720,7 +1766,8 @@ namespace Opc.Ua.Client
                     {
                         ClientInstanceCertificateAlgorithm = instanceAlg,
                         ClientInstanceCertificateKeySize = instanceKeySize,
-                        CurrentEphemeralKeyPolicyUri = boundEphemeralUri
+                        CurrentEphemeralKeyPolicyUri = boundEphemeralUri,
+                        SecurityPolicyRegistry = m_securityPolicies
                     };
                 }
 
@@ -1863,7 +1910,7 @@ namespace Opc.Ua.Client
             // get the identity token.
             string securityPolicyUri =
                 m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
-            SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri);
 
             // create the client signature.
             byte[] dataToSign = securityPolicy!.GetClientSignatureData(
@@ -1874,7 +1921,7 @@ namespace Opc.Ua.Client
                 TransportChannel.ClientChannelCertificate,
                 m_clientNonce ?? []);
 
-            SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
+            SignatureData clientSignature = m_securityPolicies.CreateSignatureData(
                 securityPolicyUri,
                 m_instanceCertificateEntry?.Certificate!,
                 dataToSign);
@@ -1921,11 +1968,10 @@ namespace Opc.Ua.Client
 
             // validate server nonce and security parameters for user identity.
             ValidateServerNonce(
-                identity,
                 serverNonce,
-                tokenSecurityPolicyUri,
                 m_previousServerNonce,
-                m_endpoint.Description.SecurityMode);
+                m_endpoint.Description.SecurityMode,
+                isNewNonce: false);
 
             // sign/encrypt with a disposable token handler copy to avoid mutating stored credentials.
             IUserIdentityTokenHandler identityToken = identity.TokenHandler.Copy();
@@ -1969,6 +2015,7 @@ namespace Opc.Ua.Client
             RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
                 tokenSecurityPolicyUri!);
 
+            ByteString activationRequestNonce = serverNonce;
             ActivateSessionResponse response = await ActivateSessionAsync(
                 requestHeader,
                 clientSignature,
@@ -1979,6 +2026,10 @@ namespace Opc.Ua.Client
                 ct).ConfigureAwait(false);
 
             serverNonce = response.ServerNonce;
+            ValidateServerNonce(
+                serverNonce,
+                activationRequestNonce,
+                m_endpoint.Description.SecurityMode);
 
             ProcessResponseAdditionalHeader(response.ResponseHeader, m_serverCertificate);
 
@@ -1990,7 +2041,7 @@ namespace Opc.Ua.Client
                     m_identity = identity;
                 }
 
-                m_previousServerNonce = m_serverNonce;
+                m_previousServerNonce = activationRequestNonce;
                 m_serverNonce = serverNonce;
                 m_preferredLocales = preferredLocales;
 
@@ -2090,7 +2141,9 @@ namespace Opc.Ua.Client
                                 .TransferAsync(this, subscriptionIds[ii], [], ct)
                                 .ConfigureAwait(false))
                         {
-                            m_logger.SubscriptionIdSubscriptionIdFailedReactivate(subscriptionIds[ii]);
+                            m_logger.SubscriptionIdSubscriptionIdFailedReactivate(
+                                subscriptionIds[ii],
+                                SessionId);
                             failedSubscriptions++;
                         }
                     }
@@ -2107,7 +2160,9 @@ namespace Opc.Ua.Client
                                 // no need to try for subscriptions which do not exist
                                 if (StatusCode.IsNotGood(resendResults[ii].StatusCode))
                                 {
-                                    m_logger.SubscriptionIdSubscriptionIdFailedResendData(subscriptionIds[ii]);
+                                    m_logger.SubscriptionIdSubscriptionIdFailedResendData(
+                                        subscriptionIds[ii],
+                                        SessionId);
                                 }
                             }
                         }
@@ -2119,7 +2174,8 @@ namespace Opc.Ua.Client
 
                     m_logger.SessionREACTIVATECountSubscriptionsCompletedFailCount(
                         subscriptions.Count,
-                        failedSubscriptions);
+                        failedSubscriptions,
+                        SessionId);
                 }
                 finally
                 {
@@ -2168,7 +2224,9 @@ namespace Opc.Ua.Client
 
                     if (!StatusCode.IsGood(responseHeader.ServiceResult))
                     {
-                        m_logger.TransferSubscriptionFailedServiceResult(responseHeader.ServiceResult);
+                        m_logger.TransferSubscriptionFailedServiceResult(
+                            responseHeader.ServiceResult,
+                            SessionId);
                         return false;
                     }
 
@@ -2200,20 +2258,25 @@ namespace Opc.Ua.Client
                             }
                             else
                             {
-                                m_logger.SubscriptionIdSubscriptionIdCouldNotBeMoved(subscriptionIds[ii]);
+                                m_logger.SubscriptionIdSubscriptionIdCouldNotBeMoved(
+                                    subscriptionIds[ii],
+                                    SessionId);
                                 failedSubscriptions++;
                             }
                         }
                         else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
                         {
-                            m_logger.SubscriptionIdSubscriptionIdAlreadyMemberSession(subscriptionIds[ii]);
+                            m_logger.SubscriptionIdSubscriptionIdAlreadyMemberSession(
+                                subscriptionIds[ii],
+                                SessionId);
                             failedSubscriptions++;
                         }
                         else
                         {
                             m_logger.SubscriptionIdSubscriptionIdFailedTransferStatusCodeStatusCode(
                                 subscriptionIds[ii],
-                                results[ii].StatusCode);
+                                results[ii].StatusCode,
+                                SessionId);
                             failedSubscriptions++;
                         }
                     }
@@ -2222,7 +2285,8 @@ namespace Opc.Ua.Client
                 {
                     m_logger.SessionTRANSFERASYNCCountSubscriptionsFailed(
                         ex,
-                        subscriptions.Count);
+                        subscriptions.Count,
+                        SessionId);
                     failedSubscriptions++;
                 }
                 finally
@@ -2794,10 +2858,17 @@ namespace Opc.Ua.Client
             bool managedLeaseActivated = false;
             ConfiguredEndpoint targetEndpoint = endpoint ?? m_endpoint;
 
-            if (manager != null && channel == null)
+            if (manager != null)
             {
+                if (channel != null &&
+                    RequiresSessionRecreation(channel))
+                {
+                    m_instanceCertificateEntry?.Dispose();
+                    m_instanceCertificateEntry = null;
+                }
                 await LoadInstanceCertificateAsync(targetEndpoint, ct).ConfigureAwait(false);
-                if (targetEndpoint.Description.SecurityPolicyUri != SecurityPolicies.None &&
+                if (channel == null &&
+                    targetEndpoint.Description.SecurityPolicyUri != SecurityPolicies.None &&
                     m_instanceCertificateEntry != null)
                 {
 #pragma warning disable CA2000 // ownership of the chain transfers to the channel manager, which disposes it
@@ -3307,6 +3378,17 @@ namespace Opc.Ua.Client
                 return;
             }
 
+            if (RequiresAnonymousSignSessionRecreation())
+            {
+                await RecreateInPlaceCoreAsync(
+                    endpoint: null,
+                    connection,
+                    channel,
+                    budget,
+                    ct).ConfigureAwait(false);
+                return;
+            }
+
             using Activity? activity = m_telemetry.StartActivity();
             bool resetReconnect = false;
             try
@@ -3353,7 +3435,7 @@ namespace Opc.Ua.Client
                 await LoadInstanceCertificateAsync(true, ct).ConfigureAwait(false);
 
                 string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
-                SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri);
                 EndpointDescription endpoint = m_endpoint.Description;
 
                 // check that the user identity is supported by the endpoint.
@@ -3389,11 +3471,10 @@ namespace Opc.Ua.Client
 
                 // validate server nonce and security parameters for user identity.
                 ValidateServerNonce(
-                    m_identity,
                     m_serverNonce,
-                    m_userTokenSecurityPolicyUri,
                     m_previousServerNonce,
-                    m_endpoint.Description.SecurityMode);
+                    m_endpoint.Description.SecurityMode,
+                    isNewNonce: false);
 
                 // sign/encrypt with a disposable token handler copy to avoid mutating stored credentials.
                 IUserIdentityTokenHandler identityToken = m_identity.TokenHandler.Copy();
@@ -3496,7 +3577,7 @@ namespace Opc.Ua.Client
                     clientChannelCertificate,
                     m_clientNonce ?? []);
 
-                SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
+                SignatureData clientSignature = m_securityPolicies.CreateSignatureData(
                     endpoint.SecurityPolicyUri!,
                     m_instanceCertificateEntry?.Certificate!,
                     dataToSign);
@@ -3559,6 +3640,10 @@ namespace Opc.Ua.Client
                         timeout.Token).ConfigureAwait(false);
 
                     ByteString serverNonce = activateResult.ServerNonce;
+                    ValidateServerNonce(
+                        serverNonce,
+                        m_serverNonce,
+                        m_endpoint.Description.SecurityMode);
                     ArrayOf<StatusCode> certificateResults = activateResult.Results;
                     ArrayOf<DiagnosticInfo> certificateDiagnosticInfos = activateResult.DiagnosticInfos;
 
@@ -3592,7 +3677,8 @@ namespace Opc.Ua.Client
 
                     m_logger.ACTIVATESESSIONASYNCTimedOutGoodRequestCount(
                         GoodPublishRequestCount,
-                        OutstandingRequestCount);
+                        OutstandingRequestCount,
+                        SessionId);
                     throw new ServiceResultException(error);
                 }
             }
@@ -3638,7 +3724,8 @@ namespace Opc.Ua.Client
             {
                 m_logger.RequestingRepublishAsyncSubscriptionIdSequenceNumber(
                     subscriptionId,
-                    sequenceNumber);
+                    sequenceNumber,
+                    SessionId);
 
                 // request republish.
                 RepublishResponse response = await RepublishAsync(
@@ -3653,7 +3740,8 @@ namespace Opc.Ua.Client
                 m_logger.ReceivedRepublishAsyncSubscriptionIdSequenceNumberServiceResult(
                     subscriptionId,
                     sequenceNumber,
-                    responseHeader.ServiceResult);
+                    responseHeader.ServiceResult,
+                    SessionId);
 
                 // process response.
                 classicEngine.ProcessPublishResponse(
@@ -3801,10 +3889,7 @@ namespace Opc.Ua.Client
             int keepAliveInterval = m_keepAliveInterval;
 
             m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
-            Interlocked.Exchange(
-                ref m_lastKeepAliveTime,
-                m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
-            m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
+            UpdateLastKeepAliveTime();
 
             m_serverState = ServerState.Unknown;
 
@@ -3854,10 +3939,43 @@ namespace Opc.Ua.Client
             {
                 // Any successful response proves the server is alive —
                 // reset keep-alive so we don't send a redundant read.
+                // The same response must also count as proof for the
+                // KeepAliveStopped freshness check, otherwise the timestamp goes
+                // stale while the keep alive read is perpetually deferred and the
+                // first pause in traffic reports a spurious BadNoCommunication on
+                // a perfectly healthy session.
+                // Only a latched keep alive error suppresses the refresh, not
+                // KeepAliveStopped itself: clearing the error stays the
+                // responsibility of an actual keep alive response, and
+                // OnKeepAlive has to still observe KeepAliveStopped to run its
+                // recovery branch. Guarding on KeepAliveStopped instead would
+                // also drop the evidence while the timestamp is merely stale and
+                // no error has been reported yet - the keep alive read is in
+                // flight, the worker is skipping while reconnecting, or its tick
+                // is late - which is the very case this refresh exists for.
+                if (StatusCode.IsGood(m_lastKeepAliveErrorStatusCode))
+                {
+                    UpdateLastKeepAliveTime();
+                }
+
                 ResetKeepAliveTimer();
             }
 
             base.RequestCompleted(request, response!, serviceName);
+        }
+
+        /// <summary>
+        /// Records the current time as the last point in time the server proved
+        /// it is alive. Both the wall clock time exposed by
+        /// <see cref="LastKeepAliveTime"/> and the monotonic timestamp used by
+        /// <see cref="KeepAliveStopped"/> are updated.
+        /// </summary>
+        private void UpdateLastKeepAliveTime()
+        {
+            Interlocked.Exchange(
+                ref m_lastKeepAliveTime,
+                m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
+            Interlocked.Exchange(ref m_lastKeepAliveTimestamp, m_timeProvider.GetTimestamp());
         }
 
         /// <summary>
@@ -3907,8 +4025,30 @@ namespace Opc.Ua.Client
                 await keepAliveCancellation!.CancelAsync().ConfigureAwait(false);
                 if (!m_inKeepAliveCallback)
                 {
-                    // Make sure no circular loops
-                    await keepAliveWorker.ConfigureAwait(false);
+                    // Make sure no circular loops. Bound the wait: when the
+                    // keep-alive worker is blocked inside a ReadAsync whose
+                    // underlying socket operation does not honour the CT
+                    // (observed on macOS net10.0 CI), awaiting the task
+                    // unconditionally hangs Session teardown for the full
+                    // server response timeout (up to KeepAliveInterval * 2,
+                    // typically 10 s).  Race the worker against a short
+                    // deadline; if it wins the race we surface its exception
+                    // normally; if the deadline wins we log a warning and
+                    // abandon the task — it runs on the thread pool (not a
+                    // foreground thread) so it will not prevent process exit.
+                    Task winner = await Task
+                        .WhenAny(keepAliveWorker, Task.Delay(s_keepAliveStopTimeout))
+                        .ConfigureAwait(false);
+
+                    if (winner == keepAliveWorker)
+                    {
+                        await keepAliveWorker.ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        m_logger.KeepAliveWorkerDidNotStopWithinTimeout(
+                            (int)s_keepAliveStopTimeout.TotalSeconds);
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -3925,95 +4065,107 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Returns true while the transport can still deliver a response for a
+        /// request in flight. <see cref="SessionClient.Connected"/> alone is not
+        /// a transport-health check: it only reports that a session id exists,
+        /// which is still the case while the peer is unreachable and the session
+        /// is reconnecting or its keep alive has stopped.
+        /// </summary>
+        private bool CanReceiveResponses()
+        {
+            if (!Connected || Reconnecting || KeepAliveStopped)
+            {
+                return false;
+            }
+
+            ChannelState? channelState = ManagedChannel?.State;
+
+            return channelState is null or
+                ChannelState.Ready or
+                ChannelState.TransportConnectedSessionReactivating;
+        }
+
+        /// <summary>
         /// Waits for outstanding publish requests to complete or cancels them.
         /// </summary>
         private async Task WaitForOrCancelOutstandingPublishRequestsAsync(CancellationToken ct)
         {
-            // Get outstanding publish requests
-            List<uint> publishRequestHandles = [];
+            // Snapshot the publish requests that are in flight right now. Only
+            // these are waited for: the subscription engine keeps refilling the
+            // publish pipeline, so counting the requests queued after the close
+            // started would keep the wait running to the full timeout even
+            // though everything pending at close time has long completed.
+            int outstandingCount = 0;
+            List<Task> pending = [];
             lock (m_outstandingRequests)
             {
                 foreach (AsyncRequestState state in m_outstandingRequests)
                 {
                     if (state.RequestTypeId == DataTypes.PublishRequest && !state.Defunct)
                     {
-                        publishRequestHandles.Add(state.RequestId);
+                        outstandingCount++;
+
+                        // A response can only still arrive for a request whose
+                        // task has not completed yet.
+                        if (!state.Result.IsCompleted)
+                        {
+                            pending.Add(state.Result);
+                        }
                     }
                 }
             }
 
-            if (publishRequestHandles.Count == 0)
+            if (outstandingCount == 0)
             {
                 m_logger.NoOutstandingPublishRequestsCancel();
                 return;
             }
 
-            m_logger.WaitingCountOutstandingPublishRequestsComplete(publishRequestHandles.Count);
+            m_logger.WaitingCountOutstandingPublishRequestsComplete(outstandingCount);
 
-            // Wait for outstanding requests with timeout
-            if (PublishRequestCancelDelayOnCloseSession != 0)
+            // Wait for the requests in flight, but only while a response can
+            // still arrive: without a live transport the wait would just delay
+            // the close by the full timeout.
+            if (pending.Count > 0 && CanReceiveResponses() &&
+                PublishRequestCancelDelayOnCloseSession != 0)
             {
-                int waitTimeout = PublishRequestCancelDelayOnCloseSession < 0
-                    ? int.MaxValue
-                    : PublishRequestCancelDelayOnCloseSession;
+                TimeSpan waitTimeout = PublishRequestCancelDelayOnCloseSession < 0
+                    ? Timeout.InfiniteTimeSpan
+                    : TimeSpan.FromMilliseconds(PublishRequestCancelDelayOnCloseSession);
 
-                long startTimestamp = m_timeProvider.GetTimestamp();
-                while (true)
+                using var timeoutCancellation = CancellationTokenSource
+                    .CreateLinkedTokenSource(ct);
+                Task completion = WhenAllCompletedAsync(pending);
+                Task timeout = m_timeProvider.Delay(waitTimeout, timeoutCancellation.Token);
+
+                Task completed = await Task.WhenAny(completion, timeout).ConfigureAwait(false);
+
+                await timeoutCancellation.CancelAsync().ConfigureAwait(false);
+
+                if (completed == completion)
                 {
-                    // Check if all publish requests completed
-                    int remainingCount = 0;
-                    lock (m_outstandingRequests)
-                    {
-                        foreach (AsyncRequestState state in m_outstandingRequests)
-                        {
-                            if (state.RequestTypeId == DataTypes.PublishRequest && !state.Defunct)
-                            {
-                                remainingCount++;
-                            }
-                        }
-                    }
-
-                    if (remainingCount == 0)
-                    {
-                        m_logger.AllOutstandingPublishRequestsCompleted();
-                        return;
-                    }
-
-                    // Check timeout
-                    int elapsed = (int)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds;
-                    if (elapsed >= waitTimeout)
-                    {
-                        m_logger.TimeoutWaitingCountPublishRequestsComplete(remainingCount);
-                        break;
-                    }
-
-                    // Check cancellation
-                    if (ct.IsCancellationRequested)
-                    {
-                        m_logger.CancellationRequestedWhileWaitingPublishRequests();
-                        break;
-                    }
-
-                    // Wait a bit before checking again
-                    try
-                    {
-                        await m_timeProvider.Delay(TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        m_logger.CancellationRequestedWhileWaitingPublishRequests();
-                        break;
-                    }
+                    m_logger.AllOutstandingPublishRequestsCompleted();
+                }
+                else if (ct.IsCancellationRequested)
+                {
+                    m_logger.CancellationRequestedWhileWaitingPublishRequests();
+                }
+                else
+                {
+                    m_logger.TimeoutWaitingCountPublishRequestsComplete(pending.Count);
                 }
             }
 
-            // Cancel remaining outstanding publish requests
+            // Cancel the publish requests that are still in flight. A request
+            // whose task already completed needs no Cancel round trip.
             List<uint> requestsToCancel = [];
             lock (m_outstandingRequests)
             {
                 foreach (AsyncRequestState state in m_outstandingRequests)
                 {
-                    if (state.RequestTypeId == DataTypes.PublishRequest && !state.Defunct)
+                    if (state.RequestTypeId == DataTypes.PublishRequest &&
+                        !state.Defunct &&
+                        !state.Result.IsCompleted)
                     {
                         requestsToCancel.Add(state.RequestId);
                     }
@@ -4036,15 +4188,35 @@ namespace Opc.Ua.Client
 
                         await CancelAsync(requestHeader, requestHandle, ct).ConfigureAwait(false);
 
-                        m_logger.CancelledPublishRequestHandleHandle(requestHandle);
+                        m_logger.CancelledPublishRequestHandleHandle(requestHandle, SessionId);
                     }
                     catch (Exception ex)
                     {
                         // Log but don't throw - we're closing anyway
                         m_logger.ErrorCancellingPublishRequestHandleHandle(
                             ex,
-                            requestHandle);
+                            requestHandle,
+                            SessionId);
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Completes once all of the supplied tasks completed, ignoring their
+        /// outcome. The publish completion handler reports the failures.
+        /// </summary>
+        private static async Task WhenAllCompletedAsync(List<Task> tasks)
+        {
+            foreach (Task task in tasks)
+            {
+                try
+                {
+                    await task.ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // Observed by the publish completion handler.
                 }
             }
         }
@@ -4226,7 +4398,8 @@ namespace Opc.Ua.Client
                             error,
                             Endpoint?.EndpointUrl,
                             GoodPublishRequestCount,
-                            OutstandingRequestCount);
+                            OutstandingRequestCount,
+                            SessionId);
                         throw new ServiceResultException(error);
                     }
 
@@ -4254,7 +4427,8 @@ namespace Opc.Ua.Client
                 {
                     m_logger.CouldNotSendKeepAliveRequest(
                         e.GetType().FullName,
-                        e.Message);
+                        e.Message,
+                        SessionId);
                 }
             }
         }
@@ -4274,10 +4448,7 @@ namespace Opc.Ua.Client
                 }
 
                 m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
-                Interlocked.Exchange(
-                    ref m_lastKeepAliveTime,
-                    m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
-                m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
+                UpdateLastKeepAliveTime();
 
                 lock (m_outstandingRequests)
                 {
@@ -4297,10 +4468,7 @@ namespace Opc.Ua.Client
             else
             {
                 m_lastKeepAliveErrorStatusCode = StatusCodes.Good;
-                Interlocked.Exchange(
-                    ref m_lastKeepAliveTime,
-                    m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
-                m_lastKeepAliveTimestamp = m_timeProvider.GetTimestamp();
+                UpdateLastKeepAliveTime();
             }
 
             // save server state.
@@ -4330,12 +4498,14 @@ namespace Opc.Ua.Client
             if (result.StatusCode == StatusCodes.BadNoCommunication)
             {
                 //keep alive read timed out
-                TimeSpan elapsed = m_timeProvider.GetElapsedTime(m_lastKeepAliveTimestamp);
+                TimeSpan elapsed = m_timeProvider.GetElapsedTime(
+                    Interlocked.Read(ref m_lastKeepAliveTimestamp));
                 m_logger.KEEPALIVELATEDurationMsEndpointUrl(
                     elapsed.TotalMilliseconds,
                     Endpoint?.EndpointUrl,
                     GoodPublishRequestCount,
-                    OutstandingRequestCount);
+                    OutstandingRequestCount,
+                    SessionId);
             }
 
             KeepAliveEventHandler? callback = m_KeepAlive;
@@ -4551,7 +4721,7 @@ namespace Opc.Ua.Client
             securityPolicyUri = m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
 
             // catch security policies which are not supported by core
-            if (SecurityPolicies.GetDisplayName(securityPolicyUri) == null)
+            if (m_securityPolicies.GetDisplayName(securityPolicyUri) == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
@@ -4657,11 +4827,17 @@ namespace Opc.Ua.Client
             if (serverSignature == null || serverSignature.Signature.IsEmpty)
             {
                 m_logger.ServerSignatureNullEmpty();
+                if (m_endpoint.Description.SecurityMode != MessageSecurityMode.None)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadApplicationSignatureInvalid,
+                        "The server did not sign the secured CreateSession response.");
+                }
                 return;
             }
 
             // validate the server's signature.
-            SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(m_endpoint.Description.SecurityPolicyUri!);
+            SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(m_endpoint.Description.SecurityPolicyUri!);
 
             byte[] dataToSign = securityPolicy!.GetServerSignatureData(
                 TransportChannel.ChannelThumbprint,
@@ -4671,7 +4847,7 @@ namespace Opc.Ua.Client
                 TransportChannel.ClientChannelCertificate,
                 serverNonce.ToArray());
 
-            if (!SecurityPolicies.VerifySignatureData(
+            if (!m_securityPolicies.VerifySignatureData(
                     serverSignature,
                     securityPolicy,
                     serverCertificate!,
@@ -4688,7 +4864,7 @@ namespace Opc.Ua.Client
                         TransportChannel.ClientChannelCertificate,
                         serverNonce.ToArray());
 
-                    if (!SecurityPolicies.VerifySignatureData(
+                    if (!m_securityPolicies.VerifySignatureData(
                             serverSignature,
                             securityPolicy,
                             serverCertificate!,
@@ -4939,7 +5115,7 @@ namespace Opc.Ua.Client
         {
             try
             {
-                m_logger.DeletingServerSubscriptionSubscriptionIdSubscriptionId(subscriptionId);
+                m_logger.DeletingServerSubscriptionSubscriptionIdSubscriptionId(subscriptionId, SessionId);
 
                 // delete the subscription.
                 ArrayOf<uint> subscriptionIds = [subscriptionId];
@@ -4967,7 +5143,8 @@ namespace Opc.Ua.Client
             {
                 m_logger.SessionUnexpectedErrorWhileDeletingSubscription(
                     e,
-                    subscriptionId);
+                    subscriptionId,
+                    SessionId);
             }
         }
 
@@ -5235,7 +5412,7 @@ namespace Opc.Ua.Client
 
             m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
 
-            SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+            SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
             if (securityPolicy!.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
@@ -5266,7 +5443,7 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            SecurityPolicyInfo? userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+            SecurityPolicyInfo? userTokenSecurityPolicy = m_securityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
             if (userTokenSecurityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
@@ -5377,7 +5554,7 @@ namespace Opc.Ua.Client
                         }
 
                         m_eccServerEphemeralKey = Nonce.CreateNonce(
-                            SecurityPolicies.GetInfo(m_userTokenSecurityPolicyUri!)!,
+                            m_securityPolicies.GetInfo(m_userTokenSecurityPolicyUri!)!,
                             key.PublicKey.ToArray());
 
                         m_logger.UpdatingServerEphemeralKeyKeyBytes(m_eccServerEphemeralKey.Data?.Length ?? 0);
@@ -5425,6 +5602,14 @@ namespace Opc.Ua.Client
         protected ITelemetryContext m_telemetry;
 
         /// <summary>
+        /// Owns the work the session dispatches off its own threads — publish
+        /// notifications in particular — so a faulting subscriber is reported and
+        /// nothing is still running when the session tears itself down.
+        /// </summary>
+        internal BackgroundTaskScope BackgroundWork { get; } =
+            new(nameof(Session), AmbientMessageContext.Telemetry);
+
+        /// <summary>
         /// If set to<c>true</c> then the domain in the certificate must match the endpoint used.
         /// </summary>
         protected bool m_checkDomain;
@@ -5462,6 +5647,11 @@ namespace Opc.Ua.Client
         private byte[]? m_clientNonce;
         private ByteString m_serverNonce;
         private ByteString m_previousServerNonce;
+        // OPC 10000-4 §5.7.3.1 forbids reuse of any once-used server nonce, so retain the full
+        // Session history. This state is owned by the Session and released when it is disposed;
+        // bounding or evicting entries would allow non-consecutive nonce reuse to go undetected.
+        private readonly HashSet<ByteString> m_serverNonceHistory = [];
+        private ByteString m_sessionClientCertificate;
 #pragma warning disable CA2213 // Disposed in Dispose method (m_serverCertificate?.Dispose() in cleanup path)
         private Certificate? m_serverCertificate;
 #pragma warning restore CA2213
@@ -5492,9 +5682,20 @@ namespace Opc.Ua.Client
         private readonly ArrayOf<string> m_discoveryProfileUris;
         private new readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
+        private readonly ISecurityPolicyRegistry m_securityPolicies;
 #pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly ISubscriptionEngine m_engine;
 #pragma warning restore CA2213
+
+        /// <summary>
+        /// Maximum time to wait for the keep-alive worker task to acknowledge cancellation
+        /// before abandoning it. The worker runs on the thread-pool (not a foreground thread),
+        /// so abandoning it does not prevent process exit. Five seconds is long enough for a
+        /// cancellation-aware transport to notice the token; if the underlying socket
+        /// operation ignores cancellation on the current platform the deadline fires and
+        /// teardown continues without blocking.
+        /// </summary>
+        private static readonly TimeSpan s_keepAliveStopTimeout = TimeSpan.FromSeconds(5);
 
         private sealed class AsyncRequestState : IDisposable
         {
@@ -5706,10 +5907,11 @@ namespace Opc.Ua.Client
         public static partial void CreateSessionFailedClientCertificateNULL(this ILogger logger, Exception? exception);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 8, Level = LogLevel.Information,
-            Message = "Revised session timeout value: {SessionTimeout}.")]
+            Message = "Revised session timeout value: {SessionTimeout}, SessionId={SessionId}.")]
         public static partial void RevisedSessionTimeoutValueSessionTimeout(
             this ILogger logger,
-            double sessionTimeout);
+            double sessionTimeout,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 9, Level = LogLevel.Information,
             Message = "Max response message size value: {MaxMessageSize}. Max request message size:" +
@@ -5720,8 +5922,12 @@ namespace Opc.Ua.Client
             uint maxRequestSize);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 10, Level = LogLevel.Information,
-            Message = "ActivateSession result[{Index}] = {Result}")]
-        public static partial void ActivateSessionResultIndexResult(this ILogger logger, int index, StatusCode result);
+            Message = "ActivateSession result[{Index}] = {Result}, SessionId={SessionId}")]
+        public static partial void ActivateSessionResultIndexResult(
+            this ILogger logger,
+            int index,
+            StatusCode result,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 11, Level = LogLevel.Error,
             Message = "Failed to activate session - closing.")]
@@ -5749,61 +5955,74 @@ namespace Opc.Ua.Client
             NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 15, Level = LogLevel.Error,
-            Message = "SubscriptionId {SubscriptionId} failed to reactivate.")]
+            Message = "SubscriptionId {SubscriptionId} failed to reactivate, SessionId={SessionId}.")]
         public static partial void SubscriptionIdSubscriptionIdFailedReactivate(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 16, Level = LogLevel.Error,
-            Message = "SubscriptionId {SubscriptionId} failed to resend data.")]
+            Message = "SubscriptionId {SubscriptionId} failed to resend data, SessionId={SessionId}.")]
         public static partial void SubscriptionIdSubscriptionIdFailedResendData(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 17, Level = LogLevel.Error,
             Message = "Failed to call resend data for subscriptions.")]
         public static partial void FailedCallResendDataSubscriptions(this ILogger logger, Exception? exception);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 18, Level = LogLevel.Information,
-            Message = "Session REACTIVATE of {Count} subscriptions completed. {FailCount} failed.")]
+            Message = "Session REACTIVATE of {Count} subscriptions completed. {FailCount} failed." +
+                " SessionId={SessionId}")]
         public static partial void SessionREACTIVATECountSubscriptionsCompletedFailCount(
             this ILogger logger,
             int count,
-            int failCount);
+            int failCount,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 19, Level = LogLevel.Information,
             Message = "No subscriptions. TransferSubscription skipped.")]
         public static partial void NoSubscriptionsTransferSubscriptionSkipped(this ILogger logger);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 20, Level = LogLevel.Error,
-            Message = "TransferSubscription failed: {ServiceResult}")]
-        public static partial void TransferSubscriptionFailedServiceResult(this ILogger logger, StatusCode serviceResult);
+            Message = "TransferSubscription failed: {ServiceResult}, SessionId={SessionId}")]
+        public static partial void TransferSubscriptionFailedServiceResult(
+            this ILogger logger,
+            StatusCode serviceResult,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 21, Level = LogLevel.Information,
-            Message = "SubscriptionId {SubscriptionId} could not be moved to session.")]
+            Message = "SubscriptionId {SubscriptionId} could not be moved to session {SessionId}.")]
         public static partial void SubscriptionIdSubscriptionIdCouldNotBeMoved(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 22, Level = LogLevel.Information,
-            Message = "SubscriptionId {SubscriptionId} is already member of the session.")]
+            Message = "SubscriptionId {SubscriptionId} is already member of the session {SessionId}.")]
         public static partial void SubscriptionIdSubscriptionIdAlreadyMemberSession(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 23, Level = LogLevel.Error,
-            Message = "SubscriptionId {SubscriptionId} failed to transfer, StatusCode={StatusCode}")]
+            Message = "SubscriptionId {SubscriptionId} failed to transfer, StatusCode={StatusCode}," +
+                " SessionId={SessionId}")]
         public static partial void SubscriptionIdSubscriptionIdFailedTransferStatusCodeStatusCode(
             this ILogger logger,
             uint subscriptionId,
-            StatusCode statusCode);
+            StatusCode statusCode,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 24, Level = LogLevel.Error,
-            Message = "Session TRANSFER ASYNC of {Count} subscriptions Failed due to unexpected Exception")]
+            Message = "Session TRANSFER ASYNC of {Count} subscriptions Failed due to unexpected Exception," +
+                " SessionId={SessionId}")]
         public static partial void SessionTRANSFERASYNCCountSubscriptionsFailed(
             this ILogger logger,
             Exception? exception,
-            int count);
+            int count,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 25, Level = LogLevel.Information,
             Message = "Session RECREATE-IN-PLACE {SessionId} starting...")]
@@ -5874,26 +6093,31 @@ namespace Opc.Ua.Client
             NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 39, Level = LogLevel.Warning,
-            Message = "ACTIVATE SESSION ASYNC timed out. {GoodRequestCount}/{OutstandingRequestCount}")]
+            Message = "ACTIVATE SESSION ASYNC timed out. {GoodRequestCount}/{OutstandingRequestCount}," +
+                " SessionId={SessionId}")]
         public static partial void ACTIVATESESSIONASYNCTimedOutGoodRequestCount(
             this ILogger logger,
             int goodRequestCount,
-            int outstandingRequestCount);
+            int outstandingRequestCount,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 40, Level = LogLevel.Information,
-            Message = "Requesting RepublishAsync for {SubscriptionId}-{SequenceNumber}")]
+            Message = "Requesting RepublishAsync for {SubscriptionId}-{SequenceNumber}, SessionId={SessionId}")]
         public static partial void RequestingRepublishAsyncSubscriptionIdSequenceNumber(
             this ILogger logger,
             uint subscriptionId,
-            uint sequenceNumber);
+            uint sequenceNumber,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 41, Level = LogLevel.Information,
-            Message = "Received RepublishAsync for {SubscriptionId}-{SequenceNumber}-{ServiceResult}")]
+            Message = "Received RepublishAsync for {SubscriptionId}-{SequenceNumber}-{ServiceResult}," +
+                " SessionId={SessionId}")]
         public static partial void ReceivedRepublishAsyncSubscriptionIdSequenceNumberServiceResult(
             this ILogger logger,
             uint subscriptionId,
             uint sequenceNumber,
-            StatusCode serviceResult);
+            StatusCode serviceResult,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 42, Level = LogLevel.Error,
             Message = "Transfer subscriptions failed.")]
@@ -5932,15 +6156,19 @@ namespace Opc.Ua.Client
         public static partial void CancellingCountOutstandingPublishRequests(this ILogger logger, int count);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 51, Level = LogLevel.Debug,
-            Message = "Cancelled publish request with handle {Handle}.")]
-        public static partial void CancelledPublishRequestHandleHandle(this ILogger logger, uint handle);
+            Message = "Cancelled publish request with handle {Handle}, SessionId={SessionId}.")]
+        public static partial void CancelledPublishRequestHandleHandle(
+            this ILogger logger,
+            uint handle,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 52, Level = LogLevel.Warning,
-            Message = "Error cancelling publish request with handle {Handle}.")]
+            Message = "Error cancelling publish request with handle {Handle}, SessionId={SessionId}.")]
         public static partial void ErrorCancellingPublishRequestHandleHandle(
             this ILogger logger,
             Exception? exception,
-            uint handle);
+            uint handle,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 53, Level = LogLevel.Warning,
             Message = "Session {SessionId}: KeepAlive ignored while reconnecting.")]
@@ -5950,20 +6178,22 @@ namespace Opc.Ua.Client
 
         [LoggerMessage(EventId = ClientEventIds.Session + 54, Level = LogLevel.Error,
             Message = "Keep alive read failed: {ServiceResult}, EndpointUrl={EndpointUrl}," +
-                " RequestCount={Good}/{Outstanding}")]
+                " RequestCount={Good}/{Outstanding}, SessionId={SessionId}")]
         public static partial void KeepAliveReadFailedServiceResultEndpointUrl(
             this ILogger logger,
             ServiceResult serviceResult,
             string? endpointUrl,
             int good,
-            int outstanding);
+            int outstanding,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 55, Level = LogLevel.Error,
-            Message = "Could not send keep alive request: {RequestType} {Message}")]
+            Message = "Could not send keep alive request: {RequestType} {Message}, SessionId={SessionId}")]
         public static partial void CouldNotSendKeepAliveRequest(
             this ILogger logger,
             string? requestType,
-            string message);
+            string message,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 56, Level = LogLevel.Error,
             Message = "Session: Unexpected error invoking KeepAliveCallback.")]
@@ -5972,13 +6202,15 @@ namespace Opc.Ua.Client
             Exception? exception);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 57, Level = LogLevel.Information,
-            Message = "KEEP ALIVE LATE: {Duration}ms, EndpointUrl={EndpointUrl}, RequestCount={Good}/{Outstanding}")]
+            Message = "KEEP ALIVE LATE: {Duration}ms, EndpointUrl={EndpointUrl}," +
+                " RequestCount={Good}/{Outstanding}, SessionId={SessionId}")]
         public static partial void KEEPALIVELATEDurationMsEndpointUrl(
             this ILogger logger,
             double duration,
             string? endpointUrl,
             int good,
-            int outstanding);
+            int outstanding,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 58, Level = LogLevel.Error,
             Message = "Cannot read ServerArray node: {StatusCode} - skipping.")]
@@ -5989,17 +6221,20 @@ namespace Opc.Ua.Client
         public static partial void ServerSignatureNullEmpty(this ILogger logger);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 60, Level = LogLevel.Information,
-            Message = "Deleting server subscription for SubscriptionId={SubscriptionId}")]
+            Message = "Deleting server subscription for SubscriptionId={SubscriptionId}, SessionId={SessionId}")]
         public static partial void DeletingServerSubscriptionSubscriptionIdSubscriptionId(
             this ILogger logger,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 61, Level = LogLevel.Error,
-            Message = "Session: Unexpected error while deleting subscription for SubscriptionId={SubscriptionId}.")]
+            Message = "Session: Unexpected error while deleting subscription for" +
+                " SubscriptionId={SubscriptionId}, SessionId={SessionId}.")]
         public static partial void SessionUnexpectedErrorWhileDeletingSubscription(
             this ILogger logger,
             Exception? exception,
-            uint subscriptionId);
+            uint subscriptionId,
+            NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 62, Level = LogLevel.Error,
             Message = "Unexpected error calling SessionConfigurationChanged event handler.")]
@@ -6032,6 +6267,12 @@ namespace Opc.Ua.Client
         [LoggerMessage(EventId = ClientEventIds.Session + 68, Level = LogLevel.Warning,
             Message = "Updating ServerEphemeralKey: {Key} bytes")]
         public static partial void UpdatingServerEphemeralKeyKeyBytes(this ILogger logger, int key);
+
+        [LoggerMessage(EventId = ClientEventIds.Session + 69, Level = LogLevel.Warning,
+            Message = "Keep-alive worker did not stop within {TimeoutSeconds}s after cancellation; " +
+                      "abandoning it. The worker task runs on the thread pool and will not " +
+                      "prevent process exit.")]
+        public static partial void KeepAliveWorkerDidNotStopWithinTimeout(this ILogger logger, int timeoutSeconds);
     }
 
 }
