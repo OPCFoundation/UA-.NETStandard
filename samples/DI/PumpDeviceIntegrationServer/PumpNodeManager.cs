@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -290,15 +291,15 @@ namespace Pumps
                     "The DI DeviceSet is not available.");
             }
 
-            // the NodeId the manager's factory will mint for this pump, so
-            // the duplicate check looks for the node that would actually
-            // clash rather than for one identifier format.
-            NodeId pumpNodeId = NodeIdFactory.CreateChildNodeId(
-                deviceSet.NodeId,
-                pumpBrowseName,
-                InstanceNamespaceIndex,
-                Server.NamespaceUris);
-            if (PredefinedNodes.ContainsKey(pumpNodeId))
+            // The duplicate is looked up by browse name rather than by
+            // predicting the identifier the factory would mint. A prediction
+            // only holds while the factory derives identifiers from the browse
+            // path: under Counter mode minting one consumes a counter value
+            // and returns an identifier no node can already have, so the check
+            // would pass and let a second pump of the same name through.
+            var existingDevices = new List<BaseInstanceState>();
+            deviceSet.GetChildren(SystemContext, existingDevices);
+            if (existingDevices.Any(device => device.BrowseName == pumpBrowseName))
             {
                 m_logger.DeviceSetAlreadyContains(pumpBrowseName.Name);
                 throw ServiceResultException.Create(

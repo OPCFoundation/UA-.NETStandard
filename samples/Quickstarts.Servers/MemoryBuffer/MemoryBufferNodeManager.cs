@@ -132,6 +132,14 @@ namespace MemoryBuffer
                         // link to root.
                         root.AddChild(bufferNode);
 
+                        // Register the buffer subtree. Its own properties -
+                        // StartAddress and SizeInBytes - are real nodes with
+                        // real identifiers, and a client that browses the
+                        // buffer is handed them; without this they resolve to
+                        // nothing. The virtual tags below are still ephemeral
+                        // and are not registered.
+                        AddPredefinedNode(SystemContext, bufferNode);
+
                         // save the buffers for easy look up later.
                         m_buffers[bufferNode.SymbolicName] = bufferNode;
                     }
@@ -187,57 +195,77 @@ namespace MemoryBuffer
                         return buffer;
                     }
 
-                    // tag ids have the syntax <bufferName>[<address>]
-                    if (id![^1] != ']')
+                    // Tag ids have the syntax <bufferName>[<address>]. An id
+                    // in any other shape is an ordinary registered node - the
+                    // buffer's own properties carry identifiers minted by the
+                    // manager's factory - so it falls through to the base
+                    // lookup rather than being reported as unknown.
+                    MemoryTagState? tag = ResolveVirtualTag(id!);
+
+                    if (tag != null)
                     {
-                        return null;
+                        return tag;
                     }
-
-                    int index = id.IndexOf('[', StringComparison.Ordinal);
-
-                    if (index == -1)
-                    {
-                        return null;
-                    }
-
-                    string bufferName = id[..index];
-
-                    // verify the buffer.
-                    if (!m_buffers.TryGetValue(bufferName, out buffer))
-                    {
-                        return null;
-                    }
-
-                    // validate the address.
-                    string offsetText = id.Substring(index + 1, id.Length - index - 2);
-
-                    for (int ii = 0; ii < offsetText.Length; ii++)
-                    {
-                        if (!char.IsDigit(offsetText[ii]))
-                        {
-                            return null;
-                        }
-                    }
-
-                    // check range on offset.
-                    uint offset = Convert.ToUInt32(offsetText, CultureInfo.InvariantCulture);
-
-                    if (offset >= buffer.SizeInBytes!.Value)
-                    {
-                        return null;
-                    }
-
-                    // the tags contain all of the metadata required to support the UA
-                    // operations and pointers to functions in the buffer object that
-                    // allow the value to be accessed. These tags are ephemeral and are
-                    // discarded after the operation completes. This design pattern allows
-                    // the server to expose potentially millions of UA nodes without
-                    // creating millions of objects that reside in memory.
-                    return new MemoryTagState(buffer, offset);
                 }
 
                 return base.GetManagerHandle(context, nodeId, cache);
             }
+        }
+
+        /// <summary>
+        /// Resolves an identifier of the form <c>&lt;bufferName&gt;[&lt;address&gt;]</c>
+        /// to a tag inside that buffer.
+        /// </summary>
+        /// <remarks>
+        /// The tags carry all the metadata the UA operations need plus
+        /// pointers into the buffer object, and are discarded once the
+        /// operation completes. That is what lets the server expose millions
+        /// of nodes without holding millions of objects in memory.
+        /// </remarks>
+        /// <param name="id">The string identifier to parse.</param>
+        /// <returns>The tag, or <c>null</c> when the id is not a tag id.</returns>
+        private MemoryTagState? ResolveVirtualTag(string id)
+        {
+            if (id.Length == 0 || id[^1] != ']')
+            {
+                return null;
+            }
+
+            int index = id.IndexOf('[', StringComparison.Ordinal);
+
+            if (index == -1)
+            {
+                return null;
+            }
+
+            if (!m_buffers.TryGetValue(id[..index], out MemoryBufferState? buffer))
+            {
+                return null;
+            }
+
+            string offsetText = id.Substring(index + 1, id.Length - index - 2);
+
+            for (int ii = 0; ii < offsetText.Length; ii++)
+            {
+                if (!char.IsDigit(offsetText[ii]))
+                {
+                    return null;
+                }
+            }
+
+            if (offsetText.Length == 0)
+            {
+                return null;
+            }
+
+            uint offset = Convert.ToUInt32(offsetText, CultureInfo.InvariantCulture);
+
+            if (offset >= buffer.SizeInBytes!.Value)
+            {
+                return null;
+            }
+
+            return new MemoryTagState(buffer, offset);
         }
 
         /// <summary>

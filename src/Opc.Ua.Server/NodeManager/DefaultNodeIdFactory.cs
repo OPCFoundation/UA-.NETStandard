@@ -169,16 +169,45 @@ namespace Opc.Ua.Server
             NodeIdAssignmentMode mode = NodeIdAssignmentMode.Numeric,
             ushort defaultNamespaceIndex = 0,
             bool? detectCollisions = null)
+            : this(
+                mode,
+                defaultNamespaceIndex,
+                detectCollisions ?? DetectCollisionsByDefault,
+                new ConcurrentDictionary<ushort, AllocationState>())
+        {
+        }
+
+        /// <summary>
+        /// Creates a view of an existing factory that keeps its allocation
+        /// state.
+        /// </summary>
+        /// <remarks>
+        /// The <c>With…</c> methods route here so that every view derived from
+        /// one factory shares one counter and one record of minted
+        /// identifiers per namespace. Rebuilding them per view would let two
+        /// NodeManagers that own the same namespace hand out the same counter
+        /// values - their seeds come from the clock and would be created
+        /// moments apart - and would hide a collision between identifiers
+        /// minted through different views.
+        /// </remarks>
+        private DefaultNodeIdFactory(
+            NodeIdAssignmentMode mode,
+            ushort defaultNamespaceIndex,
+            bool detectCollisionsRequested,
+            ConcurrentDictionary<ushort, AllocationState> allocationStates)
         {
             Mode = mode;
             DefaultNamespaceIndex = defaultNamespaceIndex;
-            DetectsCollisions = (detectCollisions ?? DetectCollisionsByDefault) && CanCollide(mode);
 
-            // only a factory that is actually watching pays for the record,
-            // and only the truncating modes can collide at all.
-            m_mintedIdentifiers = DetectsCollisions
-                ? new ConcurrentDictionary<NodeId, ulong>()
-                : null;
+            // the requested policy is kept as asked rather than as it applies
+            // to this mode, so that WithMode(String).WithMode(Numeric) comes
+            // back watching rather than silently giving the answer up on the
+            // way through a mode that cannot collide.
+            m_detectCollisionsRequested = detectCollisionsRequested;
+            m_allocationStates = allocationStates;
+            m_allocation = allocationStates.GetOrAdd(
+                defaultNamespaceIndex,
+                static _ => new AllocationState());
         }
 
         /// <summary>
@@ -241,7 +270,12 @@ namespace Opc.Ua.Server
         public ushort DefaultNamespaceIndex { get; }
 
         /// <inheritdoc/>
-        public bool DetectsCollisions { get; }
+        /// <remarks>
+        /// A mode that cannot collide never watches, however the factory was
+        /// configured. The configured answer itself survives a trip through
+        /// such a mode, so switching back turns watching on again.
+        /// </remarks>
+        public bool DetectsCollisions => m_detectCollisionsRequested && CanCollide(Mode);
 
         /// <summary>
         /// Returns a factory with the same <see cref="Mode"/> that mints into
@@ -266,7 +300,11 @@ namespace Opc.Ua.Server
                 return this;
             }
 
-            return new DefaultNodeIdFactory(Mode, defaultNamespaceIndex, DetectsCollisions);
+            return new DefaultNodeIdFactory(
+                Mode,
+                defaultNamespaceIndex,
+                m_detectCollisionsRequested,
+                m_allocationStates);
         }
 
         /// <inheritdoc/>
@@ -302,7 +340,11 @@ namespace Opc.Ua.Server
                 return this;
             }
 
-            return new DefaultNodeIdFactory(mode, DefaultNamespaceIndex, DetectsCollisions);
+            return new DefaultNodeIdFactory(
+                mode,
+                DefaultNamespaceIndex,
+                m_detectCollisionsRequested,
+                m_allocationStates);
         }
 
         /// <summary>
@@ -319,12 +361,16 @@ namespace Opc.Ua.Server
         /// </returns>
         public virtual DefaultNodeIdFactory WithCollisionDetection(bool detectCollisions)
         {
-            if (detectCollisions == DetectsCollisions)
+            if (detectCollisions == m_detectCollisionsRequested)
             {
                 return this;
             }
 
-            return new DefaultNodeIdFactory(Mode, DefaultNamespaceIndex, detectCollisions);
+            return new DefaultNodeIdFactory(
+                Mode,
+                DefaultNamespaceIndex,
+                detectCollisions,
+                m_allocationStates);
         }
 
         /// <inheritdoc/>
@@ -437,7 +483,7 @@ namespace Opc.Ua.Server
             for (int attempt = 0; attempt < kMaxCounterAttempts; attempt++)
             {
                 var nodeId = new NodeId(
-                    Utils.IncrementIdentifier(ref m_lastUsedId),
+                    Utils.IncrementIdentifier(ref m_allocation.LastUsedId),
                     DefaultNamespaceIndex);
 
                 // Under Numeric the counter mints into the same space the
@@ -446,8 +492,8 @@ namespace Opc.Ua.Server
                 // derived from a browse path. The counter is the side with
                 // freedom to move, so it steps over the clash instead of
                 // reporting it.
-                if (m_mintedIdentifiers is null ||
-                    m_mintedIdentifiers.TryAdd(nodeId, kCounterWitness))
+                if (!DetectsCollisions ||
+                    m_allocation.MintedIdentifiers.TryAdd(nodeId, kCounterWitness))
                 {
                     return nodeId;
                 }
@@ -574,6 +620,22 @@ namespace Opc.Ua.Server
         {
             if (Mode == NodeIdAssignmentMode.String)
             {
+                // A canonical path is longer than the parent identifier it
+                // encodes, so a parent close to the limit expands past it.
+                // Publishing the NodeId anyway would put a non-conformant
+                // identifier into the address space, which a client is
+                // entitled to reject.
+                if (canonicalPath.Length > kMaxStringIdentifierLength)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "The canonical path is {0} characters, over the {1} the OPC UA " +
+                        "String identifier allows (Part 3, 8.2.4). Select a hashing mode " +
+                        "- Numeric, Guid or Opaque - whose identifiers are a fixed size.",
+                        canonicalPath.Length,
+                        kMaxStringIdentifierLength);
+                }
+
                 return new NodeId(ToStringValue(canonicalPath), namespaceIndex);
             }
 
@@ -625,14 +687,14 @@ namespace Opc.Ua.Server
             ReadOnlySpan<byte> hash,
             ReadOnlySpan<char> canonicalPath)
         {
-            if (m_mintedIdentifiers is null)
+            if (!DetectsCollisions)
             {
                 return;
             }
 
             ulong witness = ToWitness(hash);
 
-            if (m_mintedIdentifiers.GetOrAdd(nodeId, witness) == witness)
+            if (m_allocation.MintedIdentifiers.GetOrAdd(nodeId, witness) == witness)
             {
                 return;
             }
@@ -661,15 +723,6 @@ namespace Opc.Ua.Server
         /// the separation structural rather than a matter of seeding luck.
         /// </remarks>
         private const uint kCounterBase = 0x40000000;
-
-        /// <summary>
-        /// Counter behind <see cref="NodeIdAssignmentMode.Counter"/> and the
-        /// fallback for nodes with no derivable browse path. The clock seeds
-        /// the offset so a restart is unlikely to reissue identifiers a
-        /// client still holds.
-        /// </summary>
-        private uint m_lastUsedId
-            = kCounterBase | ((uint)DateTime.UtcNow.Ticks & 0x0FFFFFFF);
 
         /// <summary>
         /// Builds the canonical path that every identifier type is derived
@@ -1177,6 +1230,11 @@ namespace Opc.Ua.Server
         private const int HashLength = 32;
 
         /// <summary>
+        /// The longest String identifier OPC UA allows, from Part 3, 8.2.4.
+        /// </summary>
+        private const int kMaxStringIdentifierLength = 4096;
+
+        /// <summary>
         /// The witness recorded for a counter identifier, which has no browse
         /// path behind it.
         /// </summary>
@@ -1236,7 +1294,45 @@ namespace Opc.Ua.Server
         /// path is exactly the collision this catches.
         /// </para>
         /// </remarks>
-        private readonly ConcurrentDictionary<NodeId, ulong>? m_mintedIdentifiers;
+        private readonly ConcurrentDictionary<ushort, AllocationState> m_allocationStates;
+
+        /// <summary>
+        /// The allocation state for <see cref="DefaultNamespaceIndex"/>.
+        /// </summary>
+        private readonly AllocationState m_allocation;
+
+        /// <summary>
+        /// The collision policy as configured, before the mode is consulted.
+        /// </summary>
+        private readonly bool m_detectCollisionsRequested;
+
+        /// <summary>
+        /// The identifiers handed out for one namespace, and the counter that
+        /// mints the sequential ones.
+        /// </summary>
+        /// <remarks>
+        /// Held per namespace and shared by every view derived from one
+        /// factory, so that two NodeManagers owning the same namespace draw
+        /// from one counter and are checked against each other. Identifiers in
+        /// different namespaces cannot collide, so they get separate state.
+        /// </remarks>
+        private sealed class AllocationState
+        {
+            /// <summary>
+            /// Counter behind <see cref="NodeIdAssignmentMode.Counter"/> and
+            /// the fallback for nodes with no derivable browse path. The clock
+            /// seeds the offset so a restart is unlikely to reissue
+            /// identifiers a client still holds.
+            /// </summary>
+            public uint LastUsedId
+                = kCounterBase | ((uint)DateTime.UtcNow.Ticks & 0x0FFFFFFF);
+
+            /// <summary>
+            /// The identifiers minted so far, each with a witness of the
+            /// browse path it came from.
+            /// </summary>
+            public readonly ConcurrentDictionary<NodeId, ulong> MintedIdentifiers = new();
+        }
 
         /// <summary>
         /// Writes a canonical path into a span, or measures one without a

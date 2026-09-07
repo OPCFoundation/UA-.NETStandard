@@ -530,7 +530,7 @@ namespace Opc.Ua.Di.Tests
                     nodesToBrowse,
                     CancellationToken.None).ConfigureAwait(false);
 
-                NodeId? match = null;
+                NodeId match = NodeId.Null;
                 ArrayOf<ReferenceDescription> references = response.Results[0].References;
                 for (int ii = 0; ii < references.Count; ii++)
                 {
@@ -545,11 +545,13 @@ namespace Opc.Ua.Di.Tests
                     }
                 }
 
+                // NodeId carries its own null sentinel, so the wrapper would
+                // only prove a NodeId was assigned, not that it names a node.
                 Assert.That(
-                    match,
-                    Is.Not.Null,
+                    match.IsNull,
+                    Is.False,
                     string.Join("/", browseNames) + " could not be resolved at " + browseName + ".");
-                current = match!.Value;
+                current = match;
             }
 
             return current;

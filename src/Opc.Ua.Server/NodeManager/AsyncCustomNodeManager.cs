@@ -1709,14 +1709,18 @@ namespace Opc.Ua.Server
 
             // Resolve target NodeId: honour caller-supplied NodeId when present and
             // valid, otherwise allocate a fresh one from this manager's namespace.
-            // Some derived classes override `New(...)` to produce hierarchical
-            // child identifiers from a parent; for service-set AddNodes the
-            // instance has no parent yet, so we fall back to the base
-            // identifier allocator to guarantee a non-null NodeId.
+            //
+            // The instance is not linked to its parent yet - that happens after
+            // the duplicate-BrowseName check below - so asking a factory to
+            // derive an identifier from the node alone would hand two
+            // same-named children of different parents the same one, and the
+            // second registration would replace the first. The parent identity
+            // is therefore passed explicitly, which also covers a parent owned
+            // by another NodeManager.
             NodeId newNodeId;
             if (item.RequestedNewNodeId.IsNull)
             {
-                newNodeId = New(systemContext, instance);
+                newNodeId = AllocateNodeIdForAddNodes(systemContext, instance, parentNodeId);
                 if (newNodeId.IsNull)
                 {
                     newNodeId = m_nodeIdFactory.NextCounterNodeId();
@@ -2099,6 +2103,40 @@ namespace Opc.Ua.Server
         /// Thrown when the supplied attributes are not valid for the node class
         /// or when the node class is not supported.
         /// </exception>
+        /// <summary>
+        /// Mints the NodeId for a node added through the AddNodes service.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Derives it from the parent and the browse name, so that two nodes
+        /// added under different parents with the same browse name stay
+        /// distinct. Two added under the *same* parent with the same browse
+        /// name would share one, and are rejected by the duplicate browse-name
+        /// check rather than reaching registration.
+        /// </para>
+        /// <para>
+        /// A NodeManager that assigns identifiers by a scheme of its own
+        /// overrides this alongside <see cref="New"/>. Note that
+        /// <see cref="AllowNodeManagement"/> is false by default, so this runs
+        /// only for a NodeManager that opted into the service set.
+        /// </para>
+        /// </remarks>
+        /// <param name="context">The operation context.</param>
+        /// <param name="instance">The node being added, not yet parented.</param>
+        /// <param name="parentNodeId">The NodeId of the node's parent.</param>
+        /// <returns>The NodeId to give the node.</returns>
+        protected virtual NodeId AllocateNodeIdForAddNodes(
+            ServerSystemContext context,
+            BaseInstanceState instance,
+            NodeId parentNodeId)
+        {
+            return m_nodeIdFactory.CreateChildNodeId(
+                parentNodeId,
+                instance.BrowseName,
+                DefaultNamespaceIndex,
+                context.NamespaceUris);
+        }
+
         private static BaseInstanceState CreateInstanceForAddNodes(
             AddNodesItem item,
             NodeId typeDefinitionId)

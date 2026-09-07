@@ -512,6 +512,103 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void ViewsOfOneFactoryShareOneCounterPerNamespace()
+        {
+            var registered = new DefaultNodeIdFactory(
+                NodeIdAssignmentMode.Counter,
+                detectCollisions: false);
+
+            // what two NodeManagers owning the same namespace get: each
+            // rebases the registered factory for itself.
+            DefaultNodeIdFactory first = registered
+                .WithDefaultNamespaceIndex(kNamespaceIndex);
+            DefaultNodeIdFactory second = registered
+                .WithDefaultNamespaceIndex(kNamespaceIndex);
+
+            var minted = new HashSet<NodeId>();
+            for (int ii = 0; ii < 50; ii++)
+            {
+                // Separate counters would overlap rather than merely differ:
+                // both views seed from the clock and are created moments
+                // apart, so they would hand out the same values.
+                Assert.That(minted.Add(first.NextCounterNodeId()), Is.True);
+                Assert.That(minted.Add(second.NextCounterNodeId()), Is.True);
+            }
+
+            // identifiers in different namespaces cannot collide, so that
+            // namespace keeps its own counter rather than sharing this one.
+            DefaultNodeIdFactory other = registered
+                .WithDefaultNamespaceIndex(kOtherNamespaceIndex);
+            Assert.That(
+                other.NextCounterNodeId().NamespaceIndex,
+                Is.EqualTo(kOtherNamespaceIndex));
+        }
+
+        [Test]
+        public void ViewsOfOneFactoryAreCheckedAgainstEachOther()
+        {
+            var registered = new DefaultNodeIdFactory(
+                NodeIdAssignmentMode.Numeric,
+                detectCollisions: true);
+
+            DefaultNodeIdFactory first = registered
+                .WithDefaultNamespaceIndex(kNamespaceIndex);
+            DefaultNodeIdFactory second = registered
+                .WithDefaultNamespaceIndex(kNamespaceIndex);
+
+            var parent = new NodeId("Root", kNamespaceIndex);
+            NodeId minted = first.New(m_context, CreateChild(parent, "Child"));
+
+            // the same path through the other view is a re-mint, not a
+            // collision, and gives the same answer.
+            Assert.That(second.New(m_context, CreateChild(parent, "Child")), Is.EqualTo(minted));
+        }
+
+        [Test]
+        public void TheCollisionPolicySurvivesAModeThatCannotCollide()
+        {
+            var factory = new DefaultNodeIdFactory(
+                NodeIdAssignmentMode.Numeric,
+                kNamespaceIndex,
+                detectCollisions: true);
+
+            Assert.Multiple(() =>
+            {
+                // String cannot collide, so it does not watch...
+                Assert.That(
+                    factory.WithMode(NodeIdAssignmentMode.String).DetectsCollisions,
+                    Is.False);
+
+                // ...but the answer was configured, not derived, so coming
+                // back to a mode that can collide restores it.
+                Assert.That(
+                    factory.WithMode(NodeIdAssignmentMode.String)
+                        .WithMode(NodeIdAssignmentMode.Numeric)
+                        .DetectsCollisions,
+                    Is.True);
+            });
+        }
+
+        [Test]
+        public void AStringIdentifierOverTheSpecLimitIsRefused()
+        {
+            var factory = new DefaultNodeIdFactory(NodeIdAssignmentMode.String, kNamespaceIndex);
+
+            // the canonical path is longer than the parent identifier it
+            // encodes, so a parent near the limit expands past it.
+            var parent = new NodeId(new string('p', 4096), kNamespaceIndex);
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => factory.CreateChildNodeId(
+                    parent,
+                    new QualifiedName("C", kNamespaceIndex),
+                    kNamespaceIndex,
+                    m_namespaceUris));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+        }
+
+        [Test]
         public void TheDefaultModeIsNumeric()
         {
             Assert.That(new DefaultNodeIdFactory().Mode, Is.EqualTo(NodeIdAssignmentMode.Numeric));
