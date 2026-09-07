@@ -160,7 +160,7 @@ namespace SiteComposition
             // reference to the Objects folder into externalReferences.
             await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
             await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
-            builder.Seal();
+            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
 
             m_log.SiteAddressSpaceReady(
                 m_options.PumpServerEndpointUrl ?? "(none)",

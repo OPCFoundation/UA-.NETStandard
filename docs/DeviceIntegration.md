@@ -502,7 +502,8 @@ type. The runner invokes each matching delegate **after**:
 - the manager's `CreateAddressSpaceAsync` base has wired up the type
   tree and root notifiers;
 - (for `FluentNodeManagerBase` subclasses) the user's
-  `Configure(builder)` + `builder.Seal()` is complete.
+  `ConfigureAsync(builder, ct)` / `Configure(builder)` wiring and the
+  subsequent `await builder.SealAsync(ct)` are complete.
 
 Configurator-type matching follows `Type.IsAssignableFrom`. A
 delegate targeting `DiNodeManager` runs against every Device Integration-derived
@@ -558,14 +559,21 @@ The runner is injected into the manager via the factory. The base
 `CreateAddressSpaceAsync` for every concrete subclass:
 
 - The base `DiNodeManager.CreateAddressSpaceAsync` calls
-  `base.CreateAddressSpaceAsync` → `OnAddressSpaceReadyAsync` →
-  `PostSetupRunner.RunAsync(this, ct)` in that order.
+  `base.CreateAddressSpaceAsync` → `CreateFluentBuilder(...)` →
+  `ConfigureAsync(builder, ct)` → `RegisterAuthoredNodesAsync` →
+  `CompleteConfigureAsync` → `PostSetupRunner.RunAsync(this, ct)` →
+  `builder.SealAsync(ct)` in that order. Sealing comes last because the
+  fluent registries (simulations, event sources) are owned by the manager,
+  not by a single builder, and sealing starts them — a post-setup
+  configurator must still be able to register a simulation loop.
 - Subclasses (e.g. `PumpNodeManager`) override the
-  `protected virtual ValueTask OnAddressSpaceReadyAsync(...)` hook to
-  materialise instances + drive the fluent `INodeManagerBuilder`.
-  The runner fires automatically once `OnAddressSpaceReadyAsync`
-  returns — subclasses do not need to call `PostSetupRunner.RunAsync`
-  themselves.
+  `protected virtual ValueTask ConfigureAsync(INodeManagerBuilder, CancellationToken)`
+  hook to materialise instances and drive the fluent
+  `INodeManagerBuilder`. Because the hook is awaited, asynchronous
+  setup and synchronous wiring live in one method; the base class owns
+  node registration and sealing. The runner fires automatically once
+  the builder is sealed — subclasses do not need to call
+  `PostSetupRunner.RunAsync` themselves.
 
 ### Runtime conformance advertisement
 

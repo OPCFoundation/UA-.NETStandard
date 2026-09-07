@@ -742,7 +742,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
                 NodeManagerBuilder builder = CreateFluentBuilder(namespaceIndex);
                 configure(builder);
-                builder.Seal();
+                await builder.SealAsync();
             }
 
             private static ApplicationConfiguration CreateConfiguration()

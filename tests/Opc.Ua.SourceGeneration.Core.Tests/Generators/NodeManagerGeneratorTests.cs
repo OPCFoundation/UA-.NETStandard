@@ -96,24 +96,42 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(mgr, Does.Contain("global::Opc.Ua.Server.Fluent.NodeManagerBuilder"));
             Assert.That(mgr, Does.Contain("global::Opc.Ua.Server.Fluent.INodeManagerBuilder"));
 
-            // The Configure/CompleteConfigure/Seal sequence inside
-            // CreateAddressSpace must be wired before any NotifyNodeAdded
-            // replays. Order is part of the contract and is exercised by
-            // the hybrid integration test. CompleteConfigureAsync re-runs
-            // the reverse-reference pass so configure-created nodes publish
+            // The ConfigureAsync/Configure/CompleteConfigure/SealAsync
+            // sequence inside CreateAddressSpace must be wired before any
+            // NotifyNodeAdded replays. Order is part of the contract and is
+            // exercised by the hybrid integration test. ConfigureAsync is the
+            // awaitable wiring seam and runs first so the nodes it
+            // materialises exist before the synchronous Configure partial(s)
+            // wire callbacks against them. CompleteConfigureAsync re-runs the
+            // reverse-reference pass so configure-created nodes publish
             // references to nodes owned by other managers (issue #4329).
+            // SealAsync completes the registrations that Configure could not
+            // await (root notifiers) and starts the simulation loops.
+            int idxConfigureAsync = mgr.IndexOf(
+                "await ConfigureAsync(__m_builder, cancellationToken)",
+                StringComparison.Ordinal);
             int idxConfigure = mgr.IndexOf("Configure(__m_builder)", StringComparison.Ordinal);
             int idxComplete = mgr.IndexOf(
                 "await CompleteConfigureAsync(externalReferences, cancellationToken)",
                 StringComparison.Ordinal);
-            int idxSeal = mgr.IndexOf(".Seal()", StringComparison.Ordinal);
+            int idxSeal = mgr.IndexOf(
+                "await __m_builder.SealAsync(cancellationToken)",
+                StringComparison.Ordinal);
             int idxNotify = mgr.IndexOf("NotifyNodeAdded(", StringComparison.Ordinal);
-            Assert.That(idxConfigure, Is.GreaterThan(0), "Configure call must be emitted");
+            Assert.That(idxConfigureAsync, Is.GreaterThan(0),
+                "ConfigureAsync call must be emitted");
+            Assert.That(idxConfigure, Is.GreaterThan(idxConfigureAsync),
+                "Configure must run after ConfigureAsync");
             Assert.That(idxComplete, Is.GreaterThan(idxConfigure),
                 "CompleteConfigureAsync must run after Configure");
             Assert.That(idxSeal, Is.GreaterThan(idxComplete),
-                "Seal must run after CompleteConfigureAsync");
-            Assert.That(idxNotify, Is.GreaterThan(idxSeal), "NotifyNodeAdded replay must run after Seal");
+                "SealAsync must run after CompleteConfigureAsync");
+            Assert.That(idxNotify, Is.GreaterThan(idxSeal),
+                "NotifyNodeAdded replay must run after SealAsync");
+            Assert.That(
+                mgr,
+                Does.Not.Contain("__m_builder.Seal()"),
+                "Sealing must go through the awaited SealAsync path");
         }
 
         [Test]

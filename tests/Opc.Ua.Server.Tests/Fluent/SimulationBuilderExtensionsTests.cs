@@ -87,7 +87,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             int ticks = 0;
             h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
                 .OnTick((ctx, dt) => Interlocked.Increment(ref ticks));
-            h.Builder.Seal();
+            await h.Builder.SealAsync();
 
             await WaitForAsync(
                 () => Volatile.Read(ref ticks) >= 2,
@@ -108,7 +108,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     await Task.Delay(5, ct).ConfigureAwait(false);
                     Interlocked.Increment(ref completed);
                 });
-            h.Builder.Seal();
+            await h.Builder.SealAsync();
 
             await WaitForAsync(() => Volatile.Read(ref started) >= 2).ConfigureAwait(false);
             await WaitForAsync(() => Volatile.Read(ref completed) >= 2).ConfigureAwait(false);
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                         throw new InvalidOperationException("boom");
                     }
                 });
-            h.Builder.Seal();
+            await h.Builder.SealAsync();
 
             await WaitForAsync(
                 () => Volatile.Read(ref ticks) >= 3,
@@ -137,11 +137,11 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void OnTickAfterSealRejected()
+        public async Task OnTickAfterSealRejected()
         {
             using var h = SimulationHarness.Create();
             ISimulationBuilder sb = h.Builder.Simulation(TimeSpan.FromMilliseconds(100));
-            h.Builder.Seal();
+            await h.Builder.SealAsync();
 
             // Adding a NEW simulation should be rejected after Seal/Start.
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
@@ -150,13 +150,13 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void DisposeStopsRunningLoops()
+        public async Task DisposeStopsRunningLoops()
         {
             var h = SimulationHarness.Create();
             int ticks = 0;
             h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
                 .OnTick((ctx, dt) => Interlocked.Increment(ref ticks));
-            h.Builder.Seal();
+            await h.Builder.SealAsync();
 
             Thread.Sleep(75);
             h.Dispose();
@@ -178,7 +178,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
                 .OnTick((ctx, dt) => Interlocked.Increment(ref handlerA))
                 .OnTick((ctx, dt) => Interlocked.Increment(ref handlerB));
-            h.Builder.Seal();
+            await h.Builder.SealAsync();
 
             await WaitForAsync(
                 () => Volatile.Read(ref handlerA) >= 2 && Volatile.Read(ref handlerB) >= 2)

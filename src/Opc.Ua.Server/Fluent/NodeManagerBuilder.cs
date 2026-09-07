@@ -45,9 +45,9 @@ namespace Opc.Ua.Server.Fluent
     /// All wiring happens during the user's <c>Configure</c> delegate, which
     /// runs once per manager activation immediately after
     /// <c>LoadPredefinedNodes</c> populates the address space. After
-    /// <see cref="Seal"/> is called the builder rejects further <c>Node(...)</c>
-    /// calls; the dispatcher remains live and fields per-node lookups during
-    /// runtime.
+    /// <see cref="SealAsync"/> is awaited the builder rejects further
+    /// <c>Node(...)</c> calls; the dispatcher remains live and fields per-node
+    /// lookups during runtime.
     /// </para>
     /// <para>
     /// Threading: <c>Configure</c> runs synchronously on the thread that
@@ -127,13 +127,38 @@ namespace Opc.Ua.Server.Fluent
 
         /// <summary>
         /// Marks the builder as no longer accepting new <c>Node(...)</c>
-        /// lookups. Existing per-node builders remain functional but the
-        /// generator-emitted manager calls this once <c>Configure</c>
-        /// returns to fail-fast on stray late wiring attempts.
+        /// lookups and runs the asynchronous completion work that the
+        /// wiring staged during <c>Configure</c>. Existing per-node
+        /// builders remain functional but the generator-emitted manager
+        /// awaits this once <c>Configure</c> returns to fail-fast on stray
+        /// late wiring attempts.
         /// </summary>
-        public void Seal()
+        /// <remarks>
+        /// <para>
+        /// Sealing is the single point where registrations that could not
+        /// complete inside the synchronous <c>Configure</c> pass get their
+        /// turn to await: root-notifier registration for
+        /// <c>Publish(...)</c> sources, and the simulation loops. Because
+        /// every seal site awaits this method, a registration is free to
+        /// stage asynchronous activation work rather than blocking on it
+        /// from <c>Configure</c>.
+        /// </para>
+        /// <para>
+        /// The method is idempotent — sealing an already-sealed builder
+        /// only drains work that was staged in the meantime.
+        /// </para>
+        /// </remarks>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async ValueTask SealAsync(CancellationToken cancellationToken = default)
         {
             m_sealed = true;
+
+            if (EventSources != null)
+            {
+                await EventSources.CompleteRegistrationsAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
             Simulations?.Start();
         }
 

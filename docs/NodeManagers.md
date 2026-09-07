@@ -783,20 +783,30 @@ namespace (legacy MSBuild mode) or the user class's namespace
     `new NodeStateCollection().Add{Ns}(context)` wrapped in a
     `ValueTask<NodeStateCollection>`.
   - `CreateAddressSpaceAsync` `await`s `base.CreateAddressSpaceAsync`,
-    then builds a fluent `INodeManagerBuilder`, invokes
-    `Configure(builder)`, `await`s `CompleteConfigureAsync` (re-running
-    the reverse-reference pass so nodes created inside `Configure`
-    publish their references to nodes owned by other managers — e.g. an
-    inverse `Organizes` to the ns=0 `Objects` folder — into the
-    `externalReferences` dictionary), calls `builder.Seal()`, and
-    replays `NotifyNodeAdded` for every predefined node so per-node
-    lifecycle hooks fire deterministically.
+    then builds a fluent `INodeManagerBuilder`, `await`s
+    `ConfigureAsync(builder, ct)` (the awaitable wiring seam — see
+    below), invokes `Configure(builder)`, `await`s
+    `CompleteConfigureAsync` (re-running the reverse-reference pass so
+    nodes created inside `Configure` publish their references to nodes
+    owned by other managers — e.g. an inverse `Organizes` to the ns=0
+    `Objects` folder — into the `externalReferences` dictionary),
+    `await`s `builder.SealAsync(ct)`, and replays `NotifyNodeAdded` for
+    every predefined node so per-node lifecycle hooks fire
+    deterministically.
   - `AddPredefinedNodeAsync` / `RemovePredefinedNodeAsync` overrides
     forward to base and then dispatch the lifecycle notification.
   - `OnMonitoredItemCreated` (still synchronous on the base) dispatches
     the per-node hook.
   - Declares `partial void Configure(INodeManagerBuilder builder);` for
-    user wiring.
+    synchronous user wiring, and inherits
+    `protected virtual ValueTask ConfigureAsync(INodeManagerBuilder builder, CancellationToken cancellationToken)`
+    from `FluentNodeManagerBase` for wiring that has to `await`
+    (materialising instances, reading a store). `ConfigureAsync` runs
+    first, so the nodes it creates exist by the time `Configure` wires
+    callbacks against them. The hook is a `virtual` method rather than a
+    second `partial` because a partial method can be optional
+    (`partial void`) or awaitable (extended partial, must be
+    implemented) — not both. Use either or both.
 - `public class {Ns}NodeManagerFactory : IAsyncNodeManagerFactory`
   - Returns the namespace URI in `NamespacesUris`.
   - `CreateAsync(IServerInternal, ApplicationConfiguration, CancellationToken)`

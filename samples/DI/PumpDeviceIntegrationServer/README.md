@@ -159,14 +159,15 @@ sequenceDiagram
     DI->>Factory: CreateAsync(server, configuration)
     Factory->>NM: new PumpNodeManager(.., postSetupRunner, options)
     NM->>NM: LoadPredefinedNodesAsync<br/>AddOpcUaDi + Machinery + Pumps
-    NM->>NM: OnAddressSpaceReadyAsync
+    NM->>NM: ConfigureAsync(builder, ct)
     loop for each of N pumps
         NM->>NM: ConfigureInstancesAsync → Pump_n (PumpType)
         NM->>NM: MaterialiseNameplate + optional children
     end
-    NM->>NM: CreateFluentBuilder().Configure(Configure).Seal()
+    NM->>NM: Configure(builder)
     Note over NM: Configure wires identification, maintenance,<br/>measurements, alarms and history per pump
-    Note over NM: Seal starts the 250 ms simulation loop
+    NM->>NM: await builder.SealAsync(ct)
+    Note over NM: SealAsync registers staged root notifiers<br/>and starts the 250 ms simulation loop
     NM->>Runner: post-setup pipeline
     Runner->>NM: TopologyElement(pumpNodeId).WithFunctionalGroup("Diagnostics")
 ```

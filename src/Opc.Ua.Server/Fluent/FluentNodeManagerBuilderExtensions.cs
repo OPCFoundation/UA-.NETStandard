@@ -34,9 +34,10 @@ namespace Opc.Ua.Server.Fluent
     /// <summary>
     /// Fluent extensions on <see cref="NodeManagerBuilder"/> that let
     /// hand-written managers express the standard
-    /// <c>CreateFluentBuilder(ns).Configure(Configure).Seal()</c>
-    /// pipeline as a single chained expression rather than an
-    /// imperative four-step block.
+    /// <c>CreateFluentBuilder(ns).Configure(Configure)</c> pipeline as a
+    /// single chained expression rather than an imperative block. Sealing
+    /// is awaited separately — <see cref="NodeManagerBuilder.SealAsync"/>
+    /// runs the asynchronous completion work and so cannot chain.
     /// </summary>
     public static class FluentNodeManagerBuilderExtensions
     {

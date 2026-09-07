@@ -180,7 +180,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     await AddReverseReferencesAsync(externalReferences, cancellationToken)
                         .ConfigureAwait(false);
 
-                    builder.Seal();
+                    await builder.SealAsync(cancellationToken).ConfigureAwait(false);
 
                     // Step 7 – Replay NotifyNodeAdded for every predefined node
                     // so that OnNodeAdded handlers registered in Configure fire.

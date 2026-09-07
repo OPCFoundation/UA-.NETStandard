@@ -827,7 +827,7 @@ namespace Opc.Ua.Robotics.Server.Tests
                 system => Copy(ConfigureValidGraph(system), graph))
                 .ConfigureAwait(false);
 
-            context.Seal();
+            await context.SealAsync().ConfigureAwait(false);
 
             Assert.That(graph.System.AsNode().Node, Is.SameAs(graph.System.State));
             Assert.That(
@@ -874,7 +874,8 @@ namespace Opc.Ua.Robotics.Server.Tests
                         .WaitAsync(TimeSpan.FromSeconds(30))
                         .ConfigureAwait(false);
                     ServiceResultException exception =
-                        Assert.Throws<ServiceResultException>(() => context.Seal())!;
+                        Assert.ThrowsAsync<ServiceResultException>(
+                            async () => await context.SealAsync().ConfigureAwait(false))!;
                     Assert.That(
                         exception.StatusCode,
                         Is.EqualTo(StatusCodes.BadInvalidState));
@@ -891,7 +892,7 @@ namespace Opc.Ua.Robotics.Server.Tests
                         "AfterRejectedSealCell",
                         system => ConfigureValidGraph(system))
                     .ConfigureAwait(false);
-                context.Seal();
+                await context.SealAsync().ConfigureAwait(false);
 
                 _ = AssertTreeRegisteredAndUnique(
                     manager,
@@ -939,7 +940,7 @@ namespace Opc.Ua.Robotics.Server.Tests
                     GetChildren(context.Context, context.DeviceSet);
                 int configureCalls = 0;
 
-                context.Seal();
+                await context.SealAsync().ConfigureAwait(false);
 
                 ServiceResultException exception =
                     Assert.ThrowsAsync<ServiceResultException>(async () =>

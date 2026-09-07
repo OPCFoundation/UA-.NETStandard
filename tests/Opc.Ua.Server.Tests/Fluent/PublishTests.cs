@@ -632,7 +632,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void Publish_RegisterAsRootNotifier_AddsToRootNotifierSet()
+        public async Task Publish_RegisterAsRootNotifier_AddsToRootNotifierSetOnSealAsync()
         {
             using TestablePublishManager manager = CreateManager();
             BaseObjectState notifier = MakeNotifier(manager, "Root");
@@ -642,7 +642,38 @@ namespace Opc.Ua.Server.Tests.Fluent
                 (_, _, ct) => EmptyStream(ct),
                 new EventPublishOptions { RegisterAsRootNotifier = true });
 
+            // Registration runs inside the synchronous Configure pass, which
+            // cannot await the manager's monitored-item semaphore, so the
+            // root-notifier registration is staged rather than performed.
+            Assert.That(
+                manager.RootNotifiers,
+                Does.Not.ContainKey(notifier.NodeId),
+                "Root-notifier registration must be deferred to the seal.");
+
+            await manager.EventSources.CompleteRegistrationsAsync()
+                .ConfigureAwait(false);
+
             Assert.That(manager.RootNotifiers, Contains.Key(notifier.NodeId));
+        }
+
+        [Test]
+        public async Task Publish_RegisterAsRootNotifier_IsDrainedOnlyOnceAsync()
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = MakeNotifier(manager, "RootOnce");
+
+            manager.EventSources.Register(
+                notifier,
+                (_, _, ct) => EmptyStream(ct),
+                new EventPublishOptions { RegisterAsRootNotifier = true });
+
+            await manager.EventSources.CompleteRegistrationsAsync()
+                .ConfigureAwait(false);
+            await manager.EventSources.CompleteRegistrationsAsync()
+                .ConfigureAwait(false);
+
+            Assert.That(manager.RootNotifiers, Contains.Key(notifier.NodeId));
+            Assert.That(manager.RootNotifiers, Has.Count.EqualTo(1));
         }
 
         [Test]

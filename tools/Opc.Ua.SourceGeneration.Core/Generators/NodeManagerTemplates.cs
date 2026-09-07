@@ -55,7 +55,11 @@ namespace Opc.Ua.SourceGeneration
                 /// <remarks>
                 /// Implement <c>partial void Configure(INodeManagerBuilder builder)</c>
                 /// in a sibling partial to wire per-node callbacks using the
-                /// fluent API in <c>Opc.Ua.Server.Fluent</c>.
+                /// fluent API in <c>Opc.Ua.Server.Fluent</c>. Wiring that has to
+                /// await — materialising instances, reading a store — goes into
+                /// an override of
+                /// <c>ConfigureAsync(INodeManagerBuilder, CancellationToken)</c>,
+                /// which runs first so <c>Configure</c> sees the nodes it created.
                 /// </remarks>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
                 public partial class {{Tokens.NodeManagerClassName}} : global::Opc.Ua.Server.Fluent.FluentNodeManagerBase
@@ -76,6 +80,9 @@ namespace Opc.Ua.SourceGeneration
                     /// <summary>
                     /// User extensibility hook. Implement in a sibling
                     /// <c>partial</c> to wire callbacks via the fluent builder.
+                    /// Override
+                    /// <c>FluentNodeManagerBase.ConfigureAsync</c> instead when
+                    /// the wiring has to await.
                     /// </summary>
                     partial void Configure(global::Opc.Ua.Server.Fluent.INodeManagerBuilder builder);
 
@@ -122,6 +129,11 @@ namespace Opc.Ua.SourceGeneration
                         // it before the user's Configure partial(s) run.
                         AttachToBuilder(__m_builder);
 
+                        // The awaitable wiring seam. Runs before the synchronous
+                        // Configure partial(s) so instances it materialises are in
+                        // the address space by the time they wire callbacks.
+                        await ConfigureAsync(__m_builder, cancellationToken).ConfigureAwait(false);
+
                         Configure(__m_builder);
                         Configure(new {{Tokens.NodeManagerClassName}}TypedBuilder(__m_builder));
 
@@ -136,7 +148,10 @@ namespace Opc.Ua.SourceGeneration
                         // folder) into the externalReferences dictionary.
                         await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
-                        __m_builder.Seal();
+                        // Sealing runs the asynchronous completion work the
+                        // wiring staged (root notifiers, simulation loops), so
+                        // it has to be awaited rather than chained.
+                        await __m_builder.SealAsync(cancellationToken).ConfigureAwait(false);
 
                         foreach (global::Opc.Ua.NodeState __node in PredefinedNodes.Values)
                         {
