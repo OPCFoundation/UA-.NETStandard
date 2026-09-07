@@ -167,8 +167,14 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     : await m_configureAsync(builder, cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    // Registers any NodeSet the configuration imported on top
-                    // of the documents this manager was created with.
+                    // Register nodes the configuration created through the
+                    // builder's Add* methods, then register any NodeSet it
+                    // imported on top of the documents this manager was created
+                    // with, and re-run the reverse-reference pass so their
+                    // references to externally owned nodes reach the
+                    // externalReferences dictionary as well.
+                    await RegisterAuthoredNodesAsync(builder, cancellationToken)
+                        .ConfigureAwait(false);
                     await CompleteConfigureAsync(externalReferences, cancellationToken)
                         .ConfigureAwait(false);
 

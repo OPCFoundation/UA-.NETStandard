@@ -47,6 +47,7 @@
     - [On-demand virtual node families](#on-demand-virtual-node-families)
     - [Monitored-item creation and lifecycle](#monitored-item-creation-and-lifecycle)
     - [Creating nodes under other managers' nodes (Objects folder)](#creating-nodes-under-other-managers-nodes-objects-folder)
+    - [Creating nodes from scratch — the Add* surface](#creating-nodes-from-scratch--the-add-surface)
   - [Typed model-traversal — the Configure(I{Manager}NodeManagerBuilder) partial](#typed-model-traversal--the-configureimanagernodemanagerbuilder-partial)
     - [What the generator emits per model](#what-the-generator-emits-per-model)
     - [Methods with arguments — typed OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
@@ -1159,6 +1160,82 @@ registration through the same pass. This covers **startup-time**
 configuration only — for nodes created after startup use
 `IMasterNodeManager.AddReferencesAsync`, which dispatches to the live
 owning manager.
+
+#### Creating nodes from scratch — the `Add*` surface
+
+`Configure` can also *create* nodes, not just wire callbacks on nodes a
+NodeSet or ModelDesign already declared. `INodeManagerBuilder` carries a
+small creation surface for filling a namespace when there is no model to
+generate from:
+
+| Member | Creates |
+| --- | --- |
+| `AddFolder(name, parentId)` | a `FolderState` (`Organizes`) |
+| `AddObject(name, parentId, typeDefinitionId)` | a `BaseObjectState` |
+| `AddVariable<TValue>(name, parentId)` | a `BaseDataVariableState` whose `DataType`/`ValueRank` come from `TValue` |
+| `AddMethod(name, parentId)` | an executable `MethodState` |
+| `Add<TState>(node, parentId)` | an already-constructed state of any `NodeState` subclass |
+| `Add<TState>(factory, parentId)` | a state built by a factory that receives the resolved parent |
+| `AddRoot<TState>(node)` | a root, with its existing references left alone |
+| `TryGetNode(nodeId, out node)` | lookup across created-but-not-yet-registered nodes and predefined nodes |
+
+Each `Add*` takes the browse name as a `string` — qualified with the
+manager's default namespace — or as a `QualifiedName` carrying an
+explicit nonzero namespace index. `parentId` defaults to the ns=0
+`Objects` folder.
+
+```csharp
+partial void Configure(INodeManagerBuilder builder)
+{
+    INodeBuilder<FolderState> machines = builder.AddFolder("Machines");
+
+    builder.AddVariable<double>("Pressure", machines.Node.NodeId)
+        .OnRead(() => m_sensor.Pressure);
+
+    builder.AddMethod("Reset", machines.Node.NodeId)
+        .OnCall(ResetAsync);
+}
+```
+
+Three properties make this usable straight from `Configure`:
+
+- **NodeIds are final before the builder comes back.** Every `Add*`
+  runs the node — and its whole subtree — through the manager's
+  `INodeIdFactory` before returning, so `OnRead`/`OnWrite`
+  registrations, which key off `NodeState.NodeId`, stay valid once the
+  node is registered. `machines.Node.NodeId` above is the id clients
+  will browse. This includes a subtree materialised from a type model
+  with `NodeState.Create(…, assignNodeIds: false)`, whose children still
+  carry their declaration ids: those are rebased at `Add` time rather
+  than at registration, so they too are final when the builder returns.
+- **Creation is staged, not immediate.** Created nodes are held until
+  the manager calls `RegisterAuthoredNodesAsync`, which the generated
+  `CreateAddressSpaceAsync` emits after the `Configure` partials and
+  before `CompleteConfigureAsync`. That ordering is what lets a node
+  name a sibling created moments earlier, and what gets references to
+  externally owned nodes (the `Objects` folder above) mirrored into
+  `externalReferences` by the same reverse-reference pass described in
+  [Creating nodes under other managers' nodes](#creating-nodes-under-other-managers-nodes-objects-folder).
+- **Custom state types stay typed.** `Add<TState>` returns
+  `INodeBuilder<TState>`, so a hand-written `NodeState` subclass keeps
+  its type through the fluent chain. The factory overload exists for
+  the case where a custom `INodeIdFactory` derives a child id from its
+  parent: it resolves the parent first and hands it to the factory,
+  substituting an identity-only proxy when the parent belongs to
+  another node manager.
+
+Creation is rejected outside that window. Calling an `Add*` after the
+builder is sealed, or after the staged graph has been registered, throws
+`BadInvalidState`. A NodeId in a namespace the manager does not own
+throws `BadNodeIdInvalid`, and a parent in one of the manager's *own*
+namespaces that was never created throws `BadNodeIdUnknown`.
+
+Hand-written managers that drive `CreateFluentBuilder` themselves get
+the same surface by calling
+`FluentNodeManagerBase.RegisterAuthoredNodesAsync(builder)` in the same
+position — after the configuration delegate, before
+`CompleteConfigureAsync`. A builder that created nothing registers
+nothing, so the call is safe to make unconditionally.
 
 ### Typed model-traversal — the `Configure(I{Manager}NodeManagerBuilder)` partial
 

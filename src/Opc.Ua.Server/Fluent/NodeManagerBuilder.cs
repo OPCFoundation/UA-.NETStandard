@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Fluent
     /// dispatch time.
     /// </para>
     /// </remarks>
-    public sealed class NodeManagerBuilder : INodeManagerBuilder, IFluentDispatcher
+    public sealed partial class NodeManagerBuilder : INodeManagerBuilder, IFluentDispatcher
     {
         /// <summary>
         /// Creates a new builder for the supplied <paramref name="nodeManager"/>.
@@ -196,7 +196,7 @@ namespace Opc.Ua.Server.Fluent
                 Context,
                 browsePath,
                 m_defaultNamespaceIndex,
-                m_rootResolver);
+                ResolveRoot);
 
             return new NodeBuilder(this, node);
         }
@@ -210,7 +210,7 @@ namespace Opc.Ua.Server.Fluent
                 Context,
                 browsePath,
                 m_defaultNamespaceIndex,
-                m_rootResolver);
+                ResolveRoot);
 
             if (node is not TState typed)
             {
@@ -313,7 +313,7 @@ namespace Opc.Ua.Server.Fluent
                 Context,
                 browsePath,
                 m_defaultNamespaceIndex,
-                m_rootResolver);
+                ResolveRoot);
             return ToVariableBuilder<TValue>(node, browsePath);
         }
 
@@ -951,6 +951,10 @@ namespace Opc.Ua.Server.Fluent
             {
                 return imported!;
             }
+            if (m_authoredNodes.TryGetValue(nodeId, out NodeState? authored))
+            {
+                return authored;
+            }
 
             return m_nodeIdResolver(nodeId) ??
                 throw ServiceResultException.Create(
@@ -968,9 +972,9 @@ namespace Opc.Ua.Server.Fluent
                     "TypeDefinitionId is null or empty.");
             }
 
-            IReadOnlyList<NodeState> candidates = MergeImportCandidates(
+            IReadOnlyList<NodeState> candidates = CollectAuthoredCandidates(
                 m_typeIdResolver(typeDefinitionId) ?? [],
-                imported => imported is BaseInstanceState instance &&
+                node => node is BaseInstanceState instance &&
                     instance.TypeDefinitionId == typeDefinitionId);
 
             if (candidates.Count == 0)
@@ -1033,16 +1037,9 @@ namespace Opc.Ua.Server.Fluent
                     "DataTypeId is null or empty.");
             }
 
-            ArrayOf<NodeState> resolved = m_dataTypeIdResolver(dataTypeId);
-            var resolvedCandidates = new List<NodeState>(resolved.Count);
-            for (int i = 0; i < resolved.Count; i++)
-            {
-                resolvedCandidates.Add(resolved[i]);
-            }
-
-            IReadOnlyList<NodeState> candidates = MergeImportCandidates(
-                resolvedCandidates,
-                imported => imported is BaseVariableState variable &&
+            List<NodeState> candidates = CollectAuthoredCandidates(
+                m_dataTypeIdResolver(dataTypeId),
+                node => node is BaseVariableState variable &&
                     variable.DataType == dataTypeId);
 
             if (candidates.Count == 0)
@@ -1411,51 +1408,6 @@ namespace Opc.Ua.Server.Fluent
                 ReferenceEquals(importedParent, parent);
         }
 
-        /// <summary>
-        /// Adds the staged imported nodes to a lookup result, dropping
-        /// placeholders which the import is about to replace.
-        /// </summary>
-        private IReadOnlyList<NodeState> MergeImportCandidates(
-            IReadOnlyList<NodeState> resolved,
-            Func<NodeState, bool> matchesImported)
-        {
-            if (m_nodeSetImporter is null)
-            {
-                return resolved;
-            }
-
-            var candidates = new List<NodeState>();
-            NodeStateCollection importedNodes = m_nodeSetImporter.ImportedNodes;
-            for (int i = 0; i < importedNodes.Count; i++)
-            {
-                if (matchesImported(importedNodes[i]))
-                {
-                    AddLookupCandidate(candidates, importedNodes[i]);
-                }
-            }
-            for (int i = 0; i < resolved.Count; i++)
-            {
-                if (!IsImportedReplacementPlaceholder(resolved[i]))
-                {
-                    AddLookupCandidate(candidates, resolved[i]);
-                }
-            }
-            return candidates;
-        }
-
-        private static void AddLookupCandidate(
-            List<NodeState> candidates,
-            NodeState candidate)
-        {
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                if (ReferenceEquals(candidates[i], candidate))
-                {
-                    return;
-                }
-            }
-            candidates.Add(candidate);
-        }
 
         /// <summary>
         /// Gets whether a node the manager owns today occupies a generated slot

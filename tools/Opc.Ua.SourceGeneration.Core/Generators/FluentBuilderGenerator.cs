@@ -709,6 +709,57 @@ namespace Opc.Ua.SourceGeneration
                 "dataTypeId, browseName",
                 typeArg: "TValue", noConstraint: true);
 
+            // Node-creation pass-throughs.
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<TState>", "Add",
+                "TState node, global::Opc.Ua.NodeId parentId = default", "node, parentId");
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<TState>", "Add",
+                "global::System.Func<global::Opc.Ua.NodeState?, TState> factory," +
+                    " global::Opc.Ua.NodeId parentId = default",
+                "factory, parentId");
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<TState>", "AddRoot",
+                "TState node", "node");
+            EmitPassThroughMethod(writer,
+                "bool", "TryGetNode",
+                "global::Opc.Ua.NodeId nodeId, out global::Opc.Ua.NodeState? node",
+                "nodeId, out node");
+
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.FolderState>", "AddFolder",
+                "string browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId");
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.FolderState>", "AddFolder",
+                "global::Opc.Ua.QualifiedName browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId");
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.BaseObjectState>", "AddObject",
+                "string browseName, global::Opc.Ua.NodeId parentId = default," +
+                    " global::Opc.Ua.NodeId typeDefinitionId = default",
+                "browseName, parentId, typeDefinitionId");
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.BaseObjectState>", "AddObject",
+                "global::Opc.Ua.QualifiedName browseName, global::Opc.Ua.NodeId parentId = default," +
+                    " global::Opc.Ua.NodeId typeDefinitionId = default",
+                "browseName, parentId, typeDefinitionId");
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.IVariableBuilder<TValue>", "AddVariable",
+                "string browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId", typeArg: "TValue", noConstraint: true);
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.IVariableBuilder<TValue>", "AddVariable",
+                "global::Opc.Ua.QualifiedName browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId", typeArg: "TValue", noConstraint: true);
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.MethodState>", "AddMethod",
+                "string browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId");
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.MethodState>", "AddMethod",
+                "global::Opc.Ua.QualifiedName browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId");
             // Typed top-level accessors.
             foreach (InstanceDesign root in roots)
             {
