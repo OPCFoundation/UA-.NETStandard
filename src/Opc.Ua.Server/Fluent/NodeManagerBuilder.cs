@@ -136,6 +136,23 @@ namespace Opc.Ua.Server.Fluent
         /// </summary>
         public void Seal()
         {
+            SealGraphAuthoring();
+            StartSimulations();
+        }
+
+        /// <summary>
+        /// Closes the builder for further wiring and node authoring without
+        /// starting the simulations yet.
+        /// </summary>
+        /// <remarks>
+        /// A manager which replays <c>NotifyNodeAdded</c> after sealing seals
+        /// first - so a lifecycle handler cannot author nodes that nothing
+        /// would register any more - and starts the simulations only once the
+        /// replay is done, so no simulated value change can precede the
+        /// <c>OnNodeAdded</c> handler for its own node.
+        /// </remarks>
+        internal void SealGraphAuthoring()
+        {
             if (HasPendingNodeSetImports)
             {
                 throw ServiceResultException.Create(
@@ -146,6 +163,13 @@ namespace Opc.Ua.Server.Fluent
             }
 
             m_sealed = true;
+        }
+
+        /// <summary>
+        /// Starts the simulations registered during the <c>Configure</c> pass.
+        /// </summary>
+        internal void StartSimulations()
+        {
             Simulations?.Start();
         }
 

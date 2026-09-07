@@ -149,8 +149,14 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             }
 
             // Step 4 – Establish reverse references to external node managers.
-            await AddReverseReferencesAsync(externalReferences, cancellationToken)
-                .ConfigureAwait(false);
+            // A fluent configuration runs the same pass through
+            // CompleteConfigureAsync below, once its own nodes and imports are
+            // staged, so it is not run twice.
+            if (m_configure is null && m_configureAsync is null)
+            {
+                await AddReverseReferencesAsync(externalReferences, cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             ReportUnbackedExternalParents(predefinedNodes);
 
@@ -178,7 +184,9 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     await CompleteConfigureAsync(externalReferences, cancellationToken)
                         .ConfigureAwait(false);
 
-                    builder.Seal();
+                    // Seal before the replay, so an OnNodeAdded handler cannot
+                    // author nodes which nothing would register any more.
+                    builder.SealGraphAuthoring();
 
                     // Step 6 – Replay NotifyNodeAdded for every predefined node
                     // so that OnNodeAdded handlers registered in Configure fire.
@@ -186,6 +194,10 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     {
                         builder.NotifyNodeAdded(SystemContext, kvp.Value);
                     }
+
+                    // Only now may a simulation push a value change: every
+                    // OnNodeAdded handler has seen its node.
+                    builder.StartSimulations();
                 }
                 catch (Exception activationException) when (
                     activationException is not OutOfMemoryException)
@@ -492,20 +504,6 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 }
             }
             return new ArrayOf<LocalReference>(droppedReferences.ToArray());
-        }
-
-        /// <inheritdoc/>
-        protected override void OnMonitoredItemCreated(
-            ServerSystemContext context,
-            NodeHandle handle,
-            ISampledDataChangeMonitoredItem monitoredItem)
-        {
-            base.OnMonitoredItemCreated(context, handle, monitoredItem);
-
-            if (handle?.Node is { } node)
-            {
-                m_dispatcher?.NotifyMonitoredItemCreated(context, node, monitoredItem);
-            }
         }
 
         /// <summary>
