@@ -157,10 +157,13 @@ could pass as a re-mint.
 
 Three consequences worth knowing:
 
-- The record is scoped to the factory instance, which is scoped to a
-  namespace, because identifiers in different namespaces cannot collide.
-  NodeManagers sharing a namespace share the instance and are checked
-  against each other.
+- The record is kept per namespace, because identifiers in different
+  namespaces cannot collide, and is shared by every view derived from one
+  factory — so two NodeManagers that rebase the registered factory onto
+  the same namespace are checked against each other, and draw sequential
+  identifiers from one counter rather than from two seeded moments apart.
+  Two NodeManagers that each construct a factory of their own instead of
+  taking the registered one share nothing, and have no way to.
 - It is never pruned. An identifier handed to a client stays spoken for
   even after the node goes away, so re-minting it for a different path is
   exactly the collision this catches. It costs roughly 50 bytes per
