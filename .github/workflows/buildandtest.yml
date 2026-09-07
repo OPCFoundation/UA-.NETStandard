@@ -602,9 +602,10 @@ jobs:
       AOTPROJECT: './tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj'
       # Companion NativeAOT test executable that hosts the distributed shared
       # historian round-trip scenario. It is kept out of the monolithic
-      # Opc.Ua.Aot.Tests binary to bound the native linker's input. Both
-      # binaries are published and run on every AOT platform.
+      # Opc.Ua.Aot.Tests binary to bound the native linker's input. Every
+      # binary is published and run on every AOT platform.
       AOTPROJECT_HISTORIAN: './tests/Opc.Ua.Aot.Tests.Historian/Opc.Ua.Aot.Tests.Historian.csproj'
+      AOTPROJECT_MCP: './tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj'
       DOTNET_VERSION: '10.0.x'
       CONFIGURATION: 'Release'
 
@@ -637,6 +638,14 @@ jobs:
       run: >-
         ./tests/Opc.Ua.Aot.Tests.Historian/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests.Historian
         --results-directory ./TestResults/aot-historian
+
+    - name: Publish NativeAOT (MCP)
+      run: dotnet publish ${{ env.AOTPROJECT_MCP }} --configuration ${{ env.CONFIGURATION }}
+
+    - name: Run NativeAOT Tests (MCP)
+      run: >-
+        ./tests/Opc.Ua.Aot.Tests.Mcp/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests.Mcp
+        --results-directory ./TestResults/aot-mcp
 
     - name: Upload test results
       uses: actions/upload-artifact@v7

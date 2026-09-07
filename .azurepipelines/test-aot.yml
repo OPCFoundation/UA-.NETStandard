@@ -99,8 +99,7 @@ jobs:
           exit 1
         }
         # Derive the executable name from the discovered project so this step
-        # works for every Opc.Ua.Aot.Tests*.csproj matrix entry (the monolithic
-        # binary and the smaller distributed-historian companion).
+        # works for every Opc.Ua.Aot.Tests*.csproj matrix entry.
         $exeName = [System.IO.Path]::GetFileNameWithoutExtension("$(file)")
         if ($IsWindows) {
           $exe = Join-Path $publishDir.FullName "$exeName.exe"
