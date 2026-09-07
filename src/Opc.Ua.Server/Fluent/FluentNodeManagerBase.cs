@@ -367,6 +367,39 @@ namespace Opc.Ua.Server.Fluent
             return AddReverseReferencesAsync(externalReferences, cancellationToken);
         }
 
+        /// <summary>
+        /// Registers every node staged by the builder's <c>Add*</c> methods
+        /// with this manager.
+        /// </summary>
+        /// <remarks>
+        /// Call this once, after the user's <c>Configure</c> delegates return
+        /// and before <see cref="CompleteConfigureAsync"/>, so that the
+        /// reverse-reference pass sees the newly registered nodes and mirrors
+        /// their references to nodes owned by other managers (typically the
+        /// Objects folder) into <c>externalReferences</c>. A builder that
+        /// staged no nodes registers nothing, so the call is safe to make
+        /// unconditionally. The source-generated
+        /// <c>CreateAddressSpaceAsync</c> emits it for you.
+        /// </remarks>
+        /// <param name="builder">The builder whose staged nodes to register.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="System.ArgumentNullException">
+        /// <paramref name="builder"/> is <c>null</c>.
+        /// </exception>
+        protected ValueTask RegisterAuthoredNodesAsync(
+            NodeManagerBuilder builder,
+            CancellationToken cancellationToken = default)
+        {
+            if (builder == null)
+            {
+                throw new System.ArgumentNullException(nameof(builder));
+            }
+
+            return builder.RegisterAuthoredNodesAsync(
+                (node, ct) => AddPredefinedNodeAsync(SystemContext, node, ct),
+                cancellationToken);
+        }
+
         /// <inheritdoc/>
         protected override async ValueTask<NodeHandle> GetManagerHandleAsync(
             ServerSystemContext context,
