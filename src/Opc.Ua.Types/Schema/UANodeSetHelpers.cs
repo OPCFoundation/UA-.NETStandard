@@ -474,13 +474,17 @@ namespace Opc.Ua.Export
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="nodes">The collection to add imported nodes to.</param>
-        /// <param name="linkParentChild">If true, establishes parent-child relationships based on ParentNodeId attributes. Default is false for backward compatibility.</param>
+        /// <param name="linkParentChild">
+        /// If true, links authored ParentNodeId relationships and binds standard Method argument properties
+        /// from HasProperty references, even without a parent hint. Local namespace-URI reference targets
+        /// are resolved against the context's namespace table. The default is false for compatibility.
+        /// </param>
         public void Import(ISystemContext context, NodeStateCollection nodes, bool linkParentChild = false)
         {
             for (int ii = 0; ii < Items!.Length; ii++)
             {
                 UANode node = Items[ii];
-                NodeState importedNode = Import(context, node);
+                NodeState importedNode = Import(context, node, linkParentChild);
                 nodes.Add(importedNode);
             }
 
@@ -518,6 +522,29 @@ namespace Opc.Ua.Export
                 }
             }
 
+            Dictionary<int, HashSet<int>> argumentParents =
+                IndexMethodArgumentParents(context, nodes, nodeIndexes);
+            var parentNodeIds = new NodeId[nodes.Count];
+            for (int ii = 0; ii < nodes.Count; ii++)
+            {
+                if (nodes[ii] is not BaseInstanceState instance)
+                {
+                    continue;
+                }
+                if (instance.Handle is NodeId parentNodeId)
+                {
+                    parentNodeIds[ii] = parentNodeId;
+                }
+                else if (instance.Parent is null &&
+                    argumentParents.TryGetValue(ii, out HashSet<int>? candidates) &&
+                    candidates.Count == 1)
+                {
+                    parentNodeIds[ii] = TryGetUnresolvedParentNodeId(instance, out NodeId unresolvedParent)
+                        ? unresolvedParent
+                        : nodes[candidates.First()].NodeId;
+                }
+            }
+
             var linkStates = new ParentLinkState[nodes.Count];
             for (int ii = 0; ii < nodes.Count; ii++)
             {
@@ -533,9 +560,8 @@ namespace Opc.Ua.Export
                     linkStates[current] = ParentLinkState.Linking;
                     pending.Push(current);
 
-                    if (nodes[current] is not BaseInstanceState instance ||
-                        instance.Handle is not NodeId parentNodeId ||
-                        !nodeIndexes.TryGetValue(parentNodeId, out int parentIndex) ||
+                    if (parentNodeIds[current].IsNull ||
+                        !nodeIndexes.TryGetValue(parentNodeIds[current], out int parentIndex) ||
                         linkStates[parentIndex] != ParentLinkState.Unlinked)
                     {
                         break;
@@ -550,6 +576,8 @@ namespace Opc.Ua.Export
                         context,
                         nodes,
                         nodeIndexes,
+                        argumentParents,
+                        parentNodeIds[index],
                         index);
                     linkStates[index] = ParentLinkState.Linked;
                 }
@@ -560,11 +588,12 @@ namespace Opc.Ua.Export
             ISystemContext context,
             NodeStateCollection nodes,
             Dictionary<NodeId, int> nodeIndexes,
+            Dictionary<int, HashSet<int>> argumentParents,
+            NodeId parentNodeId,
             int index)
         {
             NodeState node = nodes[index];
-            if (node is BaseInstanceState instance &&
-                instance.Handle is NodeId parentNodeId)
+            if (node is BaseInstanceState instance && !parentNodeId.IsNull)
             {
                 // The Handle is only a carrier for the authored parent between
                 // Import and this pass. A typed replacement copies it, so clear
@@ -577,8 +606,10 @@ namespace Opc.Ua.Export
 
                     BaseInstanceState linkedChild = instance;
                     bool bindDeclaredChild =
-                        parent is MethodState methodParent &&
-                        IsMethodArgumentProperty(methodParent, instance);
+                        parent is MethodState &&
+                        argumentParents.TryGetValue(index, out HashSet<int>? candidates) &&
+                        candidates.Count == 1 &&
+                        candidates.Contains(parentIndex);
                     BaseInstanceState? existing =
                         bindDeclaredChild
                             ? parent.FindChild(context, instance.BrowseName)
@@ -628,6 +659,7 @@ namespace Opc.Ua.Export
                         instance.Parent = parent;
                         parent.AddChild(instance);
                     }
+                    s_unresolvedParents.Remove(instance);
                     linkedChild.Handle = null;
                     nodes[index] = linkedChild;
                 }
@@ -661,13 +693,60 @@ namespace Opc.Ua.Export
             target.DesignToolOnly = source.DesignToolOnly;
         }
 
-        private static bool IsMethodArgumentProperty(
-            MethodState method,
-            BaseInstanceState child)
+        private static Dictionary<int, HashSet<int>> IndexMethodArgumentParents(
+            ISystemContext context,
+            NodeStateCollection nodes,
+            Dictionary<NodeId, int> nodeIndexes)
+        {
+            var parents = new Dictionary<int, HashSet<int>>();
+            var references = new List<IReference>();
+            for (int ii = 0; ii < nodes.Count; ii++)
+            {
+                NodeState node = nodes[ii];
+                bool isMethod = node is MethodState;
+                if (!isMethod && !IsMethodArgumentProperty(node))
+                {
+                    continue;
+                }
+
+                references.Clear();
+                node.GetReferences(
+                    context,
+                    references,
+                    ReferenceTypeIds.HasProperty,
+                    isInverse: !isMethod);
+                foreach (IReference reference in references)
+                {
+                    if (reference.TargetId.ServerIndex != 0)
+                    {
+                        continue;
+                    }
+                    NodeId targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.NamespaceUris);
+                    if (!nodeIndexes.TryGetValue(targetId, out int targetIndex) ||
+                        (isMethod
+                            ? !IsMethodArgumentProperty(nodes[targetIndex])
+                            : nodes[targetIndex] is not MethodState))
+                    {
+                        continue;
+                    }
+
+                    int childIndex = isMethod ? targetIndex : ii;
+                    int parentIndex = isMethod ? ii : targetIndex;
+                    if (!parents.TryGetValue(childIndex, out HashSet<int>? candidates))
+                    {
+                        parents.Add(childIndex, candidates = []);
+                    }
+                    candidates.Add(parentIndex);
+                }
+            }
+            return parents;
+        }
+
+        private static bool IsMethodArgumentProperty(NodeState child)
         {
             if (child is not BaseVariableState variable ||
                 child.BrowseName.NamespaceIndex != 0 ||
-                child.TypeDefinitionId != VariableTypeIds.PropertyType ||
+                variable.TypeDefinitionId != VariableTypeIds.PropertyType ||
                 variable.DataType != DataTypeIds.Argument ||
                 variable.ValueRank != ValueRanks.OneDimension ||
                 (child.BrowseName.Name != BrowseNames.InputArguments &&
@@ -676,14 +755,7 @@ namespace Opc.Ua.Export
                 return false;
             }
 
-            return child.ReferenceExists(
-                    ReferenceTypeIds.HasProperty,
-                    true,
-                    method.NodeId) ||
-                method.ReferenceExists(
-                    ReferenceTypeIds.HasProperty,
-                    false,
-                    child.NodeId);
+            return true;
         }
 
         private enum ParentLinkState
@@ -1154,7 +1226,7 @@ namespace Opc.Ua.Export
         /// Imports a node from the set.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private NodeState Import(ISystemContext context, UANode node)
+        private NodeState Import(ISystemContext context, UANode node, bool linkParentChild)
         {
             NodeState? importedNode = null;
 
@@ -1223,7 +1295,8 @@ namespace Opc.Ua.Export
                             ExpandedNodeId targetId = ImportExpandedNodeId(
                                 node.References[ii].Value,
                                 context.NamespaceUris,
-                                context.ServerUris);
+                                context.ServerUris,
+                                resolveNamespaceUri: linkParentChild);
 
                             if (referenceTypeId == ReferenceTypeIds.HasTypeDefinition && !isInverse)
                             {
@@ -1408,7 +1481,8 @@ namespace Opc.Ua.Export
                     ExpandedNodeId targetId = ImportExpandedNodeId(
                         node.References[ii].Value,
                         context.NamespaceUris,
-                        context.ServerUris);
+                        context.ServerUris,
+                        resolveNamespaceUri: linkParentChild);
 
                     if (importedNode is BaseInstanceState instance)
                     {
@@ -1590,7 +1664,8 @@ namespace Opc.Ua.Export
         private ExpandedNodeId ImportExpandedNodeId(
             string? source,
             NamespaceTable namespaceUris,
-            StringTable serverUris)
+            StringTable serverUris,
+            bool resolveNamespaceUri)
         {
             if (string.IsNullOrEmpty(source))
             {
@@ -1620,7 +1695,11 @@ namespace Opc.Ua.Export
             }
 
             uint serverIndex = ImportServerIndex(nodeId.ServerIndex, serverUris);
-            ushort namespaceIndex = ImportNamespaceIndex(nodeId.NamespaceIndex, namespaceUris);
+            ushort namespaceIndex = resolveNamespaceUri &&
+                serverIndex == 0 &&
+                !string.IsNullOrEmpty(nodeId.NamespaceUri)
+                    ? namespaceUris.GetIndexOrAppend(nodeId.NamespaceUri)
+                    : ImportNamespaceIndex(nodeId.NamespaceIndex, namespaceUris);
 
             if (serverIndex > 0)
             {

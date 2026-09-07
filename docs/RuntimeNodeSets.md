@@ -151,6 +151,13 @@ Standard Method argument children are bound to their typed `NodeState` propertie
 A NodeSet2 Method's `InputArguments` and `OutputArguments` Variables populate
 `MethodState.InputArguments` and `MethodState.OutputArguments`, so normal Call argument validation
 uses the declarations from the document.
+Binding uses the authored `HasProperty` relationship, declared either on the Method or
+as an inverse reference on the argument Property; `ParentNodeId` is optional. Local
+namespace-URI reference targets are resolved against the import context's namespace table.
+The Property must use the namespace-zero standard BrowseName, `PropertyType`, the `Argument`
+DataType, and a one-dimensional value rank. Ambiguous or conflicting declarations and
+custom or malformed properties do not bind the Method's typed signature; their authored
+nodes and references are retained. Other authored reference types are preserved.
 
 ### Group of dependent NodeSets
 

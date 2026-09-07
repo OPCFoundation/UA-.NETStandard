@@ -288,7 +288,7 @@ namespace Opc.Ua.Server
                 {
                     StartupNodeManagerState? startupState =
                         FindStartupApplicationNodeManager(nodeManager);
-                    Dictionary<NodeId, List<ExternalReferenceSnapshot>>? referencesBefore =
+                    Dictionary<NodeId, Dictionary<IReference, int>>? referencesBefore =
                         startupState is null
                             ? null
                             : SnapshotExternalReferences(externalReferences);
@@ -2263,19 +2263,26 @@ namespace Opc.Ua.Server
             return null;
         }
 
-        private static Dictionary<NodeId, List<ExternalReferenceSnapshot>>
+        private static Dictionary<NodeId, Dictionary<IReference, int>>
             SnapshotExternalReferences(
                 IDictionary<NodeId, IList<IReference>> externalReferences)
         {
             var snapshot =
-                new Dictionary<NodeId, List<ExternalReferenceSnapshot>>();
+                new Dictionary<NodeId, Dictionary<IReference, int>>();
             foreach (KeyValuePair<NodeId, IList<IReference>> entry in externalReferences)
             {
-                var references =
-                    new List<ExternalReferenceSnapshot>(entry.Value.Count);
+                var references = new Dictionary<IReference, int>(
+                    entry.Value.Count,
+                    ReferenceEqualityComparer.Default);
                 foreach (IReference reference in entry.Value)
                 {
-                    references.Add(new ExternalReferenceSnapshot(reference));
+                    // Freeze values before the next manager can mutate a contributed reference.
+                    var frozen = new NodeStateReference(
+                        reference.ReferenceTypeId,
+                        reference.IsInverse,
+                        reference.TargetId);
+                    references.TryGetValue(frozen, out int count);
+                    references[frozen] = count + 1;
                 }
                 snapshot.Add(entry.Key, references);
             }
@@ -2284,7 +2291,7 @@ namespace Opc.Ua.Server
 
         private static Dictionary<NodeId, IList<IReference>>
             CaptureAddedExternalReferences(
-                Dictionary<NodeId, List<ExternalReferenceSnapshot>> before,
+                Dictionary<NodeId, Dictionary<IReference, int>> before,
                 IDictionary<NodeId, IList<IReference>> after)
         {
             var additions = new Dictionary<NodeId, IList<IReference>>();
@@ -2292,26 +2299,15 @@ namespace Opc.Ua.Server
             {
                 before.TryGetValue(
                     entry.Key,
-                    out List<ExternalReferenceSnapshot>? previous);
-                var matched = new bool[previous?.Count ?? 0];
+                    out Dictionary<IReference, int>? previous);
 
                 foreach (IReference reference in entry.Value)
                 {
-                    int match = -1;
-                    if (previous is not null)
+                    if (previous is not null &&
+                        previous.TryGetValue(reference, out int count) &&
+                        count > 0)
                     {
-                        for (int ii = 0; ii < previous.Count; ii++)
-                        {
-                            if (!matched[ii] && previous[ii].Matches(reference))
-                            {
-                                match = ii;
-                                break;
-                            }
-                        }
-                    }
-                    if (match >= 0)
-                    {
-                        matched[match] = true;
+                        previous[reference] = count - 1;
                         continue;
                     }
 
@@ -2355,7 +2351,7 @@ namespace Opc.Ua.Server
                 {
                     for (int ii = 0; ii < retainedReferences.Count; ii++)
                     {
-                        if (ExternalReferenceSnapshot.Matches(
+                        if (ReferenceEqualityComparer.Default.Equals(
                             retainedReferences[ii],
                             reference))
                         {
@@ -2516,53 +2512,6 @@ namespace Opc.Ua.Server
             public IAsyncNodeManager NodeManager { get; }
 
             public Dictionary<NodeId, IList<IReference>>? ExternalReferences { get; set; }
-        }
-
-        private sealed class ExternalReferenceSnapshot
-        {
-            public ExternalReferenceSnapshot(IReference reference)
-            {
-                ReferenceTypeId = reference.ReferenceTypeId;
-                IsInverse = reference.IsInverse;
-                TargetId = reference.TargetId;
-            }
-
-            public NodeId ReferenceTypeId { get; }
-
-            public bool IsInverse { get; }
-
-            public ExpandedNodeId TargetId { get; }
-
-            public bool Matches(IReference reference)
-            {
-                return Matches(
-                    ReferenceTypeId,
-                    IsInverse,
-                    TargetId,
-                    reference);
-            }
-
-            public static bool Matches(
-                IReference left,
-                IReference right)
-            {
-                return Matches(
-                    left.ReferenceTypeId,
-                    left.IsInverse,
-                    left.TargetId,
-                    right);
-            }
-
-            private static bool Matches(
-                NodeId referenceTypeId,
-                bool isInverse,
-                ExpandedNodeId targetId,
-                IReference reference)
-            {
-                return referenceTypeId == reference.ReferenceTypeId &&
-                    isInverse == reference.IsInverse &&
-                    targetId == reference.TargetId;
-            }
         }
 
         private readonly ILogger m_logger;

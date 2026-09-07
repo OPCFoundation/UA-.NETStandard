@@ -47,7 +47,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
     /// Verifies that Runtime NodeSets composed before startup participate in the
     /// live NodeManager lifecycle and expose typed Method argument children.
     /// </summary>
-    [TestFixture]
+    [TestFixture(true)]
+    [TestFixture(false)]
     [Category("NodeManagerLifecycle")]
     [Category("RuntimeNodeSet")]
     [Category("Server")]
@@ -56,6 +57,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
     [NonParallelizable]
     public sealed class StartupRuntimeNodeSetLifecycleTests
     {
+        public StartupRuntimeNodeSetLifecycleTests(bool includeArgumentParentHints)
+        {
+            m_includeArgumentParentHints = includeArgumentParentHints;
+        }
+
+        private readonly bool m_includeArgumentParentHints;
         private string m_pkiRoot;
         private ServerFixture<StartupRuntimeNodeSetServer> m_fixture;
         private StartupRuntimeNodeSetServer m_server;
@@ -75,7 +82,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 Guid.NewGuid().ToString("N"));
 
             m_fixture = new ServerFixture<StartupRuntimeNodeSetServer>(
-                telemetry => new StartupRuntimeNodeSetServer(telemetry))
+                telemetry => new StartupRuntimeNodeSetServer(telemetry, m_includeArgumentParentHints))
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
@@ -528,12 +535,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public const uint PrimaryValueNodeId = 1001;
         public const uint LoadMethodNodeId = 1010;
 
-        public StartupRuntimeNodeSetServer(ITelemetryContext telemetry)
+        public StartupRuntimeNodeSetServer(ITelemetryContext telemetry, bool includeArgumentParentHints = true)
             : base(telemetry)
         {
             Probe = new StartupNodeManagerProbe();
             AddNodeManager(new RuntimeNodeSetNodeManagerFactory(
-                CreatePrimaryOptions(generation: 1)));
+                CreatePrimaryOptions(generation: 1, includeArgumentParentHints)));
             AddNodeManager(new RuntimeNodeSetNodeManagerFactory(
                 CreatePeerOptions()));
             AddNodeManager(new StartupProbeNodeManagerFactory(Probe));
@@ -541,7 +548,10 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
         public StartupNodeManagerProbe Probe { get; }
 
-        public static RuntimeNodeSetOptions CreatePrimaryOptions(int generation)
+        public static RuntimeNodeSetOptions CreatePrimaryOptions(
+            int generation,
+            bool includeArgumentParentHints = true,
+            bool useNamespaceUriTargets = false)
         {
             return new RuntimeNodeSetOptions
             {
@@ -551,7 +561,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                         $"StartupPrimary-{generation}",
                         _ => new ValueTask<Stream>(
                             new MemoryStream(
-                                Encoding.UTF8.GetBytes(BuildPrimaryNodeSetXml()))),
+                                Encoding.UTF8.GetBytes(BuildPrimaryNodeSetXml(
+                                    includeArgumentParentHints,
+                                    useNamespaceUriTargets)))),
                         [PrimaryNamespaceUri])
                 ],
                 DefaultNamespaceUri = PrimaryNamespaceUri,
@@ -598,9 +610,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             };
         }
 
-        private static string BuildPrimaryNodeSetXml()
+        private static string BuildPrimaryNodeSetXml(bool includeArgumentParentHints, bool useNamespaceUriTargets)
         {
-            return $"""
+            string argumentParent = includeArgumentParentHints
+                ? $"ParentNodeId=\"ns=1;i={LoadMethodNodeId}\""
+                : string.Empty;
+            string xml = $"""
                 <?xml version="1.0" encoding="utf-8"?>
                 <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"
                            xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
@@ -639,7 +654,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     </References>
                   </UAMethod>
                   <UAVariable NodeId="ns=1;i=1011" BrowseName="InputArguments"
-                              ParentNodeId="ns=1;i={LoadMethodNodeId}" DataType="i=296"
+                              {argumentParent} DataType="i=296"
                               ValueRank="1" ArrayDimensions="1">
                     <DisplayName>InputArguments</DisplayName>
                     <References>
@@ -667,7 +682,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     </Value>
                   </UAVariable>
                   <UAVariable NodeId="ns=1;i=1012" BrowseName="OutputArguments"
-                              ParentNodeId="ns=1;i={LoadMethodNodeId}" DataType="i=296"
+                              {argumentParent} DataType="i=296"
                               ValueRank="1" ArrayDimensions="1">
                     <DisplayName>OutputArguments</DisplayName>
                     <References>
@@ -696,6 +711,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                   </UAVariable>
                 </UANodeSet>
                 """;
+            return useNamespaceUriTargets
+                ? xml.Replace(">ns=1;", $">nsu={PrimaryNamespaceUri};", StringComparison.Ordinal)
+                : xml;
         }
 
         private static string BuildPeerNodeSetXml()
