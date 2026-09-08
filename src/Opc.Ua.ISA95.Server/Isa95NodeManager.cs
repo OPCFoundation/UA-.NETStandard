@@ -125,11 +125,11 @@ namespace Opc.Ua.ISA95.Server
             await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
             await CompleteConfigureAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
-            builder.Seal();
+            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
             await ConfigureCommonModelAsync(Root, cancellationToken).ConfigureAwait(false);
             ConfigureCatalogChanges();
             await RefreshJobOrderListsAsync(cancellationToken).ConfigureAwait(false);
-            ConfigureStatusEvents();
+            await ConfigureStatusEventsAsync(cancellationToken).ConfigureAwait(false);
         }
 
         public override async ValueTask DeleteAddressSpaceAsync(
@@ -1030,11 +1030,11 @@ namespace Opc.Ua.ISA95.Server
                     StringComparison.Ordinal);
         }
 
-        private void ConfigureStatusEvents()
+        private ValueTask ConfigureStatusEventsAsync(CancellationToken cancellationToken)
         {
             if (m_v2ResponseProvider == null || m_providers.JobStatusSourceV2 == null)
             {
-                return;
+                return default;
             }
             NodeManagerBuilder builder = CreateFluentBuilder(InstanceNamespaceIndex);
             builder
@@ -1043,7 +1043,10 @@ namespace Opc.Ua.ISA95.Server
                 .Publish(
                     CreateStatusEventsAsync,
                     new EventPublishOptions { AlwaysOn = true });
-            builder.Seal();
+
+            // Sealing completes the root-notifier registration the Publish
+            // above staged, so the second builder pass has to be awaited.
+            return builder.SealAsync(cancellationToken);
         }
 
         private void ConfigureCatalogChanges()

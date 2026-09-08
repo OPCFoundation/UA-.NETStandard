@@ -802,20 +802,32 @@ namespace (legacy MSBuild mode) or the user class's namespace
     `new NodeStateCollection().Add{Ns}(context)` wrapped in a
     `ValueTask<NodeStateCollection>`.
   - `CreateAddressSpaceAsync` `await`s `base.CreateAddressSpaceAsync`,
-    then builds a fluent `INodeManagerBuilder`, invokes
-    `Configure(builder)`, `await`s `CompleteConfigureAsync` (re-running
-    the reverse-reference pass so nodes created inside `Configure`
-    publish their references to nodes owned by other managers — e.g. an
-    inverse `Organizes` to the ns=0 `Objects` folder — into the
-    `externalReferences` dictionary), calls `builder.Seal()`, and
-    replays `NotifyNodeAdded` for every predefined node so per-node
-    lifecycle hooks fire deterministically.
+    then builds a fluent `INodeManagerBuilder`, `await`s
+    `ConfigureAsync(builder, ct)` (the awaitable wiring seam — see
+    below), invokes `Configure(builder)`, `await`s
+    `CompleteConfigureAsync` (re-running the reverse-reference pass so
+    nodes created inside `Configure` publish their references to nodes
+    owned by other managers — e.g. an inverse `Organizes` to the ns=0
+    `Objects` folder — into the `externalReferences` dictionary), and
+    `await`s `SealConfigurationAsync(builder, ct)` — which seals the
+    builder, replays `NotifyNodeAdded` for every predefined node so
+    per-node lifecycle hooks fire deterministically, and only then
+    completes the registrations `Configure` could not await and starts
+    the simulations.
   - `AddPredefinedNodeAsync` / `RemovePredefinedNodeAsync` overrides
     forward to base and then dispatch the lifecycle notification.
   - `OnMonitoredItemCreated` (still synchronous on the base) dispatches
     the per-node hook.
   - Declares `partial void Configure(INodeManagerBuilder builder);` for
-    user wiring.
+    synchronous user wiring, and inherits
+    `protected virtual ValueTask ConfigureAsync(INodeManagerBuilder builder, CancellationToken cancellationToken)`
+    from `FluentNodeManagerBase` for wiring that has to `await`
+    (materialising instances, reading a store). `ConfigureAsync` runs
+    first, so the nodes it creates exist by the time `Configure` wires
+    callbacks against them. The hook is a `virtual` method rather than a
+    second `partial` because a partial method can be optional
+    (`partial void`) or awaitable (extended partial, must be
+    implemented) — not both. Use either or both.
   - Implements `INodeSetImportFactoryProvider` by delegating to the
     model's generated `{Ns}NodeSetImportFactoryProvider`, so a NodeSet2
     document imported through `builder.Import` materialises this model's
@@ -837,6 +849,46 @@ namespace (legacy MSBuild mode) or the user class's namespace
 `AddNodeManager` on `StandardServer` has overloads for both
 `INodeManagerFactory` and `IAsyncNodeManagerFactory`; the generated
 async factory binds to the latter automatically.
+
+#### The generated activation pipeline
+
+The order the generated `CreateAddressSpaceAsync` runs in is part of the
+contract — the ordering test in `NodeManagerGeneratorTests` pins it — so
+it is worth seeing whole:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant M as Generated NodeManager
+    participant U as Your partial or override
+    participant B as NodeManagerBuilder
+
+    M->>M: await base.CreateAddressSpaceAsync
+    Note over M: LoadPredefinedNodesAsync has<br/>populated PredefinedNodes
+    M->>B: construct, then AttachToBuilder
+
+    M->>U: await ConfigureAsync(builder, ct)
+    Note over U: the awaitable seam — materialise<br/>instances, read a store, await I/O
+    M->>U: Configure(builder), Configure(typedBuilder)
+    Note over U: synchronous wiring, against nodes<br/>ConfigureAsync has already created
+
+    M->>M: await RegisterAuthoredNodesAsync(builder, ct)
+    Note over M: staged nodes reach the address space
+    M->>M: await CompleteConfigureAsync(externalReferences, ct)
+    Note over M: reverse-reference pass, so authored nodes<br/>publish edges to other managers
+
+    Note over M,B: await SealConfigurationAsync(builder, ct)
+    M->>B: SealGraphAuthoring
+    Note over B: no further authoring, nothing activated yet
+    M->>U: replay NotifyNodeAdded for every predefined node
+    M->>B: CompleteSealAsync
+    Note over B: drain staged root notifiers,<br/>then start the simulations
+```
+
+Both ends of the seal matter. Sealing before the replay stops an
+`OnNodeAdded` handler from authoring nodes nothing would register any
+more; activating after it keeps a simulated value change from preceding
+the `OnNodeAdded` handler of its own node.
 
 ### Opting in
 

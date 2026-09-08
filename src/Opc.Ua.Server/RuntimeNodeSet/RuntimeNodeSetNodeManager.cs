@@ -202,8 +202,10 @@ namespace Opc.Ua.Server.RuntimeNodeSet
 
                     // Step 6 – Seal, replay NotifyNodeAdded for every
                     // predefined node so that OnNodeAdded handlers registered
-                    // in Configure fire, and only then start the simulations.
-                    SealConfiguration(builder);
+                    // in Configure fire, and only then complete the staged
+                    // registrations and start the simulations.
+                    await SealConfigurationAsync(builder, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception activationException) when (
                     activationException is not OutOfMemoryException)

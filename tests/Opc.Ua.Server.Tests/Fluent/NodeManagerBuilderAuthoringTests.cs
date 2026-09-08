@@ -901,7 +901,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 m_configure(m_builder);
                 await RegisterAuthoredNodesAsync(m_builder).ConfigureAwait(false);
                 await CompleteConfigureAsync(externalReferences).ConfigureAwait(false);
-                m_builder.Seal();
+                await m_builder.SealAsync();
             }
 
             public ValueTask RegisterAgainAsync()

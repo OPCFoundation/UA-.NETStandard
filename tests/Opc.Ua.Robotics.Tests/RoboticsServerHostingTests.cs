@@ -335,7 +335,7 @@ namespace Opc.Ua.Robotics.Server.Tests
                 throw new NotSupportedException();
             }
 
-            public void Seal()
+            public ValueTask SealAsync(CancellationToken cancellationToken = default)
             {
                 throw new NotSupportedException();
             }
