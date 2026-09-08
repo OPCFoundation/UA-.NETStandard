@@ -120,6 +120,39 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
+        /// <summary>
+        /// Discards the open handles owned by a closing session without committing pending writes.
+        /// </summary>
+        public void CloseSession(NodeId sessionId)
+        {
+            if (sessionId.IsNull)
+            {
+                throw new ArgumentException("A SessionId is required.", nameof(sessionId));
+            }
+            lock (m_gate)
+            {
+                var handles = new List<uint>();
+                foreach (KeyValuePair<uint, Handle> entry in m_handles)
+                {
+                    if (entry.Value.SessionId == sessionId)
+                    {
+                        handles.Add(entry.Key);
+                    }
+                }
+                foreach (uint id in handles)
+                {
+                    Handle handle = m_handles[id];
+                    m_handles.Remove(id);
+                    if (m_writingHandle == id)
+                    {
+                        m_writingHandle = 0;
+                    }
+                    handle.Dispose();
+                }
+                m_file.OpenCount?.Value = (ushort)m_handles.Count;
+            }
+        }
+
         private static NodeId SessionIdOf(ISystemContext context)
         {
             return context is ISessionSystemContext { SessionId: NodeId sessionId } ? sessionId : NodeId.Null;

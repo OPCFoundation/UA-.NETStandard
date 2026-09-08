@@ -296,6 +296,17 @@ namespace Opc.Ua.WotCon.Server
         }
 
         /// <inheritdoc/>
+        public override ValueTask SessionClosingAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            CancellationToken cancellationToken = default)
+        {
+            m_registry.CloseSession(sessionId);
+            return base.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken);
+        }
+
+        /// <inheritdoc/>
         public override async ValueTask DeleteAddressSpaceAsync(
             CancellationToken cancellationToken = default)
         {

@@ -85,6 +85,8 @@ blocking on an asynchronous callback.
 Multiple read handles may coexist, but a writer excludes other readers and writers,
 including while `CloseAndUpdate` awaits completion. Reads require a positive length;
 seeking beyond the file clamps the position to its end.
+Closing a Session releases its still-open read and write handles without committing
+pending writes, allowing subsequent Sessions to use the file.
 
 ### Mirroring assets into the WoT xRegistry
 

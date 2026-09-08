@@ -1470,6 +1470,22 @@ namespace Opc.Ua.WotCon.Server.Assets
         }
 
         /// <summary>
+        /// Releases a closing session's handles across the registered assets.
+        /// </summary>
+        internal void CloseSession(NodeId sessionId)
+        {
+            AssetEntry[] entries;
+            lock (m_assetsLock)
+            {
+                entries = [.. m_byNodeId.Values];
+            }
+            foreach (AssetEntry entry in entries)
+            {
+                entry.FileManager?.CloseSession(sessionId);
+            }
+        }
+
+        /// <summary>
         /// Loads persisted descriptions together with their authoritative document bytes.
         /// </summary>
         internal async IAsyncEnumerable<(string Name, ThingDescription Description, ByteString Content)>

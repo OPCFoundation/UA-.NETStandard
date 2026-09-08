@@ -337,6 +337,35 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             Assert.That(content, Is.Empty);
         }
 
+        [TestCase((byte)1)]
+        [TestCase((byte)6)]
+        public async Task ClosingSessionDiscardsItsFileHandlesAndPendingBytes(byte mode)
+        {
+            await using ConfiguredServer server = await ConfiguredServer.StartAsync(
+                useDependencyInjection: true,
+                options => options.MaxOpenFileHandlesPerAsset = 1).ConfigureAwait(false);
+            WotAssetClient original = await server.Client.CreateAssetAsync("SessionOwned").ConfigureAwait(false);
+            uint abandoned = await original.File.OpenAsync(mode).ConfigureAwait(false);
+            if (mode == 6)
+            {
+                await original.File.WriteAsync(
+                    abandoned, ByteString.From(CreateDescriptionBytes("SessionOwned"))).ConfigureAwait(false);
+            }
+
+            await server.ReconnectClientAsync().ConfigureAwait(false);
+            WotAssetClient current = await server.Client.OpenAssetAsync(original.AssetId).ConfigureAwait(false);
+
+            Assert.That(
+                () => current.File.ReadAsync(abandoned, 1).AsTask(),
+                Throws.InstanceOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadInvalidArgument));
+            uint replacement = await current.File.OpenAsync(6).ConfigureAwait(false);
+            await current.File.CloseAsync(replacement).ConfigureAwait(false);
+            byte[] content = await current.DownloadThingDescriptionAsync().ConfigureAwait(false);
+            Assert.That(content, Is.Empty);
+        }
+
         private static async Task<ByteString> WriteDescriptionAsync(
             string folder,
             string name,
@@ -470,6 +499,26 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                 }
             }
 
+            public async Task ReconnectClientAsync()
+            {
+                ISession? previous = m_session;
+                m_session = null;
+                try
+                {
+                    if (previous is not null)
+                    {
+                        await previous.CloseAsync().ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    previous?.Dispose();
+                    m_clientFixture?.Dispose();
+                    m_clientFixture = null;
+                }
+                await ConnectClientAsync().ConfigureAwait(false);
+            }
+
             private async Task InitializeAsync(
                 bool useDependencyInjection,
                 Action<WotConnectivityServerOptions> configure)
@@ -497,6 +546,11 @@ namespace Opc.Ua.WotCon.Tests.Hosting
 
                 m_server = await m_fixture.StartAsync(m_directory).ConfigureAwait(false);
                 await m_server.NodeManagerLifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false);
+                await ConnectClientAsync().ConfigureAwait(false);
+            }
+
+            private async Task ConnectClientAsync()
+            {
                 m_clientFixture = new ClientFixture(false, false, m_telemetry);
                 await m_clientFixture.LoadClientConfigurationAsync(m_directory).ConfigureAwait(false);
                 var endpoint = new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}");
