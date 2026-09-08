@@ -285,7 +285,7 @@ namespace Opc.Ua.WotCon.Server
                 if (entry != null)
                 {
                     ServiceResult restored = await m_registry
-                        .RebuildAsync(entry, td, persistOnSuccess: false, cancellationToken)
+                        .RebuildAsync(entry, td, content, persistOnSuccess: false, cancellationToken)
                         .ConfigureAwait(false);
                     if (ServiceResult.IsGood(restored))
                     {

@@ -61,12 +61,17 @@ namespace Opc.Ua.WotCon.Server.Assets
             int maxThingDescriptionSize,
             Func<ThingDescription, CancellationToken, ValueTask<ServiceResult>> onCloseAndUpdate,
             ILogger logger,
-            Action<ISystemContext, string>? enforceAccess = null)
+            Action<ISystemContext, string>? enforceAccess = null,
+            Func<ThingDescription, ByteString, CancellationToken, ValueTask<ServiceResult>>? updateDocument = null)
         {
             m_file = file ?? throw new ArgumentNullException(nameof(file));
             m_maxHandles = maxOpenHandles;
             m_maxSize = maxThingDescriptionSize;
-            m_onCloseAndUpdate = onCloseAndUpdate ?? throw new ArgumentNullException(nameof(onCloseAndUpdate));
+            if (onCloseAndUpdate is null)
+            {
+                throw new ArgumentNullException(nameof(onCloseAndUpdate));
+            }
+            m_onCloseAndUpdate = updateDocument ?? ((description, _, token) => onCloseAndUpdate(description, token));
             m_logger = logger;
             m_enforceAccess = enforceAccess;
 
@@ -84,8 +89,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             file.Write?.OnCall = new WriteMethodStateMethodCallHandler(OnWrite);
             file.GetPosition?.OnCall = new GetPositionMethodStateMethodCallHandler(OnGetPosition);
             file.SetPosition?.OnCall = new SetPositionMethodStateMethodCallHandler(OnSetPosition);
-            file.CloseAndUpdate?.OnCall =
-                new CloseAndUpdateIWoTAssetTypeWoTFileMethodStateMethodCallHandler(OnCloseAndUpdate);
+            file.CloseAndUpdate?.OnCallAsync = OnCloseAndUpdateAsync;
         }
 
         /// <summary>
@@ -106,7 +110,7 @@ namespace Opc.Ua.WotCon.Server.Assets
 
         public void Dispose()
         {
-            lock (m_handles)
+            lock (m_gate)
             {
                 foreach (Handle handle in m_handles.Values)
                 {
@@ -116,9 +120,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        private static NodeId? SessionIdOf(ISystemContext context)
+        private static NodeId SessionIdOf(ISystemContext context)
         {
-            return (context as ISessionSystemContext)?.SessionId;
+            return context is ISessionSystemContext { SessionId: NodeId sessionId } ? sessionId : NodeId.Null;
         }
 
         private ServiceResult OnOpen(
@@ -147,8 +151,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                     return access;
                 }
             }
-            NodeId? sessionId = SessionIdOf(context);
-            lock (m_handles)
+            NodeId sessionId = SessionIdOf(context);
+            lock (m_gate)
             {
                 if (m_handles.Count >= m_maxHandles)
                 {
@@ -179,7 +183,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             NodeId objectId,
             uint fileHandle)
         {
-            lock (m_handles)
+            lock (m_gate)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
                 {
@@ -204,7 +208,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             int length,
             ref ByteString data)
         {
-            lock (m_handles)
+            lock (m_gate)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
                 {
@@ -265,7 +269,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 return access;
             }
-            lock (m_handles)
+            lock (m_gate)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
                 {
@@ -299,7 +303,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             uint fileHandle,
             ref ulong position)
         {
-            lock (m_handles)
+            lock (m_gate)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
                 {
@@ -317,7 +321,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             uint fileHandle,
             ulong position)
         {
-            lock (m_handles)
+            lock (m_gate)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out Handle handle, out ServiceResult err))
                 {
@@ -333,11 +337,25 @@ namespace Opc.Ua.WotCon.Server.Assets
             return ServiceResult.Good;
         }
 
-        private ServiceResult OnCloseAndUpdate(
+        private async ValueTask<CloseAndUpdateIWoTAssetTypeWoTFileMethodStateResult> OnCloseAndUpdateAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            uint fileHandle)
+            uint fileHandle,
+            CancellationToken cancellationToken)
+        {
+            ServiceResult result = await CloseAndUpdateAsync(context, fileHandle, cancellationToken)
+                .ConfigureAwait(false);
+            return new CloseAndUpdateIWoTAssetTypeWoTFileMethodStateResult
+            {
+                ServiceResult = result
+            };
+        }
+
+        private async ValueTask<ServiceResult> CloseAndUpdateAsync(
+            ISystemContext context,
+            uint fileHandle,
+            CancellationToken cancellationToken)
         {
             ServiceResult access = EnforceAccess(context, "CloseAndUpdate");
             if (ServiceResult.IsBad(access))
@@ -345,7 +363,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 return access;
             }
             Handle handle;
-            lock (m_handles)
+            lock (m_gate)
             {
                 if (!TryGetHandleLocked(context, fileHandle, out handle, out ServiceResult err))
                 {
@@ -357,7 +375,6 @@ namespace Opc.Ua.WotCon.Server.Assets
                         "CloseAndUpdate requires a write handle.");
                 }
                 m_handles.Remove(fileHandle);
-                m_writingHandle = 0;
                 m_file.OpenCount?.Value = (ushort)m_handles.Count;
             }
 
@@ -413,10 +430,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                         "Empty Thing Description payload.");
                 }
 
-                ServiceResult result = m_onCloseAndUpdate(td, CancellationToken.None)
-                    .AsTask()
-                    .GetAwaiter()
-                    .GetResult();
+                ServiceResult result = await m_onCloseAndUpdate(
+                    td, ByteString.From(content), cancellationToken).ConfigureAwait(false);
                 if (ServiceResult.IsGood(result))
                 {
                     UpdatePersistedContent(content);
@@ -425,6 +440,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
             finally
             {
+                lock (m_gate)
+                {
+                    if (m_writingHandle == fileHandle)
+                    {
+                        m_writingHandle = 0;
+                    }
+                }
                 handle.Dispose();
             }
         }
@@ -441,8 +463,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                 error = ServiceResult.Create(StatusCodes.BadInvalidArgument, "Unknown file handle.");
                 return false;
             }
-            NodeId? expected = SessionIdOf(context);
-            if (expected != null && located.SessionId != null && located.SessionId != expected)
+            NodeId expected = SessionIdOf(context);
+            if (!expected.IsNull && !located.SessionId.IsNull && located.SessionId != expected)
             {
                 handle = null!;
                 error = ServiceResult.Create(StatusCodes.BadUserAccessDenied,
@@ -456,23 +478,23 @@ namespace Opc.Ua.WotCon.Server.Assets
 
         private sealed class Handle : IDisposable
         {
-            private Handle(NodeId? sessionId, Stream stream, bool writing)
+            private Handle(NodeId sessionId, Stream stream, bool writing)
             {
                 SessionId = sessionId;
                 Stream = stream;
                 Writing = writing;
             }
 
-            public NodeId? SessionId { get; }
+            public NodeId SessionId { get; }
             public Stream Stream { get; }
             public bool Writing { get; }
 
-            public static Handle OpenRead(NodeId? sessionId, byte[] snapshot)
+            public static Handle OpenRead(NodeId sessionId, byte[] snapshot)
             {
                 return new(sessionId, new MemoryStream(snapshot, writable: false), writing: false);
             }
 
-            public static Handle OpenWrite(NodeId? sessionId)
+            public static Handle OpenWrite(NodeId sessionId)
             {
                 return new(sessionId, new MemoryStream(), writing: true);
             }
@@ -487,7 +509,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// Applies the management access policy to a mutating file operation.
         /// </summary>
         /// <remarks>
-        /// WoT Connectivity 1.1-draft3 names the WoTFile Write and
+        /// WoT Connectivity names the WoTFile Write and
         /// CloseAndUpdate operations alongside the management Methods, because
         /// they reach the same materializer and a server implementing only the
         /// 1.02 surface would otherwise inherit no obligation at all.
@@ -528,9 +550,11 @@ namespace Opc.Ua.WotCon.Server.Assets
         private readonly WoTAssetFileState m_file;
         private readonly int m_maxHandles;
         private readonly int m_maxSize;
-        private readonly Func<ThingDescription, CancellationToken, ValueTask<ServiceResult>> m_onCloseAndUpdate;
+        private readonly Func<ThingDescription, ByteString, CancellationToken, ValueTask<ServiceResult>>
+            m_onCloseAndUpdate;
         private readonly ILogger m_logger;
         private readonly Action<ISystemContext, string>? m_enforceAccess;
+        private readonly Lock m_gate = new();
         private readonly Dictionary<uint, Handle> m_handles = [];
         private uint m_nextHandle;
         private uint m_writingHandle;

@@ -250,6 +250,93 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             Assert.That(registry.Current.FindResource(group.GroupId, mirrored.ResourceId), Is.Null);
         }
 
+        [Test]
+        public async Task UploadedDescriptionPreservesCanonicalRegistryBytes()
+        {
+            using var registry = new WotRegistryService();
+            await registry.GetOrCreateGroupAsync(
+                WotRegistryGroups.ThingDescriptions,
+                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
+            await using ConfiguredServer server = await ConfiguredServer.StartAsync(
+                useDependencyInjection: true,
+                options => options.RegistryBridge = registry).ConfigureAwait(false);
+
+            byte[] expected = CreateDescriptionBytes("Canonical");
+            WotAssetClient asset = await server.Client.CreateAssetAsync("Canonical").ConfigureAwait(false);
+            await asset.UploadThingDescriptionAsync(expected).ConfigureAwait(false);
+            byte[] immediate = await asset.DownloadThingDescriptionAsync().ConfigureAwait(false);
+            Assert.That(immediate, Is.EqualTo(expected));
+
+            WotResource mirrored = registry.Current.Groups[WotRegistryGroups.ThingDescriptions]
+                .Resources.Values.Single();
+            Assert.That(mirrored.DefaultVersion, Is.Not.Null);
+            ByteString actual = await registry.ReadContentAsync(mirrored.DefaultVersion!).ConfigureAwait(false);
+
+            Assert.That(actual, Is.EqualTo(ByteString.From(expected)));
+        }
+
+        [Test]
+        public async Task UploadedDescriptionPreservesCanonicalBytesAcrossRestart()
+        {
+            string folder = Path.Combine(Path.GetTempPath(), "wot-canonical-" + Guid.NewGuid().ToString("N"));
+            byte[] expected = CreateDescriptionBytes("Persisted");
+            try
+            {
+                await using (ConfiguredServer original = await ConfiguredServer.StartAsync(
+                    useDependencyInjection: true,
+                    options => options.ThingDescriptionStorageFolder = folder).ConfigureAwait(false))
+                {
+                    WotAssetClient asset = await original.Client.CreateAssetAsync("Persisted").ConfigureAwait(false);
+                    await asset.UploadThingDescriptionAsync(expected).ConfigureAwait(false);
+                }
+
+                await using ConfiguredServer restored = await ConfiguredServer.StartAsync(
+                    useDependencyInjection: true,
+                    options => options.ThingDescriptionStorageFolder = folder).ConfigureAwait(false);
+                var assets = new List<WotAssetEntry>();
+                await foreach (WotAssetEntry entry in restored.Client.EnumerateAssetsAsync().ConfigureAwait(false))
+                {
+                    assets.Add(entry);
+                }
+                Assert.That(assets, Has.Count.EqualTo(1));
+                WotAssetClient restoredAsset = await restored.Client
+                    .OpenAssetAsync(assets[0].AssetId).ConfigureAwait(false);
+                byte[] actual = await restoredAsset.DownloadThingDescriptionAsync().ConfigureAwait(false);
+
+                Assert.That(actual, Is.EqualTo(expected));
+            }
+            finally
+            {
+                if (Directory.Exists(folder))
+                {
+                    Directory.Delete(folder, recursive: true);
+                }
+            }
+        }
+
+        [Test]
+        public async Task FailedPersistenceDoesNotCommitFileContent()
+        {
+            await using ConfiguredServer server = await ConfiguredServer.StartAsync(
+                useDependencyInjection: true,
+                _ => { },
+                folder =>
+                {
+                    Directory.CreateDirectory(Path.Combine(folder, "Rejected.jsonld"));
+                    return Task.CompletedTask;
+                }).ConfigureAwait(false);
+            WotAssetClient asset = await server.Client.CreateAssetAsync("Rejected").ConfigureAwait(false);
+
+            Assert.That(
+                () => asset.UploadThingDescriptionAsync(CreateDescriptionBytes("Rejected")).AsTask(),
+                Throws.InstanceOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadUnexpectedError));
+
+            byte[] content = await asset.DownloadThingDescriptionAsync().ConfigureAwait(false);
+            Assert.That(content, Is.Empty);
+        }
+
         private static async Task<ByteString> WriteDescriptionAsync(
             string folder,
             string name,

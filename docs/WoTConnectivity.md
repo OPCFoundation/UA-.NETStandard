@@ -49,6 +49,8 @@ The factory advertises two namespaces:
 spec's six methods (CreateAsset, DeleteAsset, optionally DiscoverAssets,
 CreateAssetForEndpoint, ConnectionTest, plus the configuration object).
 Any persisted TDs in the storage folder are re-materialised on startup.
+The `WoTFile` BrowseName belongs to the WoT model namespace; its NodeId remains
+in the configured asset namespace.
 
 ### Lifecycle
 
@@ -71,6 +73,15 @@ Optional flow when `DiscoverAssets` / `CreateAssetForEndpoint` /
 3. `CreateAssetForEndpoint(name, endpoint)` synthesises a TD via
    `IWotAssetDiscoveryProvider.CreateThingDescriptionAsync` and runs
    the same materialisation path — no client upload needed.
+
+Uploaded UTF-8 document bytes remain authoritative for file downloads, persistence,
+and registry mirroring. The provider-facing `ThingDescription` is a parsed
+projection, not the document used to recreate those bytes. Restored files retain
+their original content, including an accepted UTF-8 byte order mark; discovery-created
+files expose the generated description. File persistence stages the complete
+document before replacing the committed file, and a failed write is surfaced to
+the caller. `CloseAndUpdate` awaits materialisation and persistence without
+blocking on an asynchronous callback.
 
 ### Mirroring assets into the WoT xRegistry
 
@@ -98,9 +109,11 @@ TDs into the `thingdescriptions` group by default. Pass a custom group id
 to override it. Mirroring is independent of legacy TD file persistence:
 the registry is itself a durable store, so `RebuildAsync(...,
 persistOnSuccess: false, ...)` still mirrors the live TD when the bridge is
-enabled. Mirroring is best-effort: registry rejection or I/O failure is
-logged and the asset lifecycle still succeeds, matching the existing
-secondary persistence policy for TD files.
+enabled. Each mirrored asset retains the registry and assigned resource identity
+returned by upsert, so updates and deletion do not guess an identifier from the
+asset's display-name casing. Mirroring is best-effort: registry rejection or I/O
+failure is logged and the asset lifecycle still succeeds. This is distinct from
+the file-persistence failure behavior described above.
 
 ---
 

@@ -190,7 +190,9 @@ namespace Opc.Ua.WotCon.Server.Assets
                     m_options.MaxThingDescriptionSize,
                     (td, token) => RebuildAsync(entry, td, persistOnSuccess: true, token),
                     m_logger,
-                    m_manager.EnforceManagementAccess);
+                    m_manager.EnforceManagementAccess,
+                    updateDocument: (td, content, token) =>
+                        RebuildAsync(entry, td, content, persistOnSuccess: true, token));
 
                 lock (m_assetsLock)
                 {
@@ -488,9 +490,22 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// <exception cref="ArgumentNullException">
         /// <paramref name="td"/> is null.
         /// </exception>
-        public async ValueTask<ServiceResult> RebuildAsync(
+        public ValueTask<ServiceResult> RebuildAsync(
             AssetEntry entry,
             ThingDescription td,
+            bool persistOnSuccess,
+            CancellationToken ct)
+        {
+            return RebuildAsync(entry, td, default, persistOnSuccess, ct);
+        }
+
+        /// <summary>
+        /// Rebuilds an asset while retaining its authoritative source document.
+        /// </summary>
+        internal async ValueTask<ServiceResult> RebuildAsync(
+            AssetEntry entry,
+            ThingDescription td,
+            ByteString content,
             bool persistOnSuccess,
             CancellationToken ct)
         {
@@ -501,6 +516,11 @@ namespace Opc.Ua.WotCon.Server.Assets
             if (td is null)
             {
                 throw new ArgumentNullException(nameof(td));
+            }
+            if (content.IsNull)
+            {
+                content = ByteString.From(
+                    JsonSerializer.SerializeToUtf8Bytes(td, ThingDescriptionJsonContext.Default.ThingDescription));
             }
             IWotAssetProviderFactory? factory = null;
             foreach (IWotAssetProviderFactory candidate in m_options.Bindings)
@@ -651,10 +671,10 @@ namespace Opc.Ua.WotCon.Server.Assets
 
                 if (persistOnSuccess)
                 {
-                    PersistTdToDisk(entry.Name, td);
+                    await PersistTdToDiskAsync(entry.Name, content, ct).ConfigureAwait(false);
                 }
 
-                await MirrorToRegistryAsync(entry, td, ct).ConfigureAwait(false);
+                await MirrorToRegistryAsync(entry, content, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -1277,29 +1297,66 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        private void PersistTdToDisk(string name, ThingDescription td)
+        private async ValueTask PersistTdToDiskAsync(string name, ByteString content, CancellationToken ct)
         {
             string? folder = m_options.ThingDescriptionStorageFolder;
             if (string.IsNullOrEmpty(folder))
             {
                 return;
             }
+            Directory.CreateDirectory(folder);
+            if (!WotAssetNameValidator.TryGetSafeFileName(name, folder, out string? path))
+            {
+                m_logger.RefusingToPersistTd(name, folder);
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Invalid persisted asset name.");
+            }
+            string stagedPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
-                Directory.CreateDirectory(folder);
-                if (!WotAssetNameValidator.TryGetSafeFileName(name, folder!, out string? path))
+                byte[] bytes = content.Span.ToArray();
+                using (var stream = new FileStream(
+                    stagedPath,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None,
+                    bufferSize: 4096,
+                    options: FileOptions.Asynchronous))
                 {
-                    m_logger.RefusingToPersistTd(name, folder);
-                    return;
+#if NETSTANDARD2_1_OR_GREATER || NET
+                    await stream.WriteAsync(bytes.AsMemory(), ct).ConfigureAwait(false);
+#else
+                    await stream.WriteAsync(bytes, 0, bytes.Length, ct).ConfigureAwait(false);
+#endif
+                    await stream.FlushAsync(ct).ConfigureAwait(false);
                 }
-                byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(
-                    td,
-                    ThingDescriptionJsonContext.Default.ThingDescription);
-                File.WriteAllBytes(path, bytes);
+                ct.ThrowIfCancellationRequested();
+                if (File.Exists(path))
+                {
+                    File.Replace(stagedPath, path, destinationBackupFileName: null);
+                }
+                else
+                {
+                    File.Move(stagedPath, path);
+                }
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
                 m_logger.FailedToPersistTd(ex, name);
+                throw new ServiceResultException(
+                    ToClientStatus(ex, StatusCodes.BadUnexpectedError, "Persisting Thing Description"));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                m_logger.FailedToPersistTd(ex, name);
+                throw new ServiceResultException(
+                    ToClientStatus(ex, StatusCodes.BadUnexpectedError, "Persisting Thing Description"));
+            }
+            finally
+            {
+                if (File.Exists(stagedPath))
+                {
+                    File.Delete(stagedPath);
+                }
             }
         }
 
@@ -1329,7 +1386,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         }
 
         private async ValueTask MirrorToRegistryAsync(
-            AssetEntry entry, ThingDescription td, CancellationToken ct)
+            AssetEntry entry, ByteString content, CancellationToken ct)
         {
             AssetRegistryMirror? previous = entry.RegistryMirror;
             IWotRegistryService? registry = previous?.Registry ?? m_options.RegistryBridge;
@@ -1340,16 +1397,13 @@ namespace Opc.Ua.WotCon.Server.Assets
 
             try
             {
-                byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(
-                    td,
-                    ThingDescriptionJsonContext.Default.ThingDescription);
                 WotRegistryMutationResult result = await registry.UpsertResourceAsync(
                     new WotUpsertResourceRequest
                     {
                         GroupId = previous?.Resource.GroupId ?? m_options.RegistryBridgeGroupId,
                         ResourceId = previous?.Resource.ResourceId ?? entry.Name,
                         Kind = WoTDocumentKindEnum.ThingDescription,
-                        Content = ByteString.From(bytes),
+                        Content = content,
                         ContentType = "application/td+json",
                         Format = "WoT-TD/1.1",
                         Name = entry.Name,
