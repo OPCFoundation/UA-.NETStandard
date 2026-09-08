@@ -232,11 +232,16 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(currentEndpoint));
             }
 
-            if (!ShouldFailover(redundancyInfo, currentEndpoint).IsFailoverWarranted)
+            if (redundancyInfo.Mode is RedundancySupport.None or RedundancySupport.Transparent)
             {
                 return null;
             }
 
+            // ShouldFailover evaluates proactive switching while the current
+            // channel is usable. This method is also called after reconnect
+            // exhaustion, when the cached current ServiceLevel may still be
+            // Healthy even though the endpoint is unreachable. At that point
+            // target selection must use the viable peer set directly.
             return SelectBestPeer(redundancyInfo, currentEndpoint)?.Endpoint;
         }
 

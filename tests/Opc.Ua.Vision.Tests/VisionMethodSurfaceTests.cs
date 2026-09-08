@@ -137,16 +137,10 @@ namespace Opc.Ua.Vision.Tests
                 names.Add(method.InputArguments!.Value[ii].Name ?? string.Empty);
             }
 
-            Assert.That(names, Is.EqualTo(new[]
-            {
-                "ResultId",
-                "Purpose",
-                "CorrectedDetections",
-                "CorrectedCharacteristics",
-                "Reason",
-                "InlineImage",
-                "RetractAll"
-            }).AsCollection, "The order is positional on the wire, so it must match the spec.");
+            Assert.That(
+                names,
+                Is.EqualTo(s_stringValues1).AsCollection,
+                "The order is positional on the wire, so it must match the spec.");
         }
 
         [Test]
@@ -162,14 +156,7 @@ namespace Opc.Ua.Vision.Tests
                 names.Add(method.InputArguments!.Value[ii].Name ?? string.Empty);
             }
 
-            Assert.That(names, Is.EqualTo(new[]
-            {
-                "Purpose",
-                "Detections",
-                "FrameReference",
-                "InlineImage",
-                "SceneIsEmpty"
-            }).AsCollection,
+            Assert.That(names, Is.EqualTo(s_stringValues2).AsCollection,
                 "SceneIsEmpty is what makes an empty Detections array a real " +
                 "observation, so it has to reach the wire in the position the " +
                 "specification gives it.");
@@ -286,5 +273,24 @@ namespace Opc.Ua.Vision.Tests
             fixture.Manager.Root.Pipelines!.GetChildren(null!, pipelines);
             return (InferencePipelineState)pipelines[0];
         }
+
+        private static readonly string[] s_stringValues1 =
+        [
+            "ResultId",
+            "Purpose",
+            "CorrectedDetections",
+            "CorrectedCharacteristics",
+            "Reason",
+            "InlineImage",
+            "RetractAll",
+        ];
+        private static readonly string[] s_stringValues2 =
+        [
+            "Purpose",
+            "Detections",
+            "FrameReference",
+            "InlineImage",
+            "SceneIsEmpty",
+        ];
     }
 }

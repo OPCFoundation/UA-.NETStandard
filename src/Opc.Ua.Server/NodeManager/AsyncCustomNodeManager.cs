@@ -30,8 +30,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -376,7 +378,7 @@ namespace Opc.Ua.Server
             }
 
             ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
-            NodeHandle? handle = sampledMonitoredItem.ManagerHandle as NodeHandle;
+            object previousHandle = sampledMonitoredItem.ManagerHandle;
             ServiceResult result;
             await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -392,7 +394,7 @@ namespace Opc.Ua.Server
                 m_monitoredItemSemaphore.Release();
             }
 
-            if (ServiceResult.IsGood(result) && handle != null)
+            if (ServiceResult.IsGood(result) && previousHandle is NodeHandle handle)
             {
                 await OnMonitoredItemDetachedAsync(
                     context,
@@ -584,7 +586,7 @@ namespace Opc.Ua.Server
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
                     var compensationFailures = new List<Exception>();
-                    NodeHandle compensationHandle =
+                    var compensationHandle =
                         (NodeHandle)monitoredItem.ManagerHandle;
                     (ServiceResult restoreResult, bool restored) =
                         lifecycle.AttachMonitoredItem(
@@ -832,16 +834,38 @@ namespace Opc.Ua.Server
                 error.StatusCode == StatusCodes.BadDataEncodingUnsupported;
         }
 
+        /// <summary>
+        /// Gets or sets whether new root notifiers skip attachment to existing event subscriptions.
+        /// </summary>
         internal bool SuppressExistingEventSubscriptions { get; set; }
 
+        /// <summary>
+        /// Gets the removed cross-manager references awaiting reconciliation.
+        /// </summary>
         internal List<LocalReference> GetRemovedExternalReferences()
         {
             return m_removedExternalReferences;
         }
 
+        /// <summary>
+        /// Clears the removed-reference collection after reconciliation.
+        /// </summary>
         internal void ClearRemovedExternalReferences()
         {
             m_removedExternalReferences = [];
+        }
+
+        /// <summary>
+        /// Replaces the monitored-item manager and disposes the previous manager.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">The replacement manager is null.</exception>
+        internal void ReplaceMonitoredItemManager(
+            IMonitoredItemManager monitoredItemManager)
+        {
+            IMonitoredItemManager replacement = monitoredItemManager ??
+                throw new ArgumentNullException(nameof(monitoredItemManager));
+            m_monitoredItemManager.Dispose();
+            m_monitoredItemManager = replacement;
         }
 
         /// <inheritdoc/>
@@ -1142,9 +1166,9 @@ namespace Opc.Ua.Server
         /// This pass assigns an id to every node that still lacks one, pulls
         /// namespace-0 children into the root's namespace, and rebases nodes
         /// whose id collides with a type declaration. That last case covers a
-        /// subtree materialised with <c>NodeState.Create(..., assignNodeIds:
-        /// false)</c>, whose children keep their declaration ids: they are
-        /// neither null nor in namespace 0, so only the collision check
+        /// subtree materialised with <c>NodeState.Create(..., assignNodeIds: false)</c>,
+        /// whose children keep their declaration ids: they are neither null
+        /// nor in namespace 0, so only the collision check
         /// catches them. Rebasing here rather than at registration is what
         /// keeps the ids the fluent builder hands back final — the same
         /// repair <c>PrepareInstanceNodeIdsForRegistration</c> would
@@ -2729,6 +2753,9 @@ namespace Opc.Ua.Server
             AddTypesToTypeTree(type);
         }
 
+        /// <summary>
+        /// Rebuilds type and encoding registrations from the current predefined nodes.
+        /// </summary>
         internal void RebuildTypeTree()
         {
             foreach (NodeState node in PredefinedNodes.Values)
@@ -4204,7 +4231,7 @@ namespace Opc.Ua.Server
                 false);
             e.SetChildValue(systemContext, BrowseNames.SourceName, "Server", false);
 
-            e.CreateOrReplaceChanges(systemContext, null!);
+            e.CreateOrReplaceChanges(systemContext, null);
 
             e!.Changes!.Value = new[]
                             {
@@ -4267,7 +4294,7 @@ namespace Opc.Ua.Server
                 false);
             e.SetChildValue(systemContext, BrowseNames.SourceName, "Server", false);
 
-            e.CreateOrReplaceChanges(systemContext, null!);
+            e.CreateOrReplaceChanges(systemContext, null);
             e!.Changes!.Value = changes;
 
             Server.ReportEvent(e);
@@ -4693,7 +4720,7 @@ namespace Opc.Ua.Server
         private static void MaskHistoricalAccessReadCallbacks(BaseVariableState variable)
         {
             NodeAttributeEventHandler<byte>? onReadAccessLevel = variable.OnReadAccessLevel;
-            variable.OnReadAccessLevel = (ISystemContext context, NodeState node, ref byte value) =>
+            variable.OnReadAccessLevel = (context, node, ref value) =>
             {
                 ServiceResult result = onReadAccessLevel?.Invoke(context, node, ref value) ?? ServiceResult.Good;
                 if (ServiceResult.IsGood(result))
@@ -4704,7 +4731,7 @@ namespace Opc.Ua.Server
             };
 
             NodeAttributeEventHandler<byte>? onReadUserAccessLevel = variable.OnReadUserAccessLevel;
-            variable.OnReadUserAccessLevel = (ISystemContext context, NodeState node, ref byte value) =>
+            variable.OnReadUserAccessLevel = (context, node, ref value) =>
             {
                 ServiceResult result = onReadUserAccessLevel?.Invoke(context, node, ref value) ?? ServiceResult.Good;
                 if (ServiceResult.IsGood(result))
@@ -4715,7 +4742,7 @@ namespace Opc.Ua.Server
             };
 
             NodeAttributeEventHandler<uint>? onReadAccessLevelEx = variable.OnReadAccessLevelEx;
-            variable.OnReadAccessLevelEx = (ISystemContext context, NodeState node, ref uint value) =>
+            variable.OnReadAccessLevelEx = (context, node, ref value) =>
             {
                 ServiceResult result = onReadAccessLevelEx?.Invoke(context, node, ref value) ?? ServiceResult.Good;
                 if (ServiceResult.IsGood(result))
@@ -4726,7 +4753,7 @@ namespace Opc.Ua.Server
             };
 
             NodeAttributeEventHandler<bool>? onReadHistorizing = variable.OnReadHistorizing;
-            variable.OnReadHistorizing = (ISystemContext context, NodeState node, ref bool value) =>
+            variable.OnReadHistorizing = (context, node, ref value) =>
             {
                 ServiceResult result = onReadHistorizing?.Invoke(context, node, ref value) ?? ServiceResult.Good;
                 if (ServiceResult.IsGood(result))
@@ -4777,8 +4804,12 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                errors[handle.Index] = HistorianDispatcher.ReleaseContinuationPoint(
-                    context, nodesToRead[handle.Index]);
+                errors[handle.Index] = await HistorianDispatcher
+                    .ReleaseContinuationPointAsync(
+                        context,
+                        nodesToRead[handle.Index],
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -5124,10 +5155,17 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            // check timestamps to return. Neither is not valid for HistoryRead: historical
-            // values always carry a source and/or server timestamp (OPC UA Part 11; CTT
-            // HA Read Raw Err-002).
-            if (timestampsToReturn is < TimestampsToReturn.Source or >= TimestampsToReturn.Neither)
+            // Historical event reads ignore TimestampsToReturn and therefore
+            // accept Neither. Historical data reads require Source, Server or
+            // Both.
+            bool timestampsInvalid = details is ReadEventDetails
+                ? timestampsToReturn is not TimestampsToReturn.Source and
+                    not TimestampsToReturn.Server and
+                    not TimestampsToReturn.Both and
+                    not TimestampsToReturn.Neither
+                : timestampsToReturn is < TimestampsToReturn.Source or
+                    >= TimestampsToReturn.Neither;
+            if (timestampsInvalid)
             {
                 throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
             }
@@ -5313,6 +5351,10 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
+                    if (nodeToUpdate.GetType() != detailsType)
+                    {
+                        continue;
+                    }
 
                     // check for valid handle.
                     NodeHandle handle = await GetManagerHandleAsync(
@@ -5409,7 +5451,8 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (UpdateDataDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as UpdateDataDetails ??
+                        new UpdateDataDetails();
                 }
 
                 await HistoryUpdateDataAsync(context,
@@ -5430,7 +5473,9 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (UpdateStructureDataDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as
+                        UpdateStructureDataDetails ??
+                        new UpdateStructureDataDetails();
                 }
 
                 await HistoryUpdateStructureDataAsync(
@@ -5452,7 +5497,8 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (UpdateEventDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as UpdateEventDetails ??
+                        new UpdateEventDetails();
                 }
 
                 await HistoryUpdateEventsAsync(context,
@@ -5473,7 +5519,9 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (DeleteRawModifiedDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as
+                        DeleteRawModifiedDetails ??
+                        new DeleteRawModifiedDetails();
                 }
 
                 await HistoryDeleteRawModifiedAsync(context,
@@ -5494,7 +5542,8 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (DeleteAtTimeDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as DeleteAtTimeDetails ??
+                        new DeleteAtTimeDetails();
                 }
 
                 await HistoryDeleteAtTimeAsync(context,
@@ -5515,7 +5564,8 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (DeleteEventDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as DeleteEventDetails ??
+                        new DeleteEventDetails();
                 }
 
                 await HistoryDeleteEventsAsync(context,
@@ -5585,8 +5635,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Updates the structured data history (Part 11 §5.2.7
-        /// Annotations) for one or more nodes.
+        /// Updates StructuredHistoryData or Annotations for one or more
+        /// historical nodes.
         /// </summary>
         protected virtual async ValueTask HistoryUpdateStructureDataAsync(
             ServerSystemContext context,
@@ -5618,30 +5668,56 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (!HistorianDispatcher.IsAnnotationsProperty(source))
+                if (HistorianDispatcher.IsAnnotationsProperty(source))
+                {
+                    BaseVariableState? parent =
+                        HistorianDispatcher.GetAnnotationsParent(source);
+                    if (parent == null)
+                    {
+                        errors[handle.Index] =
+                            StatusCodes.BadHistoryOperationUnsupported;
+                        continue;
+                    }
+
+                    IHistorianProvider? annotationProvider =
+                        ResolveHistorianProvider(parent);
+                    if (annotationProvider == null)
+                    {
+                        errors[handle.Index] =
+                            StatusCodes.BadHistoryOperationUnsupported;
+                        continue;
+                    }
+
+                    errors[handle.Index] =
+                        await HistorianDispatcher.DispatchAnnotationUpdateAsync(
+                            context,
+                            annotationProvider,
+                            parent,
+                            nodesToUpdate[handle.Index],
+                            results[handle.Index],
+                            cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                if (source is not BaseVariableState)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
                 }
 
-                BaseVariableState? parent = HistorianDispatcher.GetAnnotationsParent(source);
-                if (parent == null)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(parent);
+                IHistorianProvider? provider =
+                    ResolveHistorianProvider(source);
                 if (provider == null)
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
                 }
 
-                errors[handle.Index] = await HistorianDispatcher.DispatchAnnotationUpdateAsync(
+                errors[handle.Index] =
+                    await HistorianDispatcher.DispatchStructuredDataUpdateAsync(
                     context,
                     provider,
-                    parent,
+                    source,
                     nodesToUpdate[handle.Index],
                     results[handle.Index],
                     cancellationToken).ConfigureAwait(false);
@@ -5886,16 +5962,14 @@ namespace Opc.Ua.Server
                 return null!;
             }
 
-            MethodState? method;
-            method = source.FindMethod(systemContext, methodToCall.MethodId);
+            MethodState? method = source.FindMethod(systemContext, methodToCall.MethodId);
 
             if (method != null)
             {
                 return method;
             }
 
-            bool referenceExists;
-            referenceExists = source.ReferenceExists(
+            bool referenceExists = source.ReferenceExists(
                 ReferenceTypeIds.HasComponent,
                 false,
                 methodToCall.MethodId);
@@ -6206,6 +6280,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Synchronously registers a root event notifier owned by this node manager.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="notifier"/> is <c>null</c>.</exception>
         protected internal void AddRootNotifierSynchronously(NodeState notifier)
         {
             if (notifier == null)
@@ -6232,6 +6307,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Publishes forward Server-object references for the registered root notifiers.
+        /// </summary>
         internal async ValueTask PublishRootNotifierReferencesAsync(
             CancellationToken cancellationToken = default)
         {
@@ -6897,7 +6975,11 @@ namespace Opc.Ua.Server
             {
                 return (validateMonitoringFilterResult.StatusCode, filterResult, monitoredItem);
             }
+            filterResult = validateMonitoringFilterResult.FilterResult;
 
+            bool componentCacheReferenceAdded =
+                m_monitoredItemManager is MonitoredNodeMonitoredItemManager &&
+                !m_monitoredItemManager.MonitoredNodes.ContainsKey(handle.NodeId);
             ISampledDataChangeMonitoredItem dataChangeMonitoredItem;
             if (decision.Kind == MonitoredItemCreateDecisionKind.Custom)
             {
@@ -6947,35 +7029,375 @@ namespace Opc.Ua.Server
                     AddNodeToComponentCache);
             }
 
-            monitoredItem = dataChangeMonitoredItem;
-
-            // report the initial value.
-            ServiceResult error = ServiceResult.Good;
-            if (decision.Kind != MonitoredItemCreateDecisionKind.Custom ||
-                decision.QueueInitialValue)
+            bool created = false;
+            try
             {
-                error = ReadInitialValue(context, handle, dataChangeMonitoredItem);
-                if (ServiceResult.IsBad(error))
+                ServiceResult error = ServiceResult.Good;
+                if (decision.Kind != MonitoredItemCreateDecisionKind.Custom ||
+                    decision.QueueInitialValue)
                 {
-                    if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
-                        error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
-                        error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
-                    {
-                        _ = m_monitoredItemManager.DeleteMonitoredItem(
+                    InitialValueReadResult initialValue =
+                        await ReadInitialValueAsync(
                             context,
+                            handle,
                             dataChangeMonitoredItem,
-                            handle);
-                        monitoredItem = null;
-                        return (error, filterResult, monitoredItem);
+                            validateMonitoringFilterResult.FilterToUse,
+                            cancellationToken).ConfigureAwait(false);
+                    error = initialValue.Error;
+                    if (ServiceResult.IsBad(error))
+                    {
+                        if (initialValue.FailCreation ||
+                            IsFatalInitialReadError(error))
+                        {
+                            DeleteFailedMonitoredItem(
+                                context,
+                                handle,
+                                dataChangeMonitoredItem,
+                                componentCacheReferenceAdded);
+                            return (error, filterResult, null);
+                        }
+                        error = StatusCodes.Good;
                     }
-                    error = StatusCodes.Good;
+                }
+
+                if (dataChangeMonitoredItem is
+                    IInitialValueMonitoredItem initialValueMonitoredItem)
+                {
+                    ServiceResult completion =
+                        initialValueMonitoredItem.CompleteInitialValue();
+                    if (ServiceResult.IsBad(completion))
+                    {
+                        DeleteFailedMonitoredItem(
+                            context,
+                            handle,
+                            dataChangeMonitoredItem,
+                            componentCacheReferenceAdded);
+                        return (completion, filterResult, null);
+                    }
+                }
+                monitoredItem = dataChangeMonitoredItem;
+
+                // report change.
+                OnMonitoredItemCreated(context, handle, dataChangeMonitoredItem);
+                created = true;
+
+                return (error, filterResult, monitoredItem);
+            }
+            catch
+            {
+                if (!created)
+                {
+                    DeleteFailedMonitoredItem(
+                        context,
+                        handle,
+                        dataChangeMonitoredItem,
+                        componentCacheReferenceAdded);
+                }
+                throw;
+            }
+        }
+
+        private void DeleteFailedMonitoredItem(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            bool componentCacheReferenceAdded)
+        {
+            StatusCode statusCode = m_monitoredItemManager.DeleteMonitoredItem(
+                context,
+                monitoredItem,
+                handle);
+            if (StatusCode.IsGood(statusCode) &&
+                componentCacheReferenceAdded)
+            {
+                RemoveNodeFromComponentCache(context, handle);
+            }
+            monitoredItem.Dispose();
+        }
+
+        /// <summary>
+        /// Result of reading or priming the initial monitored-item value.
+        /// </summary>
+        protected readonly record struct InitialValueReadResult(
+            ServiceResult Error,
+            bool FailCreation = false);
+
+        /// <summary>
+        /// Reads the initial value for a monitored item.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="handle">The item handle.</param>
+        /// <param name="monitoredItem">The monitored item.</param>
+        /// <param name="filter">The revised monitoring filter.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected virtual async ValueTask<InitialValueReadResult>
+            ReadInitialValueAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            IDataChangeMonitoredItem2 monitoredItem,
+            MonitoringFilter? filter,
+            CancellationToken cancellationToken = default)
+        {
+            if (monitoredItem.AttributeId != Attributes.Value ||
+                filter is not ServerAggregateFilter aggregateFilter)
+            {
+                return new InitialValueReadResult(
+                    ReadInitialValue(context, handle, monitoredItem));
+            }
+
+            DateTimeUtc utcNow = ((Server as ITimeProviderProvider)?.TimeProvider ??
+                TimeProvider.System).GetUtcNow().UtcDateTime;
+            if (aggregateFilter.StartTime >= utcNow ||
+                context.OperationContext == null)
+            {
+                return new InitialValueReadResult(
+                    ReadInitialValue(context, handle, monitoredItem));
+            }
+
+            IHistorianProvider? provider =
+                aggregateFilter.HistorianProvider ??
+                ResolveHistorianProvider(handle.Node);
+            if (provider is not IHistorianDataProvider dataProvider)
+            {
+                return new InitialValueReadResult(
+                    ReadInitialValue(context, handle, monitoredItem));
+            }
+
+            HistorianNodeCapabilities? capabilities =
+                ReferenceEquals(provider, aggregateFilter.HistorianProvider)
+                    ? aggregateFilter.HistorianCapabilities
+                    : null;
+            if (capabilities == null)
+            {
+                try
+                {
+                    capabilities = await provider
+                        .GetCapabilitiesAsync(handle.NodeId, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception exception) when (
+                    exception is ServiceResultException or
+                    TimeoutException or
+                    IOException)
+                {
+                    return QueueInitialHistoryFailure(
+                        monitoredItem,
+                        utcNow,
+                        CreateInitialHistoryError(exception));
+                }
+            }
+            if (!capabilities.ReadRawData)
+            {
+                return new InitialValueReadResult(
+                    ReadInitialValue(context, handle, monitoredItem));
+            }
+            if (!m_prevalidatedInitialValueRequests.TryGetValue(
+                aggregateFilter,
+                out _))
+            {
+                ServiceResult requestValidation = ValidateInitialValueRequest(
+                    context,
+                    handle,
+                    monitoredItem);
+                if (IsFatalInitialReadError(requestValidation))
+                {
+                    return new InitialValueReadResult(
+                        requestValidation,
+                        FailCreation: true);
                 }
             }
 
-            // report change.
-            OnMonitoredItemCreated(context, handle, dataChangeMonitoredItem);
+            var historianContext = new HistorianOperationContext(
+                context,
+                context.OperationContext,
+                handle.Node,
+                HistoryUpdateType.Insert);
+            var request = new HistorianRawReadRequest
+            {
+                NodeId = handle.NodeId,
+                StartTime = aggregateFilter.StartTime,
+                EndTime = utcNow,
+                MaxValues = capabilities.MaxReturnDataValues,
+                IsForward = true,
+                ReturnBounds = true
+            };
+            HistorianResumeToken token = default;
+            try
+            {
+                for (int pageCount = 0;
+                    pageCount < kMaxInitialHistoryPages;
+                    pageCount++)
+                {
+                    HistorianPage<HistoricalDataValue> page =
+                        await dataProvider.ReadRawAsync(
+                            historianContext,
+                            request,
+                            token,
+                            cancellationToken).ConfigureAwait(false);
+                    foreach (HistoricalDataValue historicalValue in page.Values)
+                    {
+                        if (historicalValue.IsBound &&
+                            historicalValue.Value.SourceTimestamp > utcNow)
+                        {
+                            continue;
+                        }
+                        (DataValue value, ServiceResult valueError) =
+                            ApplyMonitoredItemRangeAndEncoding(
+                                context,
+                                monitoredItem,
+                                historicalValue.Value);
+                        if (IsFatalInitialReadError(valueError))
+                        {
+                            return QueueInitialHistoryFailure(
+                                monitoredItem,
+                                utcNow,
+                                valueError,
+                                failCreation: true);
+                        }
+                        QueueInitialValue(
+                            monitoredItem,
+                            value,
+                            valueError,
+                            ignoreFilters: false);
+                    }
 
-            return (error, filterResult, monitoredItem);
+                    if (page.IsFinal)
+                    {
+                        return new InitialValueReadResult(
+                            ServiceResult.Good);
+                    }
+                    if (page.NextToken == token)
+                    {
+                        return QueueInitialHistoryFailure(
+                            monitoredItem,
+                            utcNow,
+                            new ServiceResult(
+                                StatusCodes.BadContinuationPointInvalid,
+                                new LocalizedText(
+                                    "The historian returned a continuation token that did not advance.")));
+                    }
+                    token = page.NextToken;
+                }
+
+                return QueueInitialHistoryFailure(
+                    monitoredItem,
+                    utcNow,
+                    new ServiceResult(
+                        StatusCodes.BadTimeout,
+                        new LocalizedText(
+                            "Initial historical value priming exceeded the page limit.")));
+            }
+            catch (Exception exception) when (
+                exception is ServiceResultException or
+                TimeoutException or
+                IOException)
+            {
+                return QueueInitialHistoryFailure(
+                    monitoredItem,
+                    utcNow,
+                    CreateInitialHistoryError(exception));
+            }
+        }
+
+        private static (DataValue Value, ServiceResult Error)
+            ApplyMonitoredItemRangeAndEncoding(
+            ISystemContext context,
+            IDataChangeMonitoredItem2 monitoredItem,
+            in DataValue historicalValue)
+        {
+            Variant value = historicalValue.WrappedValue.Copy();
+            ServiceResult result =
+                BaseVariableState.ApplyIndexRangeAndDataEncoding(
+                    context,
+                    monitoredItem.IndexRange,
+                    monitoredItem.DataEncoding,
+                    ref value);
+            if (ServiceResult.IsBad(result))
+            {
+                return (
+                    new DataValue(
+                        Variant.Null,
+                        result.StatusCode,
+                        historicalValue.SourceTimestamp,
+                        historicalValue.ServerTimestamp),
+                    result);
+            }
+            return (
+                new DataValue(
+                    value,
+                    historicalValue.StatusCode,
+                    historicalValue.SourceTimestamp,
+                    historicalValue.ServerTimestamp),
+                ServiceResult.Good);
+        }
+
+        private static ServiceResult ValidateInitialValueRequest(
+            ISystemContext context,
+            NodeHandle handle,
+            IDataChangeMonitoredItem2 monitoredItem)
+        {
+            var value = new DataValue(
+                Variant.Null,
+                StatusCodes.BadWaitingForInitialData,
+                DateTimeUtc.MinValue,
+                DateTimeUtc.MinValue);
+            return handle.Node.ReadAttribute(
+                context,
+                monitoredItem.AttributeId,
+                monitoredItem.IndexRange,
+                monitoredItem.DataEncoding,
+                ref value);
+        }
+
+        private static ServiceResult CreateInitialHistoryError(
+            Exception exception)
+        {
+            return exception switch
+            {
+                ServiceResultException serviceException =>
+                    new ServiceResult(serviceException),
+                TimeoutException =>
+                    new ServiceResult(StatusCodes.BadTimeout, exception),
+                _ => new ServiceResult(
+                    StatusCodes.BadCommunicationError,
+                    exception)
+            };
+        }
+
+        private static InitialValueReadResult QueueInitialHistoryFailure(
+            IDataChangeMonitoredItem2 monitoredItem,
+            DateTimeUtc serverTimestamp,
+            ServiceResult error,
+            bool failCreation = false)
+        {
+            var value = new DataValue(
+                Variant.Null,
+                error.StatusCode,
+                serverTimestamp,
+                serverTimestamp);
+            QueueInitialValue(
+                monitoredItem,
+                value,
+                error,
+                ignoreFilters: true);
+            return new InitialValueReadResult(error, failCreation);
+        }
+
+        private static void QueueInitialValue(
+            IDataChangeMonitoredItem2 monitoredItem,
+            in DataValue value,
+            ServiceResult? error,
+            bool ignoreFilters)
+        {
+            if (monitoredItem is IInitialValueMonitoredItem initialValueMonitoredItem)
+            {
+                initialValueMonitoredItem.QueueInitialValue(
+                    value,
+                    error,
+                    ignoreFilters);
+                return;
+            }
+            monitoredItem.QueueValue(value, error, ignoreFilters);
         }
 
         /// <summary>
@@ -7002,7 +7424,11 @@ namespace Opc.Ua.Server
                 monitoredItem.DataEncoding,
                 ref initialValue);
 
-            monitoredItem.QueueValue(initialValue, error, true);
+            QueueInitialValue(
+                monitoredItem,
+                initialValue,
+                error,
+                ignoreFilters: true);
 
             return error;
         }
@@ -7200,7 +7626,8 @@ namespace Opc.Ua.Server
                     StartTime = aggregateFilter.StartTime,
                     ProcessingInterval = aggregateFilter.ProcessingInterval,
                     AggregateConfiguration = aggregateFilter.AggregateConfiguration,
-                    Stepped = false
+                    Stepped = false,
+                    PrimeInitialValue = true
                 };
 
                 StatusCode error = await ReviseAggregateFilterAsync(
@@ -7219,9 +7646,9 @@ namespace Opc.Ua.Server
 
                 var aggregateFilterResult = new AggregateFilterResult
                 {
-                    RevisedProcessingInterval = aggregateFilter.ProcessingInterval,
-                    RevisedStartTime = aggregateFilter.StartTime,
-                    RevisedAggregateConfiguration = aggregateFilter.AggregateConfiguration
+                    RevisedProcessingInterval = revisedFilter.ProcessingInterval,
+                    RevisedStartTime = revisedFilter.StartTime,
+                    RevisedAggregateConfiguration = revisedFilter.AggregateConfiguration
                 };
 
                 result.FilterToUse = revisedFilter;
@@ -7306,7 +7733,7 @@ namespace Opc.Ua.Server
         /// <param name="filterToUse">The filter to revise.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>Good if the </returns>
-        protected virtual ValueTask<StatusCode> ReviseAggregateFilterAsync(
+        protected virtual async ValueTask<StatusCode> ReviseAggregateFilterAsync(
             ServerSystemContext context,
             NodeHandle handle,
             double samplingInterval,
@@ -7314,31 +7741,159 @@ namespace Opc.Ua.Server
             ServerAggregateFilter filterToUse,
             CancellationToken cancellationToken = default)
         {
-            if (filterToUse.ProcessingInterval < samplingInterval)
+            IHistorianProvider? provider = ResolveHistorianProvider(handle.Node);
+            filterToUse.HistorianProvider = null;
+            filterToUse.HistorianCapabilities = null;
+            filterToUse.HistorianKeySelector =
+                TimestampStructuredDataKeySelector.Instance;
+            if (provider == null)
             {
-                filterToUse.ProcessingInterval = samplingInterval;
+                if (filterToUse.ProcessingInterval < samplingInterval)
+                {
+                    filterToUse.ProcessingInterval = samplingInterval;
+                }
+
+                if (filterToUse.ProcessingInterval <
+                    Server.AggregateManager.MinimumProcessingInterval)
+                {
+                    filterToUse.ProcessingInterval =
+                        Server.AggregateManager.MinimumProcessingInterval;
+                }
+
+                DateTimeUtc currentTime =
+                    ((Server as ITimeProviderProvider)?.TimeProvider ??
+                        TimeProvider.System).GetUtcNow().UtcDateTime;
+                double retainedWindow = Math.Max((long)queueSize - 1, 0) *
+                    filterToUse.ProcessingInterval;
+                DateTimeUtc retainedStartTime = retainedWindow.IsFinite() &&
+                    retainedWindow <=
+                        (currentTime - DateTimeUtc.MinValue).TotalMilliseconds
+                        ? currentTime.SubtractMilliseconds(retainedWindow)
+                        : DateTimeUtc.MinValue;
+                if (retainedStartTime > filterToUse.StartTime)
+                {
+                    filterToUse.StartTime = retainedStartTime;
+                }
+
+                if (filterToUse.AggregateConfiguration
+                    .UseServerCapabilitiesDefaults)
+                {
+                    filterToUse.AggregateConfiguration = Server.AggregateManager
+                        .GetDefaultConfiguration(default);
+                }
+                return StatusCodes.Good;
             }
 
-            if (filterToUse.ProcessingInterval < Server.AggregateManager.MinimumProcessingInterval)
+            HistorianNodeCapabilities capabilities;
+            try
             {
-                filterToUse.ProcessingInterval = Server.AggregateManager.MinimumProcessingInterval;
+                capabilities = await provider
+                    .GetCapabilitiesAsync(handle.NodeId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception)
+            {
+                return exception.StatusCode;
+            }
+            catch (TimeoutException)
+            {
+                return StatusCodes.BadTimeout;
+            }
+            catch (IOException)
+            {
+                return StatusCodes.BadCommunicationError;
+            }
+            filterToUse.HistorianProvider = provider;
+            filterToUse.HistorianCapabilities = capabilities;
+            if (provider is IHistorianStructuredDataProvider structuredProvider)
+            {
+                try
+                {
+                    filterToUse.HistorianKeySelector = await structuredProvider
+                        .GetKeySelectorAsync(
+                            handle.NodeId,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (ServiceResultException exception)
+                {
+                    return exception.StatusCode;
+                }
+                catch (TimeoutException)
+                {
+                    return StatusCodes.BadTimeout;
+                }
+                catch (IOException)
+                {
+                    return StatusCodes.BadCommunicationError;
+                }
+            }
+            double providerInterval =
+                GetHistorianAggregateInterval(capabilities);
+            filterToUse.Stepped = capabilities.Stepped;
+            if (filterToUse.AggregateConfiguration.UseServerCapabilitiesDefaults)
+            {
+                filterToUse.AggregateConfiguration =
+                    CloneAggregateConfiguration(
+                        capabilities.DefaultAggregateConfiguration);
             }
 
-            DateTime earliestStartTime = DateTime.UtcNow.AddMilliseconds(
-                -(queueSize - 1) * filterToUse.ProcessingInterval);
+            double minimumFromSampling = samplingInterval > 0 &&
+                samplingInterval.IsFinite()
+                    ? samplingInterval
+                    : 0;
+            filterToUse.ProcessingInterval = Math.Max(
+                filterToUse.ProcessingInterval,
+                Math.Max(
+                    minimumFromSampling,
+                    Math.Max(
+                        Server.AggregateManager.MinimumProcessingInterval,
+                        providerInterval)));
+
+            DateTimeUtc utcNow = ((Server as ITimeProviderProvider)?.TimeProvider ??
+                TimeProvider.System).GetUtcNow().UtcDateTime;
+            double queueWindow = Math.Max((long)queueSize - 1, 0) *
+                filterToUse.ProcessingInterval;
+            DateTimeUtc earliestStartTime = queueWindow.IsFinite() &&
+                queueWindow <= (utcNow - DateTimeUtc.MinValue).TotalMilliseconds
+                    ? utcNow.SubtractMilliseconds(queueWindow)
+                    : DateTimeUtc.MinValue;
 
             if (earliestStartTime > filterToUse.StartTime)
             {
                 filterToUse.StartTime = earliestStartTime;
             }
 
-            if (filterToUse.AggregateConfiguration.UseServerCapabilitiesDefaults)
-            {
-                filterToUse.AggregateConfiguration = Server.AggregateManager
-                    .GetDefaultConfiguration(default);
-            }
+            return StatusCodes.Good;
+        }
 
-            return new ValueTask<StatusCode>(StatusCodes.Good);
+        private static double GetHistorianAggregateInterval(
+            HistorianNodeCapabilities capabilities)
+        {
+            if (capabilities.MinTimeInterval > 0 &&
+                capabilities.MinTimeInterval.IsFinite())
+            {
+                return capabilities.MinTimeInterval;
+            }
+            if (capabilities.MaxTimeInterval > 0 &&
+                capabilities.MaxTimeInterval.IsFinite())
+            {
+                return capabilities.MaxTimeInterval;
+            }
+            return 0;
+        }
+
+        private static AggregateConfiguration CloneAggregateConfiguration(
+            AggregateConfiguration source)
+        {
+            return new AggregateConfiguration
+            {
+                PercentDataBad = source.PercentDataBad,
+                PercentDataGood = source.PercentDataGood,
+                TreatUncertainAsBad = source.TreatUncertainAsBad,
+                UseSlopedExtrapolation = source.UseSlopedExtrapolation,
+                UseServerCapabilitiesDefaults = false
+            };
         }
 
         /// <summary>
@@ -7414,12 +7969,17 @@ namespace Opc.Ua.Server
                         modifiedItems.Add(monitoredItems[ii]);
                     }
                 }
-
-                m_monitoredItemManager.ApplyChanges();
             }
             finally
             {
-                m_monitoredItemSemaphore.Release();
+                try
+                {
+                    m_monitoredItemManager.ApplyChanges();
+                }
+                finally
+                {
+                    m_monitoredItemSemaphore.Release();
+                }
             }
 
             // do any post processing.
@@ -7472,6 +8032,12 @@ namespace Opc.Ua.Server
                 itemToModify.RequestedParameters.QueueSize,
                 MaxQueueSize,
                 MaxDurableQueueSize);
+            uint filterQueueSize = revisedQueueSize;
+            if (filterQueueSize == 0 &&
+                m_monitoredItemManager is SamplingGroupMonitoredItemManager)
+            {
+                filterQueueSize = datachangeItem.QueueSize;
+            }
 
             // validate the monitoring filter.
             ValidateMonitoringFilterResult validateMonitoringFilterResult = await ValidateMonitoringFilterAsync(
@@ -7479,7 +8045,7 @@ namespace Opc.Ua.Server
                 handle,
                 datachangeItem.AttributeId,
                 samplingInterval,
-                revisedQueueSize,
+                filterQueueSize,
                 parameters.Filter,
                 cancellationToken).ConfigureAwait(false);
 
@@ -7488,25 +8054,171 @@ namespace Opc.Ua.Server
                 return (validateMonitoringFilterResult.StatusCode, validateMonitoringFilterResult.FilterResult);
             }
 
-            // modify the monitored item parameters.
-            ServiceResult? error = m_monitoredItemManager!.ModifyMonitoredItem(
-                context,
-                diagnosticsMasks,
-                timestampsToReturn,
-                validateMonitoringFilterResult.FilterToUse,
-                validateMonitoringFilterResult.Range,
-                samplingInterval,
-                revisedQueueSize,
-                datachangeItem,
-                itemToModify);
+            var aggregateFilter =
+                validateMonitoringFilterResult.FilterToUse as
+                    ServerAggregateFilter;
+            var concreteItem = datachangeItem as MonitoredItem;
+            AggregationFilterHandler.Modification? preparation = null;
+            bool prevalidationRegistered = false;
+            bool initialValueCompleted = false;
 
-            // report change.
-            if (ServiceResult.IsGood(error))
+            try
             {
-                await OnMonitoredItemModifiedAsync(context, handle, datachangeItem, cancellationToken).ConfigureAwait(false);
+                if (aggregateFilter is { PrimeInitialValue: true } &&
+                    concreteItem != null)
+                {
+                    preparation = concreteItem.PrepareAggregateModification(
+                        aggregateFilter);
+                    if (preparation == null ||
+                        !preparation.RequiresInitialValue)
+                    {
+                        aggregateFilter.PrimeInitialValue = false;
+                    }
+                }
+
+                if (aggregateFilter is { PrimeInitialValue: true })
+                {
+                    ServiceResult initialValueValidation =
+                        ValidateInitialValueRequest(
+                            context,
+                            handle,
+                            datachangeItem);
+                    if (IsFatalInitialReadError(initialValueValidation))
+                    {
+                        if (preparation != null)
+                        {
+                            concreteItem!.CancelPreparedAggregateModification(
+                                preparation);
+                        }
+                        return (
+                            initialValueValidation,
+                            validateMonitoringFilterResult.FilterResult);
+                    }
+                    m_prevalidatedInitialValueRequests.Add(
+                        aggregateFilter,
+                        aggregateFilter);
+                    prevalidationRegistered = true;
+                }
+
+                // modify the monitored item parameters.
+                ServiceResult? error =
+                    m_monitoredItemManager!.ModifyMonitoredItem(
+                        context,
+                        diagnosticsMasks,
+                        timestampsToReturn,
+                        validateMonitoringFilterResult.FilterToUse,
+                        validateMonitoringFilterResult.Range,
+                        samplingInterval,
+                        revisedQueueSize,
+                        datachangeItem,
+                        itemToModify);
+
+                if (ServiceResult.IsBad(error))
+                {
+                    if (prevalidationRegistered)
+                    {
+                        m_prevalidatedInitialValueRequests.Remove(
+                            aggregateFilter!);
+                    }
+                    if (preparation != null)
+                    {
+                        if (preparation.IsCommitted)
+                        {
+                            _ = CompleteInitialValuePriming(datachangeItem);
+                        }
+                        else
+                        {
+                            concreteItem!.CancelPreparedAggregateModification(
+                                preparation);
+                        }
+                    }
+                    return (
+                        error!,
+                        validateMonitoringFilterResult.FilterResult);
+                }
+
+                if (aggregateFilter is { PrimeInitialValue: true })
+                {
+                    // The modification is committed; priming failures are reported through the item.
+                    try
+                    {
+                        _ = await ReadInitialValueAsync(
+                                context,
+                                handle,
+                                datachangeItem,
+                                aggregateFilter,
+                                cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        m_prevalidatedInitialValueRequests.Remove(
+                            aggregateFilter);
+                        prevalidationRegistered = false;
+                        initialValueCompleted = true;
+                        _ = CompleteInitialValuePriming(datachangeItem);
+                    }
+                    error = ServiceResult.Good;
+                }
+
+                // report change after buffered live values have been released.
+                await OnMonitoredItemModifiedAsync(
+                    context,
+                    handle,
+                    datachangeItem,
+                    cancellationToken).ConfigureAwait(false);
+
+                return (
+                    error!,
+                    validateMonitoringFilterResult.FilterResult);
+            }
+            catch
+            {
+                if (prevalidationRegistered)
+                {
+                    m_prevalidatedInitialValueRequests.Remove(
+                        aggregateFilter!);
+                }
+                if (preparation != null)
+                {
+                    if (preparation.IsCommitted)
+                    {
+                        if (!initialValueCompleted)
+                        {
+                            _ = CompleteInitialValuePriming(datachangeItem);
+                        }
+                    }
+                    else
+                    {
+                        concreteItem!.CancelPreparedAggregateModification(
+                            preparation);
+                    }
+                }
+                throw;
+            }
+        }
+
+        private ServiceResult CompleteInitialValuePriming(
+            ISampledDataChangeMonitoredItem monitoredItem)
+        {
+            if (monitoredItem is not
+                IInitialValueMonitoredItem initialValueMonitoredItem)
+            {
+                return ServiceResult.Good;
             }
 
-            return (error!, validateMonitoringFilterResult.FilterResult);
+            ServiceResult completion =
+                initialValueMonitoredItem.CompleteInitialValue();
+            if (ServiceResult.IsBad(completion))
+            {
+                DateTimeUtc utcNow =
+                    ((Server as ITimeProviderProvider)?.TimeProvider ??
+                        TimeProvider.System).GetUtcNow().UtcDateTime;
+                QueueInitialHistoryFailure(
+                    monitoredItem,
+                    utcNow,
+                    completion);
+            }
+            return completion;
         }
 
         /// <summary>
@@ -8395,6 +9107,13 @@ namespace Opc.Ua.Server
         /// the monitored item manager of the NodeManager
         /// </summary>
         protected IMonitoredItemManager m_monitoredItemManager;
+        private readonly ConditionalWeakTable<ServerAggregateFilter, object>
+            m_prevalidatedInitialValueRequests =
+#if NETFRAMEWORK || NETSTANDARD2_0
+                new();
+#else
+                [];
+#endif
         private List<LocalReference> m_removedExternalReferences = [];
         private bool m_disposed;
         /// <summary>
@@ -8425,5 +9144,6 @@ namespace Opc.Ua.Server
         private uint m_lastUsedNodeId;
 
         private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
+        private const int kMaxInitialHistoryPages = 100_000;
     }
 }

@@ -82,7 +82,7 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionPose3DDataType parent = MakePose(
                 "world",
-                new[] { 1.0, 2.0, 3.0 },
+                s_doubleValues1,
                 UnitQuaternion(0.0, 0.0, Math.PI / 6.0));
             VisionPose3DDataType child = VisionCoordinateFrameMath.Identity("child");
 
@@ -99,12 +99,12 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionPose3DDataType parent = MakePose(
                 "world",
-                new[] { 10.0, 0.0, 0.0 },
+                s_doubleValues2,
                 UnitQuaternion(0.0, 0.0, Math.PI / 2.0));
             VisionPose3DDataType child = MakePose(
                 "arm",
-                new[] { 1.0, 0.0, 0.0 },
-                new[] { 0.0, 0.0, 0.0, 1.0 });
+                s_doubleValues3,
+                s_doubleValues4);
 
             VisionPose3DDataType composed = VisionCoordinateFrameMath.Compose(parent, child);
 
@@ -118,15 +118,15 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionPose3DDataType baseToWorld = MakePose(
                 "world",
-                new[] { 0.0, 0.0, 0.0 },
-                new[] { 0.0, 0.0, 0.0, 1.0 });
+                s_doubleValues5,
+                s_doubleValues4);
             VisionPose3DDataType flangeInBase = MakePose(
                 "base",
-                new[] { 0.5, 0.0, 0.75 },
+                s_doubleValues6,
                 UnitQuaternion(0.0, 0.0, Math.PI / 4.0));
             VisionPose3DDataType cameraInFlange = MakePose(
                 "flange",
-                new[] { 0.02, 0.0, 0.1 },
+                s_doubleValues7,
                 UnitQuaternion(Math.PI / 12.0, 0.0, 0.0));
 
             VisionPose3DDataType flangeInWorld = VisionCoordinateFrameMath.Compose(baseToWorld, flangeInBase);
@@ -151,11 +151,11 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionPose3DDataType tcpInFlange = MakePose(
                 "flange",
-                new[] { 0.0, 0.0, 0.20 },
+                s_doubleValues8,
                 UnitQuaternion(0.0, Math.PI, 0.0));
             VisionPose3DDataType flangeInBase = MakePose(
                 "base",
-                new[] { 0.6, 0.1, 0.4 },
+                s_doubleValues9,
                 UnitQuaternion(0.0, 0.0, Math.PI / 3.0));
 
             VisionPose3DDataType tcpInBase = VisionCoordinateFrameMath.Compose(flangeInBase, tcpInFlange);
@@ -179,8 +179,8 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionPose3DDataType parent = MakePose(
                 "world",
-                new[] { 0.0, 0.0, 0.0 },
-                new[] { 0.0, 0.0, 4.0, 4.0 });
+                s_doubleValues5,
+                s_doubleValues10);
             VisionPose3DDataType child = VisionCoordinateFrameMath.Identity("child");
 
             VisionPose3DDataType composed = VisionCoordinateFrameMath.Compose(parent, child);
@@ -269,8 +269,8 @@ namespace Opc.Ua.Vision.Tests
         [Test]
         public void ComposeAlwaysResetsCovarianceToEmptyArraySentinel()
         {
-            VisionPose3DDataType a = MakePose("world", new[] { 0.1, 0.2, 0.3 }, new[] { 0.0, 0.0, 0.0, 1.0 });
-            VisionPose3DDataType b = MakePose("child", new[] { 0.0, 0.0, 0.0 }, new[] { 0.0, 0.0, 0.0, 1.0 });
+            VisionPose3DDataType a = MakePose("world", s_doubleValues11, s_doubleValues4);
+            VisionPose3DDataType b = MakePose("child", s_doubleValues5, s_doubleValues4);
             a.Covariance = new double[36];
             b.Covariance = new double[36];
 
@@ -303,12 +303,12 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionPose3DDataType flangeInBase = MakePose(
                 "base",
-                new[] { 1.0, 0.0, 0.0 },
-                new[] { 0.0, 0.0, 0.0, 1.0 });
+                s_doubleValues3,
+                s_doubleValues4);
             VisionPose3DDataType cameraInFlange = MakePose(
                 "flange",
-                new[] { 0.0, 0.0, 0.2 },
-                new[] { 0.0, 0.0, 0.0, 1.0 });
+                s_doubleValues12,
+                s_doubleValues4);
             var frames = new Dictionary<string, VisionCoordinateFrameMath.CoordinateFrameSnapshot>(StringComparer.Ordinal)
             {
                 ["base"] = new("base", VisionFrameRoleEnum.Base, string.Empty, VisionCoordinateFrameMath.Identity("base")),
@@ -473,5 +473,18 @@ namespace Opc.Ua.Vision.Tests
                 Assert.That(pose.Orientation[3], Is.EqualTo(w).Within(Tol));
             });
         }
+
+        private static readonly double[] s_doubleValues1 = [1.0, 2.0, 3.0];
+        private static readonly double[] s_doubleValues2 = [10.0, 0.0, 0.0];
+        private static readonly double[] s_doubleValues3 = [1.0, 0.0, 0.0];
+        private static readonly double[] s_doubleValues4 = [0.0, 0.0, 0.0, 1.0];
+        private static readonly double[] s_doubleValues5 = [0.0, 0.0, 0.0];
+        private static readonly double[] s_doubleValues6 = [0.5, 0.0, 0.75];
+        private static readonly double[] s_doubleValues7 = [0.02, 0.0, 0.1];
+        private static readonly double[] s_doubleValues8 = [0.0, 0.0, 0.20];
+        private static readonly double[] s_doubleValues9 = [0.6, 0.1, 0.4];
+        private static readonly double[] s_doubleValues10 = [0.0, 0.0, 4.0, 4.0];
+        private static readonly double[] s_doubleValues11 = [0.1, 0.2, 0.3];
+        private static readonly double[] s_doubleValues12 = [0.0, 0.0, 0.2];
     }
 }

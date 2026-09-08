@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
@@ -44,6 +45,9 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public sealed class MonitoredItemLifecycleTests
     {
+        /// <summary>
+        /// Verifies that repeated deletion marks publish BadNodeIdUnknown only once for the deletion episode.
+        /// </summary>
         [Test]
         public void RepeatedDeletionMarksPublishBadNodeIdUnknownOnce()
         {
@@ -68,6 +72,10 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a size-one monitored-item queue publishes the deletion status instead of the pre-deletion
+        /// value.
+        /// </summary>
         [Test]
         public void QueueSizeOnePublishesRequiredBadInsteadOfThePreDeletionValue()
         {
@@ -97,6 +105,29 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a recovered value replaces an unpublished deletion notification in a size-one monitored-item
+        /// queue.
+        /// </summary>
+        [Test]
+        public void QueueSizeOneCanReplaceDeletionNotificationBeforePublish()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using MonitoredItem item = CreateMonitoredItem(telemetry, queueSize: 1);
+            var recovered = new DataValue(Variant.From(42), StatusCodes.Good);
+
+            ((IDetachableMonitoredItem)item).MarkNodeDeleted();
+            item.QueueValue(recovered, ServiceResult.Good);
+            Queue<MonitoredItemNotification> notifications = Publish(item, telemetry, 1, out bool more);
+
+            Assert.That(notifications, Has.Count.EqualTo(1));
+            Assert.That(notifications.Peek().Value, Is.EqualTo(recovered));
+            Assert.That(more, Is.False);
+        }
+
+        /// <summary>
+        /// Verifies that the queue handler applies its discard policy without discarding a required deletion marker.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public void LifecycleValuesObeyQueueDiscardPolicyWithoutDiscardingBad(bool discardOldest)
@@ -130,6 +161,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that recovery values pass through the configured data-change filter.
+        /// </summary>
         [Test]
         public void RecoveryValuesPassTheConfiguredDataChangeFilter()
         {
@@ -178,14 +212,17 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that rebinding updates monitored-item ownership without erasing a pending bad notification.
+        /// </summary>
         [Test]
         public void RebindUpdatesOwnershipWithoutErasingPendingBad()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var originalManager = new Mock<IAsyncNodeManager>();
             var reboundManager = new Mock<IAsyncNodeManager>();
-            var originalHandle = new object();
-            var reboundHandle = new object();
+            object originalHandle = new();
+            object reboundHandle = new();
             using MonitoredItem item = CreateMonitoredItem(
                 telemetry,
                 nodeManager: originalManager.Object,
@@ -209,6 +246,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a new deletion after recovery publishes another bad notification.
+        /// </summary>
         [Test]
         public void NewDeletionEpochAfterRecoveryPublishesBadAgain()
         {
@@ -237,6 +277,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that storing and restoring a deleted item preserves its deleted and detached flags.
+        /// </summary>
         [Test]
         public void StoringAndRestoringADeletedItemCarriesTheDeletedAndDetachedFlags()
         {
@@ -268,6 +311,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that storing and restoring a live item leaves deleted and detached flags clear.
+        /// </summary>
         [Test]
         public void StoringAndRestoringALiveItemLeavesTheFlagsClear()
         {
@@ -296,6 +342,10 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(restoredLifecycle.IsDetached, Is.False);
             });
         }
+
+        /// <summary>
+        /// Verifies that multiple pending deletion episodes collapse into one queued marker.
+        /// </summary>
         [Test]
         public void MultiplePendingDeletionEpochsCollapseIntoOneMarker()
         {
@@ -338,6 +388,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that discard processing retries a transient durable-queue dequeue failure.
+        /// </summary>
         [Test]
         public void DiscardRetriesTransientDurableDequeue()
         {
@@ -383,6 +436,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that an ordinary BadNodeIdUnknown sample does not block the notification queue.
+        /// </summary>
         [Test]
         public void OrdinaryBadNodeIdUnknownSampleDoesNotBlockTheQueue()
         {
@@ -406,6 +462,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that ordinary BadNodeIdUnknown values obey the configured queue-size limit.
+        /// </summary>
         [Test]
         public void OrdinaryBadNodeIdUnknownValuesObeyTheConfiguredQueueSize()
         {
@@ -449,6 +508,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a second required marker merges into the pending marker and reports overflow.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public void SecondMarkerCollapsesIntoThePendingOneAndTheMarkerReportsOverflow(bool discardOldest)
@@ -490,6 +552,124 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a replacement required marker supersedes the pending marker.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void ReplacementRequiredMarkerSupersedesPendingMarker(
+            bool discardOldest)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            using DataChangeQueueHandler handler = CreateQueueHandler(
+                telemetry,
+                queueFactory,
+                queueSize: 2,
+                discardOldest: discardOldest);
+            DateTime timestamp = DateTime.UtcNow;
+            var historyError = new DataValue(
+                Variant.Null,
+                StatusCodes.BadCommunicationError,
+                timestamp,
+                timestamp);
+            var nodeDeleted = new DataValue(
+                Variant.Null,
+                StatusCodes.BadNodeIdUnknown,
+                timestamp.AddMilliseconds(1),
+                timestamp.AddMilliseconds(1));
+
+            handler.QueueRequiredValue(
+                historyError,
+                new ServiceResult(StatusCodes.BadCommunicationError));
+            handler.QueueValue(
+                new DataValue(new Variant(1), StatusCodes.Good),
+                ServiceResult.Good);
+            handler.QueueValue(
+                new DataValue(new Variant(2), StatusCodes.Good),
+                ServiceResult.Good);
+            handler.QueueRequiredValue(
+                nodeDeleted,
+                new ServiceResult(StatusCodes.BadNodeIdUnknown),
+                replaceExisting: true);
+            handler.QueueValue(
+                new DataValue(new Variant(3), StatusCodes.Good),
+                ServiceResult.Good);
+
+            List<DataValue> published = DrainHandler(handler);
+            DataValue deletionNotification = published.Single(value =>
+                value.StatusCode.Code == StatusCodes.BadNodeIdUnknown);
+
+            Assert.That(
+                published.Count(value =>
+                    value.StatusCode.Code == StatusCodes.BadNodeIdUnknown),
+                Is.EqualTo(1));
+            Assert.That(deletionNotification.StatusCode.Overflow, Is.True);
+            Assert.That(
+                published.Any(value =>
+                    value.StatusCode == StatusCodes.BadCommunicationError),
+                Is.False);
+            Assert.That(handler.HasRequiredValues, Is.False);
+        }
+
+        /// <summary>
+        /// Verifies that rebuilding a required-value queue retries transient durable dequeue failures.
+        /// </summary>
+        [Test]
+        public void RequiredQueueRebuildsRetryTransientDurableDequeues()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var queue = new TransientDequeueQueue(
+                new DataChangeMonitoredItemQueue(
+                    createDurable: false,
+                    monitoredItemId: 1,
+                    telemetry));
+            queue.ResetQueue(2, queueErrors: true);
+            using var handler = new DataChangeQueueHandler(
+                queue,
+                discardOldest: true,
+                samplingInterval: 0,
+                telemetry,
+                discardedValueHandler: null);
+            DateTime timestamp = DateTime.UtcNow;
+            handler.QueueRequiredValue(
+                new DataValue(
+                    Variant.Null,
+                    StatusCodes.BadCommunicationError,
+                    timestamp,
+                    timestamp),
+                new ServiceResult(StatusCodes.BadCommunicationError));
+            handler.QueueValue(
+                new DataValue(new Variant(1), StatusCodes.Good),
+                ServiceResult.Good);
+
+            queue.FailuresRemaining = 1;
+            handler.SetQueueSize(2, true, DiagnosticsMasks.OperationAll);
+            queue.FailuresRemaining = 1;
+            handler.QueueRequiredValue(
+                new DataValue(
+                    Variant.Null,
+                    StatusCodes.BadNodeIdUnknown,
+                    timestamp.AddMilliseconds(1),
+                    timestamp.AddMilliseconds(1)),
+                new ServiceResult(StatusCodes.BadNodeIdUnknown),
+                replaceExisting: true);
+
+            List<DataValue> published = DrainHandler(handler);
+
+            Assert.That(
+                published.Any(value =>
+                    value.StatusCode.Code == StatusCodes.BadNodeIdUnknown),
+                Is.True);
+            Assert.That(
+                published.Any(value =>
+                    value.StatusCode.Code == StatusCodes.BadCommunicationError),
+                Is.False);
+        }
+
+        /// <summary>
+        /// Verifies that a size-one queue handler drops ordinary values until its required marker is published.
+        /// </summary>
         [Test]
         public void QueueSizeOneDropsIncomingValuesWhileTheMarkerIsPending()
         {
@@ -530,6 +710,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that queue resizing preserves required-marker protection while ordinary values remain discardable.
+        /// </summary>
         [Test]
         public void ResizingAQueueKeepsMarkersProtectedAndOrdinaryValuesDiscardable()
         {
@@ -538,33 +721,33 @@ namespace Opc.Ua.Server.Tests
             using DataChangeQueueHandler handler = CreateQueueHandler(
                 telemetry,
                 queueFactory,
-                queueSize: 4,
+                queueSize: 2,
                 discardOldest: true);
 
             handler.QueueRequiredValue(
                 new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown),
                 new ServiceResult(StatusCodes.BadNodeIdUnknown));
             handler.QueueValue(new DataValue(new Variant(1), StatusCodes.Good), ServiceResult.Good);
-            handler.QueueValue(
-                CreateBadNodeIdUnknownValue(),
-                new ServiceResult(StatusCodes.BadNodeIdUnknown));
-
-            handler.SetQueueSize(4, true, DiagnosticsMasks.None);
             handler.QueueValue(new DataValue(new Variant(2), StatusCodes.Good), ServiceResult.Good);
+
+            handler.SetQueueSize(2, true, DiagnosticsMasks.None);
+            handler.QueueValue(new DataValue(new Variant(3), StatusCodes.Good), ServiceResult.Good);
 
             List<DataValue> published = DrainHandler(handler);
 
             Assert.Multiple(() =>
             {
                 Assert.That(handler.HasRequiredValues, Is.False);
-                Assert.That(published, Has.Count.EqualTo(4));
+                Assert.That(published, Has.Count.EqualTo(2));
                 Assert.That(published[0].StatusCode.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(published[0].StatusCode.Overflow, Is.True);
                 Assert.That(published[1].WrappedValue, Is.EqualTo(new Variant(1)));
-                Assert.That(published[2].StatusCode.Code, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                Assert.That(published[3].WrappedValue, Is.EqualTo(new Variant(2)));
             });
         }
 
+        /// <summary>
+        /// Verifies that an ordinary value replaces an unprotected BadNodeIdUnknown sample in a size-one queue.
+        /// </summary>
         [Test]
         public void OrdinaryValueReplacesBadNodeIdUnknownAtQueueSizeOne()
         {
@@ -596,6 +779,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(published[0].WrappedValue, Is.EqualTo(new Variant(42)));
             });
         }
+
         private static DataChangeQueueHandler CreateQueueHandler(
             ITelemetryContext telemetry,
             MonitoredItemQueueFactory queueFactory,
@@ -631,6 +815,7 @@ namespace Opc.Ua.Server.Tests
             }
             return values;
         }
+
         private static MonitoredItem CreateMonitoredItem(
             ITelemetryContext telemetry,
             uint queueSize = 1,

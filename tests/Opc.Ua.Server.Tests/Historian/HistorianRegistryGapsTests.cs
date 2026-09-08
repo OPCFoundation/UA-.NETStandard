@@ -48,6 +48,9 @@ namespace Opc.Ua.Server.Tests.Historian
     [Parallelizable(ParallelScope.All)]
     public class HistorianRegistryGapsTests
     {
+        /// <summary>
+        /// Verifies that registry construction rejects a null namespace table.
+        /// </summary>
         [Test]
         public void ConstructorWithNullNamespaceTableThrows()
         {
@@ -56,6 +59,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that per-node registration rejects a null node identifier.
+        /// </summary>
         [Test]
         public void RegisterForNodeWithNullNodeIdThrows()
         {
@@ -67,6 +73,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentException>());
         }
 
+        /// <summary>
+        /// Verifies that per-node registration rejects a null provider.
+        /// </summary>
         [Test]
         public void RegisterForNodeWithNullProviderThrows()
         {
@@ -78,6 +87,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that namespace registration rejects a null URI.
+        /// </summary>
         [Test]
         public void RegisterForNamespaceWithNullUriThrows()
         {
@@ -89,6 +101,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentException>());
         }
 
+        /// <summary>
+        /// Verifies that namespace registration rejects an empty URI.
+        /// </summary>
         [Test]
         public void RegisterForNamespaceWithEmptyUriThrows()
         {
@@ -100,6 +115,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentException>());
         }
 
+        /// <summary>
+        /// Verifies that namespace registration rejects a null provider.
+        /// </summary>
         [Test]
         public void RegisterForNamespaceWithNullProviderThrows()
         {
@@ -110,6 +128,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that default registration rejects a null provider.
+        /// </summary>
         [Test]
         public void RegisterDefaultWithNullProviderThrows()
         {
@@ -120,6 +141,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that clearing the default removes an otherwise unused provider from registry membership.
+        /// </summary>
         [Test]
         public void ClearDefaultRemovesDefaultFromProvidersSet()
         {
@@ -127,14 +151,17 @@ namespace Opc.Ua.Server.Tests.Historian
             using var p = new InMemoryHistorianProvider();
 
             registry.RegisterDefault(p);
-            Assert.That(registry.Providers, Does.Contain(p));
+            Assert.That(registry.Providers.Contains(p), Is.True);
 
             registry.ClearDefault();
 
-            Assert.That(registry.Providers, Does.Not.Contain(p));
+            Assert.That(registry.Providers.Contains(p), Is.False);
             Assert.That(registry.Resolve(new NodeId("any", 1)), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that clearing an absent default provider has no effect.
+        /// </summary>
         [Test]
         public void ClearDefaultWhenNoDefaultIsNoOp()
         {
@@ -144,6 +171,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(registry.Providers, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that clearing the default retains a provider still bound to a node.
+        /// </summary>
         [Test]
         public void ClearDefaultKeepsProviderIfStillInNodes()
         {
@@ -159,10 +189,13 @@ namespace Opc.Ua.Server.Tests.Historian
             // so it must remain in Providers.
             registry.ClearDefault();
 
-            Assert.That(registry.Providers, Does.Contain(shared),
+            Assert.That(registry.Providers.Contains(shared), Is.True,
                 "Provider still used by node binding must stay in Providers.");
         }
 
+        /// <summary>
+        /// Verifies that unregistering a null node identifier returns false.
+        /// </summary>
         [Test]
         public void UnregisterForNodeWithNullNodeIdReturnsFalse()
         {
@@ -173,6 +206,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that unregistering an unknown node identifier returns false.
+        /// </summary>
         [Test]
         public void UnregisterForNodeThatDoesNotExistReturnsFalse()
         {
@@ -184,6 +220,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that unregistering a provider's last node binding removes it from registry membership.
+        /// </summary>
         [Test]
         public void UnregisterForNodeRegisteredNodeRemovesFromProvidersWhenNotUsedElsewhere()
         {
@@ -195,10 +234,13 @@ namespace Opc.Ua.Server.Tests.Historian
             bool removed = registry.UnregisterForNode(nodeId);
 
             Assert.That(removed, Is.True);
-            Assert.That(registry.Providers, Does.Not.Contain(p));
+            Assert.That(registry.Providers.Contains(p), Is.False);
             Assert.That(registry.Resolve(nodeId), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that unregistering a node retains a provider still registered as the default.
+        /// </summary>
         [Test]
         public void UnregisterForNodeKeepsProviderWhenAlsoUsedAsDefault()
         {
@@ -211,10 +253,13 @@ namespace Opc.Ua.Server.Tests.Historian
             bool removed = registry.UnregisterForNode(nodeId);
 
             Assert.That(removed, Is.True);
-            Assert.That(registry.Providers, Does.Contain(shared),
+            Assert.That(registry.Providers.Contains(shared), Is.True,
                 "Provider still used as default must stay in Providers.");
         }
 
+        /// <summary>
+        /// Verifies that unregistering a null namespace URI returns false.
+        /// </summary>
         [Test]
         public void UnregisterForNamespaceWithNullReturnsFalse()
         {
@@ -225,6 +270,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that unregistering an empty namespace URI returns false.
+        /// </summary>
         [Test]
         public void UnregisterForNamespaceWithEmptyReturnsFalse()
         {
@@ -235,6 +283,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that namespace provider resolution uses the server namespace table index.
+        /// </summary>
         [Test]
         public void ResolveByNamespaceUsesNamespaceTableIndex()
         {
@@ -251,6 +302,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(resolved, Is.SameAs(p));
         }
 
+        /// <summary>
+        /// Verifies that resolution returns null when neither a namespace binding nor a default matches.
+        /// </summary>
         [Test]
         public void ResolveReturnsNullWhenNamespaceHasNoMatchAndNoDefault()
         {
@@ -266,6 +320,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(registry.Resolve(nodeId), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that registry disposal disposes registered disposable providers.
+        /// </summary>
         [Test]
         public void DisposeDisposesRegisteredIDisposableProviders()
         {
@@ -278,6 +335,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(disposableProvider.Disposed, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that exceptions from provider disposal do not escape registry disposal.
+        /// </summary>
         [Test]
         public void DisposeSwallowsExceptionsFromProviders()
         {
@@ -288,6 +348,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.DoesNotThrow(registry.Dispose);
         }
 
+        /// <summary>
+        /// Verifies that disposing a registry containing a nondisposable provider is safe.
+        /// </summary>
         [Test]
         public void DisposeNonDisposableProviderDoesNotThrow()
         {

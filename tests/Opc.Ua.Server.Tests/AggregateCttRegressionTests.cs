@@ -50,6 +50,9 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public sealed class AggregateCttRegressionTests
     {
+        /// <summary>
+        /// Verifies that direct and live results over ten intervals match the Part 13 aggregate oracle.
+        /// </summary>
         [TestCase("Minimum", false)]
         [TestCase("Maximum", false)]
         [TestCase("Range", false)]
@@ -89,6 +92,9 @@ namespace Opc.Ua.Server.Tests
             AssertSharedTenIntervalResults(live, aggregateName, reverse);
         }
 
+        /// <summary>
+        /// Verifies that an aggregate interval equal to the requested range returns one value directly and live.
+        /// </summary>
         [TestCase("Minimum", 0.0)]
         [TestCase("Maximum", 19.0)]
         [TestCase("Range", 19.0)]
@@ -123,6 +129,9 @@ namespace Opc.Ua.Server.Tests
             AssertSingleNumericResult(live, expected, s_baseTime, AggregateBits.Calculated);
         }
 
+        /// <summary>
+        /// Verifies that direct and live start/end aggregate families match the Part 13 oracle.
+        /// </summary>
         [TestCase("Start", false, 0.0, 0, AggregateBits.Raw)]
         [TestCase("End", false, 5.0, 5, AggregateBits.Raw)]
         [TestCase("StartBound", false, 0.0, 0, AggregateBits.Raw)]
@@ -171,6 +180,9 @@ namespace Opc.Ua.Server.Tests
             AssertSingleNumericResult(live, expected, expectedTimestamp, expectedBits);
         }
 
+        /// <summary>
+        /// Verifies that direct and live percentage aggregates honor the explicit uncertain-value configuration.
+        /// </summary>
         [TestCase("PercentGood", false, 50.0)]
         [TestCase("PercentBad", false, 50.0)]
         [TestCase("PercentGood", true, 25.0)]
@@ -213,6 +225,9 @@ namespace Opc.Ua.Server.Tests
             AssertSingleNumericResult(live, expected, s_baseTime, AggregateBits.Calculated);
         }
 
+        /// <summary>
+        /// Verifies that repeated Good quality sets the multiple-values flag for worst-quality aggregates.
+        /// </summary>
         [TestCase("WorstQuality")]
         [TestCase("WorstQuality2")]
         public async Task DirectAndLiveWorstQualitySetMultipleValuesForRepeatedGoodQualityAsync(
@@ -249,6 +264,9 @@ namespace Opc.Ua.Server.Tests
             AssertWorstQualityResult(live);
         }
 
+        /// <summary>
+        /// Verifies that direct and live duration-in-state aggregates match the Part 13 oracle.
+        /// </summary>
         [TestCase("DurationInStateZero", false)]
         [TestCase("DurationInStateNonZero", false)]
         [TestCase("DurationInStateZero", true)]
@@ -292,6 +310,9 @@ namespace Opc.Ua.Server.Tests
             AssertSingleNumericResult(live, 10_000, expectedTimestamp, AggregateBits.Calculated);
         }
 
+        /// <summary>
+        /// Verifies that direct and live transition counts follow Part 13 boundary rules.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task DirectAndLiveNumberOfTransitionsMatchesPart13BoundaryRulesAsync(bool reverse)
@@ -328,6 +349,9 @@ namespace Opc.Ua.Server.Tests
             AssertSingleNumericResult(live, 2, startTime, AggregateBits.Calculated);
         }
 
+        /// <summary>
+        /// Verifies that direct and live transition counts include uncertain values.
+        /// </summary>
         [Test]
         public async Task DirectAndLiveNumberOfTransitionsCountUncertainValuesAsync()
         {
@@ -366,6 +390,9 @@ namespace Opc.Ua.Server.Tests
             AssertNumberOfTransitionsWithMixedQuality(live);
         }
 
+        /// <summary>
+        /// Verifies that a live processed-history read with equal times returns BadInvalidArgument.
+        /// </summary>
         [Test]
         public async Task LiveProcessedReadWithEqualTimesReturnsBadInvalidArgumentAsync()
         {
@@ -651,13 +678,13 @@ namespace Opc.Ua.Server.Tests
                 Provider.Register(nodeId);
                 if (rawValues.Count > 0)
                 {
-                    IList<StatusCode> insertResults = await Provider.InsertAsync(
+                    HistorianUpdateOutcome<DataValue> insertOutcome = await Provider.InsertAsync(
                         CreateContext(),
                         nodeId,
                         rawValues,
                         CancellationToken.None).ConfigureAwait(false);
-                    Assert.That(insertResults, Has.Count.EqualTo(rawValues.Count));
-                    Assert.That(insertResults, Has.All.Matches<StatusCode>(StatusCode.IsGood));
+                    Assert.That(insertOutcome.OperationResults, Has.Count.EqualTo(rawValues.Count));
+                    Assert.That(insertOutcome.OperationResults.ToArray(), Has.All.Matches<StatusCode>(StatusCode.IsGood));
                 }
 
                 var node = new BaseDataVariableState(null)
