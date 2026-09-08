@@ -175,10 +175,10 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void NodeAfterSealThrowsBadInvalidState()
+        public async Task NodeAfterSealThrowsBadInvalidStateAsync()
         {
             (NodeManagerBuilder b, _, _, _) = CreateBuilderWithGraph();
-            b.Seal();
+            await b.SealAsync();
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => b.Node("Root/Var1"));

@@ -48,6 +48,17 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// NodeManager opt-in for lifecycle operations initiated from OPC UA request callbacks.
+    /// </summary>
+    internal interface IRequestCallbackSafeNodeManager
+    {
+        /// <summary>
+        /// Gets whether request callbacks may enter lifecycle work without deadlocking request drains.
+        /// </summary>
+        bool AllowLifecycleFromRequestCallback { get; }
+    }
+
+    /// <summary>
     /// Default live NodeManager lifecycle provider owned by a <see cref="StandardServer"/>.
     /// </summary>
     public sealed class NodeManagerLifecycle : INodeManagerLifecycle, IDisposable
@@ -89,6 +100,105 @@ namespace Opc.Ua.Server
                 {
                     return m_retiredNodeManagers.Count;
                 }
+            }
+        }
+
+        internal void PrepareForStartup()
+        {
+            lock (m_operationLifetimeLock)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(NodeManagerLifecycle));
+                }
+                if (!m_shuttingDown)
+                {
+                    return;
+                }
+                if (m_shutdownPrepared ||
+                    m_activeLifecycleOperations != 0 ||
+                    m_activeShutdownMethods != 0)
+                {
+                    throw new InvalidOperationException(
+                        "The previous NodeManager lifecycle shutdown did not complete.");
+                }
+                m_shuttingDown = false;
+            }
+        }
+
+        internal async ValueTask AdoptStartupNodeManagersAsync(
+            IServerInternal server,
+            CancellationToken ct = default)
+        {
+            if (server is null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+            if (server.NodeManager is not IDynamicNodeManagerHost)
+            {
+                return;
+            }
+
+            using OperationLifetime operation = EnterLifecycleOperation();
+            (IServerInternal currentServer, IDynamicNodeManagerHost host) =
+                GetRunningServer();
+            if (!ReferenceEquals(server, currentServer))
+            {
+                throw new InvalidOperationException(
+                    "The running server changed before startup NodeManagers were adopted.");
+            }
+
+            await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                EnsureSameRunningServer(server, host, allowRequestCallback: false);
+                ArrayOf<PreparedNodeManager> preparedNodeManagers = await host
+                    .TakeStartupNodeManagersAsync(ct)
+                    .ConfigureAwait(false);
+                if (preparedNodeManagers.Count == 0)
+                {
+                    return;
+                }
+
+                var pending = new (
+                    NodeManagerRegistration Registration,
+                    PreparedNodeManager Prepared)[preparedNodeManagers.Count];
+                lock (m_registrationLock)
+                {
+                    for (int ii = 0; ii < preparedNodeManagers.Count; ii++)
+                    {
+                        PreparedNodeManager prepared = preparedNodeManagers[ii];
+                        Guid registrationId;
+                        do
+                        {
+                            registrationId = Guid.NewGuid();
+                        }
+                        while (m_registrations.ContainsKey(registrationId));
+
+                        pending[ii] = (
+                            new NodeManagerRegistration(
+                                registrationId,
+                                1,
+                                prepared.NodeManager),
+                            prepared);
+                    }
+
+                    for (int ii = 0; ii < pending.Length; ii++)
+                    {
+                        (NodeManagerRegistration registration, PreparedNodeManager prepared) =
+                            pending[ii];
+                        m_registrations.Add(
+                            registration.Id,
+                            new RegistrationState(
+                                registration,
+                                prepared,
+                                prepared.AllowLifecycleFromRequestCallback));
+                    }
+                }
+            }
+            finally
+            {
+                m_lifecycleSemaphore.Release();
             }
         }
 
@@ -720,6 +830,11 @@ namespace Opc.Ua.Server
                             .ConfigureAwait(false);
                         cleanup.DestroyedExternalReferencesRemoved = true;
                     }
+                    if (!cleanup.Released)
+                    {
+                        host.Release(state.Prepared.NodeManager);
+                        cleanup.Released = true;
+                    }
                     if (!cleanup.Disposed)
                     {
                         RebuildActiveTypeTree(server);
@@ -790,6 +905,10 @@ namespace Opc.Ua.Server
                     ct).ConfigureAwait(false) ??
                     throw new InvalidOperationException(
                         "The NodeManager factory returned null.");
+                if (IsOwnedNodeManager(nodeManager))
+                {
+                    throw new NodeManagerAlreadyRegisteredException();
+                }
                 prepared = await host.PrepareAsync(nodeManager, ct).ConfigureAwait(false);
 
                 await ValidateDataTypeCompatibilityAsync(server, nodeManager, ct)
@@ -950,7 +1069,8 @@ namespace Opc.Ua.Server
 
                 Exception? disposeException = null;
                 if (nodeManager is not null &&
-                    prepared?.Published != true)
+                    prepared?.Published != true &&
+                    ex is not NodeManagerAlreadyRegisteredException)
                 {
                     disposeException = await TryDisposeNodeManagerAsync(nodeManager)
                         .ConfigureAwait(false);
@@ -1051,6 +1171,10 @@ namespace Opc.Ua.Server
                     ct).ConfigureAwait(false) ??
                     throw new InvalidOperationException(
                         "The replacement NodeManager factory returned null.");
+                if (IsOwnedNodeManager(replacementManager))
+                {
+                    throw new NodeManagerAlreadyRegisteredException();
+                }
                 replacement = await host
                     .PrepareAsync(replacementManager, ct)
                     .ConfigureAwait(false);
@@ -1462,7 +1586,9 @@ namespace Opc.Ua.Server
                 }
 
                 Exception? disposeException = null;
-                if (replacementManager is not null && replacement?.Published != true)
+                if (replacementManager is not null &&
+                    replacement?.Published != true &&
+                    ex is not NodeManagerAlreadyRegisteredException)
                 {
                     disposeException = await TryDisposeNodeManagerAsync(
                         replacementManager).ConfigureAwait(false);
@@ -1802,6 +1928,21 @@ namespace Opc.Ua.Server
             }
         }
 
+        private bool IsOwnedNodeManager(IAsyncNodeManager nodeManager)
+        {
+            lock (m_registrationLock)
+            {
+                return m_registrations.Values.Any(state =>
+                        AreSameNodeManager(
+                            state.Registration.NodeManager,
+                            nodeManager)) ||
+                    m_retiredNodeManagers.Any(retired =>
+                        AreSameNodeManager(
+                            retired.NodeManager,
+                            nodeManager));
+            }
+        }
+
         private void EnsureRequestCallbackAllowed(
             bool allowRequestCallback,
             IOperationContext? callerContext)
@@ -2111,8 +2252,17 @@ namespace Opc.Ua.Server
             IAsyncNodeManager first,
             IAsyncNodeManager second)
         {
-            return ReferenceEquals(first, second) ||
-                ReferenceEquals(first.SyncNodeManager, second.SyncNodeManager);
+            if (ReferenceEquals(first, second))
+            {
+                return true;
+            }
+            INodeManager? firstSyncNodeManager = first.SyncNodeManager;
+            INodeManager? secondSyncNodeManager = second.SyncNodeManager;
+            return firstSyncNodeManager is not null &&
+                secondSyncNodeManager is not null &&
+                ReferenceEquals(
+                    firstSyncNodeManager,
+                    secondSyncNodeManager);
         }
 
         private static ValueTask RecoverDetachedMonitoredItemsAsync(

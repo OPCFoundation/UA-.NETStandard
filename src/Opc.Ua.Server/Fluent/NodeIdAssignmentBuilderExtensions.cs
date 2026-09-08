@@ -32,48 +32,10 @@ using System;
 namespace Opc.Ua.Server.Fluent
 {
     /// <summary>
-    /// Fluent extensions on <see cref="NodeManagerBuilder"/> that let
-    /// hand-written managers express the standard
-    /// <c>CreateFluentBuilder(ns).Configure(Configure).Seal()</c>
-    /// pipeline as a single chained expression rather than an
-    /// imperative four-step block.
+    /// Selects how the NodeManager behind a fluent builder mints NodeIds.
     /// </summary>
-    public static class FluentNodeManagerBuilderExtensions
+    public static class NodeIdAssignmentBuilderExtensions
     {
-        /// <summary>
-        /// Invokes the supplied <paramref name="configure"/> delegate
-        /// with this <paramref name="builder"/>, returning the builder
-        /// for further chaining. Equivalent to writing
-        /// <c>configure(builder); return builder;</c> at the callsite
-        /// but lets the caller compose the fluent pipeline without
-        /// breaking the chain.
-        /// </summary>
-        /// <param name="builder">The fluent node-manager builder.</param>
-        /// <param name="configure">
-        /// The user's <c>Configure</c> partial (typically the
-        /// <c>partial void Configure(INodeManagerBuilder builder)</c>
-        /// method group on the manager).
-        /// </param>
-        /// <returns>The same <paramref name="builder"/>.</returns>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="builder"/> or <paramref name="configure"/> is null.
-        /// </exception>
-        public static NodeManagerBuilder Configure(
-            this NodeManagerBuilder builder,
-            Action<INodeManagerBuilder> configure)
-        {
-            if (builder == null)
-            {
-                throw new ArgumentNullException(nameof(builder));
-            }
-            if (configure == null)
-            {
-                throw new ArgumentNullException(nameof(configure));
-            }
-            configure(builder);
-            return builder;
-        }
-
         /// <summary>
         /// Selects the identifier type that the owning NodeManager mints
         /// NodeIds with, for this and every node created after it.

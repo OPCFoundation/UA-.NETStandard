@@ -304,7 +304,7 @@ namespace Pumps
             CancellationToken cancellationToken = default)
         {
             // base.CreateAddressSpaceAsync loads predefined nodes and runs
-            // OnAddressSpaceReadyAsync, which materialises the OpenUSD facility.
+            // ConfigureAsync, which materialises the OpenUSD facility.
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
