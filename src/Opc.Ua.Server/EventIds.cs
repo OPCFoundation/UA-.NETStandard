@@ -261,7 +261,7 @@ namespace Opc.Ua
         /// <summary>
         /// Event identifier offset for historian event capture messages.
         /// </summary>
-        public const int HistorianEventCapture = 570;
+        public const int HistorianEventCapture = 600;
     }
 
     /// <summary>
