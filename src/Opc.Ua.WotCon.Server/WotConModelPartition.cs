@@ -110,18 +110,28 @@ namespace Opc.Ua.WotCon.Server
             return (ushort)context.NamespaceUris.GetIndex(Namespaces.WotCon);
         }
 
+        internal static bool IsRegistryNode(NodeId nodeId, ushort modelNs)
+        {
+            return nodeId.NamespaceIndex == modelNs &&
+                nodeId.TryGetValue(out uint id) &&
+                id >= FirstRegistryNodeId;
+        }
+
+        internal static bool IsLegacyNode(NodeId nodeId, ushort modelNs)
+        {
+            return nodeId.NamespaceIndex == modelNs &&
+                nodeId.TryGetValue(out uint id) &&
+                id < FirstRegistryNodeId;
+        }
+
         private static bool IsRegistryNode(NodeState node, ushort modelNs)
         {
-            return node.NodeId.NamespaceIndex == modelNs &&
-                node.NodeId.TryGetValue(out uint id) &&
-                id >= FirstRegistryNodeId;
+            return IsRegistryNode(node.NodeId, modelNs);
         }
 
         private static bool IsLegacyNode(NodeState node, ushort modelNs)
         {
-            return node.NodeId.NamespaceIndex == modelNs &&
-                node.NodeId.TryGetValue(out uint id) &&
-                id < FirstRegistryNodeId;
+            return IsLegacyNode(node.NodeId, modelNs);
         }
     }
 }

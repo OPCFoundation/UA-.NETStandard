@@ -53,7 +53,10 @@ namespace Opc.Ua.WotCon.Server
     /// <see cref="AssetRegistry"/> in a dedicated namespace
     /// (<see cref="WotConnectivityServerOptions.AssetNamespaceUri"/>).
     /// </remarks>
-    public sealed class WotConnectivityNodeManager : AsyncCustomNodeManager, INodeIdFactory
+    public sealed class WotConnectivityNodeManager :
+        AsyncCustomNodeManager,
+        INodeIdFactory,
+        ILocalAddressSpaceOwnership
     {
         /// <summary>
         /// Initialises a new <see cref="WotConnectivityNodeManager"/>.
@@ -86,6 +89,15 @@ namespace Opc.Ua.WotCon.Server
         /// The namespace index of the WoT Connectivity model.
         /// </summary>
         public ushort WotConNamespaceIndex { get; }
+
+        string ILocalAddressSpaceOwnership.PartitionId =>
+            $"{m_options.AssetNamespaceUri}|{Namespaces.WotCon}:legacy";
+
+        bool ILocalAddressSpaceOwnership.OwnsNode(NodeId nodeId)
+        {
+            return nodeId.NamespaceIndex == AssetNamespaceIndex ||
+                WotConModelPartition.IsLegacyNode(nodeId, WotConNamespaceIndex);
+        }
 
         /// <inheritdoc/>
         public override NodeId New(ISystemContext context, NodeState node)

@@ -817,6 +817,7 @@ namespace Opc.Ua
 
             // update the node and children.
             var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
+            ApplyBinaryDefaults(this, attributesToLoad);
             Update(context, decoder, attributesToLoad);
             UpdateReferences(context, decoder);
             UpdateChildren(context, decoder);
@@ -1210,6 +1211,7 @@ namespace Opc.Ua
         protected BaseInstanceState? UpdateChild(ISystemContext context, BinaryDecoder decoder)
         {
             var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
+            AttributesToSave encodedAttributes = attributesToLoad;
             string? symbolicName = null;
             QualifiedName browseName = default;
 
@@ -1238,6 +1240,7 @@ namespace Opc.Ua
 
             if (child != null)
             {
+                ApplyBinaryDefaults(child, encodedAttributes);
                 child.SymbolicName = symbolicName ?? string.Empty;
                 child.BrowseName = browseName;
 
@@ -1925,6 +1928,10 @@ namespace Opc.Ua
             QualifiedName browseName)
         {
             decoder.PushNamespace(Namespaces.OpcUaXsd);
+            AttributesToSave encodedAttributes = attributesToLoad |
+                AttributesToSave.NodeClass |
+                AttributesToSave.SymbolicName |
+                AttributesToSave.BrowseName;
 
             NodeId nodeId = default;
             LocalizedText displayName = default;
@@ -2014,6 +2021,7 @@ namespace Opc.Ua
             child.TypeDefinitionId = typeDefinitionId;
 
             // update attributes.
+            ApplyBinaryDefaults(child, encodedAttributes);
             child.Update(context, decoder, attributesToLoad);
 
             // update any references.
@@ -2075,6 +2083,12 @@ namespace Opc.Ua
                     child.BrowseName = browseName;
 
                     // update attributes.
+                    ApplyBinaryDefaults(
+                        child,
+                        attributesToLoad |
+                            AttributesToSave.NodeClass |
+                            AttributesToSave.SymbolicName |
+                            AttributesToSave.BrowseName);
                     child.Update(context, decoder, attributesToLoad);
 
                     // update any references.
@@ -2087,6 +2101,172 @@ namespace Opc.Ua
                 default:
                     throw ServiceResultException.Unexpected(
                         $"Unexpected NodeClass {nodeClass}");
+            }
+        }
+
+        private static void ApplyBinaryDefaults(
+            NodeState node,
+            AttributesToSave attributesToLoad)
+        {
+            if ((attributesToLoad & AttributesToSave.SymbolicName) == 0)
+            {
+                node.SymbolicName = string.Empty;
+            }
+            if ((attributesToLoad & AttributesToSave.NodeId) == 0)
+            {
+                node.NodeId = NodeId.Null;
+            }
+            if ((attributesToLoad & AttributesToSave.BrowseName) == 0)
+            {
+                node.BrowseName = default;
+            }
+            if ((attributesToLoad & AttributesToSave.DisplayName) == 0)
+            {
+                node.DisplayName = default;
+            }
+            if ((attributesToLoad & AttributesToSave.Description) == 0)
+            {
+                node.Description = default;
+            }
+            if ((attributesToLoad & AttributesToSave.WriteMask) == 0)
+            {
+                node.WriteMask = AttributeWriteMask.None;
+            }
+            if ((attributesToLoad & AttributesToSave.UserWriteMask) == 0)
+            {
+                node.UserWriteMask = AttributeWriteMask.None;
+            }
+
+            if (node is BaseInstanceState instance)
+            {
+                if ((attributesToLoad & AttributesToSave.ReferenceTypeId) == 0)
+                {
+                    instance.ReferenceTypeId = NodeId.Null;
+                }
+                if ((attributesToLoad & AttributesToSave.TypeDefinitionId) == 0)
+                {
+                    instance.TypeDefinitionId = NodeId.Null;
+                }
+                if ((attributesToLoad & AttributesToSave.ModellingRuleId) == 0)
+                {
+                    instance.ModellingRuleId = NodeId.Null;
+                }
+                if ((attributesToLoad & AttributesToSave.NumericId) == 0)
+                {
+                    instance.NumericId = 0;
+                }
+            }
+            if (node is BaseObjectState objectState &&
+                (attributesToLoad & AttributesToSave.EventNotifier) == 0)
+            {
+                objectState.EventNotifier = EventNotifiers.None;
+            }
+            if (node is BaseVariableState variable)
+            {
+                if ((attributesToLoad & AttributesToSave.Value) == 0)
+                {
+                    variable.Value = Variant.Null;
+                }
+                if ((attributesToLoad & AttributesToSave.StatusCode) == 0)
+                {
+                    variable.StatusCode = StatusCodes.Good;
+                }
+                if ((attributesToLoad & AttributesToSave.DataType) == 0)
+                {
+                    variable.DataType = NodeId.Null;
+                }
+                if ((attributesToLoad & AttributesToSave.ValueRank) == 0)
+                {
+                    variable.ValueRank = ValueRanks.Any;
+                }
+                if ((attributesToLoad & AttributesToSave.ArrayDimensions) == 0)
+                {
+                    variable.ArrayDimensions = default;
+                }
+                if ((attributesToLoad & AttributesToSave.AccessLevel) == 0)
+                {
+                    variable.AccessLevel = 0;
+                }
+                if ((attributesToLoad & AttributesToSave.UserAccessLevel) == 0)
+                {
+                    variable.UserAccessLevel = 0;
+                }
+                if ((attributesToLoad & AttributesToSave.MinimumSamplingInterval) == 0)
+                {
+                    variable.MinimumSamplingInterval = 0;
+                }
+                if ((attributesToLoad & AttributesToSave.Historizing) == 0)
+                {
+                    variable.Historizing = false;
+                }
+            }
+            if (node is MethodState method)
+            {
+                if ((attributesToLoad & AttributesToSave.Executable) == 0)
+                {
+                    method.Executable = false;
+                }
+                if ((attributesToLoad & AttributesToSave.UserExecutable) == 0)
+                {
+                    method.UserExecutable = false;
+                }
+            }
+            if (node is ViewState view)
+            {
+                if ((attributesToLoad & AttributesToSave.EventNotifier) == 0)
+                {
+                    view.EventNotifier = EventNotifiers.None;
+                }
+                if ((attributesToLoad & AttributesToSave.ContainsNoLoops) == 0)
+                {
+                    view.ContainsNoLoops = false;
+                }
+            }
+            if (node is BaseTypeState type)
+            {
+                if ((attributesToLoad & AttributesToSave.SuperTypeId) == 0)
+                {
+                    type.SuperTypeId = NodeId.Null;
+                }
+                if ((attributesToLoad & AttributesToSave.IsAbstract) == 0)
+                {
+                    type.IsAbstract = false;
+                }
+            }
+            if (node is BaseVariableTypeState variableType)
+            {
+                if ((attributesToLoad & AttributesToSave.Value) == 0)
+                {
+                    variableType.Value = Variant.Null;
+                }
+                if ((attributesToLoad & AttributesToSave.DataType) == 0)
+                {
+                    variableType.DataType = NodeId.Null;
+                }
+                if ((attributesToLoad & AttributesToSave.ValueRank) == 0)
+                {
+                    variableType.ValueRank = ValueRanks.Any;
+                }
+                if ((attributesToLoad & AttributesToSave.ArrayDimensions) == 0)
+                {
+                    variableType.ArrayDimensions = default;
+                }
+            }
+            if (node is ReferenceTypeState referenceType)
+            {
+                if ((attributesToLoad & AttributesToSave.InverseName) == 0)
+                {
+                    referenceType.InverseName = default;
+                }
+                if ((attributesToLoad & AttributesToSave.Symmetric) == 0)
+                {
+                    referenceType.Symmetric = false;
+                }
+            }
+            if (node is DataTypeState dataType &&
+                (attributesToLoad & AttributesToSave.DataTypeDefinition) == 0)
+            {
+                dataType.DataTypeDefinition = default;
             }
         }
 
@@ -3224,6 +3404,23 @@ namespace Opc.Ua
             Initialize(context, source);
             CallOnBeforeCreate(context, true);
             CreateInternal(context, false, true);
+        }
+
+        /// <summary>
+        /// Updates serialized state from another node without invoking the creation lifecycle.
+        /// </summary>
+        internal void UpdateFrom(ISystemContext context, NodeState source)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            Initialize(context, source);
         }
 
         /// <summary>

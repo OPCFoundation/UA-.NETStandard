@@ -26,6 +26,8 @@ services.AddOpcUa()
 
 The single-instance defaults remain in effect until a shared store is supplied, so the same server binary runs stand-alone or as part of a replica set.
 
+Distributed address-space replication follows each node manager's declared non-standard `NamespaceUris`; namespace-zero infrastructure remains local to each replica. Node managers that use a custom ownership partition and return `null` for `NamespaceUris` must implement `ILocalAddressSpaceOwnership` with a stable `PartitionId` and an `OwnsNode(NodeId)` predicate.
+
 ## Target frameworks
 
 `net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`, `net10.0`.

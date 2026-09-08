@@ -43,10 +43,9 @@ namespace Opc.Ua.Redundancy.Server
     /// server's populated message context, registers it as the default in the
     /// server's <see cref="INodeStateStoreRegistry"/>, starts leader election,
     /// and attaches an <see cref="AddressSpaceSynchronizer"/> to every node
-    /// manager that opts in via <see cref="ILocalAddressSpaceSource"/> (i.e.
-    /// every <c>CustomNodeManager2</c>-derived manager). Built-in
-    /// infrastructure managers (Core / Diagnostics / Configuration) do not opt
-    /// in and are never replicated.
+    /// manager that exposes non-standard owned namespaces through
+    /// <see cref="ILocalAddressSpaceSource"/>. Replica-local namespace-zero
+    /// infrastructure is never replicated.
     /// </summary>
     public sealed class DistributedAddressSpaceStartupTask : IServerStartupTask, IAsyncDisposable
     {
@@ -102,23 +101,160 @@ namespace Opc.Ua.Redundancy.Server
             m_registry = registry;
             NodeStateStoreRegistry = registry;
 
-            // Settle leadership before seeding so the writer seeds the store and
-            // standbys hydrate from it, then keep renewing in the background.
-            await m_election.TryAcquireOrRenewAsync(cancellationToken).ConfigureAwait(false);
-            m_election.Start();
-
-            foreach (ILocalAddressSpaceSource source in
-                server.FindNodeManagers<ILocalAddressSpaceSource>())
+            try
             {
-                ILocalAddressSpace addressSpace = source.CreateLocalAddressSpace();
-                var synchronizer = new AddressSpaceSynchronizer(
-                    store, addressSpace, m_election, logger);
-                await synchronizer.SeedOrHydrateAsync(cancellationToken).ConfigureAwait(false);
-                synchronizer.Start();
-                lock (m_lock)
+                var registrations = new List<AddressSpaceRegistration>();
+                var namespaceClaims = new Dictionary<ushort, bool>();
+                var partitionIds = new HashSet<string>(StringComparer.Ordinal);
+                foreach (ILocalAddressSpaceSource source in
+                    server.FindNodeManagers<ILocalAddressSpaceSource>())
                 {
-                    m_synchronizers.Add(synchronizer);
+                    ILocalAddressSpace addressSpace = source.CreateLocalAddressSpace();
+                    IEnumerable<string>? namespaceUris = source switch
+                    {
+                        IAsyncNodeManager asyncNodeManager => asyncNodeManager.NamespaceUris,
+                        INodeManager nodeManager => nodeManager.NamespaceUris,
+                        _ => null
+                    };
+                    var sortedNamespaceUris = namespaceUris == null
+                        ? null
+                        : new List<string>(namespaceUris);
+                    sortedNamespaceUris?.Sort(StringComparer.Ordinal);
+                    var namespaceIndexes = new HashSet<ushort>();
+                    if (sortedNamespaceUris != null)
+                    {
+                        foreach (string namespaceUri in sortedNamespaceUris)
+                        {
+                            int namespaceIndex = server.MessageContext.NamespaceUris.GetIndex(namespaceUri);
+                            if (namespaceIndex > 0 && namespaceIndex <= ushort.MaxValue)
+                            {
+                                namespaceIndexes.Add((ushort)namespaceIndex);
+                            }
+                        }
+                    }
+
+                    bool hasExplicitOwnership = source is ILocalAddressSpaceOwnership;
+                    foreach (ushort namespaceIndex in namespaceIndexes)
+                    {
+                        if (namespaceClaims.TryGetValue(namespaceIndex, out bool existingExplicit) &&
+                            (!hasExplicitOwnership || !existingExplicit))
+                        {
+                            throw new InvalidOperationException(
+                                $"Namespace index {namespaceIndex} is claimed by multiple distributed node managers. " +
+                                $"Every manager sharing a namespace must implement " +
+                                $"{nameof(ILocalAddressSpaceOwnership)}.");
+                        }
+                        namespaceClaims[namespaceIndex] = hasExplicitOwnership;
+                    }
+
+                    Func<NodeId, bool> ownsNode;
+                    string partitionId;
+                    if (source is ILocalAddressSpaceOwnership ownership)
+                    {
+                        if (string.IsNullOrWhiteSpace(ownership.PartitionId))
+                        {
+                            throw new InvalidOperationException(
+                                $"{source.GetType().FullName} returned an empty distributed address-space " +
+                                "partition id.");
+                        }
+                        ValidateExplicitOwnership(addressSpace, ownership);
+                        partitionId = ownership.PartitionId;
+                        ownsNode = nodeId =>
+                            nodeId.NamespaceIndex != 0 &&
+                            ownership.OwnsNode(nodeId);
+                    }
+                    else
+                    {
+                        if (sortedNamespaceUris == null)
+                        {
+                            throw new InvalidOperationException(
+                                $"{source.GetType().FullName} must expose owned NamespaceUris or implement " +
+                                $"{nameof(ILocalAddressSpaceOwnership)}.");
+                        }
+
+                        if (namespaceIndexes.Count == 0)
+                        {
+                            continue;
+                        }
+                        partitionId = string.Join("|", sortedNamespaceUris);
+                        ownsNode = nodeId => namespaceIndexes.Contains(nodeId.NamespaceIndex);
+                    }
+                    if (!partitionIds.Add(partitionId))
+                    {
+                        throw new InvalidOperationException(
+                            $"Distributed address-space partition '{partitionId}' is registered more than once.");
+                    }
+                    registrations.Add(new AddressSpaceRegistration(
+                        addressSpace,
+                        ownsNode,
+                        partitionId));
                 }
+
+                // Settle leadership only after every ownership descriptor has
+                // been validated, then initialize all synchronizers.
+                await m_election.TryAcquireOrRenewAsync(cancellationToken).ConfigureAwait(false);
+                m_election.Start();
+
+                foreach (AddressSpaceRegistration registration in registrations)
+                {
+                    var synchronizer = new AddressSpaceSynchronizer(
+                        store,
+                        registration.AddressSpace,
+                        m_election,
+                        logger,
+                        registration.OwnsNode,
+                        registration.PartitionId);
+                    try
+                    {
+                        synchronizer.StartBeforeHydration();
+                        await synchronizer.SeedOrHydrateAsync(cancellationToken).ConfigureAwait(false);
+                        await synchronizer.CompleteHydrationAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        await synchronizer.DisposeAsync().ConfigureAwait(false);
+                        throw;
+                    }
+                    lock (m_lock)
+                    {
+                        m_synchronizers.Add(synchronizer);
+                    }
+                }
+            }
+            catch
+            {
+                await DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        private static void ValidateExplicitOwnership(
+            ILocalAddressSpace addressSpace,
+            ILocalAddressSpaceOwnership ownership)
+        {
+            foreach (NodeState node in addressSpace.Nodes)
+            {
+                ValidateExplicitOwnership(addressSpace.Context, node, ownership);
+            }
+        }
+
+        private static void ValidateExplicitOwnership(
+            ISystemContext context,
+            NodeState node,
+            ILocalAddressSpaceOwnership ownership)
+        {
+            if (node.NodeId.NamespaceIndex == 0 &&
+                ownership.OwnsNode(node.NodeId))
+            {
+                throw new InvalidOperationException(
+                    $"Distributed address-space partition '{ownership.PartitionId}' claims namespace-zero node " +
+                    $"{node.NodeId}.");
+            }
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                ValidateExplicitOwnership(context, child, ownership);
             }
         }
 
@@ -141,6 +277,11 @@ namespace Opc.Ua.Redundancy.Server
             await m_election.DisposeAsync().ConfigureAwait(false);
             m_registry?.Dispose();
         }
+
+        private sealed record AddressSpaceRegistration(
+            ILocalAddressSpace AddressSpace,
+            Func<NodeId, bool> OwnsNode,
+            string PartitionId);
 
         private readonly ISharedKeyValueStore m_keyValueStore;
         private readonly ILeaderElection m_election;

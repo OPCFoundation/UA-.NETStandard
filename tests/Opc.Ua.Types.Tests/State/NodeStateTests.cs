@@ -2115,12 +2115,16 @@ namespace Opc.Ua.Types.Tests.State
             original.SaveAsBinary(m_context, stream);
             stream.Position = 0;
 
-            var loaded = new BaseObjectState(null);
+            var loaded = new BaseObjectState(null)
+            {
+                UserWriteMask = AttributeWriteMask.DisplayName
+            };
             loaded.LoadAsBinary(m_context, stream);
 
             Assert.That(loaded.NodeId, Is.EqualTo(original.NodeId));
             Assert.That(loaded.BrowseName, Is.EqualTo(original.BrowseName));
             Assert.That(loaded.Description, Is.EqualTo(original.Description));
+            Assert.That(loaded.UserWriteMask, Is.EqualTo(AttributeWriteMask.None));
         }
 
         [Test]

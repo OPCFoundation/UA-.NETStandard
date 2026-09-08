@@ -259,6 +259,27 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task TryReadSnapshotRejectsInvalidGuidLengthsAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            using var encoder = new BinaryEncoder(m_messageContext);
+            encoder.WriteByteString(null, new ByteString(new byte[15]));
+            encoder.WriteInt32(null, 0);
+            encoder.WriteUInt64(null, 0);
+            encoder.WriteByteString(null, new ByteString(new byte[16]));
+            byte[]? manifest = encoder.CloseAndReturnBuffer();
+            Assert.That(manifest, Is.Not.Null);
+            await kv.SetAsync(
+                "snapmeta/manifest",
+                new ByteString(manifest!)).ConfigureAwait(false);
+
+            NodeStateSnapshot? snapshot = await store.TryReadSnapshotAsync().ConfigureAwait(false);
+
+            Assert.That(snapshot, Is.Null);
+        }
+
+        [Test]
         public async Task DeltaLogReplaysOnlyChangesAfterSequenceAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
@@ -372,7 +393,47 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(changes.Current.Kind, Is.EqualTo(NodeStateChangeKind.Upsert));
             Assert.That(changes.Current.NodeId, Is.EqualTo(nodeId));
 
+            ValueTask<bool> delete = changes.MoveNextAsync();
+            await store.DeleteNodeAsync(nodeId, cts.Token).ConfigureAwait(false);
+            await store.WriteSnapshotAsync(cts.Token).ConfigureAwait(false);
+
+            Assert.That(await delete.ConfigureAwait(false), Is.True);
+            Assert.That(changes.Current.Kind, Is.EqualTo(NodeStateChangeKind.Delete));
+            Assert.That(changes.Current.NodeId, Is.EqualTo(nodeId));
+
             cts.Cancel();
+        }
+
+        [Test]
+        public async Task PreparedPollingSubscriptionEmitsCurrentStateEachTimeAsync()
+        {
+            await using var network = new InMemoryNetwork();
+            await using var crdt = new ReplicatedSharedKeyValueStore(
+                ReplicaId.New(),
+                network.CreateTransport(),
+                TimeProvider.System,
+                CrdtReaderOptions.Default);
+            using var store = new InMemoryNodeStateStore(
+                crdt,
+                m_messageContext,
+                null,
+                TimeSpan.FromMilliseconds(25));
+            var nodeId = new NodeId("prepared", NamespaceIndex);
+            await store.UpsertNodeAsync(
+                new StoredNode(nodeId, ByteString.From(new byte[] { 9 }))).ConfigureAwait(false);
+
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                ((INodeStateSubscriptionPreparer)store).PrepareSubscription();
+                await using IAsyncEnumerator<NodeStateChange> changes =
+                    store.SubscribeChangesAsync(cts.Token).GetAsyncEnumerator();
+
+                Assert.That(await changes.MoveNextAsync().ConfigureAwait(false), Is.True);
+                Assert.That(changes.Current.Kind, Is.EqualTo(NodeStateChangeKind.Upsert));
+                Assert.That(changes.Current.NodeId, Is.EqualTo(nodeId));
+                cts.Cancel();
+            }
         }
 
         [Test]

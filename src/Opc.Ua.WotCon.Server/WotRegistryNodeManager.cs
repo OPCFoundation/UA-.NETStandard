@@ -49,7 +49,9 @@ namespace Opc.Ua.WotCon.Server
     /// The generated <c>Refresh</c> Method is wired to the coordinator; the
     /// coordinator's events are re-emitted as the generated registry event types.
     /// </summary>
-    public sealed class WotRegistryNodeManager : AsyncCustomNodeManager
+    public sealed class WotRegistryNodeManager :
+        AsyncCustomNodeManager,
+        ILocalAddressSpaceOwnership
     {
         /// <summary>
         /// Initializes a new registry NodeManager.
@@ -80,6 +82,9 @@ namespace Opc.Ua.WotCon.Server
             // model type cannot resolve.
             Coordinator.UseAddressSpace(new AddressSpaceWotNodeResolver(server));
             m_projection = new WotRegistryProjection(this, Registry, m_options);
+            m_wotConNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(Namespaces.WotCon);
+            m_xRegistryNamespaceIndex =
+                (ushort)server.NamespaceUris.GetIndex(XRegistryWellKnown.XRegistryNamespaceUri);
         }
 
         /// <summary>
@@ -91,6 +96,15 @@ namespace Opc.Ua.WotCon.Server
         /// Gets the hosted materialization coordinator.
         /// </summary>
         public WotMaterializationCoordinator Coordinator { get; }
+
+        string ILocalAddressSpaceOwnership.PartitionId =>
+            $"{Namespaces.WotCon}:registry|{XRegistryWellKnown.XRegistryNamespaceUri}";
+
+        bool ILocalAddressSpaceOwnership.OwnsNode(NodeId nodeId)
+        {
+            return nodeId.NamespaceIndex == m_xRegistryNamespaceIndex ||
+                WotConModelPartition.IsRegistryNode(nodeId, m_wotConNamespaceIndex);
+        }
 
         /// <inheritdoc/>
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
@@ -539,6 +553,8 @@ namespace Opc.Ua.WotCon.Server
 
         private readonly WotRegistryServerOptions m_options;
         private readonly WotRegistryProjection m_projection;
+        private readonly ushort m_wotConNamespaceIndex;
+        private readonly ushort m_xRegistryNamespaceIndex;
         private readonly SemaphoreSlim m_refreshGate = new(1, 1);
         private BaseObjectState? m_registryNode;
     }

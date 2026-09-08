@@ -316,6 +316,8 @@ ua.AddServerRedundancy(r =>
     }
 })
 .AddRequestServerStateChange();
+builder.Services.AddSingleton<IServerStartupTask>(
+    static _ => new HaSampleSimulationStartupTask());
 
 // Dynamic peer discovery for the client-facing RedundantServerSet (FindServers) and,
 // for active/active, the CRDT gossip fabric. HA_PEER_DISCOVERY selects the mechanism;
