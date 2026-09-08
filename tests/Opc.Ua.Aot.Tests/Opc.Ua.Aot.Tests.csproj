@@ -30,20 +30,6 @@
     <DebugType>none</DebugType>
     <DebuggerSupport>false</DebuggerSupport>
     <StackTraceSupport>false</StackTraceSupport>
-    <!-- The stack keeps growing, so the margin under the linker threshold has to
-         be topped up as it does. These four are safe for a CI-only smoke binary:
-         the tests assert on data and on exception *types*, never on framework
-         exception message text, which is what UseSystemResourceKeys replaces
-         with resource keys. The other three switch off feature areas the AOT
-         tests do not exercise. -->
-    <UseSystemResourceKeys>true</UseSystemResourceKeys>
-    <EventSourceSupport>false</EventSourceSupport>
-    <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
-    <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
-    <!-- The assertion is in ld's relocation handling, not in code size as such,
-         so drop the native symbol table too: it is pure relocation weight in a
-         binary nobody debugs, and it changes no managed behaviour at all. -->
-    <StripSymbols>true</StripSymbols>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="TUnit" />
