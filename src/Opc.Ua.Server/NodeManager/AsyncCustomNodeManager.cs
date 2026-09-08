@@ -151,8 +151,10 @@ namespace Opc.Ua.Server
 
             // the node id factory assigns new node ids to new nodes.
             // the strategy used by a NodeManager depends on what kind of information it provides.
+            // this points at the NodeManager rather than at its factory so that a sub-class
+            // overriding New() is still the one node level code reaches. A sub-class therefore
+            // never has to repeat this assignment.
             SystemContext.NodeIdFactory = this;
-            m_lastUsedNodeId = (uint)DateTime.UtcNow.Ticks & 0x7FFFFFFF;
 
             // add the uris to the server's namespace table and cache the indexes.
             ushort[] namespaceIndexes = [];
@@ -169,6 +171,10 @@ namespace Opc.Ua.Server
             // add the table of namespaces that are used by the NodeManager.
             m_namespaceUris = namespaceUris;
             m_namespaceIndexes = namespaceIndexes;
+
+            // nodes created at runtime get a deterministic NodeId derived
+            // from their browse path unless a sub-class picks another rule.
+            m_nodeIdFactory = ResolveNodeIdFactory(server, DefaultNamespaceIndex);
 
             m_syncNodeManager = (INodeManager3)this.ToSyncNodeManager();
 
@@ -234,21 +240,139 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Mints NodeIds for nodes that this NodeManager creates at runtime.
+        /// </summary>
+        /// <remarks>
+        /// Resolved from dependency injection when the server was composed
+        /// that way, otherwise a <see cref="NodeIdAssignmentMode.Numeric"/>
+        /// factory, which derives a deterministic identifier from the node's
+        /// browse path. Assign a factory to mint a different identifier
+        /// type, or a <see cref="NodeIdAssignmentMode.None"/> factory
+        /// together with a <see cref="New"/> override to assign NodeIds by
+        /// another rule entirely. The assigned factory is rebased onto this
+        /// NodeManager's own namespace.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when the factory is set to <c>null</c>.
+        /// </exception>
+        public IRebasableNodeIdFactory NodeIdFactory
+        {
+            get => m_nodeIdFactory;
+            set
+            {
+                if (value is null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+
+                // A factory that names no namespace adopts this NodeManager's
+                // own, which is what a bare "new DefaultNodeIdFactory(mode)"
+                // means. One that names a namespace is left alone: namespace 0
+                // is the OPC UA namespace and never a place a NodeManager
+                // mints into, so it is unambiguous as "not specified", and
+                // forcing the namespace back here would silently undo the
+                // rebase of a NodeManager whose instance namespace is not its
+                // first one.
+                IRebasableNodeIdFactory rebased = value.DefaultNamespaceIndex == 0
+                    ? value.WithDefaultNamespaceIndex(DefaultNamespaceIndex)
+                    : value;
+
+                // whether to watch for collisions is the server's decision,
+                // so it is reapplied to whatever factory a NodeManager
+                // assigns rather than left to the factory that was handed in.
+                m_nodeIdFactory = ApplyCollisionDetection(Server, rebased);
+            }
+        }
+
+        /// <summary>
         /// Creates the NodeId for the specified node.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="node">The node.</param>
         /// <returns>The new NodeId.</returns>
+        /// <remarks>
+        /// Delegates to <see cref="NodeIdFactory"/>. A NodeManager selects
+        /// its identifier style by assigning that factory rather than by
+        /// overriding this method.
+        /// </remarks>
         public virtual NodeId New(ISystemContext context, NodeState node)
         {
-            if (node.NodeId.IsNull)
+            return m_nodeIdFactory.New(context, node);
+        }
+
+        /// <inheritdoc/>
+        public void AddNode(NodeState node)
+        {
+            AddPredefinedNodeSynchronously(node);
+        }
+
+        /// <inheritdoc/>
+        public void AddRootNotifier(NodeState notifier)
+        {
+            AddRootNotifierSynchronously(notifier);
+        }
+
+        /// <summary>
+        /// Follows the NodeId factory onto the manager's new default
+        /// namespace, unless it was deliberately pointed somewhere else.
+        /// </summary>
+        /// <param name="previousDefault">
+        /// The default namespace index before the namespaces changed.
+        /// </param>
+        private void RebaseNodeIdFactory(ushort previousDefault)
+        {
+            if (m_nodeIdFactory.DefaultNamespaceIndex == previousDefault)
             {
-                uint id = Utils.IncrementIdentifier(ref m_lastUsedNodeId);
-                return new NodeId(id, m_namespaceIndexes[0]);
+                m_nodeIdFactory = m_nodeIdFactory.WithDefaultNamespaceIndex(
+                    DefaultNamespaceIndex);
+            }
+        }
+
+        /// <summary>
+        /// Resolves the NodeId factory the server was configured with,
+        /// falling back to the deterministic default.
+        /// </summary>
+        private static IRebasableNodeIdFactory ResolveNodeIdFactory(
+            IServerInternal server,
+            ushort namespaceIndex)
+        {
+            if (server is INodeIdFactoryProvider { NodeIdFactory: { } configured })
+            {
+                return ApplyCollisionDetection(
+                    server,
+                    configured.WithDefaultNamespaceIndex(namespaceIndex));
             }
 
-            return node.NodeId;
+            return ApplyCollisionDetection(
+                server,
+                new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric, namespaceIndex));
         }
+
+        /// <summary>
+        /// Applies the server's answer on collision detection to a factory.
+        /// </summary>
+        /// <remarks>
+        /// A server that has not answered leaves the factory on its own
+        /// default, so a factory built with an explicit answer keeps it.
+        /// </remarks>
+        private static IRebasableNodeIdFactory ApplyCollisionDetection(
+            IServerInternal server,
+            IRebasableNodeIdFactory factory)
+        {
+            if (server is INodeIdFactoryProvider { DetectNodeIdCollisions: { } detect })
+            {
+                return factory.WithCollisionDetection(detect);
+            }
+
+            return factory;
+        }
+
+        /// <summary>
+        /// The namespace index that <see cref="NodeIdFactory"/> mints into
+        /// when a node's browse name is in namespace 0.
+        /// </summary>
+        private ushort DefaultNamespaceIndex
+            => m_namespaceIndexes.Length > 0 ? m_namespaceIndexes[0] : (ushort)0;
 
         /// <inheritdoc/>
         ILocalAddressSpace ILocalAddressSpaceSource.CreateLocalAddressSpace()
@@ -920,8 +1044,10 @@ namespace Opc.Ua.Server
             }
 
             // create the immutable table of namespaces that are used by the NodeManager.
+            ushort previousDefault = DefaultNamespaceIndex;
             m_namespaceUris = namespaceUris;
             m_namespaceIndexes = namespaceIndexes;
+            RebaseNodeIdFactory(previousDefault);
         }
 
         /// <summary>
@@ -937,8 +1063,10 @@ namespace Opc.Ua.Server
             }
 
             // create the immutable table of namespaces that are used by the NodeManager.
+            ushort previousDefault = DefaultNamespaceIndex;
             m_namespaceUris = namespaceUris;
             m_namespaceIndexes = namespaceIndexes;
+            RebaseNodeIdFactory(previousDefault);
         }
 
         /// <summary>
@@ -1164,12 +1292,25 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>
         /// This pass assigns an id to every node that still lacks one, pulls
-        /// namespace-0 children into the root's namespace, and rebases nodes
-        /// whose id collides with a type declaration. That last case covers a
-        /// subtree materialised with <c>NodeState.Create(..., assignNodeIds: false)</c>,
-        /// whose children keep their declaration ids: they are neither null
-        /// nor in namespace 0, so only the collision check
-        /// catches them. Rebasing here rather than at registration is what
+        /// namespace-0 nodes into this manager's namespace, and rebases nodes
+        /// whose id collides with a type declaration it owns. Together those
+        /// cover a subtree materialised with <c>NodeState.Create(...,
+        /// assignNodeIds: false)</c>, whose nodes keep their declaration ids.
+        /// Which of the two catches such a node depends on where the
+        /// declaration lives:
+        /// <list type="bullet">
+        /// <item>a declaration in a model this manager loaded is in its
+        /// <c>PredefinedNodes</c>, so the collision check sees it;</item>
+        /// <item>a declaration in namespace 0 - every standard
+        /// <c>Opc.Ua.*State</c> - belongs to the <c>CoreNodeManager</c>, so
+        /// the collision check cannot see it and
+        /// <see cref="HasStandardDeclarationNodeId"/> is the only thing that
+        /// catches it.</item>
+        /// </list>
+        /// That second test applies to the root as well as its descendants.
+        /// It does not cover a namespace-0 id a caller invented, which stays
+        /// an error rather than becoming a silent repair.
+        /// Rebasing here rather than at registration is what
         /// keeps the ids the fluent builder hands back final — the same
         /// repair <c>PrepareInstanceNodeIdsForRegistration</c> would
         /// otherwise apply later, silently invalidating them.
@@ -1204,9 +1345,7 @@ namespace Opc.Ua.Server
                 NodeState candidate = nodes[i];
                 if (candidate.NodeId.IsNull ||
                     HasDeclarationNodeIdCollision(candidate) ||
-                    (i > 0 &&
-                        node.NodeId.NamespaceIndex != 0 &&
-                        candidate.NodeId.NamespaceIndex == 0))
+                    HasStandardDeclarationNodeId(candidate))
                 {
                     NodeId previousNodeId = SystemContext.AssignInstanceNodeId(candidate);
                     if (!previousNodeId.IsNull &&
@@ -1595,19 +1734,21 @@ namespace Opc.Ua.Server
 
             // Resolve target NodeId: honour caller-supplied NodeId when present and
             // valid, otherwise allocate a fresh one from this manager's namespace.
-            // Some derived classes override `New(...)` to produce hierarchical
-            // child identifiers from a parent; for service-set AddNodes the
-            // instance has no parent yet, so we fall back to the base
-            // identifier allocator to guarantee a non-null NodeId.
+            //
+            // The instance is not linked to its parent yet - that happens after
+            // the duplicate-BrowseName check below - so asking a factory to
+            // derive an identifier from the node alone would hand two
+            // same-named children of different parents the same one, and the
+            // second registration would replace the first. The parent identity
+            // is therefore passed explicitly, which also covers a parent owned
+            // by another NodeManager.
             NodeId newNodeId;
             if (item.RequestedNewNodeId.IsNull)
             {
-                newNodeId = New(systemContext, instance);
+                newNodeId = AllocateNodeIdForAddNodes(systemContext, instance, parentNodeId);
                 if (newNodeId.IsNull)
                 {
-                    newNodeId = new NodeId(
-                        Utils.IncrementIdentifier(ref m_lastUsedNodeId),
-                        NamespaceIndex);
+                    newNodeId = m_nodeIdFactory.NextCounterNodeId();
                 }
             }
             else
@@ -1987,6 +2128,44 @@ namespace Opc.Ua.Server
         /// Thrown when the supplied attributes are not valid for the node class
         /// or when the node class is not supported.
         /// </exception>
+        /// <summary>
+        /// Mints the NodeId for a node added through the AddNodes service.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Derives it from the parent and the browse name, so that two nodes
+        /// added under different parents with the same browse name stay
+        /// distinct. Two added under the *same* parent with the same browse
+        /// name would share one, and are rejected by the duplicate browse-name
+        /// check rather than reaching registration.
+        /// </para>
+        /// <para>
+        /// A NodeManager that assigns identifiers by a scheme of its own
+        /// overrides this alongside <see cref="New"/>. Note that
+        /// <see cref="AllowNodeManagement"/> is false by default, so this runs
+        /// only for a NodeManager that opted into the service set.
+        /// </para>
+        /// </remarks>
+        /// <param name="context">The operation context.</param>
+        /// <param name="instance">The node being added, not yet parented.</param>
+        /// <param name="parentNodeId">The NodeId of the node's parent.</param>
+        /// <returns>The NodeId to give the node.</returns>
+        protected virtual NodeId AllocateNodeIdForAddNodes(
+            ServerSystemContext context,
+            BaseInstanceState instance,
+            NodeId parentNodeId)
+        {
+            // the factory's namespace rather than this NodeManager's first
+            // one: a manager whose instance namespace is not its first rebases
+            // the factory onto it, and minting into the manager's first would
+            // put runtime instances in the model namespace instead.
+            return m_nodeIdFactory.CreateChildNodeId(
+                parentNodeId,
+                instance.BrowseName,
+                m_nodeIdFactory.DefaultNamespaceIndex,
+                context.NamespaceUris);
+        }
+
         private static BaseInstanceState CreateInstanceForAddNodes(
             AddNodesItem item,
             NodeId typeDefinitionId)
@@ -2345,6 +2524,36 @@ namespace Opc.Ua.Server
                 (node.NodeId.IsNull ||
                     !IsNodeIdInNamespace(node.NodeId) ||
                     HasDeclarationNodeIdCollision(node));
+        }
+
+        /// <summary>
+        /// Whether the node carries a namespace-0 identifier it inherited
+        /// from a standard type declaration rather than one a caller chose.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A subtree materialised from a standard <c>Opc.Ua.*State</c> keeps
+        /// that type's declaration ids. They live in namespace 0, so they
+        /// belong to the <c>CoreNodeManager</c> and
+        /// <see cref="HasDeclarationNodeIdCollision"/> - which looks in this
+        /// manager's <c>PredefinedNodes</c> - structurally cannot see them.
+        /// This is the only thing that catches them, on the root as much as
+        /// on its descendants.
+        /// </para>
+        /// <para>
+        /// Every node OPC UA defines in namespace 0 has a numeric identifier,
+        /// so a namespace-0 identifier of any other kind cannot be a
+        /// declaration. That is a caller naming a namespace it does not own,
+        /// which <c>ValidateAuthoredNodeId</c> reports rather than silently
+        /// repairing - the two look alike here but are opposite mistakes, and
+        /// only one of them is the caller's.
+        /// </para>
+        /// </remarks>
+        private static bool HasStandardDeclarationNodeId(NodeState node)
+        {
+            return !node.NodeId.IsNull &&
+                node.NodeId.NamespaceIndex == 0 &&
+                node.NodeId.IdType == IdType.Numeric;
         }
 
         private bool HasDeclarationNodeIdCollision(NodeState node)
@@ -9124,11 +9333,10 @@ namespace Opc.Ua.Server
         /// consumer tasks based on the number of event monitored items.
         /// </summary>
         internal NodeIdDictionary<bool> MultiConsumerNodeIds { get; } = [];
-
         /// <summary>
-        /// Counter for the NodeIdFactory.New Method
+        /// Assigns NodeIds to nodes created at runtime.
         /// </summary>
-        private uint m_lastUsedNodeId;
+        private IRebasableNodeIdFactory m_nodeIdFactory;
 
         private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
         private const int kMaxInitialHistoryPages = 100_000;

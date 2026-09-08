@@ -131,7 +131,7 @@ namespace Opc.Ua.Server.Hosting
             // externalReferences dictionary before sealing the builder.
             await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
-            builder.Seal();
+            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

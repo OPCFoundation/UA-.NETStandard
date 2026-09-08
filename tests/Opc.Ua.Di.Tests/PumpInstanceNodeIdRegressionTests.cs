@@ -414,9 +414,13 @@ namespace Opc.Ua.Di.Tests
             await m_manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
 
             m_configuredPump = m_manager.FindPredefinedNode<PumpState>(
-                new NodeId("5001_Pump_1", m_manager.InstanceNamespaceIndex));
+                ExpectedChildId(
+                    DeviceSetNodeId(),
+                    new QualifiedName("Pump_1", m_manager.InstanceNamespaceIndex)));
             m_secondPump = m_manager.FindPredefinedNode<PumpState>(
-                new NodeId("5001_Pump_2", m_manager.InstanceNamespaceIndex));
+                ExpectedChildId(
+                    DeviceSetNodeId(),
+                    new QualifiedName("Pump_2", m_manager.InstanceNamespaceIndex)));
         }
 
         [OneTimeTearDown]
@@ -496,9 +500,9 @@ namespace Opc.Ua.Di.Tests
                     "A Variable is published more than once per simulation tick.");
                 foreach (PumpState pump in new[] { m_configuredPump!, m_secondPump! })
                 {
-                    NodeId shaftAngle = new(
-                        pump.NodeId.IdentifierAsString + "_ShaftAngle",
-                        pump.NodeId.NamespaceIndex);
+                    NodeId shaftAngle = ExpectedChildId(
+                        pump.NodeId,
+                        FindChildByName(pump, "ShaftAngle").BrowseName);
                     Assert.That(published.Count(id => id == shaftAngle), Is.EqualTo(1),
                         pump.BrowseName.Name + " must publish its shaft angle exactly once.");
                 }
@@ -517,19 +521,16 @@ namespace Opc.Ua.Di.Tests
             var offenders = new List<string>();
             foreach (PumpState pump in new[] { m_configuredPump!, m_secondPump! })
             {
-                Assert.That(pump.NodeId.IdentifierAsString, Is.EqualTo(
-                    "5001_" + pump.BrowseName.Name),
+                Assert.That(
+                    pump.NodeId,
+                    Is.EqualTo(ExpectedChildId(DeviceSetNodeId(), pump.BrowseName)),
                     "The pump root must be minted from the DeviceSet parent.");
 
                 foreach (PumpNode node in CollectSubtree(pump).Where(IsGeneratedHelperNode))
                 {
-                    NodeId expected = new(
-                        string.Format(
-                            CultureInfo.InvariantCulture,
-                            "{0}_{1}",
-                            node.Parent.NodeId.IdentifierAsString,
-                            node.State.SymbolicName),
-                        m_manager!.InstanceNamespaceIndex);
+                    NodeId expected = ExpectedChildId(
+                        node.Parent.NodeId,
+                        node.State.BrowseName);
                     if (node.State.NodeId != expected)
                     {
                         offenders.Add($"{pump.BrowseName.Name}/{node.Path}: " +
@@ -653,25 +654,72 @@ namespace Opc.Ua.Di.Tests
 
             Assert.That(
                 pump.NodeId,
-                Is.EqualTo(new NodeId("5001_Pump_3", m_manager.InstanceNamespaceIndex)));
+                Is.EqualTo(ExpectedChildId(
+                    deviceSet.NodeId,
+                    new QualifiedName("Pump_3", m_manager.InstanceNamespaceIndex))));
             Assert.That(pump.Identification, Is.Not.Null);
             Assert.That(
                 ((NodeState)pump.Identification!).NodeId,
-                Is.EqualTo(new NodeId(
-                    "5001_Pump_3_Identification",
-                    m_manager.InstanceNamespaceIndex)));
+                Is.EqualTo(ExpectedChildId(
+                    pump.NodeId,
+                    ((NodeState)pump.Identification!).BrowseName)));
 
             List<PumpNode> nodes = CollectSubtree(pump);
             Assert.That(nodes, Is.Not.Empty);
             Assert.That(
                 nodes,
-                Has.All.Matches<PumpNode>(node => node.State.NodeId == new NodeId(
-                    string.Format(
-                        CultureInfo.InvariantCulture,
-                        "{0}_{1}",
-                        node.Parent.NodeId.IdentifierAsString,
-                        node.State.SymbolicName),
-                    m_manager.InstanceNamespaceIndex)));
+                Has.All.Matches<PumpNode>(node => node.State.NodeId
+                    == ExpectedChildId(node.Parent.NodeId, node.State.BrowseName)));
+        }
+
+        /// <summary>
+        /// The NodeId of the DI <c>DeviceSet</c> every pump hangs off.
+        /// </summary>
+        private NodeId DeviceSetNodeId()
+        {
+            return NodeId.Create(
+                global::Opc.Ua.Di.Objects.DeviceSet,
+                global::Opc.Ua.Di.Namespaces.OpcUaDi,
+                m_manager!.Server.NamespaceUris);
+        }
+
+        /// <summary>
+        /// The NodeId the manager's factory mints for a child of the supplied
+        /// parent.
+        /// </summary>
+        /// <remarks>
+        /// Derived rather than spelled out, so the assertion says "the id the
+        /// factory mints from this parent and browse name" instead of
+        /// restating one identifier format that the factory's mode can
+        /// change.
+        /// </remarks>
+        private NodeId ExpectedChildId(NodeId parentNodeId, QualifiedName browseName)
+        {
+            return m_manager!.NodeIdFactory.CreateChildNodeId(
+                parentNodeId,
+                browseName,
+                m_manager.InstanceNamespaceIndex,
+                m_manager.Server.NamespaceUris);
+        }
+
+        /// <summary>
+        /// Returns the direct child with the supplied browse name, ignoring
+        /// which namespace that name is qualified with.
+        /// </summary>
+        private BaseInstanceState FindChildByName(NodeState parent, string browseName)
+        {
+            var children = new List<BaseInstanceState>();
+            parent.GetChildren(m_manager!.SystemContext, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child.BrowseName.Name == browseName)
+                {
+                    return child;
+                }
+            }
+
+            Assert.Fail(browseName + " was not found.");
+            return null!;
         }
 
         private static bool IsGeneratedHelperNode(PumpNode node)

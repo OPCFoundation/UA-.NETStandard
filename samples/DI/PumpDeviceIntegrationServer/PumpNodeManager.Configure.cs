@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Pumps;
@@ -75,13 +76,16 @@ namespace Pumps
         /// the already-running manager simulation.
         /// </summary>
         /// <param name="pump">The registered pump instance.</param>
-        private void RegisterPumpSimulation(PumpState pump)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        private ValueTask RegisterPumpSimulationAsync(
+            PumpState pump,
+            CancellationToken cancellationToken)
         {
             ushort pumpsNs = (ushort)Server.NamespaceUris.GetIndex(
                 Opc.Ua.Pumps.Namespaces.Pumps);
             NodeManagerBuilder builder = CreateFluentBuilder(pumpsNs);
             RegisterPumpSimulation(builder, pump);
-            builder.Seal();
+            return builder.SealAsync(cancellationToken);
         }
 
         /// <summary>

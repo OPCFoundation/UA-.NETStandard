@@ -20,7 +20,26 @@ Use the [source-generated path](NodeManagers.md#source-generated-node-managers) 
 
 ## Startup and live lifecycle semantics
 
-`AddRuntimeNodeSet` on `IOpcUaServerBuilder` remains the startup path: its factory is created before the server starts and its NodeSet is imported during `CreateAddressSpaceAsync`.
+`AddRuntimeNodeSet` on `IOpcUaServerBuilder` remains the startup path: its factory is created before the server starts and its NodeSet is imported during `CreateAddressSpaceAsync`. After startup, the resulting generation-1 registration is available from `INodeManagerLifecycle.Registrations`, so a model composed at startup can use the same reload and removal APIs as one added while the server is already running.
+
+For example, a startup task can locate the registration by an owned model namespace:
+
+```csharp
+public sealed class ModelRegistration(INodeManagerLifecycle lifecycle)
+    : IServerStartupTask
+{
+    public NodeManagerRegistration? Registration { get; private set; }
+
+    public ValueTask OnServerStartedAsync(
+        IServerContext server,
+        CancellationToken ct)
+    {
+        Registration = lifecycle.Registrations.Find(registration =>
+            registration.NamespaceUris.Contains("urn:example:MyMachine"));
+        return default;
+    }
+}
+```
 
 Running servers also expose `INodeManagerLifecycle`. Resolve it from dependency injection in a hosted server, or use `StandardServer.NodeManagerLifecycle` when constructing the server directly. The lifecycle provider can add, reload, shadow-reload, and remove runtime NodeSets without restarting the server.
 
@@ -60,6 +79,10 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 ```
 
 Each add returns an immutable `NodeManagerRegistration`, and reload returns the next generation while invalidating the previous handle.
+
+A registration obtained from `Registrations` for an `AddRuntimeNodeSet` model is already the first
+live generation; pass it directly to `ReloadRuntimeNodeSetAsync`,
+`ShadowReloadRuntimeNodeSetAsync`, `ImmediateReloadRuntimeNodeSetAsync`, or `RemoveAsync`.
 
 `AddRuntimeNodeSetAsync`, `ReloadRuntimeNodeSetAsync`, and `RemoveAsync` take the operation the caller is running under. Pass `context.GetOperationContext()` when calling from a NodeManager or Method callback: a lifecycle operation drains the requests that are in flight, so one started from inside a request would wait for itself and is rejected with an `InvalidOperationException`. A control-plane caller such as the `ModelLoader` above is not serving a request and passes `null`. See [Registering NodeManagers](NodeManagers.md#runtime-registration).
 
@@ -123,6 +146,18 @@ services.AddOpcUa()
                 .OnRead(ReadTemperature);
         });
 ```
+
+Standard Method argument children are bound to their typed `NodeState` properties during import.
+A NodeSet2 Method's `InputArguments` and `OutputArguments` Variables populate
+`MethodState.InputArguments` and `MethodState.OutputArguments`, so normal Call argument validation
+uses the declarations from the document.
+Binding uses the authored `HasProperty` relationship, declared either on the Method or
+as an inverse reference on the argument Property; `ParentNodeId` is optional. Local
+namespace-URI reference targets are resolved against the import context's namespace table.
+The Property must use the namespace-zero standard BrowseName, `PropertyType`, the `Argument`
+DataType, and a one-dimensional value rank. Ambiguous or conflicting declarations and
+custom or malformed properties do not bind the Method's typed signature; their authored
+nodes and references are retained. Other authored reference types are preserved.
 
 ### Group of dependent NodeSets
 

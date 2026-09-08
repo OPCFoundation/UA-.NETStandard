@@ -92,6 +92,36 @@ namespace Opc.Ua.Server
         public INodeManagerLifecycle NodeManagerLifecycle { get; }
 
         /// <summary>
+        /// Gets or sets the factory that every <see cref="AsyncCustomNodeManager"/>
+        /// this server hosts mints runtime NodeIds with.
+        /// </summary>
+        /// <remarks>
+        /// Set before the server starts; leaving it <c>null</c> leaves each
+        /// NodeManager on its own default. A server composed through
+        /// dependency injection picks this up from the registered
+        /// <see cref="IRebasableNodeIdFactory"/>.
+        /// </remarks>
+        public IRebasableNodeIdFactory? NodeIdFactory { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether this server's NodeManagers refuse to mint a
+        /// NodeId they already gave a different browse path.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Set before the server starts. Leaving it <c>null</c> leaves each
+        /// factory on <see cref="DefaultNodeIdFactory.DetectCollisionsByDefault"/>,
+        /// which is on in a debug build and off otherwise.
+        /// </para>
+        /// <para>
+        /// This is a server-wide decision rather than a per-NodeManager one,
+        /// because the record a factory keeps to answer the question costs
+        /// memory that grows with the address space.
+        /// </para>
+        /// </remarks>
+        public bool? DetectNodeIdCollisions { get; set; }
+
+        /// <summary>
         /// Gets the active application configuration, failing if the server has not been configured.
         /// </summary>
         internal ApplicationConfiguration CurrentConfiguration
@@ -3664,6 +3694,10 @@ namespace Opc.Ua.Server
         {
             await base.StartApplicationAsync(configuration, cancellationToken)
                 .ConfigureAwait(false);
+            if (NodeManagerLifecycle is NodeManagerLifecycle lifecycle)
+            {
+                lifecycle.PrepareForStartup();
+            }
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -3679,6 +3713,9 @@ namespace Opc.Ua.Server
                     MessageContext,
                     TimeProvider,
                     SecurityPolicyRegistry);
+
+                m_serverInternal.SetNodeIdFactory(NodeIdFactory);
+                m_serverInternal.SetNodeIdCollisionDetection(DetectNodeIdCollisions);
 
                 var historianRegistry =
                     (Historian.HistorianProviderRegistry)
@@ -3909,6 +3946,7 @@ namespace Opc.Ua.Server
                             Timeout.InfiniteTimeSpan);
                     }
                 }
+
             }
             catch (OperationCanceledException)
                 when (cancellationToken.IsCancellationRequested)
@@ -3977,6 +4015,22 @@ namespace Opc.Ua.Server
                 // and transport listeners pick up cert hot-updates.
                 m_certManagerSubscription = CertificateManager.CertificateChanges
                     .Subscribe(new CertificateManagerChangeObserver(this, m_logger));
+            }
+
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnServerStartedAsync(
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnServerStartedAsync(cancellationToken).ConfigureAwait(false);
+            if (NodeManagerLifecycle is NodeManagerLifecycle lifecycle)
+            {
+                await lifecycle
+                    .AdoptStartupNodeManagersAsync(
+                        CurrentInstance,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -4080,7 +4134,6 @@ namespace Opc.Ua.Server
                         failures,
                         () => lifecycle.CompleteShutdownAsync(serverInternal, CancellationToken.None))
                     .ConfigureAwait(false);
-                lifecycle.Dispose();
             }
 
             serverInternal.Dispose();

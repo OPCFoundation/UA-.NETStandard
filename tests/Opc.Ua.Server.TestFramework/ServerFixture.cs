@@ -59,6 +59,13 @@ namespace Opc.Ua.Server.TestFramework
         public int ReverseConnectTimeout { get; set; }
         public bool AllNodeManagers { get; set; }
 
+        /// <summary>
+        /// Whether the fixture's server refuses to mint a NodeId it already
+        /// gave a different browse path. On by default, so a test run
+        /// exercises the check whatever configuration the stack was built in.
+        /// </summary>
+        public bool DetectNodeIdCollisions { get; set; } = true;
+
         public int TraceMasks { get; set; } =
             Utils.TraceMasks.Error |
             Utils.TraceMasks.StackTrace |
@@ -398,6 +405,15 @@ namespace Opc.Ua.Server.TestFramework
             T server = m_factory(m_telemetry);
             server.TransportBindings = TransportBindingRegistry
                 ?? TestTransportBindings.WithAllSchemes();
+            if (server is StandardServer nodeIdCollisionServer)
+            {
+                // On for every test server whatever configuration the stack
+                // was built in. Off is the release default, so leaving it
+                // alone would mean a release test run never exercises the
+                // check and a collision would surface as a silently replaced
+                // node instead of a failing test.
+                nodeIdCollisionServer.DetectNodeIdCollisions = DetectNodeIdCollisions;
+            }
             if (AllNodeManagers && server is StandardServer standardServer)
             {
                 Quickstarts.Servers.Utils.AddDefaultNodeManagers(standardServer);

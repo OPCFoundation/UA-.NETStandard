@@ -94,7 +94,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var builder = new NodeManagerBuilder(
                 ctx,
-                nodeManager: Mock.Of<IAsyncNodeManager>(),
+                nodeManager: FluentTestNodeManager.Create(kNs),
                 defaultNamespaceIndex: kNs,
                 rootResolver: q => roots.TryGetValue(q, out NodeState n) ? n : null,
                 nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null,
@@ -175,10 +175,10 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void NodeAfterSealThrowsBadInvalidState()
+        public async Task NodeAfterSealThrowsBadInvalidStateAsync()
         {
             (NodeManagerBuilder b, _, _, _) = CreateBuilderWithGraph();
-            b.Seal();
+            await b.SealAsync();
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => b.Node("Root/Var1"));
@@ -598,7 +598,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             return new NodeManagerBuilder(
                 CreateContext(),
-                Mock.Of<IAsyncNodeManager>(),
+                FluentTestNodeManager.Create(kNs),
                 kNs,
                 _ => null,
                 _ => null,
@@ -622,7 +622,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             return new NodeManagerBuilder(
                 CreateContext(),
-                Mock.Of<IAsyncNodeManager>(),
+                FluentTestNodeManager.Create(kNs),
                 kNs,
                 _ => null,
                 _ => null,
