@@ -839,6 +839,28 @@ namespace Opc.Ua.Robotics.Server.Tests
             Assert.That(graph.Software.AsNode().Node, Is.SameAs(graph.Software.State));
         }
 
+        /// <summary>
+        /// Sealing an already sealed context is a no-op rather than a second
+        /// activation pass. The hosting extension seals once per manager, but
+        /// the context is reachable from configurators, so a redundant seal
+        /// must not re-run the builder's completion work.
+        /// </summary>
+        [Test]
+        public async Task SealingAnAlreadySealedContextIsANoOp()
+        {
+            IRoboticsBuildContext context = m_fixture.CreateBuildContext();
+            _ = await context.AddMotionDeviceSystemAsync(
+                NextName("DoubleSealed"),
+                system => ConfigureValidGraph(system))
+                .ConfigureAwait(false);
+
+            await context.SealAsync().ConfigureAwait(false);
+
+            Assert.DoesNotThrowAsync(
+                async () => await context.SealAsync().ConfigureAwait(false),
+                "A redundant seal must be ignored, not rejected.");
+        }
+
         [Test]
         public async Task SealDuringRegistrationLeavesContextUsable()
         {
