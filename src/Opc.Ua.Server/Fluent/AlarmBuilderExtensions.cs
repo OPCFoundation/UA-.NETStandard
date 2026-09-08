@@ -42,16 +42,29 @@ namespace Opc.Ua.Server.Fluent
     /// </remarks>
     internal sealed class AlarmRelease : IAsyncDisposable
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AlarmRelease"/> class.
+        /// </summary>
+        /// <param name="alarm">The alarm to release.</param>
+        /// <param name="context">The context to release it in.</param>
+        /// <param name="eventSource">What registering the alarm changed.</param>
+        /// <param name="builder">The builder that owns the alarm.</param>
+        /// <param name="enabledByUs">
+        /// Whether attaching the alarm was what enabled it. False when it arrived
+        /// already enabled, in which case its enable state was never ours to undo.
+        /// </param>
         public AlarmRelease(
             ConditionState alarm,
             ISystemContext context,
             AlarmEventSourceRegistration eventSource,
-            NodeManagerBuilder builder)
+            NodeManagerBuilder builder,
+            bool enabledByUs)
         {
             m_alarm = alarm;
             m_context = context;
             m_eventSource = eventSource;
             m_builder = builder;
+            m_enabledByUs = enabledByUs;
         }
 
         public async ValueTask DisposeAsync()
@@ -93,7 +106,26 @@ namespace Opc.Ua.Server.Fluent
             // The OnAcknowledge/OnConfirm slots are plain delegates on a node that is
             // being deleted, so they are left alone: they hold nothing to release, and
             // the fields are not nullable.
-            m_alarm.SetEnableState(m_context, enabled: false);
+
+            // Disable only what attaching enabled, and only while it is still enabled.
+            // Both halves matter, and for different reasons.
+            //
+            // The ownership half is parity with everything else this class reverses: the
+            // notifier bits list only nodes whose bit we set, and the root notifier is
+            // claimed only when we inserted it. The enable state was the one thing
+            // reversed unconditionally.
+            //
+            // The still-enabled half guards a case ownership does not cover. A client may
+            // disable the condition at runtime through the Disable method, and that path
+            // refuses a redundant transition — ProcessBeforeEnableDisable answers
+            // BadConditionAlreadyDisabled. SetEnableState is the programmatic path and
+            // makes no such check, so disabling an already-disabled condition would
+            // rewrite EnabledState, clear Retain and stamp a fresh TransitionTime: a
+            // second, spurious disable transition emitted on the way out.
+            if (m_enabledByUs && m_alarm.EnabledState?.Id?.Value == true)
+            {
+                m_alarm.SetEnableState(m_context, enabled: false);
+            }
 
             if (rootNotifierFailure is not null)
             {
@@ -107,6 +139,7 @@ namespace Opc.Ua.Server.Fluent
         private readonly ISystemContext m_context;
         private readonly AlarmEventSourceRegistration m_eventSource;
         private readonly NodeManagerBuilder m_builder;
+        private readonly bool m_enabledByUs;
         private bool m_released;
     }
 
@@ -306,6 +339,12 @@ namespace Opc.Ua.Server.Fluent
                 browseName,
                 displayName: new LocalizedText(symbolicName),
                 assignNodeIds: false);
+
+            // Record whether enabling is ours to undo, before doing it. A freshly
+            // created condition is disabled, so today this is always true; it is captured
+            // rather than assumed so that teardown reverses a state it observed instead
+            // of one it inferred, the same way the notifier chain is recorded below.
+            bool enabledByUs = alarm.EnabledState?.Id?.Value != true;
             alarm.SetEnableState(parent.Builder.Context, enabled: true);
 
             alarm.ReferenceTypeId = ReferenceTypeIds.HasCondition;
@@ -351,7 +390,8 @@ namespace Opc.Ua.Server.Fluent
                         alarm,
                         parent.Builder.Context,
                         eventSource,
-                        concrete)));
+                        concrete,
+                        enabledByUs)));
 
             return alarm;
         }

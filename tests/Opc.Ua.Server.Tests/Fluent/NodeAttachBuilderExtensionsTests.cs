@@ -381,6 +381,94 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public void AlarmWiringIsUnwoundWhenALaterBehaviorFailsActivation()
+        {
+            using var manager = new TestBehaviorManager();
+            manager.SeedSiblings(1);
+
+            NodeManagerBuilder builder = manager.NewBuilder();
+            INodeBuilder parent = builder.Node(new NodeId(100u, 1));
+            var parentObject = (BaseObjectState)parent.Node;
+
+            parent.CreateLimitAlarm(new QualifiedName("Level", 1));
+
+            Assert.That(
+                manager.IsRootNotifier(parentObject.NodeId),
+                Is.True,
+                "precondition: attaching the alarm registered its source as a root notifier");
+
+            // Manager-scoped behaviors activate after every node behavior, so this one
+            // fails with the alarm's lease already live and forces it to be rolled back.
+            builder.Attach(
+                (_, _) => throw new InvalidOperationException("activation failed"));
+
+            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await manager.ActivateAsync().ConfigureAwait(false))!;
+            Assert.That(ex.Message, Is.EqualTo("activation failed"));
+
+            // Rollback is the only path on which this is observable. A full
+            // DeleteAddressSpaceAsync would remove the root notifier for every node
+            // regardless of who registered it, so it cannot distinguish AlarmRelease
+            // doing its job from the base class covering for it. Here the address space
+            // survives, and nothing but AlarmRelease can undo either of these.
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    manager.IsRootNotifier(parentObject.NodeId),
+                    Is.False,
+                    "rollback must remove the root notifier the alarm registered");
+                Assert.That(
+                    parentObject.EventNotifier & EventNotifiers.SubscribeToEvents,
+                    Is.Zero,
+                    "rollback must clear the notifier bit the alarm set");
+            });
+        }
+
+        [Test]
+        public async Task TeardownDoesNotRedisableAnAlreadyDisabledAlarmAsync()
+        {
+            using var manager = new TestBehaviorManager();
+            manager.SeedSiblings(1);
+
+            NodeManagerBuilder builder = manager.NewBuilder();
+            INodeBuilder parent = builder.Node(new NodeId(100u, 1));
+
+            NonExclusiveLimitAlarmState alarm = parent
+                .CreateLimitAlarm(new QualifiedName("Level", 1))
+                .Alarm;
+
+            await manager.ActivateAsync().ConfigureAwait(false);
+
+            // A client may disable a condition at runtime through the Disable method.
+            // Stand in for that here: what matters is only that the condition is already
+            // disabled by the time the node manager tears down.
+            alarm.SetEnableState(manager.SystemContext, enabled: false);
+
+            // Retain is the sentinel. UpdateStateAfterDisable clears it unconditionally,
+            // so setting it now means a second disable transition during teardown would
+            // be visible afterwards, while a correctly suppressed one leaves it standing.
+            // The time-based evidence, EnabledState.TransitionTime, cannot be used: both
+            // disables would stamp DateTime.UtcNow and can land in the same tick.
+            alarm.Retain!.Value = true;
+
+            await manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    alarm.Retain.Value,
+                    Is.True,
+                    "teardown must not disable a condition that is already disabled: " +
+                    "the Disable method answers BadConditionAlreadyDisabled for exactly " +
+                    "this transition, and SetEnableState makes no such check");
+                Assert.That(
+                    alarm.EnabledState?.Id?.Value,
+                    Is.False,
+                    "the condition must still end up disabled");
+            });
+        }
+
+        [Test]
         public async Task PublishWiringIsUndoneOnTeardownAsync()
         {
             using var manager = new TestBehaviorManager();
