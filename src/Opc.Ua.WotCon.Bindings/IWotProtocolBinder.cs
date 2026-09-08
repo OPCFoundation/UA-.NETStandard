@@ -498,9 +498,11 @@ namespace Opc.Ua.WotCon.Bindings
                         form.Pointer("op"), op));
                     continue;
                 }
-                // "unobserveproperty" and "unsubscribeevent" are teardown ops for a
-                // running observe / subscribe; do not emit a duplicate entry.
-                if (op is "unobserveproperty" or "unsubscribeevent")
+                // Combined event forms share one subscription lifetime. A separate
+                // unsubscribe form still needs its own valid teardown entry.
+                if (string.Equals(op, "unobserveproperty", StringComparison.OrdinalIgnoreCase) ||
+                    (string.Equals(op, "unsubscribeevent", StringComparison.OrdinalIgnoreCase) &&
+                        form.HasOperation("subscribeevent")))
                 {
                     continue;
                 }

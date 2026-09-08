@@ -714,6 +714,34 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
+        public void SeparateEventTeardownFormsAreSupportedWithoutDuplicatingSubscription()
+        {
+            WotBindingPlanRequest request = RequestFrom("""
+                {
+                  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+                  "title": "Separate teardown",
+                  "events": {
+                    "alarm": {
+                      "forms": [
+                        { "href": "opc.tcp://server.example:4840/?id=i%3D2253", "op": "subscribeevent" },
+                        { "href": "opc.tcp://server.example:4840/?id=i%3D2253", "op": "unsubscribeevent" }
+                      ]
+                    }
+                  }
+                }
+                """);
+            var registry = new WotProtocolBinderRegistry([new OpcUaBindingPlanner()], []);
+
+            WotBindingPlan plan = registry.Prepare(request);
+
+            Assert.That(plan.UnsupportedForms, Is.Empty);
+            Assert.That(plan.CompiledForms.Count(form => form.Operation == WoTBindingCapabilityEnum.SubscribeEvent),
+                Is.EqualTo(1));
+            Assert.That(plan.CompiledForms.Count(form => form.Operation == WoTBindingCapabilityEnum.UnsubscribeEvent),
+                Is.EqualTo(1));
+        }
+
+        [Test]
         public void EndpointSelectionDiscardsEverythingBelowTheFloor()
         {
             EndpointDescription[] endpoints =
