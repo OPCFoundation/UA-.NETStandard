@@ -158,10 +158,10 @@ namespace Opc.Ua.WotCon.Server.Assets
                 {
                     return StatusCodes.BadTooManyOperations;
                 }
-                if (mode == writeEraseMode && m_writingHandle != 0)
+                if (m_writingHandle != 0 || (mode == writeEraseMode && m_handles.Count != 0))
                 {
                     return ServiceResult.Create(StatusCodes.BadInvalidState,
-                        "Another writer is already open on this file.");
+                        "File access conflicts with an existing reader or writer.");
                 }
                 Handle handle = mode == writeEraseMode
                     ? Handle.OpenWrite(sessionId)
@@ -224,7 +224,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 if (length <= 0)
                 {
                     data = ByteString.Empty;
-                    return ServiceResult.Good;
+                    return ServiceResult.Create(StatusCodes.BadInvalidArgument, "Read length must be positive.");
                 }
                 int available = checked((int)(handle.Stream.Length - handle.Stream.Position));
                 int toRead = Math.Min(available, length);
@@ -327,12 +327,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 {
                     return err;
                 }
-                if (position > (ulong)handle.Stream.Length)
-                {
-                    return ServiceResult.Create(StatusCodes.BadInvalidArgument,
-                        "Requested position exceeds file length.");
-                }
-                handle.Stream.Position = (long)position;
+                handle.Stream.Position = (long)Math.Min(position, (ulong)handle.Stream.Length);
             }
             return ServiceResult.Good;
         }

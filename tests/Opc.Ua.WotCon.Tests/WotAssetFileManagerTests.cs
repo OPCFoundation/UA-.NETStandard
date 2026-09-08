@@ -95,17 +95,58 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(handle, Is.GreaterThan(0u));
         }
 
-        [Test]
-        public void OpenSecondWriterWhileFirstStillOpenReturnsBadInvalidState()
+        [TestCase(ModeWriteErase, ModeWriteErase)]
+        [TestCase(ModeRead, ModeWriteErase)]
+        [TestCase(ModeWriteErase, ModeRead)]
+        public void OpenEnforcesReaderWriterExclusion(byte firstMode, byte secondMode)
         {
             using var harness = new Harness();
             uint first = 0;
-            harness.Open(ModeWriteErase, ref first);
+            Assert.That(ServiceResult.IsGood(harness.Open(firstMode, ref first)), Is.True);
             uint second = 0;
-            ServiceResult result = harness.Open(ModeWriteErase, ref second);
+            ServiceResult result = harness.Open(secondMode, ref second);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(second, Is.Zero);
+            Assert.That(harness.File.OpenCount!.Value, Is.EqualTo((ushort)1));
+        }
+
+        [TestCase(ModeRead)]
+        [TestCase(ModeWriteErase)]
+        public async Task CloseAndUpdateRetainsExclusiveWriterUntilCallbackCompletes(byte nextMode)
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var harness = new Harness(materialise: async (_, _) =>
+            {
+                entered.SetResult(true);
+                await release.Task.ConfigureAwait(false);
+                return ServiceResult.Good;
+            });
+            uint handle = 0;
+            Assert.That(ServiceResult.IsGood(harness.Open(ModeWriteErase, ref handle)), Is.True);
+            harness.Write(handle, ByteString.From(Encoding.UTF8.GetBytes("""{"name":"pending"}""")));
+            Task<ServiceResult> close = harness.CloseAndUpdateAsync(handle).AsTask();
+            try
+            {
+                Task ready = await Task.WhenAny(entered.Task, Task.Delay(TimeSpan.FromSeconds(10)))
+                    .ConfigureAwait(false);
+                Assert.That(ready, Is.SameAs(entered.Task));
+                uint next = 0;
+                ServiceResult opened = harness.Open(nextMode, ref next);
+
+                Assert.That(opened.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(next, Is.Zero);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await close.ConfigureAwait(false);
+            }
+
+            uint reopened = 0;
+            Assert.That(ServiceResult.IsGood(harness.Open(nextMode, ref reopened)), Is.True);
+            harness.Close(reopened);
         }
 
         [Test]
@@ -120,6 +161,44 @@ namespace Opc.Ua.WotCon.Tests
             ServiceResult result = harness.Open(ModeRead, ref h3);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+        }
+
+        [TestCase(0)]
+        [TestCase(-1)]
+        public void ReadRejectsNonPositiveLengthsWithoutClosingTheHandle(int length)
+        {
+            using var harness = new Harness();
+            uint handle = 0;
+            Assert.That(ServiceResult.IsGood(harness.Open(ModeRead, ref handle)), Is.True);
+            ByteString data = default;
+
+            ServiceResult result = harness.Read(handle, length, ref data);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(harness.File.OpenCount!.Value, Is.EqualTo((ushort)1));
+        }
+
+        [TestCase(ModeRead, 4ul)]
+        [TestCase(ModeRead, ulong.MaxValue)]
+        [TestCase(ModeWriteErase, 4ul)]
+        [TestCase(ModeWriteErase, ulong.MaxValue)]
+        public void SetPositionBeyondTheFileClampsToItsEnd(byte mode, ulong requested)
+        {
+            using var harness = new Harness();
+            harness.Upload([1, 2, 3]);
+            uint handle = 0;
+            Assert.That(ServiceResult.IsGood(harness.Open(mode, ref handle)), Is.True);
+            if (mode == ModeWriteErase)
+            {
+                Assert.That(ServiceResult.IsGood(harness.Write(handle, ByteString.From([1, 2, 3]))), Is.True);
+            }
+
+            ServiceResult result = harness.SetPosition(handle, requested);
+            ulong position = 0;
+            harness.GetPosition(handle, ref position);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(position, Is.EqualTo(3ul));
         }
 
         [Test]
@@ -175,7 +254,7 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         [Test]
-        public void SetPositionBeyondLengthReturnsBadInvalidArgument()
+        public void ReadAfterSeekingBeyondLengthReturnsEof()
         {
             using var harness = new Harness();
             harness.Upload([1, 2, 3]);
@@ -184,8 +263,10 @@ namespace Opc.Ua.WotCon.Tests
             try
             {
                 ServiceResult result = harness.SetPosition(handle, 100);
-                Assert.That(result.StatusCode,
-                    Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                ByteString data = default;
+                Assert.That(ServiceResult.IsGood(harness.Read(handle, 4, ref data)), Is.True);
+                Assert.That(data.IsEmpty, Is.True);
             }
             finally
             {

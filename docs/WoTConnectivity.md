@@ -82,6 +82,9 @@ files expose the generated description. File persistence stages the complete
 document before replacing the committed file, and a failed write is surfaced to
 the caller. `CloseAndUpdate` awaits materialisation and persistence without
 blocking on an asynchronous callback.
+Multiple read handles may coexist, but a writer excludes other readers and writers,
+including while `CloseAndUpdate` awaits completion. Reads require a positive length;
+seeking beyond the file clamps the position to its end.
 
 ### Mirroring assets into the WoT xRegistry
 
