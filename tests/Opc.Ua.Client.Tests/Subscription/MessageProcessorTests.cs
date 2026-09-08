@@ -124,6 +124,10 @@ namespace Opc.Ua.Client.Subscriptions
                 // Act
                 await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable).ConfigureAwait(false);
                 await sut.DataChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                // The processor dispatches the notification (which sets the
+                // event awaited above) and only then queues the acknowledgement,
+                // so asserting on QueuedAcks straight away races that last step.
+                await m_completion.WaitForQueuedAckAsync(1).ConfigureAwait(false);
 
                 // Assert
                 Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(availableSequenceNumbers));

@@ -1783,9 +1783,17 @@ namespace Opc.Ua.Robotics.Intent.Tests
             await WaitForAsync(() => new ValueTask<bool>(predicate()), description).ConfigureAwait(false);
         }
 
-        private static async ValueTask WaitForAsync(Func<ValueTask<bool>> predicate, string description)
+        private static ValueTask WaitForAsync(Func<ValueTask<bool>> predicate, string description)
         {
-            DateTime deadline = DateTime.UtcNow.AddSeconds(30);
+            return WaitForAsync(predicate, () => description, TimeSpan.FromSeconds(30));
+        }
+
+        private static async ValueTask WaitForAsync(
+            Func<ValueTask<bool>> predicate,
+            Func<string> description,
+            TimeSpan timeout)
+        {
+            DateTime deadline = DateTime.UtcNow.Add(timeout);
             while (DateTime.UtcNow < deadline)
             {
                 if (await predicate().ConfigureAwait(false))
@@ -1794,7 +1802,12 @@ namespace Opc.Ua.Robotics.Intent.Tests
                 }
                 await Task.Delay(25).ConfigureAwait(false);
             }
-            Assert.Fail($"Timed out waiting for {description}.");
+            // The description is a callback so a caller can fold in state the
+            // polling itself produced - notably the last exception. Building
+            // the string up front captured it before the first poll had run,
+            // which reported every timeout as "Last error: ." and hid the
+            // actual reason the server never became reachable.
+            Assert.Fail($"Timed out waiting for {description()}.");
         }
 
         private const string MainControllerName = "CellController";
@@ -2146,24 +2159,31 @@ namespace Opc.Ua.Robotics.Intent.Tests
             private async ValueTask WaitForEndpointAsync()
             {
                 Exception? lastException = null;
-                await WaitForAsync(async () =>
-                {
-                    try
+                await WaitForAsync(
+                    async () =>
                     {
-                        EndpointDescription? endpoint = await CoreClientUtils.SelectEndpointAsync(
-                            m_clientConfig,
-                            ServerUrl,
-                            useSecurity: false,
-                            m_telemetry,
-                            CancellationToken.None).ConfigureAwait(false);
-                        return endpoint != null;
-                    }
-                    catch (Exception ex)
-                    {
-                        lastException = ex;
-                        return false;
-                    }
-                }, $"server endpoint availability. Last error: {lastException?.Message}").ConfigureAwait(false);
+                        try
+                        {
+                            EndpointDescription? endpoint = await CoreClientUtils.SelectEndpointAsync(
+                                m_clientConfig,
+                                ServerUrl,
+                                useSecurity: false,
+                                m_telemetry,
+                                CancellationToken.None).ConfigureAwait(false);
+                            return endpoint != null;
+                        }
+                        catch (Exception ex)
+                        {
+                            lastException = ex;
+                            return false;
+                        }
+                    },
+                    () => $"server endpoint availability. Last error: {lastException?.Message}",
+                    // Fixture startup, not a functional assertion: this waits
+                    // for a freshly built server host to publish its endpoints.
+                    // 30 s was not enough on a loaded .NET Framework CI agent,
+                    // which failed the whole fixture in the nightly run.
+                    TimeSpan.FromSeconds(120)).ConfigureAwait(false);
             }
 
             private static int GetFreeTcpPort()

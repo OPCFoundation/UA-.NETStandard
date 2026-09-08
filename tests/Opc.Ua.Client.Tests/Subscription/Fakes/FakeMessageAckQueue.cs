@@ -70,8 +70,35 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public ValueTask QueueAsync(SubscriptionAcknowledgement ack,
             CancellationToken ct = default)
         {
-            QueuedAcks.Add(ack);
+            lock (m_lock)
+            {
+                QueuedAcks.Add(ack);
+            }
             return OnQueueAsync?.Invoke(ack, ct) ?? default;
+        }
+
+        /// <summary>
+        /// Waits until at least <paramref name="count"/> acknowledgements have
+        /// been queued. The processor under test dispatches a notification
+        /// before it queues the acknowledgement for it, so a test that only
+        /// waits for the dispatch races the enqueue that follows it.
+        /// </summary>
+        public async Task WaitForQueuedAckAsync(int count, int timeoutMs = 5000)
+        {
+            const int kPollIntervalMs = 10;
+            int elapsed = 0;
+            while (elapsed < timeoutMs)
+            {
+                lock (m_lock)
+                {
+                    if (QueuedAcks.Count >= count)
+                    {
+                        return;
+                    }
+                }
+                await Task.Delay(kPollIntervalMs).ConfigureAwait(false);
+                elapsed += kPollIntervalMs;
+            }
         }
 
         public ValueTask CompleteAsync(IMessageProcessor subscription,
@@ -101,8 +128,11 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public int DropPendingForSubscription(uint subscriptionId)
         {
             DroppedSubscriptions.Add(subscriptionId);
-            return QueuedAcks.RemoveAll(
-                ack => ack.SubscriptionId == subscriptionId);
+            lock (m_lock)
+            {
+                return QueuedAcks.RemoveAll(
+                    ack => ack.SubscriptionId == subscriptionId);
+            }
         }
 
         public void Update()
@@ -117,5 +147,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// pooled-notification reuse walk.
         /// </summary>
         public bool PoolNotifications { get; set; }
+
+        private readonly Lock m_lock = new();
     }
 }
