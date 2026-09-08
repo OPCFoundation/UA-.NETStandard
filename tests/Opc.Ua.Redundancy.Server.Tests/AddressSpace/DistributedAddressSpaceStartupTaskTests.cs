@@ -41,6 +41,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Crdt;
+using Crdt.Transport;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
@@ -72,7 +74,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend("urn:test:wire");
-            ushort foreignNamespaceIndex = (ushort)messageContext.NamespaceUris.GetIndexOrAppend("urn:test:foreign");
+            ushort foreignNamespaceIndex = messageContext.NamespaceUris.GetIndexOrAppend("urn:test:foreign");
             var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = messageContext.NamespaceUris,
@@ -167,9 +169,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
             ushort ownedNamespaceIndex =
-                (ushort)messageContext.NamespaceUris.GetIndexOrAppend("urn:test:owned");
+                messageContext.NamespaceUris.GetIndexOrAppend("urn:test:owned");
             ushort foreignNamespaceIndex =
-                (ushort)messageContext.NamespaceUris.GetIndexOrAppend("urn:test:foreign");
+                messageContext.NamespaceUris.GetIndexOrAppend("urn:test:foreign");
             var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = messageContext.NamespaceUris,
@@ -408,6 +410,117 @@ namespace Opc.Ua.Server.Tests.Redundancy
             election.Verify(
                 e => e.TryAcquireOrRenewAsync(It.IsAny<CancellationToken>()),
                 Times.Never);
+        }
+
+        /// <summary>
+        /// Rejects an unsupported CRDT writer before creating address spaces, acquiring a lease, or writing markers.
+        /// </summary>
+        [Test]
+        public async Task BareCrdtFailsBeforeOwnershipOrElectionAsync()
+        {
+            await using var network = new InMemoryNetwork();
+            await using var crdt = new ReplicatedSharedKeyValueStore(
+                ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
+            var election = new Mock<ILeaderElection>();
+            var server = new Mock<IServerInternal>(MockBehavior.Strict);
+            await using var startup = new DistributedAddressSpaceStartupTask(crdt, election.Object);
+
+            await Assert.ThatAsync(
+                async () => await startup.OnServerStartedAsync(server.Object).ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains(InMemoryNodeStateStore.SequenceKey))
+                .ConfigureAwait(false);
+
+            election.Verify(e => e.TryAcquireOrRenewAsync(It.IsAny<CancellationToken>()), Times.Never);
+            election.Verify(e => e.Start(), Times.Never);
+            server.VerifyNoOtherCalls();
+            Assert.That(startup.NodeStateStoreRegistry, Is.Null);
+            int count = 0;
+            await foreach (KeyValuePair<string, ByteString> _ in crdt.ScanAsync(string.Empty).ConfigureAwait(false))
+            {
+                count++;
+            }
+            Assert.That(count, Is.Zero);
+        }
+
+        /// <summary>
+        /// Rejects a configured lease routed to CRDT even when the sequence key is correctly coordinated.
+        /// </summary>
+        [Test]
+        public async Task MisroutedLeaseFailsBeforeStartupMutationAsync()
+        {
+            await using var network = new InMemoryNetwork();
+            await using var crdt = new ReplicatedSharedKeyValueStore(
+                ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
+            await using var coordinator = new RaftSharedKeyValueStore(
+                DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
+            await using var hybrid = new HybridSharedKeyValueStore(
+                crdt, coordinator, [InMemoryNodeStateStore.SequenceKey]);
+            var election = new Mock<ILeaderElection>();
+            var server = new Mock<IServerInternal>(MockBehavior.Strict);
+            await using var startup = new DistributedAddressSpaceStartupTask(
+                hybrid, election.Object, protector: null, leaseKey: "custom/leader");
+
+            await Assert.ThatAsync(
+                async () => await startup.OnServerStartedAsync(server.Object).ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains("custom/leader")).ConfigureAwait(false);
+
+            election.Verify(e => e.TryAcquireOrRenewAsync(It.IsAny<CancellationToken>()), Times.Never);
+            election.Verify(e => e.Start(), Times.Never);
+            server.VerifyNoOtherCalls();
+            Assert.That(startup.NodeStateStoreRegistry, Is.Null);
+        }
+
+        /// <summary>
+        /// Wires a hosted registry and a directly constructed store to the same strong coordinator and real CRDT bulk.
+        /// </summary>
+        [Test]
+        public async Task HostedRegistryAndDirectStoreShareHybridCoordinationAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
+            context.NamespaceUris.GetIndexOrAppend("urn:test:shared-hybrid");
+            var server = new Mock<IServerInternal>();
+            server.Setup(s => s.Telemetry).Returns(telemetry);
+            server.Setup(s => s.MessageContext).Returns(context);
+            server.Setup(s => s.NamespaceUris).Returns(context.NamespaceUris);
+            server.Setup(s => s.DefaultSystemContext).Returns(new ServerSystemContext(server.Object));
+            server.Setup(s => s.FindNodeManagers<ILocalAddressSpaceSource>()).Returns([]);
+            await using var network = new InMemoryNetwork();
+            await using var crdt = new ReplicatedSharedKeyValueStore(
+                ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
+            await using var coordinator = new RaftSharedKeyValueStore(
+                DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
+            await using var hybrid = new HybridSharedKeyValueStore(crdt, coordinator);
+            await using var startup = new DistributedAddressSpaceStartupTask(hybrid, new StaticLeaderElection(true));
+
+            await startup.OnServerStartedAsync(server.Object).ConfigureAwait(false);
+
+            var hostedId = new NodeId("hosted", NamespaceIndex);
+            var directId = new NodeId("direct", NamespaceIndex);
+            Assert.That(startup.NodeStateStoreRegistry, Is.Not.Null);
+            INodeStateStore? hosted = startup.NodeStateStoreRegistry!.Resolve(hostedId);
+            Assert.That(hosted, Is.Not.Null);
+            await hosted!.UpsertNodeAsync(new StoredNode(hostedId, new ByteString(new byte[] { 1 })))
+                .ConfigureAwait(false);
+            using var direct = new InMemoryNodeStateStore(hybrid, context);
+            await direct.UpsertNodeAsync(new StoredNode(directId, new ByteString(new byte[] { 2 })))
+                .ConfigureAwait(false);
+
+            var changes = new List<NodeStateChange>();
+            await foreach (NodeStateChange change in direct.ReadDeltaLogAsync(0).ConfigureAwait(false))
+            {
+                changes.Add(change);
+            }
+            Assert.That(changes, Has.Count.EqualTo(2));
+            Assert.That(changes[0].Sequence, Is.EqualTo(1));
+            Assert.That(changes[1].Sequence, Is.EqualTo(2));
+            (bool hostedStored, _) = await crdt.TryGetAsync("n/" + hostedId).ConfigureAwait(false);
+            (bool directStored, _) = await crdt.TryGetAsync("n/" + directId).ConfigureAwait(false);
+            (bool misplacedCounter, _) = await crdt.TryGetAsync(InMemoryNodeStateStore.SequenceKey)
+                .ConfigureAwait(false);
+            Assert.That(hostedStored, Is.True);
+            Assert.That(directStored, Is.True);
+            Assert.That(misplacedCounter, Is.False);
         }
 
         [Test]

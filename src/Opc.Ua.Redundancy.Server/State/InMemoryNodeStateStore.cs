@@ -50,6 +50,7 @@ namespace Opc.Ua.Redundancy.Server
         INodeStateSubscriptionPreparer,
         INodeStateStoreStateProbe,
         ISequencedNodeStateStore,
+        INodeStateStoreReadConsistency,
         IDisposable
     {
         /// <summary>
@@ -87,7 +88,24 @@ namespace Opc.Ua.Redundancy.Server
         /// promoted writer continues from this high-water mark so sequences
         /// never move backward across a failover.
         /// </summary>
+        /// <remarks>
+        /// This allocation high-water mark includes unfinished publications. Snapshot
+        /// publication validates shared completion state instead of using it as a trim horizon.
+        /// </remarks>
         public ulong CurrentSequence => unchecked((ulong)Interlocked.Read(ref m_sequence));
+
+        /// <inheritdoc/>
+        bool INodeStateStoreReadConsistency.HasAuthoritativeReads =>
+            IsLinearizableKey(NodePrefix) &&
+            IsLinearizableKey(ValuePrefix) &&
+            IsLinearizableKey(DeltaPrefix) &&
+            IsLinearizableKey(PartitionPrefix);
+
+        /// <inheritdoc/>
+        bool INodeStateStoreReadConsistency.SupportsSnapshots =>
+            ((INodeStateStoreReadConsistency)this).HasAuthoritativeReads &&
+            IsLinearizableKey(SnapshotPrefix) &&
+            IsLinearizableKey(ManifestKey);
 
         /// <inheritdoc/>
         async ValueTask<bool> INodeStatePartitionStore.IsPartitionInitializedAsync(
@@ -127,6 +145,8 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ArgumentException("A partition identifier is required.", nameof(partitionId));
             }
 
+            ct.ThrowIfCancellationRequested();
+            ValidateCoordinator(m_store);
             return m_store.SetAsync(
                 PartitionPrefix + Uri.EscapeDataString(partitionId),
                 m_protector.Protect(new ByteString(new byte[] { 1 })),
@@ -175,7 +195,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             long observed = unchecked((long)sequence);
             long current = Interlocked.Read(ref m_sequence);
-            while (current < observed)
+            while (unchecked((ulong)current) < sequence)
             {
                 long prior = Interlocked.CompareExchange(ref m_sequence, observed, current);
                 if (prior == current)
@@ -202,36 +222,33 @@ namespace Opc.Ua.Redundancy.Server
             {
                 throw new ArgumentNullException(nameof(node));
             }
+            if (node.NodeId.IsNull || node.Payload.IsNull || node.Payload.IsEmpty)
+            {
+                throw new ArgumentException(
+                    "A stored node requires an identifier and a nonempty payload.",
+                    nameof(node));
+            }
             ulong sequence = await NextSequenceAsync(ct).ConfigureAwait(false);
-            await m_store
-                .SetAsync(
-                    NodePrefix + node.NodeId,
-                    m_protector.Protect(WithSequence(sequence, node.Payload)),
-                    ct)
+            await WritePrimaryRecordAsync(NodePrefix + node.NodeId, sequence, node.Payload, ct)
                 .ConfigureAwait(false);
             await AppendDeltaAsync(sequence, NodeStateChangeKind.Upsert, node.NodeId, node.Payload, ct)
                 .ConfigureAwait(false);
+            await CompleteSequenceAsync(sequence, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public async ValueTask<bool> DeleteNodeAsync(NodeId nodeId, CancellationToken ct = default)
         {
+            if (nodeId.IsNull)
+            {
+                throw new ArgumentException("A node identifier is required.", nameof(nodeId));
+            }
             ulong sequence = await NextSequenceAsync(ct).ConfigureAwait(false);
-            string key = NodePrefix + nodeId;
-            (bool found, ByteString existing) = await m_store
-                .TryGetAsync(key, ct)
-                .ConfigureAwait(false);
-            bool removed = found &&
-                TryReadRecord(existing, out _, out ByteString existingPayload) &&
-                !existingPayload.IsEmpty;
-            await m_store
-                .SetAsync(
-                    key,
-                    m_protector.Protect(WithSequence(sequence, ByteString.Empty)),
-                    ct)
+            bool removed = await WritePrimaryRecordAsync(NodePrefix + nodeId, sequence, ByteString.Empty, ct)
                 .ConfigureAwait(false);
             await AppendDeltaAsync(sequence, NodeStateChangeKind.Delete, nodeId, ByteString.Empty, ct)
                 .ConfigureAwait(false);
+            await CompleteSequenceAsync(sequence, ct).ConfigureAwait(false);
             return removed;
         }
 
@@ -271,11 +288,13 @@ namespace Opc.Ua.Redundancy.Server
                 .ScanAsync(NodePrefix, ct)
                 .ConfigureAwait(false))
             {
-                if (TryParseNodeId(entry.Key, NodePrefix, out NodeId id) &&
-                    TryReadRecord(entry.Value, out ulong sequence, out ByteString payload) &&
-                    !payload.IsEmpty)
+                if (TryParseNodeId(entry.Key, NodePrefix, out NodeId id))
                 {
-                    yield return (new StoredNode(id, payload), sequence);
+                    (ulong sequence, ByteString payload) = ReadRecord(entry.Key, entry.Value);
+                    if (!payload.IsEmpty)
+                    {
+                        yield return (new StoredNode(id, payload), sequence);
+                    }
                 }
             }
         }
@@ -283,6 +302,10 @@ namespace Opc.Ua.Redundancy.Server
         /// <inheritdoc/>
         public ValueTask WriteValueAsync(NodeId nodeId, in DataValue value, CancellationToken ct = default)
         {
+            if (nodeId.IsNull)
+            {
+                throw new ArgumentException("A node identifier is required.", nameof(nodeId));
+            }
             // Encode synchronously (in-parameters are not allowed in async
             // methods) and hand off to the async record + delta-log writer.
             ByteString payload = EncodeValue(in value);
@@ -295,11 +318,11 @@ namespace Opc.Ua.Redundancy.Server
             CancellationToken ct)
         {
             ulong sequence = await NextSequenceAsync(ct).ConfigureAwait(false);
-            await m_store
-                .SetAsync(ValuePrefix + nodeId, m_protector.Protect(WithSequence(sequence, payload)), ct)
+            await WritePrimaryRecordAsync(ValuePrefix + nodeId, sequence, payload, ct)
                 .ConfigureAwait(false);
             await AppendDeltaAsync(sequence, NodeStateChangeKind.Value, nodeId, payload, ct)
                 .ConfigureAwait(false);
+            await CompleteSequenceAsync(sequence, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -338,10 +361,10 @@ namespace Opc.Ua.Redundancy.Server
                 .ScanAsync(ValuePrefix, ct)
                 .ConfigureAwait(false))
             {
-                if (TryParseNodeId(entry.Key, ValuePrefix, out NodeId id) &&
-                    TryReadRecord(entry.Value, out ulong sequence, out ByteString payload))
+                if (TryParseNodeId(entry.Key, ValuePrefix, out NodeId id))
                 {
-                    yield return (id, DecodeValue(payload), sequence);
+                    (ulong sequence, ByteString payload) = ReadRecord(entry.Key, entry.Value);
+                    yield return (id, DecodeValueStrict(payload), sequence);
                 }
             }
         }
@@ -349,13 +372,33 @@ namespace Opc.Ua.Redundancy.Server
         /// <inheritdoc/>
         public async ValueTask WriteSnapshotAsync(CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
+            ValidateCoordinator(m_store);
+            if (!((INodeStateStoreReadConsistency)this).SupportsSnapshots)
+            {
+                throw new InvalidOperationException(
+                    "Distributed address-space snapshots require linearizable node, value, delta, and snapshot " +
+                    "keyspaces. An eventually consistent bulk scan cannot prove completeness; its delta log " +
+                    "must be retained.");
+            }
+
+            var generation = Guid.NewGuid();
+            BinaryEncoder? encoder = null;
+            bool published = false;
+            bool publicationUncertain = false;
             await m_snapshotLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                ulong sequence = CurrentSequence;
-                var generation = Guid.NewGuid();
+                (ByteString sequenceRecord, ulong sequence, List<ulong> pending) =
+                    await ReadSequenceAsync(ct).ConfigureAwait(false);
+                if (pending.Count != 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Distributed address-space publication {pending[0]} is unfinished. " +
+                        "A snapshot cannot advance over an unfinished or failed publication.");
+                }
+
                 int chunkIndex = 0;
-                BinaryEncoder? encoder = null;
 
                 async ValueTask FlushAsync()
                 {
@@ -370,6 +413,12 @@ namespace Opc.Ua.Redundancy.Server
                     {
                         return;
                     }
+                    if (chunkIndex >= MaxSnapshotChunks)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadEncodingLimitsExceeded,
+                            "The distributed address-space snapshot has too many chunks.");
+                    }
                     await m_store
                         .SetAsync(
                             SnapshotChunkKey(generation, chunkIndex),
@@ -381,6 +430,11 @@ namespace Opc.Ua.Redundancy.Server
 
                 void Append(byte kind, ulong entrySequence, NodeId nodeId, ByteString payload)
                 {
+                    if (entrySequence > sequence)
+                    {
+                        throw new InvalidOperationException(
+                            "The distributed address space changed while the snapshot was being built.");
+                    }
                     encoder ??= new BinaryEncoder(m_context);
                     encoder.WriteByte(null, kind);
                     encoder.WriteUInt64(null, entrySequence);
@@ -392,14 +446,16 @@ namespace Opc.Ua.Redundancy.Server
                     .ScanAsync(NodePrefix, ct)
                     .ConfigureAwait(false))
                 {
-                    if (TryParseNodeId(entry.Key, NodePrefix, out NodeId id) &&
-                        TryReadRecord(entry.Value, out ulong seq, out ByteString payload) &&
-                        !payload.IsEmpty)
+                    if (TryParseNodeId(entry.Key, NodePrefix, out NodeId id))
                     {
-                        Append((byte)NodeStateChangeKind.Upsert, seq, id, payload);
-                        if (encoder!.Position >= MaxChunkBytes)
+                        (ulong seq, ByteString payload) = ReadRecord(entry.Key, entry.Value);
+                        if (!payload.IsEmpty)
                         {
-                            await FlushAsync().ConfigureAwait(false);
+                            Append((byte)NodeStateChangeKind.Upsert, seq, id, payload);
+                            if (encoder!.Position >= MaxChunkBytes)
+                            {
+                                await FlushAsync().ConfigureAwait(false);
+                            }
                         }
                     }
                 }
@@ -408,9 +464,10 @@ namespace Opc.Ua.Redundancy.Server
                     .ScanAsync(ValuePrefix, ct)
                     .ConfigureAwait(false))
                 {
-                    if (TryParseNodeId(entry.Key, ValuePrefix, out NodeId id) &&
-                        TryReadRecord(entry.Value, out ulong seq, out ByteString payload))
+                    if (TryParseNodeId(entry.Key, ValuePrefix, out NodeId id))
                     {
+                        (ulong seq, ByteString payload) = ReadRecord(entry.Key, entry.Value);
+                        _ = DecodeValueStrict(payload);
                         Append((byte)NodeStateChangeKind.Value, seq, id, payload);
                         if (encoder!.Position >= MaxChunkBytes)
                         {
@@ -434,14 +491,35 @@ namespace Opc.Ua.Redundancy.Server
                     generationToCollect = previous.PreviousGeneration;
                 }
 
-                // Chunks are written before the manifest, so a reader never sees a
-                // partial snapshot (single writer, so a plain set is sufficient).
-                await m_store
-                    .SetAsync(
+                // The shared reservation record changes before any primary write.
+                // Equality proves the linearizable scans ran without a concurrent
+                // publication; writes starting after this check have a higher horizon.
+                (ByteString currentSequenceRecord, _, _) =
+                    await ReadSequenceAsync(ct).ConfigureAwait(false);
+                if (!sequenceRecord.Equals(currentSequenceRecord))
+                {
+                    throw new InvalidOperationException(
+                        "The distributed address space changed while the snapshot was being built.");
+                }
+
+                ByteString manifest = m_protector.Protect(
+                    EncodeManifest(generation, chunkIndex, sequence, predecessor));
+                ct.ThrowIfCancellationRequested();
+                publicationUncertain = true;
+                bool replaced = await m_store
+                    .CompareAndSwapAsync(
                         ManifestKey,
-                        m_protector.Protect(EncodeManifest(generation, chunkIndex, sequence, predecessor)),
+                        foundManifest ? existingManifest : default,
+                        manifest,
                         ct)
                     .ConfigureAwait(false);
+                publicationUncertain = false;
+                if (!replaced)
+                {
+                    throw new InvalidOperationException(
+                        "Another distributed address-space snapshot was published concurrently.");
+                }
+                published = true;
 
                 await TrimDeltaLogAsync(sequence, ct).ConfigureAwait(false);
 
@@ -450,8 +528,29 @@ namespace Opc.Ua.Redundancy.Server
                     await DeleteGenerationAsync(collect, ct).ConfigureAwait(false);
                 }
             }
+            catch (Exception exception)
+            {
+                // A failed transport/cancellation can leave an indeterminate CAS
+                // that already published the manifest. Never delete its generation.
+                if (!published && !publicationUncertain)
+                {
+                    try
+                    {
+                        await DeleteGenerationAsync(generation, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception cleanupException)
+                    {
+                        throw new AggregateException(
+                            "Snapshot publication failed, and its unpublished chunks could not be removed.",
+                            exception,
+                            cleanupException);
+                    }
+                }
+                throw;
+            }
             finally
             {
+                encoder?.Dispose();
                 m_snapshotLock.Release();
             }
         }
@@ -459,6 +558,11 @@ namespace Opc.Ua.Redundancy.Server
         /// <inheritdoc/>
         public async ValueTask<NodeStateSnapshot?> TryReadSnapshotAsync(CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
+            if (!((INodeStateStoreReadConsistency)this).SupportsSnapshots)
+            {
+                return null;
+            }
             (bool found, ByteString manifest) = await m_store
                 .TryGetAsync(ManifestKey, ct)
                 .ConfigureAwait(false);
@@ -487,12 +591,10 @@ namespace Opc.Ua.Redundancy.Server
             pending.Sort(static (left, right) => left.Sequence.CompareTo(right.Sequence));
             foreach ((ulong seq, ByteString frame) in pending)
             {
-                NodeStateChange? change = DecodeDelta(seq, frame);
-                if (change != null)
-                {
-                    ObserveSequence(seq);
-                    yield return change;
-                }
+                ct.ThrowIfCancellationRequested();
+                NodeStateChange change = DecodeDelta(seq, frame);
+                ObserveSequence(seq);
+                yield return change;
             }
         }
 
@@ -536,12 +638,51 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
+        /// <summary>
+        /// Rejects writer coordination that is not declared linearizable, or that
+        /// is process-local while the address-space payload is replicated.
+        /// </summary>
+        /// <param name="store">The backing key/value store.</param>
+        /// <param name="key">The sequence or configured lease key to validate.</param>
+        /// <exception cref="InvalidOperationException">
+        /// The key lacks linearizable coordination shared by the payload's writer replicas.
+        /// </exception>
+        internal static void ValidateCoordinator(ISharedKeyValueStore store, string key = SequenceKey)
+        {
+            if (store is not ISharedKeyValueStoreConsistency consistency ||
+                !consistency.IsLinearizable(key))
+            {
+                throw new InvalidOperationException(
+                    $"Distributed address-space writers require a declared linearizable coordinator for '{key}'. " +
+                    "Compose CRDT payload storage with a shared Raft store through HybridSharedKeyValueStore; " +
+                    "a bare CRDT store does not support writer coordination.");
+            }
+            if (consistency.IsProcessLocal(key) &&
+                (!consistency.IsProcessLocal(NodePrefix) ||
+                    !consistency.IsProcessLocal(ValuePrefix) ||
+                    !consistency.IsProcessLocal(DeltaPrefix)))
+            {
+                throw new InvalidOperationException(
+                    $"The coordinator for '{key}' is process-local, but the address-space payload is replicated. " +
+                    "All writer replicas must share the same linearizable coordinator. " +
+                    "Process-local stores are supported only for single-process address spaces.");
+            }
+        }
+
+        private bool IsLinearizableKey(string key)
+        {
+            return m_store is ISharedKeyValueStoreConsistency consistency &&
+                consistency.IsLinearizable(key);
+        }
+
         private async IAsyncEnumerable<NodeStateChange> PollChangesAsync(
             bool emitInitialState,
             [EnumeratorCancellation] CancellationToken ct)
         {
             var nodes = new Dictionary<string, ByteString>(StringComparer.Ordinal);
             var values = new Dictionary<string, ByteString>(StringComparer.Ordinal);
+            var deltas = new Dictionary<string, ByteString>(StringComparer.Ordinal);
+            var sequences = new Dictionary<(NodeId NodeId, bool Value), ulong>();
             bool baseline = emitInitialState;
 
             while (!ct.IsCancellationRequested)
@@ -550,22 +691,33 @@ namespace Opc.Ua.Redundancy.Server
                     await SnapshotPrefixAsync(NodePrefix, ct).ConfigureAwait(false);
                 Dictionary<string, ByteString> currentValues =
                     await SnapshotPrefixAsync(ValuePrefix, ct).ConfigureAwait(false);
+                Dictionary<string, ByteString> currentDeltas =
+                    await SnapshotPrefixAsync(DeltaPrefix, ct).ConfigureAwait(false);
 
-                if (baseline)
+                var changes = new List<NodeStateChange>();
+                changes.AddRange(DiffSet(nodes, currentNodes));
+                changes.AddRange(DiffDeletes(nodes, currentNodes));
+                changes.AddRange(DiffSet(values, currentValues));
+                foreach (KeyValuePair<string, ByteString> entry in currentDeltas)
                 {
-                    // Only changes after the first (baseline) scan are emitted,
-                    // matching the change-feed "observe changes after the call"
-                    // contract; the synchronizer hydrates the initial snapshot
-                    // separately via EnumerateAsync.
-                    foreach (NodeStateChange change in DiffSet(nodes, currentNodes))
+                    if ((!deltas.TryGetValue(entry.Key, out ByteString previous) || !previous.Equals(entry.Value)) &&
+                        TryParseSequence(entry.Key, out ulong sequence))
                     {
-                        yield return change;
+                        changes.Add(DecodeDelta(sequence, entry.Value));
                     }
-                    foreach (NodeStateChange change in DiffDeletes(nodes, currentNodes))
+                }
+                changes.Sort(static (left, right) => left.Sequence.CompareTo(right.Sequence));
+                foreach (NodeStateChange change in changes)
+                {
+                    (NodeId NodeId, bool) key = (change.NodeId, change.Kind == NodeStateChangeKind.Value);
+                    if (change.Sequence != 0 &&
+                        sequences.TryGetValue(key, out ulong previous) &&
+                        previous >= change.Sequence)
                     {
-                        yield return change;
+                        continue;
                     }
-                    foreach (NodeStateChange change in DiffSet(values, currentValues))
+                    sequences[key] = change.Sequence;
+                    if (baseline)
                     {
                         yield return change;
                     }
@@ -573,6 +725,7 @@ namespace Opc.Ua.Redundancy.Server
 
                 nodes = currentNodes;
                 values = currentValues;
+                deltas = currentDeltas;
                 baseline = true;
                 await Task.Delay(m_pollInterval, ct).ConfigureAwait(false);
             }
@@ -646,6 +799,14 @@ namespace Opc.Ua.Redundancy.Server
                 .ScanAsync(prefix, ct)
                 .ConfigureAwait(false))
             {
+                // Validate the baseline too: an unchanged corrupt row must not
+                // disappear merely because it was present before subscription.
+                _ = Map(new KeyValueChange
+                {
+                    Kind = KeyValueChangeKind.Set,
+                    Key = entry.Key,
+                    Value = entry.Value
+                });
                 snapshot[entry.Key] = entry.Value;
             }
             return snapshot;
@@ -663,10 +824,7 @@ namespace Opc.Ua.Redundancy.Server
                 {
                     return null;
                 }
-                if (!TryReadRecord(change.Value, out ulong sequence, out ByteString payload))
-                {
-                    return null;
-                }
+                (ulong sequence, ByteString payload) = ReadRecord(change.Key, change.Value);
                 if (payload.IsEmpty)
                 {
                     return new NodeStateChange
@@ -692,19 +850,22 @@ namespace Opc.Ua.Redundancy.Server
                 {
                     return null;
                 }
-                if (!TryReadRecord(change.Value, out ulong sequence, out ByteString payload))
-                {
-                    return null;
-                }
+                (ulong sequence, ByteString payload) = ReadRecord(change.Key, change.Value);
                 return new NodeStateChange
                 {
                     Kind = NodeStateChangeKind.Value,
                     NodeId = id,
-                    Value = DecodeValue(payload),
+                    Value = DecodeValueStrict(payload),
                     Sequence = sequence
                 };
             }
 
+            if (change.Kind == KeyValueChangeKind.Set &&
+                change.Key.StartsWith(DeltaPrefix, StringComparison.Ordinal) &&
+                TryParseSequence(change.Key, out ulong deltaSequence))
+            {
+                _ = DecodeDelta(deltaSequence, change.Value);
+            }
             return null;
         }
 
@@ -724,6 +885,25 @@ namespace Opc.Ua.Redundancy.Server
             }
             using var decoder = new BinaryDecoder(bytes.ToArray(), m_context);
             return decoder.ReadDataValue(null);
+        }
+
+        private DataValue DecodeValueStrict(ByteString bytes)
+        {
+            if (bytes.IsNull || bytes.IsEmpty)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "The distributed address-space value payload is empty.");
+            }
+            using var decoder = new BinaryDecoder(bytes.ToArray(), m_context);
+            DataValue value = decoder.ReadDataValue(null);
+            if (decoder.Position != bytes.Length)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "The distributed address-space value payload contains trailing data.");
+            }
+            return value;
         }
 
         private ValueTask AppendDeltaAsync(
@@ -749,16 +929,27 @@ namespace Opc.Ua.Redundancy.Server
             return buffer is null ? ByteString.Empty : new ByteString(buffer);
         }
 
-        private NodeStateChange? DecodeDelta(ulong sequence, ByteString frame)
+        private NodeStateChange DecodeDelta(ulong sequence, ByteString frame)
         {
             if (!m_protector.TryUnprotect(frame, out ByteString plaintext) || plaintext.IsNull)
             {
-                return null;
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    $"The distributed address-space delta {sequence} failed record authentication.");
             }
             using var decoder = new BinaryDecoder(plaintext.ToArray(), m_context);
             var kind = (NodeStateChangeKind)decoder.ReadByte(null);
             NodeId nodeId = decoder.ReadNodeId(null);
             ByteString payload = decoder.ReadByteString(null);
+            if (nodeId.IsNull ||
+                decoder.Position != plaintext.Length ||
+                (kind == NodeStateChangeKind.Upsert && (payload.IsNull || payload.IsEmpty)) ||
+                (kind == NodeStateChangeKind.Delete && !payload.IsEmpty))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    $"The distributed address-space delta {sequence} is invalid.");
+            }
             return kind switch
             {
                 NodeStateChangeKind.Upsert => new NodeStateChange
@@ -772,7 +963,7 @@ namespace Opc.Ua.Redundancy.Server
                 {
                     Kind = NodeStateChangeKind.Value,
                     NodeId = nodeId,
-                    Value = DecodeValue(payload),
+                    Value = DecodeValueStrict(payload),
                     Sequence = sequence
                 },
                 NodeStateChangeKind.Delete => new NodeStateChange
@@ -781,7 +972,9 @@ namespace Opc.Ua.Redundancy.Server
                     NodeId = nodeId,
                     Sequence = sequence
                 },
-                _ => null
+                _ => throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    $"The distributed address-space delta {sequence} has unsupported kind {(byte)kind}.")
             };
         }
 
@@ -823,6 +1016,13 @@ namespace Opc.Ua.Redundancy.Server
                     ulong entrySequence = decoder.ReadUInt64(null);
                     NodeId nodeId = decoder.ReadNodeId(null);
                     ByteString payload = decoder.ReadByteString(null);
+                    if (nodeId.IsNull ||
+                        (kind == NodeStateChangeKind.Upsert && (payload.IsNull || payload.IsEmpty)))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadDecodingError,
+                            "The distributed address-space snapshot entry is invalid.");
+                    }
                     NodeStateChange change = kind switch
                     {
                         NodeStateChangeKind.Upsert => new NodeStateChange
@@ -836,7 +1036,7 @@ namespace Opc.Ua.Redundancy.Server
                         {
                             Kind = NodeStateChangeKind.Value,
                             NodeId = nodeId,
-                            Value = DecodeValue(payload),
+                            Value = DecodeValueStrict(payload),
                             Sequence = entrySequence
                         },
                         _ => throw new ServiceResultException(
@@ -965,7 +1165,12 @@ namespace Opc.Ua.Redundancy.Server
                 {
                     return false;
                 }
-                value = (value * 10) + (ulong)(c - '0');
+                ulong digit = (ulong)(c - '0');
+                if (value > (ulong.MaxValue - digit) / 10)
+                {
+                    return false;
+                }
+                value = (value * 10) + digit;
             }
             sequence = value;
             return true;
@@ -991,23 +1196,13 @@ namespace Opc.Ua.Redundancy.Server
 
         private async ValueTask<ulong> NextSequenceAsync(CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
+            ValidateCoordinator(m_store);
             while (true)
             {
-                (bool found, ByteString stored) = await m_store
-                    .TryGetAsync(SequenceKey, ct)
-                    .ConfigureAwait(false);
-                ulong sharedSequence = 0;
-                if (found)
-                {
-                    if (!m_protector.TryUnprotect(stored, out ByteString payload) ||
-                        payload.Length != sizeof(ulong))
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadDecodingError,
-                            "The distributed address-space sequence record is invalid.");
-                    }
-                    sharedSequence = BinaryPrimitives.ReadUInt64BigEndian(payload.Span);
-                }
+                ct.ThrowIfCancellationRequested();
+                (ByteString stored, ulong sharedSequence, List<ulong> pending) =
+                    await ReadSequenceAsync(ct).ConfigureAwait(false);
 
                 ulong current = Math.Max(CurrentSequence, sharedSequence);
                 if (current == ulong.MaxValue)
@@ -1017,13 +1212,12 @@ namespace Opc.Ua.Redundancy.Server
                         "The distributed address-space sequence is exhausted.");
                 }
                 ulong next = current + 1;
-                byte[] buffer = new byte[sizeof(ulong)];
-                BinaryPrimitives.WriteUInt64BigEndian(buffer, next);
-                ByteString replacement = m_protector.Protect(new ByteString(buffer));
+                pending.Add(next);
+                ByteString replacement = EncodeSequenceRecord(next, pending);
                 bool updated = await m_store
                     .CompareAndSwapAsync(
                         SequenceKey,
-                        found ? stored : default,
+                        stored,
                         replacement,
                         ct)
                     .ConfigureAwait(false);
@@ -1033,6 +1227,130 @@ namespace Opc.Ua.Redundancy.Server
                     return next;
                 }
             }
+        }
+
+        private async ValueTask<(ByteString Record, ulong Sequence, List<ulong> Pending)> ReadSequenceAsync(
+            CancellationToken ct)
+        {
+            (bool found, ByteString stored) = await m_store.TryGetAsync(SequenceKey, ct).ConfigureAwait(false);
+            if (!found)
+            {
+                return (default, 0, []);
+            }
+            if (!m_protector.TryUnprotect(stored, out ByteString payload) ||
+                payload.Length < sizeof(ulong) ||
+                payload.Length % sizeof(ulong) != 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "The distributed address-space sequence record is invalid.");
+            }
+
+            ulong sequence = BinaryPrimitives.ReadUInt64BigEndian(payload.Span);
+            var pending = new List<ulong>();
+            ulong previous = 0;
+            for (int offset = sizeof(ulong); offset < payload.Length; offset += sizeof(ulong))
+            {
+                ulong reservation = BinaryPrimitives.ReadUInt64BigEndian(payload.Span[offset..]);
+                if (reservation <= previous || reservation > sequence)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "The distributed address-space publication reservations are invalid.");
+                }
+                pending.Add(reservation);
+                previous = reservation;
+            }
+            ObserveSequence(sequence);
+            return (stored, sequence, pending);
+        }
+
+        private ByteString EncodeSequenceRecord(ulong sequence, List<ulong> pending)
+        {
+            byte[] buffer = new byte[checked((pending.Count + 1) * sizeof(ulong))];
+            BinaryPrimitives.WriteUInt64BigEndian(buffer, sequence);
+            for (int i = 0; i < pending.Count; i++)
+            {
+                BinaryPrimitives.WriteUInt64BigEndian(buffer.AsSpan((i + 1) * sizeof(ulong)), pending[i]);
+            }
+            return m_protector.Protect(new ByteString(buffer));
+        }
+
+        private async ValueTask CompleteSequenceAsync(ulong sequence, CancellationToken ct)
+        {
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                (ByteString stored, ulong sharedSequence, List<ulong> pending) =
+                    await ReadSequenceAsync(ct).ConfigureAwait(false);
+                if (!pending.Remove(sequence))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        $"Distributed address-space publication {sequence} lost its reservation.");
+                }
+                if (await m_store.CompareAndSwapAsync(
+                    SequenceKey,
+                    stored,
+                    EncodeSequenceRecord(sharedSequence, pending),
+                    ct).ConfigureAwait(false))
+                {
+                    return;
+                }
+            }
+        }
+
+        private async ValueTask<bool> WritePrimaryRecordAsync(
+            string key,
+            ulong sequence,
+            ByteString payload,
+            CancellationToken ct)
+        {
+            ByteString replacement = m_protector.Protect(WithSequence(sequence, payload));
+            bool linearizable = IsLinearizableKey(key);
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                (bool found, ByteString stored) = await m_store.TryGetAsync(key, ct).ConfigureAwait(false);
+                bool replacedLiveRecord = false;
+                if (found)
+                {
+                    (ulong previousSequence, ByteString previousPayload) = ReadRecord(key, stored);
+                    if (previousSequence >= sequence)
+                    {
+                        return false;
+                    }
+                    replacedLiveRecord = !previousPayload.IsEmpty;
+                }
+
+                if (!linearizable)
+                {
+                    // This is deliberately not a CAS emulation. Concurrent CRDT
+                    // rows may converge out of sequence; retained deltas carry the
+                    // winning state and these scans never establish absence.
+                    await m_store.SetAsync(key, replacement, ct).ConfigureAwait(false);
+                    return replacedLiveRecord;
+                }
+                if (await m_store.CompareAndSwapAsync(
+                    key,
+                    found ? stored : default,
+                    replacement,
+                    ct).ConfigureAwait(false))
+                {
+                    return replacedLiveRecord;
+                }
+            }
+        }
+
+        private (ulong Sequence, ByteString Payload) ReadRecord(string key, ByteString stored)
+        {
+            if (!TryReadRecord(stored, out ulong sequence, out ByteString payload))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    $"The distributed address-space record '{key}' is invalid.");
+            }
+            return (sequence, payload);
         }
 
         private bool TryReadRecord(ByteString stored, out ulong sequence, out ByteString payload)
@@ -1069,6 +1387,11 @@ namespace Opc.Ua.Redundancy.Server
             return true;
         }
 
+        /// <summary>
+        /// The linearizable high-water mark followed by the ordered sequences of
+        /// unfinished publications, all protected in one atomic coordination record.
+        /// </summary>
+        internal const string SequenceKey = "election/addressspace-sequence";
         private const int SequencePrefixLength = 8;
         private const int MaxChunkBytes = 1024 * 1024;
         private const int MaxSnapshotChunks = 65536;
@@ -1078,7 +1401,6 @@ namespace Opc.Ua.Redundancy.Server
         private const string SnapshotPrefix = "snap/";
         private const string ManifestKey = "snapmeta/manifest";
         private const string PartitionPrefix = "partition/";
-        private const string SequenceKey = "election/addressspace-sequence";
         private long m_sequence;
         private readonly SemaphoreSlim m_snapshotLock = new(1, 1);
         private readonly ISharedKeyValueStore m_store;

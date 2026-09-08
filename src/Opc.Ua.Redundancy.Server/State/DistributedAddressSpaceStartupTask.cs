@@ -63,10 +63,34 @@ namespace Opc.Ua.Redundancy.Server
             ISharedKeyValueStore keyValueStore,
             ILeaderElection election,
             IRecordProtector? protector = null)
+            : this(keyValueStore, election, protector, null)
         {
+        }
+
+        /// <summary>
+        /// Creates a wiring task that also validates the configured shared-store lease key.
+        /// </summary>
+        /// <param name="keyValueStore">The shared key/value backend.</param>
+        /// <param name="election">The leader election controlling writer role.</param>
+        /// <param name="protector">The record protector, or null for a no-op pass-through.</param>
+        /// <param name="leaseKey">
+        /// The configured shared-store lease key, when lease-based election is used.
+        /// It is validated along with sequence coordination before startup mutates shared state.
+        /// </param>
+        public DistributedAddressSpaceStartupTask(
+            ISharedKeyValueStore keyValueStore,
+            ILeaderElection election,
+            IRecordProtector? protector,
+            string? leaseKey)
+        {
+            if (leaseKey != null && string.IsNullOrWhiteSpace(leaseKey))
+            {
+                throw new ArgumentException("A nonempty lease key is required.", nameof(leaseKey));
+            }
             m_keyValueStore = keyValueStore ?? throw new ArgumentNullException(nameof(keyValueStore));
             m_election = election ?? throw new ArgumentNullException(nameof(election));
             m_protector = protector ?? NullRecordProtector.Instance;
+            m_leaseKey = leaseKey;
         }
 
         /// <summary>
@@ -82,6 +106,13 @@ namespace Opc.Ua.Redundancy.Server
             if (server == null)
             {
                 throw new ArgumentNullException(nameof(server));
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            InMemoryNodeStateStore.ValidateCoordinator(m_keyValueStore);
+            if (m_leaseKey != null)
+            {
+                InMemoryNodeStateStore.ValidateCoordinator(m_keyValueStore, m_leaseKey);
             }
 
             ILogger logger = server.DefaultSystemContext.Telemetry.CreateLogger<DistributedAddressSpaceStartupTask>();
@@ -122,9 +153,9 @@ namespace Opc.Ua.Redundancy.Server
                         INodeManager nodeManager => nodeManager.NamespaceUris,
                         _ => null
                     };
-                    var sortedNamespaceUris = namespaceUris == null
+                    List<string>? sortedNamespaceUris = namespaceUris == null
                         ? null
-                        : new List<string>(namespaceUris);
+                        : [.. namespaceUris];
                     sortedNamespaceUris?.Sort(StringComparer.Ordinal);
                     var namespaceIndexes = new HashSet<ushort>();
                     if (sortedNamespaceUris != null)
@@ -132,7 +163,7 @@ namespace Opc.Ua.Redundancy.Server
                         foreach (string namespaceUri in sortedNamespaceUris)
                         {
                             int namespaceIndex = server.MessageContext.NamespaceUris.GetIndex(namespaceUri);
-                            if (namespaceIndex > 0 && namespaceIndex <= ushort.MaxValue)
+                            if (namespaceIndex is > 0 and <= ushort.MaxValue)
                             {
                                 namespaceIndexes.Add((ushort)namespaceIndex);
                             }
@@ -147,7 +178,7 @@ namespace Opc.Ua.Redundancy.Server
                         {
                             throw new InvalidOperationException(
                                 $"Namespace index {namespaceIndex} is claimed by multiple distributed node managers. " +
-                                $"Every manager sharing a namespace must implement " +
+                                "Every manager sharing a namespace must implement " +
                                 $"{nameof(ILocalAddressSpaceOwnership)}.");
                         }
                         namespaceClaims[namespaceIndex] = hasExplicitOwnership;
@@ -292,6 +323,7 @@ namespace Opc.Ua.Redundancy.Server
         private readonly ISharedKeyValueStore m_keyValueStore;
         private readonly ILeaderElection m_election;
         private readonly IRecordProtector m_protector;
+        private readonly string? m_leaseKey;
         private readonly Lock m_lock = new();
         private readonly List<AddressSpaceSynchronizer> m_synchronizers = [];
         private NodeStateStoreRegistry? m_registry;

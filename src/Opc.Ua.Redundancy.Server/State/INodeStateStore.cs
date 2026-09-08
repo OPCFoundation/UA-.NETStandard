@@ -155,4 +155,21 @@ namespace Opc.Ua.Redundancy.Server
         IAsyncEnumerable<(NodeId NodeId, DataValue Value, ulong Sequence)> EnumerateValuesWithSequenceAsync(
             CancellationToken ct = default);
     }
+
+    /// <summary>
+    /// Describes whether a node store can establish complete state rather than
+    /// an eventually consistent replica view.
+    /// </summary>
+    internal interface INodeStateStoreReadConsistency
+    {
+        /// <summary>
+        /// Gets whether a completed topology/value scan can establish authoritative absence.
+        /// </summary>
+        bool HasAuthoritativeReads { get; }
+
+        /// <summary>
+        /// Gets whether the backing keyspaces support validated snapshot publication and log trimming.
+        /// </summary>
+        bool SupportsSnapshots { get; }
+    }
 }
