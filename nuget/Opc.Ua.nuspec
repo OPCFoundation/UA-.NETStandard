@@ -22,9 +22,9 @@
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Client" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Server" version="$version$"/>
-      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Common" version="$version$"/>
-      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Common" version="$version$"/>
-      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Server.Common" version="$version$"/>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds" version="$version$"/>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client" version="$version$"/>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Server" version="$version$"/>
     </dependencies>
   </metadata>
   <files>

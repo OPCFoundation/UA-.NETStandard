@@ -144,7 +144,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     root.References!.Any(r =>
                         r.ReferenceType == "HasComponent" &&
                         !r.IsForward &&
-                        r.Value == ParentNodeId),
+                        r.Value == LocalNodeId(nodeSet, ParentNodeId)),
                     Is.True,
                     "The parent placement should be an inverse HasComponent.");
             }
@@ -158,7 +158,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             UAObject root = nodeSet.Items!.OfType<UAObject>().Single();
             Assert.That(
-                root.References!.Count(r => r.Value == ParentNodeId),
+                root.References!.Count(r => r.Value == LocalNodeId(nodeSet, ParentNodeId)),
                 Is.EqualTo(1),
                 "The alias is a Binding term, so it places the node once and " +
                 "is not additionally emitted as a generic reference.");
@@ -175,7 +175,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     "\"uav:refName\":\"Assembly\"")));
 
             UAObjectType root = nodeSet.Items!.OfType<UAObjectType>().Single();
-            Reference reference = root.References!.Single(r => r.Value == LinkTarget);
+            Reference reference = root.References!.Single(r => r.Value == LocalNodeId(nodeSet, LinkTarget));
             Assert.That(reference.ReferenceType, Is.EqualTo("i=49"));
             Assert.That(reference.IsForward, Is.False);
         }
@@ -189,7 +189,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     "\"uav:refName\":\"Assembly\"")));
 
             UAObjectType root = nodeSet.Items!.OfType<UAObjectType>().Single();
-            Reference reference = root.References!.Single(r => r.Value == LinkTarget);
+            Reference reference = root.References!.Single(r => r.Value == LocalNodeId(nodeSet, LinkTarget));
             Assert.That(reference.ReferenceType, Is.EqualTo("i=49"));
             Assert.That(reference.IsForward, Is.True);
         }
@@ -203,7 +203,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     "\"uav:refId\":\"i=49\"")));
 
             UAObjectType root = nodeSet.Items!.OfType<UAObjectType>().Single();
-            Reference reference = root.References!.Single(r => r.Value == LinkTarget);
+            Reference reference = root.References!.Single(r => r.Value == LocalNodeId(nodeSet, LinkTarget));
             Assert.That(reference.ReferenceType, Is.EqualTo("i=49"));
             Assert.That(reference.IsForward, Is.False);
         }
@@ -238,7 +238,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     "\"uav:refId\":\"nsu=http://example.com/demo/pump;i=5001\"")));
 
             UAObjectType root = nodeSet.Items!.OfType<UAObjectType>().Single();
-            Reference reference = root.References!.Single(r => r.Value == LinkTarget);
+            Reference reference = root.References!.Single(r => r.Value == LocalNodeId(nodeSet, LinkTarget));
             Assert.That(reference.IsForward, Is.True);
         }
 
@@ -267,17 +267,17 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Reference forwardReference = forwardResult.Value!.Items!
                 .OfType<UAObjectType>().Single()
-                .References!.Single(r => r.Value == LinkTarget);
+                .References!.Single(r => r.Value == LocalNodeId(forwardResult.Value!, LinkTarget));
             Reference inverseReference = inverseResult.Value!.Items!
                 .OfType<UAObjectType>().Single()
-                .References!.Single(r => r.Value == LinkTarget);
+                .References!.Single(r => r.Value == LocalNodeId(inverseResult.Value!, LinkTarget));
 
             // A NodeSet2 document states a ReferenceType as a NodeSet-local
             // NodeId, so the portable identity the relation resolved to is
             // read back through the NodeSet's own namespace table.
-            string forwardType = LocalReferenceType(
+            string forwardType = LocalNodeId(
                 forwardResult.Value!, "nsu=http://example.com/demo/pump;i=5001");
-            string inverseType = LocalReferenceType(
+            string inverseType = LocalNodeId(
                 inverseResult.Value!, "nsu=http://example.com/demo/pump;i=5001");
 
             Assert.Multiple(() =>
@@ -295,9 +295,9 @@ namespace Opc.Ua.Types.Tests.Wot
 
         /// <summary>
         /// Maps a portable ExpandedNodeId onto the NodeSet-local NodeId a
-        /// converted NodeSet states a ReferenceType as.
+        /// converted NodeSet uses for a ReferenceType or Reference target.
         /// </summary>
-        private static string LocalReferenceType(UANodeSet nodeSet, string portable)
+        private static string LocalNodeId(UANodeSet nodeSet, string portable)
         {
             int separator = portable.IndexOf(';', StringComparison.Ordinal);
             int index = Array.IndexOf(nodeSet.NamespaceUris!, portable[4..separator]) + 1;

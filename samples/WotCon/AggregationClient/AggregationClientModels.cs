@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Opc.Ua;
 using Opc.Ua.WotCon.Client;
 
@@ -70,6 +71,11 @@ namespace AggregationClient
         /// </summary>
         public string DocumentsDirectory { get; set; } =
             System.IO.Path.Combine(System.AppContext.BaseDirectory, "Documents");
+
+        /// <summary>
+        /// Gets or sets whether to run the explicit control and alarm demonstration.
+        /// </summary>
+        public bool ExerciseControls { get; set; }
     }
 
     /// <summary>
@@ -91,6 +97,24 @@ namespace AggregationClient
         }
 
         /// <summary>
+        /// Initializes the result of loading both pumps.
+        /// </summary>
+        public AggregationClientResult(
+            WotRegistryBulkLoadResult loadResult,
+            ArrayOf<WotPumpResult> pumps,
+            ArrayOf<WotPumpControlResult> controls = default)
+        {
+            LoadResult = loadResult;
+            Pumps = pumps;
+            Controls = controls;
+            if (!pumps.IsEmpty)
+            {
+                BrowsedNodes = pumps[0].BrowsedNodes;
+                Values = pumps[0].Values;
+            }
+        }
+
+        /// <summary>
         /// Gets the document load and refresh result.
         /// </summary>
         public WotRegistryBulkLoadResult LoadResult { get; }
@@ -102,6 +126,82 @@ namespace AggregationClient
 
         /// <summary>
         /// Gets the values read from the materialized Pump.
+        /// </summary>
+        public ArrayOf<WotPumpValueResult> Values { get; }
+
+        /// <summary>
+        /// Gets the independently browsed and read pumps.
+        /// </summary>
+        public ArrayOf<WotPumpResult> Pumps { get; }
+
+        /// <summary>
+        /// Gets completed source-owned management and alarm round trips.
+        /// </summary>
+        public ArrayOf<WotPumpControlResult> Controls { get; }
+    }
+
+    /// <summary>
+    /// Identifies a completed Start, Stop, Reset, Acknowledge and Confirm demonstration.
+    /// </summary>
+    public sealed class WotPumpControlResult
+    {
+        /// <summary>
+        /// Initializes the completed control result.
+        /// </summary>
+        public WotPumpControlResult(string pumpName, string sourceName)
+        {
+            PumpName = pumpName ?? throw new ArgumentNullException(nameof(pumpName));
+            SourceName = sourceName ?? throw new ArgumentNullException(nameof(sourceName));
+        }
+
+        /// <summary>
+        /// Gets the pump whose local actions were exercised.
+        /// </summary>
+        public string PumpName { get; }
+
+        /// <summary>
+        /// Gets the independently observed upstream source.
+        /// </summary>
+        public string SourceName { get; }
+    }
+
+    /// <summary>
+    /// Contains the model identity, browse results, and typed readings for one pump.
+    /// </summary>
+    public sealed class WotPumpResult
+    {
+        /// <summary>
+        /// Initializes the pump result.
+        /// </summary>
+        public WotPumpResult(
+            string name,
+            NodeId rootNodeId,
+            ArrayOf<WotPumpBrowseNode> browsedNodes,
+            ArrayOf<WotPumpValueResult> values)
+        {
+            Name = name ?? throw new ArgumentNullException(nameof(name));
+            RootNodeId = rootNodeId;
+            BrowsedNodes = browsedNodes;
+            Values = values;
+        }
+
+        /// <summary>
+        /// Gets the stable pump name.
+        /// </summary>
+        public string Name { get; }
+
+        /// <summary>
+        /// Gets the root discovered by browsing from Objects.
+        /// </summary>
+        public NodeId RootNodeId { get; }
+
+        /// <summary>
+        /// Gets the pump's objects, variables, methods, and nested properties.
+        /// </summary>
+        public ArrayOf<WotPumpBrowseNode> BrowsedNodes { get; }
+
+        /// <summary>
+        /// Gets the measurements, supervision signals, and identity values.
         /// </summary>
         public ArrayOf<WotPumpValueResult> Values { get; }
     }

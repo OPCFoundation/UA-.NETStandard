@@ -58,9 +58,29 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public WotProjectionBindingRuntimeFactory(
             IWotBindingChannelFactory channelFactory,
             IWotTargetVariableResolver? resolver = null)
+            : this(channelFactory, resolver, new WotProjectionEventPublisher(),
+                new WotProjectionConditionFactory(), new WotProjectionBindingRuntimeOptions())
+        {
+        }
+
+        /// <summary>
+        /// Initializes a runtime factory with injectable event publication,
+        /// Condition materialization and generation bounds.
+        /// </summary>
+        public WotProjectionBindingRuntimeFactory(
+            IWotBindingChannelFactory channelFactory,
+            IWotTargetVariableResolver? resolver,
+            IWotProjectionEventPublisher eventPublisher,
+            IWotProjectionConditionFactory conditionFactory,
+            WotProjectionBindingRuntimeOptions options)
         {
             m_channelFactory = channelFactory ?? throw new ArgumentNullException(nameof(channelFactory));
             m_resolver = resolver ?? new WotTargetVariableResolver();
+            m_eventPublisher = eventPublisher ?? throw new ArgumentNullException(nameof(eventPublisher));
+            m_conditionFactory = conditionFactory ?? throw new ArgumentNullException(nameof(conditionFactory));
+            m_options = options ?? throw new ArgumentNullException(nameof(options));
+            WotBindingBounds.EnsurePositive(options.MaxQueuedEvents, nameof(options.MaxQueuedEvents));
+            WotBindingBounds.EnsurePositive(options.MaxEventRoutes, nameof(options.MaxEventRoutes));
         }
 
         /// <inheritdoc/>
@@ -73,11 +93,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 throw new ArgumentNullException(nameof(builder));
             }
+            cancellationToken.ThrowIfCancellationRequested();
             if (bindingPlans.IsEmpty)
             {
                 return null;
             }
-            return await CreateWiredRuntimeAsync(builder, bindingPlans).ConfigureAwait(false);
+            return await CreateWiredRuntimeAsync(builder, bindingPlans, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -86,16 +107,25 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// always the fully-wired runtime the caller is meant to own.
         /// </summary>
         private async ValueTask<WotProjectionBindingRuntime> CreateWiredRuntimeAsync(
-            INodeManagerBuilder builder, ArrayOf<WotBindingPlan> bindingPlans)
+            INodeManagerBuilder builder, ArrayOf<WotBindingPlan> bindingPlans, CancellationToken cancellationToken)
         {
-            var runtime = new WotProjectionBindingRuntime(builder, m_channelFactory, m_resolver);
+            var runtime = new WotProjectionBindingRuntime(
+                builder, m_channelFactory, m_resolver, m_eventPublisher, m_conditionFactory, m_options, m_eventRoutes);
             try
             {
-                runtime.Wire(bindingPlans);
+                await runtime.WireAsync(bindingPlans, cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
+            catch (Exception activationError) when (activationError is not OutOfMemoryException)
             {
-                await runtime.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    await runtime.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception disposalError) when (disposalError is not OutOfMemoryException)
+                {
+                    throw new AggregateException(
+                        "Projection binding activation and cleanup both failed.", activationError, disposalError);
+                }
                 throw;
             }
             return runtime;
@@ -103,5 +133,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private readonly IWotBindingChannelFactory m_channelFactory;
         private readonly IWotTargetVariableResolver m_resolver;
+        private readonly IWotProjectionEventPublisher m_eventPublisher;
+        private readonly IWotProjectionConditionFactory m_conditionFactory;
+        private readonly WotProjectionBindingRuntimeOptions m_options;
+        private readonly WotProjectedEventRouteRegistry m_eventRoutes = new();
     }
 }

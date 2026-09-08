@@ -92,7 +92,7 @@ namespace Opc.Ua.OpenUsd.Tests
             Assert.That(set.SetName, Is.EqualTo("lod"));
             Assert.That(set.Selection, Is.EqualTo(string.Empty));
             // Both branches captured, in authored order.
-            Assert.That(set.Variants.Select(v => v.Name), Is.EqualTo(new[] { "high", "low" }));
+            Assert.That(set.Variants.Select(v => v.Name), Is.EqualTo(s_stringValues1));
         }
 
         [Test]
@@ -107,7 +107,7 @@ namespace Opc.Ua.OpenUsd.Tests
                 "    }");
 
             UsdPrim high = set.Variants.Single();
-            Assert.That(high.Attributes.Select(a => a.Name), Is.EqualTo(new[] { "resolution", "quality" }));
+            Assert.That(high.Attributes.Select(a => a.Name), Is.EqualTo(s_stringValues2));
             UsdTestHelpers.AssertInteger(high.Attributes[0].Value, 1024L);
             UsdTestHelpers.AssertString(high.Attributes[1].Value, "best");
         }
@@ -126,7 +126,7 @@ namespace Opc.Ua.OpenUsd.Tests
                 "    }");
 
             UsdPrim high = set.Variants.Single();
-            Assert.That(high.Children.Select(c => c.Name), Is.EqualTo(new[] { "Detail" }));
+            Assert.That(high.Children.Select(c => c.Name), Is.EqualTo(s_stringValues3));
             Assert.That(high.Children[0].TypeName, Is.EqualTo("Xform"));
             Assert.That(high.Children[0].Attributes.Single().Name, Is.EqualTo("subdivisions"));
         }
@@ -137,7 +137,7 @@ namespace Opc.Ua.OpenUsd.Tests
             UsdVariantSet set = ParseSingleVariantSet(
                 "    variantSet \"lod\" = { \"high\" { } \"low\" { } }");
 
-            Assert.That(set.Variants.Select(v => v.Name), Is.EqualTo(new[] { "high", "low" }));
+            Assert.That(set.Variants.Select(v => v.Name), Is.EqualTo(s_stringValues1));
         }
 
         [Test]
@@ -173,7 +173,7 @@ namespace Opc.Ua.OpenUsd.Tests
             UsdPrim prim = UsdaReader.Parse(usda, "V").Find("/P")!;
             UsdVariantSet set = prim.VariantSets.Single();
             Assert.That(set.Selection, Is.EqualTo("high"));
-            Assert.That(set.Variants.Select(v => v.Name), Is.EqualTo(new[] { "high", "low" }));
+            Assert.That(set.Variants.Select(v => v.Name), Is.EqualTo(s_stringValues1));
         }
 
         // ---- writing / round-trip -----------------------------------------------------
@@ -206,7 +206,7 @@ namespace Opc.Ua.OpenUsd.Tests
             UsdStage reparsed = UsdaReader.Parse(written, stage.StageName);
 
             UsdVariantSet reSet = reparsed.Find("/P")!.VariantSets.Single();
-            Assert.That(reSet.Variants.Select(v => v.Name), Is.EqualTo(new[] { "high", "low" }));
+            Assert.That(reSet.Variants.Select(v => v.Name), Is.EqualTo(s_stringValues1));
             UsdTestHelpers.AssertInteger(reSet.Variants[0].Attributes.Single().Value, 1024L);
             UsdTestHelpers.AssertInteger(reSet.Variants[1].Attributes.Single().Value, 256L);
         }
@@ -299,5 +299,9 @@ namespace Opc.Ua.OpenUsd.Tests
             stage.AddRootPrim(prim);
             return stage;
         }
+
+        private static readonly string[] s_stringValues1 = ["high", "low"];
+        private static readonly string[] s_stringValues2 = ["resolution", "quality"];
+        private static readonly string[] s_stringValues3 = ["Detail"];
     }
 }

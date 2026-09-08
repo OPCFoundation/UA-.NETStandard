@@ -51,7 +51,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(clause.MemberPath.ToArray(), Is.EqualTo(new[] { "Severity" }));
+                Assert.That(clause.MemberPath.ToArray(), Is.EqualTo(s_stringValues1));
                 Assert.That(clause.FieldName, Is.EqualTo("Severity"));
             });
         }
@@ -65,11 +65,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             {
                 Assert.That(
                     clause.MemberPath.ToArray(),
-                    Is.EqualTo(new[] { "EnabledState", "Id" }),
+                    Is.EqualTo(s_stringValues2),
                     "EnabledState/Id materializes data.EnabledState.Id and never a member " +
                     "literally called 'EnabledState/Id'.");
                 Assert.That(
-                    clause.MemberPath.ToArray()!.Any(m => m.Contains('/')),
+                    clause.MemberPath.ToArray()!.Any(
+                        member => member.Contains('/', System.StringComparison.Ordinal)),
                     Is.False,
                     "A data member name never contains the path separator.");
             });
@@ -82,7 +83,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             Assert.That(
                 clause.MemberPath.ToArray(),
-                Is.EqualTo(new[] { "EnabledState", "Name" }),
+                Is.EqualTo(s_stringValues3),
                 "A state Variable's own value is the state's localized display text, so " +
                 "selecting the field supplies that object's Name member.");
         }
@@ -95,7 +96,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(clause.IsConditionIdSelection, Is.True);
-                Assert.That(clause.MemberPath.ToArray(), Is.EqualTo(new[] { "ConditionId" }));
+                Assert.That(clause.MemberPath.ToArray(), Is.EqualTo(s_stringValues4));
                 Assert.That(
                     clause.GetNormalizedBrowsePath(),
                     Is.Empty,
@@ -159,13 +160,13 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             {
                 Assert.That(
                     data.Members.Keys.OrderBy(k => k, System.StringComparer.Ordinal),
-                    Is.EqualTo(new[] { "ConditionId", "EnabledState", "Severity" }));
+                    Is.EqualTo(s_stringValues5));
                 Assert.That(data["Severity"]!.HasValue, Is.True);
                 Assert.That(data["EnabledState"]!.HasValue, Is.False);
                 Assert.That(
                     data["EnabledState"]!.Members.Keys.OrderBy(
                         k => k, System.StringComparer.Ordinal),
-                    Is.EqualTo(new[] { "Id", "Name" }));
+                    Is.EqualTo(s_stringValues6));
                 Assert.That(
                     data["EnabledState"]!["Name"]!.Value.WrappedValue.TryGetValue(
                         out string? name),
@@ -197,7 +198,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 Assert.That(
                     data["LatchState"]!.Members.Keys.OrderBy(
                         k => k, System.StringComparer.Ordinal),
-                    Is.EqualTo(new[] { "Id", "Name" }),
+                    Is.EqualTo(s_stringValues6),
                     "A state this Binding does not name is recognized from the selection " +
                     "itself, whichever order the two clauses appear in.");
             });
@@ -218,7 +219,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             Assert.That(
                 data["LatchState"]!.Members.Keys.OrderBy(k => k, System.StringComparer.Ordinal),
-                Is.EqualTo(new[] { "Id", "Name" }));
+                Is.EqualTo(s_stringValues6));
         }
 
         [Test]
@@ -286,7 +287,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(
                 data["EnabledState"]!["Id"]!.Members.Keys.OrderBy(
                     k => k, System.StringComparer.Ordinal),
-                Is.EqualTo(new[] { "Extra", "Name" }));
+                Is.EqualTo(s_stringValues7));
         }
 
         [Test]
@@ -337,5 +338,13 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             return new DataValue(new Variant(value));
         }
+
+        private static readonly string[] s_stringValues1 = ["Severity"];
+        private static readonly string[] s_stringValues2 = ["EnabledState", "Id"];
+        private static readonly string[] s_stringValues3 = ["EnabledState", "Name"];
+        private static readonly string[] s_stringValues4 = ["ConditionId"];
+        private static readonly string[] s_stringValues5 = ["ConditionId", "EnabledState", "Severity"];
+        private static readonly string[] s_stringValues6 = ["Id", "Name"];
+        private static readonly string[] s_stringValues7 = ["Extra", "Name"];
     }
 }

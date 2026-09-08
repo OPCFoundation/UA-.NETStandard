@@ -135,7 +135,7 @@ namespace Opc.Ua.Robotics.Tests
             MissionObjectState mission = m_executor.Added.OfType<MissionObjectState>().Single();
             Assert.Multiple(() =>
             {
-                Assert.That(m_executor.Started.ToArray(), Is.EqualTo(new[] { "s1" }));
+                Assert.That(m_executor.Started.ToArray(), Is.EqualTo(s_stringValues1));
                 Assert.That(mission.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Failed));
                 Assert.That(MissionFailure(mission), Is.EqualTo(IntentFailureEnum.NoTransition));
             });
@@ -161,7 +161,7 @@ namespace Opc.Ua.Robotics.Tests
             MissionObjectState mission = m_executor.Added.OfType<MissionObjectState>().Single();
             Assert.Multiple(() =>
             {
-                Assert.That(m_executor.Started.ToArray(), Is.EqualTo(new[] { "s1", "s2" }));
+                Assert.That(m_executor.Started.ToArray(), Is.EqualTo(s_stringValues2));
                 Assert.That(mission.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Succeeded));
                 Assert.That(MissionFailure(mission), Is.EqualTo(IntentFailureEnum.None));
             });
@@ -187,7 +187,7 @@ namespace Opc.Ua.Robotics.Tests
             MissionObjectState mission = m_executor.Added.OfType<MissionObjectState>().Single();
             Assert.Multiple(() =>
             {
-                Assert.That(m_executor.Started.ToArray(), Is.EqualTo(new[] { "s1" }));
+                Assert.That(m_executor.Started.ToArray(), Is.EqualTo(s_stringValues1));
                 Assert.That(mission.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Failed));
                 Assert.That(MissionFailure(mission), Is.EqualTo(IntentFailureEnum.NoTransition));
             });
@@ -210,7 +210,7 @@ namespace Opc.Ua.Robotics.Tests
             MissionObjectState mission = m_executor.Added.OfType<MissionObjectState>().Single();
             Assert.Multiple(() =>
             {
-                Assert.That(m_executor.Started.ToArray(), Is.EqualTo(new[] { "s1", "s2" }));
+                Assert.That(m_executor.Started.ToArray(), Is.EqualTo(s_stringValues2));
                 Assert.That(mission.ExecutionState!.Value, Is.EqualTo(ExecutionStateEnum.Succeeded));
                 Assert.That(MissionFailure(mission), Is.EqualTo(IntentFailureEnum.None));
             });
@@ -368,5 +368,8 @@ namespace Opc.Ua.Robotics.Tests
                 return true;
             }
         }
+
+        private static readonly string[] s_stringValues1 = ["s1"];
+        private static readonly string[] s_stringValues2 = ["s1", "s2"];
     }
 }

@@ -376,11 +376,12 @@ namespace Opc.Ua.Wot
             UANodeSet source,
             WotNodeSetConverterOptions options)
         {
-            byte[] readable = RemoveRootMembers(
-                json,
-                options,
-                "uav:nodes",
-                "uav:nodeSet");
+            using WotDocument candidate = WotDocument.Parse(json, options);
+            bool unsupportedProjection = candidate.TryGetNativeProjection(out JsonElement projection) &&
+                WotNativeProjection.HasUnsupportedProfile(projection);
+            byte[] readable = unsupportedProjection
+                ? RemoveRootMembers(json, options, "uav:nodeSet")
+                : RemoveRootMembers(json, options, "uav:nodes", "uav:nodeSet");
             using WotDocument document = WotDocument.Parse(readable, options);
             WotConversionResult<UANodeSet> result =
                 ToNodeSetResult(document, options);
@@ -412,7 +413,8 @@ namespace Opc.Ua.Wot
                     if (!excluded.Contains(member.Name))
                     {
                         writer.WritePropertyName(member.Name);
-                        member.Value.WriteTo(writer);
+                        // The document was parsed with the caller's depth limit, not the raw writer's default.
+                        writer.WriteRawValue(member.Value.GetRawText(), skipInputValidation: true);
                     }
                 }
                 writer.WriteEndObject();
@@ -746,6 +748,11 @@ namespace Opc.Ua.Wot
                         {
                             actions.Add(method);
                         }
+                        else if (target is UAObject &&
+                            ToPortableNodeId(reference.Value, namespaceUris) is { } childId)
+                        {
+                            componentChildren.Add(childId);
+                        }
                     }
                 }
                 else if (reference.IsForward &&
@@ -899,7 +906,7 @@ namespace Opc.Ua.Wot
                         variable.NodeId ?? string.Empty, out WotAnalogFacets? facets);
                     WriteVariableAffordance(
                         writer, variable, isThingModel, namespaceUris, nodeSet, defaultLocale,
-                        facets, owner);
+                        facets, owner, referenceTypeNames);
                 }
                 writer.WriteEndObject();
             }
@@ -964,10 +971,20 @@ namespace Opc.Ua.Wot
         /// forward direction could not reconstruct would turn a gap the
         /// completeness check reports into a value that is quietly wrong.
         /// </remarks>
-        private static void WriteVariableValue(Utf8JsonWriter writer, UAVariable variable)
+        private static void WriteVariableValue(
+            Utf8JsonWriter writer,
+            UAVariable variable,
+            UANodeSet? nodeSet = null)
         {
             System.Xml.XmlElement? value = variable.Value;
-            if (value is null)
+            if (value is null || value.NamespaceURI != UaXmlNamespace)
+            {
+                return;
+            }
+            if (nodeSet is not null &&
+                VariableValueElementName(ResolveArchivedAlias(
+                    variable.DataType,
+                    NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance))) is null)
             {
                 return;
             }
@@ -981,6 +998,54 @@ namespace Opc.Ua.Wot
                     return;
                 case "String":
                     writer.WriteString("const", value.InnerText);
+                    return;
+                case "SByte":
+                case "Int16":
+                case "Int32":
+                case "Int64":
+                    if (long.TryParse(
+                        value.InnerText,
+                        System.Globalization.NumberStyles.Integer,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out long signed))
+                    {
+                        writer.WriteNumber("const", signed);
+                    }
+                    return;
+                case "Byte":
+                case "UInt16":
+                case "UInt32":
+                case "UInt64":
+                    if (ulong.TryParse(
+                        value.InnerText,
+                        System.Globalization.NumberStyles.Integer,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out ulong unsigned))
+                    {
+                        writer.WriteNumber("const", unsigned);
+                    }
+                    return;
+                case "Float":
+                    if (float.TryParse(
+                        value.InnerText,
+                        System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out float single) &&
+                        !float.IsNaN(single) && !float.IsInfinity(single))
+                    {
+                        writer.WriteNumber("const", single);
+                    }
+                    return;
+                case "Double":
+                    if (double.TryParse(
+                        value.InnerText,
+                        System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out double number) &&
+                        !double.IsNaN(number) && !double.IsInfinity(number))
+                    {
+                        WotJsonCanonicalizer.WriteNumber(writer, "const", number);
+                    }
                     return;
                 case "LocalizedText":
                     // A LocalizedText carries an optional Locale. Only the
@@ -1016,7 +1081,7 @@ namespace Opc.Ua.Wot
             {
                 return null;
             }
-            if (!NodeSetDeclaredAliases.FromNodeSet(nodeSet).TryResolve(
+            if (!NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance).TryResolve(
                 dataType!, out string resolved))
             {
                 resolved = dataType!;
@@ -1049,22 +1114,31 @@ namespace Opc.Ua.Wot
                 value.StartsWith("b=", StringComparison.Ordinal);
         }
 
-        /// <summary>
-        /// Writes an affordance's definitive <c>ua:HasTypeDefinition</c> link.
-        /// </summary>
-        private static void WriteTypeDefinitionLink(Utf8JsonWriter writer, string? href)
+        private static void WriteVariableLinks(
+            Utf8JsonWriter writer,
+            UAVariable variable,
+            UANodeSet nodeSet,
+            WotReferenceTypeNames? referenceTypeNames)
         {
-            if (string.IsNullOrEmpty(href))
+            string? typeDefinition = TypeDefinitionHref(variable, nodeSet);
+            string inferredOwnership = typeDefinition == WotVocabulary.PropertyType ? "i=46" : "i=47";
+            INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
+            var links = new List<TypedComponentLink>();
+            foreach (Reference reference in variable.References ?? [])
             {
-                return;
+                string type = ResolveArchivedAlias(reference.ReferenceType, aliases);
+                if (reference.IsForward || !IsComponentReference(type) || type == inferredOwnership ||
+                    referenceTypeNames is null ||
+                    !referenceTypeNames.TryGetRelation(
+                        reference.ReferenceType, isForward: false, out string rel, out string refId) ||
+                    ToPortableNodeId(
+                        ResolveArchivedAlias(reference.Value, aliases), nodeSet.NamespaceUris) is not { } target)
+                {
+                    continue;
+                }
+                links.Add(new TypedComponentLink(target, rel, refId, string.Empty));
             }
-            writer.WritePropertyName("links");
-            writer.WriteStartArray();
-            writer.WriteStartObject();
-            writer.WriteString("rel", "ua:HasTypeDefinition");
-            writer.WriteString("href", href);
-            writer.WriteEndObject();
-            writer.WriteEndArray();
+            WriteTypedComponentLinks(writer, links, typeDefinitionHref: typeDefinition);
         }
 
         /// <summary>
@@ -1073,14 +1147,15 @@ namespace Opc.Ua.Wot
         /// </summary>
         private static string? TypeDefinitionHref(UANode? node, UANodeSet nodeSet)
         {
+            INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
             foreach (Reference reference in node?.References ?? [])
             {
                 if (reference.IsForward &&
                     string.Equals(
-                        reference.ReferenceType, "HasTypeDefinition", StringComparison.Ordinal) &&
+                        ResolveArchivedAlias(reference.ReferenceType, aliases), "i=40", StringComparison.Ordinal) &&
                     reference.Value is { Length: > 0 })
                 {
-                    return ToPortableNodeId(reference.Value, nodeSet.NamespaceUris);
+                    return ToPortableNodeId(ResolveArchivedAlias(reference.Value, aliases), nodeSet.NamespaceUris);
                 }
             }
             return null;
@@ -1304,7 +1379,8 @@ namespace Opc.Ua.Wot
             UANodeSet nodeSet,
             string defaultLocale,
             WotAnalogFacets? analogFacets = null,
-            string? componentOf = null)
+            string? componentOf = null,
+            WotReferenceTypeNames? referenceTypeNames = null)
         {
             writer.WriteStartObject();
             writer.WriteString("@type", isThingModel ? "uav:variableType" : "uav:variable");
@@ -1327,7 +1403,7 @@ namespace Opc.Ua.Wot
             // affordance as well as on the Thing. Without it every Variable
             // converts back as a BaseDataVariableType, and a Client browsing for
             // AnalogUnitType, PropertyType or TwoStateDiscreteType finds none.
-            WriteTypeDefinitionLink(writer, TypeDefinitionHref(variable, nodeSet));
+            WriteVariableLinks(writer, variable, nodeSet, referenceTypeNames);
 
             // Section 6.4 makes the affordance a EngineeringUnits Property
             // projects a string-valued one: what a client reads there at run
@@ -1337,7 +1413,9 @@ namespace Opc.Ua.Wot
             bool isUnitAffordance = IsUnitAffordance(variable);
             string? jsonType = isUnitAffordance
                 ? "string"
-                : MapDataTypeToJson(variable.DataType);
+                : MapDataTypeToJson(ResolveArchivedAlias(
+                    variable.DataType,
+                    NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance)));
             if (jsonType is not null)
             {
                 writer.WriteString("type", jsonType);
@@ -1363,7 +1441,7 @@ namespace Opc.Ua.Wot
             // shapes this converter can rebuild exactly are written: emitting a
             // value it could not reconstruct would trade a reported gap for a
             // silent corruption.
-            WriteVariableValue(writer, variable);
+            WriteVariableValue(writer, variable, nodeSet);
 
             // Sections 6.4 and 6.4.1: the engineering unit, its authority and
             // identity, and the two ranges that say what the value means.

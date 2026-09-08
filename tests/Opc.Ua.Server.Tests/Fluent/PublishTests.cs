@@ -788,6 +788,209 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.Throws<ArgumentNullException>(() => manager.AttachToBuilder(null));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SubscriptionWaitsForProducerReadinessWithoutWaitingForAnEvent(bool ancestor)
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = await MakeReadinessNotifierAsync(manager, "Producer").ConfigureAwait(false);
+            BaseObjectState monitored = notifier;
+            if (ancestor)
+            {
+                monitored = await MakeReadinessNotifierAsync(manager, "Area").ConfigureAwait(false);
+                monitored.AddNotifier(manager.SystemContext, ReferenceTypeIds.HasNotifier, false, notifier);
+                notifier.AddNotifier(manager.SystemContext, ReferenceTypeIds.HasNotifier, true, monitored);
+            }
+            var stream = new ControlledReadyStream();
+            var observed = new TaskCompletionSource<BaseEventState>(TaskCreationOptions.RunContinuationsAsynchronously);
+            notifier.OnReportEvent = (_, _, value) => observed.TrySetResult((BaseEventState)value);
+            manager.EventSources.Register(notifier, (_, _, _) => stream, null);
+            Assert.That(stream.Entered.Task.IsCompleted, Is.False);
+
+            monitored.SetAreEventsMonitored(manager.SystemContext, true, true);
+            Task subscribed = manager.EventSources.WaitUntilReadyAsync(monitored, CancellationToken.None).AsTask();
+            await stream.Entered.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            Assert.That(subscribed.IsCompleted, Is.False);
+            stream.Ready.TrySetResult(true);
+            await subscribed.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            Assert.That(observed.Task.IsCompleted, Is.False, "Readiness is not the first-event boundary.");
+
+            var occurrence = new BaseEventState(null);
+            await stream.Events.Writer.WriteAsync(occurrence).ConfigureAwait(false);
+            Assert.That(await observed.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false), Is.SameAs(occurrence));
+        }
+
+        [Test]
+        public async Task SubscriptionReadinessReportsTheProducerStartupFailure()
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = await MakeReadinessNotifierAsync(manager, "FailingProducer")
+                .ConfigureAwait(false);
+            var stream = new ControlledReadyStream();
+            manager.EventSources.Register(notifier, (_, _, _) => stream, null);
+            notifier.SetAreEventsMonitored(manager.SystemContext, true, false);
+            Task subscribed = manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask();
+            await stream.Entered.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            var failure = new ServiceResultException(StatusCodes.BadServerNotConnected);
+            stream.Ready.TrySetException(failure);
+
+            await Assert.ThatAsync(
+                () => subscribed.WaitAsync(s_signalTimeout),
+                Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task ReadinessDoesNotWaitForUnrelatedMonitoredSources()
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState slow = await MakeReadinessNotifierAsync(manager, "Slow").ConfigureAwait(false);
+            BaseObjectState fast = await MakeReadinessNotifierAsync(manager, "Fast").ConfigureAwait(false);
+            var slowStream = new ControlledReadyStream();
+            var fastStream = new ControlledReadyStream();
+            manager.EventSources.Register(slow, (_, _, _) => slowStream, null);
+            manager.EventSources.Register(fast, (_, _, _) => fastStream, null);
+            slow.SetAreEventsMonitored(manager.SystemContext, true, false);
+            fast.SetAreEventsMonitored(manager.SystemContext, true, false);
+            Task slowSubscription = manager.EventSources.WaitUntilReadyAsync(slow, CancellationToken.None).AsTask();
+            Task fastSubscription = manager.EventSources.WaitUntilReadyAsync(fast, CancellationToken.None).AsTask();
+            await Task.WhenAll(slowStream.Entered.Task, fastStream.Entered.Task)
+                .WaitAsync(s_signalTimeout).ConfigureAwait(false);
+
+            fastStream.Ready.TrySetResult(true);
+            await fastSubscription.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            Assert.That(slowSubscription.IsCompleted, Is.False);
+            slowStream.Ready.TrySetResult(true);
+            await slowSubscription.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task EachSourceReactivationHasItsOwnReadinessBoundary()
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = await MakeReadinessNotifierAsync(manager, "Reactivated")
+                .ConfigureAwait(false);
+            var first = new ControlledReadyStream();
+            var second = new ControlledReadyStream();
+            int activations = 0;
+            manager.EventSources.Register(
+                notifier, (_, _, _) => Interlocked.Increment(ref activations) == 1 ? first : second, null);
+            notifier.SetAreEventsMonitored(manager.SystemContext, true, false);
+            Task firstSubscription = manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask();
+            await first.Entered.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            first.Ready.TrySetResult(true);
+            await firstSubscription.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            notifier.SetAreEventsMonitored(manager.SystemContext, false, false);
+            manager.EventSources.SignalReconcile();
+            await first.Stopped.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+
+            notifier.SetAreEventsMonitored(manager.SystemContext, true, false);
+            Task secondSubscription = manager.EventSources.WaitUntilReadyAsync(notifier, CancellationToken.None).AsTask();
+            await second.Entered.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            Assert.That(secondSubscription.IsCompleted, Is.False);
+            second.Ready.TrySetResult(true);
+            await secondSubscription.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            Assert.That(activations, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task CancelledSubscriptionReadinessDoesNotPreventSourceTeardown()
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = await MakeReadinessNotifierAsync(manager, "Cancelled").ConfigureAwait(false);
+            var stream = new ControlledReadyStream();
+            manager.EventSources.Register(notifier, (_, _, _) => stream, null);
+            notifier.SetAreEventsMonitored(manager.SystemContext, true, false);
+            using var cancellation = new CancellationTokenSource();
+            Task subscribed = manager.EventSources.WaitUntilReadyAsync(notifier, cancellation.Token).AsTask();
+            await stream.Entered.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+
+            cancellation.Cancel();
+            Task completed = await Task.WhenAny(subscribed, Task.Delay(s_signalTimeout)).ConfigureAwait(false);
+            Assert.That(completed, Is.SameAs(subscribed));
+            await Assert.ThatAsync(() => subscribed,
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            notifier.SetAreEventsMonitored(manager.SystemContext, false, false);
+            manager.EventSources.SignalReconcile();
+            await stream.Stopped.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task AlwaysOnReadinessFailureIsReportedAndStopsTheProducer()
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = await MakeReadinessNotifierAsync(manager, "EagerFailure").ConfigureAwait(false);
+            var stream = new ControlledReadyStream();
+            var reported = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+            manager.EventSources.Register(notifier, (_, _, _) => stream,
+                new EventPublishOptions
+                {
+                    AlwaysOn = true,
+                    OnError = exception => reported.TrySetResult(exception)
+                });
+            await stream.Entered.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+            var failure = new ServiceResultException(StatusCodes.BadServerNotConnected);
+
+            stream.Ready.TrySetException(failure);
+
+            Assert.That(await reported.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false), Is.SameAs(failure));
+            await stream.Stopped.Task.WaitAsync(s_signalTimeout).ConfigureAwait(false);
+        }
+
+        private static async Task<BaseObjectState> MakeReadinessNotifierAsync(
+            TestablePublishManager manager, string name)
+        {
+            var notifier = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(name, kNs),
+                BrowseName = new QualifiedName(name, kNs),
+                EventNotifier = EventNotifiers.SubscribeToEvents
+            };
+            await manager.AddPublic(notifier).ConfigureAwait(false);
+            return notifier;
+        }
+
+        private sealed class ControlledReadyStream : IAsyncEnumerable<BaseEventState>, IEventSourceReadiness
+        {
+            public TaskCompletionSource<bool> Entered { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public TaskCompletionSource<bool> Ready { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public TaskCompletionSource<bool> Stopped { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public Channel<BaseEventState> Events { get; } = Channel.CreateUnbounded<BaseEventState>();
+
+            public ValueTask WaitUntilReadyAsync(CancellationToken cancellationToken = default)
+            {
+                return new ValueTask(Ready.Task.WaitAsync(cancellationToken));
+            }
+
+            public IAsyncEnumerator<BaseEventState> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+            {
+                return RunAsync(cancellationToken).GetAsyncEnumerator(cancellationToken);
+            }
+
+            private async IAsyncEnumerable<BaseEventState> RunAsync(
+                [EnumeratorCancellation] CancellationToken cancellationToken)
+            {
+                Entered.TrySetResult(true);
+                try
+                {
+                    await foreach (BaseEventState occurrence in Events.Reader.ReadAllAsync(cancellationToken)
+                        .ConfigureAwait(false))
+                    {
+                        yield return occurrence;
+                    }
+                }
+                finally
+                {
+                    Stopped.TrySetResult(true);
+                }
+            }
+        }
+
         private TestablePublishManager CreateManager()
         {
             var manager = new TestablePublishManager(

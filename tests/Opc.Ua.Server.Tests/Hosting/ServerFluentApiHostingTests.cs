@@ -299,7 +299,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
                 services =>
                 {
-                    services.AddSingleton<IHistorianProvider>(historian.Object);
+                    services.AddSingleton(historian.Object);
                     services.AddOpcUa()
                         .AddServer<EarlyHistorianCaptureServer>(
                             options => ConfigureHostedOptions(options, "EarlyHistorian"))
@@ -995,7 +995,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Throws.ArgumentNullException);
             Assert.That(() => builder.AddSubscriptionManager(null!),
                 Throws.ArgumentNullException);
-            Assert.That(() => builder.AddHistorian((IHistorianProvider)null!),
+            Assert.That(() => builder.AddHistorian(null!),
                 Throws.ArgumentNullException);
             Assert.That(() => builder.AddFileSystem(null!),
                 Throws.ArgumentNullException);
@@ -1443,7 +1443,6 @@ namespace Opc.Ua.Server.Tests.Hosting
                 return new ValueTask<IAsyncNodeManager>(
                     new HistorizedNodeManager(server, configuration));
             }
-
         }
 
         /// <summary>
@@ -1486,7 +1485,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 CancellationToken cancellationToken = default)
             {
                 var variable = new BaseDataVariableState(null);
-                variable.CreateAsPredefinedNode(SystemContext);
+                variable.CreateAsPredefinedNode(SystemContext, cancellationToken);
                 variable.NodeId = new NodeId("Historized", NamespaceIndex);
                 variable.BrowseName = new QualifiedName("Historized", NamespaceIndex);
                 variable.DisplayName = new LocalizedText("Historized");

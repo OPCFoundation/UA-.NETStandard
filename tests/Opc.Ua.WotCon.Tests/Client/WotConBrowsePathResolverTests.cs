@@ -34,6 +34,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.WotCon.Client;
+using Opc.Ua.XRegistry;
 
 namespace Opc.Ua.WotCon.Tests.Client
 {
@@ -139,6 +140,116 @@ namespace Opc.Ua.WotCon.Tests.Client
                 async () => await ResolveAsync(session).ConfigureAwait(false))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoMatch));
+        }
+
+        [Test]
+        public async Task ResolveLogicalResourceSelectsDefaultFromCollidingBrowseNames()
+        {
+            var telemetry = new Mock<ITelemetryContext>();
+            var messageContext = ServiceMessageContext.Create(telemetry.Object);
+            ushort wotNs = messageContext.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
+            ushort xRegistryNs = messageContext.NamespaceUris.GetIndexOrAppend(
+                XRegistryWellKnown.XRegistryNamespaceUri);
+            var group = new NodeId("group", wotNs);
+            var nonDefault = new NodeId("non-default", wotNs);
+            var expected = new NodeId("default", wotNs);
+            var nonDefaultResourceId = new NodeId("non-default/resourceid", xRegistryNs);
+            var nonDefaultFlag = new NodeId("non-default/isdefault", wotNs);
+            var defaultResourceId = new NodeId("default/resourceid", xRegistryNs);
+            var defaultFlag = new NodeId("default/isdefault", wotNs);
+            var session = new Mock<ISession>(MockBehavior.Strict);
+            session.SetupGet(s => s.NamespaceUris).Returns(messageContext.NamespaceUris);
+            session
+                .Setup(s => s.BrowseAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ViewDescription>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ViewDescription, uint, ArrayOf<BrowseDescription>,
+                    CancellationToken>((_, _, _, descriptions, _) =>
+                {
+                    NodeId parent = descriptions[0].NodeId;
+                    ReferenceDescription[] references = parent == group
+                        ?
+                        [
+                            Child(nonDefault, "collision", wotNs),
+                            Child(expected, "collision", wotNs)
+                        ]
+                        : parent == nonDefault
+                            ?
+                            [
+                                Child(nonDefaultResourceId, "ResourceId", xRegistryNs),
+                                Child(nonDefaultFlag, "IsDefault", wotNs)
+                            ]
+                            :
+                            [
+                                Child(defaultResourceId, "ResourceId", xRegistryNs),
+                                Child(defaultFlag, "IsDefault", wotNs)
+                            ];
+                    return new ValueTask<BrowseResponse>(new BrowseResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = new[]
+                        {
+                            new BrowseResult
+                            {
+                                StatusCode = StatusCodes.Good,
+                                References = references.ToArrayOf()
+                            }
+                        }.ToArrayOf(),
+                        DiagnosticInfos = default
+                    });
+                });
+            session
+                .Setup(s => s.ReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, double, TimestampsToReturn, ArrayOf<ReadValueId>,
+                    CancellationToken>((_, _, _, reads, _) =>
+                {
+                    bool isDefault = reads[1].NodeId == defaultFlag;
+                    return new ValueTask<ReadResponse>(new ReadResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = new[]
+                        {
+                            new DataValue(new Variant("collision")),
+                            new DataValue(new Variant(isDefault))
+                        }.ToArrayOf(),
+                        DiagnosticInfos = default
+                    });
+                });
+
+            NodeId resolved = await WotConBrowsePathResolver.ResolveLogicalResourceAsync(
+                session.Object,
+                group,
+                wotNs,
+                "collision",
+                StatusCodes.BadNoMatch,
+                "missing",
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(resolved, Is.EqualTo(expected));
+        }
+
+        private static ReferenceDescription Child(
+            NodeId nodeId,
+            string browseName,
+            ushort namespaceIndex)
+        {
+            return new ReferenceDescription
+            {
+                ReferenceTypeId = Ua.ReferenceTypeIds.HierarchicalReferences,
+                IsForward = true,
+                NodeId = nodeId,
+                BrowseName = new QualifiedName(browseName, namespaceIndex),
+                DisplayName = new LocalizedText(browseName),
+                NodeClass = NodeClass.Variable
+            };
         }
 
         private static ValueTask<NodeId> ResolveAsync(Mock<ISession> session)

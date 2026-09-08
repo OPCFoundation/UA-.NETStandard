@@ -344,7 +344,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
                 // Suppress fluent-builder emission to keep the generated
                 // code self-contained (mirrors model-only csproj
                 // configuration in production: Opc.Ua.Di,
-                // Opc.Ua.Gds.Common, Opc.Ua.WotCon all opt out via
+                // Opc.Ua.Gds, Opc.Ua.WotCon all opt out via
                 // ModelSourceGeneratorOmitFluentApi=true).
                 OmitFluentApi = true,
                 OmitEventRecords = true

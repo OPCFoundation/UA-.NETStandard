@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -45,7 +46,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
     /// preserving argument order and <see cref="DataValue"/> / <see cref="StatusCode"/>
     /// metadata.
     /// </summary>
-    internal sealed class OpcUaWotBindingChannel : IWotBindingChannel
+    internal sealed class OpcUaWotBindingChannel : IWotContextualBindingChannel
     {
         public OpcUaWotBindingChannel(
             ISession session,
@@ -60,6 +61,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             m_options = options;
             m_nodeId = form.Addressing.Target;
             m_logger = context.Telemetry.CreateLogger<OpcUaWotBindingChannel>();
+            m_context = context;
         }
 
         public WotCompiledForm Form { get; }
@@ -112,38 +114,20 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             }
         }
 
-        public async ValueTask<WotInvokeResult> InvokeAsync(
+        public ValueTask<WotInvokeResult> InvokeAsync(
             IReadOnlyList<Variant> inputs, CancellationToken cancellationToken = default)
         {
-            if (!Form.Addressing.Metadata.TryGetValue("componentOf", out string? objectRef) ||
-                string.IsNullOrEmpty(objectRef) ||
-                !TryResolveNodeId(objectRef!, out NodeId objectId))
+            return InvokeCoreAsync(inputs is null ? [] : inputs.ToArrayOf(), null, cancellationToken);
+        }
+
+        public ValueTask<WotInvokeResult> InvokeAsync(
+            WotInvokeRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request is null)
             {
-                return new WotInvokeResult(
-                    StatusCodes.BadNodeIdInvalid, null,
-                    "An OPC UA action requires a uav:componentOf object NodeId.");
+                throw new ArgumentNullException(nameof(request));
             }
-            if (!TryResolveNodeId(m_nodeId, out NodeId methodId))
-            {
-                return new WotInvokeResult(
-                    StatusCodes.BadNodeIdInvalid, null, $"'{m_nodeId}' is not a valid method NodeId.");
-            }
-            try
-            {
-                Variant[] arguments = inputs is null ? [] : [.. inputs];
-                ArrayOf<Variant> outputs = await m_session
-                    .CallAsync(objectId, methodId, cancellationToken, arguments).ConfigureAwait(false);
-                var results = new DataValue[outputs.Count];
-                for (int i = 0; i < outputs.Count; i++)
-                {
-                    results[i] = new DataValue(outputs[i], StatusCodes.Good, DateTimeUtc.Now, DateTimeUtc.Now);
-                }
-                return new WotInvokeResult(StatusCodes.Good, results);
-            }
-            catch (ServiceResultException ex)
-            {
-                return new WotInvokeResult(ex.StatusCode, null, ex.Message);
-            }
+            return InvokeCoreAsync(request.Inputs, request.Context, cancellationToken);
         }
 
         public ValueTask<IWotSubscription> ObserveAsync(
@@ -207,6 +191,73 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 m_session.Dispose();
             }
             return default;
+        }
+
+        private async ValueTask<WotInvokeResult> InvokeCoreAsync(
+            ArrayOf<Variant> inputs,
+            IServiceMessageContext? inputContext,
+            CancellationToken cancellationToken)
+        {
+            if (!Form.Addressing.Metadata.TryGetValue("componentOf", out string? objectRef) ||
+                string.IsNullOrEmpty(objectRef) ||
+                !TryResolveNodeId(objectRef!, out NodeId objectId))
+            {
+                return new WotInvokeResult(
+                    StatusCodes.BadNodeIdInvalid, null,
+                    "An OPC UA action requires a uav:componentOf object NodeId.");
+            }
+            if (!TryResolveNodeId(m_nodeId, out NodeId methodId))
+            {
+                return new WotInvokeResult(
+                    StatusCodes.BadNodeIdInvalid, null, $"'{m_nodeId}' is not a valid method NodeId.");
+            }
+            try
+            {
+                if (Form.ConditionInvocation is { } invocation)
+                {
+                    inputs = invocation.NormalizeInputs(inputs);
+                }
+                if (inputContext is not null)
+                {
+                    var destination = new ServiceMessageContext(inputContext, inputContext.Telemetry)
+                    {
+                        NamespaceUris = m_session.NamespaceUris,
+                        ServerUris = m_session.ServerUris
+                    };
+                    inputs = inputs.ConvertAll(value =>
+                        WotBindingValueMapper.Translate(value, inputContext, destination));
+                }
+                ArrayOf<CallMethodRequest> requests =
+                [
+                    new CallMethodRequest
+                    {
+                        ObjectId = objectId,
+                        MethodId = methodId,
+                        InputArguments = inputs
+                    }
+                ];
+                CallResponse response = await m_session.CallAsync(null, requests, cancellationToken)
+                    .ConfigureAwait(false);
+                ClientBase.ValidateResponse(response.Results, requests);
+                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
+                CallMethodResult result = response.Results[0];
+                if (StatusCode.IsBad(result.StatusCode))
+                {
+                    throw ServiceResultException.Create(
+                        result.StatusCode, 0, response.DiagnosticInfos, response.ResponseHeader.StringTable);
+                }
+                ArrayOf<Variant> outputs = result.OutputArguments;
+                var results = new DataValue[outputs.Count];
+                for (int i = 0; i < outputs.Count; i++)
+                {
+                    results[i] = new DataValue(outputs[i], StatusCodes.Good, DateTimeUtc.Now, DateTimeUtc.Now);
+                }
+                return new WotInvokeResult(result.StatusCode, results).WithContext(CreateSourceContext());
+            }
+            catch (ServiceResultException ex)
+            {
+                return new WotInvokeResult(ex.StatusCode, null, ex.Message);
+            }
         }
 
         /// <summary>
@@ -376,54 +427,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             var names = new QualifiedName[elements.Count];
             for (int ii = 0; ii < elements.Count; ii++)
             {
-                names[ii] = ResolveBrowseName(elements[ii]);
+                names[ii] = WotBindingValueMapper.ResolveBrowseName(elements[ii], m_session.NamespaceUris);
             }
             return names;
-        }
-
-        private QualifiedName ResolveBrowseName(string element)
-        {
-            string? namespaceUri = null;
-            string name = element;
-            if (element.StartsWith("nsu=", StringComparison.Ordinal))
-            {
-                int separator = element.IndexOf(';', 4);
-                if (separator <= 4 || separator + 1 >= element.Length)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadBrowseNameInvalid,
-                        $"The event select-clause path element '{element}' is not a valid " +
-                        "NamespaceUri-qualified browse name.");
-                }
-                namespaceUri = CoreUtils.UnescapeUri(element.AsSpan(4, separator - 4));
-                name = element.Substring(separator + 1);
-            }
-            else if (element.Length > 0 && element[0] == '{')
-            {
-                int separator = element.IndexOf('}', 1);
-                if (separator <= 1 || separator + 1 >= element.Length)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadBrowseNameInvalid,
-                        $"The event select-clause path element '{element}' is not a valid " +
-                        "NamespaceUri-qualified browse name.");
-                }
-                namespaceUri = element.Substring(1, separator - 1);
-                name = element.Substring(separator + 1);
-            }
-            if (namespaceUri is null)
-            {
-                return QualifiedName.From(name);
-            }
-            int index = m_session.NamespaceUris.GetIndex(namespaceUri);
-            if (index < 0)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadBrowseNameInvalid,
-                    $"The event select clause names the namespace '{namespaceUri}', which the " +
-                    "Server's namespace table does not hold.");
-            }
-            return new QualifiedName(name, (ushort)index);
         }
 
         /// <summary>
@@ -530,7 +536,20 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             }
 
             var dataValue = new DataValue(primary, StatusCodes.Good, sourceTimestamp, serverTimestamp);
-            return new WotNotification(dataValue, fields, data.Build());
+            return new WotNotification(dataValue, fields, data.Build()).WithContext(CreateSourceContext());
+        }
+
+        private ServiceMessageContext CreateSourceContext()
+        {
+            return new ServiceMessageContext(
+                m_context.Telemetry ?? AmbientMessageContext.Telemetry ??
+                    TelemetryExtensions.InternalOnly__TelemetryHook(), m_session.Factory)
+            {
+                NamespaceUris = new NamespaceTable(m_session.NamespaceUris),
+                ServerUris = m_session.ServerUris is { } serverUris
+                    ? new StringTable(serverUris) : new StringTable(),
+                MaxMessageSize = m_context.Bounds.MaxPayloadBytes
+            };
         }
 
         /// <summary>
@@ -675,6 +694,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         }
 
         private readonly ISession m_session;
+        private readonly WotExecutorContext m_context;
         private readonly bool m_disposeSession;
         private readonly OpcUaWotBindingOptions m_options;
         private readonly string m_nodeId;

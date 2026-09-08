@@ -35,9 +35,6 @@
 //   there is no cross-test resource leak. Suppressed file-level for the suite.
 #pragma warning disable CA2000 // Dispose objects before losing scope
 
-// CA1861: inline literal arrays here are one-shot test fixtures, not hot-path
-//   allocations, so hoisting them to static readonly fields adds no value. Suppressed file-level.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
 
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.

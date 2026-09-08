@@ -56,7 +56,8 @@ namespace Opc.Ua.XRegistry.Tests
             // The store holds both readers inside ReadAsync until each has taken its offset, which
             // is exactly the window where an unsynchronized cursor read goes wrong.
             var store = new GatedResourceStore(participants: 2);
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(store);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(store)
+                .ConfigureAwait(false);
             (ResourceState resource, uint handle) = await OpenForReadAsync(nm, s_document)
                 .ConfigureAwait(false);
 
@@ -86,8 +87,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task SequentialReadsAdvanceTheCursorExactlyAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
-                new GatedResourceStore(participants: 1));
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(
+                new GatedResourceStore(participants: 1)).ConfigureAwait(false);
             (ResourceState resource, uint handle) = await OpenForReadAsync(nm, s_document)
                 .ConfigureAwait(false);
 
@@ -107,8 +108,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task ReadingPastTheEndAfterAShortReadStaysEmptyAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
-                new GatedResourceStore(participants: 1));
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(
+                new GatedResourceStore(participants: 1)).ConfigureAwait(false);
             (ResourceState resource, uint handle) = await OpenForReadAsync(nm, s_document)
                 .ConfigureAwait(false);
 
@@ -158,7 +159,7 @@ namespace Opc.Ua.XRegistry.Tests
             return (resource, opened.FileHandle);
         }
 
-        private static XRegistryRegistrationNodeManager CreateAddressSpace(
+        private static async Task<XRegistryRegistrationNodeManager> CreateAddressSpaceAsync(
             IXRegistryResourceStore store)
         {
             var options = new XRegistryServerOptions
@@ -169,7 +170,9 @@ namespace Opc.Ua.XRegistry.Tests
             Mock<IServerInternal> server =
                 XRegistryServerTestHarness.CreateServer(options.RegistryNamespaceUri);
             var nm = new XRegistryRegistrationNodeManager(server.Object, null!, options);
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
             return nm;
         }
 
@@ -232,8 +235,10 @@ namespace Opc.Ua.XRegistry.Tests
             }
 
             private readonly InMemoryResourceStore m_inner = new();
+
             private readonly TaskCompletionSource<bool> m_gate =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private readonly Lock m_lock = new();
             private int m_arrived;
         }

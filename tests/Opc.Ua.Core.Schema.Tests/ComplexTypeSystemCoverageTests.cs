@@ -37,8 +37,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 
-// The encodeable type registry API is experimental; the schema factory source
-// is built on top of it.
+// The encodeable type registry and runtime stand-in APIs are experimental.
 #pragma warning disable UA_NETStandard_1
 
 namespace Opc.Ua.Schema.Tests

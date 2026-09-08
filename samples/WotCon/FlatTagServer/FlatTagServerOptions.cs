@@ -91,6 +91,8 @@ namespace FlatTagServer
         /// </summary>
         public FlatTagValues Pump2Values { get; set; } = new()
         {
+            SerialNumber = "SN-002",
+            ProductInstanceUri = "urn:simdevice:SimPump:PumpX-2000:SN-002",
             DifferentialPressure = 3.25,
             FluidTemperature = 318.15,
             MassFlow = 0.275,
@@ -109,6 +111,21 @@ namespace FlatTagServer
     /// </summary>
     public sealed class FlatTagValues
     {
+        /// <summary>
+        /// Gets or sets the pump manufacturer.
+        /// </summary>
+        public string Manufacturer { get; set; } = "SimPump Corp";
+
+        /// <summary>
+        /// Gets or sets the pump serial number.
+        /// </summary>
+        public string SerialNumber { get; set; } = "SN-001";
+
+        /// <summary>
+        /// Gets or sets the globally unique product instance URI.
+        /// </summary>
+        public string ProductInstanceUri { get; set; } = "urn:simdevice:SimPump:PumpX-2000:SN-001";
+
         /// <summary>
         /// Gets or sets the differential pressure.
         /// </summary>

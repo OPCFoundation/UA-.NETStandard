@@ -1118,11 +1118,11 @@ namespace Opc.Ua.Server
                     Server.TypeTree);
             }
 
-            CompleteCreateLifecycleForRegistration(context, node);
+            NodeStateLifecycle.CompleteForRegistration(context, node, m_logger);
             NodeState activeNode = AddBehaviourToPredefinedNode(context, node);
             if (!ReferenceEquals(activeNode, node))
             {
-                CompleteCreateLifecycleForRegistration(context, activeNode);
+                NodeStateLifecycle.CompleteForRegistration(context, activeNode, m_logger);
             }
             PredefinedNodes.AddOrUpdate(activeNode.NodeId, activeNode, (key, _) => activeNode);
 
@@ -1183,24 +1183,6 @@ namespace Opc.Ua.Server
                 recovery.RecoverDetachedMonitoredItems(
                     m_asyncNodeManager,
                     [activeNode.NodeId]);
-            }
-        }
-
-        private void CompleteCreateLifecycleForRegistration(
-            ISystemContext context,
-            NodeState node)
-        {
-            if (node.IsCreated)
-            {
-                return;
-            }
-
-            node.CreateAsPredefinedNode(context);
-            if (m_logger != null)
-            {
-                m_logger.PredefinedNodeLifecycleCompletedAtRegistration(
-                    node.NodeId,
-                    node.BrowseName);
             }
         }
 

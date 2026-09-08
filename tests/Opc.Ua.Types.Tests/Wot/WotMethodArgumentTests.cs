@@ -105,6 +105,30 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(document.Properties.Keys, Does.Contain("Speed"));
         }
 
+        [TestCase(System.Xml.XmlNodeType.Whitespace)]
+        [TestCase(System.Xml.XmlNodeType.Comment)]
+        [TestCase(System.Xml.XmlNodeType.ProcessingInstruction)]
+        public void ArgumentListFormattingDoesNotHideTheMethodSignature(System.Xml.XmlNodeType formatting)
+        {
+            UANodeSet source = CreateMethodNodeSet();
+            UAVariable arguments = source.Items.OfType<UAVariable>()
+                .Single(variable => variable.BrowseName == "InputArguments");
+            System.Xml.XmlDocument xml = arguments.Value.OwnerDocument;
+            System.Xml.XmlNode node = formatting switch
+            {
+                System.Xml.XmlNodeType.Whitespace => xml.CreateWhitespace("\n  "),
+                System.Xml.XmlNodeType.Comment => xml.CreateComment("Argument documentation"),
+                _ => xml.CreateProcessingInstruction("producer", "example")
+            };
+            arguments.Value.InsertBefore(node, arguments.Value.FirstChild);
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(document.Actions["Reset"].TryGetProperty("input", out JsonElement input), Is.True);
+            Assert.That(Order(input), Is.EqualTo(s_resetInputOrder));
+            Assert.That(document.Properties.Keys, Does.Not.Contain("InputArguments"));
+        }
+
         /// <summary>
         /// A value this direction cannot read is not re-stated as an argument
         /// list it is not: the Variable stays a property naming its Method, so

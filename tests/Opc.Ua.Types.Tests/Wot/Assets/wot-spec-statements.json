@@ -20,8 +20,8 @@
   "schemaVersion": 2,
   "pinnedTo": {
     "repository": "https://github.com/OPCF-Members/spec-drafts.git",
-    "commit": "25db507121b503fd31c8816fbfae67a6822e813b",
-    "tree": "87d0636f594ec394958ec7bb62dfc942c9c8424b",
+    "commit": "82620d9e313f35386dfc7477f7875cd47d2fd268",
+    "tree": "f93963c80c194f1c56da84db620b34693461ef11",
     "selection": "every upstream requirement marked pendingStackTests",
     "normalization": "sha256 of the statement as the specification's tools/normative.py normalizes it; the generator recomputes it from the upstream statement and refuses a record whose text and digest disagree",
     "ledgers": [
