@@ -40,6 +40,10 @@
     <EventSourceSupport>false</EventSourceSupport>
     <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
     <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
+    <!-- The assertion is in ld's relocation handling, not in code size as such,
+         so drop the native symbol table too: it is pure relocation weight in a
+         binary nobody debugs, and it changes no managed behaviour at all. -->
+    <StripSymbols>true</StripSymbols>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="TUnit" />
