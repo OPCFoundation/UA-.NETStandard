@@ -6136,21 +6136,41 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServiceResult result = ServiceResult.Good;
 
             // A client has subscribed to the Server object which means all events produced
             // by this manager must be reported. This is done by incrementing the monitoring
             // reference count for all root notifiers.
             foreach (KeyValuePair<NodeId, NodeState> kvp in RootNotifiers)
             {
-                await SubscribeToEventsAsync(
+                ServiceResult sourceResult = await SubscribeToEventsAsync(
                     systemContext,
                     kvp.Value,
                     monitoredItem,
                     unsubscribe,
                     cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(sourceResult))
+                {
+                    if (!unsubscribe)
+                    {
+                        // Passive roots need not support events, but declared notifiers must
+                        // propagate registration errors as well as readiness exceptions.
+                        if (sourceResult.StatusCode == StatusCodes.BadNotSupported &&
+                            !CanSubscribeToEvents(kvp.Value))
+                        {
+                            continue;
+                        }
+                        return sourceResult;
+                    }
+                    // A failed creation may already have removed this root's registration.
+                    if (sourceResult.StatusCode != StatusCodes.BadNodeIdUnknown && ServiceResult.IsGood(result))
+                    {
+                        result = sourceResult;
+                    }
+                }
             }
 
-            return ServiceResult.Good;
+            return result;
         }
 
         /// <summary>
@@ -6357,21 +6377,57 @@ namespace Opc.Ua.Server
                         source,
                         monitoredItem,
                         unsubscribe);
-
-                // This call recursively updates a reference count all nodes in the notifier
-                // hierarchy below the area. Sources with a reference count of 0 do not have
-                // any active subscriptions so they do not need to report events.
-                if (ServiceResult.IsGood(serviceResult) &&
-                    wasSubscribed == unsubscribe)
+                if (ServiceResult.IsBad(serviceResult))
                 {
-                    source.SetAreEventsMonitored(context, !unsubscribe, true);
+                    return serviceResult;
                 }
 
-                // signal update.
-                await OnSubscribeToEventsAsync(context, monitoredNode!, unsubscribe, cancellationToken).ConfigureAwait(false);
+                bool countUpdated = false;
+                try
+                {
+                    // Recursively count only subscriptions newly added to or removed from this notifier.
+                    if (wasSubscribed == unsubscribe)
+                    {
+                        source.SetAreEventsMonitored(context, !unsubscribe, true);
+                        countUpdated = true;
+                    }
 
-                // all done.
-                return serviceResult;
+                    await OnSubscribeToEventsAsync(
+                        context, monitoredNode!, unsubscribe, cancellationToken).ConfigureAwait(false);
+                    return serviceResult;
+                }
+                catch (Exception exception) when (
+                    !unsubscribe && !wasSubscribed && exception is not OutOfMemoryException)
+                {
+                    var compensationFailures = new List<Exception>();
+                    (_, ServiceResult removeResult) = m_monitoredItemManager.SubscribeToEvents(
+                        context, source, monitoredItem, true);
+                    if (ServiceResult.IsBad(removeResult))
+                    {
+                        compensationFailures.Add(new ServiceResultException(removeResult));
+                    }
+                    try
+                    {
+                        if (countUpdated)
+                        {
+                            source.SetAreEventsMonitored(context, false, true);
+                        }
+                        await OnSubscribeToEventsAsync(
+                            context, monitoredNode!, true, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception compensationException) when (compensationException is not OutOfMemoryException)
+                    {
+                        compensationFailures.Add(compensationException);
+                    }
+                    if (compensationFailures.Count > 0)
+                    {
+                        compensationFailures.Insert(0, exception);
+                        throw new AggregateException(
+                            "Event subscription creation and compensation both failed.",
+                            compensationFailures);
+                    }
+                    throw;
+                }
             }
             finally
             {

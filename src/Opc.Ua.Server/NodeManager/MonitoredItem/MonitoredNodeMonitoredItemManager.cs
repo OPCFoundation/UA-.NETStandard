@@ -449,10 +449,9 @@ namespace Opc.Ua.Server
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.
             monitoredNode.Add(monitoredItem);
-            if (!MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem))
-            {
-                return (monitoredNode, StatusCodes.BadUnexpectedError);
-            }
+
+            // A Server subscription shares this item across the manager's root notifiers.
+            MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
 
             return (monitoredNode, ServiceResult.Good);
         }

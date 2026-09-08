@@ -689,7 +689,7 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        /// Signals the registry whenever a notifier's monitored-events
+        /// Reconciles the registry whenever a notifier's monitored-events
         /// ref-count flips so the reconcile loop can start or stop the
         /// matching iterator. Subclasses that further override
         /// <see cref="AsyncCustomNodeManager.OnSubscribeToEventsAsync"/>
@@ -703,7 +703,7 @@ namespace Opc.Ua.Server.Fluent
         {
             if (unsubscribe)
             {
-                EventSources.SignalReconcile();
+                await EventSources.WaitUntilReconciledAsync(monitoredNode.Node).ConfigureAwait(false);
             }
             else
             {

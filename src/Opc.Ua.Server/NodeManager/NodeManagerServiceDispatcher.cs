@@ -1909,25 +1909,10 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                // create items for event filters.
-                await CreateMonitoredItemsForEventsAsync(
-                        context,
-                        subscriptionId,
-                        publishingInterval,
-                        timestampsToReturn,
-                        itemsToCreate,
-                        errors,
-                        filterResults,
-                        monitoredItems,
-                        createDurable,
-                        m_monitoredItemIdFactory,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-
-                // create items for data access.
-                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                try
                 {
-                    await nodeManager.CreateMonitoredItemsAsync(
+                    // create items for event filters.
+                    await CreateMonitoredItemsForEventsAsync(
                             context,
                             subscriptionId,
                             publishingInterval,
@@ -1940,6 +1925,39 @@ namespace Opc.Ua.Server
                             m_monitoredItemIdFactory,
                             cancellationToken)
                         .ConfigureAwait(false);
+
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    // create items for data access.
+                    foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                    {
+                        await nodeManager.CreateMonitoredItemsAsync(
+                                context,
+                                subscriptionId,
+                                publishingInterval,
+                                timestampsToReturn,
+                                itemsToCreate,
+                                errors,
+                                filterResults,
+                                monitoredItems,
+                                createDurable,
+                                m_monitoredItemIdFactory,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    // Completed items must still be transferred to the subscription. Only
+                    // requests without an item or a prior failure become cancellation results.
+                    for (int ii = 0; ii < itemsToCreate.Count; ii++)
+                    {
+                        if (monitoredItems[ii] is null && ServiceResult.IsGood(errors[ii]))
+                        {
+                            errors[ii] = StatusCodes.BadRequestCancelledByClient;
+                            itemsToCreate[ii].Processed = true;
+                        }
+                    }
                 }
 
                 // fill results for unknown nodes.
@@ -2058,51 +2076,118 @@ namespace Opc.Ua.Server
                         filter,
                         createDurable);
 
-                    // subscribe to all node managers.
-                    if (itemToCreate.ItemToMonitor.NodeId == Objects.Server)
+                    ArrayOf<IAsyncNodeManager> eventManagers = monitoredItem.MonitoringAllEvents
+                        ? [.. m_nodeManagers]
+                        : [nodeManager];
+                    ServiceResult error = await SubscribeCreatedEventMonitoredItemAsync(
+                        context,
+                        subscriptionId,
+                        monitoredItem,
+                        eventManagers,
+                        cancellationToken).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(error))
                     {
-                        foreach (IAsyncNodeManager manager in m_nodeManagers)
-                        {
-                            try
-                            {
-                                await manager.SubscribeToAllEventsAsync(
-                                    context,
-                                    subscriptionId,
-                                    monitoredItem,
-                                    false,
-                                    cancellationToken)
-                                    .ConfigureAwait(false);
-                            }
-                            catch (Exception e)
-                            {
-                                m_logger.NodeManagerThrewAnExceptionSubscribingToAll(e, manager.GetType().Name);
-                            }
-                        }
-                    }
-                    // only subscribe to the node manager that owns the node.
-                    else
-                    {
-                        ServiceResult error = await nodeManager.SubscribeToEventsAsync(
-                                context,
-                                handle,
-                                subscriptionId,
-                                monitoredItem,
-                                false,
-                                cancellationToken)
-                            .ConfigureAwait(false);
-
-                        if (ServiceResult.IsBad(error))
-                        {
-                            Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
-                            errors[ii] = error;
-                            continue;
-                        }
+                        errors[ii] = error;
+                        continue;
                     }
 
                     monitoredItems[ii] = monitoredItem;
                     errors[ii] = StatusCodes.Good;
                 }
             }
+        }
+
+        private async ValueTask<ServiceResult> SubscribeCreatedEventMonitoredItemAsync(
+            OperationContext context,
+            uint subscriptionId,
+            IEventMonitoredItem monitoredItem,
+            ArrayOf<IAsyncNodeManager> eventManagers,
+            CancellationToken cancellationToken)
+        {
+            ServiceResult error = ServiceResult.Good;
+            int lastAttempted = -1;
+            try
+            {
+                for (int ii = 0; ii < eventManagers.Count; ii++)
+                {
+                    lastAttempted = ii;
+                    error = await SetEventSubscriptionAsync(
+                        eventManagers[ii], context, subscriptionId, monitoredItem, false, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (ServiceResult.IsBad(error))
+                    {
+                        break;
+                    }
+                }
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                error = ServiceResult.Create(
+                    exception,
+                    exception is OperationCanceledException
+                        ? StatusCodes.BadRequestCancelledByClient
+                        : StatusCodes.BadUnexpectedError,
+                    "Event source startup failed.");
+            }
+            if (!ServiceResult.IsBad(error))
+            {
+                return error;
+            }
+
+            // The subscription has not accepted ownership yet. Include the failing manager,
+            // which may have subscribed some of its root notifiers before reporting failure.
+            Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
+            var compensationFailures = new List<Exception>();
+            try
+            {
+                for (int ii = lastAttempted; ii >= 0; ii--)
+                {
+                    try
+                    {
+                        ServiceResult result = await SetEventSubscriptionAsync(
+                            eventManagers[ii], context, subscriptionId, monitoredItem, true, CancellationToken.None)
+                            .ConfigureAwait(false);
+                        if (ServiceResult.IsBad(result) &&
+                            result.StatusCode != StatusCodes.BadNodeIdUnknown &&
+                            result.StatusCode != StatusCodes.BadMonitoredItemIdInvalid)
+                        {
+                            compensationFailures.Add(new ServiceResultException(result));
+                        }
+                    }
+                    catch (Exception exception) when (exception is not OutOfMemoryException)
+                    {
+                        compensationFailures.Add(exception);
+                    }
+                }
+            }
+            finally
+            {
+                monitoredItem.Dispose();
+            }
+            if (compensationFailures.Count > 0)
+            {
+                compensationFailures.Insert(0, new ServiceResultException(error));
+                return ServiceResult.Create(
+                    new AggregateException(compensationFailures),
+                    StatusCodes.BadUnexpectedError,
+                    "Event subscription creation and compensation both failed.");
+            }
+            return error;
+        }
+
+        private static ValueTask<ServiceResult> SetEventSubscriptionAsync(
+            IAsyncNodeManager nodeManager,
+            OperationContext context,
+            uint subscriptionId,
+            IEventMonitoredItem monitoredItem,
+            bool unsubscribe,
+            CancellationToken cancellationToken)
+        {
+            return monitoredItem.MonitoringAllEvents
+                ? nodeManager.SubscribeToAllEventsAsync(
+                    context, subscriptionId, monitoredItem, unsubscribe, cancellationToken)
+                : nodeManager.SubscribeToEventsAsync(
+                    context, monitoredItem.ManagerHandle, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
         }
 
         internal async ValueTask RestoreMonitoredItemsAsync(
