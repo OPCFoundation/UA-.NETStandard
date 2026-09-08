@@ -163,7 +163,8 @@ jobs:
         if ($includeMac -and $relevantChanges) {
             $testOs += 'macOS-latest'
             $aotMatrix += @{ os = 'macos-15-intel'; rid = 'osx-x64'  }
-            $aotMatrix += @{ os = 'macos-latest'; rid = 'osx-arm64' }
+            # ARM64 NativeAOT hits Apple's "too many large addends" linker assertion.
+            # Re-enable macos-latest/osx-arm64 once dotnet/runtime#132171 ships; see #4443.
         }
         Write-Host "Event=$($env:EVENT_NAME); include_macos=$includeMac"
         Write-Host "test_os=$($testOs -join ', ')"
