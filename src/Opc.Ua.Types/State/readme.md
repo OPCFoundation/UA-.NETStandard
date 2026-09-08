@@ -146,17 +146,26 @@ and security storage by another **24 bytes**. Each allocated bag costs **56 byte
 payload objects and arrays. Metadata therefore has a 24-byte populated premium relative to
 inline metadata; security has a 32-byte populated premium relative to inline security.
 
-The inline baseline is commit `53418742a`, measured on the same runtime with both groups inline.
+The following current constructor/assignment measurements include the `EventReported`
+event slot. The last column is the extra bag allocation relative to an unused node,
+not a comparison with a differently configured inline baseline.
 
-| Optional bags ever allocated | `BaseObjectState` | `BaseDataVariableState` | Difference from inline baseline |
+| Optional bags ever allocated | `BaseObjectState` | `BaseDataVariableState` | Extra bag allocation |
 |---|---:|---:|---:|
-| Neither | 632 B | 968 B | -56 B |
-| Metadata or security only | 688 B | 1024 B | 0 B |
-| Both | 744 B | 1080 B | +56 B |
+| Neither | 640 B | 976 B | 0 B |
+| Metadata or security only | 696 B | 1032 B | 56 B |
+| Both | 752 B | 1088 B | 112 B |
 
 These warmed constructor/assignment allocations use identical cached payloads. Resetting
 members does not reduce the retained bag cost. Savings depend on the population's history
 of optional-property use; these figures do not establish real-world occupancy.
+
+For comparison, the complete inline/eager-lock master baseline `be61d598a` allocates
+824 B per bare object and 1160 B per bare variable on the same runtime. The combined
+lock and optional-storage changes reduce each by 184 B; that is not a bag-only saving.
+With both optional groups populated, the corresponding combined savings are 72 B.
+Class shallow sizes are 560 B and 856 B, respectively, and exclude separately allocated
+locks, bags and payloads. The Variant element stride remains 24 B.
 
 Copies receive independent bags for copied values, with shallow array/list
 and permission-entry sharing. `CopyTo` does not copy

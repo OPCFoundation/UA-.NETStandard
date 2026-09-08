@@ -52,6 +52,22 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// File template for the model's NodeSet import factory provider
+        /// </summary>
+        public static readonly TemplateString NodeSetImportSupport_File = TemplateString.Parse(
+            $$"""
+            {{Tokens.CodeHeader}}
+
+            #pragma warning disable RCS0056 // A generated identifier can make a line exceed 120 characters
+
+            namespace {{Tokens.NamespacePrefix}}
+            {
+                {{Tokens.ListOfTypes}}
+            }
+
+            """);
+
+        /// <summary>
         /// Main file template for predefined nodes code generation
         /// </summary>
         public static readonly TemplateString Extensions_File = TemplateString.Parse(
@@ -1791,7 +1807,7 @@ namespace Opc.Ua.SourceGeneration
             /// <remarks>
             /// The returned node graph has not completed its create lifecycle.
             /// Node manager registration completes it automatically. Call
-            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode"/>
+            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode(global::Opc.Ua.ISystemContext)"/>
             /// before registration when configuration depends on
             /// <c>OnBeforeCreate</c> or <c>OnAfterCreate</c>.
             /// </remarks>
@@ -1903,7 +1919,7 @@ namespace Opc.Ua.SourceGeneration
             /// <remarks>
             /// The returned node graph has not completed its create lifecycle.
             /// Node manager registration completes it automatically. Call
-            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode"/>
+            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode(global::Opc.Ua.ISystemContext)"/>
             /// before registration when configuration depends on
             /// <c>OnBeforeCreate</c> or <c>OnAfterCreate</c>.
             /// </remarks>
@@ -1968,7 +1984,7 @@ namespace Opc.Ua.SourceGeneration
             /// <remarks>
             /// The returned node graph has not completed its create lifecycle.
             /// Node manager registration completes it automatically. Call
-            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode"/>
+            /// <see cref="global::Opc.Ua.NodeState.CreateAsPredefinedNode(global::Opc.Ua.ISystemContext)"/>
             /// before registration when configuration depends on
             /// <c>OnBeforeCreate</c> or <c>OnAfterCreate</c>.
             /// </remarks>

@@ -303,6 +303,69 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Reports an AuditHistoryValueUpdate event for generic
+        /// StructuredHistoryData.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="systemContext">The current system context.</param>
+        /// <param name="updateStructureDataDetails">Structured update details.</param>
+        /// <param name="oldValues">The old values.</param>
+        /// <param name="statusCode">The resulting status code.</param>
+        /// <param name="logger">A contextual logger to log to.</param>
+        public static void ReportAuditHistoryValueUpdateEvent(
+            this IAuditEventServer? server,
+            ISystemContext systemContext,
+            UpdateStructureDataDetails updateStructureDataDetails,
+            ArrayOf<DataValue> oldValues,
+            StatusCode statusCode,
+            ILogger logger)
+        {
+            if (server?.Auditing != true)
+            {
+                return;
+            }
+
+            try
+            {
+                var e = new AuditHistoryValueUpdateEventState(null);
+
+                InitializeAuditHistoryUpdateEvent(
+                    e,
+                    systemContext,
+                    "AuditHistoryValueUpdateEvent",
+                    "Attribute/HistoryValueUpdate",
+                    updateStructureDataDetails,
+                    statusCode);
+
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.UpdatedNode,
+                    updateStructureDataDetails.NodeId,
+                    false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.PerformInsertReplace,
+                    updateStructureDataDetails.PerformInsertReplace);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.NewValues,
+                    updateStructureDataDetails.UpdateValues,
+                    false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.OldValues,
+                    oldValues,
+                    false);
+
+                server.ReportAuditEvent(systemContext, e);
+            }
+            catch (Exception ex)
+            {
+                logger.ErrorWhileReportingAuditHistoryValueUpdateEvent(ex);
+            }
+        }
+
+        /// <summary>
         /// Reports an AuditHistoryValueUpdate event.
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>
@@ -311,11 +374,53 @@ namespace Opc.Ua.Server
         /// <param name="oldValues">The old values</param>
         /// <param name="statusCode">The resulting status code</param>
         /// <param name="logger">A contextual logger to log to</param>
+        [Obsolete(
+            "Use the overload accepting ArrayOf<Annotation>. " +
+            "This compatibility overload will be removed in a future release.")]
         public static void ReportAuditHistoryAnnotationUpdateEvent(
             this IAuditEventServer? server,
             ISystemContext systemContext,
             UpdateStructureDataDetails updateStructureDataDetails,
             ArrayOf<DataValue> oldValues,
+            StatusCode statusCode,
+            ILogger logger)
+        {
+            var annotations = new Annotation[oldValues.Count];
+            for (int i = 0; i < oldValues.Count; i++)
+            {
+                if (oldValues[i].WrappedValue.TryGetValue(
+                        out ExtensionObject extension) &&
+                    extension.TryGetValue(out Annotation? annotation))
+                {
+                    annotations[i] = annotation;
+                }
+                else
+                {
+                    annotations[i] = null!;
+                }
+            }
+            server.ReportAuditHistoryAnnotationUpdateEvent(
+                systemContext,
+                updateStructureDataDetails,
+                annotations.ToArrayOf(),
+                statusCode,
+                logger);
+        }
+
+        /// <summary>
+        /// Reports an AuditHistoryAnnotationUpdate event.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="systemContext">The current system context.</param>
+        /// <param name="updateStructureDataDetails">Update structure data details</param>
+        /// <param name="oldValues">The old annotation values</param>
+        /// <param name="statusCode">The resulting status code</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        public static void ReportAuditHistoryAnnotationUpdateEvent(
+            this IAuditEventServer? server,
+            ISystemContext systemContext,
+            UpdateStructureDataDetails updateStructureDataDetails,
+            ArrayOf<Annotation> oldValues,
             StatusCode statusCode,
             ILogger logger)
         {
@@ -341,10 +446,27 @@ namespace Opc.Ua.Server
                     systemContext,
                     BrowseNames.PerformInsertReplace,
                     updateStructureDataDetails.PerformInsertReplace);
+                var newValues = new Annotation[
+                    updateStructureDataDetails.UpdateValues.Count];
+                for (int i = 0; i < newValues.Length; i++)
+                {
+                    DataValue value =
+                        updateStructureDataDetails.UpdateValues[i];
+                    if (value.WrappedValue.TryGetValue(
+                            out ExtensionObject extension) &&
+                        extension.TryGetValue(out Annotation? annotation))
+                    {
+                        newValues[i] = annotation;
+                    }
+                    else
+                    {
+                        newValues[i] = null!;
+                    }
+                }
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.NewValues,
-                    updateStructureDataDetails.UpdateValues,
+                    newValues.ToArrayOf(),
                     false);
                 e.SetChildValue(systemContext, BrowseNames.OldValues, oldValues, false);
 
@@ -549,11 +671,47 @@ namespace Opc.Ua.Server
         /// <param name="oldValues">The old values</param>
         /// <param name="statusCode">The resulting status code</param>
         /// <param name="logger">A contextual logger to log to</param>
+        [Obsolete(
+            "Use the overload accepting HistoryEventFieldList. " +
+            "This compatibility overload will be removed in a future release.")]
         public static void ReportAuditHistoryEventDeleteEvent(
             this IAuditEventServer? server,
             ISystemContext systemContext,
             DeleteEventDetails deleteEventDetails,
             DataValue[] oldValues,
+            StatusCode statusCode,
+            ILogger logger)
+        {
+            var eventFields = new Variant[oldValues.Length];
+            for (int i = 0; i < oldValues.Length; i++)
+            {
+                eventFields[i] = oldValues[i].WrappedValue;
+            }
+            server.ReportAuditHistoryEventDeleteEvent(
+                systemContext,
+                deleteEventDetails,
+                new HistoryEventFieldList
+                {
+                    EventFields = eventFields
+                },
+                statusCode,
+                logger);
+        }
+
+        /// <summary>
+        /// Reports an AuditHistoryEventDelete event.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="systemContext">The current system context.</param>
+        /// <param name="deleteEventDetails">History delete event details</param>
+        /// <param name="oldValue">The deleted historical event fields.</param>
+        /// <param name="statusCode">The resulting status code</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        public static void ReportAuditHistoryEventDeleteEvent(
+            this IAuditEventServer? server,
+            ISystemContext systemContext,
+            DeleteEventDetails deleteEventDetails,
+            HistoryEventFieldList? oldValue,
             StatusCode statusCode,
             ILogger logger)
         {
@@ -585,7 +743,11 @@ namespace Opc.Ua.Server
                     BrowseNames.EventIds,
                     Variant.From(deleteEventDetails.EventIds),
                     false);
-                e.SetChildValue(systemContext, BrowseNames.OldValues, Variant.From(oldValues), false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.OldValues,
+                    oldValue ?? new HistoryEventFieldList(),
+                    false);
 
                 server.ReportAuditEvent(systemContext, e);
             }
@@ -2258,58 +2420,94 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class AuditEventsLog
     {
+        /// <summary>
+        /// Logs a failure to report an audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 0, Level = LogLevel.Error,
             Message = "Error while reporting AuditEvent event.")]
         public static partial void ErrorWhileReportingAuditEventEvent(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report an attribute-write audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 1, Level = LogLevel.Error,
             Message = "Error while reporting AuditWriteUpdateEvent event.")]
         public static partial void ErrorWhileReportingAuditWriteUpdateEventEvent(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a historical value update audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 2, Level = LogLevel.Error,
             Message = "Error while reporting AuditHistoryValueUpdateEvent event.")]
         public static partial void ErrorWhileReportingAuditHistoryValueUpdateEvent(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a historical event update audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 3, Level = LogLevel.Error,
             Message = "Error while reporting AuditHistoryEventUpdateEvent event.")]
         public static partial void ErrorWhileReportingAuditHistoryEventUpdateEvent(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a raw or modified history deletion audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 4, Level = LogLevel.Error,
             Message = "Error while reporting AuditHistoryRawModifyDeleteEvent event.")]
         public static partial void ErrorWhileReportingAuditHistoryRawModifyDeleteEvent(
             this ILogger logger,
             Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report an at-time history deletion audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 5, Level = LogLevel.Error,
             Message = "Error while reporting AuditHistoryAtTimeDeleteEvent event.")]
         public static partial void ErrorWhileReportingAuditHistoryAtTimeDeleteEvent(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a historical event deletion audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 6, Level = LogLevel.Error,
             Message = "Error while reporting AuditHistoryEventDeleteEvent event.")]
         public static partial void ErrorWhileReportingAuditHistoryEventDeleteEvent(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a certificate data mismatch audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 7, Level = LogLevel.Error,
             Message = "Error while reporting ReportAuditCertificateDataMismatch event.")]
         public static partial void ErrorWhileReportingReportAuditCertificateDataMismatch(
             this ILogger logger,
             Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a certificate data mismatch audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 8, Level = LogLevel.Error,
             Message = "Error while reporting ReportAuditCertificateDataMismatchEvent event.")]
         public static partial void ErrorWhileReportingReportAuditCertificateDataMismatchEvent(
             this ILogger logger,
             Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a request cancellation audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 9, Level = LogLevel.Error,
             Message = "Error while reporting ReportAuditCancelEvent event.")]
         public static partial void ErrorWhileReportingReportAuditCancelEventEvent(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a role-mapping rule change audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 10, Level = LogLevel.Error,
             Message = "Error while reporting ReportRoleMappingRuleChangedAuditEvent event.")]
         public static partial void ErrorWhileReportingReportRoleMappingRuleChangedAuditEvent(
             this ILogger logger,
             Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a session creation audit event for the specified session.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 11, Level = LogLevel.Error,
             Message = "Error while reporting AuditCreateSessionEvent event for SessionId {SessionId}.")]
         public static partial void ErrorWhileReportingAuditCreateSessionEventEvent(
@@ -2317,6 +2515,9 @@ namespace Opc.Ua.Server
             Exception ex,
             NodeId? sessionId);
 
+        /// <summary>
+        /// Logs a failure to report a session activation audit event for the specified session.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 12, Level = LogLevel.Error,
             Message = "Error while reporting AuditActivateSessionEvent event for SessionId {SessionId}.")]
         public static partial void ErrorWhileReportingAuditActivateSessionEventEvent(
@@ -2324,6 +2525,9 @@ namespace Opc.Ua.Server
             Exception ex,
             NodeId? sessionId);
 
+        /// <summary>
+        /// Logs a failure to report a URL mismatch audit event for the specified session.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 13, Level = LogLevel.Error,
             Message = "Error while reporting AuditUrlMismatchEvent event for SessionId {SessionId}.")]
         public static partial void ErrorWhileReportingAuditUrlMismatchEventEventFor(
@@ -2331,6 +2535,9 @@ namespace Opc.Ua.Server
             Exception ex,
             NodeId? sessionId);
 
+        /// <summary>
+        /// Logs a failure to report a session-close audit event for the specified session.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 14, Level = LogLevel.Error,
             Message = "Error while reporting AuditSessionEventState close event for SessionId {SessionId}.")]
         public static partial void ErrorWhileReportingAuditSessionEventStateClose(
@@ -2338,6 +2545,9 @@ namespace Opc.Ua.Server
             Exception ex,
             NodeId? sessionId);
 
+        /// <summary>
+        /// Logs a failure to report a session restoration audit event for the specified session.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 15, Level = LogLevel.Error,
             Message = "Error while reporting AuditSessionEventState restored event for SessionId {SessionId}.")]
         public static partial void ErrorWhileReportingAuditSessionEventStateRestored(
@@ -2345,51 +2555,77 @@ namespace Opc.Ua.Server
             Exception ex,
             NodeId? sessionId);
 
+        /// <summary>
+        /// Logs a failure to report a completed certificate update audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 16, Level = LogLevel.Error,
             Message = "Error while reporting ReportCertificateUpdatedAuditEvent event.")]
         public static partial void ErrorWhileReportingReportCertificateUpdatedAuditEvent(
             this ILogger logger,
             Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a certificate update request audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 17, Level = LogLevel.Error,
             Message = "Error while reporting CertificateUpdateRequestedAuditEvent event.")]
         public static partial void ErrorWhileReportingCertificateUpdateRequestedAuditEvent(
             this ILogger logger,
             Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a node addition audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 18, Level = LogLevel.Error,
             Message = "Error while reporting AuditAddNodesEvent event.")]
         public static partial void ErrorWhileReportingAuditAddNodesEventEvent(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a node deletion audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 19, Level = LogLevel.Error,
             Message = "Error while reporting AuditDeleteNodesEvent event.")]
         public static partial void ErrorWhileReportingAuditDeleteNodesEventEvent(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a reference addition audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 20, Level = LogLevel.Error,
             Message = "Error while reporting AuditAddReferencesEvent event.")]
         public static partial void ErrorWhileReportingAuditAddReferencesEventEvent(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a reference deletion audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 21, Level = LogLevel.Error,
             Message = "Error while reporting AuditDeleteReferencesEvent event.")]
         public static partial void ErrorWhileReportingAuditDeleteReferencesEventEvent(
             this ILogger logger,
             Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a secure-channel opening audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 22, Level = LogLevel.Error,
             Message = "Error while reporting AuditOpenSecureChannelEvent event.")]
         public static partial void ErrorWhileReportingAuditOpenSecureChannelEvent(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a completed trust list update audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 23, Level = LogLevel.Error,
             Message = "Error while reporting ReportTrustListUpdatedAuditEvent event.")]
         public static partial void ErrorWhileReportingReportTrustListUpdatedAuditEvent(
             this ILogger logger,
             Exception ex);
 
+        /// <summary>
+        /// Logs a failure to report a trust list update request audit event.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.AuditEvents + 24, Level = LogLevel.Error,
             Message = "Error while reporting TrustListUpdateRequestedAuditEvent event.")]
         public static partial void ErrorWhileReportingTrustListUpdateRequestedAuditEvent(
             this ILogger logger,
             Exception ex);
     }
-
 }

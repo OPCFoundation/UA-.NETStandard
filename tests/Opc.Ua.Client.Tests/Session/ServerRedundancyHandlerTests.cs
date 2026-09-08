@@ -49,6 +49,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         private Mock<IRedundantServerEndpointResolver> m_resolver = null!;
         private DefaultServerRedundancyHandler m_handler = null!;
 
+        /// <summary>
+        /// Creates a strict endpoint resolver mock and a redundancy handler with a fixed clock for each scenario.
+        /// </summary>
         [SetUp]
         public void SetUp()
         {
@@ -56,6 +59,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             m_handler = new DefaultServerRedundancyHandler(m_resolver.Object, new FixedTimeProvider(s_now));
         }
 
+        /// <summary>
+        /// Verifies that server redundancy support values map to the corresponding redundancy modes.
+        /// </summary>
         [TestCase(0, RedundancySupport.None)]
         [TestCase(1, RedundancySupport.Cold)]
         [TestCase(2, RedundancySupport.Warm)]
@@ -76,8 +82,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(info.Mode, Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that a healthy server avoids proactive failover while retaining a recovery target.
+        /// </summary>
         [Test]
-        public void ShouldFailoverStaysWhileCurrentServerIsHealthy()
+        public void HealthyServerDoesNotProactivelyFailOverButRetainsRecoveryTarget()
         {
             var info = new ServerRedundancyInfo
             {
@@ -97,9 +106,15 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 info, CreateCurrentEndpoint("urn:current"));
 
             Assert.That(decision.IsFailoverWarranted, Is.False);
-            Assert.That(target, Is.Null);
+            Assert.That(target, Is.Not.Null);
+            Assert.That(
+                target!.Description.Server.ApplicationUri,
+                Is.EqualTo("urn:backup"));
         }
 
+        /// <summary>
+        /// Verifies that a degraded server fails over to a healthy peer.
+        /// </summary>
         [Test]
         public void ShouldFailoverSwitchesFromDegradedToHealthyPeer()
         {
@@ -126,6 +141,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(target!.Description.Server.ApplicationUri, Is.EqualTo("urn:healthy"));
         }
 
+        /// <summary>
+        /// Verifies that a degraded server does not fail over when no healthy peer is available.
+        /// </summary>
         [Test]
         public void ShouldFailoverDoesNotSwitchFromDegradedWithoutHealthyPeer()
         {
@@ -147,6 +165,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(decision.IsFailoverWarranted, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a server in maintenance fails over to an operational peer.
+        /// </summary>
         [Test]
         public void ShouldFailoverSwitchesFromMaintenanceToOperationalPeer()
         {
@@ -173,6 +194,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(target!.Description.Server.ApplicationUri, Is.EqualTo("urn:healthy"));
         }
 
+        /// <summary>
+        /// Verifies that failover timing honors a maintenance server's estimated return time.
+        /// </summary>
         [Test]
         public void ShouldFailoverHonorsMaintenanceEstimatedReturnTime()
         {
@@ -197,6 +221,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(decision.RetryAfter, Is.EqualTo(estimatedReturnTime));
         }
 
+        /// <summary>
+        /// Verifies that failover uses backoff after the maintenance return estimate has elapsed.
+        /// </summary>
         [Test]
         public void ShouldFailoverUsesBackoffWhenMaintenanceReturnTimeLapsed()
         {
@@ -222,6 +249,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 Is.EqualTo(s_now.Add(DefaultServerRedundancyHandler.DefaultMaintenanceBackoff)));
         }
 
+        /// <summary>
+        /// Verifies that failover uses backoff when no maintenance return estimate is available.
+        /// </summary>
         [Test]
         public void ShouldFailoverUsesBackoffWhenMaintenanceReturnTimeIsAbsent()
         {
@@ -247,6 +277,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 Is.EqualTo(s_now.Add(DefaultServerRedundancyHandler.DefaultMaintenanceBackoff)));
         }
 
+        /// <summary>
+        /// Verifies that no failover is requested when all peers are down.
+        /// </summary>
         [Test]
         public void ShouldFailoverReturnsNoFailoverWhenAllPeersAreDown()
         {
@@ -272,6 +305,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(target, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that transparent redundancy does not select a client-side failover target.
+        /// </summary>
         [Test]
         public void SelectFailoverTargetReturnsNullForTransparentMode()
         {
@@ -293,6 +329,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(result, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that disabled redundancy does not select a failover target.
+        /// </summary>
         [Test]
         public void SelectFailoverTargetReturnsNullForNoneMode()
         {
@@ -314,6 +353,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(result, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that failover target selection excludes the current endpoint.
+        /// </summary>
         [Test]
         public void SelectFailoverTargetSkipsCurrentEndpoint()
         {
@@ -337,6 +379,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(result!.Description.Server.ApplicationUri, Is.EqualTo("urn:backup"));
         }
 
+        /// <summary>
+        /// Verifies that failover target selection excludes servers that are not running.
+        /// </summary>
         [Test]
         public void SelectFailoverTargetSkipsNonRunningServers()
         {
@@ -361,6 +406,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(result!.Description.Server.ApplicationUri, Is.EqualTo("urn:running"));
         }
 
+        /// <summary>
+        /// Verifies that target selection returns null when no viable server remains.
+        /// </summary>
         [Test]
         public void SelectFailoverTargetReturnsNullWhenNoViableServers()
         {
@@ -383,6 +431,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(result, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that redundancy discovery reads the redundant server array.
+        /// </summary>
         [Test]
         public async Task FetchRedundancyInfoReadsRedundantServerArrayAsync()
         {
@@ -414,6 +465,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(info.RedundantServers[0].Endpoint, Is.SameAs(resolvedEndpoint));
         }
 
+        /// <summary>
+        /// Verifies that redundancy discovery resolves server application URIs to endpoints.
+        /// </summary>
         [Test]
         public async Task FetchRedundancyInfoResolvesServerUriArrayToEndpointsAsync()
         {
@@ -441,6 +495,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             VerifyBatchedRedundancyRead(mockSession);
         }
 
+        /// <summary>
+        /// Verifies that peers with unresolved server URIs are excluded from failover selection.
+        /// </summary>
         [Test]
         public async Task FetchRedundancyInfoExcludesUnresolvedServerUriFromSelectionAsync()
         {
@@ -464,6 +521,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(target, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that a URI-only peer can be selected when its service level is unknown.
+        /// </summary>
         [Test]
         public async Task FetchRedundancyInfoSelectsServerUriOnlyPeerWithUnknownServiceLevelAsync()
         {
@@ -487,6 +547,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(target, Is.SameAs(resolvedEndpoint));
         }
 
+        /// <summary>
+        /// Verifies that discovery can fall back to a URI-only peer with unknown service level.
+        /// </summary>
         [Test]
         public async Task FetchRedundancyInfoFallsBackToUnknownServerUriOnlyPeerAsync()
         {
@@ -523,6 +586,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(target, Is.SameAs(unknownEndpoint));
         }
 
+        /// <summary>
+        /// Verifies that redundancy discovery caches resolved peer endpoints.
+        /// </summary>
         [Test]
         public async Task FetchRedundancyInfoCachesResolvedEndpointsAsync()
         {
@@ -552,6 +618,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 It.IsAny<CancellationToken>()), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that transparent redundancy discovery reads the current server identifier.
+        /// </summary>
         [Test]
         public async Task FetchRedundancyInfoReadsTransparentCurrentServerIdAsync()
         {
@@ -566,6 +635,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(info.CurrentServerId, Is.EqualTo("server-a"));
         }
 
+        /// <summary>
+        /// Verifies that failed redundancy reads report no redundancy, an inaccessible service level, and no peers.
+        /// </summary>
         [Test]
         public async Task FetchRedundancyInfoHandlesReadErrorsAsync()
         {
@@ -580,6 +652,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(info.RedundantServers, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that malformed optional redundancy nodes preserve the discovered mode without inventing peers.
+        /// </summary>
         [Test]
         public async Task FetchRedundancyInfoHandlesMalformedOptionalNodesAsync()
         {
@@ -592,6 +667,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(info.RedundantServers, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that discovery and failover APIs reject null sessions, redundancy information, and endpoints.
+        /// </summary>
         [Test]
         public void NullArgumentsThrow()
         {

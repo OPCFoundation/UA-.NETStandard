@@ -26,8 +26,8 @@ COPY ["src/Opc.Ua.Client/Opc.Ua.Client.csproj", "src/Opc.Ua.Client/"]
 COPY ["src/Opc.Ua.Configuration/Opc.Ua.Configuration.csproj", "src/Opc.Ua.Configuration/"]
 COPY ["src/Opc.Ua.Server/Opc.Ua.Server.csproj", "src/Opc.Ua.Server/"]
 COPY ["samples/Quickstarts.Servers/Quickstarts.Servers.csproj", "samples/Quickstarts.Servers/"]
-COPY ["src/Opc.Ua.Gds.Common/Opc.Ua.Gds.Common.csproj", "src/Opc.Ua.Gds.Common/"]
-COPY ["src/Opc.Ua.Gds.Server.Common/Opc.Ua.Gds.Server.Common.csproj", "src/Opc.Ua.Gds.Server.Common/"]
+COPY ["src/Opc.Ua.Gds/Opc.Ua.Gds.csproj", "src/Opc.Ua.Gds/"]
+COPY ["src/Opc.Ua.Gds.Server/Opc.Ua.Gds.Server.csproj", "src/Opc.Ua.Gds.Server/"]
 ENV DOTNET_EnableWriteXorExecute=0
 RUN dotnet restore "samples/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj" --force -p:CustomTestTarget=net10.0
 COPY . .

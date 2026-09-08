@@ -127,24 +127,22 @@ namespace Opc.Ua.WotCon.Samples.Tests
         /// propagates a client's acknowledgement to this server; without a
         /// working Acknowledge there is nothing for that round trip to reach.
         /// </summary>
-        [Test]
-        public async Task ATrippedAlarmIsUnacknowledgedAndCanBeAcknowledgedAsync()
+        [TestCase("Pump1")]
+        [TestCase("Pump2")]
+        public async Task ATrippedAlarmRetainsOperatorObligationsUntilConfirmedAsync(string pumpName)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(4));
             SourceConnection source = m_source!;
 
             ushort ns = ResolveNamespace(source.Session, kSourceANamespaceUri);
             var cavitation = new NodeId(
-                "Pump1.Events.SupervisionProcessFluid.Cavitation", ns);
+                pumpName + ".Events.SupervisionProcessFluid.Cavitation", ns);
             var alarm = new NodeId(
-                "Pump1.Events.SupervisionProcessFluid.Cavitation.Alarm", ns);
+                pumpName + ".Events.SupervisionProcessFluid.Cavitation.Alarm", ns);
 
             await WriteBooleanAsync(source.Session, cavitation, value: false, timeout.Token)
                 .ConfigureAwait(false);
-            Assert.That(await ReadTwoStateAsync(
-                    source.Session, alarm, "AckedState", timeout.Token)
-                .ConfigureAwait(false), Is.True,
-                "A cleared alarm needs no operator attention.");
+            await CompleteOperatorAttentionAsync(source.Session, alarm, timeout.Token).ConfigureAwait(false);
 
             await WriteBooleanAsync(source.Session, cavitation, value: true, timeout.Token)
                 .ConfigureAwait(false);
@@ -156,6 +154,27 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(await ReadRetainAsync(source.Session, alarm, timeout.Token)
                 .ConfigureAwait(false), Is.True,
                 "A tripped alarm must be retained so a ConditionRefresh replays it.");
+            ByteString tripId = await ReadEventIdAsync(source.Session, alarm, timeout.Token).ConfigureAwait(false);
+
+            await WriteBooleanAsync(source.Session, cavitation, value: false, timeout.Token).ConfigureAwait(false);
+
+            Assert.That(await ReadTwoStateAsync(source.Session, alarm, "AckedState", timeout.Token)
+                .ConfigureAwait(false), Is.False, "Returning to normal does not acknowledge an occurrence.");
+            Assert.That(await ReadTwoStateAsync(source.Session, alarm, "ConfirmedState", timeout.Token)
+                .ConfigureAwait(false), Is.False);
+            Assert.That(await ReadRetainAsync(source.Session, alarm, timeout.Token).ConfigureAwait(false), Is.True);
+            Assert.That(await ReadEventIdAsync(source.Session, alarm, timeout.Token).ConfigureAwait(false),
+                Is.Not.EqualTo(tripId), "A state transition produces a new occurrence identity.");
+
+            await CallConditionAsync(source.Session, alarm, "Acknowledge", timeout.Token).ConfigureAwait(false);
+            Assert.That(await ReadTwoStateAsync(source.Session, alarm, "AckedState", timeout.Token)
+                .ConfigureAwait(false), Is.True);
+            Assert.That(await ReadRetainAsync(source.Session, alarm, timeout.Token).ConfigureAwait(false), Is.True);
+
+            await CallConditionAsync(source.Session, alarm, "Confirm", timeout.Token).ConfigureAwait(false);
+            Assert.That(await ReadTwoStateAsync(source.Session, alarm, "ConfirmedState", timeout.Token)
+                .ConfigureAwait(false), Is.True);
+            Assert.That(await ReadRetainAsync(source.Session, alarm, timeout.Token).ConfigureAwait(false), Is.False);
         }
 
         /// <summary>
@@ -190,6 +209,102 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(await ReadBooleanAsync(source.Session, cavitation, timeout.Token)
                 .ConfigureAwait(false), Is.False,
                 "Reset must clear the tag too, not only the condition.");
+            Assert.That(await ReadTwoStateAsync(source.Session, alarm, "AckedState", timeout.Token)
+                .ConfigureAwait(false), Is.False, "Reset must not acknowledge an alarm.");
+            Assert.That(await ReadRetainAsync(source.Session, alarm, timeout.Token).ConfigureAwait(false), Is.True);
+            await CompleteOperatorAttentionAsync(source.Session, alarm, timeout.Token).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task AnEventIdFromAnotherPumpCannotAcknowledgeAnAlarmAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+            ManagedSession session = m_source!.Session;
+            ushort ns = ResolveNamespace(session, kSourceANamespaceUri);
+            var first = new NodeId("Pump1.Events.SupervisionProcessFluid.Cavitation.Alarm", ns);
+            var second = new NodeId("Pump2.Events.SupervisionProcessFluid.Cavitation.Alarm", ns);
+            await WriteBooleanAsync(
+                session, new NodeId("Pump1.Events.SupervisionProcessFluid.Cavitation", ns), false, timeout.Token)
+                .ConfigureAwait(false);
+            await WriteBooleanAsync(
+                session, new NodeId("Pump1.Events.SupervisionProcessFluid.Cavitation", ns), true, timeout.Token)
+                .ConfigureAwait(false);
+            ByteString wrongEventId = await ReadEventIdAsync(session, second, timeout.Token).ConfigureAwait(false);
+            NodeId acknowledge = await TranslateAsync(session, first, "Acknowledge", timeout.Token)
+                .ConfigureAwait(false);
+
+            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await session.CallAsync(
+                    first, acknowledge, timeout.Token, Variant.From(wrongEventId), Variant.From(LocalizedText.Null))
+                    .ConfigureAwait(false))!;
+
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadEventIdUnknown));
+            Assert.That(await ReadTwoStateAsync(session, first, "AckedState", timeout.Token).ConfigureAwait(false),
+                Is.False);
+        }
+
+        [TestCase("Pump1", "SN-001")]
+        [TestCase("Pump2", "SN-002")]
+        public async Task BothPumpsExposeTypedIdentityPropertiesAsync(string pumpName, string serialNumber)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+            ManagedSession session = m_source!.Session;
+            ushort ns = ResolveNamespace(session, kSourceANamespaceUri);
+            DataValue manufacturer = await session.ReadValueAsync(
+                new NodeId(pumpName + ".Identification.Manufacturer", ns), timeout.Token).ConfigureAwait(false);
+            DataValue serial = await session.ReadValueAsync(
+                new NodeId(pumpName + ".Identification.SerialNumber", ns), timeout.Token).ConfigureAwait(false);
+            DataValue uri = await session.ReadValueAsync(
+                new NodeId(pumpName + ".Identification.ProductInstanceUri", ns), timeout.Token).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(manufacturer.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(manufacturer.WrappedValue.TryGetValue(out LocalizedText name), Is.True);
+                Assert.That(name.Text, Is.EqualTo("SimPump Corp"));
+                Assert.That(serial.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(serial.WrappedValue.TryGetValue(out string? number), Is.True);
+                Assert.That(number, Is.EqualTo(serialNumber));
+                Assert.That(uri.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(uri.WrappedValue.TryGetValue(out string? identity), Is.True);
+                Assert.That(identity, Is.EqualTo("urn:simdevice:SimPump:PumpX-2000:" + serialNumber));
+            });
+        }
+
+        private static async Task CompleteOperatorAttentionAsync(
+            ManagedSession session, NodeId alarm, CancellationToken cancellationToken)
+        {
+            if (!await ReadTwoStateAsync(session, alarm, "AckedState", cancellationToken).ConfigureAwait(false))
+            {
+                await CallConditionAsync(session, alarm, "Acknowledge", cancellationToken).ConfigureAwait(false);
+            }
+            if (!await ReadTwoStateAsync(session, alarm, "ConfirmedState", cancellationToken).ConfigureAwait(false))
+            {
+                await CallConditionAsync(session, alarm, "Confirm", cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task CallConditionAsync(
+            ManagedSession session, NodeId alarm, string name, CancellationToken cancellationToken)
+        {
+            ByteString eventId = await ReadEventIdAsync(session, alarm, cancellationToken).ConfigureAwait(false);
+            NodeId method = await TranslateAsync(session, alarm, name, cancellationToken).ConfigureAwait(false);
+            ArrayOf<Variant> result = await session.CallAsync(
+                alarm, method, cancellationToken,
+                Variant.From(eventId), Variant.From(new LocalizedText("Demo operator")))
+                .ConfigureAwait(false);
+            Assert.That(result, Is.Empty);
+        }
+
+        private static async Task<ByteString> ReadEventIdAsync(
+            ManagedSession session, NodeId alarm, CancellationToken cancellationToken)
+        {
+            NodeId nodeId = await TranslateAsync(session, alarm, "EventId", cancellationToken).ConfigureAwait(false);
+            DataValue value = await session.ReadValueAsync(nodeId, cancellationToken).ConfigureAwait(false);
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(value.WrappedValue.TryGetValue(out ByteString eventId), Is.True);
+            Assert.That(eventId.IsEmpty, Is.False);
+            return eventId;
         }
 
         /// <summary>

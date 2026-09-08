@@ -30,6 +30,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -121,9 +122,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void ConstructionFailureDisposesAlreadyBuiltCertificates()
         {
             using TestCertificateChain source = TestCertificateChain.Create();
-            long createdBefore = Certificate.InstancesCreated;
-            long disposedBefore = Certificate.InstancesDisposed;
             int calls = 0;
+
+            // Track the handles the factory hands out rather than the
+            // process-wide Certificate.InstancesCreated/InstancesDisposed
+            // counters: certificates allocated elsewhere in the run would move
+            // those counters too, and only these instances are the builder's to
+            // clean up.
+            var built = new List<Certificate>();
 
             InvalidOperationException? exception = Assert.Throws<InvalidOperationException>(
                 () => CertificateValidationHelpers.BuildValidationCertificateCollection(
@@ -137,15 +143,41 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             throw new InvalidOperationException("Simulated certificate factory failure.");
                         }
 
-                        return Certificate.FromRawData(certificate.GetRawCertData());
+                        Certificate created = Certificate.FromRawData(certificate.GetRawCertData());
+                        built.Add(created);
+                        return created;
                     }));
 
             Assert.That(exception, Is.Not.Null);
             Assert.That(calls, Is.EqualTo(2));
-            Assert.That(Certificate.InstancesCreated - createdBefore, Is.EqualTo(1));
-            Assert.That(
-                Certificate.InstancesDisposed - disposedBefore,
-                Is.EqualTo(Certificate.InstancesCreated - createdBefore));
+            Assert.That(built, Has.Count.EqualTo(1));
+            foreach (Certificate certificate in built)
+            {
+                Assert.That(
+                    IsReleased(certificate),
+                    Is.True,
+                    "a certificate built before the failure must be disposed by the builder.");
+            }
+        }
+
+        /// <summary>
+        /// Whether the last owning handle on the certificate's shared core was
+        /// released. <see cref="Certificate.AddRef"/> is the only observable
+        /// that distinguishes a released core from a live one; the probe handle
+        /// it hands back on a live core is disposed again immediately, so the
+        /// check leaves the refcount untouched.
+        /// </summary>
+        private static bool IsReleased(Certificate certificate)
+        {
+            try
+            {
+                using Certificate probe = certificate.AddRef();
+                return false;
+            }
+            catch (ObjectDisposedException)
+            {
+                return true;
+            }
         }
 
         private static CertificateCollection BuildCollectionFromDisposedSource(

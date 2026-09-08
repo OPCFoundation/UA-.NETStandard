@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Text;
+using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 
@@ -49,13 +49,15 @@ namespace Opc.Ua.Server.Historian
     /// the misconfiguration; the read itself degrades safely.
     /// </para>
     /// <para>
-    /// <see cref="GetAttributeValue"/> ignores the index-range argument
-    /// (returns the full array). Index-range support can be added when
-    /// providers need it.
+    /// <see cref="GetAttributeValue"/> resolves the complete operand identity
+    /// and applies the requested index range before returning a value.
     /// </para>
     /// </remarks>
     internal sealed class HistorianEventFilterTarget : IFilterTarget
     {
+        /// <summary>
+        /// Wraps a historical event record for evaluation by the server's event filter.
+        /// </summary>
         public HistorianEventFilterTarget(HistorianEventRecord record)
         {
             m_record = record;
@@ -97,9 +99,6 @@ namespace Opc.Ua.Server.Historian
             NumericRange indexRange)
         {
             _ = context;
-            _ = typeDefinitionId;
-            _ = indexRange;
-
             if (relativePath.Count == 0)
             {
                 if (attributeId == Attributes.NodeId)
@@ -109,26 +108,96 @@ namespace Opc.Ua.Server.Historian
                 return default;
             }
 
-            string key = BuildKey(relativePath);
-            return m_record.Fields.TryGetValue(key, out Variant value) ? value : default;
+            var key = new HistorianEventFieldKey(
+                typeDefinitionId,
+                relativePath,
+                attributeId,
+                null);
+            if (!m_record.TryGetQualifiedField(key, out Variant value) &&
+                !TryResolveCompatibleField(
+                    context,
+                    typeDefinitionId,
+                    relativePath,
+                    attributeId,
+                    out value))
+            {
+                if (m_record.QualifiedFields.Count != 0)
+                {
+                    return default;
+                }
+                string legacyKey = HistorianEventFieldKey.BuildPath(relativePath);
+                if (!m_record.TryGetField(legacyKey, out value))
+                {
+                    return default;
+                }
+            }
+            if (!indexRange.IsNull)
+            {
+                StatusCode status = indexRange.ApplyRange(ref value);
+                if (StatusCode.IsBad(status))
+                {
+                    return default;
+                }
+            }
+            return value;
         }
 
-        private static string BuildKey(ArrayOf<QualifiedName> relativePath)
+        private bool TryResolveCompatibleField(
+            IFilterContext context,
+            NodeId requestedType,
+            ArrayOf<QualifiedName> requestedPath,
+            uint requestedAttribute,
+            out Variant value)
         {
-            if (relativePath.Count == 1)
+            bool found = false;
+            value = default;
+            foreach (KeyValuePair<HistorianEventFieldKey, Variant> field in m_record.QualifiedFields)
             {
-                return relativePath[0].Name ?? string.Empty;
-            }
-            var sb = new StringBuilder();
-            for (int i = 0; i < relativePath.Count; i++)
-            {
-                if (i > 0)
+                HistorianEventFieldKey candidate = field.Key;
+                if (candidate.AttributeId != requestedAttribute ||
+                    !PathsEqual(candidate.BrowsePath, requestedPath) ||
+                    (!candidate.TypeDefinitionId.IsNull &&
+                        candidate.TypeDefinitionId != requestedType &&
+                        (context?.TypeTree == null ||
+                            !context.TypeTree.IsTypeOf(
+                                m_record.EventType,
+                                candidate.TypeDefinitionId))) ||
+                    (!requestedType.IsNull &&
+                        requestedType != candidate.TypeDefinitionId &&
+                        (context?.TypeTree == null ||
+                            !context.TypeTree.IsTypeOf(
+                                m_record.EventType,
+                                requestedType))))
                 {
-                    sb.Append('/');
+                    continue;
                 }
-                sb.Append(relativePath[i].Name);
+                if (found)
+                {
+                    value = default;
+                    return false;
+                }
+                value = field.Value;
+                found = true;
             }
-            return sb.ToString();
+            return found;
+        }
+
+        private static bool PathsEqual(
+            ArrayOf<QualifiedName> left,
+            ArrayOf<QualifiedName> right)
+        {
+            if (left.Count != right.Count)
+            {
+                return false;
+            }
+            for (int i = 0; i < left.Count; i++)
+            {
+                if (left[i] != right[i])
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private readonly HistorianEventRecord m_record;
@@ -140,6 +209,9 @@ namespace Opc.Ua.Server.Historian
     /// </summary>
     internal static partial class HistorianEventFilterTargetLog
     {
+        /// <summary>
+        /// Logs that a missing type tree restricts historical event subtype matching to exact matches.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.HistorianEventFilterTarget + 0, Level = LogLevel.Warning,
             Message = "Historian event WhereClause subtype query against {RequestedType} could not be " +
                 "resolved: IFilterContext.TypeTree is null. Event-type subtype matching is degraded " +
@@ -148,5 +220,4 @@ namespace Opc.Ua.Server.Historian
             this ILogger logger,
             NodeId requestedType);
     }
-
 }

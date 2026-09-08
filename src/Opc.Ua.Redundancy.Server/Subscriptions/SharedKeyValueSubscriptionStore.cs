@@ -141,9 +141,7 @@ namespace Opc.Ua.Redundancy.Server
 
                 // Keep prior generations so readers that captured an older manifest can complete safely.
                 // Reclamation requires reader pinning or an external retention policy.
-                uint[] removedIds = m_definitionCache.ReplaceAll(snapshot, liveIds);
-
-                foreach (uint subscriptionId in removedIds)
+                foreach (uint subscriptionId in m_definitionCache.ReplaceAll(snapshot, liveIds))
                 {
                     DeleteRetransmissionState(subscriptionId);
                 }
@@ -185,12 +183,11 @@ namespace Opc.Ua.Redundancy.Server
                 restored = await ReadSnapshotAsync(Prefix, null, cancellationToken).ConfigureAwait(false);
             }
 
-            List<StoredSubscription> subscriptions = restored.Values
-                .OrderBy(static subscription => subscription.Id)
-                .ToList();
+            List<StoredSubscription> subscriptions = [.. restored.Values.OrderBy(static subscription => subscription.Id)];
             m_definitionCache.ReplaceAll(subscriptions);
 
-            return new RestoreSubscriptionResult(true, subscriptions);        }
+            return new RestoreSubscriptionResult(true, subscriptions);
+        }
 
         /// <inheritdoc/>
         public IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(uint monitoredItemId)
@@ -241,7 +238,7 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             List<StoredSubscription> restoredSubscriptions = m_definitionCache
-                .CloneWhere(new HashSet<uint>(createdSubscriptions.Keys));
+                .CloneWhere([.. createdSubscriptions.Keys]);
             await StoreSubscriptionsAsync(restoredSubscriptions, cancellationToken).ConfigureAwait(false);
 
             if (m_queueFactory != null)
@@ -1130,8 +1127,8 @@ namespace Opc.Ua.Redundancy.Server
         {
             using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
             int version = decoder.ReadInt32(null);
-            if (version < LegacyDefinitionFormatVersion ||
-                version > DefinitionFormatVersion)
+            if (version is < LegacyDefinitionFormatVersion or
+                > DefinitionFormatVersion)
             {
                 throw new ServiceResultException(StatusCodes.BadDecodingError, "Unsupported subscription record version.");
             }
@@ -1402,7 +1399,10 @@ namespace Opc.Ua.Redundancy.Server
         private const int LegacyDefinitionFormatVersion = 1;
         private const int LifecycleStateDefinitionFormatVersion = 2;
         private const int FilteredRetainDefinitionFormatVersion = 3;
-        private const int DefinitionFormatVersion = FilteredRetainDefinitionFormatVersion;
+
+        private const int DefinitionFormatVersion =
+            FilteredRetainDefinitionFormatVersion;
+
         private const int DefinitionSnapshotManifestFormatVersion = 1;
         private const int ContinuationPointFormatVersion = 1;
         private const int LegacyRetransmissionStateFormatVersion = 1;
@@ -1453,7 +1453,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <c>Subscriptions</c> themselves. <see cref="SnapshotCommitLock"/> is
         /// deliberately separate and still handed out, because it sequences an
         /// asynchronous commit across <c>await</c> points, which a
-        /// <see cref="System.Threading.Lock"/> cannot span.
+        /// <see cref="Lock"/> cannot span.
         /// </remarks>
         private sealed class SharedDefinitionCache
         {
@@ -1600,11 +1600,17 @@ namespace Opc.Ua.Redundancy.Server
     /// </summary>
     internal static partial class SharedKeyValueSubscriptionStoreLog
     {
+        /// <summary>
+        /// Logs coalescing of shared-state updates when the mirror channel is full.
+        /// </summary>
         [LoggerMessage(EventId = RedundancyServerEventIds.SharedKeyValueSubscriptionStore + 0,
             Level = LogLevel.Warning,
             Message = "The shared-state mirror channel is full; updates are coalesced until the drain catches up.")]
         public static partial void SharedStateMirrorChannelFull(this ILogger logger);
 
+        /// <summary>
+        /// Logs a failure to mirror subscription retransmission state.
+        /// </summary>
         [LoggerMessage(EventId = RedundancyServerEventIds.SharedKeyValueSubscriptionStore + 1,
             Level = LogLevel.Warning,
             Message = "Failed to mirror subscription retransmission state.")]
@@ -1612,5 +1618,4 @@ namespace Opc.Ua.Redundancy.Server
             this ILogger logger,
             Exception exception);
     }
-
 }

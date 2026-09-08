@@ -29,7 +29,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -40,8 +39,8 @@ using Opc.Ua.Wot;
 namespace Opc.Ua.WotCon.Tests.Samples
 {
     /// <summary>
-    /// Locks down the readable round trip of a whole companion information
-    /// model: NodeSet to a set of linked WoT documents and back.
+    /// Locks down the verified round trip of a whole companion information
+    /// model, including structured preservation when readable mapping is incomplete.
     /// </summary>
     /// <remarks>
     /// This is the measure that matters for WoT Binding §9.1 and the
@@ -62,19 +61,19 @@ namespace Opc.Ua.WotCon.Tests.Samples
     public sealed class WotCompanionModelRoundTripTests
     {
         [Test]
-        public async Task DeviceIntegrationModelSurvivesTheReadableRoundTripAsync()
+        public async Task DeviceIntegrationModelSurvivesVerifiedDocumentSetRoundTripAsync()
         {
             await AssertModelRoundTripsAsync("Opc.Ua.Di.NodeSet2.xml").ConfigureAwait(false);
         }
 
         [Test]
-        public async Task JobControlModelSurvivesTheReadableRoundTripAsync()
+        public async Task JobControlModelSurvivesVerifiedDocumentSetRoundTripAsync()
         {
             await AssertModelRoundTripsAsync("Isa95JobControl.NodeSet2.xml").ConfigureAwait(false);
         }
 
         [Test]
-        public async Task DemoModelSurvivesTheReadableRoundTripAsync()
+        public async Task DemoModelSurvivesVerifiedDocumentSetRoundTripAsync()
         {
             await AssertModelRoundTripsAsync("DemoModel.NodeSet2.xml").ConfigureAwait(false);
         }
@@ -83,63 +82,32 @@ namespace Opc.Ua.WotCon.Tests.Samples
         {
             UANodeSet source = ReadCompanionModel(fileName);
 
+            var options = new WotNodeSetConverterOptions
+            {
+                PreservationMode = WotNodeSetPreservationMode.Never
+            };
             WotConversionResult<WotDocumentSet> documents =
-                WotNodeSetConverter.FromNodeSetDocuments(source, "model");
+                await WotNodeSetConverter.FromNodeSetDocumentsAsync(
+                    source, "model", options: options).ConfigureAwait(false);
             Assert.That(
-                documents.Diagnostics
-                    .Where(d => d.Severity == WotDiagnosticSeverity.Error)
-                    .Select(d => d.Message),
-                Is.Empty);
+                documents.Success, Is.True,
+                string.Join("; ", documents.Diagnostics.Select(d => d.ToString())));
 
             using WotDocumentSet set = documents.Value!;
+            foreach (WotDocumentSetEntry entry in set.Entries)
+            {
+                Assert.That(entry.Document.TryGetEnvelope(out _), Is.False);
+            }
             WotConversionResult<UANodeSet> restored =
-                await WotNodeSetConverter.ToNodeSetAsync(set).ConfigureAwait(false);
-
-            Assert.That(restored.Value, Is.Not.Null);
-
-            Dictionary<string, UANode> before = IndexByNodeId(source);
-            Dictionary<string, UANode> after = IndexByNodeId(restored.Value!);
-
-            string[] lost = before.Keys.Where(id => !after.ContainsKey(id))
-                .OrderBy(id => id, StringComparer.Ordinal).ToArray();
+                await WotNodeSetConverter.ToNodeSetAsync(set, options).ConfigureAwait(false);
             Assert.That(
-                lost,
-                Is.Empty,
-                $"{fileName}: {lost.Length} Node(s) did not survive the readable " +
-                "round trip, so the model still needs the uav:nodes projection.");
-
-            string[] invented = after.Keys.Where(id => !before.ContainsKey(id))
-                .OrderBy(id => id, StringComparer.Ordinal).ToArray();
+                restored.Success, Is.True,
+                string.Join("; ", restored.Diagnostics.Select(d => d.ToString())));
+            NodeSetComparisonResult comparison =
+                WotNodeSetConverter.CompareDocumentSet(source, restored.Value!, options);
             Assert.That(
-                invented,
-                Is.Empty,
-                $"{fileName}: {invented.Length} Node(s) were created that the " +
-                "source never stated.");
-
-            // Same identity is not the same Node. A NodeClass that changes on
-            // the way back is how a VariableType once became an ObjectType
-            // while the counts still balanced.
-            foreach (KeyValuePair<string, UANode> entry in before)
-            {
-                Assert.That(
-                    after[entry.Key].GetType(),
-                    Is.EqualTo(entry.Value.GetType()),
-                    $"{fileName}: '{entry.Value.BrowseName}' came back as a " +
-                    "different NodeClass.");
-            }
-        }
-
-        private static Dictionary<string, UANode> IndexByNodeId(UANodeSet nodeSet)
-        {
-            var index = new Dictionary<string, UANode>(StringComparer.Ordinal);
-            foreach (UANode node in nodeSet.Items ?? [])
-            {
-                if (!string.IsNullOrEmpty(node.NodeId))
-                {
-                    index[node.NodeId!] = node;
-                }
-            }
-            return index;
+                comparison.AreEquivalent, Is.True,
+                $"{fileName}: {string.Join("; ", comparison.Differences)}");
         }
 
         private static UANodeSet ReadCompanionModel(string fileName)

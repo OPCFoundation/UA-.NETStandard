@@ -115,8 +115,8 @@ namespace Opc.Ua.Robotics.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(leftExecutor.IntentIds.ToArray(), Is.EqualTo(new[] { "left-only" }));
-                Assert.That(rightExecutor.IntentIds.ToArray(), Is.EqualTo(new[] { "right-only" }));
+                Assert.That(leftExecutor.IntentIds.ToArray(), Is.EqualTo(s_stringValues1));
+                Assert.That(rightExecutor.IntentIds.ToArray(), Is.EqualTo(s_stringValues2));
             });
         }
 
@@ -274,5 +274,8 @@ namespace Opc.Ua.Robotics.Tests
             private readonly IServiceProvider m_services;
             private ServerFixture<StandardServer>? m_fixture;
         }
+
+        private static readonly string[] s_stringValues1 = ["left-only"];
+        private static readonly string[] s_stringValues2 = ["right-only"];
     }
 }

@@ -39,9 +39,6 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
-// CA1861: inline literal arrays here are one-shot test fixtures, not hot-path
-//   allocations, so hoisting them to static readonly fields adds no value. Suppressed file-level.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
 
 using System;
 using System.Collections.Generic;

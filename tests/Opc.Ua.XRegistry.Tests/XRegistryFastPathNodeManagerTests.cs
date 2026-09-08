@@ -27,8 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
@@ -48,20 +49,22 @@ namespace Opc.Ua.XRegistry.Tests
     public sealed class XRegistryFastPathNodeManagerTests
     {
         [Test]
-        public void SeedDisabledPublishesNoResource()
+        public async Task SeedDisabledPublishesNoResourceAsync()
         {
             using XRegistryFastPathNodeManager nm = CreateNodeManager(new XRegistryServerOptions
             {
                 ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
             });
 
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(nm.Find(FastPathNodeId(nm, s_seedDocument)), Is.Null);
         }
 
         [Test]
-        public void SeedWithoutDocumentPublishesNoResource()
+        public async Task SeedWithoutDocumentPublishesNoResourceAsync()
         {
             using XRegistryFastPathNodeManager nm = CreateNodeManager(new XRegistryServerOptions
             {
@@ -69,7 +72,9 @@ namespace Opc.Ua.XRegistry.Tests
                 ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
             });
 
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(nm.Find(FastPathNodeId(nm, s_seedDocument)), Is.Null);
         }
@@ -83,13 +88,15 @@ namespace Opc.Ua.XRegistry.Tests
                 SeedDocument = ByteString.From(s_seedDocument)
             });
 
-            InvalidOperationException ex = Assert.Throws<InvalidOperationException>(
-                () => nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>()));
-            Assert.That(ex.Message, Does.Contain("ContentIdProvider"));
+            Assert.That(
+                async () => await nm.CreateAddressSpaceAsync(
+                    new Dictionary<NodeId, IList<IReference>>(),
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains("ContentIdProvider"));
         }
 
         [Test]
-        public void SeedIsPublishedUnderItsOpaqueContentIdNodeId()
+        public async Task SeedIsPublishedUnderItsOpaqueContentIdNodeIdAsync()
         {
             using XRegistryFastPathNodeManager nm = CreateNodeManager(new XRegistryServerOptions
             {
@@ -99,7 +106,9 @@ namespace Opc.Ua.XRegistry.Tests
                 ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
             });
 
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
 
             NodeState? node = nm.Find(FastPathNodeId(nm, s_seedDocument));
             Assert.That(node, Is.Not.Null);
@@ -119,11 +128,13 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
-        public void CreateAddressSpaceMaterializesTheGeneratedCompanionModel()
+        public async Task CreateAddressSpaceMaterializesTheGeneratedCompanionModelAsync()
         {
             using XRegistryFastPathNodeManager nm = CreateNodeManager(new XRegistryServerOptions());
 
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(
                 nm.Find(ExpandedNodeId.ToNodeId(ObjectTypeIds.ResourceType, nm.SystemContext.NamespaceUris)),

@@ -980,6 +980,31 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers a dependency-injection-resolved server-wide historian
+        /// provider as the default provider.
+        /// </summary>
+        /// <typeparam name="TProvider">
+        /// The historian service type already registered with dependency
+        /// injection. The service provider owns its lifetime.
+        /// </typeparam>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddHistorian<TProvider>(
+            this IOpcUaServerBuilder builder)
+            where TProvider : class, IHistorianProvider
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddSingleton(
+                new OpcUaServerHistorianRegistration(
+                    services => services.GetRequiredService<TProvider>(),
+                    ownsProvider: false));
+            return builder;
+        }
+
+        /// <summary>
         /// Registers the Part 20 file system provider and node manager.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>

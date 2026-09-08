@@ -31,8 +31,8 @@
   "schemaVersion": 1,
   "pinnedTo": {
     "repository": "https://github.com/OPCF-Members/spec-drafts.git",
-    "branch": "main",
-    "commit": "25db507121b503fd31c8816fbfae67a6822e813b",
+    "branch": "copilot/wot-binding-final-clarifications",
+    "commit": "82620d9e313f35386dfc7477f7875cd47d2fd268",
     "bindingRevision": "1.1",
     "ledgers": [
       "source/wot-specs/WoT-Binding/tools/requirements.json",
@@ -40,7 +40,7 @@
     ],
     "statementInventory": {
       "path": "wot-spec-statements.json",
-      "sha256": "ca052732f62cc67bc860d088d31617f64499355753eb84f5dd0c804f33f65674"
+      "sha256": "64ff05332c14ad6732edf6d97b509e3fc8d1a32c032b73110306d96cb4e6ba21"
     }
   },
   "pendingStackTestCount": 97,

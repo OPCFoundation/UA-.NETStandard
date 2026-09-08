@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <GenerateProgramFile>false</GenerateProgramFile>
     <IsPackable>false</IsPackable>
-    <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014;CA1861</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

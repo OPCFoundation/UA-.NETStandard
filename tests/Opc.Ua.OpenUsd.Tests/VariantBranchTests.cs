@@ -70,7 +70,7 @@ namespace Opc.Ua.OpenUsd.Tests
             List<UsdPrimState> branches =
                 MaterializationHarness.ChildrenOfType<UsdPrimState>(ms.Context, node);
             // Both branches are present, in authored order, not just the selected one.
-            Assert.That(branches.Select(b => b.BrowseName.Name), Is.EqualTo(new[] { "high", "low" }));
+            Assert.That(branches.Select(b => b.BrowseName.Name), Is.EqualTo(s_stringValues1));
 
             UsdPrimState high = branches[0];
             Assert.That(high.BrowseName.NamespaceIndex, Is.EqualTo(ms.Namespace));
@@ -94,7 +94,7 @@ namespace Opc.Ua.OpenUsd.Tests
             Assert.That(node.Selection!.Value, Is.EqualTo(string.Empty));
             List<UsdPrimState> branches =
                 MaterializationHarness.ChildrenOfType<UsdPrimState>(ms.Context, node);
-            Assert.That(branches.Select(b => b.BrowseName.Name), Is.EqualTo(new[] { "pbr", "unlit" }));
+            Assert.That(branches.Select(b => b.BrowseName.Name), Is.EqualTo(s_stringValues2));
         }
 
         // ---- Fail closed when no branch was captured -----------------------------------
@@ -228,7 +228,7 @@ namespace Opc.Ua.OpenUsd.Tests
             Assert.That(exportedSet.Selection, Is.EqualTo("high"));
 
             // Every authored branch is recovered, in order, with its body content.
-            Assert.That(exportedSet.Variants.Select(v => v.Name), Is.EqualTo(new[] { "high", "low" }));
+            Assert.That(exportedSet.Variants.Select(v => v.Name), Is.EqualTo(s_stringValues1));
             Assert.That(exportedSet.Variants[0].Attributes.Single().Name, Is.EqualTo("resolution"));
 
             // The materialized <Variant> branches must not be re-exported as child prims (§7.4).
@@ -251,5 +251,8 @@ namespace Opc.Ua.OpenUsd.Tests
                 MaterializationHarness.ChildrenOfType<UsdVariantSetState>(ms.Context, folder).Single();
             return (ms, set);
         }
+
+        private static readonly string[] s_stringValues1 = ["high", "low"];
+        private static readonly string[] s_stringValues2 = ["pbr", "unlit"];
     }
 }

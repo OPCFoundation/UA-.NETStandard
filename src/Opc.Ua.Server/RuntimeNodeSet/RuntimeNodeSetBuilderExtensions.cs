@@ -116,6 +116,11 @@ namespace Microsoft.Extensions.DependencyInjection
         /// hosted server discovers it consistently with all other
         /// node-manager registrations).
         /// </para>
+        /// <para>
+        /// After the server starts, the resulting NodeManager is available from
+        /// <see cref="INodeManagerLifecycle.Registrations"/> and can be reloaded
+        /// or removed through the lifecycle API.
+        /// </para>
         /// </remarks>
         /// <param name="builder">The server builder.</param>
         /// <param name="options">

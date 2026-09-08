@@ -19,8 +19,20 @@ dotnet run --project samples\Redundancy\RedundantClient\RedundantClient.csproj -
 | `--autoaccept` | off | Automatically accept untrusted server certificates (sample only). |
 | `--duration`, `-d` | `00:02:00` | How long to monitor before exiting; `00:00:00` runs until Ctrl+C. |
 | `--suite` | off | Run a browse/read/subscribe workload against the redundant `ISession`. |
+| `--history` | off | Open raw, event, and processed HistoryRead continuations, pause for active-server loss, then resume all three through the promoted replica. Requires an independent client and the strong active/passive historian sample. |
+| `--history-failover-delay` | `00:00:15` | Pause after the first page so an operator or process test can terminate the active server. |
 
 The sample connects, logs the server's reported `RedundancySupport` (or notes that the server is not redundant), subscribes to `Server.ServerStatus.CurrentTime`, and logs the values together with any transparent connection-state changes (reconnect or failover). To observe failover, lower the active server's service level (for example with the `RedundantServer` sample's manual failover support) or stop the active server; the managed session reconnects to a healthy peer on its own.
+
+For the historical failover workflow, start the three-node strong server topology with one shared `HA_RECORD_KEY`, then run:
+
+```powershell
+dotnet run --project samples\Redundancy\RedundantClient\RedundantClient.csproj -- `
+  --server opc.tcp://localhost:62543/RedundantServer --autoaccept --nosecurity `
+  --history --history-failover-delay 00:00:15
+```
+
+The workflow first writes a distinctive raw-history marker and reads it back through the active replica. When the client prints `HISTORY: portable continuations ready`, stop the active server. The managed session uses token-reuse takeover, resumes the raw, event, and processed cursors without duplicates or gaps, reads the same marker through the promoted replica, verifies that the promoted writer adds new shared raw and event history, and prints `HISTORY HA OK`.
 
 See [HighAvailability.md](../../../docs/HighAvailability.md) for the redundancy design and the [RedundantServer](../RedundantServer/README.md) sample for the server side.
 
@@ -75,7 +87,7 @@ The **server** log shows the other side of the same events: `HA: replica <id> be
 Whether the `Counter` shows data loss or continuity depends on the **server** profile:
 
 - **`server-eventual` (active/active, eventual consistency, the default).** Every replica writes its own independent `Counter`, so on failover the value does not carry over and the client logs **data loss** (`DATA LOSS: Counter jumped …`). This is the scalable topology.
-- **`server-strong` (active/passive, strong Raft consistency).** The `Counter` rides a linearizable Raft store, so a promoted standby continues it and the client logs **no data loss** (`HA OK: Counter continued …`). Strong consistency needs a fixed odd quorum (3 nodes), so it is **not** `--scale`-able.
+- **`server-strong` (active/passive, strong Raft consistency).** The `Counter` and its Historical Access archive ride a linearizable Raft store, so a promoted standby continues both live state and portable raw/event/processed cursors. The client logs **no data loss** (`HA OK: Counter continued …`). Strong consistency needs a fixed odd quorum (3 nodes), so it is **not** `--scale`-able and requires one shared `HA_RECORD_KEY`.
 
 ## Client replica set (high availability)
 
@@ -83,4 +95,3 @@ Run the client image in multiple containers so each replica is its own process �
 
 - **Independent managed clients** (`CLIENT_MODE=independent`, the compose default, **2, scalable**): every container builds a `ManagedSession` with `WithServerRedundancy()` and reconnects to a healthy peer independently. Scale the client image with `--scale client=N`, or use the `clients` profile in [`RedundantServer/Scale/docker-compose.yml`](../RedundantServer/Scale/docker-compose.yml).
 - **Coordinated single-active replica set** (`CLIENT_MODE=eventual` \| `strong`, the `client-coordinated` profile, **fixed odd quorum, default 3**): each container builds a `RedundantClientSession` over a real Raft cluster among the client replicas (`RaftLeaderElection` + a `RaftSharedKeyValueStore`, or a `HybridSharedKeyValueStore` over CRDT gossip for eventual) — the same building blocks the server uses, mirrored on the client. The processes elect one leader that holds the session and share its protected session secrets, so a follower takes over on leader loss and resumes monitoring. Each replica exposes a transparent `RedundantClientSession` (`ISession`). Because the election is Raft-quorum-based in both eventual and strong, a coordinated set needs an **odd ≥ 3 quorum** (a 2-member set is degenerate); the compose ships a fixed 3-node `client-a/b/c` set. A coordinated set mirrors session secrets through a networked store, so it requires a record protector: set `CLIENT_RECORD_KEY` to a shared base64 32-byte key in production, or `CLIENT_INSECURE=true` for an isolated demo (a well-known, non-secret demo key). See [HighAvailability.md](../../../docs/HighAvailability.md).
-

@@ -221,7 +221,7 @@ namespace Opc.Ua.Tests
                     slots++;
                     string group = field.Name switch
                     {
-                        "StateChanged" or "StateChangedAsync" => "EventSubscription",
+                        "StateChanged" or "StateChangedAsync" or "EventReported" => "EventSubscription",
                         "OnSimpleReadValue" or "OnSimpleWriteValue" or "OnReadValue" or "OnWriteValue" or
                         "OnReadValueAsync" or "OnWriteValueAsync" or "OnSimpleReadValueAsync" or
                         "OnSimpleWriteValueAsync" => "Value",

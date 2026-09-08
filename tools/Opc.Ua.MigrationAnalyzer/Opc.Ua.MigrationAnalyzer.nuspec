@@ -23,7 +23,7 @@
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core.Types" version="$version$" />
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Client" version="$version$" />
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration" version="$version$" />
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Common" version="$version$" />
+        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client" version="$version$" />
       </group>
       <group targetFramework="net48">
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core" version="$version$" />
@@ -31,7 +31,7 @@
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core.Types" version="$version$" />
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Client" version="$version$" />
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration" version="$version$" />
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Common" version="$version$" />
+        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client" version="$version$" />
       </group>
       <group targetFramework="netstandard2.1">
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core" version="$version$" />
@@ -39,7 +39,7 @@
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core.Types" version="$version$" />
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Client" version="$version$" />
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration" version="$version$" />
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Common" version="$version$" />
+        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client" version="$version$" />
       </group>
       <group targetFramework="net8.0">
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core" version="$version$" />
@@ -47,7 +47,7 @@
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core.Types" version="$version$" />
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Client" version="$version$" />
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration" version="$version$" />
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Common" version="$version$" />
+        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client" version="$version$" />
       </group>
       <group targetFramework="net9.0">
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core" version="$version$" />
@@ -55,7 +55,7 @@
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core.Types" version="$version$" />
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Client" version="$version$" />
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration" version="$version$" />
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Common" version="$version$" />
+        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client" version="$version$" />
       </group>
       <group targetFramework="net10.0">
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core" version="$version$" />
@@ -63,7 +63,7 @@
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core.Types" version="$version$" />
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Client" version="$version$" />
         <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration" version="$version$" />
-        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Common" version="$version$" />
+        <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client" version="$version$" />
       </group>
     </dependencies>
   </metadata>

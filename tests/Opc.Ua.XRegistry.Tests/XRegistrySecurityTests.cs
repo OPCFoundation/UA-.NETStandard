@@ -39,7 +39,7 @@ namespace Opc.Ua.XRegistry.Tests
 {
     /// <summary>
     /// Verifies the channel-security policy: a registry mutation always needs a
-    /// <c>SignAndEncrypt</c> channel because a document and its content-derived identity are
+    /// <c>SignAndEncrypt</c> channel because a document and its content lookup are
     /// integrity-critical, while reads follow
     /// <see cref="XRegistryServerOptions.RequireEncryptionForReads"/>.
     /// </summary>
@@ -52,7 +52,9 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task CreateGroupIsRejectedOnAChannelThatIsNotEncryptedAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out Mock<IServerInternal> server);
+            (XRegistryRegistrationNodeManager nodeManager, Mock<IServerInternal> server) =
+                await CreateAddressSpaceAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
 
             CreateGroupMethodStateResult result = await nm.OnCreateGroupAsync(
                 ContextWith(server, MessageSecurityMode.Sign), null!, NodeId.Null, "schemas",
@@ -65,7 +67,9 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task CreateGroupIsAcceptedOnAnEncryptedChannelAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out Mock<IServerInternal> server);
+            (XRegistryRegistrationNodeManager nodeManager, Mock<IServerInternal> server) =
+                await CreateAddressSpaceAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
 
             CreateGroupMethodStateResult result = await nm.OnCreateGroupAsync(
                 ContextWith(server, MessageSecurityMode.SignAndEncrypt), null!, NodeId.Null, "schemas",
@@ -77,7 +81,9 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task GetOrCreateGroupIsRejectedOnAnUnencryptedChannelAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out Mock<IServerInternal> server);
+            (XRegistryRegistrationNodeManager nodeManager, Mock<IServerInternal> server) =
+                await CreateAddressSpaceAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
 
             GetOrCreateGroupMethodStateResult result = await nm.OnGetOrCreateGroupAsync(
                 ContextWith(server, MessageSecurityMode.None), null!, NodeId.Null, "schemas",
@@ -90,7 +96,9 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task CreateResourceIsRejectedOnAnUnencryptedChannelAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out Mock<IServerInternal> server);
+            (XRegistryRegistrationNodeManager nodeManager, Mock<IServerInternal> server) =
+                await CreateAddressSpaceAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
             CreateGroupMethodStateResult group = await nm.OnCreateGroupAsync(
                 nm.SystemContext, null!, NodeId.Null, "schemas", CancellationToken.None)
                 .ConfigureAwait(false);
@@ -106,7 +114,9 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task GetOrCreateResourceIsRejectedOnAnUnencryptedChannelAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out Mock<IServerInternal> server);
+            (XRegistryRegistrationNodeManager nodeManager, Mock<IServerInternal> server) =
+                await CreateAddressSpaceAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
             CreateGroupMethodStateResult group = await nm.OnCreateGroupAsync(
                 nm.SystemContext, null!, NodeId.Null, "schemas", CancellationToken.None)
                 .ConfigureAwait(false);
@@ -120,18 +130,22 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
-        public void AnInProcessCallCarriesNoChannelAndIsAllowed()
+        public async Task AnInProcessCallCarriesNoChannelAndIsAllowedAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out Mock<IServerInternal> server);
+            (XRegistryRegistrationNodeManager nodeManager, Mock<IServerInternal> server) =
+                await CreateAddressSpaceAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
 
             Assert.That(XRegistryRegistrationNodeManager.IsWriteChannelSecure(nm.SystemContext), Is.True,
                 "The server's own bootstrap has no secure channel and must not be blocked.");
         }
 
         [Test]
-        public void ReadsAreAllowedOnAnyChannelByDefault()
+        public async Task ReadsAreAllowedOnAnyChannelByDefaultAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out Mock<IServerInternal> server);
+            (XRegistryRegistrationNodeManager nodeManager, Mock<IServerInternal> server) =
+                await CreateAddressSpaceAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
 
             Assert.Multiple(() =>
             {
@@ -141,10 +155,12 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
-        public void ReadsRequireEncryptionWhenTheOptionIsSet()
+        public async Task ReadsRequireEncryptionWhenTheOptionIsSetAsync()
         {
-            using XRegistryRegistrationNodeManager nm =
-                CreateAddressSpace(out Mock<IServerInternal> server, o => o.RequireEncryptionForReads = true);
+            (XRegistryRegistrationNodeManager nodeManager, Mock<IServerInternal> server) =
+                await CreateAddressSpaceAsync(o => o.RequireEncryptionForReads = true)
+                    .ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
 
             Assert.Multiple(() =>
             {
@@ -155,10 +171,12 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
-        public void WritesRequireEncryptionRegardlessOfTheReadOption()
+        public async Task WritesRequireEncryptionRegardlessOfTheReadOptionAsync()
         {
-            using XRegistryRegistrationNodeManager nm =
-                CreateAddressSpace(out Mock<IServerInternal> server, o => o.RequireEncryptionForReads = false);
+            (XRegistryRegistrationNodeManager nodeManager, Mock<IServerInternal> server) =
+                await CreateAddressSpaceAsync(o => o.RequireEncryptionForReads = false)
+                    .ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
 
             Assert.Multiple(() =>
             {
@@ -177,7 +195,9 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task FileMethodsAreRejectedOnAnUnencryptedChannelAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out Mock<IServerInternal> server);
+            (XRegistryRegistrationNodeManager nodeManager, Mock<IServerInternal> server) =
+                await CreateAddressSpaceAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
             CreateGroupMethodStateResult group = await nm.OnCreateGroupAsync(
                 nm.SystemContext, null!, NodeId.Null, "schemas", CancellationToken.None)
                 .ConfigureAwait(false);
@@ -231,7 +251,9 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task ClosingAHandleThatWroteNothingIsAllowedOnAnyChannelAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out Mock<IServerInternal> server);
+            (XRegistryRegistrationNodeManager nodeManager, Mock<IServerInternal> server) =
+                await CreateAddressSpaceAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
             CreateGroupMethodStateResult group = await nm.OnCreateGroupAsync(
                 nm.SystemContext, null!, NodeId.Null, "schemas", CancellationToken.None)
                 .ConfigureAwait(false);
@@ -259,7 +281,9 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task AttributeMethodsAreRejectedOnAnUnencryptedChannelAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out Mock<IServerInternal> server);
+            (XRegistryRegistrationNodeManager nodeManager, Mock<IServerInternal> server) =
+                await CreateAddressSpaceAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
             CreateGroupMethodStateResult group = await nm.OnCreateGroupAsync(
                 nm.SystemContext, null!, NodeId.Null, "schemas", CancellationToken.None)
                 .ConfigureAwait(false);
@@ -291,8 +315,10 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task ReadingIsRejectedWhenEncryptionIsRequiredForReadsAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
-                out Mock<IServerInternal> server, o => o.RequireEncryptionForReads = true);
+            (XRegistryRegistrationNodeManager nodeManager, Mock<IServerInternal> server) =
+                await CreateAddressSpaceAsync(o => o.RequireEncryptionForReads = true)
+                    .ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
             CreateGroupMethodStateResult group = await nm.OnCreateGroupAsync(
                 nm.SystemContext, null!, NodeId.Null, "schemas", CancellationToken.None)
                 .ConfigureAwait(false);
@@ -321,7 +347,9 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task AHandleCannotBeUsedFromAnotherSessionAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out Mock<IServerInternal> server);
+            (XRegistryRegistrationNodeManager nodeManager, Mock<IServerInternal> server) =
+                await CreateAddressSpaceAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
             CreateGroupMethodStateResult group = await nm.OnCreateGroupAsync(
                 nm.SystemContext, null!, NodeId.Null, "schemas", CancellationToken.None)
                 .ConfigureAwait(false);
@@ -358,8 +386,10 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task ClosingASessionReleasesItsHandlesAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
-                out Mock<IServerInternal> server, o => o.MaxConcurrentUploads = 1);
+            (XRegistryRegistrationNodeManager nodeManager, Mock<IServerInternal> server) =
+                await CreateAddressSpaceAsync(o => o.MaxConcurrentUploads = 1)
+                    .ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
             CreateGroupMethodStateResult group = await nm.OnCreateGroupAsync(
                 nm.SystemContext, null!, NodeId.Null, "schemas", CancellationToken.None)
                 .ConfigureAwait(false);
@@ -377,7 +407,11 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.That(ServiceResult.IsGood(opened.ServiceResult), Is.True, "Precondition.");
 
             // The session goes away without closing the handle; the budget must come back.
-            nm.SessionClosing(session.OperationContext!, sessionId, deleteSubscriptions: true);
+            await nm.SessionClosingAsync(
+                session.OperationContext!,
+                sessionId,
+                deleteSubscriptions: true,
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             OpenMethodStateResult next = await resource.Open.OnCallAsync!(
                 ContextWith(server, MessageSecurityMode.SignAndEncrypt), resource.Open,
@@ -418,8 +452,9 @@ namespace Opc.Ua.XRegistry.Tests
             return new ServerSystemContext(server.Object, operation);
         }
 
-        private static XRegistryRegistrationNodeManager CreateAddressSpace(
-            out Mock<IServerInternal> server,
+        private static async Task<(
+            XRegistryRegistrationNodeManager Manager,
+            Mock<IServerInternal> Server)> CreateAddressSpaceAsync(
             System.Action<XRegistryServerOptions>? configure = null)
         {
             var options = new XRegistryServerOptions
@@ -428,10 +463,13 @@ namespace Opc.Ua.XRegistry.Tests
             };
             configure?.Invoke(options);
 
-            server = XRegistryServerTestHarness.CreateServer(options.RegistryNamespaceUri);
+            Mock<IServerInternal> server =
+                XRegistryServerTestHarness.CreateServer(options.RegistryNamespaceUri);
             var nm = new XRegistryRegistrationNodeManager(server.Object, null!, options);
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
-            return nm;
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
+            return (nm, server);
         }
 
         private const byte kWriteMode = 2;

@@ -190,11 +190,15 @@ namespace Opc.Ua.Types.Tests.State
             node.OnReadValue = ReadValue;
             node.OnWriteValue = ReadValue;
             node.StateChangedAsync += static (_, _, _, _) => default;
+            NodeStateReportEventHandler reported = static (_, _, _) => { };
+            node.EventReported += reported;
             Assert.That(NodeStateMemoryEvidence.CallbackGroups(node),
-                Is.EqualTo(("Behavior+EventSubscription+Value", 4)));
+                Is.EqualTo(("Behavior+EventSubscription+Value", 5)));
             node.OnReadValue += ReadValue;
-            Assert.That(NodeStateMemoryEvidence.CallbackGroups(node).Slots, Is.EqualTo(4));
+            Assert.That(NodeStateMemoryEvidence.CallbackGroups(node).Slots, Is.EqualTo(5));
             node.OnStateChangedAsync = null;
+            Assert.That(NodeStateMemoryEvidence.CallbackGroups(node), Is.EqualTo(("EventSubscription+Value", 4)));
+            node.EventReported -= reported;
             Assert.That(NodeStateMemoryEvidence.CallbackGroups(node), Is.EqualTo(("EventSubscription+Value", 3)));
             NodeState synthetic = NodeStateMemoryScenarios.Construct(
                 NodeStateMemoryScenarios.Select("Variable.Synthetic.Callbacks"), 17);
