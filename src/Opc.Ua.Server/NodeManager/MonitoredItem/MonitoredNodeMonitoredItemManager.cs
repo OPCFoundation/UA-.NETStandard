@@ -402,6 +402,11 @@ namespace Opc.Ua.Server
             bool unsubscribe)
         {
             MonitoredNode2 monitoredNode;
+            if (MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? registeredItem) &&
+                !ReferenceEquals(registeredItem, monitoredItem))
+            {
+                return (null, StatusCodes.BadMonitoredItemIdInvalid);
+            }
             // handle unsubscribe.
             if (unsubscribe)
             {
@@ -411,13 +416,24 @@ namespace Opc.Ua.Server
                     return (null, StatusCodes.BadNodeIdUnknown);
                 }
 
+                if (monitoredNode.EventMonitoredItems.TryGetValue(
+                    monitoredItem.Id, out IEventMonitoredItem? registeredEvent) &&
+                    !ReferenceEquals(registeredEvent, monitoredItem))
+                {
+                    return (monitoredNode, StatusCodes.BadMonitoredItemIdInvalid);
+                }
                 monitoredNode.Remove(monitoredItem);
-                MonitoredItems.TryRemove(monitoredItem.Id, out _);
 
                 // check if node is no longer being monitored.
                 if (!monitoredNode.HasMonitoredItems)
                 {
                     MonitoredNodes.Remove(source.NodeId);
+                }
+                if (!MonitoredNodes.Values.Any(node =>
+                    node.EventMonitoredItems.TryGetValue(monitoredItem.Id, out IEventMonitoredItem? remaining) &&
+                    ReferenceEquals(remaining, monitoredItem)))
+                {
+                    MonitoredItems.TryRemove(monitoredItem.Id, out _);
                 }
 
                 return (monitoredNode, ServiceResult.Good);
@@ -444,6 +460,12 @@ namespace Opc.Ua.Server
 
             // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
             // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
+            if (monitoredNode.EventMonitoredItems.TryGetValue(
+                monitoredItem.Id, out IEventMonitoredItem? existingEvent) &&
+                !ReferenceEquals(existingEvent, monitoredItem))
+            {
+                return (monitoredNode, StatusCodes.BadMonitoredItemIdInvalid);
+            }
             monitoredNode.EventMonitoredItems.TryRemove(monitoredItem.Id, out _);
 
             // this links the node to specified monitored item and ensures all events
@@ -451,7 +473,18 @@ namespace Opc.Ua.Server
             monitoredNode.Add(monitoredItem);
 
             // A Server subscription shares this item across the manager's root notifiers.
-            MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
+            if (!MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem) &&
+                (!MonitoredItems.TryGetValue(monitoredItem.Id, out registeredItem) ||
+                    !ReferenceEquals(registeredItem, monitoredItem)))
+            {
+                monitoredNode.Remove(monitoredItem);
+                if (!monitoredNode.HasMonitoredItems)
+                {
+                    MonitoredNodes.Remove(source.NodeId);
+                    monitoredNode.Dispose();
+                }
+                return (null, StatusCodes.BadMonitoredItemIdInvalid);
+            }
 
             return (monitoredNode, ServiceResult.Good);
         }

@@ -894,6 +894,84 @@ namespace Opc.Ua.Server.Tests
 
         [TestCase(false)]
         [TestCase(true)]
+        public void EventRegistrationRejectsConflictingInstancesWithoutRemovingTheOwner(bool anotherSource)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                using var manager = new MonitoredNodeMonitoredItemManager(nodeManager.Object, server.Object);
+                var source = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("EventOwner", 1),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                BaseObjectState target = anotherSource ? new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("ConflictingSource", 1),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                } : source;
+                using MonitoredItem owner = CreateEventMonitoredItem(
+                    server.Object, nodeManager.Object, new object(), source.NodeId);
+                using MonitoredItem conflicting = CreateEventMonitoredItem(
+                    server.Object, nodeManager.Object, new object(), target.NodeId);
+                ServerSystemContext context = server.Object.DefaultSystemContext.Copy(new OperationContext(owner));
+                (MonitoredNode2 registered, ServiceResult first) = manager.SubscribeToEvents(
+                    context, source, owner, unsubscribe: false);
+
+                (_, ServiceResult rejected) = manager.SubscribeToEvents(
+                    context, target, conflicting, unsubscribe: false);
+                (_, ServiceResult rejectedCleanup) = manager.SubscribeToEvents(
+                    context, target, conflicting, unsubscribe: true);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(first.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+                    Assert.That(rejectedCleanup.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+                    Assert.That(manager.MonitoredItems[owner.Id], Is.SameAs(owner));
+                    Assert.That(registered!.EventMonitoredItems[owner.Id], Is.SameAs(owner));
+                });
+            }
+        }
+
+        [Test]
+        public void SharedEventRegistrationRemainsOwnedUntilItsLastRootUnsubscribes()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                using var manager = new MonitoredNodeMonitoredItemManager(nodeManager.Object, server.Object);
+                var first = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("FirstRoot", 1),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                var second = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("SecondRoot", 1),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                using MonitoredItem item = CreateEventMonitoredItem(
+                    server.Object, nodeManager.Object, new object(), ObjectIds.Server);
+                ServerSystemContext context = server.Object.DefaultSystemContext.Copy(new OperationContext(item));
+                Assert.That(manager.SubscribeToEvents(context, first, item, false).Item2.StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(manager.SubscribeToEvents(context, second, item, false).Item2.StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+
+                manager.SubscribeToEvents(context, first, item, true);
+                Assert.That(manager.MonitoredItems.TryGetValue(item.Id, out IMonitoredItem remaining), Is.True);
+                Assert.That(remaining, Is.SameAs(item));
+
+                manager.SubscribeToEvents(context, second, item, true);
+                Assert.That(manager.MonitoredItems, Is.Empty);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
         public void ManagerLifecycleHandlesIdempotenceAndConflictingOwnership(bool useSamplingGroups)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(
