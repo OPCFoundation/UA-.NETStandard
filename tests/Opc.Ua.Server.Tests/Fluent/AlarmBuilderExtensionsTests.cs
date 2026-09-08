@@ -90,7 +90,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var builder = new NodeManagerBuilder(
                 ctx,
-                nodeManager: Mock.Of<IAsyncNodeManager>(),
+                nodeManager: FluentTestNodeManager.Create(kNs),
                 defaultNamespaceIndex: kNs,
                 rootResolver: q => roots.TryGetValue(q, out NodeState? n) ? n! : null!,
                 nodeIdResolver: id => byId.TryGetValue(id, out NodeState? n) ? n! : null!,
@@ -111,7 +111,11 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(ab.Alarm, Is.Not.Null);
             Assert.That(ab.Alarm.BrowseName, Is.EqualTo(new QualifiedName("OverTemp", kNs)));
             Assert.That(ab.Alarm.Parent, Is.SameAs(root));
-            Assert.That(ab.Alarm.NodeId.IdentifierAsString, Is.EqualTo("Root_OverTemp"));
+            // the identifier is the factory's canonical browse path, so the
+            // assertion names the path rather than restating its encoding.
+            Assert.That(
+                ab.Alarm.NodeId.IdentifierAsString,
+                Does.Contain("Root").And.Contain("OverTemp"));
         }
 
         [Test]

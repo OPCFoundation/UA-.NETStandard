@@ -119,7 +119,13 @@ namespace Opc.Ua.Di.Server
                   CombineNamespaces(configuration))
         {
             m_instanceNamespaceUri = GetInstanceNamespaceUri(configuration);
-            SystemContext.NodeIdFactory = this;
+
+            // devices live in the server's own instance namespace. Their
+            // parents - DeviceSet and the type declarations below it - come
+            // from the DI model, and a subclass registers its own model
+            // namespaces ahead of the instance one, so neither the first
+            // namespace nor the parent's is the right place to mint into.
+            NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(InstanceNamespaceIndex);
             PostSetupRunner = postSetupRunner;
         }
 
@@ -161,7 +167,13 @@ namespace Opc.Ua.Di.Server
                   CombineNamespaces(configuration, additionalNamespaceUris))
         {
             m_instanceNamespaceUri = GetInstanceNamespaceUri(configuration);
-            SystemContext.NodeIdFactory = this;
+
+            // devices live in the server's own instance namespace. Their
+            // parents - DeviceSet and the type declarations below it - come
+            // from the DI model, and a subclass registers its own model
+            // namespaces ahead of the instance one, so neither the first
+            // namespace nor the parent's is the right place to mint into.
+            NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(InstanceNamespaceIndex);
             PostSetupRunner = postSetupRunner;
         }
 
@@ -239,22 +251,6 @@ namespace Opc.Ua.Di.Server
 
         /// <inheritdoc/>
         public ArrayOf<string> ServerProfiles => BuildServerProfiles();
-
-        /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState instance &&
-                instance.Parent != null)
-            {
-                string parentId = instance.Parent.NodeId.IdentifierAsString;
-
-                return new NodeId(
-                    $"{parentId}_{instance.SymbolicName}",
-                    InstanceNamespaceIndex);
-            }
-
-            return node.NodeId;
-        }
 
         /// <summary>
         /// References an instance node from the Machinery <c>Machines</c> folder

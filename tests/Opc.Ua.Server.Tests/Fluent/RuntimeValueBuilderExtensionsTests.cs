@@ -255,7 +255,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     NamespaceUris = CreateNamespaceTable()
                 };
                 harness.BuildVariable();
-                harness.Builder = harness.CreateBuilder(ctx, Mock.Of<IAsyncNodeManager>());
+                harness.Builder = harness.CreateBuilder(ctx, FluentTestNodeManager.Create(kNs));
                 return harness;
             }
 

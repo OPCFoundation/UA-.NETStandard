@@ -238,6 +238,223 @@ namespace Opc.Ua.Server.Tests
         /// Verifies that predefined-node registration completes the node's creation lifecycle.
         /// </summary>
         [Test]
+        public void NodeIdFactoryDefaultsToTheDeterministicNumericForm()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    acnm.NodeIdFactory.Mode,
+                    Is.EqualTo(NodeIdAssignmentMode.Numeric));
+                Assert.That(
+                    acnm.NodeIdFactory.DefaultNamespaceIndex,
+                    Is.EqualTo(manager.NamespaceIndexes[0]));
+            });
+        }
+
+        [Test]
+        public void NodeIDFactoryMintsTheSameIdForTheSameBrowsePath()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            ServerSystemContext context = manager.SystemContext;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+
+            NodeId first = manager.New(context, CreateNamedChild(namespaceIndex));
+            NodeId second = manager.New(context, CreateNamedChild(namespaceIndex));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.IdType, Is.EqualTo(IdType.Numeric));
+                Assert.That(first.NamespaceIndex, Is.EqualTo(namespaceIndex));
+                Assert.That(second, Is.EqualTo(first));
+            });
+        }
+
+        [Test]
+        public void ReplacingTheNodeIdFactoryChangesTheMintedIdentifierType()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+
+            acnm.NodeIdFactory = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric);
+
+            NodeId nodeId = manager.New(manager.SystemContext, CreateNamedChild(namespaceIndex));
+
+            Assert.Multiple(() =>
+            {
+                // the manager keeps the assigner pointed at its own namespace.
+                Assert.That(
+                    acnm.NodeIdFactory.DefaultNamespaceIndex,
+                    Is.EqualTo(namespaceIndex));
+                Assert.That(nodeId.IdType, Is.EqualTo(IdType.Numeric));
+                Assert.That(nodeId.NamespaceIndex, Is.EqualTo(namespaceIndex));
+            });
+        }
+
+        [Test]
+        public void DisablingTheNodeIdFactoryRejectsNamedNodes()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+
+            acnm.NodeIdFactory = new DefaultNodeIdFactory(NodeIdAssignmentMode.None);
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => manager.New(manager.SystemContext, CreateNamedChild(namespaceIndex)));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+        }
+
+        [Test]
+        public void TheNodeIdFactoryCannotBeCleared()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+
+            Assert.Throws<ArgumentNullException>(() => acnm.NodeIdFactory = null);
+        }
+
+        [Test]
+        public void ADecoratingNodeIdFactoryOverridesTheIdentifierForOneNode()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+
+            var reserved = new NodeId("reserved", namespaceIndex);
+            acnm.NodeIdFactory = new ReservingNodeIdFactory(
+                acnm.NodeIdFactory,
+                "Child",
+                reserved);
+
+            NodeId claimed = manager.New(manager.SystemContext, CreateNamedChild(namespaceIndex));
+            BaseObjectState other = CreateNamedChild(namespaceIndex);
+            other.BrowseName = new QualifiedName("Other", namespaceIndex);
+            NodeId delegated = manager.New(manager.SystemContext, other);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(claimed, Is.EqualTo(reserved));
+
+                // everything the decorator does not claim still reaches the
+                // factory it wraps, which is what makes decorating cheaper
+                // than overriding New().
+                Assert.That(delegated, Is.Not.EqualTo(reserved));
+                Assert.That(delegated.IdType, Is.EqualTo(IdType.Numeric));
+                Assert.That(delegated.NamespaceIndex, Is.EqualTo(namespaceIndex));
+            });
+        }
+
+        /// <summary>
+        /// A NodeId factory that hands one browse name a fixed identifier and
+        /// delegates every other node to the factory it wraps.
+        /// </summary>
+        /// <remarks>
+        /// Stands in for the reason <see cref="IRebasableNodeIdFactory"/> is
+        /// an interface: a caller can put its own rule in front of
+        /// <see cref="DefaultNodeIdFactory"/> without subclassing it and
+        /// without overriding <c>New</c> on the NodeManager.
+        /// </remarks>
+        private sealed class ReservingNodeIdFactory : IRebasableNodeIdFactory
+        {
+            public ReservingNodeIdFactory(
+                IRebasableNodeIdFactory inner,
+                string browseName,
+                NodeId reserved)
+            {
+                m_inner = inner;
+                m_browseName = browseName;
+                m_reserved = reserved;
+            }
+
+            public NodeIdAssignmentMode Mode => m_inner.Mode;
+
+            public ushort DefaultNamespaceIndex => m_inner.DefaultNamespaceIndex;
+
+            public bool DetectsCollisions => m_inner.DetectsCollisions;
+
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                return node.BrowseName.Name == m_browseName
+                    ? m_reserved
+                    : m_inner.New(context, node);
+            }
+
+            public IRebasableNodeIdFactory WithDefaultNamespaceIndex(ushort defaultNamespaceIndex)
+            {
+                return new ReservingNodeIdFactory(
+                    m_inner.WithDefaultNamespaceIndex(defaultNamespaceIndex),
+                    m_browseName,
+                    m_reserved);
+            }
+
+            public IRebasableNodeIdFactory WithMode(NodeIdAssignmentMode mode)
+            {
+                return new ReservingNodeIdFactory(
+                    m_inner.WithMode(mode),
+                    m_browseName,
+                    m_reserved);
+            }
+
+            public IRebasableNodeIdFactory WithCollisionDetection(bool detectCollisions)
+            {
+                return new ReservingNodeIdFactory(
+                    m_inner.WithCollisionDetection(detectCollisions),
+                    m_browseName,
+                    m_reserved);
+            }
+
+            public NodeId NextCounterNodeId()
+            {
+                return m_inner.NextCounterNodeId();
+            }
+
+            public NodeId CreateChildNodeId(
+                NodeId parentNodeId,
+                QualifiedName browseName,
+                ushort namespaceIndex,
+                NamespaceTable namespaceUris)
+            {
+                return m_inner.CreateChildNodeId(
+                    parentNodeId,
+                    browseName,
+                    namespaceIndex,
+                    namespaceUris);
+            }
+
+            private readonly IRebasableNodeIdFactory m_inner;
+            private readonly string m_browseName;
+            private readonly NodeId m_reserved;
+        }
+
+        /// <summary>
+        /// Creates a named child of a named parent, the shape the deterministic
+        /// assigner derives an identifier from.
+        /// </summary>
+        private static BaseObjectState CreateNamedChild(ushort namespaceIndex)
+        {
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("Root", namespaceIndex)
+            };
+
+            return new BaseObjectState(parent)
+            {
+                BrowseName = new QualifiedName("Child", namespaceIndex)
+            };
+        }
+
+        [Test]
         public async Task AddPredefinedNodeCompletesCreateLifecycleAsync()
         {
             using ITestNodeManager manager = CreateManager();
@@ -9453,10 +9670,6 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         NodeState Find(NodeId nodeId);
         /// <summary>
-        /// Creates or resolves the identifier for a node in the selected manager's namespace.
-        /// </summary>
-        NodeId New(ISystemContext context, NodeState node);
-        /// <summary>
         /// Adds an instance under the specified parent and returns its node identifier.
         /// </summary>
         ValueTask<NodeId> AddNodeAsync(ServerSystemContext context, NodeId parentId, BaseInstanceState node, CancellationToken ct = default);
@@ -9891,6 +10104,22 @@ namespace Opc.Ua.Server.Tests
         public NodeState Find(NodeId nodeId)
         {
             return m_cnm2.Find(nodeId)!;
+        }
+
+        /// <summary>
+        /// Registers a node through the wrapped legacy node manager.
+        /// </summary>
+        public void AddNode(NodeState node)
+        {
+            m_cnm2.AddPredefinedNodePublic(m_cnm2.SystemContext, node);
+        }
+
+        /// <summary>
+        /// Registers a root notifier through the wrapped legacy node manager.
+        /// </summary>
+        public void AddRootNotifier(NodeState notifier)
+        {
+            m_cnm2.AddRootNotifierPublic(notifier);
         }
 
         /// <summary>

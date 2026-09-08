@@ -144,10 +144,6 @@ namespace Generators
                   Opc.Ua.Machinery.Namespaces.Machinery,
                   Opc.Ua.OpenUsd.Namespaces.OpenUSD)
         {
-            // The base constructor points SystemContext.NodeIdFactory at itself;
-            // the New() override below takes over so every instance child gets a
-            // NodeId derived from its parent rather than the type-level one.
-            SystemContext.NodeIdFactory = this;
             m_options = options?.Value ?? new GeneratorDeviceIntegrationOptions();
             if (m_options.GeneratorCount is < 1 or > 100)
             {
@@ -190,19 +186,6 @@ namespace Generators
         /// Gets whether the fault schedule is running.
         /// </summary>
         internal bool InjectFaults => m_options.InjectFaults;
-
-        /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState { Parent: not null } instance)
-            {
-                string parentId = instance.Parent.NodeId.IdentifierAsString;
-                return new NodeId(
-                    $"{parentId}_{instance.SymbolicName}",
-                    InstanceNamespaceIndex);
-            }
-            return node.NodeId;
-        }
 
         /// <summary>
         /// Creates and registers a generator set organised by the DI

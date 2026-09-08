@@ -76,7 +76,6 @@ namespace Opc.Ua.SourceGeneration
                         global::Opc.Ua.ApplicationConfiguration configuration)
                         : base(server, configuration, {{Tokens.NamespaceUri}}{{Tokens.AdditionalNamespaceUris}})
                     {
-                        SystemContext.NodeIdFactory = this;
                     }
 
                     /// <summary>
