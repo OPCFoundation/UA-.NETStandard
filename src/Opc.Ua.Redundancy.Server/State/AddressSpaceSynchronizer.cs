@@ -68,7 +68,8 @@ namespace Opc.Ua.Redundancy.Server
             Func<bool>? isWriter,
             ILogger? logger,
             Func<NodeId, bool>? ownsNode,
-            string? partitionId)
+            string? partitionId,
+            ReplicaNodeIdFactory? identity = null)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_addressSpace = addressSpace ?? throw new ArgumentNullException(nameof(addressSpace));
@@ -76,6 +77,7 @@ namespace Opc.Ua.Redundancy.Server
             m_logger = logger;
             m_ownsNode = ownsNode ?? (static _ => true);
             m_partitionId = partitionId;
+            m_identity = identity;
             m_onChanged = OnLocalNodeChanged;
             m_onNodeAdded = OnLocalNodeAdded;
             m_onNodeRemoved = OnLocalNodeRemoved;
@@ -105,14 +107,16 @@ namespace Opc.Ua.Redundancy.Server
             ILeaderElection election,
             ILogger? logger,
             Func<NodeId, bool>? ownsNode,
-            string? partitionId)
+            string? partitionId,
+            ReplicaNodeIdFactory? identity = null)
             : this(
                 store,
                 addressSpace,
                 () => election?.IsLeader ?? false,
                 logger,
                 ownsNode,
-                partitionId)
+                partitionId,
+                identity)
         {
             m_election = election ?? throw new ArgumentNullException(nameof(election));
             m_onLeadershipChanged = OnLeadershipChanged;
@@ -426,7 +430,7 @@ namespace Opc.Ua.Redundancy.Server
                     continue;
                 }
                 ValidateOwnedTree(node);
-                ByteString payload = NodeStateSerializer.Serialize(m_addressSpace.Context, node);
+                ByteString payload = SerializeLocalTree(node);
                 await m_store
                     .UpsertNodeAsync(
                         new StoredNode(node.NodeId, payload),
@@ -564,6 +568,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 return;
             }
+            m_identity?.ValidateRegistration(m_addressSpace.Context, node);
             ValidateOwnedTree(node);
             AttachStateChangedTree(node);
             if (!IsApplyingInbound)
@@ -574,10 +579,11 @@ namespace Opc.Ua.Redundancy.Server
             {
                 return;
             }
+            NodeState root = GetReplicationRoot(node);
             Enqueue(OutboundOp.ForUpsert(
-                node.NodeId,
-                NodeStateSerializer.Serialize(m_addressSpace.Context, node)));
-            EnqueueVariableValues(node);
+                root.NodeId,
+                SerializeLocalTree(root)));
+            EnqueueVariableValues(root);
         }
 
         private void OnLocalNodeRemoved(NodeId nodeId)
@@ -641,9 +647,7 @@ namespace Opc.Ua.Redundancy.Server
                 AttachStateChangedTree(replicationRoot);
                 Enqueue(OutboundOp.ForUpsert(
                     replicationRoot.NodeId,
-                    NodeStateSerializer.Serialize(
-                        m_addressSpace.Context,
-                        replicationRoot)));
+                    SerializeLocalTree(replicationRoot)));
                 EnqueueVariableValues(replicationRoot);
             }
         }
@@ -663,7 +667,17 @@ namespace Opc.Ua.Redundancy.Server
 
         private void Enqueue(OutboundOp op)
         {
+            if (op.Kind == OutboundOpKind.Value)
+            {
+                m_identity?.ValidateValue(m_addressSpace.Context, op.Value);
+            }
             m_outbound?.Writer.TryWrite(op);
+        }
+
+        private ByteString SerializeLocalTree(NodeState node)
+        {
+            m_identity?.ValidateReplicatedTree(m_addressSpace.Context, node);
+            return NodeStateSerializer.Serialize(m_addressSpace.Context, node);
         }
 
         private void EnqueueVariableValues(NodeState node)
@@ -695,13 +709,12 @@ namespace Opc.Ua.Redundancy.Server
                 !node.NodeId.IsNull &&
                 m_ownsNode(node.NodeId))
             {
+                var value = new DataValue(variable.Value, variable.StatusCode, variable.Timestamp);
+                m_identity?.ValidateValue(m_addressSpace.Context, value);
                 await m_store
                     .WriteValueAsync(
                         node.NodeId,
-                        new DataValue(
-                            variable.Value,
-                            variable.StatusCode,
-                            variable.Timestamp),
+                        value,
                         cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -877,6 +890,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 return;
             }
+            m_identity?.ReserveId(change.NodeId);
             if (change.Sequence > 0 &&
                 m_store is INodeStateSnapshotStore snapshotStore)
             {
@@ -1021,6 +1035,7 @@ namespace Opc.Ua.Redundancy.Server
             NodeState source = NodeStateSerializer.Deserialize(
                 m_addressSpace.Context,
                 payload);
+            m_identity?.AuthorizeReplicatedTree(m_addressSpace.Context, source);
             if (source.NodeId != nodeId || !m_ownsNode(source.NodeId))
             {
                 throw new InvalidOperationException(
@@ -1036,6 +1051,7 @@ namespace Opc.Ua.Redundancy.Server
             ulong sequence,
             CancellationToken cancellationToken)
         {
+            using InboundApplyScope inbound = EnterInboundApply();
             m_addressSpace.TryGetNode(nodeId, out NodeState? existingNode);
             Dictionary<NodeId, DataValue>? preservedValues = existingNode == null
                 ? null
@@ -1049,6 +1065,7 @@ namespace Opc.Ua.Redundancy.Server
                     m_addressSpace.Context,
                     existingNode,
                     source);
+            m_identity?.AuthorizeReplicatedTree(m_addressSpace.Context, node);
             if (preservedValues is { Count: > 0 })
             {
                 RestoreVariableValues(node, preservedValues);
@@ -1212,6 +1229,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private void ApplyValueChange(NodeId nodeId, in DataValue value, ulong sequence)
         {
+            m_identity?.ValidateValue(m_addressSpace.Context, value);
             lock (m_lock)
             {
                 if (m_disposed ||
@@ -1604,6 +1622,7 @@ namespace Opc.Ua.Redundancy.Server
         private readonly Func<bool> m_isWriter;
         private readonly Func<NodeId, bool> m_ownsNode;
         private readonly string? m_partitionId;
+        private readonly ReplicaNodeIdFactory? m_identity;
         private readonly ILeaderElection? m_election;
         private readonly ILogger? m_logger;
         private readonly NodeStateChangedHandler m_onChanged;

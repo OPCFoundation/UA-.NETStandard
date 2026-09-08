@@ -96,6 +96,7 @@ namespace Opc.Ua.Redundancy.Server
 
             var options = new DistributedAddressSpaceOptions();
             configure?.Invoke(options);
+            builder.Services.TryAddSingleton(options);
             if (options.UseLeaderElection && string.IsNullOrWhiteSpace(options.LeaseKey))
             {
                 throw new ArgumentException(
@@ -151,6 +152,8 @@ namespace Opc.Ua.Redundancy.Server
                     RecordProtectionGuard.ResolveProtectorOrThrow(sp),
                     options.UseLeaderElection ? options.LeaseKey : null));
             builder.Services.AddSingleton<IServerStartupTask>(
+                sp => sp.GetRequiredService<DistributedAddressSpaceStartupTask>());
+            builder.Services.AddSingleton<IServerPreStartupTask>(
                 sp => sp.GetRequiredService<DistributedAddressSpaceStartupTask>());
 
             // Injectable read/write value cache over the distributed node-state

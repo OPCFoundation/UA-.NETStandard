@@ -312,6 +312,20 @@ for the before/after and
 [Custom node types and assignment control](NodeManagers.md#custom-node-types-and-assignment-control)
 for the runtime rules.
 
+## Adopting replica-consistent NodeIds
+
+When moving a custom 1.5.378 redundant deployment to the 2.0 shared address-space
+modules, configure [`UseReplicaNodeIdentity`](ReplicaNodeIdentity.md) with the same
+ordered model/instance namespace list on every replica. Namespace 1 remains local
+to each ApplicationUri; shared namespaces start at index 2. Do not assume that
+previously clock-seeded counters or namespace registration order form a portable
+identity contract. Preserve existing agreed IDs explicitly where compatible, or
+plan an offline namespace/identifier migration and client cutover.
+
+Unbound legacy shared state is not automatically adopted or renumbered. The
+identity module refuses unknown or conflicting stored contracts; see its
+new-store provisioning and migration limits before attaching an existing store.
+
 ## Removed members on ISession
 
 `ISession.SessionDiagnostics` is removed. It handed out the whole mutable

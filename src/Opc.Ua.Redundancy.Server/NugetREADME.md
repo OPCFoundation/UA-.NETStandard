@@ -17,6 +17,7 @@ Wire the distributed address space and (optionally) shared sessions through the 
 ```csharp
 services.AddOpcUa()
     .AddServer(...)
+    .UseReplicaNodeIdentity("replica-set", ["urn:example:model", "urn:example:instances"])
     .UseDistributedAddressSpace(distributed =>
     {
         distributed.KeyValueStoreFactory = _ => new InMemorySharedKeyValueStore();
@@ -25,6 +26,16 @@ services.AddOpcUa()
 ```
 
 The single-instance defaults remain in effect until a shared store is supplied, so the same server binary runs stand-alone or as part of a replica set.
+
+Replica-set address spaces require `UseReplicaNodeIdentity` with the same ordered
+namespace list and assignment mode on every replica. Shared slots start at index
+2; ApplicationUri and built-in diagnostics remain local. The standard factory
+derives identical wire NodeIds, and hydration preserves supplied root/child IDs.
+Enable `writerAssignedIds` only for active/passive writer allocations; independent
+active/active entities need stable keys or explicit IDs. Protected store contracts
+and pre-merge gossip descriptors reject incompatible replicas. See
+[Replica-consistent NodeIds](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/ReplicaNodeIdentity.md)
+for direct construction, hybrid provisioning and legacy-state restrictions.
 
 Distributed address-space replication follows each node manager's declared non-standard `NamespaceUris`; namespace-zero infrastructure remains local to each replica. Node managers that use a custom ownership partition and return `null` for `NamespaceUris` must implement `ILocalAddressSpaceOwnership` with a stable `PartitionId` and an `OwnsNode(NodeId)` predicate.
 

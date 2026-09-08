@@ -91,6 +91,27 @@ namespace Opc.Ua.Redundancy.Server
             return DeserializePayload(context, payload);
         }
 
+        internal static HashSet<NodeId> GetDescendantNodeIds(ISystemContext context, NodeState node)
+        {
+            var ids = new HashSet<NodeId>();
+            CollectDescendantNodeIds(context, node, ids);
+            return ids;
+        }
+
+        private static void CollectDescendantNodeIds(ISystemContext context, NodeState node, HashSet<NodeId> ids)
+        {
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (!child.NodeId.IsNull)
+                {
+                    ids.Add(child.NodeId);
+                }
+                CollectDescendantNodeIds(context, child, ids);
+            }
+        }
+
         internal static NodeState UpdateExisting(
             ISystemContext context,
             NodeState existingNode,

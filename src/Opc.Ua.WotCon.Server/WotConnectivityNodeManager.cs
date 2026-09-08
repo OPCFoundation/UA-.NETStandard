@@ -79,9 +79,11 @@ namespace Opc.Ua.WotCon.Server
 
             // counter identifiers: assets are (re)discovered at runtime and
             // reuse browse names across generations.
-            NodeIdFactory = NodeIdFactory
-                .WithMode(NodeIdAssignmentMode.Counter)
-                .WithDefaultNamespaceIndex(AssetNamespaceIndex);
+            NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(AssetNamespaceIndex);
+            if (NodeIdFactory is not INodeIdFactoryPolicy)
+            {
+                NodeIdFactory = NodeIdFactory.WithMode(NodeIdAssignmentMode.Counter);
+            }
             m_registry = new AssetRegistry(this, options, m_logger);
         }
 

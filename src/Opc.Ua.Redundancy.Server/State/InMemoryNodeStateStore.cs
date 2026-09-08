@@ -284,6 +284,21 @@ namespace Opc.Ua.Redundancy.Server
             ISequencedNodeStateStore.EnumerateNodesWithSequenceAsync(
                 [EnumeratorCancellation] CancellationToken ct)
         {
+            await foreach ((IStoredNode node, ulong sequence) in EnumerateRetainedNodesAsync(ct).ConfigureAwait(false))
+            {
+                if (!node.Payload.IsEmpty)
+                {
+                    yield return (node, sequence);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reads live topology and retained tombstones so identity allocation can reserve both before authoring.
+        /// </summary>
+        internal async IAsyncEnumerable<(IStoredNode Node, ulong Sequence)> EnumerateRetainedNodesAsync(
+            [EnumeratorCancellation] CancellationToken ct)
+        {
             await foreach (KeyValuePair<string, ByteString> entry in m_store
                 .ScanAsync(NodePrefix, ct)
                 .ConfigureAwait(false))
@@ -291,10 +306,7 @@ namespace Opc.Ua.Redundancy.Server
                 if (TryParseNodeId(entry.Key, NodePrefix, out NodeId id))
                 {
                     (ulong sequence, ByteString payload) = ReadRecord(entry.Key, entry.Value);
-                    if (!payload.IsEmpty)
-                    {
-                        yield return (new StoredNode(id, payload), sequence);
-                    }
+                    yield return (new StoredNode(id, payload), sequence);
                 }
             }
         }

@@ -471,6 +471,29 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         /// <summary>
+        /// Rejects replicated startup before accessing the address space when no fixed identity policy was configured.
+        /// </summary>
+        [Test]
+        public async Task ReplicatedStartupRequiresNodeIdentityConfigurationAsync()
+        {
+            await using var coordinator = new RaftSharedKeyValueStore(
+                DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
+            var election = new Mock<ILeaderElection>();
+            var server = new Mock<IServerInternal>(MockBehavior.Strict);
+            await using var startup = new DistributedAddressSpaceStartupTask(coordinator, election.Object);
+
+            await Assert.ThatAsync(
+                async () => await startup.OnServerStartedAsync(server.Object).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadConfigurationError)).ConfigureAwait(false);
+
+            election.Verify(value => value.TryAcquireOrRenewAsync(It.IsAny<CancellationToken>()), Times.Never);
+            server.VerifyNoOtherCalls();
+            Assert.That(startup.NodeStateStoreRegistry, Is.Null);
+        }
+
+        /// <summary>
         /// Wires a hosted registry and a directly constructed store to the same strong coordinator and real CRDT bulk.
         /// </summary>
         [Test]
@@ -478,8 +501,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.CreateEmpty(telemetry);
+            context.NamespaceUris.GetIndexOrAppend("urn:test:hybrid-application");
             context.NamespaceUris.GetIndexOrAppend("urn:test:shared-hybrid");
+            var identity = new ReplicaNodeIdFactory("shared-hybrid", ["urn:test:shared-hybrid"]);
             var server = new Mock<IServerInternal>();
+            server.As<INodeIdFactoryProvider>().Setup(s => s.NodeIdFactory).Returns(identity);
             server.Setup(s => s.Telemetry).Returns(telemetry);
             server.Setup(s => s.MessageContext).Returns(context);
             server.Setup(s => s.NamespaceUris).Returns(context.NamespaceUris);
@@ -490,19 +516,22 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
             await using var coordinator = new RaftSharedKeyValueStore(
                 DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
+            using var protector = new AesCbcHmacRecordProtector(new byte[32]);
+            await identity.InitializeNewStoreAsync(coordinator, protector).ConfigureAwait(false);
             await using var hybrid = new HybridSharedKeyValueStore(crdt, coordinator);
-            await using var startup = new DistributedAddressSpaceStartupTask(hybrid, new StaticLeaderElection(true));
+            await using var startup = new DistributedAddressSpaceStartupTask(
+                hybrid, new StaticLeaderElection(true), protector);
 
             await startup.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
-            var hostedId = new NodeId("hosted", NamespaceIndex);
-            var directId = new NodeId("direct", NamespaceIndex);
+            var hostedId = new NodeId("hosted", 2);
+            var directId = new NodeId("direct", 2);
             Assert.That(startup.NodeStateStoreRegistry, Is.Not.Null);
             INodeStateStore? hosted = startup.NodeStateStoreRegistry!.Resolve(hostedId);
             Assert.That(hosted, Is.Not.Null);
             await hosted!.UpsertNodeAsync(new StoredNode(hostedId, new ByteString(new byte[] { 1 })))
                 .ConfigureAwait(false);
-            using var direct = new InMemoryNodeStateStore(hybrid, context);
+            using var direct = new InMemoryNodeStateStore(hybrid, context, protector);
             await direct.UpsertNodeAsync(new StoredNode(directId, new ByteString(new byte[] { 2 })))
                 .ConfigureAwait(false);
 

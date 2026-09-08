@@ -355,6 +355,14 @@ builder.AddNodeIdFactory(new ReservingNodeIdFactory(new DefaultNodeIdFactory()))
 
 ## Who forces a fresh identifier
 
+For a redundant server set, use
+[`UseReplicaNodeIdentity`](ReplicaNodeIdentity.md) rather than configuring
+independent default factories. It reserves the same shared namespace indexes
+before node-manager construction, binds the assignment policy across replicas,
+and preserves IDs during hydration. Counter/no-path allocation is not
+independently reproducible; only the configured active/passive writer may
+register those shared allocations. Ordinary single-server defaults are unchanged.
+
 Two things can be true of a node arriving at `New` with a NodeId already
 set: the caller chose that identifier, or it is a type declaration's
 identifier that `NodeState.CreateInstance` copied onto an instance. The

@@ -48,7 +48,7 @@ namespace Opc.Ua.Redundancy.Server
     /// infrastructure is never replicated. Built-in core, diagnostics, and
     /// configuration managers remain excluded even when they inherit the source interface.
     /// </summary>
-    public sealed class DistributedAddressSpaceStartupTask : IServerStartupTask, IAsyncDisposable
+    public sealed class DistributedAddressSpaceStartupTask : IServerStartupTask, IServerPreStartupTask, IAsyncDisposable
     {
         /// <summary>
         /// Creates the wiring task.
@@ -101,7 +101,9 @@ namespace Opc.Ua.Redundancy.Server
         public INodeStateStoreRegistry? NodeStateStoreRegistry { get; private set; }
 
         /// <inheritdoc/>
-        public async ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default)
+        public async ValueTask OnServerStartingAsync(
+            IServerContext server,
+            CancellationToken cancellationToken = default)
         {
             if (server == null)
             {
@@ -114,7 +116,29 @@ namespace Opc.Ua.Redundancy.Server
             {
                 InMemoryNodeStateStore.ValidateCoordinator(m_keyValueStore, m_leaseKey);
             }
+            if (m_keyValueStore is ISharedKeyValueStoreConsistency consistency &&
+                !consistency.IsProcessLocal(InMemoryNodeStateStore.SequenceKey) &&
+                server is not INodeIdFactoryProvider { NodeIdFactory: ReplicaNodeIdFactory })
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "Replica-set startup requires an explicit fixed namespace and NodeId identity policy.");
+            }
+            if (server is INodeIdFactoryProvider { NodeIdFactory: ReplicaNodeIdFactory identity })
+            {
+                identity.ValidateNamespaces(server.MessageContext.NamespaceUris);
+                await ReplicaIdentityStore.VerifyAsync(
+                    m_keyValueStore, m_protector, identity.Descriptor, cancellationToken).ConfigureAwait(false);
+            }
+        }
 
+        /// <inheritdoc/>
+        public async ValueTask OnServerStartedAsync(
+            IServerContext server,
+            CancellationToken cancellationToken = default)
+        {
+            await OnServerStartingAsync(server, cancellationToken).ConfigureAwait(false);
+            var identity = (server as INodeIdFactoryProvider)?.NodeIdFactory as ReplicaNodeIdFactory;
             ILogger logger = server.DefaultSystemContext.Telemetry.CreateLogger<DistributedAddressSpaceStartupTask>();
 
             // Build the store with the server's populated message context so
@@ -135,128 +159,44 @@ namespace Opc.Ua.Redundancy.Server
 
             try
             {
-                var registrations = new List<AddressSpaceRegistration>();
-                var namespaceClaims = new Dictionary<ushort, bool>();
-                var partitionIds = new HashSet<string>(StringComparer.Ordinal);
-                foreach (ILocalAddressSpaceSource source in
-                    server.FindNodeManagers<ILocalAddressSpaceSource>())
-                {
-                    if (source is ICoreNodeManager or IDiagnosticsNodeManager)
-                    {
-                        continue;
-                    }
-
-                    ILocalAddressSpace addressSpace = source.CreateLocalAddressSpace();
-                    IEnumerable<string>? namespaceUris = source switch
-                    {
-                        IAsyncNodeManager asyncNodeManager => asyncNodeManager.NamespaceUris,
-                        INodeManager nodeManager => nodeManager.NamespaceUris,
-                        _ => null
-                    };
-                    List<string>? sortedNamespaceUris = namespaceUris == null
-                        ? null
-                        : [.. namespaceUris];
-                    sortedNamespaceUris?.Sort(StringComparer.Ordinal);
-                    var namespaceIndexes = new HashSet<ushort>();
-                    if (sortedNamespaceUris != null)
-                    {
-                        foreach (string namespaceUri in sortedNamespaceUris)
-                        {
-                            int namespaceIndex = server.MessageContext.NamespaceUris.GetIndex(namespaceUri);
-                            if (namespaceIndex is > 0 and <= ushort.MaxValue)
-                            {
-                                namespaceIndexes.Add((ushort)namespaceIndex);
-                            }
-                        }
-                    }
-
-                    bool hasExplicitOwnership = source is ILocalAddressSpaceOwnership;
-                    foreach (ushort namespaceIndex in namespaceIndexes)
-                    {
-                        if (namespaceClaims.TryGetValue(namespaceIndex, out bool existingExplicit) &&
-                            (!hasExplicitOwnership || !existingExplicit))
-                        {
-                            throw new InvalidOperationException(
-                                $"Namespace index {namespaceIndex} is claimed by multiple distributed node managers. " +
-                                "Every manager sharing a namespace must implement " +
-                                $"{nameof(ILocalAddressSpaceOwnership)}.");
-                        }
-                        namespaceClaims[namespaceIndex] = hasExplicitOwnership;
-                    }
-
-                    Func<NodeId, bool> ownsNode;
-                    string partitionId;
-                    if (source is ILocalAddressSpaceOwnership ownership)
-                    {
-                        if (string.IsNullOrWhiteSpace(ownership.PartitionId))
-                        {
-                            throw new InvalidOperationException(
-                                $"{source.GetType().FullName} returned an empty distributed address-space " +
-                                "partition id.");
-                        }
-                        ValidateExplicitOwnership(addressSpace, ownership);
-                        partitionId = ownership.PartitionId;
-                        ownsNode = nodeId =>
-                            nodeId.NamespaceIndex != 0 &&
-                            ownership.OwnsNode(nodeId);
-                    }
-                    else
-                    {
-                        if (sortedNamespaceUris == null)
-                        {
-                            throw new InvalidOperationException(
-                                $"{source.GetType().FullName} must expose owned NamespaceUris or implement " +
-                                $"{nameof(ILocalAddressSpaceOwnership)}.");
-                        }
-
-                        if (namespaceIndexes.Count == 0)
-                        {
-                            continue;
-                        }
-                        partitionId = string.Join("|", sortedNamespaceUris);
-                        ownsNode = nodeId => namespaceIndexes.Contains(nodeId.NamespaceIndex);
-                    }
-                    if (!partitionIds.Add(partitionId))
-                    {
-                        throw new InvalidOperationException(
-                            $"Distributed address-space partition '{partitionId}' is registered more than once.");
-                    }
-                    registrations.Add(new AddressSpaceRegistration(
-                        addressSpace,
-                        ownsNode,
-                        partitionId));
-                }
+                List<AddressSpaceRegistration> registrations = AddressSpaceRegistration.Create(server, identity);
 
                 // Settle leadership only after every ownership descriptor has
                 // been validated, then initialize all synchronizers.
                 await m_election.TryAcquireOrRenewAsync(cancellationToken).ConfigureAwait(false);
                 m_election.Start();
 
-                foreach (AddressSpaceRegistration registration in registrations)
+                await StartSynchronizersAsync(registrations, store, identity, logger, cancellationToken)
+                    .ConfigureAwait(false);
+                m_identity = identity;
+                identity?.SetAddressSpaceRebinder(server, async (current, token) =>
                 {
-                    var synchronizer = new AddressSpaceSynchronizer(
-                        store,
-                        registration.AddressSpace,
-                        m_election,
-                        logger,
-                        registration.OwnsNode,
-                        registration.PartitionId);
-                    try
+                    List<AddressSpaceRegistration> next = AddressSpaceRegistration.Create(current, identity);
+                    await StopSynchronizersAsync().ConfigureAwait(false);
+                    await StartSynchronizersAsync(next, store, identity, logger, token).ConfigureAwait(false);
+                });
+                identity?.SetNodeManagerPreparer(async (current, next, previous, token) =>
                     {
-                        synchronizer.StartBeforeHydration();
-                        await synchronizer.SeedOrHydrateAsync(cancellationToken).ConfigureAwait(false);
-                        await synchronizer.CompleteHydrationAsync(cancellationToken).ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                        await synchronizer.DisposeAsync().ConfigureAwait(false);
-                        throw;
-                    }
-                    lock (m_lock)
-                    {
-                        m_synchronizers.Add(synchronizer);
-                    }
-                }
+                        foreach (AddressSpaceRegistration registration in
+                            AddressSpaceRegistration.CreatePrepared(current, identity, next, previous))
+                        {
+                            var hydration = new AddressSpaceSynchronizer(
+                                store,
+                                registration.AddressSpace,
+                                static () => false,
+                                logger,
+                                registration.OwnsNode,
+                                registration.PartitionId,
+                                identity);
+                            lock (m_lock)
+                            {
+                                m_preparing.Add(hydration);
+                            }
+                            hydration.StartBeforeHydration();
+                            await hydration.SeedOrHydrateAsync(token).ConfigureAwait(false);
+                            await hydration.CompleteHydrationAsync(token).ConfigureAwait(false);
+                        }
+                    });
             }
             catch
             {
@@ -265,60 +205,67 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
-        private static void ValidateExplicitOwnership(
-            ILocalAddressSpace addressSpace,
-            ILocalAddressSpaceOwnership ownership)
-        {
-            foreach (NodeState node in addressSpace.Nodes)
-            {
-                ValidateExplicitOwnership(addressSpace.Context, node, ownership);
-            }
-        }
-
-        private static void ValidateExplicitOwnership(
-            ISystemContext context,
-            NodeState node,
-            ILocalAddressSpaceOwnership ownership)
-        {
-            if (node.NodeId.NamespaceIndex == 0 &&
-                ownership.OwnsNode(node.NodeId))
-            {
-                throw new InvalidOperationException(
-                    $"Distributed address-space partition '{ownership.PartitionId}' claims namespace-zero node " +
-                    $"{node.NodeId}.");
-            }
-            var children = new List<BaseInstanceState>();
-            node.GetChildren(context, children);
-            foreach (BaseInstanceState child in children)
-            {
-                ValidateExplicitOwnership(context, child, ownership);
-            }
-        }
-
         /// <summary>
         /// Stops every synchronizer and the leader election.
         /// </summary>
         public async ValueTask DisposeAsync()
         {
+            m_identity?.ClearAddressSpaceRebinder();
+            await StopSynchronizersAsync().ConfigureAwait(false);
+            await m_election.DisposeAsync().ConfigureAwait(false);
+            m_registry?.Dispose();
+        }
+
+        private async ValueTask StartSynchronizersAsync(
+            List<AddressSpaceRegistration> registrations,
+            InMemoryNodeStateStore store,
+            ReplicaNodeIdFactory? identity,
+            ILogger logger,
+            CancellationToken cancellationToken)
+        {
+            foreach (AddressSpaceRegistration registration in registrations)
+            {
+                var synchronizer = new AddressSpaceSynchronizer(
+                    store,
+                    registration.AddressSpace,
+                    m_election,
+                    logger,
+                    registration.OwnsNode,
+                    registration.PartitionId,
+                    identity);
+                try
+                {
+                    synchronizer.StartBeforeHydration();
+                    await synchronizer.SeedOrHydrateAsync(cancellationToken).ConfigureAwait(false);
+                    await synchronizer.CompleteHydrationAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch
+                {
+                    await synchronizer.DisposeAsync().ConfigureAwait(false);
+                    throw;
+                }
+                lock (m_lock)
+                {
+                    m_synchronizers.Add(synchronizer);
+                }
+            }
+        }
+
+        private async ValueTask StopSynchronizersAsync()
+        {
             AddressSpaceSynchronizer[] synchronizers;
             lock (m_lock)
             {
-                synchronizers = [.. m_synchronizers];
+                synchronizers = [.. m_synchronizers, .. m_preparing];
                 m_synchronizers.Clear();
+                m_preparing.Clear();
             }
 
             foreach (AddressSpaceSynchronizer synchronizer in synchronizers)
             {
                 await synchronizer.DisposeAsync().ConfigureAwait(false);
             }
-            await m_election.DisposeAsync().ConfigureAwait(false);
-            m_registry?.Dispose();
         }
-
-        private sealed record AddressSpaceRegistration(
-            ILocalAddressSpace AddressSpace,
-            Func<NodeId, bool> OwnsNode,
-            string PartitionId);
 
         private readonly ISharedKeyValueStore m_keyValueStore;
         private readonly ILeaderElection m_election;
@@ -326,6 +273,8 @@ namespace Opc.Ua.Redundancy.Server
         private readonly string? m_leaseKey;
         private readonly Lock m_lock = new();
         private readonly List<AddressSpaceSynchronizer> m_synchronizers = [];
+        private readonly List<AddressSpaceSynchronizer> m_preparing = [];
         private NodeStateStoreRegistry? m_registry;
+        private ReplicaNodeIdFactory? m_identity;
     }
 }
