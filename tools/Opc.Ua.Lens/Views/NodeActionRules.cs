@@ -67,6 +67,7 @@ internal static class NodeActionRules
             CanShowEvents: connected && selectionHasEvents,
             CanPerf: connected && (canCall || canWrite),
             CanAddToBench: connected && container,
-            CanExportValue: connected && isVariable);
+            CanExportValue: connected && isVariable,
+            CanInspectModel: connected && nodeClass is NodeClass.Variable or NodeClass.DataType or NodeClass.Method);
     }
 }

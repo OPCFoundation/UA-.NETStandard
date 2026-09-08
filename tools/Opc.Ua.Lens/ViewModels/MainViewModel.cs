@@ -42,6 +42,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using UaLens.Capabilities;
 using UaLens.Connection;
 using UaLens.Diagnostics;
 using UaLens.Plugins.Gds;
@@ -82,7 +83,9 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
         CommandRegistry? commands = null,
         PluginDocumentOperations? documentOperations = null,
         IWorkspaceDispatcher? dispatcher = null,
-        Func<CancellationToken, Task<ResourceMonitorHost>>? startResourceMonitor = null)
+        Func<CancellationToken, Task<ResourceMonitorHost>>? startResourceMonitor = null,
+        ICapabilityService? capabilities = null,
+        IPluginFactory? pluginFactory = null)
     {
         Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         m_logBuffer = telemetry.Buffer;
@@ -100,7 +103,7 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
         Workspace = workspace ?? new DocumentWorkspace<IPlugin>(
             m_log, m_dispatcher, m_documentOperations.SynchronizeConnectionAsync);
         Commands = commands ?? new CommandRegistry();
-        m_pluginHost = new PluginHost(this, Connection, Browser, telemetry);
+        m_pluginHost = new PluginHost(this, Connection, Browser, telemetry, capabilities, pluginFactory);
 
         Workspace.PropertyChanged += OnWorkspacePropertyChanged;
         Tabs.CollectionChanged += OnDocumentsChanged;
@@ -458,9 +461,16 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
                 }
                 finally
                 {
-                    m_selectionCancellation?.Dispose();
-                    m_connectionCancellation?.Dispose();
-                    m_lifetime.Dispose();
+                    try
+                    {
+                        await m_pluginHost.DisposeAsync().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        m_selectionCancellation?.Dispose();
+                        m_connectionCancellation?.Dispose();
+                        m_lifetime.Dispose();
+                    }
                 }
                 completion.TrySetResult();
             }

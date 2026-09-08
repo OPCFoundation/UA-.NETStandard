@@ -55,7 +55,12 @@ internal enum PluginKind
     CertificateManager,
     RoleManagement,
     UserManagement,
-    SubscriptionBench
+    SubscriptionBench,
+    Alarms,
+    Models,
+    Continuity,
+    PubSub,
+    Companions
 }
 
 /// <summary>

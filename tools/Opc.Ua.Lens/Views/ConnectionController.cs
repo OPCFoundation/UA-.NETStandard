@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -38,6 +37,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Security.Certificates;
 using UaLens.Connection;
 using UaLens.Subscriptions;
 using UaLens.ViewModels;
@@ -122,8 +122,16 @@ internal sealed class ConnectionController
         m_pipelineItem.Click += async (_, _) => await PublishingPipelineAsync().ConfigureAwait(true);
         m_localesItem = new MenuItem { Header = "Preferred locales…" };
         m_localesItem.Click += async (_, _) => await LocalesAsync().ConfigureAwait(true);
+        var transport = new MenuItem
+        {
+            Header = "Transport / reverse listener / application identity…",
+            IsEnabled = m_vm.Connection.ConfiguredBackend is not null
+        };
+        transport.Click += async (_, _) => await TransportSetupAsync().ConfigureAwait(true);
 
         var flyout = new MenuFlyout();
+        flyout.Items.Add(transport);
+        flyout.Items.Add(new Separator());
         flyout.Items.Add(m_engineItem);
         flyout.Items.Add(new Separator());
         flyout.Items.Add(m_changeUserItem);
@@ -196,30 +204,37 @@ internal sealed class ConnectionController
                 await ConnectRestoredProfileAsync(restored, cancellationToken).ConfigureAwait(true);
                 return;
             }
-            EndpointCredentialsPicker.Result? pick = await EndpointCredentialsPicker.PromptAsync(
-                m_window, m_vm.Telemetry, m_vm.EndpointUrl, cancellationToken).ConfigureAwait(true);
+            ConnectionSetupSelection? previous = m_setup is not null &&
+                ConnectionProfile.EndpointUrlsMatch(m_setup.EndpointUrl, m_vm.EndpointUrl) ? m_setup : null;
+            var setup = new ConnectionSetupSelection(m_vm.EndpointUrl,
+                previous?.ReverseConnection, previous?.ApplicationIdentityId);
+            m_vm.ConnectionStatus = setup.ReverseConnection is null
+                ? "Discovering registered forward transport…"
+                : "Waiting for the configured reverse server… Cancel connection releases this wait.";
+            ArrayOf<EndpointDescription> endpoints = await m_vm.Connection
+                .DiscoverEndpointsAsync(setup, cancellationToken).ConfigureAwait(true);
+            ApplicationConfiguration configuration =
+                await m_vm.Connection.GetConfigAsync(cancellationToken).ConfigureAwait(true);
+            ConnectionSelection? pick = await EndpointCredentialsPicker.PromptProviderAsync(
+                m_window, endpoints, m_vm.Connection.IdentityConfiguration, configuration,
+                m_vm.Engine, m_vm.Connection.ResolveCredentialsAsync, cancellationToken).ConfigureAwait(true);
             if (pick is null)
             {
                 return;
             }
-            await m_vm.Connection.ConnectAsync(
-                new ConnectionOptions
-                {
-                    EndpointUrl = pick.Endpoint.EndpointUrl ?? m_vm.EndpointUrl,
-                    UseSecurity = pick.Endpoint.SecurityMode != MessageSecurityMode.None,
-                    Engine = m_vm.Engine
-                },
-                pick.Endpoint,
-                pick.Identity,
-                certPrompt: PromptCertTrustAsync,
-                cancellationToken).ConfigureAwait(true);
+            await using (pick.ConfigureAwait(true))
+            {
+                pick.ApplySetup(setup);
+                await m_vm.Connection.ConnectAsync(pick, PromptCertTrustAsync, cancellationToken).ConfigureAwait(true);
+            }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
+            m_vm.ConnectionStatus = "Connection or identity acquisition canceled. No alternate identity was selected.";
         }
         catch (Exception error) when (error is ServiceResultException or InvalidOperationException
             or TimeoutException or System.Net.Sockets.SocketException or AggregateException
-            or System.IO.IOException or UnauthorizedAccessException or ArgumentException)
+            or System.IO.IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
             m_vm.ConnectionStatus = $"Connect failed: {error.Message}";
             ShowError($"Connect failed: {error.Message}");
@@ -234,9 +249,25 @@ internal sealed class ConnectionController
     /// </summary>
     private async Task ConnectRestoredProfileAsync(ConnectionProfile profile, CancellationToken cancellationToken)
     {
-        var discovery = new DiscoveryService(m_vm.Telemetry);
-        ArrayOf<EndpointDescription> endpoints =
-            await discovery.DiscoverAsync(profile.EndpointUrl, cancellationToken).ConfigureAwait(true);
+        var setup = new ConnectionSetupSelection(
+            profile.EndpointUrl, profile.ReverseConnection, profile.ApplicationIdentityId);
+        ArrayOf<EndpointDescription> endpoints = default;
+        if (profile.ReverseConnection is not null)
+        {
+            var dialog = new ConnectionSetupDialog(m_vm.Connection, setup, pinned: true);
+            if (await dialog.PromptAsync(m_window, cancellationToken).ConfigureAwait(true) is null)
+            {
+                return;
+            }
+            if (dialog.DiscoverySetup == setup)
+            {
+                endpoints = dialog.DiscoveredEndpoints;
+            }
+        }
+        if (endpoints.Count == 0)
+        {
+            endpoints = await m_vm.Connection.DiscoverEndpointsAsync(setup, cancellationToken).ConfigureAwait(true);
+        }
         EndpointDescription? endpoint = null;
         for (int i = 0; i < endpoints.Count; i++)
         {
@@ -254,70 +285,38 @@ internal sealed class ConnectionController
             return;
         }
 
-        UserTokenPolicy policy = profile.RequireMatch(endpoint);
-        IUserIdentity? identity = await ReacquireIdentityAsync(policy).ConfigureAwait(true);
-        if (identity is null)
+        ApplicationConfiguration configuration =
+            await m_vm.Connection.GetConfigAsync(cancellationToken).ConfigureAwait(true);
+        ConnectionSelection? selection = await EndpointCredentialsPicker.PromptProfileAsync(
+            m_window, endpoint, profile, m_vm.Connection.IdentityConfiguration, configuration,
+            m_vm.Connection.ResolveCredentialsAsync, cancellationToken).ConfigureAwait(true);
+        if (selection is null)
         {
             return;
         }
-        await m_vm.Connection.ConnectAsync(
-            new ConnectionOptions
-            {
-                EndpointUrl = endpoint.EndpointUrl ?? profile.EndpointUrl,
-                UseSecurity = endpoint.SecurityMode != MessageSecurityMode.None,
-                Engine = profile.Engine
-            },
-            endpoint,
-            identity,
-            certPrompt: PromptCertTrustAsync,
-            cancellationToken).ConfigureAwait(true);
-    }
-
-    private async Task<IUserIdentity?> ReacquireIdentityAsync(UserTokenPolicy policy)
-    {
-        switch (policy.TokenType)
+        await using (selection.ConfigureAwait(true))
         {
-            case UserTokenType.Anonymous:
-                return new UserIdentity(new AnonymousIdentityToken()) { PolicyId = policy.PolicyId! };
-            case UserTokenType.UserName:
-                var dialog = new CredentialsDialog();
-                (string, string)? pair = await dialog.ShowDialog<(string, string)?>(m_window).ConfigureAwait(true);
-                if (pair is null)
-                {
-                    m_vm.ConnectionStatus = "Credentials are required to restore this connection.";
-                    return null;
-                }
-                (string user, string pass) = pair.Value;
-                byte[] password = Encoding.UTF8.GetBytes(pass);
-                try
-                {
-                    return new UserIdentity(user, password.AsSpan()) { PolicyId = policy.PolicyId! };
-                }
-                finally
-                {
-                    Array.Clear(password);
-                }
-            default:
-                m_vm.ConnectionStatus =
-                    $"The saved {policy.TokenType} identity is not supported here. Connect with a compatible client.";
-                ShowError($"Restore requires a {policy.TokenType} identity, which this desktop cannot supply.");
-                return null;
+            selection.ApplySetup(setup);
+            await m_vm.Connection.ConnectAsync(selection, PromptCertTrustAsync, cancellationToken).ConfigureAwait(true);
         }
     }
 
-    private Task<TrustChoice> PromptCertTrustAsync(X509Certificate2 cert, ServiceResult error)
+    private Task<TrustChoice> PromptCertTrustAsync(CertificateTrustRequest request, CancellationToken ct)
     {
         // The trust decision is requested outside certificate validation by the
         // connection coordinator. Marshal to the UI thread, default to reject and
         // close on shutdown so validation never blocks on the desktop.
         return Dispatcher.UIThread.InvokeAsync(async () =>
         {
-            if (m_window.IsClosingRequested)
+            if (m_window.IsClosingRequested || ct.IsCancellationRequested)
             {
                 return TrustChoice.Reject;
             }
-            var dlg = new CertificateTrustDialog(cert, error);
-            TrustChoice? choice = await dlg.ShowDialog<TrustChoice?>(m_window).ConfigureAwait(true);
+            using var certificate = new Certificate(request.CertificateData.Span);
+            using X509Certificate2 copy = certificate.AsX509Certificate2();
+            var dlg = new CertificateTrustDialog(copy, request.Error);
+            TrustChoice? choice = await EndpointCredentialsPicker.ShowCancelableAsync<TrustChoice?>(
+                dlg, m_window, ct).ConfigureAwait(true);
             return choice ?? TrustChoice.Reject;
         });
     }
@@ -331,24 +330,25 @@ internal sealed class ConnectionController
         }
         try
         {
-            var dlg = new CredentialsDialog();
-            (string, string)? pair = await dlg.ShowDialog<(string, string)?>(m_window).ConfigureAwait(true);
-            if (pair is null)
+            EndpointDescription endpoint = m_vm.Connection.CurrentSession!.ConfiguredEndpoint.Description;
+            ApplicationConfiguration configuration = await m_vm.Connection.GetConfigAsync().ConfigureAwait(true);
+            ConnectionSelection? selection = await EndpointCredentialsPicker.PromptProviderAsync(
+                m_window, [endpoint], m_vm.Connection.IdentityConfiguration, configuration, m_vm.Engine,
+                resolver: m_vm.Connection.ResolveCredentialsAsync)
+                .ConfigureAwait(true);
+            if (selection is null)
             {
                 return;
             }
-            (string user, string pass) = pair.Value;
-            byte[] password = Encoding.UTF8.GetBytes(pass);
-            try
+            await using (selection.ConfigureAwait(true))
             {
-                var identity = new UserIdentity(user, password.AsSpan());
-                await m_vm.Connection.ChangeIdentityAsync(identity, CancellationToken.None).ConfigureAwait(true);
+                await m_vm.Connection.ChangeIdentityAsync(selection).ConfigureAwait(true);
             }
-            finally
-            {
-                Array.Clear(password);
-            }
-            m_vm.ConnectionStatus = $"User changed to {user}.";
+            m_vm.ConnectionStatus = $"User changed using the selected {selection.Profile.IdentityType} provider.";
+        }
+        catch (OperationCanceledException)
+        {
+            m_vm.ConnectionStatus = "Identity change canceled.";
         }
         catch (Exception error) when (error is ServiceResultException or InvalidOperationException or AggregateException
             or System.IO.IOException or UnauthorizedAccessException or ArgumentException)
@@ -361,7 +361,7 @@ internal sealed class ConnectionController
 
     private async Task ReconnectAsync()
     {
-        if (m_vm.Connection.Session is not { } session)
+        if (!m_vm.Connection.IsConnected)
         {
             m_vm.ConnectionStatus = "Not connected.";
             return;
@@ -369,10 +369,15 @@ internal sealed class ConnectionController
         try
         {
             m_vm.ConnectionStatus = "Reconnecting…";
-            await session.ReconnectAsync(null, null, CancellationToken.None).ConfigureAwait(true);
+            await m_vm.Connection.ReconnectAsync(m_vm.Engine).ConfigureAwait(true);
             m_vm.ConnectionStatus = "Reconnected.";
         }
-        catch (Exception error) when (error is ServiceResultException or InvalidOperationException)
+        catch (OperationCanceledException)
+        {
+            m_vm.ConnectionStatus = "Reconnect canceled.";
+        }
+        catch (Exception error) when (error is ServiceResultException or InvalidOperationException
+            or System.IO.IOException or UnauthorizedAccessException or AggregateException or NotSupportedException)
         {
             m_vm.ConnectionStatus = $"Reconnect failed: {error.Message}";
             ShowError($"Reconnect failed: {error.Message}");
@@ -384,6 +389,40 @@ internal sealed class ConnectionController
     {
         var dlg = new LocalePickerDialog(m_vm.Connection);
         await dlg.ShowDialog(m_window).ConfigureAwait(true);
+    }
+
+    private async Task TransportSetupAsync()
+    {
+        try
+        {
+            ConnectionProfile? profile = m_vm.RestoredConnectionProfile ?? m_vm.Connection.Profile;
+            ConnectionSetupSelection initial = m_vm.RestoredConnectionProfile is { } restored
+                ? new ConnectionSetupSelection(restored.EndpointUrl, restored.ReverseConnection, restored.ApplicationIdentityId)
+                : m_setup ?? new ConnectionSetupSelection(
+                    profile?.EndpointUrl ?? m_vm.EndpointUrl, profile?.ReverseConnection, profile?.ApplicationIdentityId);
+            var dialog = new ConnectionSetupDialog(
+                m_vm.Connection, initial, pinned: m_vm.RestoredConnectionProfile is not null);
+            ConnectionSetupSelection? selected = await dialog.PromptAsync(m_window).ConfigureAwait(true);
+            if (selected is not null)
+            {
+                m_setup = selected;
+                m_vm.EndpointUrl = selected.EndpointUrl;
+                m_vm.ConnectionStatus = selected.ReverseConnection is null
+                    ? "Forward transport setup selected. Connect to choose endpoint security and user identity."
+                    : "Reverse listener setup selected. Connect waits only for the configured server.";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            m_vm.ConnectionStatus = "Connection setup canceled.";
+        }
+        catch (Exception error) when (error is ServiceResultException or InvalidOperationException
+            or NotSupportedException or ArgumentException or System.IO.IOException
+            or UnauthorizedAccessException or AggregateException)
+        {
+            ShowError($"Connection setup failed: {error.Message}");
+            MainWindowLog.WorkspaceOperationFailed(m_log, "transport-setup", error);
+        }
     }
 
     private async Task OpenCertificateStoreAsync()
@@ -446,6 +485,7 @@ internal sealed class ConnectionController
     private MenuItem? m_reconnectItem;
     private MenuItem? m_pipelineItem;
     private MenuItem? m_localesItem;
+    private ConnectionSetupSelection? m_setup;
     private readonly MainWindow m_window;
     private readonly MainViewModel m_vm;
     private readonly ILogger m_log;

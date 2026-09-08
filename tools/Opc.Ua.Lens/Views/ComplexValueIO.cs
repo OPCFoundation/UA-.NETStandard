@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -28,139 +28,55 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Client;
+using UaLens.StructuredValues;
 
 namespace UaLens.Views;
 
 /// <summary>
-/// Shared helpers used by <see cref="ComplexValueEditor"/> and the dialogs
-/// that host it.  Fetches the <c>DataTypeDefinition</c> attribute for a
-/// DataType node and caches the result per <see cref="ManagedSession"/>
-/// so that a single editor build doesn't replay the same Read repeatedly
-/// when a structure has many fields of the same nested type.
+/// Shares the non-UI schema service between dialogs belonging to one managed session.
+/// The service invalidates metadata on inner-session/namespace replacement, not merely
+/// when this wrapper is collected.
 /// </summary>
 internal static class ComplexValueIO
 {
-    private static readonly ConditionalWeakTable<ManagedSession,
-        ConcurrentDictionary<NodeId, CacheEntry>> s_cache = new();
-
-    /// <summary>
-    /// Resolves the <c>DataTypeDefinition</c> attribute of a DataType
-    /// node.  Returns <c>null</c> when the server does not expose the
-    /// attribute or returns a non-definition payload; callers fall back
-    /// to the primitive editor in that case.  Successful lookups
-    /// (including authoritative "definition is null") are cached for
-    /// the lifetime of the session.
-    /// </summary>
-    public static async Task<DataTypeDefinition?> GetDataTypeDefinitionAsync(
-        NodeId dataTypeId,
-        ManagedSession session,
-        CancellationToken ct)
+    public static IStructuredValueService ForSession(ManagedSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
-        if (dataTypeId.IsNull)
-        {
-            return null;
-        }
-
-        ConcurrentDictionary<NodeId, CacheEntry> cache = s_cache.GetValue(
-            session, _ => new ConcurrentDictionary<NodeId, CacheEntry>());
-        if (cache.TryGetValue(dataTypeId, out CacheEntry? hit))
-        {
-            return hit.Definition;
-        }
-
-        DataTypeDefinition? def = null;
-        try
-        {
-            ArrayOf<ReadValueId> ids =
-            [
-                new ReadValueId { NodeId = dataTypeId, AttributeId = Attributes.DataTypeDefinition }
-            ];
-            ReadResponse resp = await session.ReadAsync(null, 0,
-                TimestampsToReturn.Neither, ids, ct).ConfigureAwait(true);
-            if (resp.Results.Count > 0 && !StatusCode.IsBad(resp.Results[0].StatusCode))
-            {
-                object? boxed = resp.Results[0].WrappedValue.AsBoxedObject();
-                if (boxed is ExtensionObject eo
-                    && eo.Body is DataTypeDefinition raw)
-                {
-                    def = raw;
-                }
-                else if (boxed is DataTypeDefinition direct)
-                {
-                    def = direct;
-                }
-            }
-        }
-        catch
-        {
-            // Servers that don't implement the attribute return Bad —
-            // already handled by the IsBad check above; any transport
-            // error simply leaves def null which the editor surfaces
-            // as the "(complex type — opaque)" hint.
-        }
-
-        cache[dataTypeId] = new CacheEntry(def);
-        return def;
+        return s_services.GetValue(session, static value => new SessionStructuredValueService(value));
     }
 
-    /// <summary>
-    /// Quick predicate: does this DataType resolve to something the
-    /// complex-value editor can render?  Used by the host dialogs to
-    /// decide whether to swap the primitive TextBox for the editor.
-    /// </summary>
+    public static Task<DataTypeDefinition?> GetDataTypeDefinitionAsync(
+        NodeId dataTypeId,
+        ManagedSession session,
+        CancellationToken cancellationToken)
+    {
+        return ForSession(session).ResolveAsync(dataTypeId, cancellationToken);
+    }
+
+    public static void Refresh(ManagedSession session)
+    {
+        ForSession(session).Refresh();
+    }
+
     public static async Task<bool> IsComplexAsync(
         NodeId dataTypeId,
         ManagedSession session,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
-        DataTypeDefinition? def = await GetDataTypeDefinitionAsync(
-            dataTypeId, session, ct).ConfigureAwait(true);
-        return def is StructureDefinition or EnumDefinition;
+        DataTypeDefinition? definition = await GetDataTypeDefinitionAsync(
+            dataTypeId, session, cancellationToken).ConfigureAwait(false);
+        return definition is StructureDefinition or EnumDefinition;
     }
 
-    /// <summary>
-    /// Materialises a default <see cref="Variant"/> for a primitive
-    /// built-in scalar field — used by <see cref="ComplexValueEditor"/>
-    /// to seed empty rows so that "(blank) → write" produces a typed
-    /// zero instead of <c>Variant.Null</c>.
-    /// </summary>
-    public static Variant DefaultScalar(BuiltInType bi)
+    public static Variant DefaultScalar(BuiltInType builtInType)
     {
-        return bi switch
-        {
-            BuiltInType.Boolean => Variant.From(false),
-            BuiltInType.SByte => Variant.From((sbyte)0),
-            BuiltInType.Byte => Variant.From((byte)0),
-            BuiltInType.Int16 => Variant.From((short)0),
-            BuiltInType.UInt16 => Variant.From((ushort)0),
-            BuiltInType.Int32 => Variant.From(0),
-            BuiltInType.UInt32 => Variant.From(0u),
-            BuiltInType.Int64 => Variant.From(0L),
-            BuiltInType.UInt64 => Variant.From(0ul),
-            BuiltInType.Float => Variant.From(0f),
-            BuiltInType.Double => Variant.From(0.0),
-            BuiltInType.String => Variant.From(string.Empty),
-            BuiltInType.DateTime => Variant.From(new DateTimeUtc(DateTime.MinValue)),
-            BuiltInType.Guid => Variant.From(new Uuid(Guid.Empty)),
-            BuiltInType.LocalizedText => Variant.From(new LocalizedText(string.Empty)),
-            BuiltInType.QualifiedName => Variant.From(new QualifiedName(string.Empty)),
-            BuiltInType.NodeId => Variant.From(NodeId.Null),
-            _ => Variant.Null
-        };
+        return Variant.CreateDefault(TypeInfo.Create(builtInType, ValueRanks.Scalar));
     }
 
-    /// <summary>
-    /// Cached fetch result.  Stored as a wrapper so that an authoritative
-    /// "definition is null" (server returned Bad / non-definition payload)
-    /// is distinguishable from a cache miss.
-    /// </summary>
-    private sealed record CacheEntry(DataTypeDefinition? Definition);
+    private static readonly ConditionalWeakTable<ManagedSession, SessionStructuredValueService> s_services = new();
 }

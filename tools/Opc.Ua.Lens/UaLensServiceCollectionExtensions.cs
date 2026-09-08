@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua;
+using UaLens.Capabilities;
 using UaLens.Connection;
 using UaLens.Diagnostics;
 using UaLens.Telemetry;
@@ -58,6 +59,13 @@ internal static class UaLensServiceCollectionExtensions
         services.TryAddSingleton(_ => new AppearancePreferences());
         services.TryAddSingleton<IWorkspaceDispatcher>(_ => new AvaloniaWorkspaceDispatcher());
         services.AddUaLensConnection();
+        services.AddUaLensShowcases();
+        services.TryAddSingleton<ICapabilityProbe>(_ => new SessionCapabilityProbe());
+        services.TryAddSingleton<ICapabilityService>(provider => new CapabilityService(
+            provider.GetRequiredService<ConnectionService>(),
+            provider.GetRequiredService<ICapabilityProbe>()));
+        services.TryAddSingleton<IPluginFactory>(
+            provider => new PluginFactory([.. provider.GetServices<PluginFactoryRegistration>()]));
         services.TryAddSingleton(
             provider => new PluginDocumentOperations(provider.GetRequiredService<ConnectionService>()));
         services.TryAddSingleton(provider => new DocumentWorkspace<IPlugin>(
@@ -75,8 +83,31 @@ internal static class UaLensServiceCollectionExtensions
             provider.GetRequiredService<CommandRegistry>(),
             provider.GetRequiredService<PluginDocumentOperations>(),
             provider.GetRequiredService<IWorkspaceDispatcher>(),
-            provider.GetRequiredService<Func<CancellationToken, Task<ResourceMonitorHost>>>()));
+            provider.GetRequiredService<Func<CancellationToken, Task<ResourceMonitorHost>>>(),
+            provider.GetRequiredService<ICapabilityService>(),
+            provider.GetRequiredService<IPluginFactory>()));
         services.TryAddSingleton(provider => provider.GetRequiredService<MainViewModel>().CreatePluginHost());
+        return services;
+    }
+
+    /// <summary>
+    /// Binds a registered, typed feature factory at composition time.
+    /// The feature and its document never resolve services.
+    /// Register the feature factory itself using an explicit construction delegate for NativeAOT.
+    /// </summary>
+    public static IServiceCollection AddUaLensPluginFactory<TFactory>(
+        this IServiceCollection services,
+        PluginKind kind,
+        Func<TFactory, PluginHost, IPlugin> create)
+        where TFactory : class
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(create);
+        services.AddSingleton(provider =>
+        {
+            TFactory factory = provider.GetRequiredService<TFactory>();
+            return new PluginFactoryRegistration(kind, host => create(factory, host));
+        });
         return services;
     }
 }

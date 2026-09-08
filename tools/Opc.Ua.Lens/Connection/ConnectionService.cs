@@ -56,24 +56,33 @@ internal sealed class ConnectionService : IConnectionWorkspace
     }
 
     public ConnectionService(ITelemetryContext telemetry, PublishLogObserver? publishLog)
-        : this(telemetry, publishLog, new StackConnectionBackend(telemetry), new ProfileCredentialProvider())
+        : this(telemetry, publishLog, new StackConnectionBackend(telemetry),
+            new ProfileCredentialProvider(configuration: ConnectionIdentityConfiguration.CreateDefault(telemetry)))
     {
+        m_ownsDefaults = true;
     }
 
     public ConnectionService(
         ITelemetryContext telemetry,
         PublishLogObserver? publishLog,
         IConnectionBackend backend,
-        IConnectionCredentialProvider credentialProvider)
+        IConnectionCredentialProvider credentialProvider,
+        ConnectionIdentityConfiguration? identityConfiguration = null)
     {
         m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         m_backend = backend ?? throw new ArgumentNullException(nameof(backend));
         m_credentialProvider = credentialProvider ?? throw new ArgumentNullException(nameof(credentialProvider));
+        m_identityConfiguration = identityConfiguration ??
+            (credentialProvider as ProfileCredentialProvider)?.Configuration ?? new ConnectionIdentityConfiguration();
         m_log = telemetry.CreateLogger<ConnectionService>();
         PublishLog = publishLog;
     }
 
     public PublishLogObserver? PublishLog { get; }
+
+    public ConnectionIdentityConfiguration IdentityConfiguration => m_identityConfiguration;
+
+    public IConfiguredConnectionBackend? ConfiguredBackend => m_backend as IConfiguredConnectionBackend;
 
     public ConnectionSnapshot Snapshot => Volatile.Read(ref m_snapshot);
 
@@ -203,9 +212,20 @@ internal sealed class ConnectionService : IConnectionWorkspace
         await EnterConfigurationOperationAsync(ct).ConfigureAwait(false);
         try
         {
-            m_toolsConfiguration ??= await m_backend
-                .CreateConfigurationAsync(ct)
-                .ConfigureAwait(false);
+            if (m_toolsConfiguration is null)
+            {
+                ApplicationConfiguration configuration =
+                    await m_backend.CreateConfigurationAsync(ct).ConfigureAwait(false);
+                if (ReferenceEquals(configuration, m_connectionConfiguration) ||
+                    ReferenceEquals(configuration.CertificateManager, m_connectionConfiguration?.CertificateManager) ||
+                    (m_backend is IConfiguredConnectionBackend configured &&
+                        !configured.Configurations.TryClaimManager(configuration)))
+                {
+                    throw new InvalidOperationException(
+                        "Local tools cannot borrow a certificate manager owned by a connection or listener.");
+                }
+                m_toolsConfiguration = configuration;
+            }
             return m_toolsConfiguration;
         }
         finally
@@ -274,6 +294,187 @@ internal sealed class ConnectionService : IConnectionWorkspace
         }, ct);
     }
 
+    public Task ConnectAsync(
+        ConnectionSelection selection,
+        CertificateTrustPrompt? certificatePrompt = null,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        ConnectionProfile profile = selection.Profile;
+        profile.Validate();
+        return ConnectCoreAsync(new ConnectRequest(new ConnectionOptions
+        {
+            EndpointUrl = profile.EndpointUrl,
+            UseSecurity = profile.SecurityMode != MessageSecurityMode.None,
+            Engine = profile.Engine
+        })
+        {
+            Profile = profile,
+            Endpoint = CopyEndpoint(selection.Endpoint),
+            Credentials = selection.TakeCredentials(),
+            Prompt = certificatePrompt
+        }, ct);
+    }
+
+    public Task ChangeIdentityAsync(ConnectionSelection selection, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        CertificateTrustPrompt? prompt;
+        lock (m_stateGate)
+        {
+            ThrowIfDisposed();
+            if (!IsConnected || m_connection is null || Profile is not { } current)
+            {
+                throw new InvalidOperationException("Connect before changing identity.");
+            }
+            if (!current.MatchesEndpoint(selection.Endpoint))
+            {
+                throw new InvalidOperationException("Change user cannot change the selected endpoint/security profile.");
+            }
+            selection.ApplySetup(new ConnectionSetupSelection(
+                current.EndpointUrl, current.ReverseConnection, current.ApplicationIdentityId));
+            prompt = m_certificatePrompt;
+        }
+        return ConnectAsync(selection, prompt, ct);
+    }
+
+    public ValueTask<IClientIdentityProvider> ResolveCredentialsAsync(
+        ConnectionProfile profile,
+        CancellationToken ct = default)
+    {
+        return m_credentialProvider.GetAsync(profile, ct);
+    }
+
+    public async Task<ArrayOf<EndpointDescription>> DiscoverEndpointsAsync(
+        ConnectionSetupSelection setup,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(setup);
+        var operation = new PendingConnection(ct);
+        await using (operation.ConfigureAwait(false))
+        {
+            ApplicationConfiguration? configuration = null;
+            var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool entered = false;
+            bool registered = false;
+            try
+            {
+                lock (m_stateGate)
+                {
+                    ThrowIfDisposed();
+                    ThrowIfListenerStopping();
+                    if (m_cancelDiscovery is not null)
+                    {
+                        throw new InvalidOperationException("A primary endpoint-discovery operation is already running.");
+                    }
+                    m_cancelDiscovery = operation.CancelAsync;
+                    m_discoveryCompleted = completed.Task;
+                    registered = true;
+                }
+                await EnterConfigurationOperationAsync(operation.Token).ConfigureAwait(false);
+                entered = true;
+                configuration = await m_backend.CreateConfigurationAsync(operation.Token).ConfigureAwait(false);
+                if (ReferenceEquals(configuration, m_toolsConfiguration) ||
+                    ReferenceEquals(configuration, m_connectionConfiguration) ||
+                    ReferenceEquals(configuration.CertificateManager, m_toolsConfiguration?.CertificateManager) ||
+                    ReferenceEquals(configuration.CertificateManager, m_connectionConfiguration?.CertificateManager) ||
+                    (m_backend is IConfiguredConnectionBackend owner &&
+                        !owner.Configurations.TryClaimManager(configuration)))
+                {
+                    configuration = null;
+                    throw new InvalidOperationException(
+                        "Endpoint discovery cannot borrow a certificate manager owned by another operation.");
+                }
+                if (m_backend is IConfiguredConnectionBackend configured)
+                {
+                    return await configured.DiscoverAsync(configuration, setup, operation.Token).ConfigureAwait(false);
+                }
+                if (setup.ReverseConnection is not null || setup.ApplicationIdentityId is not null)
+                {
+                    throw new NotSupportedException(
+                        "This backend does not implement configured transport/application identities.");
+                }
+                return await m_backend.DiscoverAsync(configuration, setup.EndpointUrl, operation.Token)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                try
+                {
+                    await DisposeConfigurationAsync(configuration).ConfigureAwait(false);
+                }
+                finally
+                {
+                    if (registered)
+                    {
+                        lock (m_stateGate)
+                        {
+                            m_cancelDiscovery = null;
+                        }
+                    }
+                    if (entered)
+                    {
+                        ExitConfigurationOperation();
+                    }
+                    completed.TrySetResult();
+                }
+            }
+        }
+    }
+
+    public async Task StopReverseListenerAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (m_backend is not IConfiguredConnectionBackend configured)
+        {
+            throw new NotSupportedException("The backend does not support reverse-connect listeners.");
+        }
+        bool registered = false;
+        try
+        {
+            Task cancellation;
+            Task discovery;
+            lock (m_stateGate)
+            {
+                ThrowIfDisposed();
+                ThrowIfListenerStopping();
+                m_listenerStopping = true;
+                registered = true;
+                discovery = m_discoveryCompleted;
+                cancellation = Task.WhenAll(
+                    m_cancelConnect?.Invoke() ?? Task.CompletedTask,
+                    m_cancelDiscovery?.Invoke() ?? Task.CompletedTask);
+            }
+            await cancellation.ConfigureAwait(false);
+            await discovery.WaitAsync(ct).ConfigureAwait(false);
+            await EnterOperationAsync(ct).ConfigureAwait(false);
+            try
+            {
+                ThrowIfDisposed();
+                if (Profile?.ReverseConnection is not null)
+                {
+                    await DisconnectInternalAsync().ConfigureAwait(false);
+                    SetSnapshot(ConnectionPhase.Disconnected, Profile);
+                }
+                await configured.ReverseConnections.StopAsync(ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                ExitOperation();
+            }
+        }
+        finally
+        {
+            if (registered)
+            {
+                lock (m_stateGate)
+                {
+                    m_listenerStopping = false;
+                }
+            }
+        }
+    }
+
     /// <summary>
     /// Replaces the session without changing its endpoint/security/identity.
     /// Unlike DisconnectAsync followed by ConnectAsync, retains the current
@@ -298,7 +499,9 @@ internal sealed class ConnectionService : IConnectionWorkspace
     {
         lock (m_stateGate)
         {
-            return m_cancelConnect?.Invoke() ?? Task.CompletedTask;
+            return Task.WhenAll(
+                m_cancelConnect?.Invoke() ?? Task.CompletedTask,
+                m_cancelDiscovery?.Invoke() ?? Task.CompletedTask);
         }
     }
 
@@ -325,7 +528,11 @@ internal sealed class ConnectionService : IConnectionWorkspace
                 {
                     Endpoint = endpoint,
                     Identity = identity,
-                    Prompt = m_certificatePrompt
+                    Prompt = m_certificatePrompt,
+                    Setup = Profile is { } selected
+                        ? new ConnectionSetupSelection(
+                            selected.EndpointUrl, selected.ReverseConnection, selected.ApplicationIdentityId)
+                        : null
                 };
             }
         }
@@ -382,7 +589,27 @@ internal sealed class ConnectionService : IConnectionWorkspace
                 }
                 finally
                 {
-                    await DisposeToolsConfigurationAsync().ConfigureAwait(false);
+                    try
+                    {
+                        await DisposeToolsConfigurationAsync().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        if (m_ownsDefaults)
+                        {
+                            try
+                            {
+                                if (m_backend is IAsyncDisposable disposable)
+                                {
+                                    await disposable.DisposeAsync().ConfigureAwait(false);
+                                }
+                            }
+                            finally
+                            {
+                                IdentityConfiguration.Dispose();
+                            }
+                        }
+                    }
                 }
                 SetSnapshot(ConnectionPhase.Disconnected, Profile);
                 if (cancellationFailure is not null)
@@ -422,6 +649,7 @@ internal sealed class ConnectionService : IConnectionWorkspace
 
     private async Task ConnectCoreAsync(ConnectRequest request, PendingConnection operation)
     {
+        operation.Credentials = request.Credentials;
         ApplicationConfiguration? configuration = null;
         ConnectionTrustScope? trust = null;
         IConnectionSession? connection = null;
@@ -439,6 +667,7 @@ internal sealed class ConnectionService : IConnectionWorkspace
             lock (m_stateGate)
             {
                 ThrowIfDisposed();
+                ThrowIfListenerStopping();
                 if (m_cancelConnect is not null)
                 {
                     throw new InvalidOperationException("A connection attempt is already in progress.");
@@ -466,6 +695,14 @@ internal sealed class ConnectionService : IConnectionWorkspace
             if (request.Endpoint is { } explicitEndpoint && suppliedIdentity is not null)
             {
                 profile = CreateProfile(explicitEndpoint, suppliedIdentity, request.Options.Engine);
+                if (request.Setup is { } setup)
+                {
+                    profile = profile with
+                    {
+                        ReverseConnection = setup.ReverseConnection,
+                        ApplicationIdentityId = setup.ApplicationIdentityId
+                    };
+                }
                 IUserIdentity identity = suppliedIdentity;
                 suppliedIdentity = null;
                 operation.Credentials = await ConnectionCredentials
@@ -476,13 +713,20 @@ internal sealed class ConnectionService : IConnectionWorkspace
 
             await DisconnectInternalAsync().ConfigureAwait(false);
             SetSnapshot(ConnectionPhase.Connecting, profile);
-            configuration = await CreateConnectionConfigurationAsync(operation.Token).ConfigureAwait(false);
+            configuration = await CreateConnectionConfigurationAsync(profile, operation.Token).ConfigureAwait(false);
             if (ReferenceEquals(configuration, m_toolsConfiguration) ||
                 ReferenceEquals(configuration.CertificateManager, m_toolsConfiguration?.CertificateManager))
             {
                 configuration = null;
                 throw new InvalidOperationException(
                     "The primary connection cannot borrow the local-tools certificate manager.");
+            }
+            if (m_backend is IConfiguredConnectionBackend configuredOwner &&
+                !configuredOwner.Configurations.TryClaimManager(configuration))
+            {
+                configuration = null;
+                throw new InvalidOperationException(
+                    "The primary connection cannot borrow a certificate manager already owned by another operation.");
             }
             if (configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates ||
                 configuration.SecurityConfiguration.UseValidatedCertificates ||
@@ -492,6 +736,12 @@ internal sealed class ConnectionService : IConnectionWorkspace
                     "Primary connections require a private, fail-closed certificate configuration " +
                     "without validation caching.");
             }
+            if (profile?.ApplicationIdentityId is { } applicationIdentity &&
+                m_backend is IConfiguredConnectionBackend configuredIdentity)
+            {
+                await configuredIdentity.Configurations.ResolveApplication(applicationIdentity)
+                    .ValidateAsync(configuration, operation.Token).ConfigureAwait(false);
+            }
 
             EndpointDescription endpoint;
             if (request.Endpoint is { } selectedEndpoint)
@@ -500,10 +750,12 @@ internal sealed class ConnectionService : IConnectionWorkspace
             }
             else
             {
-                ArrayOf<EndpointDescription> endpoints = await m_backend.DiscoverAsync(
-                    configuration,
-                    request.Options.EndpointUrl,
-                    operation.Token).ConfigureAwait(false);
+                ArrayOf<EndpointDescription> endpoints = m_backend is IConfiguredConnectionBackend configured
+                    ? await configured.DiscoverAsync(configuration, new ConnectionSetupSelection(
+                        request.Options.EndpointUrl, profile?.ReverseConnection, profile?.ApplicationIdentityId),
+                        operation.Token).ConfigureAwait(false)
+                    : await m_backend.DiscoverAsync(configuration,
+                        request.Options.EndpointUrl, operation.Token).ConfigureAwait(false);
                 endpoint = SelectEndpoint(endpoints, request.Options, profile);
             }
             profile ??= CreateAnonymousProfile(endpoint, request.Options.Engine);
@@ -515,6 +767,7 @@ internal sealed class ConnectionService : IConnectionWorkspace
                     await m_credentialProvider.GetAsync(profile, operation.Token).ConfigureAwait(false);
                 operation.Credentials = new ConnectionCredentials(profile, provider, m_identities);
             }
+            operation.Credentials.Pin(profile, m_identities);
 
             trust = new ConnectionTrustScope(profile, endpoint, configuration.CertificateManager, m_telemetry);
             m_log.ConnectionOpening(
@@ -554,9 +807,9 @@ internal sealed class ConnectionService : IConnectionWorkspace
             m_log.ConnectionOpened(profile.EndpointUrl);
             RaiseStateChanged();
         }
-        catch (OperationCanceledException ex) when (operation.Token.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
-            connectFailure = ex;
+            connectFailure = new OperationCanceledException("Connection or identity acquisition canceled.", operation.Token);
             if (installed)
             {
                 await CleanupInstalledConnectionAsync(cleanupFailures).ConfigureAwait(false);
@@ -899,11 +1152,21 @@ internal sealed class ConnectionService : IConnectionWorkspace
         }
     }
 
-    private async Task<ApplicationConfiguration> CreateConnectionConfigurationAsync(CancellationToken ct)
+    private async Task<ApplicationConfiguration> CreateConnectionConfigurationAsync(
+        ConnectionProfile? profile,
+        CancellationToken ct)
     {
         await EnterConfigurationOperationAsync(ct).ConfigureAwait(false);
         try
         {
+            if (m_backend is IConfiguredConnectionBackend configured)
+            {
+                return await configured.CreateConfigurationAsync(profile, ct).ConfigureAwait(false);
+            }
+            if (profile?.ApplicationIdentityId is not null || profile?.ReverseConnection is not null)
+            {
+                throw new NotSupportedException("The backend cannot satisfy the selected application/transport configuration.");
+            }
             return await m_backend.CreateConfigurationAsync(ct).ConfigureAwait(false);
         }
         finally
@@ -1198,6 +1461,10 @@ internal sealed class ConnectionService : IConnectionWorkspace
 
         public IClientIdentityProvider? Provider { get; init; }
 
+        public ConnectionCredentials? Credentials { get; init; }
+
+        public ConnectionSetupSelection? Setup { get; init; }
+
         public CertificateTrustPrompt? Prompt { get; init; }
 
         public bool Resume { get; init; }
@@ -1272,8 +1539,19 @@ internal sealed class ConnectionService : IConnectionWorkspace
     private readonly ILogger m_log;
     private readonly IConnectionBackend m_backend;
     private readonly IConnectionCredentialProvider m_credentialProvider;
+    private readonly ConnectionIdentityConfiguration m_identityConfiguration;
+    private readonly bool m_ownsDefaults;
     private readonly ConnectionIdentityTracker m_identities = new();
     private readonly SemaphoreSlim m_operations = new(1, 1);
+    private void ThrowIfListenerStopping()
+    {
+        if (m_listenerStopping)
+        {
+            throw new InvalidOperationException(
+                "Wait for reverse-listener shutdown before starting another primary operation.");
+        }
+    }
+
     private readonly SemaphoreSlim m_configurationOperations = new(1, 1);
     private readonly Lock m_stateGate = new();
     private readonly List<ISubscriptionAdapter> m_adapters = [];
@@ -1286,6 +1564,9 @@ internal sealed class ConnectionService : IConnectionWorkspace
     private ConnectionTrustScope? m_trust;
     private CertificateTrustPrompt? m_certificatePrompt;
     private Func<Task>? m_cancelConnect;
+    private Func<Task>? m_cancelDiscovery;
+    private Task m_discoveryCompleted = Task.CompletedTask;
+    private bool m_listenerStopping;
     private ISubscriptionAdapter? m_activeAdapter;
     private int m_operationUsers;
     private int m_disposeStarted;

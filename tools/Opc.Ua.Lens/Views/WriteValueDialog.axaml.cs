@@ -38,6 +38,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Opc.Ua;
 using Opc.Ua.Client;
+using UaLens.StructuredValues;
 using UaLens.Subscriptions;
 using UaLens.ViewModels;
 
@@ -56,6 +57,8 @@ internal sealed partial class WriteValueDialog : Window
     private readonly ManagedSession m_session;
     private NodeId m_dataType = NodeId.Null;
     private int m_valueRank = ValueRanks.Scalar;
+    private DataTypeDefinition? m_definition;
+    private bool m_loaded;
 
     public WriteValueDialog(NodeViewModel node, ManagedSession session)
     {
@@ -68,7 +71,7 @@ internal sealed partial class WriteValueDialog : Window
         var ok = this.RequiredControl<Button>("OkButton");
         var cancel = this.RequiredControl<Button>("CancelButton");
         var import = this.RequiredControl<Button>("ImportButton");
-        ok.Click += async (_, _) => await OnWrite().ConfigureAwait(true);
+        ok.Click += async (_, _) => await OnWriteAsync().ConfigureAwait(true);
         cancel.Click += (_, _) => Close();
         import.Click += async (_, _) => await OnImportAsync().ConfigureAwait(true);
 
@@ -101,6 +104,7 @@ internal sealed partial class WriteValueDialog : Window
         var complexEditor = this.RequiredControl<ComplexValueEditor>("ComplexEditor");
         dataTypeLbl.Text = "(loading…)";
         currentLbl.Text = "(loading…)";
+        m_loaded = false;
 
         try
         {
@@ -112,20 +116,29 @@ internal sealed partial class WriteValueDialog : Window
             ];
             ReadResponse resp = await m_session.ReadAsync(null, 0, TimestampsToReturn.Neither,
                 ids, CancellationToken.None).ConfigureAwait(true);
+            if (!StatusCode.IsGood(resp.ResponseHeader.ServiceResult) || resp.Results.Count != 3)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError, "The current-value read did not return all requested attributes.");
+            }
+            foreach (DataValue attribute in resp.Results)
+            {
+                if (!StatusCode.IsGood(attribute.StatusCode))
+                {
+                    throw new ServiceResultException(attribute.StatusCode);
+                }
+            }
 
-            if (resp.Results.Count >= 3 && !StatusCode.IsBad(resp.Results[1].StatusCode)
-                && resp.Results[1].WrappedValue.TryGetValue(out NodeId dt))
+            if (!resp.Results[1].WrappedValue.TryGetValue(out NodeId dataType) ||
+                !resp.Results[2].WrappedValue.TryGetValue(out int valueRank))
             {
-                m_dataType = dt;
+                throw new ServiceResultException(StatusCodes.BadDecodingError, "Invalid DataType or ValueRank.");
             }
-            if (resp.Results.Count >= 3 && !StatusCode.IsBad(resp.Results[2].StatusCode)
-                && resp.Results[2].WrappedValue.TryGetValue(out int vr))
-            {
-                m_valueRank = vr;
-            }
+            m_dataType = dataType;
+            m_valueRank = valueRank;
             dataTypeLbl.Text = $"{m_dataType}    rank={m_valueRank}";
 
-            DataValue current = resp.Results.Count >= 1 ? resp.Results[0] : new DataValue();
+            DataValue current = resp.Results[0];
             string formatted = FormatVariant(current.WrappedValue);
             currentLbl.Text = formatted;
             // Pre-fill the textbox with the current value so the user has a
@@ -145,12 +158,15 @@ internal sealed partial class WriteValueDialog : Window
                     .ConfigureAwait(true);
                 if (def is StructureDefinition or EnumDefinition)
                 {
-                    complexEditor.Initialize(m_dataType, def, m_session);
-                    complexEditor.Value = current.WrappedValue;
+                    m_definition = def;
+                    await complexEditor.InitializeAsync(
+                        m_dataType, def, ComplexValueIO.ForSession(m_session), current.WrappedValue)
+                        .ConfigureAwait(true);
                     complexEditor.IsVisible = true;
                     valueText.IsVisible = false;
                 }
             }
+            m_loaded = true;
         }
         catch (Exception ex)
         {
@@ -172,6 +188,12 @@ internal sealed partial class WriteValueDialog : Window
             }
             DataValue dv = UaLens.Connection.DataValueCodec.DecodeDataValue(
                 bytes, fmt, m_session.MessageContext);
+            if (m_definition is not null)
+            {
+                await this.RequiredControl<ComplexValueEditor>("ComplexEditor").InitializeAsync(
+                    m_dataType, m_definition, ComplexValueIO.ForSession(m_session), dv.WrappedValue)
+                    .ConfigureAwait(true);
+            }
             valueText.Text = FormatVariant(dv.WrappedValue);
             result.Text = $"Loaded value from {name} ({fmt}).";
             result.Foreground = (Application.Current?.FindResource("AccentGreen") as IBrush)
@@ -189,14 +211,14 @@ internal sealed partial class WriteValueDialog : Window
         }
     }
 
-    private async Task OnWrite()
+    private async Task OnWriteAsync()
     {
         var valueText = this.RequiredControl<TextBox>("ValueText");
         var complexEditor = this.RequiredControl<ComplexValueEditor>("ComplexEditor");
         var result = this.RequiredControl<TextBlock>("ResultLabel");
-        if (m_dataType.IsNull)
+        if (!m_loaded || m_dataType.IsNull)
         {
-            result.Text = "Cannot write — DataType not loaded.";
+            result.Text = "Cannot write — the value and its DataType metadata have not loaded successfully.";
             result.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
                 ?? Brushes.Transparent;
             return;
@@ -368,47 +390,9 @@ internal sealed partial class WriteValueDialog : Window
         return false;
     }
 
-    private static string FormatVariant(Variant v)
+    private string FormatVariant(Variant value)
     {
-        if (v.IsNull)
-        {
-            return "(null)";
-        }
-
-        object? boxed = v.AsBoxedObject();
-        return boxed switch
-        {
-            null => "(null)",
-            string s => s,
-            LocalizedText l => l.Text ?? string.Empty,
-            QualifiedName q => q.ToString() ?? string.Empty,
-            Array a => FormatArray(a),
-            IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
-            _ => boxed.ToString() ?? string.Empty
-        };
-    }
-
-    private static string FormatArray(Array a)
-    {
-        var sb = new System.Text.StringBuilder();
-        sb.Append('[');
-        for (int i = 0; i < a.Length; i++)
-        {
-            if (i > 0)
-            {
-                sb.Append(", ");
-            }
-
-            object? el = a.GetValue(i);
-            sb.Append(el switch
-            {
-                null => "null",
-                IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
-                _ => el.ToString() ?? string.Empty
-            });
-        }
-        sb.Append(']');
-        return sb.ToString();
+        return StructuredScalarValue.FormatValue(value, m_session.MessageContext);
     }
 
     private void InitializeComponent()

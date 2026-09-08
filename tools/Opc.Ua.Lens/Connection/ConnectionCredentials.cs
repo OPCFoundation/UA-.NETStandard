@@ -49,10 +49,15 @@ internal interface IConnectionCredentialProvider
 
 internal sealed class ProfileCredentialProvider : IConnectionCredentialProvider
 {
-    public ProfileCredentialProvider(ISecretRegistry? secrets = null)
+    public ProfileCredentialProvider(
+        ISecretRegistry? secrets = null,
+        ConnectionIdentityConfiguration? configuration = null)
     {
         m_secrets = secrets;
+        Configuration = configuration ?? new ConnectionIdentityConfiguration();
     }
+
+    public ConnectionIdentityConfiguration Configuration { get; }
 
     public ValueTask<IClientIdentityProvider> GetAsync(ConnectionProfile profile, CancellationToken ct)
     {
@@ -68,6 +73,7 @@ internal sealed class ProfileCredentialProvider : IConnectionCredentialProvider
                     profile.IdentityName!,
                     m_secrets,
                     profile.CredentialReference),
+            UserTokenType.Certificate or UserTokenType.IssuedToken => Configuration.Resolve(profile),
             _ => throw new CredentialsRequiredException(profile)
         };
         return ValueTask.FromResult(provider);
@@ -172,6 +178,10 @@ internal sealed class ProfileIdentityProvider : IClientIdentityProvider
             IUserIdentityTokenHandler handler = identity.TokenHandler;
             if (identity.TokenType != m_profile.IdentityType ||
                 handler.TokenType != m_profile.IdentityType ||
+                (m_profile.IdentityType == UserTokenType.IssuedToken &&
+                    (handler is not IssuedIdentityTokenHandler issued ||
+                        !string.Equals(issued.IssuedTokenTypeProfileUri, m_profile.IssuedTokenType,
+                            StringComparison.Ordinal))) ||
                 (m_profile.IdentityType == UserTokenType.UserName &&
                     (handler.Token is not UserNameIdentityToken userName ||
                         !string.Equals(userName.UserName, m_profile.IdentityName, StringComparison.Ordinal))))
@@ -237,7 +247,12 @@ internal sealed class ConnectionCredentials : IAsyncDisposable
         Provider = new ProfileIdentityProvider(profile, provider, identities);
     }
 
-    public IClientIdentityProvider Provider { get; }
+    public IClientIdentityProvider Provider { get; private set; }
+
+    public void Pin(ConnectionProfile profile, ConnectionIdentityTracker identities)
+    {
+        Provider = new ProfileIdentityProvider(profile, Provider, identities);
+    }
 
     public static async Task<ConnectionCredentials> FromIdentityAsync(
         ConnectionProfile profile,
@@ -316,6 +331,15 @@ internal sealed class ConnectionCredentials : IAsyncDisposable
         {
             disposable.Dispose();
         }
+        else if (identity.TokenHandler is UserNameIdentityTokenHandler { DecryptedPassword: { } password } userName)
+        {
+            Array.Clear(password);
+            userName.DecryptedPassword = null;
+        }
+        else if (identity.TokenHandler is IssuedIdentityTokenHandler issued)
+        {
+            issued.DecryptedTokenData = null;
+        }
     }
 
     private sealed class SingleUseIdentityProvider : IClientIdentityProvider, IAsyncDisposable
@@ -372,4 +396,111 @@ internal sealed class ConnectionCredentials : IAsyncDisposable
     private InMemorySecretStore? m_store;
     private SecretIdentifier? m_secretId;
     private SingleUseIdentityProvider? m_singleUse;
+}
+
+/// <summary>
+/// An explicitly selected endpoint plus a reconnectable credential owner.
+/// Dialog cancellation/abandonment disposes it; a connection consumes it once.
+/// Unlike the compatibility picker Result, this never exposes token material.
+/// </summary>
+internal sealed class ConnectionSelection : IAsyncDisposable
+{
+    public ConnectionSelection(
+        EndpointDescription endpoint,
+        ConnectionProfile profile,
+        ConnectionCredentials credentials)
+        : this(endpoint, profile)
+    {
+        m_credentials = credentials ?? throw new ArgumentNullException(nameof(credentials));
+    }
+
+    public ConnectionSelection(
+        EndpointDescription endpoint,
+        ConnectionProfile profile,
+        IClientIdentityProvider provider)
+        : this(endpoint, profile)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        m_credentials = new ConnectionCredentials(profile, provider);
+    }
+
+    private ConnectionSelection(EndpointDescription endpoint, ConnectionProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(endpoint);
+        ArgumentNullException.ThrowIfNull(profile);
+        profile.Validate();
+        profile.RequireMatch(endpoint);
+        Endpoint = (EndpointDescription)endpoint.Clone();
+        Profile = profile;
+    }
+
+    public EndpointDescription Endpoint { get; }
+
+    public ConnectionProfile Profile { get; private set; }
+
+    public IClientIdentityProvider Provider
+    {
+        get
+        {
+            lock (m_gate)
+            {
+                ObjectDisposedException.ThrowIf(m_disposal is not null, this);
+                return m_credentials?.Provider ??
+                    throw new InvalidOperationException(
+                        "The connection selection has already transferred its credential ownership.");
+            }
+        }
+    }
+
+    public void ApplySetup(ConnectionSetupSelection setup)
+    {
+        ConnectionProfile profile = Profile with
+        {
+            ReverseConnection = setup.ReverseConnection,
+            ApplicationIdentityId = setup.ApplicationIdentityId
+        };
+        profile.Validate();
+        Profile = profile;
+    }
+
+    public ConnectionCredentials TakeCredentials()
+    {
+        lock (m_gate)
+        {
+            ObjectDisposedException.ThrowIf(m_disposal is not null, this);
+            ConnectionCredentials credentials = m_credentials ??
+                throw new InvalidOperationException("The connection selection has already been consumed.");
+            m_credentials = null;
+            return credentials;
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        lock (m_gate)
+        {
+            m_disposal ??= DisposeCoreAsync();
+            return new ValueTask(m_disposal);
+        }
+    }
+
+    private async Task DisposeCoreAsync()
+    {
+        await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
+        try
+        {
+            if (m_credentials is not null)
+            {
+                await m_credentials.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            m_credentials = null;
+        }
+    }
+
+    private readonly Lock m_gate = new();
+    private ConnectionCredentials? m_credentials;
+    private Task? m_disposal;
 }

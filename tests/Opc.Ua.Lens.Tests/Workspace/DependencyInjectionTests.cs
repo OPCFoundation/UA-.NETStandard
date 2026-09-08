@@ -27,10 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using UaLens.Themes;
+using UaLens.Tests.Observe;
+using UaLens.ViewModels;
 
 namespace UaLens.Tests.Workspace;
 
@@ -64,5 +68,38 @@ public sealed class DependencyInjectionTests
         Assert.That(provider.GetRequiredService<AppearancePreferences>(), Is.SameAs(appearance));
         Assert.That(
             services.Count(descriptor => descriptor.ServiceType == typeof(AppearancePreferences)), Is.EqualTo(1));
+    }
+
+    [TestCase(nameof(PluginKind.Alarms))]
+    [TestCase(nameof(PluginKind.Models))]
+    [TestCase(nameof(PluginKind.Continuity))]
+    [TestCase(nameof(PluginKind.PubSub))]
+    [TestCase(nameof(PluginKind.Companions))]
+    public async Task ShowcaseFactoriesAreIdempotentlyRegisteredAndCreateFreshOfflineDocumentsAsync(string kindName)
+    {
+        PluginKind kind = Enum.Parse<PluginKind>(kindName);
+        var services = new ServiceCollection();
+        services.AddUaLens();
+        services.AddUaLens();
+        using ServiceProvider provider = services.BuildServiceProvider();
+        IPluginFactory factory = provider.GetRequiredService<IPluginFactory>();
+        var context = new ObserveTestHost();
+        await using (context.ConfigureAwait(false))
+        {
+            IPlugin first = factory.Create(kind, context.Host,
+                _ => throw new InvalidOperationException("The injected factory was not registered."));
+            await using (first.ConfigureAwait(false))
+            {
+                IPlugin second = factory.Create(kind, context.Host,
+                    _ => throw new InvalidOperationException("The injected factory was not registered."));
+                await using (second.ConfigureAwait(false))
+                {
+                    Assert.That(first.Kind, Is.EqualTo(kind));
+                    Assert.That(second.Kind, Is.EqualTo(kind));
+                    Assert.That(second, Is.Not.SameAs(first));
+                    Assert.That(context.Connection.IsConnected, Is.False);
+                }
+            }
+        }
     }
 }

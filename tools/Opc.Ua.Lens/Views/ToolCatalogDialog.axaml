@@ -70,12 +70,14 @@
   <DockPanel Margin="14" LastChildFill="True">
     <TextBlock DockPanel.Dock="Top" Classes="heading" Text="Add a tool to the workspace" />
     <TextBlock DockPanel.Dock="Top" Classes="caption" Margin="0,4,0,10" TextWrapping="Wrap"
-               Text="Every tool opens as a document. Tools configure offline; connection requirements are shown per tool." />
+               Text="Every tool opens offline. Live operation requirements and capability checks are shown per tool." />
     <TextBox DockPanel.Dock="Top" x:Name="SearchBox" Margin="0,0,0,10"
              PlaceholderText="Search tools by name or description…" />
     <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
       <Button DockPanel.Dock="Right" x:Name="CancelButton" Classes="tonal" Content="Cancel"
               MinWidth="90" />
+      <Button DockPanel.Dock="Right" x:Name="CheckButton" Classes="tonal" Content="Check availability"
+              Margin="0,0,8,0" />
       <TextBlock x:Name="EmptyLabel" VerticalAlignment="Center" IsVisible="False"
                  Foreground="{DynamicResource TextDim}" Text="No tools match your search." />
     </DockPanel>
@@ -85,7 +87,7 @@
           <DataTemplate x:DataType="v:ToolCatalogGroup">
             <StackPanel Orientation="Vertical" Margin="0,0,0,12">
               <TextBlock Classes="h" Text="{CompiledBinding Name}" />
-              <ItemsControl ItemsSource="{CompiledBinding Tools}">
+              <ItemsControl DataContextChanged="OnToolGroupChanged">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="v:ToolCatalogEntry">
                     <Button Classes="tool" Tag="{CompiledBinding}"
@@ -108,6 +110,8 @@
                                      Foreground="{DynamicResource TextSecondary}" FontSize="12" />
                           <TextBlock Text="{CompiledBinding ConnectionRequirement}" TextWrapping="Wrap"
                                      Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,2,0,0" />
+                          <TextBlock Text="{CompiledBinding AvailabilityText}" TextWrapping="Wrap"
+                                     Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,2,0,0" />
                         </StackPanel>
                       </Grid>
                     </Button>

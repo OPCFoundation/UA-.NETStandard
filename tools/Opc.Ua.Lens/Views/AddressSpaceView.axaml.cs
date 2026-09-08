@@ -55,7 +55,8 @@ internal sealed record ContextMenuVisibility(
     bool CanShowEvents,
     bool CanPerf,
     bool CanAddToBench,
-    bool CanExportValue);
+    bool CanExportValue,
+    bool CanInspectModel = false);
 
 internal sealed partial class AddressSpaceView : UserControl
 {
@@ -66,6 +67,8 @@ internal sealed partial class AddressSpaceView : UserControl
     public event Action<NodeViewModel>? WriteValueRequested;
     public event Action<NodeViewModel>? ReadHistoryRequested;
     public event Action<NodeViewModel>? ShowEventsRequested;
+    public event Action<NodeViewModel>? ShowAlarmsRequested;
+    public event Action<NodeViewModel>? InspectModelRequested;
     public event Action<NodeViewModel>? PerfRequested;
     public event Action<NodeViewModel>? AddToBenchRequested;
     public event Action<NodeViewModel>? ExportValueRequested;
@@ -92,6 +95,8 @@ internal sealed partial class AddressSpaceView : UserControl
         var miWrite = this.FindControl<MenuItem>("MenuWriteValue");
         var miReadHistory = this.FindControl<MenuItem>("MenuReadHistory");
         var miShowEvents = this.FindControl<MenuItem>("MenuShowEvents");
+        var miShowAlarms = this.RequiredControl<MenuItem>("MenuShowAlarms");
+        var miInspectModel = this.RequiredControl<MenuItem>("MenuInspectModel");
         var miPerf = this.FindControl<MenuItem>("MenuPerf");
         var miAddToBench = this.FindControl<MenuItem>("MenuAddToBench");
         var miExportValue = this.FindControl<MenuItem>("MenuExportValue");
@@ -127,6 +132,7 @@ internal sealed partial class AddressSpaceView : UserControl
             {
                 miAdd.IsVisible = miAddRec.IsVisible = miCall.IsVisible = miWrite.IsVisible = false;
                 miReadHistory.IsVisible = miShowEvents.IsVisible = miPerf.IsVisible = false;
+                miShowAlarms.IsVisible = miInspectModel.IsVisible = false;
                 miAddToBench.IsVisible = false;
                 miExportValue.IsVisible = false;
                 miFindByPath.IsVisible = true;
@@ -140,6 +146,8 @@ internal sealed partial class AddressSpaceView : UserControl
             miWrite.IsVisible = v.CanWrite;
             miReadHistory.IsVisible = v.CanReadHistory;
             miShowEvents.IsVisible = v.CanShowEvents;
+            miShowAlarms.IsVisible = v.CanShowEvents;
+            miInspectModel.IsVisible = v.CanInspectModel;
             miPerf.IsVisible = v.CanPerf;
             miAddToBench.IsVisible = v.CanAddToBench;
             miExportValue.IsVisible = v.CanExportValue;
@@ -187,6 +195,20 @@ internal sealed partial class AddressSpaceView : UserControl
             if (tree.SelectedItem is NodeViewModel n)
             {
                 ShowEventsRequested?.Invoke(n);
+            }
+        };
+        miShowAlarms.Click += (_, _) =>
+        {
+            if (tree.SelectedItem is NodeViewModel node)
+            {
+                ShowAlarmsRequested?.Invoke(node);
+            }
+        };
+        miInspectModel.Click += (_, _) =>
+        {
+            if (tree.SelectedItem is NodeViewModel node)
+            {
+                InspectModelRequested?.Invoke(node);
             }
         };
         miPerf.Click += (_, _) =>
@@ -370,4 +392,3 @@ internal sealed partial class AddressSpaceView : UserControl
         AvaloniaXamlLoader.Load(this);
     }
 }
-

@@ -53,7 +53,7 @@ public sealed class PluginRegistryTests
     public void CatalogContainsEveryShippedKindWithUniqueCommandsAndShortcuts()
     {
         List<PluginRegistration> registrations = PluginRegistry.All.ToList();
-        Assert.That(registrations, Has.Count.EqualTo(12));
+        Assert.That(registrations, Has.Count.EqualTo(17));
         Assert.That(
             registrations.Select(registration => registration.Kind),
             Is.EquivalentTo(Enum.GetValues<PluginKind>()));
@@ -65,7 +65,7 @@ public sealed class PluginRegistryTests
                 registration.InputGesture,
                 new RelayCommand(() => { })))]);
 
-        Assert.That(commands.All.Count, Is.EqualTo(12));
+        Assert.That(commands.All.Count, Is.EqualTo(17));
         foreach (PluginRegistration registration in registrations)
         {
             Assert.That(PluginRegistry.For(registration.Kind), Is.SameAs(registration));
@@ -91,6 +91,8 @@ public sealed class PluginRegistryTests
             PluginRegistry.For(PluginKind.GdsManagement).ConnectionScope, Is.EqualTo(ToolConnectionScope.Secondary));
         Assert.That(
             PluginRegistry.For(PluginKind.GdsPush).ConnectionScope, Is.EqualTo(ToolConnectionScope.Secondary));
+        Assert.That(
+            PluginRegistry.For(PluginKind.PubSub).ConnectionScope, Is.EqualTo(ToolConnectionScope.IndependentNetwork));
     }
 
     [Test]

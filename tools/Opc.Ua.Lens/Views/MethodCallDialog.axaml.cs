@@ -42,6 +42,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Opc.Ua;
 using Opc.Ua.Client;
+using UaLens.StructuredValues;
 using UaLens.Subscriptions;
 using UaLens.ViewModels;
 
@@ -55,19 +56,26 @@ namespace UaLens.Views;
 /// <see cref="CallMethodRequest"/>, and surfaces the
 /// <c>StatusCode</c> + <c>OutputArguments</c> in-dialog.
 /// </summary>
-internal sealed partial class MethodCallDialog : Window
+internal sealed partial class MethodCallDialog : Window, IAsyncDisposable
 {
     private readonly NodeViewModel m_method;
-    private readonly ManagedSession m_session;
+    private readonly ISession m_session;
     private NodeId m_objectId = NodeId.Null;
-    private Argument[] m_arguments = Array.Empty<Argument>();
+    private ArrayOf<Argument> m_arguments;
+    private bool m_argumentsLoaded;
     public ObservableCollection<MethodArgRow> Inputs { get; } = new();
     public ObservableCollection<MethodOutputRow> Outputs { get; } = new();
 
-    public MethodCallDialog(NodeViewModel method, ManagedSession session)
+    public MethodCallDialog(
+        NodeViewModel method,
+        ISession session,
+        IStructuredValueService? values = null,
+        CancellationToken cancellationToken = default)
     {
         m_method = method;
         m_session = session;
+        m_values = values ?? (m_ownedValues = new SessionStructuredValueService(session));
+        m_lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         InitializeComponent();
 
         this.RequiredControl<TextBlock>("MethodLabel").Text = $"Method  {m_method.NodeId}";
@@ -75,15 +83,62 @@ internal sealed partial class MethodCallDialog : Window
         this.RequiredControl<ItemsControl>("InputsList").ItemsSource = Inputs;
         this.RequiredControl<ItemsControl>("OutputsList").ItemsSource = Outputs;
 
-        this.RequiredControl<Button>("OkButton").Click += async (_, _) => await OnCall().ConfigureAwait(true);
+        this.RequiredControl<Button>("OkButton").Click += async (_, _) =>
+        {
+            if (!m_callTask.IsCompleted)
+            {
+                return;
+            }
+            this.RequiredControl<Button>("OkButton").IsEnabled = false;
+            m_callTask = OnCallAsync();
+            try
+            {
+                await m_callTask.ConfigureAwait(true);
+            }
+            finally
+            {
+                this.RequiredControl<Button>("OkButton").IsEnabled = !m_lifetime.IsCancellationRequested;
+            }
+        };
         this.RequiredControl<Button>("CancelButton").Click += (_, _) => Close();
 
-        Opened += async (_, _) => await LoadArgumentsAsync().ConfigureAwait(true);
+        Opened += async (_, _) =>
+        {
+            m_loadTask = LoadArgumentsAsync();
+            await m_loadTask.ConfigureAwait(true);
+        };
+        Closed += async (_, _) => await StopAsync().ConfigureAwait(true);
+    }
+
+    public Task StopAsync()
+    {
+        return m_shutdown ??= StopCoreAsync();
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        return new ValueTask(StopAsync());
+    }
+
+    private async Task StopCoreAsync()
+    {
+        m_lifetime.Cancel();
+        m_nestedDialog?.Close();
+        try
+        {
+            await Task.WhenAll(m_callTask, m_loadTask, m_auxiliaryTask).ConfigureAwait(true);
+        }
+        finally
+        {
+            m_ownedValues?.Dispose();
+            m_lifetime.Dispose();
+        }
     }
 
     private async Task LoadArgumentsAsync()
     {
         var parentLbl = this.RequiredControl<TextBlock>("ParentLabel");
+        m_argumentsLoaded = false;
         try
         {
             // Step 1: parent ObjectId — prefer the cached ParentNodeId (set
@@ -115,7 +170,16 @@ internal sealed partial class MethodCallDialog : Window
                 }
             };
             BrowseResponse br = await m_session.BrowseAsync(null, null, 0, browse,
-                CancellationToken.None).ConfigureAwait(true);
+                m_lifetime.Token).ConfigureAwait(true);
+            if (!StatusCode.IsGood(br.ResponseHeader.ServiceResult) || br.Results.Count != 1)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError, "The InputArguments browse returned an invalid response.");
+            }
+            if (!StatusCode.IsGood(br.Results[0].StatusCode))
+            {
+                throw new ServiceResultException(br.Results[0].StatusCode);
+            }
 
             NodeId inputArgsId = NodeId.Null;
             if (br.Results.Count > 0 && !StatusCode.IsBad(br.Results[0].StatusCode))
@@ -134,8 +198,9 @@ internal sealed partial class MethodCallDialog : Window
             if (inputArgsId.IsNull)
             {
                 // Method takes no inputs.
-                m_arguments = Array.Empty<Argument>();
+                m_arguments = [];
                 Inputs.Clear();
+                m_argumentsLoaded = true;
                 return;
             }
 
@@ -145,39 +210,30 @@ internal sealed partial class MethodCallDialog : Window
                 new ReadValueId { NodeId = inputArgsId, AttributeId = Attributes.Value }
             ];
             ReadResponse rr = await m_session.ReadAsync(null, 0, TimestampsToReturn.Neither,
-                ids, CancellationToken.None).ConfigureAwait(true);
-            if (rr.Results.Count == 0 || StatusCode.IsBad(rr.Results[0].StatusCode))
+                ids, m_lifetime.Token).ConfigureAwait(true);
+            if (!StatusCode.IsGood(rr.ResponseHeader.ServiceResult) || rr.Results.Count != 1)
             {
-                return;
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError, "The InputArguments read returned an invalid response.");
             }
-            object? boxed = rr.Results[0].WrappedValue.AsBoxedObject();
-            if (boxed is ExtensionObject[] eos)
+            if (!StatusCode.IsGood(rr.Results[0].StatusCode))
             {
-                var args = new List<Argument>(eos.Length);
-                foreach (ExtensionObject eo in eos)
-                {
-                    if (eo.TryGetValue<Argument>(out Argument? a) && a is not null)
-                    {
-                        args.Add(a);
-                    }
-                }
-                m_arguments = args.ToArray();
+                throw new ServiceResultException(rr.Results[0].StatusCode);
             }
-            else if (boxed is Argument[] a2)
+            if (!rr.Results[0].WrappedValue.TryGetValue(out ArrayOf<Argument> arguments, m_session.MessageContext))
             {
-                m_arguments = a2;
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError, "InputArguments is not an array of decoded Argument values.");
             }
-            else
-            {
-                m_arguments = Array.Empty<Argument>();
-            }
+            m_arguments = arguments;
 
             Inputs.Clear();
             foreach (Argument a in m_arguments)
             {
                 var row = new MethodArgRow(a, FormatDefault(a));
-                row.ImportCommand = new AsyncRelayCommand(() => OnImportArgAsync(row));
-                row.EditComplexCommand = new AsyncRelayCommand(() => OnEditComplexArgAsync(row));
+                row.ImportCommand = new AsyncRelayCommand(() => StartAuxiliaryAsync(() => OnImportArgAsync(row)));
+                row.EditComplexCommand = new AsyncRelayCommand(
+                    () => StartAuxiliaryAsync(() => OnEditComplexArgAsync(row)));
                 Inputs.Add(row);
             }
 
@@ -187,6 +243,7 @@ internal sealed partial class MethodCallDialog : Window
             // alongside their primitive TextBox; the textbox stays so
             // users can still hand-paste a JSON/XML payload.
             await ProbeComplexTypesAsync().ConfigureAwait(true);
+            m_argumentsLoaded = true;
         }
         catch (Exception ex)
         {
@@ -196,7 +253,7 @@ internal sealed partial class MethodCallDialog : Window
 
     private async Task ProbeComplexTypesAsync()
     {
-        for (int i = 0; i < m_arguments.Length && i < Inputs.Count; i++)
+        for (int i = 0; i < m_arguments.Count && i < Inputs.Count; i++)
         {
             Argument a = m_arguments[i];
             if (a.ValueRank != ValueRanks.Scalar
@@ -205,9 +262,7 @@ internal sealed partial class MethodCallDialog : Window
             {
                 continue;
             }
-            DataTypeDefinition? def = await ComplexValueIO
-                .GetDataTypeDefinitionAsync(a.DataType, m_session, CancellationToken.None)
-                .ConfigureAwait(true);
+            DataTypeDefinition? def = await m_values.ResolveAsync(a.DataType, m_lifetime.Token).ConfigureAwait(true);
             if (def is StructureDefinition or EnumDefinition)
             {
                 Inputs[i].Definition = def;
@@ -233,7 +288,7 @@ internal sealed partial class MethodCallDialog : Window
                 }
             };
             BrowseResponse br = await m_session.BrowseAsync(null, null, 0, browse,
-                CancellationToken.None).ConfigureAwait(true);
+                m_lifetime.Token).ConfigureAwait(true);
             if (br.Results.Count > 0 && !StatusCode.IsBad(br.Results[0].StatusCode)
                 && br.Results[0].References.Count > 0)
             {
@@ -247,22 +302,22 @@ internal sealed partial class MethodCallDialog : Window
         return NodeId.Null;
     }
 
-    private async Task OnCall()
+    private async Task OnCallAsync()
     {
         var statusLbl = this.RequiredControl<TextBlock>("ResultStatus");
         statusLbl.Foreground = (Application.Current?.FindResource("TextPrimary") as IBrush)
             ?? Brushes.Transparent;
         Outputs.Clear();
 
-        if (m_objectId.IsNull)
+        if (!m_argumentsLoaded || m_objectId.IsNull)
         {
-            statusLbl.Text = "Cannot call — parent ObjectId could not be resolved.";
+            statusLbl.Text = "Cannot call — the parent and argument metadata have not loaded successfully.";
             return;
         }
 
         // Parse every input argument; abort on first error.
-        var parsed = new List<Variant>(m_arguments.Length);
-        for (int i = 0; i < m_arguments.Length; i++)
+        var parsed = new List<Variant>(m_arguments.Count);
+        for (int i = 0; i < m_arguments.Count; i++)
         {
             Argument a = m_arguments[i];
             MethodArgRow? row = i < Inputs.Count ? Inputs[i] : null;
@@ -295,7 +350,8 @@ internal sealed partial class MethodCallDialog : Window
                     InputArguments = new ArrayOf<Variant>(parsed.ToArray())
                 }
             ];
-            CallResponse resp = await m_session.CallAsync(null, calls, CancellationToken.None).ConfigureAwait(true);
+            m_lifetime.Token.ThrowIfCancellationRequested();
+            CallResponse resp = await m_session.CallAsync(null, calls, m_lifetime.Token).ConfigureAwait(true);
             if (resp.Results.Count == 0)
             {
                 statusLbl.Text = "(no result)";
@@ -350,6 +406,7 @@ internal sealed partial class MethodCallDialog : Window
         {
             (byte[] bytes, UaLens.Connection.EncodingFormat fmt, string name) =
                 await EncodedValueIO.LoadAsync(this).ConfigureAwait(true);
+            m_lifetime.Token.ThrowIfCancellationRequested();
             if (bytes.Length == 0)
             {
                 return;
@@ -378,12 +435,21 @@ internal sealed partial class MethodCallDialog : Window
             return;
         }
         var dlg = new ComplexValueElementDialog(
-            row.Argument.DataType, row.Definition, m_session, row.CachedVariant);
-        Variant? edited = await dlg.ShowDialog<Variant?>(this).ConfigureAwait(true);
-        if (edited.HasValue)
+            row.Argument.DataType, row.Definition, m_values, row.CachedVariant);
+        m_nestedDialog = dlg;
+        try
         {
-            row.CachedVariant = edited.Value;
-            row.ValueText = FormatVariant(edited.Value);
+            await dlg.ShowDialog(this).ConfigureAwait(true);
+        }
+        finally
+        {
+            await dlg.StopAsync().ConfigureAwait(true);
+            m_nestedDialog = null;
+        }
+        if (dlg.WasCommitted)
+        {
+            row.ValueText = FormatVariant(dlg.Result);
+            row.CachedVariant = dlg.Result;
             statusLbl.Text = $"Edited {row.Header} (complex value).";
             statusLbl.Foreground = (Application.Current?.FindResource("TextPrimary") as IBrush)
                 ?? Brushes.Transparent;
@@ -397,53 +463,34 @@ internal sealed partial class MethodCallDialog : Window
         return string.Empty;
     }
 
-    private static string FormatVariant(Variant v)
+    private string FormatVariant(Variant value)
     {
-        if (v.IsNull)
-        {
-            return "(null)";
-        }
-
-        object? boxed = v.AsBoxedObject();
-        return boxed switch
-        {
-            null => "(null)",
-            string s => s,
-            LocalizedText l => l.Text ?? string.Empty,
-            QualifiedName q => q.ToString() ?? string.Empty,
-            Array a => FormatArray(a),
-            IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
-            _ => boxed.ToString() ?? string.Empty
-        };
+        return StructuredScalarValue.FormatValue(value, m_session.MessageContext);
     }
 
-    private static string FormatArray(Array a)
+    private Task StartAuxiliaryAsync(Func<Task> operation)
     {
-        var sb = new StringBuilder();
-        sb.Append('[');
-        for (int i = 0; i < a.Length; i++)
+        if (!m_auxiliaryTask.IsCompleted || m_lifetime.IsCancellationRequested)
         {
-            if (i > 0)
-            {
-                sb.Append(", ");
-            }
-
-            object? el = a.GetValue(i);
-            sb.Append(el switch
-            {
-                null => "null",
-                IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
-                _ => el.ToString() ?? string.Empty
-            });
+            return Task.CompletedTask;
         }
-        sb.Append(']');
-        return sb.ToString();
+        m_auxiliaryTask = operation();
+        return m_auxiliaryTask;
     }
 
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
     }
+
+    private readonly IStructuredValueService m_values;
+    private readonly SessionStructuredValueService? m_ownedValues;
+    private readonly CancellationTokenSource m_lifetime;
+    private Task m_loadTask = Task.CompletedTask;
+    private Task m_callTask = Task.CompletedTask;
+    private Task m_auxiliaryTask = Task.CompletedTask;
+    private Task? m_shutdown;
+    private Window? m_nestedDialog;
 }
 
 internal sealed partial class MethodArgRow : ObservableObject
@@ -487,6 +534,11 @@ internal sealed partial class MethodArgRow : ObservableObject
         Argument = a;
         Header = $"{a.Name} : {a.DataType} (rank={a.ValueRank})";
         m_valueText = defaultValue;
+    }
+
+    partial void OnValueTextChanged(string value)
+    {
+        CachedVariant = Variant.Null;
     }
 }
 

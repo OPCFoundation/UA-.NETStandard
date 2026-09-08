@@ -505,15 +505,11 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
 
         if (item.NodeClass == NodeClass.Method)
         {
-            var callDlg = new MethodCallDialog(node, session);
-            if (owner is not null)
+            if (owner is null)
             {
-                await callDlg.ShowDialog(owner).ConfigureAwait(true);
+                throw new InvalidOperationException("A desktop owner is required to show a method-call dialog.");
             }
-            else
-            {
-                callDlg.Show();
-            }
+            await ShowMethodCallDialogAsync(node, session, owner).ConfigureAwait(true);
         }
         else if (item.NodeClass == NodeClass.Variable)
         {
@@ -530,6 +526,15 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         else
         {
             m_log.TriggerNotActionable(item.NodeId, item.NodeClass);
+        }
+    }
+
+    private static async Task ShowMethodCallDialogAsync(NodeViewModel node, ManagedSession session, Window owner)
+    {
+        var dialog = new MethodCallDialog(node, session);
+        await using (dialog.ConfigureAwait(false))
+        {
+            await dialog.ShowDialog(owner).ConfigureAwait(true);
         }
     }
 

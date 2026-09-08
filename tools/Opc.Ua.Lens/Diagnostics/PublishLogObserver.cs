@@ -31,9 +31,9 @@ using System;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using Avalonia.Threading;
+using Opc.Ua;
 using Opc.Ua.Client.Subscriptions;
 
 namespace UaLens.Diagnostics;
@@ -45,11 +45,17 @@ namespace UaLens.Diagnostics;
 /// </summary>
 internal enum PublishLogKind
 {
-    /// <summary>Notification carried a <c>DataChangeNotification</c>.</summary>
+    /// <summary>
+    /// Notification carried a data change.
+    /// </summary>
     Data,
-    /// <summary>Notification carried an <c>EventNotificationList</c>.</summary>
+    /// <summary>
+    /// Notification carried an event list.
+    /// </summary>
     Event,
-    /// <summary>Notification was a keep-alive (no <c>NotificationData</c>).</summary>
+    /// <summary>
+    /// Notification was a keep-alive without notification data.
+    /// </summary>
     KeepAlive,
     /// <summary>
     /// Single publish message carried both data and event notifications.
@@ -74,21 +80,31 @@ internal sealed record PublishLogEntry(
 {
     public long ClientSubscriptionId { get; init; }
 
-    /// <summary>Local wall-clock time the publish callback was entered.</summary>
+    public Guid ClientSessionId { get; init; }
+
+    /// <summary>
+    /// Local wall-clock time publish metadata was captured inside the callback.
+    /// </summary>
     public string TimeText
         => ReceivedAtLocal.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
 
-    /// <summary>Server-side publish time, formatted as UTC.</summary>
+    /// <summary>
+    /// Server-side publish time, formatted as UTC.
+    /// </summary>
     public string PublishTimeText
-        => PublishTimeUtc.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
+        => PublishTimeUtc == DateTime.MinValue
+            ? "unknown"
+            : PublishTimeUtc.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
 
     public string SubscriptionText
         => SubscriptionId != 0
             ? SubscriptionId.ToString(CultureInfo.InvariantCulture)
-            : $"client:{ClientSubscriptionId.ToString(CultureInfo.InvariantCulture)}";
+            : ClientSubscriptionId != 0
+                ? $"client:{ClientSubscriptionId.ToString(CultureInfo.InvariantCulture)}"
+                : "unknown";
 
     public string SequenceText
-        => SequenceNumber.ToString(CultureInfo.InvariantCulture);
+        => SequenceNumber == 0 ? "unknown" : SequenceNumber.ToString(CultureInfo.InvariantCulture);
 
     public string NotifCountText
         => NotifCount.ToString(CultureInfo.InvariantCulture);
@@ -119,13 +135,14 @@ internal sealed class PublishLogObserver
         m_schedule = schedule ?? ScheduleOnDesktop;
     }
 
-    /// <summary>Maximum number of rows retained.  Older rows are dropped FIFO.</summary>
-    public const int MaxEntries = 500;
-
-    /// <summary>Live, observable collection bound by the diagnostics view.</summary>
+    /// <summary>
+    /// Live, observable collection bound by the diagnostics view.
+    /// </summary>
     public ObservableCollection<PublishLogEntry> Entries { get; } = new();
 
     public long DroppedDisplayEntries => Interlocked.Read(ref m_dropped);
+
+    public long EvictedDisplayEntries => Interlocked.Read(ref m_evicted);
 
     public void RecordClient(
         ISubscription subscription,
@@ -133,15 +150,27 @@ internal sealed class PublishLogObserver
         uint sequenceNumber,
         DateTime publishTimeUtc,
         int notificationCount,
-        PublishLogKind kind)
+        PublishLogKind kind,
+        Guid clientSessionId = default)
     {
         ArgumentNullException.ThrowIfNull(subscription);
-        ClientIdentity identity = m_identities.GetValue(
-            subscription, _ => new ClientIdentity(Interlocked.Increment(ref m_nextIdentity)));
         Enqueue(new PublishLogEntry(DateTime.Now, serverId, sequenceNumber, publishTimeUtc, notificationCount, kind)
         {
-            ClientSubscriptionId = identity.Id
+            ClientSubscriptionId = DiagnosticCorrelation.Subscription(subscription),
+            ClientSessionId = clientSessionId
         });
+    }
+
+    /// <summary>
+    /// Bounded callback metadata for export. Includes callbacks awaiting desktop
+    /// rendering; retained entries are independent of the UI collection.
+    /// </summary>
+    public ArrayOf<PublishLogEntry> CaptureSnapshot()
+    {
+        lock (m_gate)
+        {
+            return new ArrayOf<PublishLogEntry>(m_history.ToArray());
+        }
     }
 
     /// <summary>
@@ -176,6 +205,7 @@ internal sealed class PublishLogObserver
         lock (m_gate)
         {
             m_pending.Clear();
+            m_history.Clear();
         }
         if (Dispatcher.UIThread.CheckAccess())
         {
@@ -195,7 +225,9 @@ internal sealed class PublishLogObserver
             PublishLogEntry last = Entries[lastIndex];
             if (last.SubscriptionId == entry.SubscriptionId
                 && last.ClientSubscriptionId == entry.ClientSubscriptionId
+                && last.ClientSessionId == entry.ClientSessionId
                 && last.SequenceNumber == entry.SequenceNumber
+                && last.PublishTimeUtc == entry.PublishTimeUtc
                 && last.Kind != PublishLogKind.KeepAlive
                 && entry.Kind != PublishLogKind.KeepAlive)
             {
@@ -213,6 +245,7 @@ internal sealed class PublishLogObserver
         while (Entries.Count > MaxEntries)
         {
             Entries.RemoveAt(0);
+            Interlocked.Increment(ref m_evicted);
         }
     }
 
@@ -221,6 +254,11 @@ internal sealed class PublishLogObserver
         bool schedule = false;
         lock (m_gate)
         {
+            if (m_history.Count == MaxEntries)
+            {
+                m_history.Dequeue();
+            }
+            m_history.Enqueue(entry);
             if (m_pending.Count == MaxEntries)
             {
                 m_pending.Dequeue();
@@ -279,13 +317,16 @@ internal sealed class PublishLogObserver
         return b;
     }
 
-    private sealed record ClientIdentity(long Id);
+    /// <summary>
+    /// Maximum number of rows retained. Older rows are dropped FIFO.
+    /// </summary>
+    public const int MaxEntries = 500;
 
     private readonly System.Threading.Lock m_gate = new();
     private readonly Action<Action> m_schedule;
     private readonly Queue<PublishLogEntry> m_pending = new();
-    private readonly ConditionalWeakTable<ISubscription, ClientIdentity> m_identities = new();
-    private long m_nextIdentity;
+    private readonly Queue<PublishLogEntry> m_history = new();
     private long m_dropped;
+    private long m_evicted;
     private bool m_scheduled;
 }

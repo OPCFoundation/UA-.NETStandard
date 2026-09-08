@@ -32,7 +32,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using Opc.Ua;
+using Opc.Ua.Identity;
 using UaLens.Views;
 
 namespace UaLens.Connection;
@@ -57,6 +59,149 @@ internal static class EndpointCredentialsPicker
         EndpointDescription Endpoint,
         IUserIdentity Identity,
         UserTokenPolicy? Policy);
+
+    /// <summary>
+    /// Primary connection flow. The returned owner retains a provider, not an
+    /// eager token; canceling/abandoning the selection releases interactive
+    /// username material without affecting host-owned certificate/token providers.
+    /// </summary>
+    public static async Task<ConnectionSelection?> PromptProviderAsync(
+        Window owner,
+        ArrayOf<EndpointDescription> endpoints,
+        ConnectionIdentityConfiguration identities,
+        ApplicationConfiguration application,
+        SubscriptionEngineKind engine,
+        Func<ConnectionProfile, CancellationToken, ValueTask<IClientIdentityProvider>>? resolver = null,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+        var picker = new EndpointPickerDialog(endpoints, allowConfiguredIdentities: true);
+        (EndpointDescription, UserTokenPolicy?)? pick = await ShowCancelableAsync<
+            (EndpointDescription, UserTokenPolicy?)?>(picker, owner, ct).ConfigureAwait(true);
+        if (pick is not { } selected || selected.Item2 is not { } policy)
+        {
+            return null;
+        }
+        return await PromptIdentityAsync(
+            owner, selected.Item1, policy, identities, application, engine, null, resolver, ct).ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Reacquires the saved reference without substituting another authority,
+    /// user, key or policy. Legacy profiles without a certificate/token reference
+    /// may explicitly select one, still within the saved endpoint/token policy.
+    /// </summary>
+    public static async Task<ConnectionSelection?> PromptProfileAsync(
+        Window owner,
+        EndpointDescription endpoint,
+        ConnectionProfile profile,
+        ConnectionIdentityConfiguration identities,
+        ApplicationConfiguration application,
+        Func<ConnectionProfile, CancellationToken, ValueTask<IClientIdentityProvider>> resolver,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(resolver);
+        UserTokenPolicy policy = profile.RequireMatch(endpoint);
+        if ((profile.IdentityType == UserTokenType.UserName && profile.CredentialReference is null) ||
+            (profile.IdentityType == UserTokenType.Certificate && profile.CertificateIdentity is null) ||
+            (profile.IdentityType == UserTokenType.IssuedToken && profile.IssuedIdentity is null))
+        {
+            return await PromptIdentityAsync(owner, endpoint, policy, identities, application,
+                profile.Engine, profile, resolver, ct).ConfigureAwait(true);
+        }
+        IClientIdentityProvider provider = await resolver(profile, ct).ConfigureAwait(true);
+        var pinned = new ProfileIdentityProvider(profile, provider);
+        await pinned.SelectUserTokenPolicyAsync(new IdentitySelectionContext(
+            endpoint,
+            endpoint.UserIdentityTokens,
+            application.CreateMessageContext(),
+            application.SecurityConfiguration.SupportedSecurityPolicies), ct).ConfigureAwait(true);
+        ct.ThrowIfCancellationRequested();
+        return new ConnectionSelection(endpoint, profile, provider);
+    }
+
+    private static async Task<ConnectionSelection?> PromptIdentityAsync(
+        Window owner,
+        EndpointDescription endpoint,
+        UserTokenPolicy policy,
+        ConnectionIdentityConfiguration identities,
+        ApplicationConfiguration application,
+        SubscriptionEngineKind engine,
+        ConnectionProfile? restored,
+        Func<ConnectionProfile, CancellationToken, ValueTask<IClientIdentityProvider>>? resolver,
+        CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (policy.TokenType is UserTokenType.Certificate or UserTokenType.IssuedToken)
+        {
+            var referenceDialog = new IdentityReferenceDialog(
+                endpoint, policy, engine, identities, application,
+                restored?.CertificateIdentity is not null || restored?.IssuedIdentity is not null ? restored : null,
+                resolver);
+            await using (referenceDialog.ConfigureAwait(false))
+            {
+                return await referenceDialog.PromptAsync(owner, ct).ConfigureAwait(true);
+            }
+        }
+        if (policy.TokenType == UserTokenType.Anonymous)
+        {
+            ConnectionProfile profile = restored ?? ConnectionProfile.Create(endpoint, policy, engine);
+            IClientIdentityProvider provider = resolver is null
+                ? new AnonymousIdentityProvider()
+                : await resolver(profile, ct).ConfigureAwait(true);
+            return new ConnectionSelection(endpoint, profile, provider);
+        }
+        if (policy.TokenType != UserTokenType.UserName)
+        {
+            throw new NotSupportedException("The server's selected user-token type has no configured identity flow.");
+        }
+        var credentials = new CredentialsDialog(restored?.IdentityName);
+        (string, string)? pair = await ShowCancelableAsync<(string, string)?>(credentials, owner, ct)
+            .ConfigureAwait(true);
+        if (pair is null)
+        {
+            return null;
+        }
+        (string user, string passwordText) = pair.Value;
+        if (restored is not null && !string.Equals(user, restored.IdentityName, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Restoring this profile requires the saved username. Use a new connection to change identity.");
+        }
+        ConnectionProfile selectedProfile = restored ?? ConnectionProfile.Create(endpoint, policy, engine, user);
+        byte[] password = Encoding.UTF8.GetBytes(passwordText);
+        ConnectionCredentials ownerCredentials;
+        try
+        {
+            var identity = new UserIdentity(user, password.AsSpan()) { PolicyId = policy.PolicyId! };
+            ownerCredentials = await ConnectionCredentials.FromIdentityAsync(selectedProfile, identity, ct)
+                .ConfigureAwait(true);
+        }
+        finally
+        {
+            Array.Clear(password);
+        }
+        return new ConnectionSelection(endpoint, selectedProfile, ownerCredentials);
+    }
+
+    internal static async Task<T> ShowCancelableAsync<T>(Window dialog, Window owner, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        CancellationTokenRegistration registration = ct.Register(() =>
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (dialog.IsVisible)
+                {
+                    dialog.Close();
+                }
+            }));
+        await using (registration.ConfigureAwait(true))
+        {
+            T result = await dialog.ShowDialog<T>(owner).ConfigureAwait(true);
+            ct.ThrowIfCancellationRequested();
+            return result;
+        }
+    }
 
     /// <summary>
     /// Runs the full pick + credentials flow.  Returns null if the user
@@ -99,8 +244,8 @@ internal static class EndpointCredentialsPicker
         ArgumentNullException.ThrowIfNull(owner);
         ct.ThrowIfCancellationRequested();
         var picker = new EndpointPickerDialog(endpoints);
-        var pick = await picker.ShowDialog<(EndpointDescription, UserTokenPolicy?)?>(owner).ConfigureAwait(true);
-        ct.ThrowIfCancellationRequested();
+        var pick = await ShowCancelableAsync<(EndpointDescription, UserTokenPolicy?)?>(picker, owner, ct)
+            .ConfigureAwait(true);
         if (pick is null || pick.Value.Item1 is null)
         {
             return null;
@@ -129,8 +274,7 @@ internal static class EndpointCredentialsPicker
         if (policy is { TokenType: UserTokenType.UserName })
         {
             var creds = new CredentialsDialog();
-            var pair = await creds.ShowDialog<(string, string)?>(owner).ConfigureAwait(true);
-            ct.ThrowIfCancellationRequested();
+            var pair = await ShowCancelableAsync<(string, string)?>(creds, owner, ct).ConfigureAwait(true);
             if (pair is null)
             {
                 return null;

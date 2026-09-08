@@ -28,17 +28,12 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Globalization;
-using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Opc.Ua;
-using Opc.Ua.Client;
-using UaLens.Subscriptions;
+using UaLens.StructuredValues;
 
 namespace UaLens.Views;
 
@@ -49,32 +44,22 @@ namespace UaLens.Views;
 /// TextBox prompt as the inline editor, structure elements open a child
 /// <see cref="ComplexValueEditor"/> hosted in a dialog so the user can
 /// drill into nested fields.  Operates on a working
-/// <see cref="List{Variant}"/> copy and returns it to the caller on OK.
+/// typed element copy and returns it to the caller on OK.
 /// </summary>
 internal sealed partial class EditArrayDialog : Window
 {
-    private readonly NodeId m_elementDataType;
-    private readonly DataTypeDefinition? m_elementDefinition;
-    private readonly ManagedSession? m_session;
-    private readonly ObservableCollection<ArrayRow> m_rows = [];
-    private bool m_ok;
-
-    /// <summary>
-    /// Snapshot of the elements at the time OK was clicked.  Null when
-    /// the dialog was cancelled; the caller treats that as "no change".
-    /// </summary>
-    public IReadOnlyList<Variant>? Result { get; private set; }
-
     public EditArrayDialog(
         string header,
         NodeId elementDataType,
         DataTypeDefinition? elementDefinition,
-        IEnumerable<Variant>? initial,
-        ManagedSession? session)
+        ArrayOf<Variant> initial,
+        IStructuredValueService service,
+        BuiltInType elementType)
     {
         m_elementDataType = elementDataType;
         m_elementDefinition = elementDefinition;
-        m_session = session;
+        m_service = service ?? throw new ArgumentNullException(nameof(service));
+        m_elementType = elementType;
         InitializeComponent();
 
         this.RequiredControl<TextBlock>("HeaderLabel").Text = header;
@@ -84,8 +69,16 @@ internal sealed partial class EditArrayDialog : Window
         ListBox list = this.RequiredControl<ListBox>("ItemsList");
         list.ItemsSource = m_rows;
 
-        this.RequiredControl<Button>("AddButton").Click += async (_, _) => await OnAddAsync().ConfigureAwait(true);
-        this.RequiredControl<Button>("EditButton").Click += async (_, _) => await OnEditAsync().ConfigureAwait(true);
+        this.RequiredControl<Button>("AddButton").Click += async (_, _) =>
+        {
+            m_editTask = PresentEditAsync(OnAddAsync);
+            await m_editTask.ConfigureAwait(true);
+        };
+        this.RequiredControl<Button>("EditButton").Click += async (_, _) =>
+        {
+            m_editTask = PresentEditAsync(OnEditAsync);
+            await m_editTask.ConfigureAwait(true);
+        };
         this.RequiredControl<Button>("RemoveButton").Click += (_, _) => OnRemove();
         this.RequiredControl<Button>("MoveUpButton").Click += (_, _) => OnMove(-1);
         this.RequiredControl<Button>("MoveDownButton").Click += (_, _) => OnMove(+1);
@@ -96,14 +89,25 @@ internal sealed partial class EditArrayDialog : Window
             Close();
         };
         this.RequiredControl<Button>("CancelButton").Click += (_, _) => Close();
+        Closed += async (_, _) => await StopAsync().ConfigureAwait(true);
 
-        if (initial is not null)
+        foreach (Variant value in initial)
         {
-            foreach (Variant v in initial)
-            {
-                m_rows.Add(new ArrayRow(v));
-            }
+            m_rows.Add(new ArrayRow(value.Copy()));
         }
+    }
+
+    /// <summary>
+    /// The accepted elements; consult WasCommitted to distinguish cancel from an empty array.
+    /// </summary>
+    public ArrayOf<Variant> Result { get; private set; }
+
+    public bool WasCommitted => m_ok;
+
+    public async Task StopAsync()
+    {
+        m_child?.Close();
+        await m_editTask.ConfigureAwait(true);
     }
 
     /// <summary>
@@ -129,8 +133,19 @@ internal sealed partial class EditArrayDialog : Window
 
     private async Task OnAddAsync()
     {
-        Variant fresh = await CreateDefaultElementAsync().ConfigureAwait(true);
-        m_rows.Add(new ArrayRow(fresh));
+        Variant fresh = ComplexValueIO.DefaultScalar(m_elementType);
+        if (m_elementDefinition is StructureDefinition or EnumDefinition)
+        {
+            var dialog = new ComplexValueElementDialog(
+                m_elementDataType, m_elementDefinition, m_service, Variant.Null);
+            await ShowChildAsync(dialog).ConfigureAwait(true);
+            if (!dialog.WasCommitted)
+            {
+                return;
+            }
+            fresh = dialog.Result;
+        }
+        m_rows.Add(new ArrayRow(fresh.Copy()));
         this.RequiredControl<ListBox>("ItemsList").SelectedIndex = m_rows.Count - 1;
     }
 
@@ -142,8 +157,27 @@ internal sealed partial class EditArrayDialog : Window
         {
             return;
         }
-        Variant edited = await EditElementAsync(m_rows[idx].Value).ConfigureAwait(true);
-        m_rows[idx] = new ArrayRow(edited);
+        if (m_elementDefinition is StructureDefinition or EnumDefinition)
+        {
+            var dialog = new ComplexValueElementDialog(
+                m_elementDataType, m_elementDefinition, m_service, m_rows[idx].Value);
+            await ShowChildAsync(dialog).ConfigureAwait(true);
+            if (!dialog.WasCommitted)
+            {
+                return;
+            }
+            m_rows[idx] = new ArrayRow(dialog.Result);
+        }
+        else
+        {
+            var dialog = new PrimitiveValuePromptDialog(m_elementType, m_rows[idx].Value);
+            await ShowChildAsync(dialog).ConfigureAwait(true);
+            if (!dialog.WasCommitted)
+            {
+                return;
+            }
+            m_rows[idx] = new ArrayRow(dialog.Result);
+        }
         list.SelectedIndex = idx;
     }
 
@@ -175,72 +209,58 @@ internal sealed partial class EditArrayDialog : Window
         list.SelectedIndex = target;
     }
 
-    private async Task<Variant> CreateDefaultElementAsync()
-    {
-        if (m_elementDefinition is StructureDefinition && m_session is not null)
-        {
-            return await EditStructureAsync(Variant.Null).ConfigureAwait(true);
-        }
-        if (m_elementDefinition is EnumDefinition)
-        {
-            return Variant.From(0);
-        }
-        BuiltInType bi = TypeInfo.GetBuiltInType(m_elementDataType);
-        return ComplexValueIO.DefaultScalar(bi);
-    }
-
-    private Task<Variant> EditElementAsync(Variant current)
-    {
-        if (m_elementDefinition is StructureDefinition && m_session is not null)
-        {
-            return EditStructureAsync(current);
-        }
-        // For primitive / enum elements, edit via a one-line text prompt;
-        // arrays-of-arrays aren't supported by this dialog (callers gate on
-        // ValueRank == 1).
-        return EditPrimitiveAsync(current);
-    }
-
-    private async Task<Variant> EditStructureAsync(Variant current)
-    {
-        if (m_session is null || m_elementDefinition is not StructureDefinition)
-        {
-            return current;
-        }
-        var dlg = new ComplexValueElementDialog(
-            m_elementDataType, m_elementDefinition, m_session, current);
-        Variant? committed = await dlg.ShowDialog<Variant?>(this).ConfigureAwait(true);
-        return committed ?? current;
-    }
-
-    private async Task<Variant> EditPrimitiveAsync(Variant current)
-    {
-        var dlg = new PrimitiveValuePromptDialog(m_elementDataType, current);
-        Variant? committed = await dlg.ShowDialog<Variant?>(this).ConfigureAwait(true);
-        return committed ?? current;
-    }
-
-    private Variant[] SnapshotRows()
+    private ArrayOf<Variant> SnapshotRows()
     {
         var arr = new Variant[m_rows.Count];
         for (int i = 0; i < m_rows.Count; i++)
         {
-            arr[i] = m_rows[i].Value;
+            arr[i] = m_rows[i].Value.Copy();
         }
         return arr;
     }
 
-    /// <summary>
-    /// Returns <c>true</c> only when the user clicked OK — used by
-    /// callers to distinguish a real "save empty array" intent from a
-    /// cancel.
-    /// </summary>
-    public bool WasCommitted => m_ok;
+    private async Task ShowChildAsync(Window dialog)
+    {
+        m_child = dialog;
+        try
+        {
+            await dialog.ShowDialog(this).ConfigureAwait(true);
+        }
+        finally
+        {
+            if (dialog is ComplexValueElementDialog complex)
+            {
+                await complex.StopAsync().ConfigureAwait(true);
+            }
+            m_child = null;
+        }
+    }
+
+    private async Task PresentEditAsync(Func<Task> operation)
+    {
+        try
+        {
+            await operation().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            this.RequiredControl<TextBlock>("HintLabel").Text = $"Edit failed: {ex.Message}";
+        }
+    }
 
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
     }
+
+    private readonly NodeId m_elementDataType;
+    private readonly DataTypeDefinition? m_elementDefinition;
+    private readonly IStructuredValueService m_service;
+    private readonly BuiltInType m_elementType;
+    private readonly ObservableCollection<ArrayRow> m_rows = [];
+    private bool m_ok;
+    private Task m_editTask = Task.CompletedTask;
+    private Window? m_child;
 }
 
 /// <summary>
@@ -249,12 +269,12 @@ internal sealed partial class EditArrayDialog : Window
 /// </summary>
 internal sealed class ArrayRow
 {
-    public Variant Value { get; }
-
     public ArrayRow(Variant value)
     {
         Value = value;
     }
+
+    public Variant Value { get; }
 
     public override string ToString()
     {
@@ -262,17 +282,10 @@ internal sealed class ArrayRow
         {
             return "(null)";
         }
-        object? boxed = Value.AsBoxedObject();
-        if (boxed is ExtensionObject eo)
+        if (Value.TryGetValue(out ExtensionObject extension))
         {
-            return $"(struct  {eo.TypeId})";
+            return $"(struct  {extension.TypeId})";
         }
-        return boxed switch
-        {
-            null => "(null)",
-            string s => s,
-            IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
-            _ => boxed.ToString() ?? string.Empty
-        };
+        return StructuredScalarValue.Format(Value);
     }
 }

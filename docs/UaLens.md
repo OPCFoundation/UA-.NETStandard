@@ -76,9 +76,13 @@ Changing engines or reconnecting preserves the selected security and identity
 profile. Credentials are reacquired when necessary; a disposed session identity
 is not reused. Changing the user replaces the session through the connection
 owner, updating its profile and retained credentials together; document
-configurations are rebound to the new session. Workspaces contain profile intent, not passwords, private keys, or
-bearer tokens. The interactive picker supports Anonymous and UserName identities;
-broader identity-provider workflows are an extension opportunity below.
+configurations are rebound to the new session. Workspaces contain profile intent,
+not passwords, private keys, or bearer tokens. In addition to Anonymous and UserName,
+the connection flow supports existing X.509 user certificates and issued-token
+providers registered by the host. Certificate stores, password/PIN providers, token
+authorities, application-key providers, and reverse-connect listeners have explicit
+configuration requirements; a saved provider name cannot install a provider or load
+an arbitrary native module. See [guided workflows](UaLensShowcase.md).
 
 ## Monitoring
 
@@ -124,6 +128,11 @@ from notification delivery.
 |---|---|
 | Monitor | Values, events, quality/timestamps, charts, subscription/item settings, recursive node selection, export |
 | Event View | Multiple sources, filters, selected fields, details, bounded event log, display pause/clear |
+| Alarms | Retained conditions and branches, refresh reconciliation, explicit acknowledgement/confirmation/comment, contextual operator actions |
+| Models | Type definitions, schema preview/export, native-safe structured editing, explicit read/write/call |
+| Continuity Lab | Bounded recovery evidence, owned-subscription recreation, transfer/recreate-on-load, configured durable and redundant scenarios |
+| PubSub | Explicitly started dataset observation, metadata and diagnostics, controlled publication and configured Action/adapter workflows |
+| Companion Tasks | Typed DI, ISA-95, WoT/xRegistry, Robotics, Vision, AI and OpenUSD discovery/inspection, with bounded guided operations |
 | Historian | Raw, processed, at-time and modified reads; cancellation, export, and explicitly requested updates/deletion |
 | Subscription Bench | Variable pool, both live scaling sliders, aggregate rates/counts, shared defaults, shrinking and Stop cleanup |
 | Performance | Explicit write/call workloads, rate/duration, run history, CSV, and the existing limited last-three comparison |
@@ -136,6 +145,11 @@ from notification delivery.
 The bench remains slider-driven; there is no separate Run prerequisite. Shared
 settings apply to existing resources and resources added later. Shrinking, Stop,
 and document closure release the corresponding server resources.
+
+The new observation and task documents do not change the bench's slider behavior.
+PubSub and continuity experiments have their own explicit Start/Stop controls.
+PubSub can own an independent network runtime without a primary UA session; only
+configured primary-session adapters depend on that session.
 
 Administration targets and prerequisites matter. History deletion, file deletion,
 account/role changes, certificate application, and write/call workloads are not
@@ -166,24 +180,29 @@ completed sibling temporary file before replacing the destination. Missing favor
 are an empty initial state; corrupt or inaccessible favorites are an error, not a
 misleading successful empty list. Endpoint paths remain case-sensitive.
 
-## Next stack-showcase capabilities
+## Capability evidence and prerequisites
 
-These are recommendations, not claims that UaLens already implements them. Stack
-support, UaLens exposure, and the connected server's capabilities are separate.
-The proposed additions should reuse the existing stack interfaces rather than
-introduce another protocol implementation.
+The catalog distinguishes **Supported**, **Unsupported**, **Unknown**, **Requires
+configuration**, and **Denied**. A probe checks a concrete target or advertised
+permission; it does not claim the server implements every operation in a tool.
+Unknown, denied, or transient failures do not become successful empty results.
+Documents remain openable for configuration while disconnected.
 
-| Priority | Addition and value | Reusable stack surface | Prerequisites and safety | Acceptance scenario | Complexity |
-|---|---|---|---|---|---|
-| 1 | Condition-aware alarm workspace | `AlarmClient`, `AlarmEventFilterBuilder`, alarm streaming; [Alarms and Conditions](AlarmsAndConditions.md) | Alarm-capable server and operator authorization. Acknowledge/confirm changes operational state; require explicit actions. | Refresh active conditions, show branches and retained state, acknowledge/confirm one selected event and display its new state. | Medium |
-| 1 | X.509 and issued-token connection workflows | `IClientIdentityProvider`, `X509ClientIdentityProvider`, issued-token providers; [Identity Providers](IdentityProviders.md) | Advertised token policy, certificate store or token authority. Keep keys/tokens in providers and never workspace JSON. | Establish the selected identity, reacquire credentials safely, and show policy/identity without exposing secret material. | Medium |
-| 1 | Resilience and subscription continuity lab | `ManagedSession`, V2 `ISubscription.SetAsDurableAsync`, transfer/recovery policies; [High Availability](HighAvailability.md), [Durable Subscription](DurableSubscription.md), [Transfer](TransferSubscription.md) | Suitable server persistence, queue/lifetime limits and, for failover, a configured redundant set. Bound load and disclose gaps; durability is not an unconditional zero-loss promise. | Interrupt a test connection, show recovery/transfer/recreation distinctly, and correlate retained samples, sequence gaps and republish results. | High |
-| 2 | Structured-value and model inspector | `ComplexTypeSystem`, NativeAOT-friendly schema adapters, `ISchemaProvider`, generated clients; [Complex Types](ComplexTypes.md), [Schema Generation](SchemaGeneration.md) | A server exposing type definitions and authorization for writes. Prefer schema-backed editing over Reflection.Emit. | Discover a custom structure, inspect fields/schema, edit a permitted value, and round-trip it through the stack. | Medium |
-| 2 | PubSub inspection and controlled demonstrations | Fluent PubSub builders, transport/schema/diagnostic modules; [PubSub](PubSub.md) | Explicit transport/broker/interface/SKS configuration. Capture and publisher traffic are bounded and opt-in. | Inspect writer/reader metadata, receive a dataset, and correlate message/sequence/security diagnostics. | High |
-| 2 | Reverse-connect and transport setup | `ReverseConnectManager`, registered transport bindings; [Reverse Connect](ReverseConnect.md), [Transports](Transports.md) | Configured peer URI/endpoint, listener/firewall permissions and transport prerequisites. Do not accept arbitrary reverse peers. | Receive a matching ReverseHello and establish a secure session without relaxing trust or identity selection. | Medium |
-| 2 | Limits and correlated diagnostics | Telemetry/capture facilities, server operation limits, partitioned subscriptions; [Diagnostics](Diagnostics.md), [Subscriptions](Subscriptions.md) | Server diagnostics may need authorization; packet capture may require native dependencies/privileges. Redact sensitive trace data. | Explain a revised limit or throttled operation using bounded traces/counters, not merely a throughput number. | Medium |
-| 3 | Hardware-backed credential selection | `ICryptoProviderRegistry`, `ICertificateStoreProvider`, optional PKCS#11 store; [Crypto Provider](CryptoProvider.md) | A supported device/provider and secure PIN/key access. No private-key export and no unsubstantiated FIPS claim. | Authenticate with a device-held key and demonstrate that renewal/reconnect preserves provider ownership. | High |
-| 3 | Guided companion-model tasks | Existing DI, Robotics, Vision, AI, OpenUSD and WoT client/provider modules | Matching sample servers and domain assets; graphics/ML may need substantial resources. Label draft extensions explicitly. | Discover a supported model and run a small, clearly scoped task using its generated/provider interface. | High |
+See [UaLens guided stack workflows](UaLensShowcase.md) for the alarm, model,
+continuity, PubSub, connection-provider and companion experiences. Each uses existing
+stack modules rather than a second protocol implementation.
+
+| Capability | External prerequisite or intentional limit |
+|---|---|
+| Alarms and Conditions | Real condition source, event support and operator permissions; acknowledgement and confirmation are explicit state changes |
+| X.509 / issued identity | Existing certificate with usable key, or configured token authority/provider; no automatic OAuth or PKI provisioning |
+| Durable transfer / failover | Compatible server storage, same-user transfer and configured redundancy; the Quickstarts store requires graceful shutdown and excludes issued-token persistence |
+| Structured values | Exposed type definitions or registered schemas; opaque values stay read-only, and OptionSets/new matrix shapes need suitable typed input |
+| PubSub | Explicit network interface or broker and matching security/key providers; restoring a workspace never starts traffic |
+| Reverse connect | Registered binding/listener, expected server identity, trust and firewall permissions; unknown peers are not accepted |
+| Diagnostic evidence | Server counters may require authorization; absent evidence is not zero and unsynchronized clocks do not prove end-to-end latency |
+| Hardware keys | Host-registered store/crypto provider and device/PIN access; no key export, module installation, HSM provisioning or blanket FIPS claim |
+| Companion tasks | Matching model instances and repository samples; guided operations are not complete domain-authoring suites |
 
 Robotics OPC 40010 and its draft Robot Intent extension are not the same maturity
 claim. The Vision, AI Model Management, and OpenUSD companions documented here

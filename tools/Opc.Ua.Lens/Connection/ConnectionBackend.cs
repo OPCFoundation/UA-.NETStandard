@@ -59,6 +59,24 @@ internal interface IConnectionBackend
         CancellationToken ct);
 }
 
+internal interface IConfiguredConnectionBackend : IConnectionBackend
+{
+    ConnectionTransportCatalog Transports { get; }
+
+    ConnectionConfigurationCatalog Configurations { get; }
+
+    ReverseConnectionService ReverseConnections { get; }
+
+    Task<ApplicationConfiguration> CreateConfigurationAsync(
+        ConnectionProfile? profile,
+        CancellationToken ct);
+
+    Task<ArrayOf<EndpointDescription>> DiscoverAsync(
+        ApplicationConfiguration configuration,
+        ConnectionSetupSelection setup,
+        CancellationToken ct);
+}
+
 internal sealed record ConnectionSessionState(ConnectionPhase Phase, string? Error = null);
 
 /// <summary>
@@ -74,7 +92,7 @@ internal interface IConnectionSession : IAsyncDisposable
     event Action<IConnectionSession, ConnectionSessionState>? StateChanged;
 }
 
-internal sealed class StackConnectionBackend : IConnectionBackend
+internal sealed class StackConnectionBackend : IConfiguredConnectionBackend, IAsyncDisposable
 {
     public StackConnectionBackend(ITelemetryContext telemetry)
         : this(telemetry, ct => AppConfig.BuildAsync(telemetry, ct))
@@ -83,30 +101,103 @@ internal sealed class StackConnectionBackend : IConnectionBackend
 
     public StackConnectionBackend(
         ITelemetryContext telemetry,
-        Func<CancellationToken, Task<ApplicationConfiguration>> configurationFactory)
+        Func<CancellationToken, Task<ApplicationConfiguration>> configurationFactory,
+        ConnectionTransportCatalog? transports = null,
+        ConnectionConfigurationCatalog? configurations = null,
+        ReverseConnectionService? reverseConnections = null)
     {
         m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         m_configurationFactory = configurationFactory ?? throw new ArgumentNullException(nameof(configurationFactory));
+        Transports = transports ?? new ConnectionTransportCatalog();
+        Configurations = configurations ?? new ConnectionConfigurationCatalog();
+        ReverseConnections = reverseConnections ?? new ReverseConnectionService(
+            new StackReverseConnectionRuntimeFactory(telemetry, Transports, Configurations));
+        m_ownsReverseConnections = reverseConnections is null;
     }
+
+    public ConnectionTransportCatalog Transports { get; }
+
+    public ConnectionConfigurationCatalog Configurations { get; }
+
+    public ReverseConnectionService ReverseConnections { get; }
 
     public Task<ApplicationConfiguration> CreateConfigurationAsync(CancellationToken ct)
     {
         return m_configurationFactory(ct);
     }
 
-    public async Task<ArrayOf<EndpointDescription>> DiscoverAsync(
+    public Task<ApplicationConfiguration> CreateConfigurationAsync(
+        ConnectionProfile? profile,
+        CancellationToken ct)
+    {
+        return profile?.ApplicationIdentityId is { } id
+            ? Configurations.ResolveApplication(id).CreateAsync(profile.SecurityPolicyUri, ct)
+            : CreateConfigurationAsync(ct);
+    }
+
+    public Task<ArrayOf<EndpointDescription>> DiscoverAsync(
         ApplicationConfiguration configuration,
         string endpointUrl,
         CancellationToken ct)
     {
+        return DiscoverAsync(configuration, new ConnectionSetupSelection(endpointUrl), ct);
+    }
+
+    public async Task<ArrayOf<EndpointDescription>> DiscoverAsync(
+        ApplicationConfiguration configuration,
+        ConnectionSetupSelection setup,
+        CancellationToken ct)
+    {
+        Transports.RequireForward(setup.EndpointUrl);
+        if (configuration.CertificateManager is null ||
+            configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates ||
+            configuration.SecurityConfiguration.UseValidatedCertificates)
+        {
+            throw new InvalidOperationException("Discovery requires a fail-closed certificate configuration.");
+        }
         var endpointConfiguration = EndpointConfiguration.Create(configuration);
         endpointConfiguration.OperationTimeout = 10_000;
-        using DiscoveryClient client = await DiscoveryClient.CreateAsync(
-            configuration,
-            new Uri(endpointUrl),
-            endpointConfiguration,
-            ct: ct).ConfigureAwait(false);
-        return await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
+        var channels = new ClientChannelManager(configuration, Transports);
+        await using (channels.ConfigureAwait(false))
+        {
+            if (setup.ReverseConnection is not { } reverse)
+            {
+                using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                    channels, new Uri(setup.EndpointUrl), endpointConfiguration, m_telemetry, ct: ct)
+                    .ConfigureAwait(false);
+                return await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
+            }
+            reverse.Validate(setup.EndpointUrl);
+            using ReverseConnectionLease lease = ReverseConnections.Acquire(reverse);
+            ITransportWaitingConnection waiting = await ReverseConnections.WaitAsync(reverse, ct).ConfigureAwait(false);
+            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription(reverse.EndpointUrl)
+            {
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            }, endpointConfiguration);
+            ITransportChannel channel = await channels.CreateChannelAsync(
+                endpoint, configuration.CreateMessageContext(), clientCertificate: null, connection: waiting, ct: ct)
+                .ConfigureAwait(false);
+            using DiscoveryClient discovery =
+                await DiscoveryClient.CreateAsync(channel, m_telemetry, ct: ct).ConfigureAwait(false);
+            ArrayOf<EndpointDescription> endpoints = await discovery.GetEndpointsAsync(default, ct).ConfigureAwait(false);
+            var matched = new System.Collections.Generic.List<EndpointDescription>();
+            foreach (EndpointDescription candidate in endpoints)
+            {
+                if (ConnectionProfile.EndpointUrlsMatch(candidate.EndpointUrl, reverse.EndpointUrl) &&
+                    string.Equals(candidate.Server?.ApplicationUri, reverse.ServerUri, StringComparison.Ordinal))
+                {
+                    matched.Add(candidate);
+                }
+            }
+            if (matched.Count == 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadTcpEndpointUrlInvalid,
+                    "The reverse server did not advertise the configured endpoint and ServerUri.");
+            }
+            return [.. matched];
+        }
     }
 
     public async Task<IConnectionSession> ConnectAsync(
@@ -117,6 +208,11 @@ internal sealed class StackConnectionBackend : IConnectionBackend
         CancellationToken ct)
     {
         profile.RequireMatch(endpoint);
+        Transports.RequireForward(profile.EndpointUrl);
+        if (ConnectionTransportCatalog.GetSessionProfileUnavailableReason(endpoint) is { } unavailable)
+        {
+            throw new NotSupportedException(unavailable);
+        }
         var configuredEndpoint = new ConfiguredEndpoint(null, endpoint, EndpointConfiguration.Create(configuration))
         {
             UpdateBeforeConnect = false
@@ -144,40 +240,111 @@ internal sealed class StackConnectionBackend : IConnectionBackend
                 .ConfigureAwait(false);
             validation.ThrowIfInvalid();
         }
-        IUserIdentity identity = await identityProvider.AcquireIdentityAsync(
-            endpoint,
-            configuration.CreateMessageContext(),
-            configuration.SecurityConfiguration.SupportedSecurityPolicies,
-            ct).ConfigureAwait(false);
-
-        try
+        var resources = new PendingConnectionResources(configuration, Transports, identityProvider);
+        await using (resources.ConfigureAwait(false))
         {
-            // Master's WithIdentityProvider first opens an Anonymous session and
-            // only then updates identity. Materialize before opening instead, so
-            // authenticated-only endpoints never receive an Anonymous activation.
-            ManagedSession session = await new ManagedSessionBuilder(configuration, m_telemetry)
+            var factory = new ProviderSessionFactory(
+                new ChannelManagerSessionFactory(resources.Channels, m_telemetry, engineFactory: engineFactory),
+                resources.Identities,
+                profile);
+            var builder = new ManagedSessionBuilder(configuration, m_telemetry)
                 .UseEndpoint(configuredEndpoint)
-                .WithUserIdentity(identity)
+                .WithIdentityProvider(resources.Identities)
+                .UseSessionFactory(factory)
                 .WithSessionName("UaLens")
                 .WithCheckDomain()
                 .WithReconnectPolicy(new InitialConnectPolicy())
                 .WithServerRedundancy(new ProfileRedundancyHandler(
                     profile,
                     new DefaultServerRedundancyHandler(new DefaultRedundantServerEndpointResolver(m_telemetry))))
-                .UseSubscriptionEngine(engineFactory)
-                .ConnectAsync(ct)
-                .ConfigureAwait(false);
-            return new ManagedConnectionSession(session, identity);
+                .UseSubscriptionEngine(engineFactory);
+            if (profile.ReverseConnection is { } reverse)
+            {
+                resources.ReverseLease = ReverseConnections.Acquire(reverse);
+                builder.UseReverseConnect(resources.ReverseLease.Manager, new Uri(reverse.ServerUri));
+            }
+            resources.Session = await builder.ConnectAsync(ct).ConfigureAwait(false);
+            return resources.Transfer();
         }
-        catch
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (m_ownsReverseConnections)
         {
-            await ConnectionCredentials.ReleaseIdentityAsync(identity).ConfigureAwait(false);
-            throw;
+            await ReverseConnections.DisposeAsync().ConfigureAwait(false);
         }
+    }
+
+    private sealed class PendingConnectionResources : IAsyncDisposable
+    {
+        public PendingConnectionResources(
+            ApplicationConfiguration configuration,
+            ConnectionTransportCatalog transports,
+            IClientIdentityProvider identityProvider)
+        {
+            ArgumentNullException.ThrowIfNull(identityProvider);
+            Identities = new ConnectionSessionIdentityProvider(identityProvider);
+            Channels = new ClientChannelManager(configuration, transports);
+        }
+
+        public ConnectionSessionIdentityProvider Identities { get; }
+
+        public ClientChannelManager Channels { get; }
+
+        public ManagedSession? Session { get; set; }
+
+        public ReverseConnectionLease? ReverseLease { get; set; }
+
+        public ManagedConnectionSession Transfer()
+        {
+            if (m_transferred || Session is null)
+            {
+                throw new InvalidOperationException("A completed connection can be transferred exactly once.");
+            }
+            var connection = new ManagedConnectionSession(Session, Identities, Channels, ReverseLease);
+            m_transferred = true;
+            return connection;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (m_transferred)
+            {
+                return;
+            }
+            try
+            {
+                if (Session is not null)
+                {
+                    await Session.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                try
+                {
+                    await Identities.DisposeAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    try
+                    {
+                        await Channels.DisposeAsync().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        ReverseLease?.Dispose();
+                    }
+                }
+            }
+        }
+        private bool m_transferred;
     }
 
     private readonly ITelemetryContext m_telemetry;
     private readonly Func<CancellationToken, Task<ApplicationConfiguration>> m_configurationFactory;
+    private readonly bool m_ownsReverseConnections;
 }
 
 /// <summary>
@@ -258,9 +425,26 @@ internal sealed class InitialConnectPolicy : IReconnectPolicy
 internal sealed class ManagedConnectionSession : IConnectionSession
 {
     public ManagedConnectionSession(ManagedSession session, IUserIdentity identity)
+        : this(session)
+    {
+        m_identity = identity;
+    }
+
+    public ManagedConnectionSession(
+        ManagedSession session,
+        ConnectionSessionIdentityProvider identities,
+        IAsyncDisposable channels,
+        ReverseConnectionLease? reverseLease)
+        : this(session)
+    {
+        m_identities = identities;
+        m_channels = channels;
+        m_reverseLease = reverseLease;
+    }
+
+    private ManagedConnectionSession(ManagedSession session)
     {
         m_session = session;
-        m_identity = identity;
         m_state = new ConnectionSessionState(session.Connected
             ? ConnectionPhase.Connected
             : ConnectionPhase.Disconnected);
@@ -288,7 +472,31 @@ internal sealed class ManagedConnectionSession : IConnectionSession
         }
         finally
         {
-            await ConnectionCredentials.ReleaseIdentityAsync(m_identity).ConfigureAwait(false);
+            try
+            {
+                if (m_identity is not null)
+                {
+                    await ConnectionCredentials.ReleaseIdentityAsync(m_identity).ConfigureAwait(false);
+                }
+                if (m_identities is not null)
+                {
+                    await m_identities.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                try
+                {
+                    if (m_channels is not null)
+                    {
+                        await m_channels.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    m_reverseLease?.Dispose();
+                }
+            }
         }
     }
 
@@ -329,7 +537,10 @@ internal sealed class ManagedConnectionSession : IConnectionSession
     }
 
     private readonly ManagedSession m_session;
-    private readonly IUserIdentity m_identity;
+    private readonly IUserIdentity? m_identity;
+    private readonly ConnectionSessionIdentityProvider? m_identities;
+    private readonly IAsyncDisposable? m_channels;
+    private readonly ReverseConnectionLease? m_reverseLease;
     private ConnectionSessionState m_state;
     private int m_disposed;
 }

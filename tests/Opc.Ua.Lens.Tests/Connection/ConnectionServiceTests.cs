@@ -55,6 +55,165 @@ namespace UaLens.Tests.Connection;
 public sealed class ConnectionServiceTests
 {
     [Test]
+    public async Task InteractiveDiscoveryOwnsItsConfigurationInsteadOfBorrowingTheToolsManager()
+    {
+        ApplicationConfiguration tools = await m_fixture.Service.GetConfigAsync().ConfigureAwait(false);
+        ArrayOf<EndpointDescription> endpoints = await m_fixture.Service.DiscoverEndpointsAsync(
+            new ConnectionSetupSelection(m_fixture.Endpoint.EndpointUrl!)).ConfigureAwait(false);
+
+        Assert.That(endpoints.Count, Is.EqualTo(1));
+        Assert.That(m_fixture.Backend.Configurations, Has.Count.EqualTo(2));
+        Assert.That(m_fixture.Backend.Configurations[1].CertificateManager,
+            Is.Not.SameAs(tools.CertificateManager));
+        Assert.That(m_fixture.Backend.ConfigurationDisposeCount, Is.EqualTo(1));
+        Assert.That(await m_fixture.Service.GetConfigAsync().ConfigureAwait(false), Is.SameAs(tools));
+    }
+
+    [Test]
+    public async Task ProviderBackedSelectionAndUserChangeRetainFreshCredentialsAcrossEngineReconnect()
+    {
+        m_fixture.Backend.RequireTrust = false;
+        ConnectionProfile profile = m_fixture.UseUserNameProfile();
+        var firstProvider = new TrackingIdentityProvider(profile);
+        var first = new ConnectionSelection(m_fixture.Endpoint, profile, new ConnectionCredentials(profile, firstProvider));
+        await using (first.ConfigureAwait(false))
+        {
+            await m_fixture.Service.ConnectAsync(first).ConfigureAwait(false);
+        }
+        ConnectionProfile changed = profile with { IdentityName = "new-operator" };
+        var replacement = new TrackingIdentityProvider(changed);
+        var selection = new ConnectionSelection(
+            m_fixture.Endpoint, changed, new ConnectionCredentials(changed, replacement));
+        await using (selection.ConfigureAwait(false))
+        {
+            await m_fixture.Service.ChangeIdentityAsync(selection).ConfigureAwait(false);
+        }
+        await m_fixture.Service.ReconnectAsync(SubscriptionEngineKind.Classic).ConfigureAwait(false);
+
+        Assert.That(m_fixture.Service.Profile!.IdentityName, Is.EqualTo("new-operator"));
+        Assert.That(m_fixture.Service.Profile.Engine, Is.EqualTo(SubscriptionEngineKind.Classic));
+        Assert.That(replacement.Identities, Has.Count.EqualTo(2));
+        Assert.That(replacement.Identities[0].Disposed, Is.True);
+        Assert.That(replacement.Identities[1].Disposed, Is.False);
+        Assert.That(replacement.Identities[1], Is.Not.SameAs(replacement.Identities[0]));
+        Assert.That(firstProvider.Identities[0].Disposed, Is.True);
+    }
+
+    [TestCase(UserTokenType.Certificate)]
+    [TestCase(UserTokenType.IssuedToken)]
+    public async Task ConfiguredIdentityReferencesAndProvidersSurviveEngineReconnect(UserTokenType tokenType)
+    {
+        m_fixture.Backend.RequireTrust = false;
+        using Certificate certificate = CreateCertificate("CN=Configured user identity");
+        var policy = new UserTokenPolicy(tokenType)
+        {
+            PolicyId = "configured-identity",
+            SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
+            IssuedTokenType = tokenType == UserTokenType.IssuedToken ? Profiles.JwtUserToken : null,
+            IssuerEndpointUrl = tokenType == UserTokenType.IssuedToken
+                ? "{\"authorityUri\":\"https://authority.example.test\",\"ua:resourceUri\":\"urn:server\"}"
+                : null
+        };
+        m_fixture.Endpoint.UserIdentityTokens = [policy];
+        var certificates = new Mock<ICertificateProvider>();
+        certificates.Setup(value => value.GetPrivateKeyCertificateAsync(
+            It.IsAny<CertificateIdentifier>(), It.IsAny<ICertificatePasswordProvider>(), null,
+            It.IsAny<CancellationToken>())).Returns(() => ValueTask.FromResult<Certificate?>(certificate.AddRef()));
+        var access = new Mock<IAccessTokenProvider>();
+        access.SetupGet(value => value.AuthorityUri).Returns("https://authority.example.test");
+        access.Setup(value => value.AcquireAsync(It.IsAny<AuthorizationServerMetadata>(), It.IsAny<CancellationToken>()))
+            .Returns(() => ValueTask.FromResult(new AccessToken(
+                Profiles.JwtUserToken, Guid.NewGuid().ToByteArray(), DateTime.UtcNow.AddHours(1), string.Empty)));
+        using var configuration = new ConnectionIdentityConfiguration(
+            [new ConfiguredCertificateSource("user", "Configured user store", new CertificateIdentifier(),
+                certificates.Object,
+                [new ConfiguredCertificatePasswordSource("pin-source", "Configured PIN", new CertificatePasswordProvider())])],
+            [new ConfiguredAccessTokenSource("authority", "Configured authority", access.Object)]);
+        ConnectionProfile profile = ConnectionProfile.Create(
+            m_fixture.Endpoint, policy, SubscriptionEngineKind.ChannelV2,
+            certificateIdentity: tokenType == UserTokenType.Certificate
+                ? new CertificateIdentityReference
+                {
+                    SourceId = "user",
+                    PasswordSourceId = "pin-source",
+                    Thumbprint = certificate.Thumbprint
+                }
+                : null,
+            issuedIdentity: tokenType == UserTokenType.IssuedToken
+                ? new IssuedIdentityReference { ProviderId = "authority", AuthorityUri = access.Object.AuthorityUri }
+                : null);
+        IClientIdentityProvider provider = configuration.Resolve(profile);
+        await m_fixture.Service.ConnectAsync(profile, provider).ConfigureAwait(false);
+
+        await m_fixture.Service.ReconnectAsync(SubscriptionEngineKind.Classic).ConfigureAwait(false);
+
+        Assert.That(m_fixture.Service.Profile!.CertificateIdentity, Is.EqualTo(profile.CertificateIdentity));
+        Assert.That(m_fixture.Service.Profile.IssuedIdentity, Is.EqualTo(profile.IssuedIdentity));
+        Assert.That(m_fixture.Service.Profile.TokenAuthorityUri, Is.EqualTo(profile.TokenAuthorityUri));
+        Assert.That(m_fixture.Service.Profile.IdentityType, Is.EqualTo(tokenType));
+        Assert.That(m_fixture.Backend.Identities, Has.Count.EqualTo(2));
+        Assert.That(m_fixture.Backend.Identities[1], Is.Not.SameAs(m_fixture.Backend.Identities[0]));
+        Assert.That(m_fixture.Backend.Identities[1].TokenType, Is.EqualTo(tokenType));
+        Assert.That(m_fixture.Backend.Identities[1].PolicyId, Is.EqualTo(policy.PolicyId));
+        await m_fixture.Service.DisconnectAsync().ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task CanceledProviderSelectionReleasesItsInteractiveSecretBeforeAnyConfigurationIsCreated()
+    {
+        ConnectionProfile profile = m_fixture.UseUserNameProfile();
+        ConnectionCredentials credentials = await ConnectionCredentials.FromIdentityAsync(
+            profile, new UserIdentity(profile.IdentityName!, Guid.NewGuid().ToByteArray()), CancellationToken.None)
+            .ConfigureAwait(false);
+        IClientIdentityProvider provider = credentials.Provider;
+        var selection = new ConnectionSelection(m_fixture.Endpoint, profile, credentials);
+        await using (selection.ConfigureAwait(false))
+        {
+            using var cancellation = new CancellationTokenSource();
+            await cancellation.CancelAsync().ConfigureAwait(false);
+            await Assert.ThatAsync(() => m_fixture.Service.ConnectAsync(selection, ct: cancellation.Token),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+        }
+        await Assert.ThatAsync(async () => await provider.AcquireIdentityAsync(
+            m_fixture.Endpoint, ServiceMessageContext.Create(m_fixture.Telemetry)).ConfigureAwait(false),
+            Throws.InstanceOf<ServiceResultException>()).ConfigureAwait(false);
+        Assert.That(m_fixture.Backend.Configurations, Is.Empty);
+    }
+
+    [Test]
+    public async Task WorkspaceRestoreRetainsReverseSetupButDoesNotDiscoverOrStartConnections()
+    {
+        var telemetry = new AppTelemetryContext(new LogRingBuffer(32));
+        var model = new MainViewModel(telemetry, m_fixture.Service, dispatcher: InlineWorkspaceDispatcher.Instance);
+        var reverse = new ReverseConnectionProfile
+        {
+            ListenerUrl = "opc.tcp://localhost:4841",
+            EndpointUrl = m_fixture.Profile.EndpointUrl,
+            ServerUri = "urn:restore:server"
+        };
+        ConnectionProfile profile = m_fixture.Profile with
+        {
+            ServerApplicationUri = reverse.ServerUri,
+            ReverseConnection = reverse
+        };
+        await using (model.ConfigureAwait(false))
+        {
+            await model.LoadSessionAsync(new SessionFile
+            {
+                Version = "2",
+                EndpointUrl = profile.EndpointUrl,
+                Profile = profile
+            }).ConfigureAwait(false);
+
+            Assert.That(model.SnapshotSession().Profile!.ReverseConnection, Is.EqualTo(reverse));
+            Assert.That(model.RestoredConnectionProfile, Is.EqualTo(profile));
+            Assert.That(m_fixture.Backend.Configurations, Is.Empty);
+            Assert.That(m_fixture.Backend.ConnectCount, Is.Zero);
+            Assert.That(m_fixture.Service.IsConnected, Is.False);
+        }
+    }
+
+    [Test]
     public async Task ChangingUserUpdatesTheProfileAndFutureEngineCredentials()
     {
         m_fixture.Backend.RequireTrust = false;
@@ -1319,7 +1478,8 @@ public sealed class ConnectionServiceTests
         public Func<CancellationToken, Task>? CommitAsync { get; set; }
 
         public Func<ApplicationConfiguration, IUserIdentity, CancellationToken, Task<IConnectionSession>>?
-            OpenAsync { get; set; }
+            OpenAsync
+        { get; set; }
 
         public bool RequireTrust { get; set; } = true;
 

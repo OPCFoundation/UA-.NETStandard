@@ -18,11 +18,17 @@ unless Light or Dark is chosen explicitly.
 
 Included tools cover monitoring/charts, events, historical access, file operations,
 local certificates, GDS discovery and certificate management, user/role administration,
-write/call performance workloads, and a live-scaling Subscription Bench.
+write/call performance workloads, and a live-scaling Subscription Bench. Alarms,
+Models, Continuity Lab, PubSub and Companion Tasks add condition-aware operation,
+structured-value inspection, recovery evidence, dataset observation and typed
+companion workflows.
 
 Workspaces store configuration and connection-policy intent, not passwords,
 private keys, bearer tokens or active jobs. Certificate trust requires an explicit
 decision; accepting one certificate once does not establish global trust.
+X.509, issued-token, hardware-key and reverse-connect workflows retain explicit
+provider and server prerequisites. PubSub traffic and lab experiments are opt-in
+and never restart merely because a workspace was loaded.
 
 See the [UaLens guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/UaLens.md)
 for current workflows, server prerequisites and capability limits.

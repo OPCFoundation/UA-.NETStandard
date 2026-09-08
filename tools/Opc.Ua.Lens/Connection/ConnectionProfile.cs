@@ -29,6 +29,7 @@
 
 using System;
 using Opc.Ua;
+using Opc.Ua.Identity;
 
 namespace UaLens.Connection;
 
@@ -57,7 +58,19 @@ internal sealed record ConnectionProfile
 
     public string? IssuedTokenType { get; init; }
 
+    public string? TokenAuthorityUri { get; init; }
+
+    public string? TokenResourceUri { get; init; }
+
     public string? IdentityName { get; init; }
+
+    public CertificateIdentityReference? CertificateIdentity { get; init; }
+
+    public IssuedIdentityReference? IssuedIdentity { get; init; }
+
+    public string? ApplicationIdentityId { get; init; }
+
+    public ReverseConnectionProfile? ReverseConnection { get; init; }
 
     /// <summary>
     /// An optional reference resolved by the injected secret registry.
@@ -72,10 +85,16 @@ internal sealed record ConnectionProfile
         UserTokenPolicy policy,
         SubscriptionEngineKind engine,
         string? identityName = null,
-        SecretIdentifier? credentialReference = null)
+        SecretIdentifier? credentialReference = null,
+        CertificateIdentityReference? certificateIdentity = null,
+        IssuedIdentityReference? issuedIdentity = null)
     {
         ArgumentNullException.ThrowIfNull(endpoint);
         ArgumentNullException.ThrowIfNull(policy);
+        AuthorizationServerMetadata? metadata =
+            AuthorizationServerMetadata.TryFromPolicy(policy, out AuthorizationServerMetadata parsed)
+                ? parsed
+                : null;
 
         var profile = new ConnectionProfile
         {
@@ -88,8 +107,12 @@ internal sealed record ConnectionProfile
             UserTokenPolicyId = policy.PolicyId ?? string.Empty,
             UserTokenSecurityPolicyUri = policy.SecurityPolicyUri,
             IssuedTokenType = policy.IssuedTokenType,
+            TokenAuthorityUri = metadata?.AuthorityUri,
+            TokenResourceUri = metadata?.ResourceUri,
             IdentityName = identityName,
             CredentialReference = credentialReference,
+            CertificateIdentity = certificateIdentity,
+            IssuedIdentity = issuedIdentity,
             Engine = engine
         };
         profile.Validate();
@@ -99,12 +122,14 @@ internal sealed record ConnectionProfile
 
     public void Validate()
     {
-        if (!Uri.TryCreate(EndpointUrl, UriKind.Absolute, out Uri? uri) ||
+        if (EndpointUrl is null || EndpointUrl.Length > 2048 ||
+            !Uri.TryCreate(EndpointUrl, UriKind.Absolute, out Uri? uri) ||
             string.IsNullOrEmpty(uri.Host) ||
             !string.IsNullOrEmpty(uri.UserInfo) ||
+            !string.IsNullOrEmpty(uri.Query) ||
             !string.IsNullOrEmpty(uri.Fragment))
         {
-            throw new ArgumentException("The endpoint must be an absolute URL without embedded credentials.");
+            throw new ArgumentException("The endpoint must be an absolute URL without credentials, query strings or fragments.");
         }
         if (SecurityMode is not (MessageSecurityMode.None or
             MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt) ||
@@ -126,6 +151,44 @@ internal sealed record ConnectionProfile
         if (IdentityType == UserTokenType.UserName && string.IsNullOrWhiteSpace(IdentityName))
         {
             throw new ArgumentException("A username is required for a username connection profile.");
+        }
+        if (CertificateIdentity is not null)
+        {
+            CertificateIdentity.Validate();
+            if (IdentityType != UserTokenType.Certificate)
+            {
+                throw new ArgumentException("A user certificate reference requires a Certificate token policy.");
+            }
+        }
+        if (IssuedIdentity is not null)
+        {
+            IssuedIdentity.Validate();
+            if (IdentityType != UserTokenType.IssuedToken ||
+                !string.Equals(TokenAuthorityUri, IssuedIdentity.AuthorityUri, StringComparison.Ordinal) ||
+                string.IsNullOrWhiteSpace(TokenResourceUri))
+            {
+                throw new ArgumentException("The token provider must match the selected authority and resource.");
+            }
+        }
+        if (TokenAuthorityUri is { } authority)
+        {
+            ConnectionReference.ValidateUri(authority);
+        }
+        if (TokenResourceUri is { } resource)
+        {
+            ConnectionReference.ValidateUri(resource);
+        }
+        if (ApplicationIdentityId is { } applicationIdentity)
+        {
+            ConnectionReference.Validate(applicationIdentity);
+        }
+        if (ReverseConnection is not null)
+        {
+            if (string.IsNullOrWhiteSpace(ServerApplicationUri))
+            {
+                throw new ArgumentException("A reverse connection requires the expected server application URI.");
+            }
+            ReverseConnection.Validate(EndpointUrl, ServerApplicationUri);
         }
     }
 
@@ -157,7 +220,8 @@ internal sealed record ConnectionProfile
             string.Equals(
                 policy.IssuedTokenType ?? string.Empty,
                 IssuedTokenType ?? string.Empty,
-                StringComparison.Ordinal);
+                StringComparison.Ordinal) &&
+            MatchesAuthority(policy);
     }
 
     public UserTokenPolicy RequireMatch(EndpointDescription endpoint)
@@ -189,5 +253,16 @@ internal sealed record ConnectionProfile
             firstUri.Port == secondUri.Port &&
             string.Equals(firstUri.PathAndQuery, secondUri.PathAndQuery, StringComparison.Ordinal) &&
             string.Equals(firstUri.UserInfo, secondUri.UserInfo, StringComparison.Ordinal);
+    }
+
+    private bool MatchesAuthority(UserTokenPolicy policy)
+    {
+        if (IdentityType != UserTokenType.IssuedToken || TokenAuthorityUri is null)
+        {
+            return true;
+        }
+        return AuthorizationServerMetadata.TryFromPolicy(policy, out AuthorizationServerMetadata metadata) &&
+            string.Equals(metadata.AuthorityUri, TokenAuthorityUri, StringComparison.Ordinal) &&
+            string.Equals(metadata.ResourceUri, TokenResourceUri, StringComparison.Ordinal);
     }
 }

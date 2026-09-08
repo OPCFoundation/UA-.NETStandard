@@ -593,16 +593,23 @@ namespace Opc.Ua.Client.Subscriptions
         [Test]
         public async Task ConditionRefreshAsyncShouldCallSessionCallAsync()
         {
-            // Arrange
             var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 2);
             await using (sut.ConfigureAwait(false))
             {
-                // Assert
                 m_mockMethodServices
                     .Setup(s => s.CallAsync(
                         It.IsAny<RequestHeader>(),
                         It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
+                    .Callback<RequestHeader, ArrayOf<CallMethodRequest>, CancellationToken>((_, requests, _) =>
+                    {
+                        Assert.That(requests.Count, Is.EqualTo(1));
+                        Assert.That(requests[0].ObjectId, Is.EqualTo(ObjectTypeIds.ConditionType));
+                        Assert.That(requests[0].MethodId, Is.EqualTo(MethodIds.ConditionType_ConditionRefresh));
+                        Assert.That(requests[0].InputArguments.Count, Is.EqualTo(1));
+                        Assert.That(requests[0].InputArguments[0].TryGetValue(out uint subscriptionId), Is.True);
+                        Assert.That(subscriptionId, Is.EqualTo(2u));
+                    })
                     .ReturnsAsync(new CallResponse
                     {
                         Results =
@@ -615,11 +622,58 @@ namespace Opc.Ua.Client.Subscriptions
                     })
                     .Verifiable(Times.Once);
 
-                // Act
                 await sut.ConditionRefreshAsync(default).ConfigureAwait(false);
+                m_mockMethodServices.Verify();
+            }
+        }
 
-                // Assert
-                // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConditionRefreshPropagatesMethodFailureAsync(bool invalidMethod)
+        {
+            StatusCode statusCode = invalidMethod ? StatusCodes.BadMethodInvalid : StatusCodes.BadUserAccessDenied;
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
+            await using (sut.ConfigureAwait(false))
+            {
+                m_mockMethodServices
+                    .Setup(service => service.CallAsync(
+                        It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(),
+                        It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new CallResponse
+                    {
+                        Results = [new CallMethodResult { StatusCode = statusCode }]
+                    });
+
+                Assert.That(
+                    async () => await sut.ConditionRefreshAsync(CancellationToken.None).ConfigureAwait(false),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(statusCode));
+            }
+        }
+
+        [TestCase(0)]
+        [TestCase(2)]
+        public async Task ConditionRefreshRejectsUnexpectedResultCountsAsync(int resultCount)
+        {
+            var results = new CallMethodResult[resultCount];
+            for (int index = 0; index < results.Length; index++)
+            {
+                results[index] = new CallMethodResult { StatusCode = StatusCodes.Good };
+            }
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
+            await using (sut.ConfigureAwait(false))
+            {
+                m_mockMethodServices
+                    .Setup(service => service.CallAsync(
+                        It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(),
+                        It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new CallResponse { Results = results });
+
+                Assert.That(
+                    async () => await sut.ConditionRefreshAsync(CancellationToken.None).ConfigureAwait(false),
+                    Throws.TypeOf<ServiceResultException>());
             }
         }
 

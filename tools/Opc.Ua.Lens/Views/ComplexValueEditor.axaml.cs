@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -38,864 +37,462 @@ using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using Avalonia.Threading;
 using Opc.Ua;
-using Opc.Ua.Client;
-using UaLens.Subscriptions;
-using BindingFlags = System.Reflection.BindingFlags;
-using PropertyInfo = System.Reflection.PropertyInfo;
+using UaLens.StructuredValues;
 
 namespace UaLens.Views;
 
 /// <summary>
-/// Recursive per-field editor for OPC UA structured values (Structure,
-/// StructureWithOptionalFields, Union) and Enum types.  Operates on a
-/// single <see cref="Variant"/> <see cref="Value"/> bindable property:
-/// the setter parses the incoming value into a list of editable field
-/// rows; <see cref="TryCommit"/> reassembles the rows back into a
-/// <see cref="Variant"/> for the host dialog's Write/Call payload.
-///
-/// <para>
-/// The editor is intentionally agnostic of <see cref="WriteValueDialog"/>
-/// and <see cref="MethodCallDialog"/> — it only knows about a
-/// <see cref="DataTypeDefinition"/> + a backing
-/// <see cref="ManagedSession"/> (used to resolve nested field
-/// definitions on demand).  Hosts attach via <see cref="Initialize"/>
-/// after construction and read the edited value via
-/// <see cref="TryCommit"/>.
-/// </para>
-///
-/// <para>
-/// When the supplied definition is <c>null</c> (server doesn't expose
-/// the attribute), the editor renders a single "(complex type — opaque)"
-/// hint and behaves as a no-op committing back the original
-/// <see cref="Variant"/> unchanged — callers fall back to the existing
-/// primitive / file-import path.
-/// </para>
+/// Recursive structured-value UI over a native-safe edit transaction. Optional
+/// inclusion, union selection, nested edits and typed arrays are never applied to
+/// the source body. Missing metadata and failed loads cannot produce a successful commit.
 /// </summary>
 internal sealed partial class ComplexValueEditor : UserControl
 {
-    public static readonly StyledProperty<Variant> ValueProperty =
-        AvaloniaProperty.Register<ComplexValueEditor, Variant>(
-            nameof(Value),
-            defaultValue: Variant.Null,
-            defaultBindingMode: BindingMode.TwoWay);
+    public ComplexValueEditor()
+    {
+        AvaloniaXamlLoader.Load(this);
+    }
 
-    /// <summary>
-    /// The variant value being edited.  Setting this property rebuilds
-    /// the editor body from the new value's fields.
-    /// </summary>
     public Variant Value
     {
         get => GetValue(ValueProperty);
         set => SetValue(ValueProperty, value);
     }
 
-    private DataTypeDefinition? m_definition;
-    private NodeId m_dataTypeId = NodeId.Null;
-    private ManagedSession? m_session;
-    private readonly List<FieldEditor> m_fields = [];
-
-    public ComplexValueEditor()
-    {
-        InitializeComponent();
-    }
-
-    /// <summary>
-    /// Wires the editor to a specific DataType + session.  Must be
-    /// called before <see cref="Value"/> is meaningful for structures.
-    /// </summary>
-    /// <param name="dataTypeId">DataType NodeId of the value being edited.</param>
-    /// <param name="definition">Resolved definition (Structure / Enum) or null.</param>
-    /// <param name="session">Active session (used to fetch nested defs).</param>
-    public void Initialize(NodeId dataTypeId, DataTypeDefinition? definition, ManagedSession session)
+    public async Task InitializeAsync(
+        NodeId dataTypeId,
+        DataTypeDefinition? definition,
+        IStructuredValueService service,
+        Variant value,
+        CancellationToken cancellationToken = default)
     {
         m_dataTypeId = dataTypeId;
         m_definition = definition;
-        m_session = session ?? throw new ArgumentNullException(nameof(session));
-        Rebuild();
+        m_service = service ?? throw new ArgumentNullException(nameof(service));
+        m_initializing = true;
+        try
+        {
+            Value = value;
+        }
+        finally
+        {
+            m_initializing = false;
+        }
+        await StartReloadAsync(cancellationToken).ConfigureAwait(true);
+    }
+
+    public bool TryCommit(out Variant committed, out string? error)
+    {
+        committed = Variant.Null;
+        error = m_error;
+        if (m_draft is null)
+        {
+            error ??= "The structured value is not loaded.";
+            return false;
+        }
+        if (m_definition is EnumDefinition)
+        {
+            if (m_enumSelector?.SelectedItem is not EnumChoice choice)
+            {
+                error = "Select an enumeration value.";
+                return false;
+            }
+            return m_draft.TryCommitEnum(choice.Value, out committed, out error);
+        }
+
+        var edits = new StructuredFieldEdit[m_rows.Count];
+        for (int i = 0; i < edits.Length; i++)
+        {
+            FieldRow row = m_rows[i];
+            bool included = m_unionSelector is not null
+                ? m_unionSelector.SelectedIndex == i + 1
+                : row.OptionalToggle?.IsChecked ?? true;
+            Variant value = row.CurrentValue;
+            if (included && row.Text is not null &&
+                !StructuredScalarValue.TryParse(row.Field.TypeInfo.BuiltInType,
+                    row.Text.Text ?? string.Empty, value, out value, out string? parseError))
+            {
+                error = $"Field '{row.Field.Definition.Name}': {parseError}";
+                return false;
+            }
+            edits[i] = new StructuredFieldEdit(row.Field.Definition.Name!, value, included);
+        }
+        return m_draft.TryCommit(edits, out committed, out error);
+    }
+
+    public async Task StopAsync()
+    {
+        m_loading?.Cancel();
+        m_editCancellation?.Cancel();
+        m_nestedWindow?.Close();
+        try
+        {
+            await Task.WhenAll(m_pendingReloads.ToArray()).ConfigureAwait(true);
+        }
+        catch (Exception)
+        {
+            // ReloadAsync already presents the current load's failure. Cleanup
+            // must still await nested editors before a session service is released.
+        }
+        m_pendingReloads.RemoveAll(static task => task.IsCompleted);
+        await m_editTask.ConfigureAwait(true);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
-        if (change.Property == ValueProperty)
+        if (change.Property == ValueProperty && !m_initializing && m_service is not null)
         {
-            // Reapply incoming value when the host pushes a new variant.
-            PopulateFromValue();
+            _ = ReloadFromBindingAsync();
         }
     }
 
-    /// <summary>
-    /// Assembles the edited field state back into a <see cref="Variant"/>.
-    /// Returns <c>false</c> with a description of the offending field if
-    /// any inline editor failed to parse.  Hosts should not call
-    /// <c>session.Write</c> until this returns true.
-    /// </summary>
-    public bool TryCommit(out Variant committed, out string? error)
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        committed = Value;
-        error = null;
-        if (m_definition is EnumDefinition)
-        {
-            if (m_fields.Count == 1 && m_fields[0].TryReadEnum(out int enumValue))
-            {
-                committed = Variant.From(enumValue);
-                return true;
-            }
-            error = "Enum value could not be parsed.";
-            return false;
-        }
-        if (m_definition is StructureDefinition sd)
-        {
-            return TryCommitStructure(sd, out committed, out error);
-        }
-        // Opaque path — value is whatever the host originally provided.
-        return true;
+        m_loading?.Cancel();
+        m_editCancellation?.Cancel();
+        m_nestedWindow?.Close();
+        base.OnDetachedFromVisualTree(e);
     }
 
-    private void Rebuild()
+    private async Task ReloadFromBindingAsync()
+    {
+        try
+        {
+            await StartReloadAsync(CancellationToken.None).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            // ReloadAsync reports failures only for the current load. A canceled
+            // older binding update must not clear a newer successful draft.
+            _ = ex;
+        }
+    }
+
+    private Task StartReloadAsync(CancellationToken cancellationToken)
+    {
+        Task task = ReloadAsync(cancellationToken);
+        m_pendingReloads.RemoveAll(static pending => pending.IsCompleted);
+        m_pendingReloads.Add(task);
+        return task;
+    }
+
+    private async Task ReloadAsync(CancellationToken cancellationToken)
+    {
+        m_loading?.Cancel();
+        using var loading = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        m_loading = loading;
+        m_draft = null;
+        m_error = "Loading structured value…";
+        m_rows.Clear();
+        this.RequiredControl<StackPanel>("BodyPanel").Children.Clear();
+        this.RequiredControl<TextBlock>("HeaderLabel").Text = $"DataType: {m_dataTypeId}";
+        this.RequiredControl<TextBlock>("HintLabel").Text = m_error;
+        try
+        {
+            if (m_definition is null || m_service is null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "No DataTypeDefinition is available. Use an explicit file import.");
+            }
+            StructuredValueDraft draft = await m_service.OpenAsync(
+                m_dataTypeId, m_definition, Value, loading.Token).ConfigureAwait(true);
+            loading.Token.ThrowIfCancellationRequested();
+            m_draft = draft;
+            m_error = null;
+            BuildBody(draft);
+        }
+        catch (Exception ex)
+        {
+            if (ReferenceEquals(m_loading, loading))
+            {
+                ShowError(ex is OperationCanceledException ? "Loading was canceled." : ex.Message);
+            }
+            throw;
+        }
+        finally
+        {
+            if (ReferenceEquals(m_loading, loading))
+            {
+                m_loading = null;
+            }
+        }
+    }
+
+    private void BuildBody(StructuredValueDraft draft)
     {
         StackPanel body = this.RequiredControl<StackPanel>("BodyPanel");
-        TextBlock header = this.RequiredControl<TextBlock>("HeaderLabel");
-        TextBlock hint = this.RequiredControl<TextBlock>("HintLabel");
         body.Children.Clear();
-        m_fields.Clear();
-
-        switch (m_definition)
+        m_rows.Clear();
+        m_unionSelector = null;
+        m_enumSelector = null;
+        if (draft.Definition is EnumDefinition enumeration)
         {
-            case null:
-                header.Text = m_dataTypeId.IsNull ? "(no DataType)" : $"DataType: {m_dataTypeId}";
-                hint.Text = "(complex type — opaque)  No DataTypeDefinition exposed by the server; "
-                            + "use the primitive editor or a file import instead.";
-                break;
-            case EnumDefinition ed:
-                header.Text = $"Enum  {m_dataTypeId}";
-                hint.Text = ed.IsOptionSet
-                    ? "Bitset / OptionSet enum — pick a base value; combine flags using the Advanced editor."
-                    : "Enumeration — pick a named value.";
-                BuildEnumBody(body, ed);
-                break;
-            case StructureDefinition sd:
-                header.Text = StructureHeader(sd);
-                hint.Text = StructureHint(sd);
-                BuildStructureBody(body, sd);
-                break;
-            default:
-                header.Text = $"DataType: {m_dataTypeId}";
-                hint.Text = $"(unsupported definition kind {m_definition.GetType().Name})";
-                break;
-        }
-        PopulateFromValue();
-    }
-
-    private static string StructureHeader(StructureDefinition sd)
-    {
-        return sd.StructureType switch
-        {
-            StructureType.Union => "Union",
-            StructureType.UnionWithSubtypedValues => "Union (subtyped)",
-            StructureType.StructureWithOptionalFields => "Structure (with optional fields)",
-            StructureType.StructureWithSubtypedValues => "Structure (subtyped)",
-            _ => "Structure"
-        };
-    }
-
-    private static string StructureHint(StructureDefinition sd)
-    {
-        int count = sd.Fields.Count;
-        return sd.StructureType switch
-        {
-            StructureType.Union or StructureType.UnionWithSubtypedValues
-                => $"Select exactly one of {count} fields.",
-            StructureType.StructureWithOptionalFields
-                => $"{count} field(s).  Tick the box to include an optional field; "
-                   + "untick to omit it from the encoded value.",
-            _ => $"{count} field(s)."
-        };
-    }
-
-    private void BuildEnumBody(StackPanel body, EnumDefinition ed)
-    {
-        var combo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
-        foreach (EnumField f in ed.Fields)
-        {
-            combo.Items.Add(new EnumChoice(f));
-        }
-        if (ed.Fields.Count > 0)
-        {
-            combo.SelectedIndex = 0;
-        }
-        body.Children.Add(combo);
-        m_fields.Add(new FieldEditor.EnumRow(combo));
-    }
-
-    private void BuildStructureBody(StackPanel body, StructureDefinition sd)
-    {
-        if (sd.Fields.IsEmpty)
-        {
+            this.RequiredControl<TextBlock>("HintLabel").Text = "Select a named enumeration value.";
+            var combo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+            bool hasCurrent = draft.InitialValue.TryGetValue(out int current);
+            foreach (EnumField field in enumeration.Fields)
+            {
+                if (field.Value is < int.MinValue or > int.MaxValue)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadOutOfRange, "The enumeration contains a value outside the Int32 range.");
+                }
+                var choice = new EnumChoice(
+                    field.Name ?? field.DisplayName.Text ?? "(unnamed)", (int)field.Value);
+                combo.Items.Add(choice);
+                if (hasCurrent && field.Value == current)
+                {
+                    combo.SelectedItem = choice;
+                }
+            }
+            if (hasCurrent && combo.SelectedItem is null)
+            {
+                var retained = new EnumChoice("Unlisted value (retained)", current);
+                combo.Items.Add(retained);
+                combo.SelectedItem = retained;
+            }
+            if (!hasCurrent && combo.Items.Count > 0)
+            {
+                combo.SelectedIndex = 0;
+            }
+            m_enumSelector = combo;
+            body.Children.Add(combo);
             return;
         }
-        bool isUnion = sd.StructureType is StructureType.Union
-            or StructureType.UnionWithSubtypedValues;
-        bool hasOptional = sd.StructureType is StructureType.StructureWithOptionalFields;
 
-        // For Unions we need to enforce single-selection across rows; the
-        // editor surfaces this as a "Selected" radio per field.  For
-        // optional structs, an "Include" checkbox per optional field.
-        ComboBox? unionSelector = null;
-        if (isUnion)
+        var definition = (StructureDefinition)draft.Definition;
+        bool union = definition.StructureType is StructureType.Union or StructureType.UnionWithSubtypedValues;
+        bool optional = definition.StructureType == StructureType.StructureWithOptionalFields;
+        this.RequiredControl<TextBlock>("HintLabel").Text = union
+            ? "Select one field, or (none) for an empty union."
+            : "Edit fields. Unchecked optional fields are omitted from the encoded value.";
+        if (union)
         {
-            unionSelector = new ComboBox
+            m_unionSelector = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+            m_unionSelector.Items.Add("(none)");
+            m_unionSelector.SelectedIndex = 0;
+            for (int i = 0; i < draft.Fields.Count; i++)
             {
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                Margin = new Thickness(0, 0, 0, 6)
-            };
-            foreach (StructureField f in sd.Fields)
-            {
-                unionSelector.Items.Add(f.Name ?? "(unnamed)");
+                m_unionSelector.Items.Add(draft.Fields[i].Definition.Name);
+                if (draft.Fields[i].IsIncluded)
+                {
+                    m_unionSelector.SelectedIndex = i + 1;
+                }
             }
-            if (sd.Fields.Count > 0)
-            {
-                unionSelector.SelectedIndex = 0;
-            }
-            body.Children.Add(new TextBlock
-            {
-                Text = "Selected field",
-                Foreground = (Application.Current?.FindResource("TextSecondary") as IBrush)
-                    ?? Brushes.Transparent
-            });
-            body.Children.Add(unionSelector);
+            m_unionSelector.SelectionChanged += (_, _) => UpdateEnabledFields();
+            body.Children.Add(m_unionSelector);
         }
-
-        for (int i = 0; i < sd.Fields.Count; i++)
+        foreach (StructuredValueField field in draft.Fields)
         {
-            StructureField f = sd.Fields[i];
+            var row = new FieldRow(field);
             var grid = new Grid
             {
-                ColumnDefinitions = new ColumnDefinitions("200,*,Auto,Auto"),
+                ColumnDefinitions = new ColumnDefinitions("200,*,Auto"),
                 Margin = new Thickness(0, 2, 0, 2)
             };
             var label = new TextBlock
             {
-                Text = $"{f.Name} : {DescribeField(f)}",
-                Foreground = (Application.Current?.FindResource("TextSecondary") as IBrush)
-                    ?? Brushes.Transparent,
+                Text = $"{field.Definition.Name} : {field.TypeInfo}",
                 VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace")
+                TextTrimming = TextTrimming.CharacterEllipsis
             };
-            Grid.SetColumn(label, 0);
             grid.Children.Add(label);
-
-            FieldEditor editor = BuildFieldEditor(f, grid, isUnion, hasOptional, unionSelector, i);
-            m_fields.Add(editor);
-            body.Children.Add(grid);
-        }
-    }
-
-    private FieldEditor BuildFieldEditor(
-        StructureField f,
-        Grid host,
-        bool isUnion,
-        bool hasOptional,
-        ComboBox? unionSelector,
-        int unionIndex)
-    {
-        bool isArray = f.ValueRank == ValueRanks.OneDimension
-            || f.ValueRank == ValueRanks.OneOrMoreDimensions
-            || (f.ValueRank > 0);
-        BuiltInType bi = TypeInfo.GetBuiltInType(f.DataType);
-
-        Control valueControl;
-        Button? arrayButton = null;
-        Button? structButton = null;
-
-        if (isArray)
-        {
-            arrayButton = new Button
+            Control control;
+            bool array = field.TypeInfo.ValueRank >= ValueRanks.OneOrMoreDimensions ||
+                (!row.CurrentValue.IsNull && !row.CurrentValue.TypeInfo.IsScalar);
+            if (array || field.TypeInfo.BuiltInType is BuiltInType.Null or BuiltInType.ExtensionObject)
             {
-                Content = "Edit array…",
-                HorizontalAlignment = HorizontalAlignment.Stretch
-            };
-            valueControl = arrayButton;
-        }
-        else if (bi == BuiltInType.ExtensionObject || bi == BuiltInType.Null)
-        {
-            // Nested structure (or unresolved sub-type).
-            structButton = new Button
-            {
-                Content = "Edit struct…",
-                HorizontalAlignment = HorizontalAlignment.Stretch
-            };
-            valueControl = structButton;
-        }
-        else
-        {
-            valueControl = new TextBox
-            {
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace")
-            };
-        }
-        Grid.SetColumn(valueControl, 1);
-        host.Children.Add(valueControl);
-
-        CheckBox? optionalToggle = null;
-        if (hasOptional && f.IsOptional)
-        {
-            optionalToggle = new CheckBox
-            {
-                Content = "Include",
-                IsChecked = false,
-                Margin = new Thickness(6, 0, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            Grid.SetColumn(optionalToggle, 2);
-            host.Children.Add(optionalToggle);
-        }
-
-        FieldEditor editor;
-        if (arrayButton is not null)
-        {
-            var row = new FieldEditor.ArrayRow(
-                f, bi, isUnion ? unionSelector : null, unionIndex, optionalToggle);
-            arrayButton.Click += async (_, _) => await OnEditArrayAsync(row).ConfigureAwait(true);
-            editor = row;
-        }
-        else if (structButton is not null)
-        {
-            var row = new FieldEditor.StructRow(
-                f, isUnion ? unionSelector : null, unionIndex, optionalToggle);
-            structButton.Click += async (_, _) => await OnEditStructAsync(row).ConfigureAwait(true);
-            editor = row;
-        }
-        else
-        {
-            editor = new FieldEditor.PrimitiveRow(
-                f, bi, (TextBox)valueControl,
-                isUnion ? unionSelector : null, unionIndex, optionalToggle);
-        }
-        return editor;
-    }
-
-    private static string DescribeField(StructureField f)
-    {
-        BuiltInType bi = TypeInfo.GetBuiltInType(f.DataType);
-        string baseName = bi == BuiltInType.Null || bi == BuiltInType.ExtensionObject
-            ? f.DataType.ToString() ?? "Structure"
-            : bi.ToString();
-        string suffix = f.ValueRank switch
-        {
-            ValueRanks.OneDimension => "[]",
-            ValueRanks.OneOrMoreDimensions => "[...]",
-            int r when r > 1 => $"[{r}D]",
-            _ => string.Empty
-        };
-        return baseName + suffix + (f.IsOptional ? "  (optional)" : string.Empty);
-    }
-
-    private void PopulateFromValue()
-    {
-        Variant v = Value;
-        if (m_definition is EnumDefinition && m_fields.Count == 1)
-        {
-            if (v.TryGetValue(out int iv))
-            {
-                m_fields[0].WriteEnum(iv);
-            }
-            return;
-        }
-        if (m_definition is StructureDefinition sd)
-        {
-            ApplyStructureValue(sd, v);
-        }
-    }
-
-    private void ApplyStructureValue(StructureDefinition sd, Variant v)
-    {
-        if (sd.Fields.IsEmpty)
-        {
-            return;
-        }
-        if (v.IsNull || v.AsBoxedObject() is not ExtensionObject eo || eo.Body is null)
-        {
-            // Nothing to import — leave defaults from BuildStructureBody.
-            return;
-        }
-        // Walk the body object reflectively, matching by field name.
-        // This works whether or not the body is a generated complex
-        // type — any class that exposes public properties matching the
-        // structure field names will roundtrip its values into the UI.
-        object body = eo.Body;
-        Type t = body.GetType();
-        for (int i = 0; i < sd.Fields.Count && i < m_fields.Count; i++)
-        {
-            string? name = sd.Fields[i].Name;
-            if (string.IsNullOrEmpty(name))
-            {
-                continue;
-            }
-            PropertyInfo? p = t.GetProperty(name,
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.IgnoreCase);
-            if (p is null)
-            {
-                continue;
-            }
-            object? raw = p.GetValue(body);
-            if (raw is null)
-            {
-                continue;
-            }
-            m_fields[i].WriteFromObject(raw);
-        }
-    }
-
-    private bool TryCommitStructure(StructureDefinition sd, out Variant committed, out string? error)
-    {
-        committed = Value;
-        error = null;
-        if (sd.Fields.IsEmpty)
-        {
-            return true;
-        }
-
-        // If the existing Value already contains a typed body, mutate it
-        // in place — this is the only path that survives a Write back to
-        // the server (the body knows how to encode itself).  For brand
-        // new values (or opaque bodies) we keep the original Variant —
-        // the UI worked, but the server-side roundtrip needs the complex
-        // type system loaded.
-        object? body = null;
-        if (Value.AsBoxedObject() is ExtensionObject typedEo)
-        {
-            body = typedEo.Body;
-        }
-        if (body is null)
-        {
-            // No typed body — surface as a soft warning but allow OK.
-            // The caller's existing JSON / XML import path remains the
-            // working route for newly constructed structures.
-            error = "Edits are kept in-memory but cannot be re-encoded "
-                + "without an existing typed body — use Import to seed a "
-                + "value first, then edit.";
-            return false;
-        }
-
-        Type t = body.GetType();
-        for (int i = 0; i < sd.Fields.Count && i < m_fields.Count; i++)
-        {
-            string? name = sd.Fields[i].Name;
-            if (string.IsNullOrEmpty(name))
-            {
-                continue;
-            }
-            PropertyInfo? p = t.GetProperty(name,
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.IgnoreCase);
-            if (p is null || !p.CanWrite)
-            {
-                continue;
-            }
-            if (!m_fields[i].TryReadObject(p.PropertyType, out object? boxed, out string? rerr))
-            {
-                error = $"Field '{name}': {rerr}";
-                return false;
-            }
-            try
-            {
-                p.SetValue(body, boxed);
-            }
-            catch (Exception ex)
-            {
-                error = $"Field '{name}': could not set value ({ex.Message})";
-                return false;
-            }
-        }
-        // committed remains the same Variant — the underlying body was
-        // mutated in place; the Variant value is still a reference to it.
-        return true;
-    }
-
-    private async Task OnEditArrayAsync(FieldEditor.ArrayRow row)
-    {
-        if (m_session is null)
-        {
-            return;
-        }
-        DataTypeDefinition? elementDef = await ComplexValueIO
-            .GetDataTypeDefinitionAsync(row.Field.DataType, m_session, CancellationToken.None)
-            .ConfigureAwait(true);
-        Window? owner = TopLevelWindow();
-        if (owner is null)
-        {
-            return;
-        }
-        var dlg = new EditArrayDialog(
-            $"Array editor — {row.Field.Name}",
-            row.Field.DataType,
-            elementDef,
-            row.CurrentElements,
-            m_session);
-        await dlg.ShowDialog(owner).ConfigureAwait(true);
-        if (dlg.WasCommitted && dlg.Result is not null)
-        {
-            row.SetElements(dlg.Result);
-        }
-    }
-
-    private async Task OnEditStructAsync(FieldEditor.StructRow row)
-    {
-        if (m_session is null)
-        {
-            return;
-        }
-        DataTypeDefinition? nested = await ComplexValueIO
-            .GetDataTypeDefinitionAsync(row.Field.DataType, m_session, CancellationToken.None)
-            .ConfigureAwait(true);
-        Window? owner = TopLevelWindow();
-        if (owner is null)
-        {
-            return;
-        }
-        var dlg = new ComplexValueElementDialog(
-            row.Field.DataType, nested, m_session, row.CurrentValue);
-        Variant? edited = await dlg.ShowDialog<Variant?>(owner).ConfigureAwait(true);
-        if (edited.HasValue)
-        {
-            row.CurrentValue = edited.Value;
-        }
-    }
-
-    private Window? TopLevelWindow()
-    {
-        return TopLevel.GetTopLevel(this) as Window;
-    }
-
-    private void InitializeComponent()
-    {
-        AvaloniaXamlLoader.Load(this);
-    }
-}
-
-/// <summary>
-/// Wraps an <see cref="EnumField"/> for binding into the editor's enum
-/// <see cref="ComboBox"/>.  The <see cref="ToString"/> override drives
-/// the default item template.
-/// </summary>
-internal sealed class EnumChoice
-{
-    public EnumField Field { get; }
-
-    public EnumChoice(EnumField field)
-    {
-        Field = field;
-    }
-
-    public override string ToString()
-    {
-        string name = Field.Name ?? Field.DisplayName.Text ?? "(unnamed)";
-        return $"{name} ({Field.Value})";
-    }
-}
-
-/// <summary>
-/// Abstract per-field row backing the structure editor.  Concrete
-/// subclasses know how to parse / format a specific UI control kind
-/// (primitive TextBox, nested struct button, array button, enum
-/// ComboBox).  Kept as a closed hierarchy in this file because each
-/// row is tightly coupled to the editor's commit/reload pipeline.
-/// </summary>
-internal abstract class FieldEditor
-{
-    public StructureField Field { get; }
-    public CheckBox? OptionalToggle { get; }
-    public ComboBox? UnionSelector { get; }
-    public int UnionIndex { get; }
-
-    protected FieldEditor(StructureField field,
-        ComboBox? unionSelector, int unionIndex, CheckBox? optionalToggle)
-    {
-        Field = field;
-        UnionSelector = unionSelector;
-        UnionIndex = unionIndex;
-        OptionalToggle = optionalToggle;
-    }
-
-    /// <summary>
-    /// True when this field is currently part of the encoded value:
-    /// always true for required fields, dependent on the toggle for
-    /// optional ones, dependent on the union selector for unions.
-    /// </summary>
-    public bool IsIncluded
-    {
-        get
-        {
-            if (UnionSelector is not null)
-            {
-                return UnionSelector.SelectedIndex == UnionIndex;
-            }
-            if (OptionalToggle is not null)
-            {
-                return OptionalToggle.IsChecked == true;
-            }
-            return true;
-        }
-    }
-
-    public virtual bool TryReadEnum(out int value)
-    {
-        value = 0;
-        return false;
-    }
-
-    public virtual void WriteEnum(int value)
-    {
-        // overridden in EnumRow
-    }
-
-    public virtual void WriteFromObject(object value)
-    {
-        // overridden in subclasses where applicable
-    }
-
-    public abstract bool TryReadObject(Type targetType, out object? boxed, out string? error);
-
-    public sealed class PrimitiveRow : FieldEditor
-    {
-        private readonly TextBox m_text;
-        private readonly BuiltInType m_builtIn;
-
-        public PrimitiveRow(StructureField f, BuiltInType bi, TextBox box,
-            ComboBox? unionSelector, int unionIndex, CheckBox? optional)
-            : base(f, unionSelector, unionIndex, optional)
-        {
-            m_builtIn = bi;
-            m_text = box;
-        }
-
-        public override void WriteFromObject(object value)
-        {
-            m_text.Text = value switch
-            {
-                null => string.Empty,
-                IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
-                string s => s,
-                _ => value.ToString() ?? string.Empty
-            };
-            if (OptionalToggle is not null)
-            {
-                OptionalToggle.IsChecked = true;
-            }
-        }
-
-        public override bool TryReadObject(Type targetType, out object? boxed, out string? error)
-        {
-            boxed = null;
-            error = null;
-            if (OptionalToggle is not null && OptionalToggle.IsChecked != true)
-            {
-                // Field omitted by user toggle — leave the underlying
-                // property at its existing value (e.g. null).
-                return true;
-            }
-            string s = m_text.Text?.Trim() ?? string.Empty;
-            try
-            {
-                if (!VariantParser.TryParse(Field.DataType, ValueRanks.Scalar, s,
-                    out Variant parsed, out string? perr))
+                var button = new Button
                 {
-                    error = perr;
-                    return false;
-                }
-                boxed = CoerceToTargetType(parsed, targetType);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                error = ex.Message;
-                return false;
-            }
-        }
-
-        private static object? CoerceToTargetType(Variant v, Type targetType)
-        {
-            object? raw = v.AsBoxedObject();
-            if (raw is null)
-            {
-                return null;
-            }
-            // Common: target == typeof(int) and parsed == int.  Otherwise
-            // delegate to Convert for narrow numeric coercion.
-            if (targetType.IsInstanceOfType(raw))
-            {
-                return raw;
-            }
-            try
-            {
-                return Convert.ChangeType(raw, targetType, CultureInfo.InvariantCulture);
-            }
-            catch
-            {
-                // Returning the original boxed value forces a TypeMismatch
-                // on the property setter — surfaced to the user via
-                // TryReadObject's catch block.
-                return raw;
-            }
-        }
-    }
-
-    public sealed class ArrayRow : FieldEditor
-    {
-        private List<Variant> m_elements = [];
-
-        public ArrayRow(StructureField f, BuiltInType bi,
-            ComboBox? unionSelector, int unionIndex, CheckBox? optional)
-            : base(f, unionSelector, unionIndex, optional)
-        {
-            // bi is currently unused but kept on the row so future
-            // commits can build correctly typed arrays without a re-lookup.
-            _ = bi;
-        }
-
-        public IReadOnlyList<Variant> CurrentElements => m_elements;
-
-        public void SetElements(IReadOnlyList<Variant> elements)
-        {
-            m_elements = new List<Variant>(elements);
-            if (OptionalToggle is not null)
-            {
-                OptionalToggle.IsChecked = true;
-            }
-        }
-
-        public override void WriteFromObject(object value)
-        {
-            if (value is System.Collections.IEnumerable enumerable and not string)
-            {
-                var list = new List<Variant>();
-                foreach (object? el in enumerable)
+                    Content = array ? "Edit array…" : "Edit struct…",
+                    HorizontalAlignment = HorizontalAlignment.Stretch
+                };
+                button.Click += async (_, _) =>
                 {
-                    list.Add(el is null ? Variant.Null : Variant.From(el.ToString() ?? string.Empty));
-                }
-                m_elements = list;
-                if (OptionalToggle is not null)
-                {
-                    OptionalToggle.IsChecked = true;
-                }
-            }
-        }
-
-        public override bool TryReadObject(Type targetType, out object? boxed, out string? error)
-        {
-            boxed = null;
-            error = null;
-            if (OptionalToggle is not null && OptionalToggle.IsChecked != true)
-            {
-                return true;
-            }
-            // Array commit is intentionally not implemented for the typed
-            // body path: callers retrieve the live element list separately
-            // and the existing value is left untouched.  This keeps the
-            // round-trip safe even when the property type is something
-            // like a generated <c>ArrayOf&lt;T&gt;</c> the editor can't
-            // construct.
-            return true;
-        }
-    }
-
-    public sealed class StructRow : FieldEditor
-    {
-        public Variant CurrentValue { get; set; } = Variant.Null;
-
-        public StructRow(StructureField f,
-            ComboBox? unionSelector, int unionIndex, CheckBox? optional)
-            : base(f, unionSelector, unionIndex, optional)
-        {
-        }
-
-        public override void WriteFromObject(object value)
-        {
-            // Wrap as ExtensionObject so the nested editor can introspect.
-            if (value is ExtensionObject eo)
-            {
-                CurrentValue = Variant.From(eo);
-            }
-            else if (value is IEncodeable)
-            {
-#pragma warning disable CS0618 // Use TryGetAsXXX API for type safe access to body.
-                CurrentValue = Variant.From(new ExtensionObject(ExpandedNodeId.Null, value));
-#pragma warning restore CS0618
-            }
-            if (OptionalToggle is not null)
-            {
-                OptionalToggle.IsChecked = true;
-            }
-        }
-
-        public override bool TryReadObject(Type targetType, out object? boxed, out string? error)
-        {
-            boxed = null;
-            error = null;
-            if (OptionalToggle is not null && OptionalToggle.IsChecked != true)
-            {
-                return true;
-            }
-            object? raw = CurrentValue.AsBoxedObject();
-            if (raw is ExtensionObject eo2 && eo2.Body is not null)
-            {
-                boxed = targetType.IsInstanceOfType(eo2.Body) ? eo2.Body : eo2;
+                    if (!m_editTask.IsCompleted)
+                    {
+                        return;
+                    }
+                    m_editTask = EditFieldAsync(row, array);
+                    await m_editTask.ConfigureAwait(true);
+                };
+                control = button;
             }
             else
             {
-                boxed = raw;
+                row.Text = new TextBox
+                {
+                    Text = StructuredScalarValue.Format(row.CurrentValue),
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace")
+                };
+                control = row.Text;
             }
-            return true;
+            row.Control = control;
+            Grid.SetColumn(control, 1);
+            grid.Children.Add(control);
+            if (optional && field.Definition.IsOptional)
+            {
+                row.OptionalToggle = new CheckBox
+                {
+                    Content = "Include",
+                    IsChecked = field.IsIncluded,
+                    Margin = new Thickness(6, 0, 0, 0)
+                };
+                row.OptionalToggle.IsCheckedChanged += (_, _) => UpdateEnabledFields();
+                Grid.SetColumn(row.OptionalToggle, 2);
+                grid.Children.Add(row.OptionalToggle);
+            }
+            m_rows.Add(row);
+            body.Children.Add(grid);
+        }
+        UpdateEnabledFields();
+    }
+
+    private void UpdateEnabledFields()
+    {
+        for (int i = 0; i < m_rows.Count; i++)
+        {
+            FieldRow row = m_rows[i];
+            if (row.Control is not null)
+            {
+                row.Control.IsEnabled = m_unionSelector is not null
+                    ? m_unionSelector.SelectedIndex == i + 1
+                    : row.OptionalToggle?.IsChecked ?? true;
+            }
         }
     }
 
-    public sealed class EnumRow : FieldEditor
+    private async Task EditFieldAsync(FieldRow row, bool array)
     {
-        private readonly ComboBox m_combo;
-
-        public EnumRow(ComboBox combo)
-            : base(new StructureField { Name = "value" }, null, 0, null)
+        if (m_service is null || TopLevel.GetTopLevel(this) is not Window owner)
         {
-            m_combo = combo;
+            return;
         }
-
-        public override bool TryReadEnum(out int value)
+        using var cancellation = new CancellationTokenSource();
+        m_editCancellation = cancellation;
+        try
         {
-            if (m_combo.SelectedItem is EnumChoice c)
+            DataTypeDefinition? definition = await m_service.ResolveAsync(
+                row.Field.Definition.DataType, cancellation.Token).ConfigureAwait(true);
+            cancellation.Token.ThrowIfCancellationRequested();
+            if (array)
             {
-                value = (int)c.Field.Value;
-                return true;
-            }
-            value = 0;
-            return false;
-        }
-
-        public override void WriteEnum(int value)
-        {
-            for (int i = 0; i < m_combo.Items.Count; i++)
-            {
-                if (m_combo.Items[i] is EnumChoice c && c.Field.Value == value)
+                if (row.CurrentValue.IsNull && row.Field.Definition.ValueRank > ValueRanks.OneDimension)
                 {
-                    m_combo.SelectedIndex = i;
-                    return;
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported, "Import a typed matrix to establish its dimensions first.");
+                }
+                StructuredArrayValue snapshot = row.CurrentValue.IsNull
+                    ? new StructuredArrayValue(row.Field.TypeInfo.BuiltInType, [])
+                    : StructuredArrayValue.Read(row.CurrentValue, m_service.MessageContext);
+                var dialog = new EditArrayDialog(
+                    $"Array editor — {row.Field.Definition.Name}", row.Field.Definition.DataType,
+                    definition, snapshot.Elements, m_service, snapshot.ElementType);
+                m_nestedWindow = dialog;
+                using CancellationTokenRegistration registration = cancellation.Token.Register(
+                    () => Dispatcher.UIThread.Post(dialog.Close));
+                try
+                {
+                    await dialog.ShowDialog(owner).ConfigureAwait(true);
+                }
+                finally
+                {
+                    await dialog.StopAsync().ConfigureAwait(true);
+                }
+                cancellation.Token.ThrowIfCancellationRequested();
+                if (dialog.WasCommitted)
+                {
+                    row.CurrentValue = snapshot.WithElements(dialog.Result, m_service.MessageContext);
+                }
+            }
+            else
+            {
+                var dialog = new ComplexValueElementDialog(
+                    row.Field.Definition.DataType, definition, m_service, row.CurrentValue);
+                m_nestedWindow = dialog;
+                using CancellationTokenRegistration registration = cancellation.Token.Register(
+                    () => Dispatcher.UIThread.Post(dialog.Close));
+                try
+                {
+                    await dialog.ShowDialog(owner).ConfigureAwait(true);
+                }
+                finally
+                {
+                    await dialog.StopAsync().ConfigureAwait(true);
+                }
+                cancellation.Token.ThrowIfCancellationRequested();
+                if (dialog.WasCommitted)
+                {
+                    row.CurrentValue = dialog.Result;
                 }
             }
         }
-
-        public override bool TryReadObject(Type targetType, out object? boxed, out string? error)
+        catch (Exception ex)
         {
-            if (TryReadEnum(out int v))
-            {
-                boxed = v;
-                error = null;
-                return true;
-            }
-            boxed = null;
-            error = "no enum selection";
-            return false;
+            this.RequiredControl<TextBlock>("HintLabel").Text = $"Edit failed: {ex.Message}";
+        }
+        finally
+        {
+            m_editCancellation = null;
+            m_nestedWindow = null;
         }
     }
+
+    private void ShowError(string message)
+    {
+        m_error = message;
+        m_draft = null;
+        this.RequiredControl<TextBlock>("HintLabel").Text = message;
+    }
+
+    private sealed class FieldRow
+    {
+        public FieldRow(StructuredValueField field)
+        {
+            Field = field;
+            CurrentValue = field.Value.Copy();
+            if (CurrentValue.IsNull && field.TypeInfo.IsScalar &&
+                field.TypeInfo.BuiltInType != BuiltInType.Null)
+            {
+                CurrentValue = Variant.CreateDefault(field.TypeInfo);
+            }
+        }
+
+        public StructuredValueField Field { get; }
+        public Variant CurrentValue { get; set; }
+        public TextBox? Text { get; set; }
+        public Control? Control { get; set; }
+        public CheckBox? OptionalToggle { get; set; }
+    }
+
+    private sealed record EnumChoice(string Name, int Value)
+    {
+        public override string ToString()
+        {
+            return $"{Name} ({Value})";
+        }
+    }
+
+    public static readonly StyledProperty<Variant> ValueProperty =
+        AvaloniaProperty.Register<ComplexValueEditor, Variant>(
+            nameof(Value), defaultValue: Variant.Null, defaultBindingMode: BindingMode.TwoWay);
+
+    private readonly List<FieldRow> m_rows = [];
+    private NodeId m_dataTypeId;
+    private DataTypeDefinition? m_definition;
+    private IStructuredValueService? m_service;
+    private StructuredValueDraft? m_draft;
+    private ComboBox? m_enumSelector;
+    private ComboBox? m_unionSelector;
+    private CancellationTokenSource? m_loading;
+    private string? m_error;
+    private bool m_initializing;
+    private readonly List<Task> m_pendingReloads = [];
+    private Task m_editTask = Task.CompletedTask;
+    private CancellationTokenSource? m_editCancellation;
+    private Window? m_nestedWindow;
 }

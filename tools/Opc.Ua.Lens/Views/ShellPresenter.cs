@@ -357,8 +357,12 @@ internal sealed class ShellPresenter
 
     private async Task OpenCatalogAsync()
     {
-        var dlg = new ToolCatalogDialog();
-        PluginKind? kind = await dlg.ShowDialog<PluginKind?>(m_window).ConfigureAwait(true);
+        var dlg = new ToolCatalogDialog(m_vm.CreatePluginHost());
+        PluginKind? kind;
+        await using (dlg.ConfigureAwait(false))
+        {
+            kind = await dlg.ShowDialog<PluginKind?>(m_window).ConfigureAwait(true);
+        }
         if (kind is { } picked)
         {
             await m_vm.OpenToolAsync(picked).ConfigureAwait(true);

@@ -37,10 +37,27 @@
         <Button x:Name="HideButton" DockPanel.Dock="Right" Content="×" Width="24" Height="24"
                 Padding="0" Background="Transparent" BorderThickness="0"
                 ToolTip.Tip="Hide diagnostics" />
+        <Button x:Name="ExportButton" DockPanel.Dock="Right" Content="Export…" Margin="0,0,8,0"
+                ToolTip.Tip="Export bounded metadata; identities, nodes, raw values and free-text logs are excluded" />
         <TextBlock FontWeight="SemiBold" VerticalAlignment="Center"
                    Text="📊 Server diagnostics" />
       </DockPanel>
       <TabControl Grid.Row="1" Padding="0" Background="Transparent">
+        <TabItem Header="Correlation">
+          <ScrollViewer>
+            <ItemsControl x:Name="ClientRowsList">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="d:DiagnosticMetric">
+                  <StackPanel Margin="0,4">
+                    <TextBlock Text="{CompiledBinding Name}" FontSize="11" FontWeight="SemiBold" />
+                    <TextBlock Text="{CompiledBinding Value}" FontSize="11" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextSecondary}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </TabItem>
         <TabItem Header="Server">
           <Grid RowDefinitions="Auto,*">
             <TextBlock Grid.Row="0" x:Name="StatusLabel"
@@ -70,9 +87,11 @@
         <TabItem Header="Publishes">
           <Grid RowDefinitions="Auto,*">
             <Grid Grid.Row="0" ColumnDefinitions="60,46,46,84,52,*" Margin="6,4,6,4">
-              <TextBlock Grid.Column="0" Text="Time"         Foreground="{DynamicResource TextDim}" FontSize="11"
+              <TextBlock Grid.Column="0" Text="Callback"     Foreground="{DynamicResource TextDim}" FontSize="11"
+                         ToolTip.Tip="Local callback wall clock, not raw network packet arrival"
                          FontFamily="Cascadia Mono, Consolas, monospace" />
-              <TextBlock Grid.Column="1" Text="Sub"          Foreground="{DynamicResource TextDim}" FontSize="11"
+              <TextBlock Grid.Column="1" Text="Part."        Foreground="{DynamicResource TextDim}" FontSize="11"
+                         ToolTip.Tip="Server-assigned partition id; client: labels are client correlation only"
                          FontFamily="Cascadia Mono, Consolas, monospace" />
               <TextBlock Grid.Column="2" Text="Seq#"         Foreground="{DynamicResource TextDim}" FontSize="11"
                          FontFamily="Cascadia Mono, Consolas, monospace" />

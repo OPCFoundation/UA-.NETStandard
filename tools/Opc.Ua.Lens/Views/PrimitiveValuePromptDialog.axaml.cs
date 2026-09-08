@@ -27,13 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Opc.Ua;
+using UaLens.StructuredValues;
 using UaLens.Subscriptions;
 
 namespace UaLens.Views;
@@ -42,28 +41,26 @@ namespace UaLens.Views;
 /// Simple modal one-line text prompt used by <see cref="EditArrayDialog"/>
 /// to edit a primitive array element.  Parses the entered text via
 /// <see cref="VariantParser"/> using the supplied element DataType and
-/// returns the parsed <see cref="Variant"/> (or <c>null</c> on cancel /
-/// parse failure).
+/// exposes the parsed Variant only after a successful commit.
 /// </summary>
 internal sealed partial class PrimitiveValuePromptDialog : Window
 {
-    public PrimitiveValuePromptDialog(NodeId elementDataType, Variant initial)
+    public PrimitiveValuePromptDialog(BuiltInType elementType, Variant initial)
     {
         InitializeComponent();
-        BuiltInType bi = TypeInfo.GetBuiltInType(elementDataType);
-        this.RequiredControl<TextBlock>("HeaderLabel").Text = $"Edit element  ({bi})";
+        this.RequiredControl<TextBlock>("HeaderLabel").Text = $"Edit element  ({elementType})";
         this.RequiredControl<TextBlock>("HintLabel").Text =
-            $"Element DataType: {elementDataType}.  Enter a value in invariant culture; "
+            $"Element type: {elementType}. Enter a value in invariant culture; "
             + "press OK to commit.";
 
         TextBox box = this.RequiredControl<TextBox>("ValueText");
         TextBlock status = this.RequiredControl<TextBlock>("StatusLabel");
-        box.Text = FormatInitial(initial);
+        box.Text = StructuredScalarValue.Format(initial);
 
         this.RequiredControl<Button>("OkButton").Click += (_, _) =>
         {
-            string txt = box.Text?.Trim() ?? string.Empty;
-            if (!VariantParser.TryParse(elementDataType, ValueRanks.Scalar, txt,
+            string txt = box.Text ?? string.Empty;
+            if (!StructuredScalarValue.TryParse(elementType, txt, initial,
                 out Variant parsed, out string? err))
             {
                 status.Text = $"Parse error: {err}";
@@ -71,26 +68,16 @@ internal sealed partial class PrimitiveValuePromptDialog : Window
                     ?? Brushes.Transparent;
                 return;
             }
-            Close(parsed);
+            Result = parsed;
+            WasCommitted = true;
+            Close();
         };
-        this.RequiredControl<Button>("CancelButton").Click += (_, _) => Close(null);
+        this.RequiredControl<Button>("CancelButton").Click += (_, _) => Close();
     }
 
-    private static string FormatInitial(Variant v)
-    {
-        if (v.IsNull)
-        {
-            return string.Empty;
-        }
-        object? raw = v.AsBoxedObject();
-        return raw switch
-        {
-            null => string.Empty,
-            string s => s,
-            IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
-            _ => raw.ToString() ?? string.Empty
-        };
-    }
+    public Variant Result { get; private set; }
+
+    public bool WasCommitted { get; private set; }
 
     private void InitializeComponent()
     {

@@ -29,6 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua;
+using UaLens.Capabilities;
+using UaLens.Connection;
 using UaLens.ViewModels;
 
 namespace UaLens.Views;
@@ -43,13 +46,27 @@ internal sealed record ToolCatalogEntry(
     string Description,
     string Glyph,
     string ConnectionRequirement,
-    string? Shortcut);
+    string? Shortcut,
+    CapabilityResult Availability,
+    string? CapabilityLabel,
+    CapabilityRequest? Capability)
+{
+    public string AvailabilityText
+    {
+        get
+        {
+            string state = Availability.State == CapabilityState.RequiresConfiguration
+                ? "Requires configuration" : Availability.State.ToString();
+            string target = CapabilityLabel is null ? string.Empty : $"{CapabilityLabel}: ";
+            return $"{target}{state}. {Availability.Reason}";
+        }
+    }
+}
 
 /// <summary>
-/// A named catalog group with its ordered tool entries. The collection is a
-/// read-only list so it can be data-bound directly by the catalog dialog.
+/// A named catalog group with its ordered tool entries.
 /// </summary>
-internal sealed record ToolCatalogGroup(string Name, IReadOnlyList<ToolCatalogEntry> Tools);
+internal sealed record ToolCatalogGroup(string Name, ArrayOf<ToolCatalogEntry> Tools);
 
 /// <summary>
 /// Builds the searchable, grouped Add-Tool catalog from
@@ -63,7 +80,7 @@ internal static class ToolCatalog
     /// a case-insensitive query over the name, description and group. Empty
     /// groups are omitted; a blank query returns the whole catalog.
     /// </summary>
-    public static IReadOnlyList<ToolCatalogGroup> Build(string? search = null)
+    public static ArrayOf<ToolCatalogGroup> Build(string? search = null, PluginHost? host = null)
     {
         string query = (search ?? string.Empty).Trim();
         var groups = new List<ToolCatalogGroup>();
@@ -82,14 +99,61 @@ internal static class ToolCatalog
                     registration.Description,
                     registration.Glyph,
                     registration.ConnectionRequirement,
-                    registration.InputGesture));
+                    registration.InputGesture,
+                    GetAvailability(registration, host),
+                    registration.CapabilityLabel,
+                    registration.ConnectionScope == ToolConnectionScope.Primary ? registration.Capability : null));
             }
             if (entries.Count > 0)
             {
-                groups.Add(new ToolCatalogGroup(GroupName(group), entries));
+                groups.Add(new ToolCatalogGroup(GroupName(group), [.. entries]));
             }
         }
-        return groups;
+        return [.. groups];
+    }
+
+    /// <summary>
+    /// Reads availability without probing or preventing document creation. A secondary session or an independent
+    /// runtime cannot be classified from primary-session evidence.
+    /// </summary>
+    public static CapabilityResult GetAvailability(PluginRegistration registration, PluginHost? host = null)
+    {
+        ArgumentNullException.ThrowIfNull(registration);
+        if (registration.ConnectionScope == ToolConnectionScope.Primary
+            && host?.Connection.Snapshot.Phase is ConnectionPhase.Connecting or ConnectionPhase.Reconnecting)
+        {
+            return new CapabilityResult(CapabilityState.Unknown,
+                "The primary session is recovering. Configure offline or wait, then check availability again.");
+        }
+        return GetAvailability(registration, host?.Connection.IsConnected == true, host?.Capabilities);
+    }
+
+    /// <summary>
+    /// Projects headless or desktop availability from explicit primary-connection state and cached operation evidence.
+    /// </summary>
+    public static CapabilityResult GetAvailability(
+        PluginRegistration registration,
+        bool primaryConnected,
+        ICapabilityService? capabilities)
+    {
+        ArgumentNullException.ThrowIfNull(registration);
+        return registration.ConnectionScope switch
+        {
+            ToolConnectionScope.Local => new CapabilityResult(CapabilityState.Supported,
+                "Local configuration is available. Discovery requests still require an explicit endpoint."),
+            ToolConnectionScope.Secondary => new CapabilityResult(CapabilityState.RequiresConfiguration,
+                "Select a suitable primary or secondary server in the document; its operation checks are independent."),
+            ToolConnectionScope.IndependentNetwork => new CapabilityResult(CapabilityState.RequiresConfiguration,
+                "Configure the document's network prerequisites, then explicitly Start its runtime."),
+            ToolConnectionScope.Primary when !primaryConnected =>
+                new CapabilityResult(CapabilityState.RequiresConfiguration,
+                    "Configure offline, then connect the primary server to check live operations."),
+            ToolConnectionScope.Primary when capabilities is not null && registration.Capability is { } request =>
+                capabilities.GetCached(request),
+            ToolConnectionScope.Primary => new CapabilityResult(CapabilityState.Unknown,
+                "The primary server is connected. Select a target in the document to check its operations."),
+            _ => throw new ArgumentOutOfRangeException(nameof(registration))
+        };
     }
 
     private static string GroupName(ToolGroup group)

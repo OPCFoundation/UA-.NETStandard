@@ -270,16 +270,24 @@ namespace Opc.Ua.Client.Subscriptions
                 throw ServiceResultException.Create(StatusCodes.BadSubscriptionIdInvalid,
                     "Subscription has not been created.");
             }
-            var methodsToCall = new CallMethodRequest[]
-            {
+            ArrayOf<CallMethodRequest> methodsToCall =
+            [
                 new()
                 {
+                    ObjectId = ObjectTypeIds.ConditionType,
                     MethodId = MethodIds.ConditionType_ConditionRefresh,
-                    InputArguments = [new Variant(Id)]
+                    InputArguments = [Variant.From(Id)]
                 }
-            };
-            await m_context.MethodServiceSet.CallAsync(null, methodsToCall,
-                ct).ConfigureAwait(false);
+            ];
+            CallResponse response = await m_context.MethodServiceSet.CallAsync(null, methodsToCall, ct)
+                .ConfigureAwait(false);
+            ClientBase.ValidateResponse(response.Results, methodsToCall);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, methodsToCall);
+            if (StatusCode.IsBad(response.Results[0].StatusCode))
+            {
+                throw new ServiceResultException(ClientBase.GetResult(
+                    response.Results[0].StatusCode, 0, response.DiagnosticInfos, response.ResponseHeader));
+            }
         }
 
         /// <inheritdoc/>

@@ -38,7 +38,7 @@
     <TextBlock Grid.Row="0"
                Margin="0,0,0,8"
                TextWrapping="Wrap"
-               Text="Pick an endpoint or expand it and pick a user-token policy.  Selecting the endpoint root connects with the Anonymous token; expanding lets you choose UserName credentials." />
+               Text="Expand an endpoint and select its exact user-token policy. Anonymous roots are offered only when advertised; other policies use credentials or a configured certificate/authority provider." />
 
     <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource PanelBg}">
       <TreeView x:Name="Tree"
@@ -48,7 +48,7 @@
         <TreeView.Styles>
           <Style Selector="TreeViewItem" x:DataType="v:PickerNode">
             <Setter Property="IsExpanded" Value="{CompiledBinding IsExpanded, Mode=TwoWay}" />
-            <Setter Property="IsEnabled"  Value="{CompiledBinding IsSelectable}" />
+            <Setter Property="IsEnabled"  Value="{CompiledBinding CanInteract}" />
             <Setter Property="Padding"    Value="4,2" />
           </Style>
         </TreeView.Styles>
@@ -65,6 +65,7 @@
                Margin="0,8,0,0"
                Foreground="{DynamicResource TextSecondary}"
                FontSize="11"
+               TextWrapping="Wrap"
                Text="Loading endpoints…" />
 
     <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
@@ -73,4 +74,3 @@
     </StackPanel>
   </Grid>
 </Window>
-

@@ -28,12 +28,20 @@ Other documents provide events, history, file operations, local certificate stor
 GDS discovery/management/push, users/roles, write/call performance workloads, and
 the live-scaling Subscription Bench.
 
+Alarms, Models, Continuity Lab, PubSub and Companion Tasks expose typed stack
+workflows without adding another top-level menu. Capability checks distinguish
+unavailable, unsupported and unauthorized operations. X.509, issued-token and
+hardware-backed identities use explicitly configured providers; reverse connect
+keeps listener, peer, security and identity requirements visible.
+
 One primary connection is shared by documents; GDS tools can retain independent
 secondary connections. Local certificate management and discovery are available
 offline. Workspaces preserve safe configuration, not credentials or running jobs.
 
 See the [UaLens guide](../../docs/UaLens.md) for navigation, settings, trust and
-workspace behavior, tool coverage, and prioritized stack-showcase opportunities.
+workspace behavior and tool coverage. The
+[guided workflow guide](../../docs/UaLensShowcase.md) describes concrete tasks,
+external prerequisites and intentional limits.
 
 ## Publish and package
 

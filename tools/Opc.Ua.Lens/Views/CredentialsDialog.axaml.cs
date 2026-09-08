@@ -34,9 +34,6 @@ namespace UaLens.Views;
 
 internal sealed partial class CredentialsDialog : Window
 {
-    public string? Username { get; private set; }
-    public string? Password { get; private set; }
-
     public CredentialsDialog(string? defaultUsername = null)
     {
         InitializeComponent();
@@ -54,7 +51,15 @@ internal sealed partial class CredentialsDialog : Window
             Close((Username, Password));
         };
         cancel.Click += (_, _) => Close(null);
+        Closed += (_, _) =>
+        {
+            p.Text = string.Empty;
+        };
     }
+
+    public string? Username { get; private set; }
+
+    public string? Password { get; private set; }
 
     private void InitializeComponent()
     {

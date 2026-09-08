@@ -65,6 +65,7 @@ public sealed class NodeActionRulesTests
         Assert.That(visibility.CanPerf, Is.True);
         Assert.That(visibility.CanCall, Is.False);
         Assert.That(visibility.CanShowEvents, Is.False);
+        Assert.That(visibility.CanInspectModel, Is.True);
     }
 
     [Test]
@@ -80,6 +81,7 @@ public sealed class NodeActionRulesTests
         Assert.That(visibility.CanPerf, Is.False);
         Assert.That(visibility.CanAddToBench, Is.False);
         Assert.That(visibility.CanExportValue, Is.False);
+        Assert.That(visibility.CanInspectModel, Is.False);
     }
 
     [Test]
@@ -108,5 +110,19 @@ public sealed class NodeActionRulesTests
         Assert.That(visibility.CanAddRecursive, Is.False);
         Assert.That(visibility.CanReadHistory, Is.False);
         Assert.That(visibility.CanAddToBench, Is.False);
+        Assert.That(visibility.CanInspectModel, Is.True);
+    }
+
+    [Test]
+    public void DataTypeSelectionAllowsInspectionWithoutWriteOrCall()
+    {
+        ContextMenuVisibility visibility = NodeActionRules.Evaluate(
+            connected: true, NodeClass.DataType,
+            canAddSelected: false, canCall: false, canWrite: false, selectionHasEvents: false);
+
+        Assert.That(visibility.CanInspectModel, Is.True);
+        Assert.That(visibility.CanWrite, Is.False);
+        Assert.That(visibility.CanCall, Is.False);
+        Assert.That(visibility.CanShowEvents, Is.False);
     }
 }

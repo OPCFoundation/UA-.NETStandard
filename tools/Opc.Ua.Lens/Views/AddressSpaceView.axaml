@@ -65,6 +65,8 @@
             <MenuItem x:Name="MenuWriteValue" Header="Write Value…" />
             <MenuItem x:Name="MenuReadHistory" Header="Read history…" />
             <MenuItem x:Name="MenuShowEvents" Header="Show Events…" />
+            <MenuItem x:Name="MenuShowAlarms" Header="Open Alarms" />
+            <MenuItem x:Name="MenuInspectModel" Header="Inspect in Models" />
             <MenuItem x:Name="MenuPerf" Header="Perf…" />
             <MenuItem x:Name="MenuAddToBench" Header="Add to Subscription Bench…" />
             <MenuItem x:Name="MenuExportValue" Header="Export value to file…" />
@@ -110,6 +112,5 @@
     </Grid>
   </Border>
 </UserControl>
-
 
 

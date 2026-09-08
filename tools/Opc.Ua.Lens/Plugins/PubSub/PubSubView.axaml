@@ -1,0 +1,397 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.Plugins.PubSub"
+             x:Class="UaLens.Plugins.PubSub.PubSubView"
+             x:DataType="vm:PubSubPlugin"
+             Background="{DynamicResource SurfaceBg}"
+             Foreground="{DynamicResource TextPrimary}">
+  <DockPanel Margin="12">
+    <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,10">
+      <WrapPanel>
+        <Button Content="Start" Command="{CompiledBinding StartCommand}" Margin="0,0,8,0"
+                AutomationProperties.Name="PubSub Start" />
+        <Button Content="Stop" Command="{CompiledBinding StopCommand}" Margin="0,0,12,0"
+                AutomationProperties.Name="PubSub Stop" />
+        <TextBlock Text="{CompiledBinding Phase}" VerticalAlignment="Center" FontWeight="SemiBold" />
+      </WrapPanel>
+      <TextBlock Text="{CompiledBinding ConfigurationSummary}" TextWrapping="Wrap"
+                 Foreground="{DynamicResource TextSecondary}" />
+      <TextBlock Text="{CompiledBinding DataSummary}" TextWrapping="Wrap" FontSize="11" />
+      <TextBlock Text="{CompiledBinding OperationError}" TextWrapping="Wrap" FontWeight="SemiBold"
+                 AutomationProperties.Name="PubSub operation error" />
+      <ProgressBar IsVisible="{CompiledBinding IsBusy}" IsIndeterminate="True" Height="2" />
+    </StackPanel>
+    <TextBlock DockPanel.Dock="Bottom" Text="{CompiledBinding Status}" TextWrapping="Wrap"
+               Margin="0,8,0,0" Foreground="{DynamicResource TextSecondary}"
+               AutomationProperties.Name="PubSub status" />
+    <Grid ColumnDefinitions="330,5,*">
+      <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Spacing="8" Margin="0,0,10,0">
+          <TextBlock Text="Independent network setup" FontWeight="SemiBold" />
+          <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="11">
+            <Run Text="No primary UA session is required. Apply configuration, " />
+            <Run Text="review the target and prerequisites, then authorize Start." />
+          </TextBlock>
+          <StackPanel Spacing="6" IsEnabled="{CompiledBinding CanConfigure}">
+            <TextBlock Text="Transport profile" />
+            <ComboBox ItemsSource="{CompiledBinding Profiles}" SelectedItem="{CompiledBinding Profile, Mode=TwoWay}"
+                      HorizontalAlignment="Stretch" AutomationProperties.Name="PubSub transport profile" />
+            <TextBox Text="{CompiledBinding Endpoint, Mode=TwoWay}" PlaceholderText="Explicit endpoint URI"
+                     MaxLength="1024" AutomationProperties.Name="PubSub endpoint" />
+            <TextBox Text="{CompiledBinding NetworkInterface, Mode=TwoWay}"
+                     PlaceholderText="Local NIC name or IP (UDP/Ethernet)"
+                     MaxLength="256" AutomationProperties.Name="PubSub network interface" />
+            <TextBox Text="{CompiledBinding Topic, Mode=TwoWay}" PlaceholderText="Explicit broker topic (no wildcards)"
+                     MaxLength="256" AutomationProperties.Name="PubSub broker topic" />
+            <TextBlock Text="Message security" />
+            <ComboBox ItemsSource="{CompiledBinding SecurityModes}"
+                      SelectedItem="{CompiledBinding SecurityMode, Mode=TwoWay}"
+                      HorizontalAlignment="Stretch" AutomationProperties.Name="PubSub security mode" />
+            <TextBox Text="{CompiledBinding SecurityProviderId, Mode=TwoWay}" PlaceholderText="Registered key/SKS provider ID"
+                     MaxLength="96" AutomationProperties.Name="PubSub security provider" />
+            <TextBox Text="{CompiledBinding SecurityGroupId, Mode=TwoWay}" PlaceholderText="Security group ID"
+                     MaxLength="96" AutomationProperties.Name="PubSub security group" />
+            <TextBox Text="{CompiledBinding SecurityKeyServiceEndpoint, Mode=TwoWay}"
+                     PlaceholderText="Configured SKS service endpoint (no credentials)" MaxLength="1024"
+                     AutomationProperties.Name="PubSub SKS endpoint" />
+            <Expander Header="Broker and installed profiles">
+              <StackPanel Spacing="6" Margin="0,6,0,0">
+                <ComboBox ItemsSource="{CompiledBinding AuthenticationModes}"
+                          SelectedItem="{CompiledBinding BrokerAuthentication, Mode=TwoWay}"
+                          HorizontalAlignment="Stretch" AutomationProperties.Name="PubSub broker authentication" />
+                <TextBox Text="{CompiledBinding TransportProviderId, Mode=TwoWay}"
+                         PlaceholderText="Registered transport provider ID (optional for built-in)"
+                         MaxLength="96" AutomationProperties.Name="PubSub transport provider" />
+                <TextBox Text="{CompiledBinding CredentialReference, Mode=TwoWay}"
+                         PlaceholderText="Credential provider reference, never a password" MaxLength="96"
+                         AutomationProperties.Name="PubSub credential reference" />
+                <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource TextSecondary}">
+                  <Run Text="MQTT/Kafka require your broker. Kafka uses managed Dekaf, never Confluent. " />
+                  <Run Text="DTLS needs a configured context and peer. " />
+                  <Run Text="Ethernet needs a channel, NIC and privileges. " />
+                  <Run Text="No external service or driver is installed here." />
+                </TextBlock>
+              </StackPanel>
+            </Expander>
+            <CheckBox Content="Receive into the local read-only viewer"
+                      IsChecked="{CompiledBinding ReceiveEnabled, Mode=TwoWay}" />
+            <Expander Header="Dataset identities">
+              <Grid ColumnDefinitions="*,150" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,6,0,0">
+                <TextBlock Grid.Row="0" Text="Local publisher ID" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="0" Grid.Column="1" Minimum="1" Maximum="65535"
+                               Value="{CompiledBinding LocalPublisherId, Mode=TwoWay}" />
+                <TextBlock Grid.Row="1" Text="Received publisher ID" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="1" Grid.Column="1" Minimum="1" Maximum="65535"
+                               Value="{CompiledBinding PublisherFilter, Mode=TwoWay}" />
+                <TextBlock Grid.Row="2" Text="Writer group ID" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="1" Minimum="1" Maximum="65535"
+                               Value="{CompiledBinding WriterGroupId, Mode=TwoWay}" />
+                <TextBlock Grid.Row="3" Text="Dataset writer ID" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="3" Grid.Column="1" Minimum="1" Maximum="65535"
+                               Value="{CompiledBinding DataSetWriterId, Mode=TwoWay}" />
+              </Grid>
+            </Expander>
+            <Expander Header="Controlled publication">
+              <StackPanel Spacing="6" Margin="0,6,0,0">
+                <ComboBox ItemsSource="{CompiledBinding PublicationModes}"
+                          SelectedItem="{CompiledBinding Publication, Mode=TwoWay}"
+                          HorizontalAlignment="Stretch" AutomationProperties.Name="PubSub publication mode" />
+                <Grid ColumnDefinitions="*,150" RowDefinitions="Auto,Auto,Auto">
+                  <TextBlock Grid.Row="0" Text="Interval (ms)" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Row="0" Grid.Column="1" Minimum="100" Maximum="60000"
+                                 Value="{CompiledBinding PublishingIntervalMs, Mode=TwoWay}" />
+                  <TextBlock Grid.Row="1" Text="Duration (seconds)" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Row="1" Grid.Column="1" Minimum="1" Maximum="600"
+                                 Value="{CompiledBinding DurationSeconds, Mode=TwoWay}" />
+                  <TextBlock Grid.Row="2" Text="Sample/UA-operation cap" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Row="2" Grid.Column="1" Minimum="1" Maximum="10000"
+                                 Value="{CompiledBinding MaxPublishedMessages, Mode=TwoWay}" />
+                </Grid>
+                <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource TextSecondary}">
+                  <Run Text="The synthetic source emits bounded scalar values. " />
+                  <Run Text="ServerSource uses a configured UA adapter and portable node mappings " />
+                  <Run Text="from Advanced configuration." />
+                </TextBlock>
+              </StackPanel>
+            </Expander>
+            <Button Content="Apply configuration" Command="{CompiledBinding ApplyConfigurationCommand}"
+                    HorizontalAlignment="Left" AutomationProperties.Name="PubSub apply configuration" />
+          </StackPanel>
+          <ItemsControl ItemsSource="{CompiledBinding PrerequisiteRows}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="vm:PubSubPrerequisite">
+                <StackPanel Spacing="2" Margin="0,0,0,6">
+                  <TextBlock Text="{CompiledBinding Area}" FontWeight="SemiBold" />
+                  <TextBlock Text="{CompiledBinding Readiness}" FontSize="11" />
+                  <TextBlock Text="{CompiledBinding Detail}" TextWrapping="Wrap" FontSize="11"
+                             Foreground="{DynamicResource TextSecondary}" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Expander Header="Explicit workload authorization" IsExpanded="True">
+            <StackPanel Spacing="4" Margin="0,6,0,0" IsEnabled="{CompiledBinding CanConfigure}">
+              <CheckBox IsChecked="{CompiledBinding AllowUnsecured, Mode=TwoWay}"
+                        Content="Accept the selected security limitations" />
+              <CheckBox IsChecked="{CompiledBinding AllowAnonymousBroker, Mode=TwoWay}"
+                        Content="Authorize anonymous broker access" />
+              <CheckBox IsChecked="{CompiledBinding AllowPublication, Mode=TwoWay}"
+                        Content="Authorize bounded publication to this target" />
+              <CheckBox IsChecked="{CompiledBinding AllowWriteBack, Mode=TwoWay}"
+                        Content="Authorize configured UA write-back" />
+              <CheckBox IsChecked="{CompiledBinding AllowResponder, Mode=TwoWay}"
+                        Content="Authorize the configured UA Action responder" />
+              <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource TextSecondary}">
+                <Run Text="Only applicable authorizations are required. Apply, Start, Stop and restore clear them. " />
+                <Run Text="UA writes are not a server-side transaction." />
+              </TextBlock>
+            </StackPanel>
+          </Expander>
+        </StackPanel>
+      </ScrollViewer>
+      <GridSplitter Grid.Column="1" Width="5" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext"
+                    Background="{DynamicResource SeparatorBrush}" />
+      <TabControl Grid.Column="2" Margin="10,0,0,0">
+        <TabItem Header="Received">
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Margin="0,8" TextWrapping="Wrap">
+              <Run Text="Values are atomically accepted by the local sink. Wire-message evidence is separate: " />
+              <Run Text="received does not imply an applied dataset. No clock-based latency or loss claim is made." />
+            </TextBlock>
+            <Grid RowDefinitions="*,6,*">
+              <ListBox Grid.Row="0" ItemsSource="{CompiledBinding Values}"
+                       AutomationProperties.Name="PubSub received values">
+                <ListBox.ItemTemplate>
+                  <DataTemplate DataType="vm:PubSubFieldValue">
+                    <StackPanel Margin="4" Spacing="3">
+                      <Grid ColumnDefinitions="160,*,130">
+                        <TextBlock Text="{CompiledBinding Name}" FontWeight="SemiBold" />
+                        <TextBlock Grid.Column="1" Text="{CompiledBinding Text}" TextWrapping="Wrap" />
+                        <TextBlock Grid.Column="2" Text="{CompiledBinding Status}" FontSize="11" />
+                      </Grid>
+                      <WrapPanel>
+                        <TextBlock Text="{CompiledBinding Type}" FontSize="11" Margin="0,0,12,0" />
+                        <TextBlock Text="{CompiledBinding SourceTimestamp}" FontSize="11" Margin="0,0,12,0" />
+                        <TextBlock Text="{CompiledBinding ServerTimestamp}" FontSize="11" />
+                      </WrapPanel>
+                    </StackPanel>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <GridSplitter Grid.Row="1" Height="6" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext" />
+              <ListBox Grid.Row="2" ItemsSource="{CompiledBinding Messages}"
+                       AutomationProperties.Name="PubSub message evidence">
+                <ListBox.ItemTemplate>
+                  <DataTemplate DataType="vm:PubSubMessageRow">
+                    <StackPanel Margin="4" Spacing="3">
+                      <WrapPanel>
+                        <TextBlock Text="{CompiledBinding ReceivedAt}" Margin="0,0,12,0" />
+                        <TextBlock Text="Publisher: " />
+                        <TextBlock Text="{CompiledBinding Publisher}" Margin="0,0,12,0" />
+                        <TextBlock Text="Group: " />
+                        <TextBlock Text="{CompiledBinding WriterGroup}" Margin="0,0,12,0" />
+                        <TextBlock Text="Writer: " />
+                        <TextBlock Text="{CompiledBinding Writer}" Margin="0,0,12,0" />
+                        <TextBlock Text="Sequence: " />
+                        <TextBlock Text="{CompiledBinding Sequence}" Margin="0,0,12,0" />
+                        <TextBlock Text="{CompiledBinding MessageType}" />
+                      </WrapPanel>
+                      <WrapPanel>
+                        <TextBlock Text="{CompiledBinding MetadataVersion}" FontSize="11" Margin="0,0,12,0" />
+                        <TextBlock Text="{CompiledBinding Status}" FontSize="11" Margin="0,0,12,0" />
+                        <TextBlock Text="{CompiledBinding Security}" FontSize="11" />
+                      </WrapPanel>
+                    </StackPanel>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Grid>
+          </DockPanel>
+        </TabItem>
+        <TabItem Header="Metadata">
+          <ListBox ItemsSource="{CompiledBinding Metadata}" AutomationProperties.Name="PubSub metadata">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="vm:PubSubMetadataRow">
+                <StackPanel Margin="4" Spacing="4">
+                  <WrapPanel>
+                    <TextBlock Text="{CompiledBinding Name}" FontWeight="SemiBold" Margin="0,0,12,0" />
+                    <TextBlock Text="{CompiledBinding Publisher}" Margin="0,0,12,0" />
+                    <TextBlock Text="{CompiledBinding WriterGroup}" Margin="0,0,12,0" />
+                    <TextBlock Text="{CompiledBinding Writer}" Margin="0,0,12,0" />
+                    <TextBlock Text="Version: " />
+                    <TextBlock Text="{CompiledBinding MajorVersion}" Margin="0,0,4,0" />
+                    <TextBlock Text="." />
+                    <TextBlock Text="{CompiledBinding MinorVersion}" />
+                  </WrapPanel>
+                  <TextBlock Text="{CompiledBinding Fields}" TextWrapping="Wrap" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </TabItem>
+        <TabItem Header="Counters">
+          <ScrollViewer>
+            <StackPanel Spacing="8">
+              <TextBlock Margin="0,8" TextWrapping="Wrap">
+                <Run Text="Application and transport counters have different scopes and are not added together. " />
+                <Run Text="Display evictions are not network loss. Zero/default timestamps or blank sequences " />
+                <Run Text="mean no evidence was carried; JSON metadata uses group 0 when no group ID is carried." />
+              </TextBlock>
+              <ItemsControl ItemsSource="{CompiledBinding Components}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="vm:PubSubComponentRow">
+                    <Grid ColumnDefinitions="*,130,170" Margin="4">
+                      <TextBlock Text="{CompiledBinding Name}" />
+                      <TextBlock Grid.Column="1" Text="{CompiledBinding State}" />
+                      <TextBlock Grid.Column="2" Text="{CompiledBinding Status}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <Grid ColumnDefinitions="*,100,100" Margin="4">
+                <TextBlock Text="Counter" FontWeight="SemiBold" />
+                <TextBlock Grid.Column="1" Text="Application" FontWeight="SemiBold" />
+                <TextBlock Grid.Column="2" Text="Transport" FontWeight="SemiBold" />
+              </Grid>
+              <ItemsControl ItemsSource="{CompiledBinding Counters}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="vm:PubSubCounterRow">
+                    <Grid ColumnDefinitions="*,100,100" Margin="4">
+                      <TextBlock Text="{CompiledBinding Counter}" />
+                      <TextBlock Grid.Column="1" Text="{CompiledBinding Application}" />
+                      <TextBlock Grid.Column="2" Text="{CompiledBinding Transport}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+        <TabItem Header="Evidence">
+          <ListBox ItemsSource="{CompiledBinding Evidence}" AutomationProperties.Name="PubSub errors and lifecycle">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="vm:PubSubEvidence">
+                <StackPanel Margin="4" Spacing="4">
+                  <WrapPanel>
+                    <TextBlock Text="{CompiledBinding Timestamp}" Margin="0,0,12,0" />
+                    <TextBlock Text="{CompiledBinding Area}" FontWeight="SemiBold" Margin="0,0,12,0" />
+                    <TextBlock Text="{CompiledBinding Status}" />
+                  </WrapPanel>
+                  <TextBlock Text="{CompiledBinding Detail}" TextWrapping="Wrap" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </TabItem>
+        <TabItem Header="Discovery / Actions">
+          <ScrollViewer>
+            <StackPanel Spacing="8" Margin="0,8,0,0">
+              <WrapPanel>
+                <ComboBox ItemsSource="{CompiledBinding DiscoveryTypes}"
+                          SelectedItem="{CompiledBinding DiscoveryType, Mode=TwoWay}" Margin="0,0,8,0" />
+                <Button Content="Discover (2 seconds)" Command="{CompiledBinding DiscoverCommand}"
+                        Margin="0,0,8,0"
+                        AutomationProperties.Name="PubSub discover" />
+                <Button Content="Inspect runtime configuration"
+                        Command="{CompiledBinding InspectConfigurationCommand}" />
+              </WrapPanel>
+              <ItemsControl ItemsSource="{CompiledBinding Discovery}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="vm:PubSubDiscoveryRow">
+                    <StackPanel Margin="4" Spacing="3">
+                      <WrapPanel>
+                        <TextBlock Text="{CompiledBinding Kind}" FontWeight="SemiBold" Margin="0,0,12,0" />
+                        <TextBlock Text="{CompiledBinding Identity}" Margin="0,0,12,0" />
+                        <TextBlock Text="{CompiledBinding Status}" />
+                      </WrapPanel>
+                      <TextBlock Text="{CompiledBinding Detail}" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <Separator />
+              <TextBlock Text="{CompiledBinding ActionTarget}" FontWeight="SemiBold" />
+              <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}">
+                <Run Text="Choose the writer/target and response topic in Advanced configuration. " />
+                <Run Text="Each invocation needs fresh consent. Inputs are bounded scalar JSON and are never saved." />
+              </TextBlock>
+              <TextBlock TextWrapping="Wrap" FontSize="11">
+                <Run Text="Example: [{&quot;name&quot;:&quot;input&quot;," />
+                <Run Text="&quot;type&quot;:&quot;Int32&quot;,&quot;text&quot;:&quot;21&quot;}]" />
+              </TextBlock>
+              <TextBox Text="{CompiledBinding ActionInputs, Mode=TwoWay}" AcceptsReturn="True" TextWrapping="Wrap"
+                       MinHeight="65" MaxLength="8192" AutomationProperties.Name="PubSub Action inputs" />
+              <CheckBox Content="Authorize this one Action invocation"
+                        IsChecked="{CompiledBinding AllowAction, Mode=TwoWay}" />
+              <Button Content="Invoke Action (5 second timeout)"
+                      Command="{CompiledBinding InvokeActionCommand}"
+                      HorizontalAlignment="Left" AutomationProperties.Name="PubSub invoke Action" />
+              <TextBlock Text="{CompiledBinding ActionResult}" TextWrapping="Wrap" />
+              <ItemsControl ItemsSource="{CompiledBinding ActionOutputs}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="vm:PubSubFieldValue">
+                    <Grid ColumnDefinitions="150,*" Margin="4">
+                      <TextBlock Text="{CompiledBinding Name}" />
+                      <TextBlock Grid.Column="1" Text="{CompiledBinding Text}" TextWrapping="Wrap" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+        <TabItem Header="Advanced configuration">
+          <DockPanel Margin="0,8,0,0">
+            <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,8">
+              <TextBlock TextWrapping="Wrap">
+                <Run Text="This is a typed, sanitized document schema, NOT raw Part 14 configuration. " />
+                <Run Text="Unknown properties, secrets, provider paths and nonportable node IDs are rejected. " />
+                <Run Text="Apply is offline and clears authorization." />
+              </TextBlock>
+              <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource TextSecondary}">
+                <Run Text="Configure schema, raw encoding, multicast loopback, retention, adapterProviderId, " />
+                <Run Text="sourceNodeId/targetNodeId mappings, writeBackEnabled and the Action responder here. " />
+                <Run Text="Only installed providers can be selected. Transcoding/redundancy require " />
+                <Run Text="separately configured topologies and are not implicitly created." />
+              </TextBlock>
+              <Button Content="Apply advanced configuration"
+                      Command="{CompiledBinding ApplyAdvancedConfigurationCommand}"
+                      HorizontalAlignment="Left" AutomationProperties.Name="PubSub apply advanced configuration" />
+            </StackPanel>
+            <TextBox Text="{CompiledBinding AdvancedConfiguration, Mode=TwoWay}" AcceptsReturn="True"
+                     IsReadOnly="{CompiledBinding !CanConfigure}" TextWrapping="NoWrap" MaxLength="65536"
+                     FontFamily="Consolas" AutomationProperties.Name="PubSub advanced configuration" />
+          </DockPanel>
+        </TabItem>
+      </TabControl>
+    </Grid>
+  </DockPanel>
+</UserControl>

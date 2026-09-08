@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using Opc.Ua;
+using UaLens.Capabilities;
 
 namespace UaLens.ViewModels;
 
@@ -64,6 +65,8 @@ internal sealed record PluginRegistration
         ToolConnectionScope.Local => "Available without a primary connection.",
         ToolConnectionScope.Primary => "Configure offline; connect the primary server to run.",
         ToolConnectionScope.Secondary => "Uses a suitable primary session or its own connection.",
+        ToolConnectionScope.IndependentNetwork =>
+            "Configure offline; explicitly start this document's independent network runtime.",
         _ => throw new InvalidOperationException("Unknown connection scope.")
     };
 
@@ -75,7 +78,27 @@ internal sealed record PluginRegistration
     /// </summary>
     public string? InputGesture { get; init; }
 
-    public required Func<PluginHost, IPlugin> Factory { get; init; }
+    /// <summary>
+    /// Optional concrete primary-session evidence. It describes this check, not every operation offered by the tool.
+    /// </summary>
+    public CapabilityRequest? Capability { get; init; }
+
+    public string? CapabilityLabel { get; init; }
+
+    public required Func<PluginHost, IPlugin> Factory
+    {
+        get => CreatePlugin;
+        init => m_create = value ?? throw new ArgumentNullException(nameof(value));
+    }
+
+    private IPlugin CreatePlugin(PluginHost host)
+    {
+        ArgumentNullException.ThrowIfNull(host);
+        return host.Factory.Create(Kind, host,
+            m_create ?? throw new InvalidOperationException("The document factory has not been configured."));
+    }
+
+    private Func<PluginHost, IPlugin>? m_create;
 }
 
 /// <summary>
@@ -96,7 +119,8 @@ internal enum ToolConnectionScope
 {
     Local,
     Primary,
-    Secondary
+    Secondary,
+    IndependentNetwork
 }
 
 /// <summary>
@@ -176,6 +200,8 @@ internal static class PluginRegistry
             Glyph = "E",
             Description = "Subscribe to event sources and inspect event-field trees alongside the event log.",
             ConnectionScope = ToolConnectionScope.Primary,
+            Capability = new CapabilityRequest(ObjectIds.Server, CapabilityOperation.SubscribeEvents),
+            CapabilityLabel = "Default Server event source",
             InputGesture = "Ctrl+Shift+V",
             Factory = host => new UaLens.Plugins.EventView.EventViewPlugin(host)
         },
@@ -224,6 +250,8 @@ internal static class PluginRegistry
             Glyph = "R",
             Description = "Manage server roles, identities, applications and endpoints per OPC UA Part 18.",
             ConnectionScope = ToolConnectionScope.Primary,
+            Capability = new CapabilityRequest(ObjectIds.Server_ServerCapabilities_RoleSet, CapabilityOperation.Browse),
+            CapabilityLabel = "RoleSet browsing",
             InputGesture = "Ctrl+Alt+R",
             Factory = host => new UaLens.Plugins.RoleManagement.RoleManagementPlugin(host)
         },
@@ -236,6 +264,8 @@ internal static class PluginRegistry
             Glyph = "U",
             Description = "Manage server user accounts (add/modify/remove/change password) per OPC UA Part 18.",
             ConnectionScope = ToolConnectionScope.Primary,
+            Capability = new CapabilityRequest(ObjectIds.UserManagement, CapabilityOperation.Browse),
+            CapabilityLabel = "UserManagement browsing",
             InputGesture = "Ctrl+Shift+U",
             Factory = host => new UaLens.Plugins.UserManagement.UserManagementPlugin(host)
         },
@@ -251,6 +281,63 @@ internal static class PluginRegistry
             ConnectionScope = ToolConnectionScope.Primary,
             InputGesture = "Ctrl+Shift+T",
             Factory = host => new UaLens.Plugins.SubscriptionBench.SubscriptionBenchPlugin(host)
+        },
+        new PluginRegistration
+        {
+            CommandId = "tool.open.alarms",
+            Kind = PluginKind.Alarms,
+            Group = ToolGroup.Observe,
+            DisplayName = "Alarms",
+            Glyph = "AC",
+            Description = "Inspect retained conditions and branches, refresh state, and perform explicit operator actions.",
+            ConnectionScope = ToolConnectionScope.Primary,
+            Capability = new CapabilityRequest(ObjectIds.Server, CapabilityOperation.SubscribeEvents),
+            CapabilityLabel = "Server event notifier",
+            Factory = host => new UaLens.Plugins.Alarms.AlarmsPlugin(host)
+        },
+        new PluginRegistration
+        {
+            CommandId = "tool.open.models",
+            Kind = PluginKind.Models,
+            Group = ToolGroup.ExploreConnect,
+            DisplayName = "Models",
+            Glyph = "MD",
+            Description = "Inspect structured values, type definitions and schemas with explicit validated editing.",
+            ConnectionScope = ToolConnectionScope.Primary,
+            Factory = host => new UaLens.Plugins.Models.ModelInspectorPlugin(host)
+        },
+        new PluginRegistration
+        {
+            CommandId = "tool.open.continuity",
+            Kind = PluginKind.Continuity,
+            Group = ToolGroup.Diagnose,
+            DisplayName = "Continuity Lab",
+            Glyph = "CL",
+            Description = "Observe subscription recovery, transfer, recreation and durable continuity in controlled scenarios.",
+            ConnectionScope = ToolConnectionScope.Primary,
+            Factory = host => new UaLens.Plugins.Continuity.ContinuityPlugin(host)
+        },
+        new PluginRegistration
+        {
+            CommandId = "tool.open.pubsub",
+            Kind = PluginKind.PubSub,
+            Group = ToolGroup.Observe,
+            DisplayName = "PubSub",
+            Glyph = "PS",
+            Description = "Inspect datasets and metadata, with explicitly started publication and configured Action workflows.",
+            ConnectionScope = ToolConnectionScope.IndependentNetwork,
+            Factory = host => new UaLens.Plugins.PubSub.PubSubPlugin(host)
+        },
+        new PluginRegistration
+        {
+            CommandId = "tool.open.companions",
+            Kind = PluginKind.Companions,
+            Group = ToolGroup.ExploreConnect,
+            DisplayName = "Companion Tasks",
+            Glyph = "CT",
+            Description = "Discover typed companion instances, inspect their state and run explicit bounded sample tasks.",
+            ConnectionScope = ToolConnectionScope.Primary,
+            Factory = host => new UaLens.Plugins.Companions.CompanionPluginFactory().Create(host)
         }
     ];
 

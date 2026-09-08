@@ -68,6 +68,8 @@ internal sealed class NodeInteractionController
             await m_vm.AddPluginAsync(PluginKind.Historian).ConfigureAwait(true);
         tree.ShowEventsRequested += async n =>
             await m_vm.AddPluginAsync(PluginKind.EventView, seedEventSource: n).ConfigureAwait(true);
+        tree.ShowAlarmsRequested += async node => await OpenNodeToolAsync(PluginKind.Alarms, node).ConfigureAwait(true);
+        tree.InspectModelRequested += async node => await OpenNodeToolAsync(PluginKind.Models, node).ConfigureAwait(true);
         tree.PerfRequested += async _ =>
             await m_vm.AddPluginAsync(PluginKind.Performance, seedPickTarget: true).ConfigureAwait(true);
         tree.AddToBenchRequested += async n =>
@@ -372,6 +374,21 @@ internal sealed class NodeInteractionController
         }
     }
 
+    private async Task OpenNodeToolAsync(PluginKind kind, NodeViewModel node)
+    {
+        try
+        {
+            await m_vm.UpdateSelectionAsync(node).ConfigureAwait(true);
+            await m_vm.AddPluginAsync(kind).ConfigureAwait(true);
+        }
+        catch (Exception error) when (error is ServiceResultException or InvalidOperationException or
+            ArgumentException or OperationCanceledException)
+        {
+            MainWindowLog.NodeSelectionFailed(m_log, node.NodeId, error);
+            m_vm.ConnectionStatus = $"Opening the selected tool failed: {error.Message}";
+        }
+    }
+
     private async Task CallMethodAsync(NodeViewModel node)
     {
         if (m_vm.Connection.Session is not { } session)
@@ -379,7 +396,10 @@ internal sealed class NodeInteractionController
             return;
         }
         var dlg = new MethodCallDialog(node, session);
-        await dlg.ShowDialog(m_window).ConfigureAwait(true);
+        await using (dlg.ConfigureAwait(false))
+        {
+            await dlg.ShowDialog(m_window).ConfigureAwait(true);
+        }
     }
 
     private async Task WriteValueAsync(NodeViewModel node)
