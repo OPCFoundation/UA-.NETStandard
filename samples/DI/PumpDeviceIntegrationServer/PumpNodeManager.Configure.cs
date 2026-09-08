@@ -724,8 +724,14 @@ namespace Pumps
         private (BaseVariableState Variable, Func<double> Getter)[] m_liveSignals = [];
     }
 
+    /// <summary>
+    /// Defines log messages for configuring the pump node manager.
+    /// </summary>
     internal static partial class PumpNodeManagerLog
     {
+        /// <summary>
+        /// Logs the start of fluent pump node manager configuration.
+        /// </summary>
         [LoggerMessage(EventId = PumpDeviceIntegrationServerEventIds.PumpNodeManager + 0,
             Level = LogLevel.Information,
             Message = "Configuring PumpNodeManager fluent wiring...")]

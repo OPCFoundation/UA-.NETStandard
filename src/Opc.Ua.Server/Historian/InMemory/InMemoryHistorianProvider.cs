@@ -731,13 +731,16 @@ namespace Opc.Ua.Server.Historian.InMemory
                     return new ValueTask<HistorianPage<ModifiedDataValue>>(HistorianPage<ModifiedDataValue>.Empty);
                 }
 
+                bool hasResume = TryDecodeModifiedCursor(
+                    archive,
+                    resumeToken,
+                    out ModifiedResumePosition resumePosition);
                 return new ValueTask<HistorianPage<ModifiedDataValue>>(
                     ReadModifiedPage(
                         archive,
                         request,
-                        resumeToken.TryGetCursor(out HistorianResumeCursor cursor)
-                            ? cursor
-                            : default));
+                        hasResume,
+                        resumePosition));
             }
         }
 
@@ -1866,7 +1869,8 @@ namespace Opc.Ua.Server.Historian.InMemory
         private static HistorianPage<ModifiedDataValue> ReadModifiedPage(
             NodeArchive archive,
             HistorianModifiedReadRequest request,
-            HistorianResumeCursor resumeCursor)
+            bool hasResume,
+            ModifiedResumePosition resumePosition)
         {
             var start = request.StartTime.ToDateTime();
             var end = request.EndTime.ToDateTime();
@@ -1876,42 +1880,58 @@ namespace Opc.Ua.Server.Historian.InMemory
             uint cap = request.MaxValues > 0 ? request.MaxValues : kMaxValuesPerPage;
             var output = new List<ModifiedDataValue>((int)Math.Min(cap, kMaxValuesPerPage));
 
-            IEnumerable<ModificationEntry> source = request.IsForward
-                ? archive.ModifiedLog
-                    .OrderBy(entry => entry.Value.SourceTimestamp)
-                    .ThenByDescending(entry => entry.Info.ModificationTime)
-                    .ThenByDescending(entry => entry.Sequence)
-                : archive.ModifiedLog
-                    .OrderByDescending(entry => entry.Value.SourceTimestamp)
-                    .ThenBy(entry => entry.Info.ModificationTime)
-                    .ThenBy(entry => entry.Sequence);
+            var source = archive.ModifiedLog
+                .Where(entry =>
+                    request.IsForward
+                        ? entry.Value.SourceTimestamp >= lo &&
+                            entry.Value.SourceTimestamp < hi
+                        : entry.Value.SourceTimestamp > lo &&
+                            entry.Value.SourceTimestamp <= hi)
+                .ToList();
+            source.Sort(CompareModifiedEntries);
+            if (!request.IsForward)
+            {
+                source.Reverse();
+            }
             ModificationEntry? lastEmitted = null;
             bool capReached = false;
 
             foreach (ModificationEntry entry in source)
             {
-                var sourceTs = entry.Value.SourceTimestamp.ToDateTime();
-                if (sourceTs < lo || sourceTs >= hi)
+                if (hasResume)
                 {
-                    continue;
-                }
-                if (resumeCursor.Sequence != 0)
-                {
-                    int timestampComparison = entry.Value.SourceTimestamp.CompareTo(
-                        resumeCursor.Timestamp);
-                    if (request.IsForward &&
-                        (timestampComparison < 0 ||
-                            (timestampComparison == 0 &&
-                                entry.Sequence >= resumeCursor.Sequence)))
+                    if (resumePosition.UseLegacySequenceOnly)
                     {
-                        continue;
+                        int timestampComparison =
+                            entry.Value.SourceTimestamp.CompareTo(
+                                resumePosition.SourceTimestamp);
+                        if (request.IsForward &&
+                            (timestampComparison < 0 ||
+                                (timestampComparison == 0 &&
+                                    entry.Sequence >=
+                                        resumePosition.Sequence)))
+                        {
+                            continue;
+                        }
+                        if (!request.IsForward &&
+                            (timestampComparison > 0 ||
+                                (timestampComparison == 0 &&
+                                    entry.Sequence <=
+                                        resumePosition.Sequence)))
+                        {
+                            continue;
+                        }
                     }
-                    if (!request.IsForward &&
-                        (timestampComparison > 0 ||
-                            (timestampComparison == 0 &&
-                                entry.Sequence <= resumeCursor.Sequence)))
+                    else
                     {
-                        continue;
+                        int comparison = CompareModifiedPosition(
+                            entry,
+                            resumePosition);
+                        if ((request.IsForward && comparison <= 0) ||
+                            (!request.IsForward && comparison >= 0))
+                        {
+                            continue;
+                        }
                     }
                 }
 
@@ -1919,11 +1939,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 {
                     return new HistorianPage<ModifiedDataValue>(
                         output,
-                        HistorianResumeToken.FromCursor(
-                            new HistorianResumeCursor(
-                                lastEmitted!.Value.SourceTimestamp,
-                                ByteString.Empty,
-                                lastEmitted.Sequence)));
+                        EncodeModifiedCursor(lastEmitted!));
                 }
                 output.Add(new ModifiedDataValue(CloneValue(entry.Value), CloneInfo(entry.Info)));
                 lastEmitted = entry;
@@ -1931,6 +1947,127 @@ namespace Opc.Ua.Server.Historian.InMemory
             }
 
             return new HistorianPage<ModifiedDataValue>(output);
+        }
+
+        private static int CompareModifiedEntries(
+            ModificationEntry left,
+            ModificationEntry right)
+        {
+            int comparison = left.Value.SourceTimestamp.CompareTo(
+                right.Value.SourceTimestamp);
+            if (comparison != 0)
+            {
+                return comparison;
+            }
+            comparison = right.Info.ModificationTime.CompareTo(
+                left.Info.ModificationTime);
+            return comparison != 0
+                ? comparison
+                : right.Sequence.CompareTo(left.Sequence);
+        }
+
+        private static int CompareModifiedPosition(
+            ModificationEntry entry,
+            ModifiedResumePosition position)
+        {
+            int comparison = entry.Value.SourceTimestamp.CompareTo(
+                position.SourceTimestamp);
+            if (comparison != 0)
+            {
+                return comparison;
+            }
+            comparison = position.ModificationTime.CompareTo(
+                entry.Info.ModificationTime);
+            return comparison != 0
+                ? comparison
+                : position.Sequence.CompareTo(entry.Sequence);
+        }
+
+        private static HistorianResumeToken EncodeModifiedCursor(
+            ModificationEntry entry)
+        {
+            byte[] key = new byte[kModifiedCursorKeyLength];
+            Span<byte> span = key;
+            BinaryPrimitives.WriteInt32LittleEndian(
+                span,
+                kModifiedCursorKeyMagic);
+            BinaryPrimitives.WriteInt32LittleEndian(
+                span[sizeof(int)..],
+                kModifiedCursorKeyVersion);
+            BinaryPrimitives.WriteInt64LittleEndian(
+                span[(2 * sizeof(int))..],
+                entry.Info.ModificationTime.ToDateTime().ToBinary());
+            return HistorianResumeToken.FromCursor(
+                new HistorianResumeCursor(
+                    entry.Value.SourceTimestamp,
+                    ByteString.From(key),
+                    entry.Sequence));
+        }
+
+        private static bool TryDecodeModifiedCursor(
+            NodeArchive archive,
+            HistorianResumeToken token,
+            out ModifiedResumePosition position)
+        {
+            if (token.IsEmpty)
+            {
+                position = default;
+                return false;
+            }
+            if (!token.TryGetCursor(out HistorianResumeCursor cursor) ||
+                cursor.Sequence <= 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadContinuationPointInvalid);
+            }
+            if (cursor.Key.IsEmpty)
+            {
+                ModificationEntry? boundary = archive.ModifiedLog.Find(
+                    entry =>
+                        entry.Value.SourceTimestamp == cursor.Timestamp &&
+                        entry.Sequence == cursor.Sequence);
+                position = boundary == null
+                    ? new ModifiedResumePosition(
+                        cursor.Timestamp,
+                        default,
+                        cursor.Sequence,
+                        UseLegacySequenceOnly: true)
+                    : new ModifiedResumePosition(
+                        cursor.Timestamp,
+                        boundary.Info.ModificationTime,
+                        cursor.Sequence,
+                        UseLegacySequenceOnly: false);
+                return true;
+            }
+
+            ReadOnlySpan<byte> key = cursor.Key.Span;
+            if (key.Length != kModifiedCursorKeyLength ||
+                BinaryPrimitives.ReadInt32LittleEndian(key) !=
+                    kModifiedCursorKeyMagic ||
+                BinaryPrimitives.ReadInt32LittleEndian(key[sizeof(int)..]) !=
+                    kModifiedCursorKeyVersion)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadContinuationPointInvalid);
+            }
+            try
+            {
+                position = new ModifiedResumePosition(
+                    cursor.Timestamp,
+                    new DateTimeUtc(DateTime.FromBinary(
+                        BinaryPrimitives.ReadInt64LittleEndian(
+                            key[(2 * sizeof(int))..]))),
+                    cursor.Sequence,
+                    UseLegacySequenceOnly: false);
+                return true;
+            }
+            catch (ArgumentException exception)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadContinuationPointInvalid,
+                    exception.Message,
+                    exception);
+            }
         }
 
         private static HistorianPage<Annotation> ReadAnnotationsPage(
@@ -1953,7 +2090,10 @@ namespace Opc.Ua.Server.Historian.InMemory
             bool capReached = false;
             foreach (KeyValuePair<DateTime, Annotation> entry in source)
             {
-                if (entry.Key < lo || entry.Key >= hi)
+                bool outside = request.IsForward
+                    ? entry.Key < lo || entry.Key >= hi
+                    : entry.Key <= lo || entry.Key > hi;
+                if (outside)
                 {
                     continue;
                 }
@@ -2229,6 +2369,10 @@ namespace Opc.Ua.Server.Historian.InMemory
         }
 
         private const int kMaxValuesPerPage = 1000;
+        private const int kModifiedCursorKeyMagic = 0x4D434D31;
+        private const int kModifiedCursorKeyVersion = 1;
+        private const int kModifiedCursorKeyLength =
+            (2 * sizeof(int)) + sizeof(long);
 
         private readonly Lock m_lock = new();
         private readonly InMemoryHistorianOptions m_options;
@@ -2250,6 +2394,12 @@ namespace Opc.Ua.Server.Historian.InMemory
         }
 
         private sealed record ModificationEntry(DataValue Value, ModificationInfo Info, int Sequence);
+
+        private readonly record struct ModifiedResumePosition(
+            DateTimeUtc SourceTimestamp,
+            DateTimeUtc ModificationTime,
+            long Sequence,
+            bool UseLegacySequenceOnly);
 
         private sealed record EventEntry(HistorianEventRecord Record, long Sequence);
     }

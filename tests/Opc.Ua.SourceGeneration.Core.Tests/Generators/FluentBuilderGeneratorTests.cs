@@ -185,6 +185,19 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void EmittedFluentBuildersObjectWrapperUsesTypeDefinitionState()
+        {
+            string fb = GetFluentBuilders();
+
+            Assert.That(
+                fb,
+                Does.Match(
+                    @"(?ms)internal\s+sealed\s+class\s+TestObjectBuilder\b.*?" +
+                    @"INodeBuilder<global::TestModel\.RestrictedObjectState>\s+__node;"),
+                "An object wrapper with a resolved TypeDefinition must use its concrete generated State type");
+        }
+
+        [Test]
         public void EmittedFluentBuilders_MethodWrapperIsNestedInsideOwningObject()
         {
             string fb = GetFluentBuilders();

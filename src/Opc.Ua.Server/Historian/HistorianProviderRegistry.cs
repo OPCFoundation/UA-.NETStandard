@@ -64,7 +64,7 @@ namespace Opc.Ua.Server.Historian
             lock (m_lock)
             {
                 m_nodes[nodeId] = provider;
-                m_providers.Add(provider);
+                AddProvider(provider, ownsProvider: true);
             }
         }
 
@@ -83,12 +83,22 @@ namespace Opc.Ua.Server.Historian
             lock (m_lock)
             {
                 m_namespaces[namespaceUri] = provider;
-                m_providers.Add(provider);
+                AddProvider(provider, ownsProvider: true);
             }
         }
 
         /// <inheritdoc/>
         public void RegisterDefault(IHistorianProvider provider)
+        {
+            RegisterDefault(provider, ownsProvider: true);
+        }
+
+        /// <summary>
+        /// Registers the fallback historian provider with an explicit lifetime ownership setting.
+        /// </summary>
+        internal void RegisterDefault(
+            IHistorianProvider provider,
+            bool ownsProvider)
         {
             if (provider == null)
             {
@@ -98,7 +108,7 @@ namespace Opc.Ua.Server.Historian
             lock (m_lock)
             {
                 m_default = provider;
-                m_providers.Add(provider);
+                AddProvider(provider, ownsProvider);
             }
         }
 
@@ -205,11 +215,12 @@ namespace Opc.Ua.Server.Historian
             HashSet<IHistorianProvider> providers;
             lock (m_lock)
             {
-                providers = [.. m_providers];
+                providers = [.. m_ownedProviders];
                 m_nodes.Clear();
                 m_namespaces.Clear();
                 m_default = null;
                 m_providers.Clear();
+                m_ownedProviders.Clear();
             }
 
             foreach (IHistorianProvider provider in providers)
@@ -235,6 +246,18 @@ namespace Opc.Ua.Server.Historian
             if (!ContainsProvider(candidate))
             {
                 m_providers.Remove(candidate);
+                m_ownedProviders.Remove(candidate);
+            }
+        }
+
+        private void AddProvider(
+            IHistorianProvider provider,
+            bool ownsProvider)
+        {
+            m_providers.Add(provider);
+            if (ownsProvider)
+            {
+                m_ownedProviders.Add(provider);
             }
         }
 
@@ -266,6 +289,7 @@ namespace Opc.Ua.Server.Historian
         private readonly NodeIdDictionary<IHistorianProvider> m_nodes = [];
         private readonly Dictionary<string, IHistorianProvider> m_namespaces = new(StringComparer.Ordinal);
         private readonly HashSet<IHistorianProvider> m_providers = [];
+        private readonly HashSet<IHistorianProvider> m_ownedProviders = [];
         private IHistorianProvider? m_default;
     }
 }

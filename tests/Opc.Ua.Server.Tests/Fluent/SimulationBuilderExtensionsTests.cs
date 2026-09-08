@@ -69,6 +69,62 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public void SimulationAcceptsTypedBuilderFacade()
+        {
+            using var h = SimulationHarness.Create();
+            var facade = new Mock<INodeManagerBuilder>();
+            facade.SetupGet(value => value.NodeManager)
+                .Returns(h.Builder.NodeManager);
+
+            Assert.DoesNotThrow(
+                () => facade.Object.Simulation(TimeSpan.FromMilliseconds(10)));
+        }
+
+        /// <summary>
+        /// A manager which replays NotifyNodeAdded after sealing needs to seal
+        /// and start the simulations separately, so no simulated value change
+        /// can precede the OnNodeAdded handler of its own node.
+        /// </summary>
+        [Test]
+        public void SealingWithoutStartingLeavesSimulationsRegisterable()
+        {
+            using var h = SimulationHarness.Create();
+            h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
+                .OnTick((_, _) => { });
+
+            h.Builder.SealGraphAuthoring();
+
+            // The registry rejects new loops once started, so this proves the
+            // simulations are still stopped after sealing.
+            Assert.DoesNotThrow(
+                () => h.Builder.Simulation(TimeSpan.FromMilliseconds(25)),
+                "Sealing must not start the simulations.");
+
+            h.Builder.StartSimulations();
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => h.Builder.Simulation(TimeSpan.FromMilliseconds(25)))!;
+            Assert.That(exception.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidState));
+        }
+
+        /// <summary>
+        /// The public Seal() keeps doing both, so existing callers are
+        /// unaffected by the split.
+        /// </summary>
+        [Test]
+        public void SealStartsTheSimulations()
+        {
+            using var h = SimulationHarness.Create();
+            h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
+                .OnTick((_, _) => { });
+
+            h.Builder.Seal();
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => h.Builder.Simulation(TimeSpan.FromMilliseconds(25)))!;
+            Assert.That(exception.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidState));
+        }
+        [Test]
         public async Task OnTickFiresPeriodically()
         {
             using var h = SimulationHarness.Create();

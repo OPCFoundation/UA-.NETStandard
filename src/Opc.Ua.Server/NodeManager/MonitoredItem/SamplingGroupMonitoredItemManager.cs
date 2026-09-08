@@ -41,7 +41,8 @@ namespace Opc.Ua.Server
     /// </summary>
     public class SamplingGroupMonitoredItemManager :
         IMonitoredItemManager,
-        IMonitoredItemManagerLifecycle
+        IMonitoredItemManagerLifecycle,
+        ICustomMonitoredItemManager
     {
         /// <inheritdoc/>
         public SamplingGroupMonitoredItemManager(
@@ -132,6 +133,83 @@ namespace Opc.Ua.Server
                 (key, oldValue) => monitoredItem);
 
             return monitoredItem;
+        }
+
+        /// <inheritdoc/>
+        ISampledDataChangeMonitoredItem ICustomMonitoredItemManager.CreateCustomMonitoredItem(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            ServerSystemContext context,
+            NodeHandle handle,
+            uint subscriptionId,
+            double publishingInterval,
+            DiagnosticsMasks diagnosticsMasks,
+            TimestampsToReturn timestampsToReturn,
+            MonitoredItemCreateRequest itemToCreate,
+            Range euRange,
+            MonitoringFilter filterToUse,
+            double samplingInterval,
+            uint revisedQueueSize,
+            bool createDurable,
+            MonitoredItemIdFactory monitoredItemIdFactory,
+            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
+            Action<ISystemContext, NodeHandle> removeNodeFromComponentCache,
+            MonitoredItemFactory factory)
+        {
+            _ = addNodeToComponentCache;
+            _ = removeNodeFromComponentCache;
+
+            if (samplingInterval.CompareTo(0.0) == 0)
+            {
+                samplingInterval = 1;
+            }
+
+            uint monitoredItemId;
+            do
+            {
+                monitoredItemId = monitoredItemIdFactory.GetNextId();
+            } while (!MonitoredItems.TryAdd(monitoredItemId, null!));
+
+            ISampledDataChangeMonitoredItem? monitoredItem = null;
+            bool monitoringStarted = false;
+            try
+            {
+                var factoryContext = new MonitoredItemFactoryContext(
+                    server,
+                    nodeManager,
+                    context,
+                    handle,
+                    subscriptionId,
+                    monitoredItemId,
+                    publishingInterval,
+                    diagnosticsMasks,
+                    timestampsToReturn,
+                    itemToCreate,
+                    euRange,
+                    filterToUse,
+                    samplingInterval,
+                    revisedQueueSize,
+                    createDurable);
+                monitoredItem = factory(factoryContext);
+                CustomMonitoredItemValidation.Validate(factoryContext, monitoredItem);
+
+                m_samplingGroupManager.StartMonitoring(
+                    context.OperationContext!,
+                    monitoredItem);
+                monitoringStarted = true;
+                MonitoredItems[monitoredItemId] = monitoredItem;
+                return monitoredItem;
+            }
+            catch
+            {
+                if (monitoringStarted)
+                {
+                    m_samplingGroupManager.StopMonitoring(monitoredItem!);
+                }
+                MonitoredItems.TryRemove(monitoredItemId, out _);
+                monitoredItem?.Dispose();
+                throw;
+            }
         }
 
         /// <inheritdoc/>

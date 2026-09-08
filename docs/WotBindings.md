@@ -151,6 +151,70 @@ Once a closure's forms are materialized as NodeSet2 content, `LifecycleWotProjec
   * Channels are opened lazily and cached one-per-compiled-form for the generation; concurrent first use opens once, and a failed open is evicted so a later call can retry. Every successfully opened channel is disposed with the generation; disposal failures are aggregated. A channel open racing with, or started after, generation disposal never leaks: disposal marks the slot disposed under its lock so no later open can start, and still awaits and disposes a channel whose open was already in flight.
 * Both abstractions are always available via direct construction (no DI container required) and are registered through `AddWotRegistryServer` using `TryAdd*` so a host application can supply its own implementation.
 
+### Projected Methods, events, and Conditions
+
+`WotBindingPlan.ProjectedAffordances` carries each declaration's local identity,
+owning resource, and JSON Pointer separately from its upstream form address.
+An action's `uav:id` identifies the local Method; its selected form supplies the
+upstream Method and Object addresses. The runtime wires the local Method through
+the existing asynchronous fluent `OnCall` hook. When an action offers several
+forms, the runtime selects one supported, executable form and sends the request
+only to that form's upstream source. It returns the upstream call's status and
+any argument errors to the caller; invoking the local Method does not by itself
+count as success.
+
+Type-owned declarations need not have executable forms. Their declaration
+context follows document containment or authoritative native ownership, not
+`HasTypeDefinition`: a real instance of a Thing Model still needs executable
+bindings for the actions and events it exposes. Native partitions remain
+authoritative; routing metadata cannot introduce missing local Nodes.
+
+A property backed by a native Variable needs no transport when it has no form
+and no explicit target mapping. Its local Value remains exactly as the NodeSet
+declares it, including an unspecified initial Value. This covers companion-model
+metadata as well as local constants; it does not invent a data source for an
+unbacked property or excuse a target mapping without a form.
+
+`IWotProjectionEventPublisher` registers generation-owned streams of events with the
+existing monitored-source lifecycle. Compatible local consumers share an
+upstream subscription; the last consumer releases that subscription, while the
+generation retains its channel until disposal. Events are reported through the local
+notifier hierarchy. Organizational projection Views do not become event sources.
+The stream implements `IEventSourceReadiness`, so creating an event monitored
+item waits until its upstream subscriptions are active, not until the first
+notification arrives. A startup failure is returned to the subscriber.
+
+An event declaration identifies an EventType, not mutable Condition state.
+`IWotProjectionConditionFactory` creates separate local Condition instances.
+Selected fields are translated through their message-context namespace tables,
+and a bounded occurrence-route table maps local EventIds back to the selected
+source, Condition, and branch. Wrong-source, unknown, or evicted IDs fail rather
+than falling back to another source. Retired-generation routes remain usable
+only while that generation is alive and the declaration and source still match.
+
+Condition-management actions use `uav:conditionAction` and same-document `uav:actsOn`.
+For a WoT invocation with an optional Comment, the OPC UA adapter supplies
+`LocalizedText.Null` when the caller provides only EventId. This does not change
+a native two-argument Method's signature: OPC UA callers supply both arguments.
+After acknowledgement changes the occurrence, confirmation uses the updated
+EventId. Unbound standard Methods on a Condition proxy are disabled, so they
+cannot change only the local copy.
+
+`WotProjectionBindingRuntimeOptions` limits pending notifications per local
+notifier (`MaxQueuedEvents`) and retained occurrence routes per event declaration
+(`MaxEventRoutes`). If the notification queue fills, the producer finishes
+delivering already queued events, then stops with a `BadTooManyOperations`
+error and releases its upstream subscription leases. The monitored-source
+lifecycle logs the failure; other event sources continue running. This is a
+server-side producer failure, not an `EventQueueOverflowEventType` notification
+or termination of the client's entire subscription. Evicting an occurrence route
+has a different result: a later action using that EventId fails with
+`BadEventIdUnknown`. The event publisher, Condition factory, runtime factory,
+and options are injectable as well as available for direct construction. The
+[two-pump aggregation sample](../samples/WotCon/README.md) demonstrates
+source-specific management actions and acknowledgement/confirmation without
+introducing shelving, suppression, dialog, or ConditionRefresh transport mappings.
+
 ### Registering binders and executors
 
 The planner binders are opt-in and replaceable. `AddHttpWotBinding`, `AddModbusWotBinding`, and `AddOpcUaWotBinding` come from the base Bindings package on `net8.0+`; `AddMqttWotBinding` requires the separate MQTT package:
@@ -213,17 +277,31 @@ A compiled form's NodeId (`uav:id`, and `uav:componentOf` for actions) is resolv
 
 WoT Binding Section 6.1 states an event's `EventFilter` select clauses on the **event
 affordance** — never on a form — and states them by **linking the EventType definition**
-the fields are selected from. The link is a `tm:ref`: a document URI, optionally
-followed by an RFC 6901 JSON Pointer. It resolves to an *EventType definition* — an
-event affordance, or a Thing Model root, that carries `@type: uav:eventType`, the
-portable `uav:id` of the OPC UA EventType, and the object-valued `data` schema of its
-fields. `uav:eventSelectClauses` is the **refinement** of that baseline: each clause
+the fields are selected from. An `events` map is an affordance map wherever it appears,
+not only at the document root, so a clause on a member of a nested one — the event
+collection a link carries, for instance — is equally legal, and a clause one level away
+from any such member (at the root, on a property affordance, on an action's `input`, on
+an event's `data`, on a form) selects nothing and is rejected. The permission and the
+prohibition route at the same places on purpose: a rule that admitted a nested map while
+forbidding a clause inside it would make one document simultaneously valid and invalid.
+The link is a `tm:ref`, and it names the definition in one
+of three shapes: a document URI optionally followed by an RFC 6901 JSON Pointer, the
+logical identifier of a document whose root *is* an EventType Thing Model, or the logical
+identifier a nested event affordance carries in `@id`. A logical identifier is a JSON-LD
+term, so a compact IRI such as `evt:highTemperatureAlarm` is expanded in the active
+context of the node that **wrote** it — the same short form written in two documents that
+bind the prefix differently names two different definitions. It resolves to an *EventType
+definition* — an event affordance, or a Thing Model root, that carries
+`@type: uav:eventType`, the portable `uav:id` of the OPC UA EventType, and the
+object-valued `data` schema of its fields. `uav:id` alone does not make an affordance a
+definition: it identifies the Node the affordance projects, which every event affordance
+has. `uav:eventSelectClauses` is the **refinement** of that baseline: each clause
 carries exactly `tm:ref` and `uav:browsePath` (relative, because the definition the
 clause names anchors it).
 
 ```jsonc
 "events": { "highTemperature": {
-  "@type": "uav:eventType", "uav:isEvent": true,
+  "@type": "uav:eventType",
   "tm:ref": "./event-types.tm.jsonld#/events/highTemperatureAlarm",
   "uav:eventSelectClauses": [
     { "tm:ref": "./event-types.tm.jsonld#/events/limitAlarm",
@@ -239,7 +317,17 @@ What the runtime does with it:
 
 * **Resolution happens before planning.** `Opc.Ua.Wot.WotEventSelectionResolver` resolves
   each `tm:ref` through an `IWotThingResolver` — the sibling documents a caller already
-  holds — and never dereferences a URI over the network. It walks the linked definition's
+  holds — and never dereferences a URI over the network. Sources are consulted in a fixed
+  order: the documents held together with the referring one (matched by logical
+  identifier), then that reference as a location through each configured resolver in the
+  order it was given, then the small well-known catalog this library carries for the OPC
+  UA base types. The order is total and each stage yields a *set* rather than a first
+  match, so a reference two held documents answer differently is reported as ambiguous
+  rather than resolved by whichever was read first, and the built-in catalog is last so a
+  definition this library carries can never shadow one an author shipped. That catalog's
+  `BaseEventType` declares `LocalTime` in addition to the eight mandatory fields, because
+  a definition states what a type *has* while the implicit selection states what a
+  consumer subscribes to when the document says nothing. It walks the linked definition's
   `data` once and turns each **leaf** into one clause: the members of an object are walked
   in the order its `uav:fieldOrder` states, a member's `uav:browseName` supplies the exact
   QualifiedName (a bare member name stands for it only where that name is a legal
@@ -249,14 +337,18 @@ What the runtime does with it:
   `TypeDefinitionId`. Derivation is total: a definition the resolver cannot walk — a
   `data` that is not an object, a walked object with no field order, a member name that is
   neither legal nor annotated — is reported, and no partial selection is produced.
-* **The explicit clauses overlay that baseline.** The materialized member paths are
-  computed over the baseline and the explicit clauses together, every baseline clause an
-  explicit clause names is removed, and the explicit clauses are appended in the order
-  they are written. There is no *remove* operation: an author who needs a narrower
-  selection links to a definition that declares the narrower field set. Where the
-  affordance carries no `tm:ref`, the baseline is the eight mandatory `BaseEventType`
-  fields (`EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`,
-  `Message`, `Severity`), stated once in `Opc.Ua.Wot.WotEventSelectClauses.Default`.
+* **The explicit clauses overlay a linked baseline, and replace a missing one.** Where the
+  affordance carries a `tm:ref`, the materialized member paths are computed over the
+  derived baseline and the explicit clauses together, every baseline clause an explicit
+  clause names is removed, and the explicit clauses are appended in the order they are
+  written. There is no *remove* operation: an author who needs a narrower selection links
+  to a definition that declares the narrower field set. Where the affordance carries no
+  `tm:ref`, the clauses it writes are the **complete** selection — the baseline is empty.
+  The eight mandatory `BaseEventType` fields (`EventId`, `EventType`, `SourceNode`,
+  `SourceName`, `Time`, `ReceiveTime`, `Message`, `Severity`), stated once in
+  `Opc.Ua.Wot.WotEventSelectClauses.Default`, are what an affordance that states *no*
+  selection at all falls back to; they are not a floor under an authored one, because a
+  document that deliberately selects one field must not subscribe to nine.
 * **Planning stays synchronous.** `IWotBinderRegistry.Prepare` is side-effect free, so the
   resolved selections are carried into it: build the request with
   `WotBindingPlanRequest.FromDocumentAsync(..., IWotThingResolver, ...)`, or resolve once
@@ -567,6 +659,12 @@ endpointPolicy.AllowedSchemes.Add("mem");
 ```
 
 Add only the scheme your binding needs, and leave the address-range restrictions alone unless the deployment genuinely requires them relaxed — those blocks are what stop a Thing Description from steering an executor at the host's own listeners or at a cloud metadata endpoint.
+
+#### Internationalized hosts
+
+A `href` may name an internationalized host (`http://ü.example/x`). Percent-encoding is defined for a path, a query and a fragment and is **not** a spelling of a host, so the transmitted URI is rebuilt from its components rather than encoded as one string: the host becomes its IDNA A-label (`http://xn--tda.example/x`), and userinfo, an explicit port and an IPv6 literal are carried through unchanged. `WotProtocolBinderBase.ToTransmittedUri` produces the URI on the wire and `ToTransmittedAuthority` the authority the plan is scoped to, so `WotCompiledForm.Endpoint.Host`, `Endpoint.BaseUri`, `Addressing.Target` and every `WotCredentialReference.Endpoint` name one host.
+
+`WotEndpointPolicy` is evaluated against the same A-label — `WotEndpointValidator.ToAsciiHost` exposes it. An allow list accepts either spelling of one name; a block list refuses either, because a policy that blocks `xn--tda.example` while the plan carries `ü.example` would block nothing.
 
 ### Registration
 
@@ -1180,15 +1278,38 @@ bounded by the same `MaxResolverDocuments` / `MaxResolverTotalBytes` budget the
 rest of a conversion runs under, so a large registry cannot turn one conversion
 into unbounded parsing work.
 
-One Section 5.2.1 rule remains an explicit implementation gap: the current
-`IWotNodeResolver` contract returns only a resolved node's identity and
-NodeClass, so the converter cannot learn the resolved type's mandatory
-instance declarations. Consequently, a document member whose BrowseName matches
-a mandatory declaration of the resolved type is not yet populated into that
-declaration; it is synthesized by the existing affordance rules. Implementing
-that rule requires extending both the live AddressSpace resolver and the
-snapshot resolver, where declarations would have to be derived from sibling
-Thing Model documents rather than from materialized types.
+The Section 5.2.1 declaration rule is implemented: `IWotTypeDeclarationResolver`
+reports a resolved type's instance declarations, the asynchronous entry point
+pre-resolves them into a `WotDeclarationCatalog`, and a document member whose
+NamespaceUri-qualified BrowseName is exactly a declaration's **populates** that
+declaration — adopting its ReferenceType, type definition, DataType, ValueRank,
+ArrayDimensions and, for a Method, the declaration it is an instance of —
+instead of becoming a second, differently-reached Node under a name the type has
+already spoken for. Each populated member reports `DeclarationPopulated`.
+
+A closure that is only partly known is treated as partly known rather than as
+empty:
+
+* Every declaration that *was* read is applied. A declaration the local context
+  answered for is a fact about the bound type, and skipping it because some
+  other part of the closure could not be read produces exactly the duplicate
+  sibling the clause forbids.
+* The gap is always reported, as `DeclarationsUnavailable`. A document stating
+  `uav:additionalProperties: false` **fails** — Section 6.8 is a closed-content
+  statement and it cannot be evaluated against a closure that is not whole. An
+  open document states no such rule, so its populated members stand and the gap
+  is a **warning**; it is never silence, because silence is indistinguishable
+  from a type that declares nothing.
+* A member the known part does not declare is **not** reported as
+  `UndeclaredMember` while the closure is incomplete: whether the unread part
+  declares it was never established.
+
+`AddressSpaceWotNodeResolver` draws the same distinction at the source. A bad
+`BrowseResult.StatusCode`, a browse or read the node manager refuses, a
+`BrowseName` naming a namespace index the Server does not hold, and a
+`ModellingRule` that cannot be read each mark the returned
+`WotTypeDeclarationSet` incomplete and name the cause in `Detail`, rather than
+contributing "declares nothing".
 
 Two behaviours are deliberate and worth knowing:
 
@@ -1347,8 +1468,9 @@ type adds:
   required, which is the shape Section 13.5 states. A field the type declares
   itself also carries `uav:mapToType`, `uav:valueRank`, `uav:arrayDimensions`,
   `uav:browseName` and `uav:modellingRule`, because nothing outside the
-  document says what it is. `uav:severity` (Section 6.6) and the per-occurrence
-  `Severity` member are two different facts and both are stated.
+  document says what it is. `Severity` is a per-occurrence member of that
+  schema and nothing else: WoT Binding 1.1 mints no term that states a default
+  severity, so none is emitted.
 - **WoT → NodeSet.** Only the members the projected type *adds* become Nodes:
   a member naming an inherited field is already declared by the type it comes
   from, and re-declaring it would leave a Server holding two declarations of one

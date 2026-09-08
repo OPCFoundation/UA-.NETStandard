@@ -837,17 +837,26 @@ namespace Quickstarts.ConsoleReferenceClient
             private string m_message = string.Empty;
             private bool m_ask;
 
+            /// <summary>
+            /// Initializes a message dialog that writes to the supplied writer or standard output.
+            /// </summary>
             public ApplicationMessageDlg(TextWriter? output = null)
             {
                 m_output = output ?? Console.Out;
             }
 
+            /// <summary>
+            /// Sets the message and whether displaying it should request confirmation.
+            /// </summary>
             public override void Message(string text, bool ask)
             {
                 m_message = text;
                 m_ask = ask;
             }
 
+            /// <summary>
+            /// Displays the message and returns the confirmation response, defaulting to acceptance.
+            /// </summary>
             public override async Task<bool> ShowAsync()
             {
                 if (m_ask)

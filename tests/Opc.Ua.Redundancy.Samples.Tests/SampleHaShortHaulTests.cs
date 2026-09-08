@@ -148,6 +148,10 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 TimeSpan.FromSeconds(120),
                 cancellationToken).ConfigureAwait(false);
             Assert.That(
+                client.ContainsLine("RedundancySupport=None"),
+                Is.False,
+                "The client must observe initialized redundancy metadata before the failover exercise.");
+            Assert.That(
                 client.ContainsLine("HISTORY: write/read marker -4390 visible on active replica."),
                 Is.True,
                 "A HistoryUpdate written through the active replica must be immediately readable.");

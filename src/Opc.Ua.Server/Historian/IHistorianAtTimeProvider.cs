@@ -43,9 +43,11 @@ namespace Opc.Ua.Server.Historian
     {
         /// <summary>
         /// Returns one value per requested timestamp, in the same order
-        /// the client supplied. Values without an exact match should be
-        /// interpolated (or marked uncertain/bounded per the historization
-        /// configuration).
+        /// the client supplied. Exact values preserve their quality and use
+        /// the Raw information bits. Values without an exact match are
+        /// calculated from simple or interpolated bounds according to
+        /// <see cref="HistorianAtTimeReadRequest.UseSimpleBounds"/> and the
+        /// node's stepped setting, and use the Interpolated information bits.
         /// </summary>
         /// <param name="context">Operation context.</param>
         /// <param name="request">Normalised at-time read request.</param>

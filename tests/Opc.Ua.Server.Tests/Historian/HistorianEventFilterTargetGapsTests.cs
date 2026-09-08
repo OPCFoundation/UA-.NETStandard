@@ -53,6 +53,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── IsTypeOf ───────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Verifies that event type matching accepts a null requested type definition.
+        /// </summary>
         [Test]
         public void IsTypeOfReturnsTrueWhenTypeDefinitionIdIsNull()
         {
@@ -63,6 +66,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(target.IsTypeOf(null!, NodeId.Null), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that nonexact event type matching fails when no type tree is available.
+        /// </summary>
         [Test]
         public void IsTypeOfReturnsFalseWhenContextTypeTreeIsNullAndNotExactMatch()
         {
@@ -84,6 +90,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── GetAttributeValue – empty browse path ──────────────────────────
 
+        /// <summary>
+        /// Verifies that an empty browse path with the NodeId attribute returns the event type.
+        /// </summary>
         [Test]
         public void GetAttributeValueReturnsEventTypeForEmptyPathAndNodeIdAttribute()
         {
@@ -100,6 +109,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(resolved, Is.EqualTo(eventType));
         }
 
+        /// <summary>
+        /// Verifies that an empty browse path with a non-NodeId attribute returns the default value.
+        /// </summary>
         [Test]
         public void GetAttributeValueReturnsDefaultForEmptyPathAndNonNodeIdAttribute()
         {
@@ -115,6 +127,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── GetAttributeValue – multi-segment browse path ──────────────────
 
+        /// <summary>
+        /// Verifies that event attribute lookup resolves a multisegment field key.
+        /// </summary>
         [Test]
         public void GetAttributeValueResolvesMultiSegmentBrowsePathKey()
         {
@@ -138,6 +153,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(val, Is.EqualTo("found-it"));
         }
 
+        /// <summary>
+        /// Verifies that unresolved multisegment event paths return the default value.
+        /// </summary>
         [Test]
         public void GetAttributeValueReturnsDefaultForUnresolvedMultiSegmentPath()
         {

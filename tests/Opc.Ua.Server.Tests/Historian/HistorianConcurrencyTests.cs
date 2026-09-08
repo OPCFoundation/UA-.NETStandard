@@ -51,6 +51,9 @@ namespace Opc.Ua.Server.Tests.Historian
     {
         private const ushort NamespaceIndex = 1;
 
+        /// <summary>
+        /// Verifies that parallel historian insertions do not lose samples.
+        /// </summary>
         [Test]
         public async Task ParallelInsertsDoNotLoseDataAsync()
         {
@@ -84,6 +87,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(count, Is.EqualTo(writers * perWriter));
         }
 
+        /// <summary>
+        /// Verifies that concurrent readers observe monotonically advancing history snapshots.
+        /// </summary>
         [Test]
         public async Task ConcurrentReadersSeeMonotonicSnapshotAsync()
         {
@@ -132,6 +138,9 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
+        /// <summary>
+        /// Verifies that concurrent insert, replace, and delete operations are serialized.
+        /// </summary>
         [Test]
         public async Task ParallelInsertReplaceDeleteAreSerialisedAsync()
         {
@@ -190,6 +199,9 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
+        /// <summary>
+        /// Verifies that concurrent annotation updates preserve every entry.
+        /// </summary>
         [Test]
         public async Task ConcurrentAnnotationUpdatesPreserveAllEntriesAsync()
         {
@@ -238,6 +250,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.Values, Has.Count.EqualTo(writers * perWriter));
         }
 
+        /// <summary>
+        /// Verifies that repeated provider registration remains idempotent under contention.
+        /// </summary>
         [Test]
         public async Task RepeatedRegisterIsIdempotentAndSafeUnderRaceAsync()
         {

@@ -59,14 +59,17 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public sealed class WotBindingCorrectionTests
     {
-        private static readonly string[] s_propertyOnlyTerms =
+        /// <summary>
+        /// Terms that name a Variable Attribute a Method does not have, and so
+        /// are outside the mapped domain on an action rather than invalid
+        /// there: nothing states what they would mean, so they are carried.
+        /// </summary>
+        private static readonly string[] s_variableOnlyTerms =
         [
             "uav:valueRank",
             "uav:arrayDimensions",
             "minimum",
             "maximum",
-            "uav:instrumentRange",
-            "uav:engineeringUnits",
             "uav:componentOf",
             "readOnly"
         ];
@@ -83,7 +86,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void AnEventDataSchemaWithoutPropertiesIsPreservedAsResidue()
         {
             using WotDocument document = ParseThingModel(
-                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
                 "\"uav:browseName\":\"pump:AlarmEventType\"," +
                 "\"data\":{\"type\":\"string\",\"description\":\"An opaque payload.\"}}}");
 
@@ -104,7 +107,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void AnEmptyEventDataSchemaIsPreservedAsResidue()
         {
             using WotDocument document = ParseThingModel(
-                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
                 "\"uav:browseName\":\"pump:AlarmEventType\"," +
                 "\"data\":{\"uav:metadata\":{\"pump:note\":\"kept\"}}}}");
 
@@ -124,7 +127,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void AnEventDataSchemaWithPropertiesIsMaterializedAndNotDuplicated()
         {
             using WotDocument document = ParseThingModel(
-                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
                 "\"uav:browseName\":\"pump:AlarmEventType\"," +
                 "\"data\":{\"type\":\"object\",\"properties\":{" +
                 "\"Cause\":{\"type\":\"string\",\"uav:browseName\":\"pump:Cause\"}}}}}");
@@ -140,16 +143,13 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void PropertyOnlyTermsOnAnActionStayResidue()
+        public void VariableOnlyTermsOnAnActionStayResidue()
         {
             using WotDocument document = ParseThingModel(
                 "\"actions\":{\"reset\":{\"@type\":\"uav:method\"," +
                 "\"uav:browseName\":\"pump:Reset\"," +
                 "\"uav:valueRank\":1,\"uav:arrayDimensions\":[3]," +
                 "\"minimum\":0,\"maximum\":10," +
-                "\"uav:instrumentRange\":{\"minimum\":0,\"maximum\":20}," +
-                "\"uav:engineeringUnits\":{\"namespaceUri\":\"urn:test:units\"," +
-                "\"unitId\":17,\"displayName\":\"rpm\"}," +
                 "\"uav:componentOf\":[\"nsu=urn:test:pump;i=1001\"]," +
                 "\"readOnly\":true}}");
 
@@ -159,7 +159,7 @@ namespace Opc.Ua.Types.Tests.Wot
             JsonElement reset = regenerated.Actions["Reset"];
             Assert.Multiple(() =>
             {
-                foreach (string term in s_propertyOnlyTerms)
+                foreach (string term in s_variableOnlyTerms)
                 {
                     Assert.That(
                         reset.TryGetProperty(term, out _),
@@ -170,11 +170,222 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// The five analog terms describe the Variable a property affordance
+        /// projects - its EngineeringUnits Property, the range that Property is
+        /// bounded by, the sibling that carries it, and the display scaling a
+        /// Client applies. A Method has none of that, so the terms are rejected
+        /// rather than carried.
+        /// </summary>
+        [TestCase("\"uav:instrumentRange\":{\"minimum\":0,\"maximum\":20}")]
+        [TestCase("\"uav:engineeringUnits\":{\"namespaceUri\":\"urn:test:units\"," +
+            "\"unitId\":17,\"displayName\":\"rpm\"}")]
+        [TestCase("\"uav:unitProperty\":\"/properties/speed\"")]
+        [TestCase("\"uav:scaleFactor\":2")]
+        [TestCase("\"uav:decimalPlaces\":2")]
+        public void APropertyAffordanceTermOnAnActionIsRejected(string term)
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"actions\":{\"reset\":{\"@type\":\"uav:method\"," +
+                "\"uav:browseName\":\"pump:Reset\"," + term + "}}",
+                new WotNodeSetConverterOptions());
+
+            AssertRejectedPlacement(result);
+        }
+
+        /// <summary>
+        /// The document root is not a property affordance either. It is worth
+        /// its own case because the diagnostic has to name a location, and the
+        /// root is the one pointer that is empty.
+        /// </summary>
+        [Test]
+        public void APropertyAffordanceTermAtTheDocumentRootIsRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"uav:engineeringUnits\":{\"namespaceUri\":\"urn:test:units\"," +
+                "\"unitId\":17,\"displayName\":\"rpm\"}",
+                new WotNodeSetConverterOptions());
+
+            AssertRejectedPlacement(result);
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.InvalidModelVocabularyValue &&
+                    d.Message.Contains("appears at '/'", StringComparison.Ordinal)),
+                Is.True,
+                string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        }
+
+        /// <summary>
+        /// The role is decided at the root, so a member of an action's input,
+        /// of an event's notification data, or of a property affordance's own
+        /// DataSchema is a field of a payload rather than a Variable - however
+        /// much the map it sits in is spelled <c>properties</c>.
+        /// </summary>
+        [TestCase("\"actions\":{\"reset\":{\"@type\":\"uav:method\"," +
+            "\"uav:browseName\":\"pump:Reset\",\"input\":{\"type\":\"object\"," +
+            "\"properties\":{\"reason\":{\"type\":\"string\"," +
+            "\"uav:engineeringUnits\":{\"namespaceUri\":\"urn:test:units\"," +
+            "\"unitId\":17,\"displayName\":\"rpm\"}}}}}}",
+            TestName = "AnEngineeringUnitOnAnActionInputMemberIsRejected")]
+        [TestCase("\"actions\":{\"reset\":{\"@type\":\"uav:method\"," +
+            "\"uav:browseName\":\"pump:Reset\",\"input\":{\"type\":\"object\"," +
+            "\"properties\":{\"reason\":{\"type\":\"string\"," +
+            "\"uav:unitProperty\":\"/properties/speed\"}}}}}",
+            TestName = "AUnitPointerOnAnActionInputMemberIsRejected")]
+        [TestCase("\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
+            "\"uav:browseName\":\"pump:AlarmEventType\",\"data\":{\"type\":\"object\"," +
+            "\"properties\":{\"Severity\":{\"type\":\"integer\"," +
+            "\"uav:instrumentRange\":{\"minimum\":0,\"maximum\":10}}}}}}",
+            TestName = "AnInstrumentRangeOnAnEventDataMemberIsRejected")]
+        [TestCase("\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
+            "\"uav:browseName\":\"pump:AlarmEventType\",\"data\":{\"type\":\"object\"," +
+            "\"properties\":{\"Severity\":{\"type\":\"integer\"," +
+            "\"uav:decimalPlaces\":2}}}}}",
+            TestName = "ADisplayScalingOnAnEventDataMemberIsRejected")]
+        [TestCase("\"properties\":{\"speed\":{\"type\":\"object\"," +
+            "\"uav:browseName\":\"pump:Speed\",\"properties\":{\"Value\":{" +
+            "\"type\":\"number\",\"uav:engineeringUnits\":{" +
+            "\"namespaceUri\":\"urn:test:units\",\"unitId\":17," +
+            "\"displayName\":\"rpm\"}}}}}",
+            TestName = "AnEngineeringUnitOnANestedDataSchemaMemberIsRejected")]
+        public void APropertyAffordanceTermBelowAnAffordanceIsRejected(string members)
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                members, new WotNodeSetConverterOptions());
+
+            AssertRejectedPlacement(result);
+        }
+
+        /// <summary>
+        /// Directly on a property affordance the same terms are the mapped
+        /// facts they were always meant to be.
+        /// </summary>
+        [Test]
+        public void APropertyAffordanceTermOnAPropertyIsAccepted()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"properties\":{\"speed\":{\"type\":\"number\"," +
+                "\"uav:browseName\":\"pump:Speed\"," +
+                "\"uav:instrumentRange\":{\"minimum\":0,\"maximum\":20}," +
+                "\"uav:decimalPlaces\":2,\"uav:scaleFactor\":2," +
+                "\"uav:engineeringUnits\":{\"namespaceUri\":\"urn:test:units\"," +
+                "\"unitId\":17,\"displayName\":\"rpm\"}}}",
+                new WotNodeSetConverterOptions());
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error),
+                Is.Empty,
+                string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        }
+
+        /// <summary>
+        /// An <c>events</c> map is an affordance map wherever it appears, so a
+        /// select clause on a member of a nested one is legal. The permission
+        /// and the prohibition have to route at the same places, or a document
+        /// is simultaneously valid and invalid.
+        /// </summary>
+        [Test]
+        public void ASelectClauseOnANestedEventMapMemberIsAccepted()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"links\":[{\"rel\":\"collection\"," +
+                "\"href\":\"./pump-alarms.tm.jsonld\"," +
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
+                "\"uav:eventSelectClauses\":[{\"tm:ref\":\"ua:BaseEventType\"," +
+                "\"uav:browsePath\":\"EventId\"}]}}}]",
+                new WotNodeSetConverterOptions());
+
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Code == WotDiagnosticCode.EventSelectClauseInvalid &&
+                    d.Message.Contains("belongs only directly", StringComparison.Ordinal)),
+                Is.False,
+                string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        }
+
+        /// <summary>
+        /// One level away from an affordance map member the term selects
+        /// nothing, whichever map it is one level away from.
+        /// </summary>
+        [TestCase("\"uav:eventSelectClauses\":[{\"tm:ref\":\"ua:BaseEventType\"," +
+            "\"uav:browsePath\":\"EventId\"}]",
+            TestName = "ASelectClauseAtTheDocumentRootIsRejected")]
+        [TestCase("\"properties\":{\"speed\":{\"type\":\"number\"," +
+            "\"uav:eventSelectClauses\":[{\"tm:ref\":\"ua:BaseEventType\"," +
+            "\"uav:browsePath\":\"EventId\"}]}}",
+            TestName = "ASelectClauseOnAPropertyAffordanceIsRejected")]
+        [TestCase("\"actions\":{\"reset\":{\"@type\":\"uav:method\"," +
+            "\"input\":{\"type\":\"object\"," +
+            "\"uav:eventSelectClauses\":[{\"tm:ref\":\"ua:BaseEventType\"," +
+            "\"uav:browsePath\":\"EventId\"}]}}}",
+            TestName = "ASelectClauseOnAnActionInputIsRejected")]
+        [TestCase("\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
+            "\"data\":{\"type\":\"object\"," +
+            "\"uav:eventSelectClauses\":[{\"tm:ref\":\"ua:BaseEventType\"," +
+            "\"uav:browsePath\":\"EventId\"}]}}}",
+            TestName = "ASelectClauseOnAnEventDataSchemaIsRejected")]
+        public void ASelectClauseOneLevelAwayFromAnEventAffordanceIsRejected(string members)
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                members, new WotNodeSetConverterOptions());
+
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Severity == WotDiagnosticSeverity.Error &&
+                    d.Code == WotDiagnosticCode.EventSelectClauseInvalid),
+                Is.True,
+                string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        }
+
+        /// <summary>
+        /// A domain rule must stop where the vocabulary stops. A key inside an
+        /// opaque member that happens to spell a <c>uav</c> term is the
+        /// vendor's word, and reading it as this Binding's would reject a
+        /// document a consumer is required to carry unchanged.
+        /// </summary>
+        [TestCase("uav:metadata")]
+        [TestCase("uav:propertyConfiguration")]
+        public void VendorKeysInsideAnOpaqueMemberAreNotReadAsBindingTerms(string opaque)
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"properties\":{\"speed\":{\"type\":\"number\"," +
+                "\"uav:browseName\":\"pump:Speed\"," +
+                "\"" + opaque + "\":{\"pump:vendor\":{" +
+                "\"uav:scaleFactor\":0,\"uav:decimalPlaces\":-1," +
+                "\"uav:engineeringUnits\":{\"displayName\":\"\"}," +
+                "\"uav:unitProperty\":\"not a pointer\"," +
+                "\"uav:instrumentRange\":{\"maximum\":0}," +
+                "\"uav:eventSelectClauses\":[]," +
+                "\"events\":{\"looks-like-one\":{\"uav:eventSelectClauses\":[]}}}}}}",
+                new WotNodeSetConverterOptions
+                {
+                    ConformanceMode = WotConformanceMode.Strict
+                });
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error),
+                Is.Empty,
+                string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        }
+
+        private static void AssertRejectedPlacement(WotConversionResult<UANodeSet> result)
+        {
+            Assert.That(
+                result.Diagnostics.Any(d =>
+                    d.Severity == WotDiagnosticSeverity.Error &&
+                    d.Code == WotDiagnosticCode.InvalidModelVocabularyValue &&
+                    d.Message.Contains(
+                        "belongs only directly on a member of the root 'properties' map",
+                        StringComparison.Ordinal)),
+                Is.True,
+                string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        }
+
         [Test]
         public void PropertyOnlyTermsOnAnEventStayResidue()
         {
             using WotDocument document = ParseThingModel(
-                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
                 "\"uav:browseName\":\"pump:AlarmEventType\"," +
                 "\"uav:valueRank\":1,\"minimum\":0,\"maximum\":10," +
                 "\"uav:componentOf\":[\"nsu=urn:test:pump;i=1001\"]," +
@@ -282,8 +493,8 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 Assert.That(
                     WotBindingConformance.VocabularyTerms.Count,
-                    Is.EqualTo(115),
-                    "The published @context of revision 1.1 mints 115 uav IRIs.");
+                    Is.EqualTo(113),
+                    "The published @context of revision 1.1 mints 113 uav IRIs.");
                 Assert.That(
                     WotBindingConformance.ScopedTerms.Count,
                     Is.EqualTo(13),
@@ -809,7 +1020,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void TwoSelectClausesThatNormalizeToOnePathAreRejected()
         {
             WotConversionResult<UANodeSet> result = Convert(
-                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
                 "\"uav:browseName\":\"pump:AlarmEventType\"," +
                 "\"uav:eventSelectClauses\":[" +
                 "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Severity\"}," +
@@ -834,7 +1045,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"pump\":\"urn:test:pump\",\"p2\":\"urn:test:pump\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"Pump\",\"uav:browseName\":\"pump:PumpType\"," +
-                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
                 "\"uav:browseName\":\"pump:AlarmEventType\"," +
                 "\"uav:eventSelectClauses\":[" +
                 "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"pump:Trace\"}," +
@@ -856,7 +1067,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void TwoDistinctPathsUnderDifferentEventTypesAreAccepted()
         {
             WotConversionResult<UANodeSet> result = Convert(
-                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
                 "\"uav:browseName\":\"pump:AlarmEventType\"," +
                 "\"uav:eventSelectClauses\":[" +
                 "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Severity\"}," +
@@ -871,14 +1082,16 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Section 6.1 makes an explicit clause a refinement of the baseline
-        /// rather than a replacement of it, so an affordance that links to no
-        /// EventType definition still selects the eight mandatory
-        /// <c>BaseEventType</c> fields — <c>EventId</c> among them — however few
-        /// clauses it writes.
+        /// Section 6.1 makes the clauses an affordance writes the complete
+        /// selection when the affordance links to no EventType definition: the
+        /// implicit eight-field default is what an affordance that states
+        /// <em>nothing</em> falls back to, not a floor under everything an
+        /// author writes. So a Condition affordance whose only clause selects
+        /// <c>Severity</c> genuinely does not select <c>EventId</c>, and the
+        /// notification it describes could never be acknowledged.
         /// </summary>
         [Test]
-        public async Task AConditionAffordanceKeepsTheMandatoryEventIdWhenItOnlyRefinesAsync()
+        public async Task AConditionAffordanceThatRefinesAwayEventIdIsReportedAsync()
         {
             WotConversionResult<UANodeSet> result = await ConvertResolvedAsync(ConditionEvent(
                 "\"uav:eventSelectClauses\":[" +
@@ -888,9 +1101,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 result.Diagnostics.Any(d =>
                     d.Code == WotDiagnosticCode.ConditionEventIdMissing),
-                Is.False,
-                "The clauses overlay the implicit BaseEventType baseline, which always " +
-                "carries EventId. " +
+                Is.True,
+                "The written clauses are the whole selection, so one that omits EventId " +
+                "describes a Condition no client could acknowledge. " +
                 string.Join("; ", result.Diagnostics.Select(d => d.Message)));
         }
 
@@ -977,7 +1190,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static string ConditionEvent(string clauses)
         {
-            return "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\",\"uav:isEvent\":true," +
+            return "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
                 "\"uav:browseName\":\"pump:AlarmEventType\"," +
                 "\"uav:conditionType\":\"ua:ConditionType\"," +
                 "\"data\":{\"type\":\"object\",\"uav:fieldOrder\":[" +

@@ -320,10 +320,6 @@ namespace Opc.Ua.Wot
                             writer.WriteString("uav:id", portableId);
                         }
                     }
-                    if (rootIsEventType)
-                    {
-                        writer.WriteBoolean("uav:isEvent", true);
-                    }
                     WriteReferenceTypeNames(writer, root, defaultLocale);
                     WriteLocalizedDescription(writer, root?.Description, defaultLocale);
                     if (rootIsEventType && root is not null)
@@ -380,11 +376,12 @@ namespace Opc.Ua.Wot
             UANodeSet source,
             WotNodeSetConverterOptions options)
         {
-            byte[] readable = RemoveRootMembers(
-                json,
-                options,
-                "uav:nodes",
-                "uav:nodeSet");
+            using WotDocument candidate = WotDocument.Parse(json, options);
+            bool unsupportedProjection = candidate.TryGetNativeProjection(out JsonElement projection) &&
+                WotNativeProjection.HasUnsupportedProfile(projection);
+            byte[] readable = unsupportedProjection
+                ? RemoveRootMembers(json, options, "uav:nodeSet")
+                : RemoveRootMembers(json, options, "uav:nodes", "uav:nodeSet");
             using WotDocument document = WotDocument.Parse(readable, options);
             WotConversionResult<UANodeSet> result =
                 ToNodeSetResult(document, options);
@@ -416,7 +413,8 @@ namespace Opc.Ua.Wot
                     if (!excluded.Contains(member.Name))
                     {
                         writer.WritePropertyName(member.Name);
-                        member.Value.WriteTo(writer);
+                        // The document was parsed with the caller's depth limit, not the raw writer's default.
+                        writer.WriteRawValue(member.Value.GetRawText(), skipInputValidation: true);
                     }
                 }
                 writer.WriteEndObject();
@@ -512,7 +510,127 @@ namespace Opc.Ua.Wot
                 writer.WriteString("@language", documentLocale);
             }
             writer.WriteEndObject();
+
+            // The Binding mints several terms as short members under a
+            // type-scoped context, so a document that names the uav prefix but
+            // not the context expands those members to nothing. Naming the
+            // context is what makes them terms.
+            writer.WriteStringValue(WotVocabulary.BindingContext);
+
+            // Section 9.1.1 admits a document whose localized text states no
+            // entry for its own default locale. Under a context that declares
+            // @language, an unqualified title would then be read as text of a
+            // language it is not written in, so the two terms are re-declared
+            // without a language. The override is written only where the
+            // document actually needs it: adding it unconditionally would drop
+            // the language tag from every document, including the ones whose
+            // text really is in the default locale.
+            if (!string.IsNullOrEmpty(documentLocale) &&
+                RequiresLocalizedTextOverride(nodeSet, documentLocale!))
+            {
+                WriteLocalizedTextOverride(writer);
+            }
             writer.WriteEndArray();
+        }
+
+        /// <summary>
+        /// Writes the <c>title</c> / <c>description</c> override that drops the
+        /// document's default language from the two W3C terms.
+        /// </summary>
+        private static void WriteLocalizedTextOverride(Utf8JsonWriter writer)
+        {
+            writer.WriteStartObject();
+            foreach ((string member, string iri) in s_localizedTextOverrides)
+            {
+                writer.WritePropertyName(member);
+                writer.WriteStartObject();
+                writer.WriteString("@id", iri);
+                writer.WriteNull("@language");
+                writer.WriteEndObject();
+            }
+            writer.WriteEndObject();
+        }
+
+        /// <summary>
+        /// The two W3C Thing Description terms whose language tag an
+        /// unqualified document text must not inherit.
+        /// </summary>
+        private static readonly (string Member, string Iri)[] s_localizedTextOverrides =
+        [
+            (TitleMember, "https://www.w3.org/2019/wot/td#title"),
+            (DescriptionMember, "https://www.w3.org/2019/wot/td#description")
+        ];
+
+        /// <summary>
+        /// Gets whether a <c>@context</c> entry is the generated
+        /// <c>title</c> / <c>description</c> override.
+        /// </summary>
+        /// <remarks>
+        /// The shape is matched exactly rather than by member name alone: an
+        /// author's own override of the same two terms says something different
+        /// from the one this converter derives, and treating it as
+        /// re-derivable would drop what the author wrote.
+        /// </remarks>
+        internal static bool IsGeneratedLocalizedTextOverride(JsonElement item)
+        {
+            int matched = 0;
+            foreach (JsonProperty member in item.EnumerateObject())
+            {
+                string? iri = null;
+                foreach ((string name, string candidate) in s_localizedTextOverrides)
+                {
+                    if (string.Equals(member.Name, name, StringComparison.Ordinal))
+                    {
+                        iri = candidate;
+                        break;
+                    }
+                }
+                if (iri is null || !IsLanguageFreeAlias(member.Value, iri))
+                {
+                    return false;
+                }
+                matched++;
+            }
+            return matched == s_localizedTextOverrides.Length;
+        }
+
+        /// <summary>
+        /// Gets whether a term definition is exactly
+        /// <c>{ "@id": iri, "@language": null }</c>.
+        /// </summary>
+        internal static bool IsLanguageFreeAlias(JsonElement definition, string iri)
+        {
+            if (definition.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+            bool hasId = false;
+            bool hasLanguage = false;
+            foreach (JsonProperty member in definition.EnumerateObject())
+            {
+                switch (member.Name)
+                {
+                    case "@id":
+                        if (member.Value.ValueKind != JsonValueKind.String ||
+                            !string.Equals(
+                                member.Value.GetString(), iri, StringComparison.Ordinal))
+                        {
+                            return false;
+                        }
+                        hasId = true;
+                        break;
+                    case "@language":
+                        if (member.Value.ValueKind != JsonValueKind.Null)
+                        {
+                            return false;
+                        }
+                        hasLanguage = true;
+                        break;
+                    default:
+                        return false;
+                }
+            }
+            return hasId && hasLanguage;
         }
 
         private static void WriteRootType(Utf8JsonWriter writer, UANode? root, bool isEventType)
@@ -629,6 +747,11 @@ namespace Opc.Ua.Wot
                         else if (target is UAMethod method)
                         {
                             actions.Add(method);
+                        }
+                        else if (target is UAObject &&
+                            ToPortableNodeId(reference.Value, namespaceUris) is { } childId)
+                        {
+                            componentChildren.Add(childId);
                         }
                     }
                 }
@@ -783,7 +906,7 @@ namespace Opc.Ua.Wot
                         variable.NodeId ?? string.Empty, out WotAnalogFacets? facets);
                     WriteVariableAffordance(
                         writer, variable, isThingModel, namespaceUris, nodeSet, defaultLocale,
-                        facets, owner);
+                        facets, owner, referenceTypeNames);
                 }
                 writer.WriteEndObject();
             }
@@ -848,10 +971,20 @@ namespace Opc.Ua.Wot
         /// forward direction could not reconstruct would turn a gap the
         /// completeness check reports into a value that is quietly wrong.
         /// </remarks>
-        private static void WriteVariableValue(Utf8JsonWriter writer, UAVariable variable)
+        private static void WriteVariableValue(
+            Utf8JsonWriter writer,
+            UAVariable variable,
+            UANodeSet? nodeSet = null)
         {
             System.Xml.XmlElement? value = variable.Value;
-            if (value is null)
+            if (value is null || value.NamespaceURI != UaXmlNamespace)
+            {
+                return;
+            }
+            if (nodeSet is not null &&
+                VariableValueElementName(ResolveArchivedAlias(
+                    variable.DataType,
+                    NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance))) is null)
             {
                 return;
             }
@@ -865,6 +998,54 @@ namespace Opc.Ua.Wot
                     return;
                 case "String":
                     writer.WriteString("const", value.InnerText);
+                    return;
+                case "SByte":
+                case "Int16":
+                case "Int32":
+                case "Int64":
+                    if (long.TryParse(
+                        value.InnerText,
+                        System.Globalization.NumberStyles.Integer,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out long signed))
+                    {
+                        writer.WriteNumber("const", signed);
+                    }
+                    return;
+                case "Byte":
+                case "UInt16":
+                case "UInt32":
+                case "UInt64":
+                    if (ulong.TryParse(
+                        value.InnerText,
+                        System.Globalization.NumberStyles.Integer,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out ulong unsigned))
+                    {
+                        writer.WriteNumber("const", unsigned);
+                    }
+                    return;
+                case "Float":
+                    if (float.TryParse(
+                        value.InnerText,
+                        System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out float single) &&
+                        !float.IsNaN(single) && !float.IsInfinity(single))
+                    {
+                        writer.WriteNumber("const", single);
+                    }
+                    return;
+                case "Double":
+                    if (double.TryParse(
+                        value.InnerText,
+                        System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out double number) &&
+                        !double.IsNaN(number) && !double.IsInfinity(number))
+                    {
+                        WotJsonCanonicalizer.WriteNumber(writer, "const", number);
+                    }
                     return;
                 case "LocalizedText":
                     // A LocalizedText carries an optional Locale. Only the
@@ -900,7 +1081,7 @@ namespace Opc.Ua.Wot
             {
                 return null;
             }
-            if (!NodeSetDeclaredAliases.FromNodeSet(nodeSet).TryResolve(
+            if (!NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance).TryResolve(
                 dataType!, out string resolved))
             {
                 resolved = dataType!;
@@ -933,22 +1114,31 @@ namespace Opc.Ua.Wot
                 value.StartsWith("b=", StringComparison.Ordinal);
         }
 
-        /// <summary>
-        /// Writes an affordance's definitive <c>ua:HasTypeDefinition</c> link.
-        /// </summary>
-        private static void WriteTypeDefinitionLink(Utf8JsonWriter writer, string? href)
+        private static void WriteVariableLinks(
+            Utf8JsonWriter writer,
+            UAVariable variable,
+            UANodeSet nodeSet,
+            WotReferenceTypeNames? referenceTypeNames)
         {
-            if (string.IsNullOrEmpty(href))
+            string? typeDefinition = TypeDefinitionHref(variable, nodeSet);
+            string inferredOwnership = typeDefinition == WotVocabulary.PropertyType ? "i=46" : "i=47";
+            INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
+            var links = new List<TypedComponentLink>();
+            foreach (Reference reference in variable.References ?? [])
             {
-                return;
+                string type = ResolveArchivedAlias(reference.ReferenceType, aliases);
+                if (reference.IsForward || !IsComponentReference(type) || type == inferredOwnership ||
+                    referenceTypeNames is null ||
+                    !referenceTypeNames.TryGetRelation(
+                        reference.ReferenceType, isForward: false, out string rel, out string refId) ||
+                    ToPortableNodeId(
+                        ResolveArchivedAlias(reference.Value, aliases), nodeSet.NamespaceUris) is not { } target)
+                {
+                    continue;
+                }
+                links.Add(new TypedComponentLink(target, rel, refId, string.Empty));
             }
-            writer.WritePropertyName("links");
-            writer.WriteStartArray();
-            writer.WriteStartObject();
-            writer.WriteString("rel", "ua:HasTypeDefinition");
-            writer.WriteString("href", href);
-            writer.WriteEndObject();
-            writer.WriteEndArray();
+            WriteTypedComponentLinks(writer, links, typeDefinitionHref: typeDefinition);
         }
 
         /// <summary>
@@ -957,14 +1147,15 @@ namespace Opc.Ua.Wot
         /// </summary>
         private static string? TypeDefinitionHref(UANode? node, UANodeSet nodeSet)
         {
+            INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
             foreach (Reference reference in node?.References ?? [])
             {
                 if (reference.IsForward &&
                     string.Equals(
-                        reference.ReferenceType, "HasTypeDefinition", StringComparison.Ordinal) &&
+                        ResolveArchivedAlias(reference.ReferenceType, aliases), "i=40", StringComparison.Ordinal) &&
                     reference.Value is { Length: > 0 })
                 {
-                    return ToPortableNodeId(reference.Value, nodeSet.NamespaceUris);
+                    return ToPortableNodeId(ResolveArchivedAlias(reference.Value, aliases), nodeSet.NamespaceUris);
                 }
             }
             return null;
@@ -1188,7 +1379,8 @@ namespace Opc.Ua.Wot
             UANodeSet nodeSet,
             string defaultLocale,
             WotAnalogFacets? analogFacets = null,
-            string? componentOf = null)
+            string? componentOf = null,
+            WotReferenceTypeNames? referenceTypeNames = null)
         {
             writer.WriteStartObject();
             writer.WriteString("@type", isThingModel ? "uav:variableType" : "uav:variable");
@@ -1211,7 +1403,7 @@ namespace Opc.Ua.Wot
             // affordance as well as on the Thing. Without it every Variable
             // converts back as a BaseDataVariableType, and a Client browsing for
             // AnalogUnitType, PropertyType or TwoStateDiscreteType finds none.
-            WriteTypeDefinitionLink(writer, TypeDefinitionHref(variable, nodeSet));
+            WriteVariableLinks(writer, variable, nodeSet, referenceTypeNames);
 
             // Section 6.4 makes the affordance a EngineeringUnits Property
             // projects a string-valued one: what a client reads there at run
@@ -1221,7 +1413,9 @@ namespace Opc.Ua.Wot
             bool isUnitAffordance = IsUnitAffordance(variable);
             string? jsonType = isUnitAffordance
                 ? "string"
-                : MapDataTypeToJson(variable.DataType);
+                : MapDataTypeToJson(ResolveArchivedAlias(
+                    variable.DataType,
+                    NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance)));
             if (jsonType is not null)
             {
                 writer.WriteString("type", jsonType);
@@ -1247,7 +1441,7 @@ namespace Opc.Ua.Wot
             // shapes this converter can rebuild exactly are written: emitting a
             // value it could not reconstruct would trade a reported gap for a
             // silent corruption.
-            WriteVariableValue(writer, variable);
+            WriteVariableValue(writer, variable, nodeSet);
 
             // Sections 6.4 and 6.4.1: the engineering unit, its authority and
             // identity, and the two ranges that say what the value means.
@@ -1323,12 +1517,12 @@ namespace Opc.Ua.Wot
             string? eventTypeHref = null)
         {
             writer.WriteStartObject();
-            // uav:eventType is the @type annotation counterpart of the uav:isEvent
-            // flag; an EventType projection carries both (WoT Binding Section 5.2).
+            // Section 5.2: @type uav:eventType is the sole annotation that
+            // records an EventType projection. WoT Binding 1.1 defines no
+            // parallel boolean flag, so nothing else states event identity.
             writer.WriteString("@type", WotVocabulary.EventTypeAnnotation);
             WriteLocalizedTitle(writer, eventType.DisplayName, defaultLocale);
             WriteLocalizedDescription(writer, eventType.Description, defaultLocale);
-            writer.WriteBoolean("uav:isEvent", true);
             WriteOptional(
                 writer,
                 "uav:browseName",
@@ -1346,12 +1540,6 @@ namespace Opc.Ua.Wot
                 writer.WriteString(
                     WotEventSelectClauses.TypeDefinitionReferenceTerm, eventTypeHref!);
             }
-
-            // Section 6.6: the EventType's own Severity Property is the
-            // authored default a server publishes when an occurrence supplies
-            // none, so it is that Property - not free-standing metadata - that
-            // the term states.
-            WriteEventSeverity(writer, eventType, index);
 
             // Sections 13.2 and 13.3: the ConditionType the event projects and
             // the notification schema its fields fill.
@@ -1769,9 +1957,132 @@ namespace Opc.Ua.Wot
                 reference.StartsWith("b=", StringComparison.Ordinal);
         }
 
-        private static string GenerateNodeId(string browsePath)
+        /// <summary>
+        /// Builds the identifier of a Node the conversion synthesizes, by the
+        /// Annex G.1 formula every other side of the Binding uses.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The identity is <c>ns=1;s=P</c>, where namespace index 1 of the
+        /// synthesized NodeSet is the model's own NamespaceUri and <c>P</c> is
+        /// the browse path in OPC 10000-4 Annex A.2 relative-path syntax. The
+        /// NodeSet-local <c>ns=1</c> spelling is what a NodeSet file carries;
+        /// <see cref="ToPortableNodeId"/> renders it as the Annex G.1
+        /// <c>nsu=U;s=P</c> when it leaves the file, so the two are one
+        /// identity written two ways.
+        /// </para>
+        /// <para>
+        /// The path is built from elements rather than from a joined string,
+        /// because the joining is where the algorithm lives: the leading
+        /// separator, the per-element namespace qualification, and the Annex
+        /// A.2 escaping that stops a name containing <c>/</c> from imitating a
+        /// path separator. A member named <c>A/B</c> of <c>Root</c> and a
+        /// member named <c>B</c> of <c>Root/A</c> shared one identifier
+        /// without it.
+        /// </para>
+        /// </remarks>
+        private static string GenerateNodeId(ArrayOf<WotBrowsePathElement> path)
         {
-            return "ns=1;s=" + browsePath;
+            return "ns=1;s=" + WotPortableIdentity.GenerateBrowsePath(path);
+        }
+
+        /// <summary>
+        /// Names one element of a generated browse path in the model's own
+        /// namespace.
+        /// </summary>
+        private static WotBrowsePathElement ModelElement(string modelUri, string name)
+        {
+            return new WotBrowsePathElement(modelUri, name);
+        }
+
+        /// <summary>
+        /// Names one element of a generated browse path in the base OPC UA
+        /// namespace, which Annex G.1 writes bare.
+        /// </summary>
+        private static WotBrowsePathElement BaseElement(string name)
+        {
+            return new WotBrowsePathElement(null, name);
+        }
+
+        /// <summary>
+        /// Gets the NamespaceUri the synthesized Nodes are created in, which is
+        /// the one namespace index 1 of the NodeSet names.
+        /// </summary>
+        /// <remarks>
+        /// Every caller passes a NodeSet this conversion seeded, and seeding
+        /// always writes the model's NamespaceUri first, so the table is never
+        /// empty here.
+        /// </remarks>
+        private static string GeneratedNamespaceUri(UANodeSet nodeSet)
+        {
+            return nodeSet.NamespaceUris![0];
+        }
+
+        /// <summary>
+        /// Builds the identifier of a member of the projection root in a stated
+        /// namespace, for a caller that knows the model URI without holding the
+        /// NodeSet the conversion seeds.
+        /// </summary>
+        private static string GenerateMemberNodeId(
+            string modelUri, string rootLocal, string local)
+        {
+            return GenerateNodeId(new ArrayOf<WotBrowsePathElement>(
+                [ModelElement(modelUri, rootLocal), ModelElement(modelUri, local)]));
+        }
+
+        /// <summary>
+        /// Builds the identifier of the Node a document projects as its root.
+        /// </summary>
+        private static string GenerateRootNodeId(UANodeSet nodeSet, string rootLocal)
+        {
+            string modelUri = GeneratedNamespaceUri(nodeSet);
+            return GenerateNodeId(new ArrayOf<WotBrowsePathElement>(
+                [ModelElement(modelUri, rootLocal)]));
+        }
+
+        /// <summary>
+        /// Builds the identifier of a member of the projection root, whose
+        /// BrowseName is in the model's own namespace.
+        /// </summary>
+        private static string GenerateMemberNodeId(
+            UANodeSet nodeSet, string rootLocal, string local)
+        {
+            string modelUri = GeneratedNamespaceUri(nodeSet);
+            return GenerateNodeId(new ArrayOf<WotBrowsePathElement>(
+                [ModelElement(modelUri, rootLocal), ModelElement(modelUri, local)]));
+        }
+
+        /// <summary>
+        /// Builds the identifier of a Node nested under a member, whose
+        /// BrowseName is in the model's own namespace.
+        /// </summary>
+        private static string GenerateNestedNodeId(
+            UANodeSet nodeSet, string rootLocal, string ownerLocal, string local)
+        {
+            string modelUri = GeneratedNamespaceUri(nodeSet);
+            return GenerateNodeId(new ArrayOf<WotBrowsePathElement>(
+            [
+                ModelElement(modelUri, rootLocal),
+                ModelElement(modelUri, ownerLocal),
+                ModelElement(modelUri, local)
+            ]));
+        }
+
+        /// <summary>
+        /// Builds the identifier of a standard child - <c>InputArguments</c>,
+        /// <c>EURange</c> and the like - whose BrowseName OPC 10000-5 declares
+        /// in the base namespace, which Annex G.1 writes bare.
+        /// </summary>
+        private static string GenerateBaseChildNodeId(
+            UANodeSet nodeSet, string rootLocal, string ownerLocal, string baseName)
+        {
+            string modelUri = GeneratedNamespaceUri(nodeSet);
+            return GenerateNodeId(new ArrayOf<WotBrowsePathElement>(
+            [
+                ModelElement(modelUri, rootLocal),
+                ModelElement(modelUri, ownerLocal),
+                BaseElement(baseName)
+            ]));
         }
 
         /// <summary>

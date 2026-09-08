@@ -42,11 +42,17 @@ using Opc.Ua.Server.Historian.InMemory;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies atomic in-memory historian insertion and rollback of failed batches.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
     public class InMemoryTransactionalProviderTests
     {
+        /// <summary>
+        /// Verifies that atomic insertion commits when every value is new.
+        /// </summary>
         [Test]
         public async Task InsertAtomicCommitsWhenAllValuesNewAsync()
         {
@@ -73,6 +79,9 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
+        /// <summary>
+        /// Verifies that atomic insertion rolls back the batch on its first failure.
+        /// </summary>
         [Test]
         public async Task InsertAtomicRollsBackOnFirstFailureAsync()
         {

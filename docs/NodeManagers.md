@@ -44,7 +44,10 @@
     - [Project-wide opt-in via MSBuild property (legacy)](#project-wide-opt-in-via-msbuild-property-legacy)
   - [Wiring callbacks: the Configure partial](#wiring-callbacks-the-configure-partial)
     - [Addressing modes](#addressing-modes)
+    - [On-demand virtual node families](#on-demand-virtual-node-families)
+    - [Monitored-item creation and lifecycle](#monitored-item-creation-and-lifecycle)
     - [Creating nodes under other managers' nodes (Objects folder)](#creating-nodes-under-other-managers-nodes-objects-folder)
+    - [Creating nodes from scratch — the Add* surface](#creating-nodes-from-scratch--the-add-surface)
   - [Typed model-traversal — the Configure(I{Manager}NodeManagerBuilder) partial](#typed-model-traversal--the-configureimanagernodemanagerbuilder-partial)
     - [What the generator emits per model](#what-the-generator-emits-per-model)
     - [Methods with arguments — typed OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
@@ -66,8 +69,10 @@
     - [Boolean supervision → alarm activation (NAMUR pattern)](#boolean-supervision--alarm-activation-namur-pattern)
     - [Simulation timers](#simulation-timers)
     - [Pushing runtime value changes to subscribers](#pushing-runtime-value-changes-to-subscribers)
+    - [Subscription-gated sources](#subscription-gated-sources)
     - [Multi-model composition](#multi-model-composition)
     - [Mixing ModelDesign and NodeSet2 in one project](#mixing-modeldesign-and-nodeset2-in-one-project)
+    - [Importing a NodeSet2 overlay at runtime — `builder.Import`](#importing-a-nodeset2-overlay-at-runtime--builderimport)
     - [NodeSet2 access-level bitmasks](#nodeset2-access-level-bitmasks)
   - [Materialising instances at runtime — NodeId assignment](#materialising-instances-at-runtime--nodeid-assignment)
   - [Current limitations](#current-limitations)
@@ -113,7 +118,7 @@ The default configuration and diagnostics manager is a single object. `MainNodeM
 
 As a diagnostics manager, it loads the standard diagnostics and server-support nodes generated for the stack, manages session and subscription diagnostics, diagnostics enable/disable state, aggregate functions, event notifier updates, and the well-known OPC UA Part 17 alias-name methods that dispatch through the server-wide alias-name registry. It registers namespace URIs for the OPC UA namespace and the diagnostics namespace.
 
-As a configuration manager, the same instance exposes push certificate-management and server-configuration functionality from OPC UA Part 12. It owns the server-configuration methods and state that interact with trust lists, certificate groups, transaction coordination, pending regenerated keys, endpoint and listener registries, and post-`ApplyChanges` effects.
+As a configuration manager, the same instance exposes push certificate-management and server-configuration functionality from OPC UA Part 12. It owns the server-configuration methods and state that interact with trust lists, certificate groups, transaction coordination, pending regenerated keys, endpoint and listener registries, and post-`ApplyChanges` effects. The class is a partial split by concern (`ConfigurationNodeManager.PushMethods.cs`, `.PushValidation.cs`, `.CertificateSlots.cs`, `.ApplyChanges.cs`, `.TrustMaterial.cs`, `.CertificateAlarms.cs`, `.NamespaceMetadata.cs`) over one core file, and delegates namespace-metadata tracking and alarm scheduling to the internal `NamespaceMetadataRegistry` and `CertificateAlarmScheduler` collaborators.
 
 ### Managers supplied by server features
 
@@ -793,6 +798,16 @@ namespace (legacy MSBuild mode) or the user class's namespace
     the per-node hook.
   - Declares `partial void Configure(INodeManagerBuilder builder);` for
     user wiring.
+  - Implements `INodeSetImportFactoryProvider` by delegating to the
+    model's generated `{Ns}NodeSetImportFactoryProvider`, so a NodeSet2
+    document imported through `builder.Import` materialises this model's
+    nodes as their generated `*State` subclasses. A
+    `partial void AddNodeSetImportFactories(List<INodeSetImportFactory>)`
+    hook lets a dependency model contribute its own factories. See
+    [Importing a NodeSet2 overlay at runtime](#importing-a-nodeset2-overlay-at-runtime--builderimport).
+- `public sealed class {Ns}NodeSetImportFactoryProvider`
+  - One `INodeSetImportFactory` per model type/declaration, each calling
+    a concrete constructor for an empty state.
 - `public class {Ns}NodeManagerFactory : IAsyncNodeManagerFactory`
   - Returns the namespace URI in `NamespacesUris`.
   - `CreateAsync(IServerInternal, ApplicationConfiguration, CancellationToken)`
@@ -858,8 +873,11 @@ declare them on the attribute:
 
 ```csharp
 [NodeManager(
-    NamespaceUri = Namespaces.Boiler,
-    AdditionalNamespaceUris = new[] { Namespaces.Boiler + "Instance" })]
+    NamespaceUri = "http://opcfoundation.org/UA/Boiler/",
+    AdditionalNamespaceUris = new[]
+    {
+        "http://opcfoundation.org/UA/Boiler/Instance"
+    })]
 ```
 
 The generated constructor passes them to the base manager together with
@@ -869,6 +887,13 @@ namespaces to this manager from the moment it is built. Calling
 `SetNamespaces` later is not sufficient — the master builds its
 namespace routing from what the manager reported when it was
 constructed.
+
+The URI expressions must be available to Roslyn before this generator
+runs: use string literals, `const` values declared in ordinary source,
+or constants from a referenced assembly. A constant emitted by another
+generator in the **same compilation** is not available. Such an
+expression reports `MODELGEN035` at the offending argument instead of
+silently dropping the namespace from the generated manager and factory.
 
 #### Project-wide opt-in via MSBuild property (legacy)
 
@@ -904,6 +929,12 @@ namespace MyModel;
 
 public partial class MyModelNodeManager
 {
+    // The source-generated constructor retains the exact startup
+    // configuration on FluentNodeManagerBase. Use the protected property
+    // from any user-authored partial; no custom factory is required.
+    private MyModelConfiguration? Settings =>
+        Configuration?.ParseExtension<MyModelConfiguration>();
+
     partial void Configure(INodeManagerBuilder builder)
     {
         builder
@@ -961,17 +992,133 @@ The builder exposes:
 | `OnWrite` / `OnWriteAsync` | `BaseVariableState.OnWriteValue` |
 | `OnCall` / `OnCallAsync` | `MethodState.OnCallMethod*` |
 | `OnNodeAdded` / `OnNodeRemoved` | Lifecycle dispatch from `NotifyNodeAdded` |
-| `OnEvent`, `OnConditionRefresh`, `OnHistoryRead`, `OnHistoryUpdate`, `OnMonitoredItemCreated` | Manager-level dispatch keyed by `NodeId` |
+| `OnEvent`, `OnConditionRefresh`, `OnHistoryRead`, `OnHistoryUpdate` | Node or manager-level dispatch keyed by `NodeId` |
+| `OnCreateMonitoredItem`, `OnMonitoredItemCreated`, `OnMonitoredItemModified`, `OnMonitoredItemDeleted`, `OnMonitoringModeChanged` | Data-change monitored-item creation and lifecycle |
 
 `INodeManagerBuilder.NodeManager` is typed as `IAsyncNodeManager`. Use
 `builder.NodeManager.SyncNodeManager` to obtain the synchronous
 `INodeManager` facade for legacy interop, or cast it to your concrete
 manager type if you need direct access.
 
-All resolution happens **once** during `CreateAddressSpaceAsync`,
-against the in-memory predefined-node tree. There is no reflection, no
-`Activator.CreateInstance`, no `Expression.Compile` — the whole pipeline
-is NativeAOT-safe.
+Ordinary `Node(...)` / `Variable(...)` resolution happens **once**
+during `CreateAddressSpaceAsync`, against the in-memory predefined-node
+tree. Virtual node families are registered during the same phase but
+materialize individual nodes per service operation as described below.
+There is no reflection, no `Activator.CreateInstance`, no
+`Expression.Compile` — the whole pipeline is NativeAOT-safe.
+
+#### On-demand virtual node families
+
+Use `ResolveNodes` when the manager owns a potentially large or external
+address space that must not be copied into `PredefinedNodes`. The first
+delegate is a cheap ownership test and must not perform I/O. The second
+delegate materializes the requested `NodeState` asynchronously:
+
+```csharp
+partial void Configure(INodeManagerBuilder builder)
+{
+    builder.ResolveNodes(
+            nodeId => TryParseRegisterId(nodeId, out _),
+            async (context, nodeId, ct) =>
+            {
+                RegisterAddress address = ParseRegisterId(nodeId);
+                RegisterMetadata? metadata =
+                    await m_device.DescribeAsync(address, ct);
+                if (metadata is null)
+                {
+                    return null;
+                }
+
+                return new BaseDataVariableState(parent: null)
+                {
+                    NodeId = nodeId,
+                    BrowseName = new QualifiedName(metadata.Name, nodeId.NamespaceIndex),
+                    DisplayName = metadata.Name,
+                    DataType = metadata.DataType,
+                    ValueRank = ValueRanks.Scalar
+                };
+            })
+        .OnRead(ReadRegister)
+        .OnWrite(WriteRegister)
+        .OnCreateBrowser(CreateRegisterBrowser)
+        .OnMonitoredItemCreated(StartPushSource);
+}
+```
+
+Predefined nodes always win. On a predefined-node miss,
+`FluentNodeManagerBase` selects exactly one matching virtual family,
+creates an unvalidated `NodeHandle`, and invokes the resolver during
+normal node validation. Overlapping predicates fail with
+`BadConfigurationError` rather than depending on registration order.
+
+The resolver may return `null` for a syntactically valid id whose backing
+object does not exist. A returned node with `NodeId.Null` receives the
+requested id; a conflicting non-null id is rejected. The stack caches the
+result only in its existing per-operation and monitored-component caches:
+virtual nodes are never inserted into `PredefinedNodes`.
+
+The returned `IVirtualNodeBuilder` applies one callback template to every
+materialized member of the family. It supports read/write/call,
+condition/event, history, browser, monitored-item creation, and
+monitored-item lifecycle hooks. `OnCreateBrowser` uses the ordinary
+`NodeState.CreateBrowser` contract, so custom browsers still participate
+in browse filtering, continuation points, and translate-path handling.
+
+#### Monitored-item creation and lifecycle
+
+`OnCreateMonitoredItem` runs before the default sampled item is
+allocated. It can keep the default path, reject the request with an exact
+status, or supply a factory for a custom
+`ISampledDataChangeMonitoredItem`:
+
+```csharp
+builder.Node("Buffers/UInt32")
+    .OnCreateMonitoredItem((request, ct) =>
+    {
+        if (!request.Request.RequestedParameters.Filter.IsNull)
+        {
+            return new ValueTask<MonitoredItemCreateDecision>(
+                MonitoredItemCreateDecision.Refuse(
+                    StatusCodes.BadFilterNotAllowed));
+        }
+
+        if (!request.Request.ItemToMonitor.ParsedIndexRange.IsNull)
+        {
+            return new ValueTask<MonitoredItemCreateDecision>(
+                MonitoredItemCreateDecision.Refuse(
+                    StatusCodes.BadIndexRangeInvalid));
+        }
+
+        return new ValueTask<MonitoredItemCreateDecision>(
+            MonitoredItemCreateDecision.Use(
+                factory => new BufferMonitoredItem(factory)));
+    })
+    .OnMonitoredItemCreated(OnCreated)
+    .OnMonitoredItemModified(OnModifiedAsync)
+    .OnMonitoringModeChanged(OnModeChangedAsync)
+    .OnMonitoredItemDeleted(OnDeletedAsync);
+```
+
+The stack allocates the id and owns registration for a custom item. It
+supplies the validated filter/range, revised sampling interval and queue
+size, manager handle, subscription information, and durability setting
+through `MonitoredItemFactoryContext`. The returned item must preserve
+that identity and ownership. Both built-in monitored-item managers then
+handle modify, monitoring-mode, delete, and manager-lifecycle operations
+normally. `Use(factory, queueInitialValue: true)` additionally performs
+the standard initial attribute read; push-style items omit it by default.
+
+Manager-level asynchronous batch hooks receive only successful items and
+run after the monitored-item manager has applied its changes:
+
+```csharp
+builder
+    .OnMonitoredItemsCreated(SubscribeRegisterSlicesAsync)
+    .OnMonitoredItemsDeleted(UnsubscribeRegisterSlicesAsync);
+```
+
+The existing synchronous `OnCreateMonitoredItemsComplete` override remains
+supported and runs before the new async create-complete hook.
 
 #### Creating nodes under other managers' nodes (Objects folder)
 
@@ -1013,6 +1160,82 @@ registration through the same pass. This covers **startup-time**
 configuration only — for nodes created after startup use
 `IMasterNodeManager.AddReferencesAsync`, which dispatches to the live
 owning manager.
+
+#### Creating nodes from scratch — the `Add*` surface
+
+`Configure` can also *create* nodes, not just wire callbacks on nodes a
+NodeSet or ModelDesign already declared. `INodeManagerBuilder` carries a
+small creation surface for filling a namespace when there is no model to
+generate from:
+
+| Member | Creates |
+| --- | --- |
+| `AddFolder(name, parentId)` | a `FolderState` (`Organizes`) |
+| `AddObject(name, parentId, typeDefinitionId)` | a `BaseObjectState` |
+| `AddVariable<TValue>(name, parentId)` | a `BaseDataVariableState` whose `DataType`/`ValueRank` come from `TValue` |
+| `AddMethod(name, parentId)` | an executable `MethodState` |
+| `Add<TState>(node, parentId)` | an already-constructed state of any `NodeState` subclass |
+| `Add<TState>(factory, parentId)` | a state built by a factory that receives the resolved parent |
+| `AddRoot<TState>(node)` | a root, with its existing references left alone |
+| `TryGetNode(nodeId, out node)` | lookup across created-but-not-yet-registered nodes and predefined nodes |
+
+Each `Add*` takes the browse name as a `string` — qualified with the
+manager's default namespace — or as a `QualifiedName` carrying an
+explicit nonzero namespace index. `parentId` defaults to the ns=0
+`Objects` folder.
+
+```csharp
+partial void Configure(INodeManagerBuilder builder)
+{
+    INodeBuilder<FolderState> machines = builder.AddFolder("Machines");
+
+    builder.AddVariable<double>("Pressure", machines.Node.NodeId)
+        .OnRead(() => m_sensor.Pressure);
+
+    builder.AddMethod("Reset", machines.Node.NodeId)
+        .OnCall(ResetAsync);
+}
+```
+
+Three properties make this usable straight from `Configure`:
+
+- **NodeIds are final before the builder comes back.** Every `Add*`
+  runs the node — and its whole subtree — through the manager's
+  `INodeIdFactory` before returning, so `OnRead`/`OnWrite`
+  registrations, which key off `NodeState.NodeId`, stay valid once the
+  node is registered. `machines.Node.NodeId` above is the id clients
+  will browse. This includes a subtree materialised from a type model
+  with `NodeState.Create(…, assignNodeIds: false)`, whose children still
+  carry their declaration ids: those are rebased at `Add` time rather
+  than at registration, so they too are final when the builder returns.
+- **Creation is staged, not immediate.** Created nodes are held until
+  the manager calls `RegisterAuthoredNodesAsync`, which the generated
+  `CreateAddressSpaceAsync` emits after the `Configure` partials and
+  before `CompleteConfigureAsync`. That ordering is what lets a node
+  name a sibling created moments earlier, and what gets references to
+  externally owned nodes (the `Objects` folder above) mirrored into
+  `externalReferences` by the same reverse-reference pass described in
+  [Creating nodes under other managers' nodes](#creating-nodes-under-other-managers-nodes-objects-folder).
+- **Custom state types stay typed.** `Add<TState>` returns
+  `INodeBuilder<TState>`, so a hand-written `NodeState` subclass keeps
+  its type through the fluent chain. The factory overload exists for
+  the case where a custom `INodeIdFactory` derives a child id from its
+  parent: it resolves the parent first and hands it to the factory,
+  substituting an identity-only proxy when the parent belongs to
+  another node manager.
+
+Creation is rejected outside that window. Calling an `Add*` after the
+builder is sealed, or after the staged graph has been registered, throws
+`BadInvalidState`. A NodeId in a namespace the manager does not own
+throws `BadNodeIdInvalid`, and a parent in one of the manager's *own*
+namespaces that was never created throws `BadNodeIdUnknown`.
+
+Hand-written managers that drive `CreateFluentBuilder` themselves get
+the same surface by calling
+`FluentNodeManagerBase.RegisterAuthoredNodesAsync(builder)` in the same
+position — after the configuration delegate, before
+`CompleteConfigureAsync`. A builder that created nothing registers
+nothing, so the call is safe to make unconditionally.
 
 ### Typed model-traversal — the `Configure(I{Manager}NodeManagerBuilder)` partial
 
@@ -1090,7 +1313,10 @@ All emitted types are `internal sealed` because `Configure` is a
 private partial — the surface never escapes the assembly. Child
 accessors resolve namespace indices lazily through
 `ISystemContext.NamespaceUris.GetIndexOrAppend(...)` so the wrappers
-work regardless of the namespace-table order at runtime.
+work regardless of the namespace-table order at runtime. Object wrappers
+use the generated concrete `*State` type when the model declares one,
+and manager-level extensions such as `Simulation(...)` work through the
+typed proxy just as they do through the untyped builder.
 
 #### Methods with arguments — typed `OnCall` overloads
 
@@ -1282,6 +1508,15 @@ builder.Boilers.Boiler__1.DrumX001
 ```
 
 #### Hand-written node managers
+
+An event stream that connects an asynchronous upstream producer can also
+implement `IEventSourceReadiness`. The registry enumerates the stream while
+awaiting `WaitUntilReadyAsync`; creation of a corresponding event monitored
+item completes only after the producer can deliver notifications. Readiness
+must not wait for the first event. Failures are returned to the subscribing
+client, reported through `OnError`, and stop that activation. For reactivatable
+producers, return a new readiness-aware stream from the `Publish` factory on
+each activation.
 
 Managers that don't use the source generator can opt in by deriving
 from `Opc.Ua.Server.Fluent.FluentNodeManagerBase` and calling
@@ -1715,6 +1950,38 @@ infrastructure and therefore **requires** the manager to derive from
 `FluentNodeManagerBase`; calling it on a plain `CustomNodeManager2` throws
 `StatusCodes.BadConfigurationError`.
 
+#### Subscription-gated sources
+
+Use `PollWhileMonitored` when sampling an external source should consume
+resources only while a client is interested. A disabled monitored item
+does not keep the source active; `Sampling` and `Reporting` items do:
+
+```csharp
+builder.Variable<double>("Dynamic/Temperature")
+    .OnFirstSubscriber((context, node, ct) =>
+        m_device.StartMonitoringAsync(node.NodeId, ct))
+    .OnLastSubscriber((context, node, ct) =>
+        m_device.StopMonitoringAsync(node.NodeId, ct))
+    .PollWhileMonitored(
+        TimeSpan.FromMilliseconds(100),
+        (context, ct) => m_device.ReadTemperatureAsync(ct));
+```
+
+The zero-to-one transition invokes `OnFirstSubscriber`, samples
+immediately, and starts the worker. The one-to-zero transition cancels
+the worker and invokes `OnLastSubscriber`. While active, the effective
+period is the fastest revised sampling interval among active items,
+bounded by the minimum period passed to `PollWhileMonitored`. Create,
+modify, mode-change, and delete operations reconcile that period without
+overlapping samples. The worker uses the server `TimeProvider`, pushes
+only changed values through `IValueUpdater<TValue>`, and is cancelled when
+the manager is disposed.
+
+The same `OnFirstSubscriber`, `OnLastSubscriber`, and
+`PollWhileMonitored` extensions are available on an
+`IVirtualNodeBuilder`; the current materialized node is retained only for
+the monitored-item lifetime.
+
 #### Multi-model composition
 
 The only supported mode for combining models is **source-generated
@@ -1809,6 +2076,63 @@ input is supplied to the others as a resolution dependency (both
 > referencing ModelDesign's `<opc:Namespaces>` does **not** rename the
 > NodeSet2's generated types — set the per-file MSBuild metadata on the
 > NodeSet2 entry to control it.
+
+#### Importing a NodeSet2 overlay at runtime — `builder.Import`
+
+The models above are compiled into the assembly. A NodeSet2 document
+that is only known at runtime — an overlay shipped by an integrator, a
+document downloaded from a device — can be imported into the *same*
+manager from inside `Configure`:
+
+```csharp
+partial void Configure(INodeManagerBuilder builder)
+{
+    using var stream = File.OpenRead("overlay.NodeSet2.xml");
+    builder.Import(UANodeSet.Read(stream));
+
+    // Imported nodes resolve immediately, so they can be wired in the
+    // same pass.
+    builder.Node(new NodeId(3300u, NamespaceIndex))
+           .As<BaseDataVariableState>()
+           .OnSimpleRead(ReadOverlayValue);
+}
+```
+
+What the import guarantees:
+
+- **One batch per `Configure` pass.** Every document imported during
+  one pass is linked exactly once, after the pass returns. A node may
+  therefore declare a `ParentNodeId` that lives in another document of
+  the same batch, or a node the manager already owns — which is how an
+  overlay extends the generated model.
+- **Typed states without reflection.** The generated node manager
+  implements `INodeSetImportFactoryProvider`. Its factories are matched
+  by TypeDefinition (Object, Variable), by MethodDeclaration (Method)
+  and by NodeId (declarations), so an imported node of a generated type
+  materialises as its generated `*State` subclass. Each factory calls a
+  concrete constructor — nothing is looked up at runtime, which keeps
+  the path NativeAOT-safe. Pass an
+  `INodeSetImportFactoryProvider` to `Import` to supply factories from
+  somewhere else, or implement
+  `partial void AddNodeSetImportFactories(List<INodeSetImportFactory>)`
+  on the manager to add the factories of a dependency model.
+- **Empty typed states.** A factory returns a state without children:
+  the document, not the model, decides which children the imported node
+  has.
+- **Placeholder replacement.** When an imported child lands in a slot
+  that the generated parent declares (same BrowseName), it replaces the
+  generated placeholder, and the displaced node and every descendant it
+  does not carry over are removed from the address space. References to
+  the displaced node are retargeted at the replacement. Wiring a node in
+  `Configure` *before* an import displaces it is rejected with
+  `BadInvalidState` rather than silently dropping the wiring — import
+  first, then wire.
+
+The three contracts (`INodeSetImportFactoryProvider`,
+`INodeSetImportFactory`, `NodeSetImportDiscriminator`) live in
+`Opc.Ua.Server.Nodes`. For a manager built entirely from NodeSet2
+documents with no compiled model at all, see
+[Runtime NodeSets](RuntimeNodeSets.md).
 
 #### NodeSet2 access-level bitmasks
 

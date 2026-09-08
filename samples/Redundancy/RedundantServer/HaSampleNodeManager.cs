@@ -120,7 +120,7 @@ namespace RedundantServer
     }
 
     /// <summary>
-    /// Starts the sample producer only after all distributed services have completed startup.
+    /// Starts the sample producer after distributed services and redundancy metadata are initialized.
     /// </summary>
     internal sealed class HaSampleSimulationStartupTask : IServerStartupTask
     {
@@ -263,6 +263,7 @@ namespace RedundantServer
                     },
                     cancellationToken: cancellationToken).ConfigureAwait(false);
             }
+
             await AddPredefinedNodeAsync(SystemContext, folder, cancellationToken).ConfigureAwait(false);
         }
 
@@ -333,6 +334,9 @@ namespace RedundantServer
             return variable;
         }
 
+        /// <summary>
+        /// Starts the replica's simulation loop if it has not already been started.
+        /// </summary>
         internal void StartSimulation()
         {
             m_simulationTask ??= Task.Run(() => RunSimulationAsync(m_simulationCts.Token));
@@ -575,20 +579,35 @@ namespace RedundantServer
         }
     }
 
+    /// <summary>
+    /// Defines log messages for replica write roles, counter activity, and history capture.
+    /// </summary>
     internal static partial class HaSampleNodeManagerLog
     {
+        /// <summary>
+        /// Logs that a replica has relinquished the active writer role.
+        /// </summary>
         [LoggerMessage(EventId = RedundantServerEventIds.HaSampleNodeManager + 0, Level = LogLevel.Information,
             Message = "HA: replica {ReplicaId} became STANDBY (no longer the active writer).")]
         public static partial void ReplicaBecameStandby(this ILogger logger, string replicaId);
 
+        /// <summary>
+        /// Logs that a replica has become the active writer and reports its counter value.
+        /// </summary>
         [LoggerMessage(EventId = RedundantServerEventIds.HaSampleNodeManager + 1, Level = LogLevel.Information,
             Message = "HA: replica {ReplicaId} became ACTIVE writer (Counter={Counter}).")]
         public static partial void ReplicaBecameActiveWriter(this ILogger logger, string replicaId, int counter);
 
+        /// <summary>
+        /// Logs the active replica's heartbeat and current counter value.
+        /// </summary>
         [LoggerMessage(EventId = RedundantServerEventIds.HaSampleNodeManager + 2, Level = LogLevel.Information,
             Message = "HA: replica {ReplicaId} ACTIVE, Counter={Counter}.")]
         public static partial void ReplicaActive(this ILogger logger, string replicaId, int counter);
 
+        /// <summary>
+        /// Logs a rejected counter history write and its status code.
+        /// </summary>
         [LoggerMessage(EventId = RedundantServerEventIds.HaSampleNodeManager + 3, Level = LogLevel.Warning,
             Message = "HA: replica {ReplicaId} could not archive the Counter sample ({StatusCode}).")]
         public static partial void CounterHistoryWriteRejected(
@@ -596,6 +615,9 @@ namespace RedundantServer
             string replicaId,
             StatusCode statusCode);
 
+        /// <summary>
+        /// Logs an exception while archiving a counter sample.
+        /// </summary>
         [LoggerMessage(EventId = RedundantServerEventIds.HaSampleNodeManager + 4, Level = LogLevel.Warning,
             Message = "HA: replica {ReplicaId} failed to archive the Counter sample.")]
         public static partial void CounterHistoryWriteFailed(
@@ -603,6 +625,9 @@ namespace RedundantServer
             Exception exception,
             string replicaId);
 
+        /// <summary>
+        /// Logs an exception while archiving a history event.
+        /// </summary>
         [LoggerMessage(EventId = RedundantServerEventIds.HaSampleNodeManager + 5, Level = LogLevel.Warning,
             Message = "HA: replica {ReplicaId} failed to archive the history event.")]
         public static partial void EventHistoryWriteFailed(

@@ -38,11 +38,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies that historian audit dispatch preserves typed values and reports operation failures.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable]
     public sealed class HistorianAuditDispatcherTests
     {
+        /// <summary>
+        /// Verifies that event deletion audits the typed old value and the deletion failure.
+        /// </summary>
         [Test]
         public async Task EventDeleteAuditsTypedOldValueAndFailureAsync()
         {
@@ -114,6 +120,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(audit.OldValues!.Value!.EventFields, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that annotation replacement audits typed old and new annotation values.
+        /// </summary>
         [Test]
         public async Task AnnotationReplaceAuditsTypedOldAndNewValuesAsync()
         {

@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CA1861: inline constant-array expected-values used in test assertions are a clarity win
-// for the test author and aren't on a hot path. Disabled file-level for the suite.
-#pragma warning disable CA1861
 // CA2000: test code; disposables are ownership-transferred to test fixtures or are short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
@@ -52,6 +49,9 @@ using Opc.Ua.Server.Historian.InMemory;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies in-memory historian registration, bulk routing, event updates, and atomic replacement behavior.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
@@ -62,6 +62,9 @@ namespace Opc.Ua.Server.Tests.Historian
         private static readonly DateTime BaseTime =
             new(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
+        /// <summary>
+        /// Verifies that repeated in-memory historian disposal is safe.
+        /// </summary>
         [Test]
         public void DisposeIsIdempotent()
         {
@@ -74,6 +77,9 @@ namespace Opc.Ua.Server.Tests.Historian
             });
         }
 
+        /// <summary>
+        /// Verifies that registering a node twice leaves its original capabilities unchanged.
+        /// </summary>
         [Test]
         public async Task RegisterTwiceLeavesCapabilitiesUnchangedAsync()
         {
@@ -97,6 +103,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.DeleteRaw, Is.EqualTo(capsB.DeleteRaw));
         }
 
+        /// <summary>
+        /// Verifies that forgetting an unknown historian node returns false.
+        /// </summary>
         [Test]
         public void ForgetUnknownNodeReturnsFalse()
         {
@@ -113,6 +122,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(provider.Forget(nodeId), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that explicit capability assignment replaces a node's previous capabilities.
+        /// </summary>
         [Test]
         public async Task SetCapabilitiesOverridesPreviousCapabilitiesAsync()
         {
@@ -132,6 +144,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.DeleteRaw, Is.EqualTo(capsB.DeleteRaw));
         }
 
+        /// <summary>
+        /// Verifies that bulk insertion distributes values to the correct node archives.
+        /// </summary>
         [Test]
         public async Task InsertBatchAsyncFanOutsAcrossNodesAsync()
         {
@@ -191,6 +206,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(60.0));
         }
 
+        /// <summary>
+        /// Verifies that raw deletion removes values within the requested time range.
+        /// </summary>
         [Test]
         public async Task DeleteRawAsyncRemovesValuesInTimeRangeAsync()
         {
@@ -235,6 +253,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(remaining, Is.EqualTo([0.0, 3.0, 4.0]));
         }
 
+        /// <summary>
+        /// Verifies that historical events round-trip through in-memory insertion and reading.
+        /// </summary>
         [Test]
         public async Task InsertEventReadEventRoundTripAsync()
         {
@@ -286,6 +307,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.Values[1].EventId, Is.EqualTo(evtId2));
         }
 
+        /// <summary>
+        /// Verifies that event replacement updates an existing event.
+        /// </summary>
         [Test]
         public async Task ReplaceEventReplacesExistingEventAsync()
         {
@@ -341,6 +365,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo("replaced"));
         }
 
+        /// <summary>
+        /// Verifies that event replacement applies an index range to the stored field.
+        /// </summary>
         [Test]
         public async Task ReplaceEventAppliesIndexRangeToStoredFieldAsync()
         {
@@ -429,6 +456,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(["first", "changed", "third"]));
         }
 
+        /// <summary>
+        /// Verifies that event deletion removes the record with the requested EventId.
+        /// </summary>
         [Test]
         public async Task DeleteEventsAsyncRemovesByEventIdAsync()
         {
@@ -492,6 +522,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(remainingIds, Does.Not.Contain(id2));
         }
 
+        /// <summary>
+        /// Verifies that atomic replacement commits all requested values.
+        /// </summary>
         [Test]
         public async Task ReplaceAtomicAsyncCommitsAllValuesAsync()
         {

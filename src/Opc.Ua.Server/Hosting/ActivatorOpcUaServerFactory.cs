@@ -72,7 +72,6 @@ namespace Opc.Ua.Server.Hosting
                 m_services.GetServices<OpcUaServerSubscriptionManagerRegistration>().Any() ||
                 m_services.GetService<OpcUaServerRoleManagerRegistration>() != null ||
                 m_services.GetService<ISubscriptionStore>() != null ||
-                m_services.GetService<IHistoryContinuationPointStore>() != null ||
                 m_services.GetService<IMonitoredItemQueueFactory>() != null;
         }
 

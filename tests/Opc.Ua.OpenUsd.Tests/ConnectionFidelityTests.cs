@@ -74,7 +74,7 @@ namespace Opc.Ua.OpenUsd.Tests
             UsdStage exported = ms.Context.ExportUsdStage(ms.Result);
 
             UsdAttribute exportedInput = AttributeOf(exported, "Sink", "in");
-            Assert.That(exportedInput.Connections, Is.EqualTo(new[] { "/Src.b", "/Src.a" }),
+            Assert.That(exportedInput.Connections, Is.EqualTo(s_stringValues1),
                 "Exported connections must be in the authored order, not reference/hash order.");
         }
 
@@ -101,7 +101,7 @@ namespace Opc.Ua.OpenUsd.Tests
             Assert.That(ms.Result.ConnectionsByNode.ContainsKey(node), Is.True,
                 "A connected attribute must be recorded on the result.");
             Assert.That(ms.Result.ConnectionsByNode[node],
-                Is.EqualTo(new[] { "/Src.b", "/Src.a" }),
+                Is.EqualTo(s_stringValues1),
                 "The recorded order must be the authored order.");
         }
 
@@ -130,7 +130,7 @@ namespace Opc.Ua.OpenUsd.Tests
                 () => ms = MaterializationHarness.Materialize(stage),
                 "Two resolvable connections sharing a target NodeId must not throw.");
             Assert.That(ms.Result.ConnectionsByNode[ms.Attr("/Sink.in")],
-                Is.EqualTo(new[] { "/Src.b", "/Src.a" }),
+                Is.EqualTo(s_stringValues1),
                 "Both authored connections must still be recorded despite the deduped edge.");
         }
 
@@ -151,7 +151,7 @@ namespace Opc.Ua.OpenUsd.Tests
 
             UsdAttribute exportedInput = AttributeOf(exported, "Sink", "in");
             Assert.That(exportedInput.Connections,
-                Is.EqualTo(new[] { "/Outside/Elsewhere.output" }),
+                Is.EqualTo(s_stringValues2),
                 "An unresolvable .connect target must not be dropped (§8.4 shall-not-drop).");
         }
 
@@ -176,7 +176,7 @@ namespace Opc.Ua.OpenUsd.Tests
 
             UsdAttribute exportedInput = AttributeOf(exported, "Sink", "in");
             Assert.That(exportedInput.Connections,
-                Is.EqualTo(new[] { "/Missing.target", "/Src.out" }),
+                Is.EqualTo(s_stringValues3),
                 "Both the unresolvable and the resolvable target must survive, in authored order.");
         }
 
@@ -209,7 +209,7 @@ namespace Opc.Ua.OpenUsd.Tests
             UsdTestHelpers.AssertDouble(exportedInput.Value, 1.5);
             Assert.That(exportedInput.Value.IsNull, Is.False,
                 "The exported attribute must still report its default value.");
-            Assert.That(exportedInput.Connections, Is.EqualTo(new[] { "/Src.out" }),
+            Assert.That(exportedInput.Connections, Is.EqualTo(s_stringValues4),
                 "The exported attribute must also report its connection.");
         }
 
@@ -232,5 +232,10 @@ namespace Opc.Ua.OpenUsd.Tests
             Assert.Fail($"Attribute {primName}.{attributeName} was not found in the exported stage.");
             return new UsdAttribute(attributeName, string.Empty);
         }
+
+        private static readonly string[] s_stringValues1 = ["/Src.b", "/Src.a"];
+        private static readonly string[] s_stringValues2 = ["/Outside/Elsewhere.output"];
+        private static readonly string[] s_stringValues3 = ["/Missing.target", "/Src.out"];
+        private static readonly string[] s_stringValues4 = ["/Src.out"];
     }
 }

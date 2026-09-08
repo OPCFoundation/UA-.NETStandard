@@ -169,6 +169,207 @@ namespace Opc.Ua.WotCon.Bindings
         }
 
         /// <summary>
+        /// Builds the form of a URI that goes on the wire.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// WoT Binding Section 5.4 requires every non-ASCII character of a
+        /// transmitted URI to be encoded as UTF-8 bytes and each byte then
+        /// percent-encoded. A URI that still carries a non-ASCII character is
+        /// an IRI, and what an IRI turns into on the wire depends on the
+        /// framework's IRI parsing being on, on the target's own idea of the
+        /// encoding, and on a proxy in between: three ways to reach a
+        /// different resource than the document names. Doing the encoding here
+        /// makes the answer the same everywhere, and leaves an already-ASCII
+        /// URI - including one whose percent-escapes are already written -
+        /// untouched.
+        /// </para>
+        /// <para>
+        /// The URI is therefore rebuilt from its components rather than
+        /// encoded as one string: percent-encoding is defined for the path,
+        /// the query and the fragment, and is <em>not</em> a legal spelling of
+        /// a host. A registered name is turned into ASCII by IDNA instead, so
+        /// <c>http://ü.example/x</c> transmits as
+        /// <c>http://xn--tda.example/x</c> - the name that resolves - rather
+        /// than as <c>http://%C3%BC.example/x</c>, which names no host at all
+        /// and would be rejected or, worse, re-interpreted by an intermediary.
+        /// Userinfo, an explicit port and an IPv6 literal are carried through
+        /// unchanged.
+        /// </para>
+        /// </remarks>
+        /// <param name="uri">The parsed absolute URI.</param>
+        /// <returns>The ASCII-only URI to transmit.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="uri"/> is <c>null</c>.</exception>
+        protected static string ToTransmittedUri(Uri uri)
+        {
+            if (uri is null)
+            {
+                throw new ArgumentNullException(nameof(uri));
+            }
+            return BuildTransmittedUri(uri);
+        }
+
+        /// <summary>
+        /// Builds the authority a transmitted URI carries: the scheme, the
+        /// IDNA A-label host, and the userinfo and explicit port when the
+        /// document states them.
+        /// </summary>
+        /// <remarks>
+        /// This is the string an endpoint policy is evaluated against and the
+        /// string a credential is scoped to. Both have to name the host the
+        /// request actually reaches: a policy that blocks
+        /// <c>xn--tda.example</c> while the plan carries <c>ü.example</c>
+        /// blocks nothing, and a credential scoped to one spelling is not
+        /// found when the other is presented.
+        /// </remarks>
+        /// <param name="uri">The parsed absolute URI.</param>
+        /// <returns>The transmitted authority.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="uri"/> is <c>null</c>.</exception>
+        protected static string ToTransmittedAuthority(Uri uri)
+        {
+            if (uri is null)
+            {
+                throw new ArgumentNullException(nameof(uri));
+            }
+            var builder = new System.Text.StringBuilder(uri.Scheme);
+            if (!AppendAuthority(builder, uri))
+            {
+                return uri.GetLeftPart(UriPartial.Authority);
+            }
+            return builder.ToString();
+        }
+
+        /// <summary>
+        /// Gets the ASCII form of a URI's host: the IDNA A-label of a
+        /// registered name, the literal of an IP address, and an empty string
+        /// when the URI carries no authority.
+        /// </summary>
+        /// <param name="uri">The parsed absolute URI.</param>
+        /// <returns>The ASCII host, without IPv6 brackets.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="uri"/> is <c>null</c>.</exception>
+        protected static string ToAsciiHost(Uri uri)
+        {
+            return WotEndpointValidator.ToAsciiHost(uri);
+        }
+
+        /// <summary>
+        /// Rebuilds a URI as the ASCII string that goes on the wire.
+        /// </summary>
+        internal static string BuildTransmittedUri(Uri uri)
+        {
+            var builder = new System.Text.StringBuilder(uri.Scheme.Length + 16);
+            builder.Append(uri.Scheme);
+            if (!AppendAuthority(builder, uri))
+            {
+                // A URI with no authority - a mailto:, a urn:, an opaque
+                // scheme - has no host to map, so the whole remainder is the
+                // path-ish part and is encoded as one.
+                return PercentEncodeNonAscii(uri.AbsoluteUri);
+            }
+            builder
+                .Append(PercentEncodeNonAscii(uri.AbsolutePath))
+                .Append(PercentEncodeNonAscii(uri.Query))
+                .Append(PercentEncodeNonAscii(uri.Fragment));
+            return builder.ToString();
+        }
+
+        /// <summary>
+        /// Appends <c>://[userinfo@]host[:port]</c> to a builder that holds the
+        /// scheme, and reports whether the URI has an authority at all.
+        /// </summary>
+        private static bool AppendAuthority(System.Text.StringBuilder builder, Uri uri)
+        {
+            // GetLeftPart is the only member that distinguishes a URI with an
+            // authority from one without: 'mailto:a@example.com' parses with a
+            // Host and a UserInfo but has no authority, and writing '//' in
+            // front of it would name a different resource.
+            if (uri.GetLeftPart(UriPartial.Authority).Length == 0)
+            {
+                return false;
+            }
+            string host = ToAsciiHost(uri);
+            builder.Append("://");
+            string userInfo = uri.UserInfo;
+            if (!string.IsNullOrEmpty(userInfo))
+            {
+                builder.Append(PercentEncodeNonAscii(userInfo)).Append('@');
+            }
+            if (uri.HostNameType == UriHostNameType.IPv6)
+            {
+                builder.Append('[').Append(host).Append(']');
+            }
+            else
+            {
+                builder.Append(host);
+            }
+            // A port is written only where it is not the scheme's own. An
+            // absolute URI always reports one: the scheme's default where none
+            // was written, and -1 where the scheme has none - which is the
+            // default, so the two cases are the same test.
+            if (!uri.IsDefaultPort)
+            {
+                builder.Append(':').Append(
+                    uri.Port.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Percent-encodes every non-ASCII character of a URI as UTF-8 bytes.
+        /// </summary>
+        internal static string PercentEncodeNonAscii(string uri)
+        {
+            if (uri is null)
+            {
+                throw new ArgumentNullException(nameof(uri));
+            }
+            bool ascii = true;
+            for (int i = 0; i < uri.Length; i++)
+            {
+                if (uri[i] > '\u007F')
+                {
+                    ascii = false;
+                    break;
+                }
+            }
+            if (ascii)
+            {
+                return uri;
+            }
+
+            var builder = new System.Text.StringBuilder(uri.Length + 16);
+            int start = 0;
+            while (start < uri.Length)
+            {
+                char c = uri[start];
+                if (c <= '\u007F')
+                {
+                    builder.Append(c);
+                    start++;
+                    continue;
+                }
+
+                // A surrogate pair is one code point and therefore one UTF-8
+                // sequence: encoding the halves separately would produce two
+                // invalid sequences that no target can put back together.
+                int length = char.IsHighSurrogate(c) &&
+                    start + 1 < uri.Length &&
+                    char.IsLowSurrogate(uri[start + 1])
+                        ? 2
+                        : 1;
+                byte[] bytes = System.Text.Encoding.UTF8.GetBytes(
+                    uri.Substring(start, length));
+                foreach (byte value in bytes)
+                {
+                    builder.Append('%').Append(
+                        value.ToString("X2", System.Globalization.CultureInfo.InvariantCulture));
+                }
+                start += length;
+            }
+            return builder.ToString();
+        }
+
+        /// <summary>
         /// Attempts to parse an href as an absolute URI.
         /// </summary>
         protected static bool TryParseUri(string href, out Uri uri)
@@ -179,13 +380,19 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Builds an endpoint descriptor from a parsed URI authority.
         /// </summary>
+        /// <remarks>
+        /// The descriptor carries the ASCII authority, which is the one the
+        /// request reaches and therefore the one an endpoint policy and a
+        /// credential reference have to be evaluated against.
+        /// </remarks>
         protected static WotEndpointDescriptor MakeEndpoint(Uri uri)
         {
+            string host = ToAsciiHost(uri);
             return new WotEndpointDescriptor(
                         uri.Scheme,
-                        string.IsNullOrEmpty(uri.Host) ? null : uri.Host,
+                        host.Length == 0 ? null : host,
                         uri.Port,
-                        uri.GetLeftPart(UriPartial.Authority));
+                        ToTransmittedAuthority(uri));
         }
 
         /// <summary>

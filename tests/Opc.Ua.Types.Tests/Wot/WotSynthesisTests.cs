@@ -44,6 +44,18 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotSynthesisTests
     {
+        /// <summary>
+        /// The Annex G.1 escaping of the demo namespace, which every generated
+        /// path element in this model is qualified by.
+        /// </summary>
+        private const string PumpNs = "nsu=http%3A%2F%2Fexample.com%2Fdemo%2Fpump;";
+
+        /// <summary>
+        /// The Annex G.1 escaping of the namespace a Thing Description with no
+        /// id falls back to.
+        /// </summary>
+        private const string SynthNs = "nsu=urn%3Aopcua%3Awot%3Asynthesized;";
+
         private const string ThingModel =
             "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
             "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
@@ -58,7 +70,7 @@ namespace Opc.Ua.Types.Tests.Wot
             "\"actions\":{\"reset\":{\"@type\":\"uav:method\"," +
             "\"uav:browseName\":\"nsu=http://example.com/demo/pump;Reset\"," +
             "\"uav:modellingRule\":\"Optional\"}}," +
-            "\"events\":{\"overTemp\":{\"uav:isEvent\":true," +
+            "\"events\":{\"overTemp\":{" +
             "\"uav:browseName\":\"nsu=http://example.com/demo/pump;OverTemp\"}}}";
 
         private const string ThingDescription =
@@ -85,14 +97,17 @@ namespace Opc.Ua.Types.Tests.Wot
                 root.References!.Any(r => r.ReferenceType == "HasSubtype" && !r.IsForward && r.Value == "i=58"),
                 Is.True);
             Assert.That(
-                root.References!.Any(r => r.ReferenceType == "HasComponent" && r.IsForward && r.Value == "ns=1;s=PumpType/PumpSpeed"),
+                root.References!.Any(
+                    r => r.ReferenceType == "HasComponent" &&
+                        r.IsForward &&
+                        r.Value == "ns=1;s=/" + PumpNs + "PumpType/" + PumpNs + "PumpSpeed"),
                 Is.True);
             Assert.That(
                 root.References!.Any(r => r.ReferenceType == "GeneratesEvent" && r.IsForward),
                 Is.True);
 
             UAVariable variable = nodeSet.Items!.OfType<UAVariable>().Single();
-            Assert.That(variable.NodeId, Is.EqualTo("ns=1;s=PumpType/PumpSpeed"));
+            Assert.That(variable.NodeId, Is.EqualTo("ns=1;s=/" + PumpNs + "PumpType/" + PumpNs + "PumpSpeed"));
 
             // A bare "number" infers the abstract Number, not Double: §6.11.4
             // reads the schema for exactly what it says and leaves a concrete
@@ -104,7 +119,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
 
             UAMethod method = nodeSet.Items!.OfType<UAMethod>().Single();
-            Assert.That(method.NodeId, Is.EqualTo("ns=1;s=PumpType/Reset"));
+            Assert.That(method.NodeId, Is.EqualTo("ns=1;s=/" + PumpNs + "PumpType/" + PumpNs + "Reset"));
             Assert.That(
                 method.References!.Any(r => r.ReferenceType == "HasModellingRule" && r.Value == "i=80"),
                 Is.True);
@@ -215,10 +230,10 @@ namespace Opc.Ua.Types.Tests.Wot
             UADataType inferred = result.Value!.Items!.OfType<UADataType>().Single();
             Assert.That(
                 inferred.Definition!.Field!.Select(f => f.Name),
-                Is.EqualTo(new[] { "Idle", "Active" }));
+                Is.EqualTo(s_namedOneOfEnumNames));
             Assert.That(
                 inferred.Definition.Field!.Select(f => f.Value),
-                Is.EqualTo(new[] { 0, 7 }));
+                Is.EqualTo(s_namedOneOfEnumValues));
         }
 
         // §6.11.4: the required array decides optionality, and uav:fieldOrder
@@ -236,10 +251,10 @@ namespace Opc.Ua.Types.Tests.Wot
             UADataType inferred = result.Value!.Items!.OfType<UADataType>().Single();
             Assert.That(
                 inferred.Definition!.Field!.Select(f => f.Name),
-                Is.EqualTo(new[] { "Second", "First" }));
+                Is.EqualTo(s_statedFieldOrder));
             Assert.That(
                 inferred.Definition.Field!.Select(f => f.IsOptional),
-                Is.EqualTo(new[] { false, true }));
+                Is.EqualTo(s_statedFieldOptionality));
         }
 
         // The reference validator shipped with the specification enforces these
@@ -575,7 +590,7 @@ namespace Opc.Ua.Types.Tests.Wot
             }
             Assert.That(
                 counts,
-                Is.EqualTo(new[] { 1, 1, 1 }),
+                Is.EqualTo(s_onePropertyPerDocument),
                 "Each type's own Variable belongs to that type's document.");
         }
 
@@ -897,13 +912,13 @@ namespace Opc.Ua.Types.Tests.Wot
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(Encoding.UTF8.GetBytes(ThingDescription));
 
             UAObject root = nodeSet.Items!.OfType<UAObject>().Single();
-            Assert.That(root.NodeId, Is.EqualTo("ns=1;s=Pump"));
+            Assert.That(root.NodeId, Is.EqualTo("ns=1;s=/" + SynthNs + "Pump"));
             Assert.That(
                 root.References!.Any(r => r.ReferenceType == "HasTypeDefinition" && r.IsForward && r.Value == "i=58"),
                 Is.True);
 
             UAVariable variable = nodeSet.Items!.OfType<UAVariable>().Single();
-            Assert.That(variable.NodeId, Is.EqualTo("ns=1;s=Pump/Speed"));
+            Assert.That(variable.NodeId, Is.EqualTo("ns=1;s=/" + SynthNs + "Pump/" + SynthNs + "Speed"));
             Assert.That(variable.AccessLevel, Is.EqualTo(1));
         }
 
@@ -944,5 +959,34 @@ namespace Opc.Ua.Types.Tests.Wot
             bool valid = UANodeSet.Validate(stream, out System.Collections.Generic.IReadOnlyList<string> errors);
             Assert.That(valid, Is.True, string.Join("; ", errors));
         }
+
+        /// <summary>
+        /// The enumeration names §6.11.5 infers from a named <c>oneOf</c>, in
+        /// the order its branches are written.
+        /// </summary>
+        private static readonly string[] s_namedOneOfEnumNames = ["Idle", "Active"];
+
+        /// <summary>
+        /// The enumeration values the same branches carry as their
+        /// <c>const</c>, which the inference keeps intact.
+        /// </summary>
+        private static readonly int[] s_namedOneOfEnumValues = [0, 7];
+
+        /// <summary>
+        /// The encoding order <c>uav:fieldOrder</c> states, which is the
+        /// reverse of the JSON member order §6.11.4 would otherwise take.
+        /// </summary>
+        private static readonly string[] s_statedFieldOrder = ["Second", "First"];
+
+        /// <summary>
+        /// The optionality of the same fields: <c>required</c> names Second
+        /// alone, so only First is optional.
+        /// </summary>
+        private static readonly bool[] s_statedFieldOptionality = [false, true];
+
+        /// <summary>
+        /// One Property per document, once for each of the three types.
+        /// </summary>
+        private static readonly int[] s_onePropertyPerDocument = [1, 1, 1];
     }
 }

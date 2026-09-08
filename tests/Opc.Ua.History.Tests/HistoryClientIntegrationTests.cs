@@ -70,6 +70,9 @@ namespace Opc.Ua.History.Tests
         /// </summary>
         private NodeId m_doubleNodeId;
 
+        /// <summary>
+        /// Resolves the reference server's historized double variable using the session namespace table.
+        /// </summary>
         [OneTimeSetUp]
         public void ResolveHistorizedNode()
         {
@@ -78,6 +81,9 @@ namespace Opc.Ua.History.Tests
             m_doubleNodeId = new NodeId("Scalar_Static_Double", ns);
         }
 
+        /// <summary>
+        /// Verifies that raw-history reads return the reference server's seeded values.
+        /// </summary>
         [Test]
         public async Task ReadRawReturnsSeededValuesAsync()
         {
@@ -94,6 +100,9 @@ namespace Opc.Ua.History.Tests
                 "ReferenceServer historizes Scalar_Static_Double with 1001 seed samples; raw read must return at least some.");
         }
 
+        /// <summary>
+        /// Verifies that equal raw-history start and end times return the exact matching value.
+        /// </summary>
         [Test]
         public async Task ReadRawWithEqualTimesReturnsSingleExactValueAsync()
         {
@@ -118,6 +127,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that equal raw-history times with bounds return the next bounding value.
+        /// </summary>
         [TestCase(1, 1)]
         [TestCase(2, 2)]
         public async Task ReadRawWithEqualTimesAndBoundsReturnsNextValueAsync(
@@ -150,6 +162,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a one-sided raw-history request returns five values without a continuation point.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public async Task ReadRawWithOneSpecifiedTimeReturnsFiveValuesWithoutContinuationAsync(bool startOnly)
@@ -182,6 +197,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a one-sided bounded read adds a missing-bound marker after exhausting the archive.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public async Task ReadRawOneSidedBoundsAddsMissingBoundaryAfterArchiveExhaustionAsync(
@@ -214,6 +232,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that reusing a consumed raw-history continuation point returns BadContinuationPointInvalid.
+        /// </summary>
         [Test]
         public async Task ReusingConsumedRawContinuationPointReturnsBadContinuationPointInvalidAsync()
         {
@@ -242,6 +263,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(stale.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that modified-history reads reject bounding values with BadInvalidArgument.
+        /// </summary>
         [Test]
         public async Task ReadModifiedWithReturnBoundsReturnsBadInvalidArgumentAsync()
         {
@@ -262,6 +286,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a missing raw-history start bound is reported as BadBoundNotFound.
+        /// </summary>
         [Test]
         public async Task ReadRawMissingStartBoundReturnsBadBoundNotFoundAsync()
         {
@@ -286,6 +313,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(values[0].SourceTimestamp, Is.EqualTo(startTime));
         }
 
+        /// <summary>
+        /// Verifies that processed average reads return aggregate buckets.
+        /// </summary>
         [Test]
         public async Task ReadProcessedAverageReturnsBucketsAsync()
         {
@@ -306,6 +336,9 @@ namespace Opc.Ua.History.Tests
                 "1-minute Average buckets over the last hour must produce at least one bucket.");
         }
 
+        /// <summary>
+        /// Verifies that historical values can be inserted, replaced, and read back.
+        /// </summary>
         [Test]
         public async Task InsertReplaceRoundTripAsync()
         {
@@ -357,6 +390,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(replacedValue, Is.EqualTo(999.99));
         }
 
+        /// <summary>
+        /// Verifies that an insertion collision rolls back the entire history batch.
+        /// </summary>
         [Test]
         public async Task InsertCollisionRollsBackEntireBatchAsync()
         {
@@ -410,12 +446,18 @@ namespace Opc.Ua.History.Tests
             Assert.That(remainingValue, Is.EqualTo(99.0));
         }
 
+        /// <summary>
+        /// Verifies that the reference historian sample completes its end-to-end workflow.
+        /// </summary>
         [Test]
         public Task ReferenceHistorianSampleRunsEndToEndAsync()
         {
             return HistorianClientSample.RunAsync(Session);
         }
 
+        /// <summary>
+        /// Verifies that modified-history reads return values together with their modification metadata.
+        /// </summary>
         [Test]
         public async Task ReadModifiedReturnsValueAndModificationInfoAsync()
         {
@@ -466,6 +508,9 @@ namespace Opc.Ua.History.Tests
                 Is.GreaterThanOrEqualTo(beforeReplace));
         }
 
+        /// <summary>
+        /// Verifies that server capabilities report historical-access support.
+        /// </summary>
         [Test]
         public async Task GetServerCapabilitiesReportsHistoricalAccessAsync()
         {
@@ -479,6 +524,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(caps.DeleteRaw, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that modified-history reads return historical values.
+        /// </summary>
         [Test]
         public async Task ReadModifiedReturnsValuesAsync()
         {
@@ -510,6 +558,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that at-time history reads return values for the requested timestamps.
+        /// </summary>
         [Test]
         public async Task ReadAtTimeReturnsValuesAtTimestampsAsync()
         {
@@ -540,6 +591,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that writing an annotation makes it available through annotation history reads.
+        /// </summary>
         [Test]
         public async Task ReadAnnotationsRoundTripWithWriteAnnotationAsync()
         {
@@ -577,6 +631,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(annotations[0].UserName, Is.EqualTo(userName));
         }
 
+        /// <summary>
+        /// Verifies that deleting an annotation removes it from subsequent history reads.
+        /// </summary>
         [Test]
         public async Task DeleteAnnotationRemovesAnnotationAsync()
         {
@@ -615,6 +672,9 @@ namespace Opc.Ua.History.Tests
                 "After deletion no annotation should remain at that timestamp.");
         }
 
+        /// <summary>
+        /// Verifies that raw-history deletion removes values in the requested time range.
+        /// </summary>
         [Test]
         public async Task DeleteRawRemovesRangeAsync()
         {
@@ -657,6 +717,9 @@ namespace Opc.Ua.History.Tests
                 "After DeleteRaw the range should contain no values.");
         }
 
+        /// <summary>
+        /// Verifies that at-time history deletion removes values at the requested timestamps.
+        /// </summary>
         [Test]
         public async Task DeleteAtTimeRemovesSpecificTimestampsAsync()
         {
@@ -694,6 +757,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(remaining[0].SourceTimestamp, Is.EqualTo(ts1));
         }
 
+        /// <summary>
+        /// Verifies that the client reads the server's historical data configuration.
+        /// </summary>
         [Test]
         public async Task GetConfigurationReturnsHistoricalDataConfigurationAsync()
         {
@@ -723,6 +789,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(config.AggregateConfiguration.TreatUncertainAsBad, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that breaking out of asynchronous history enumeration releases the continuation point.
+        /// </summary>
         [Test]
         public async Task BreakingOutOfAwaitForeachReleasesContinuationPointAsync()
         {
@@ -750,6 +819,9 @@ namespace Opc.Ua.History.Tests
                 "The second read should succeed and return data after the first read's CP was released.");
         }
 
+        /// <summary>
+        /// Verifies that the average aggregate returns the exact average of inserted values.
+        /// </summary>
         [Test]
         public async Task ReadProcessedAverageOfInsertedValuesReturnsExactAverageAsync()
         {
@@ -785,6 +857,9 @@ namespace Opc.Ua.History.Tests
                 "Average of five 77.0 samples must be 77.0.");
         }
 
+        /// <summary>
+        /// Verifies that minimum and maximum aggregates return the extrema of inserted values.
+        /// </summary>
         [Test]
         public async Task ReadProcessedMinimumAndMaximumOfInsertedValuesAsync()
         {
@@ -826,6 +901,9 @@ namespace Opc.Ua.History.Tests
                 Is.True, "Maximum of the inserted samples must be 50.");
         }
 
+        /// <summary>
+        /// Verifies that the AnnotationCount aggregate counts annotations written through the client.
+        /// </summary>
         [Test]
         public async Task ReadProcessedAnnotationCountCountsWrittenAnnotationsAsync()
         {

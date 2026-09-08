@@ -42,6 +42,9 @@ namespace Opc.Ua.Server.Tests.Historian
     [Parallelizable(ParallelScope.All)]
     public class HistoricalValueKeyTests
     {
+        /// <summary>
+        /// Verifies that a timestamp-only historical key has no uniqueness component.
+        /// </summary>
         [Test]
         public void FromTimestampCreatesKeyWithoutUniquenessKey()
         {
@@ -52,6 +55,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(key.IsStructured, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a structured historical key reports its uniqueness component.
+        /// </summary>
         [Test]
         public void StructuredKeyReportsUniquenessKey()
         {
@@ -62,6 +68,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(key.IsStructured, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that historical keys sort by timestamp and then by uniqueness component.
+        /// </summary>
         [Test]
         public void KeysOrderByTimestampThenUniquenessKey()
         {
@@ -87,6 +96,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(early.CompareTo(sameAsEarly), Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that key comparison treats null and empty uniqueness components as equal.
+        /// </summary>
         [Test]
         public void ComparerTreatsNullAndEmptyUniquenessKeyAsEqual()
         {
@@ -100,6 +112,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(HistoricalValueKeyComparer.Instance.Compare(withEmpty, withNull), Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that the historical key comparer produces the ordering required by sorted storage.
+        /// </summary>
         [Test]
         public void ComparerOrdersEntriesForSortedStorage()
         {
@@ -110,6 +125,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(HistoricalValueKeyComparer.Instance.Compare(second, first), Is.GreaterThan(0));
         }
 
+        /// <summary>
+        /// Verifies that the timestamp-only selector returns an empty uniqueness key for every value.
+        /// </summary>
         [Test]
         public void TimestampSelectorReturnsEmptyKeyForEveryValue()
         {
@@ -133,6 +151,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(BrowseNames.SourceTimestamp));
         }
 
+        /// <summary>
+        /// Verifies that the key-value-pair selector describes the fields used for uniqueness.
+        /// </summary>
         [Test]
         public void KeyValuePairSelectorDescribesUniquenessFields()
         {
@@ -144,6 +165,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(fields[1].Name, Is.EqualTo("Key"));
         }
 
+        /// <summary>
+        /// Verifies that equal key-value-pair keys produce stable historical uniqueness keys.
+        /// </summary>
         [Test]
         public void KeyValuePairSelectorProducesStableKeyPerKey()
         {
@@ -180,6 +204,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(firstKey.IsEmpty, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that the key-value-pair selector rejects unrelated structured types.
+        /// </summary>
         [Test]
         public void KeyValuePairSelectorRejectsForeignStructures()
         {
@@ -197,6 +224,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(key.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the key-value-pair selector accepts a null key.
+        /// </summary>
         [Test]
         public void KeyValuePairSelectorAcceptsNullKey()
         {

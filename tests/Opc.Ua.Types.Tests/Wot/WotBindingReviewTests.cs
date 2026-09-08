@@ -67,16 +67,15 @@ namespace Opc.Ua.Types.Tests.Wot
             "urn:demo:measurement"
         ];
 
-        // ---- uav:eventType (Section 5.2) -----------------------------------
 
         [Test]
-        public void EventAffordanceEmitsEventTypeAnnotationAndIsEvent()
+        public void EventAffordanceEmitsEventTypeAnnotationOnly()
         {
             using WotDocument document = WotNodeSetConverter.FromNodeSet(WotTestData.CreateRichNodeSet());
 
             JsonElement overTemp = document.Events["OverTemperatureEventType"];
             Assert.That(overTemp.GetProperty("@type").GetString(), Is.EqualTo("uav:eventType"));
-            Assert.That(overTemp.GetProperty("uav:isEvent").GetBoolean(), Is.True);
+            Assert.That(overTemp.TryGetProperty("uav:isEvent", out _), Is.False);
         }
 
         [Test]
@@ -107,7 +106,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(types, Does.Contain("uav:eventType"));
             Assert.That(types, Does.Not.Contain("uav:objectType"));
             Assert.That(
-                document.RootElement.GetProperty("uav:isEvent").GetBoolean(), Is.True);
+                document.RootElement.TryGetProperty("uav:isEvent", out _), Is.False);
         }
 
         [Test]
@@ -117,8 +116,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "{" + Context +
                 "\"@type\":[\"tm:ThingModel\",\"uav:eventType\"]," +
                 "\"title\":\"OverTemperatureEventType\"," +
-                "\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;OverTemperatureEventType\"," +
-                "\"uav:isEvent\":true}";
+                "\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;OverTemperatureEventType\"}";
 
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(Encoding.UTF8.GetBytes(json));
 
@@ -130,8 +128,13 @@ namespace Opc.Ua.Types.Tests.Wot
                 "An event-type Thing Model must derive from BaseEventType (i=2041).");
         }
 
+        /// <summary>
+        /// The retired <c>uav:isEvent</c> flag no longer contradicts anything:
+        /// it is unknown residue a permissive consumer carries, and the
+        /// affordance still projects the EventType its <c>@type</c> names.
+        /// </summary>
         [Test]
-        public void ContradictoryEventTypeAndIsEventFalseIsRejected()
+        public void ARetiredIsEventFlagIsInertResidue()
         {
             string json =
                 "{" + Context +
@@ -143,13 +146,13 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
+            Assert.That(result.HasErrors, Is.False);
             Assert.That(
-                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.EventAnnotationConflict),
+                result.Value.Items!.OfType<UAObjectType>().Any(t =>
+                    t.BrowseName!.EndsWith("OverTemp", StringComparison.Ordinal)),
                 Is.True);
-            Assert.That(result.HasErrors, Is.True);
         }
 
-        // ---- Portable identity (Section 5.1.1) -----------------------------
 
         [Test]
         public void ForwardIdentityTermsArePortableExpandedNodeIds()
@@ -380,7 +383,6 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value, Is.Not.Null);
         }
 
-        // ---- HasComponent subtypes (Section 5.3) ---------------------------
 
         [Test]
         public void HasComponentSubtypeEmitsDiscoveryAndReferenceTypeRelation()
@@ -420,7 +422,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             UAObjectType root = nodeSet.Items!.OfType<UAObjectType>().Single();
             var toTarget = root.References!
-                .Where(r => r.Value == "nsu=urn:demo:pump;i=2001").ToArray();
+                .Where(r => r.Value == WotTestData.LocalNodeId(nodeSet, "nsu=urn:demo:pump;i=2001")).ToArray();
             Assert.That(toTarget, Has.Length.EqualTo(1),
                 "The pinned component must not be emitted twice.");
             Assert.That(toTarget[0].ReferenceType, Is.EqualTo("i=49"));
@@ -443,7 +445,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             UAObjectType root = nodeSet.Items!.OfType<UAObjectType>().Single();
             Reference reference = root.References!
-                .Single(r => r.Value == "nsu=urn:demo:pump;i=2001");
+                .Single(r => r.Value == WotTestData.LocalNodeId(nodeSet, "nsu=urn:demo:pump;i=2001"));
             Assert.That(reference.ReferenceType, Is.EqualTo("i=49"));
         }
 
@@ -464,7 +466,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             UAObjectType root = nodeSet.Items!.OfType<UAObjectType>().Single();
             Reference reference = root.References!
-                .Single(r => r.Value == "nsu=urn:demo:pump;i=2001" &&
+                .Single(r => r.Value == WotTestData.LocalNodeId(nodeSet, "nsu=urn:demo:pump;i=2001") &&
                     r.ReferenceType != "HasComponent");
 
             // The relation is recreated with the exact ReferenceType the
@@ -631,7 +633,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             UAObjectType root = nodeSet.Items!.OfType<UAObjectType>().Single();
             Reference reference = root.References!
-                .Single(r => r.Value == "nsu=urn:demo:pump;i=2001");
+                .Single(r => r.Value == WotTestData.LocalNodeId(nodeSet, "nsu=urn:demo:pump;i=2001"));
             Assert.That(reference.ReferenceType, Is.EqualTo("HasComponent"));
             Assert.That(reference.IsForward, Is.True);
         }

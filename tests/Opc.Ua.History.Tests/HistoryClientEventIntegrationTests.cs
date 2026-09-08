@@ -44,6 +44,9 @@ using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.History.Tests
 {
+    /// <summary>
+    /// Verifies event-history updates, reads, and annotation batches through a live client-server connection.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Category("Integration")]
@@ -52,6 +55,9 @@ namespace Opc.Ua.History.Tests
     [NonParallelizable]
     public sealed class HistoryClientEventIntegrationTests
     {
+        /// <summary>
+        /// Starts an event-history server, connects a client, and resolves the notifier and annotation variable.
+        /// </summary>
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
@@ -91,6 +97,10 @@ namespace Opc.Ua.History.Tests
                 (ushort)namespaceIndex);
         }
 
+        /// <summary>
+        /// Closes the history session, disposes the fixtures, stops the server, and removes the fixture's PKI
+        /// directory.
+        /// </summary>
         [OneTimeTearDown]
         public async Task OneTimeTearDownAsync()
         {
@@ -113,6 +123,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that event-history records round-trip through the history client and server.
+        /// </summary>
         [Test]
         public async Task EventHistoryRoundTripsThroughHistoryClientAsync()
         {
@@ -162,6 +175,93 @@ namespace Opc.Ua.History.Tests
             Assert.That(events, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that event updates rooted in ConditionType round-trip through the live history service.
+        /// </summary>
+        [Test]
+        public async Task ConditionTypeRootedEventUpdateRoundTripsAsync()
+        {
+            var client = new HistoryClient(m_session);
+            var updateFilter = new EventFilter();
+            updateFilter.AddSelectClause(
+                ObjectTypeIds.ConditionType,
+                BrowseNames.EventId,
+                Attributes.Value);
+            updateFilter.AddSelectClause(
+                ObjectTypeIds.ConditionType,
+                BrowseNames.EventType,
+                Attributes.Value);
+            updateFilter.AddSelectClause(
+                ObjectTypeIds.ConditionType,
+                BrowseNames.Time,
+                Attributes.Value);
+            updateFilter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.Message,
+                Attributes.Value);
+            DateTime eventTime = DateTime.UtcNow.AddYears(-10).AddSeconds(1426);
+            var eventId = ByteString.From([0x43, 0x89]);
+
+            ArrayOf<StatusCode> insertStatuses = await client.InsertEventsAsync(
+                m_notifierId,
+                updateFilter,
+                [
+                    new HistoryEventFieldList
+                    {
+                        EventFields =
+                        [
+                            new Variant(eventId),
+                            new Variant(ObjectTypeIds.ConditionType),
+                            new Variant((DateTimeUtc)eventTime),
+                            new Variant(new LocalizedText("condition"))
+                        ]
+                    }
+                ]).ConfigureAwait(false);
+
+            Assert.That(insertStatuses, Has.Count.EqualTo(1));
+            Assert.That(StatusCode.IsGood(insertStatuses[0]), Is.True);
+
+            EventFilter readFilter = CreateEventFilter();
+            List<HistoryEventFieldList> events = await ReadEventsAsync(
+                client,
+                readFilter,
+                eventTime).ConfigureAwait(false);
+            AssertEvent(events, eventId, "condition");
+
+            ArrayOf<StatusCode> replaceStatuses = await client.ReplaceEventsAsync(
+                m_notifierId,
+                updateFilter,
+                [
+                    new HistoryEventFieldList
+                    {
+                        EventFields =
+                        [
+                            new Variant(eventId),
+                            new Variant(ObjectTypeIds.ConditionType),
+                            new Variant((DateTimeUtc)eventTime),
+                            new Variant(new LocalizedText("replaced condition"))
+                        ]
+                    }
+                ]).ConfigureAwait(false);
+            Assert.That(replaceStatuses, Has.Count.EqualTo(1));
+            Assert.That(StatusCode.IsGood(replaceStatuses[0]), Is.True);
+
+            events = await ReadEventsAsync(
+                client,
+                readFilter,
+                eventTime).ConfigureAwait(false);
+            AssertEvent(events, eventId, "replaced condition");
+
+            ArrayOf<StatusCode> deleteStatuses = await client.DeleteEventsAsync(
+                m_notifierId,
+                [eventId]).ConfigureAwait(false);
+            Assert.That(deleteStatuses, Has.Count.EqualTo(1));
+            Assert.That(StatusCode.IsGood(deleteStatuses[0]), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that event replacement applies the requested field index range.
+        /// </summary>
         [Test]
         public async Task EventReplaceAppliesIndexRangeAsync()
         {
@@ -280,6 +380,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(deleteStatuses[0], Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// Verifies that annotation batches can be written, read back, and removed over the history service.
+        /// </summary>
         [Test]
         public async Task BatchedAnnotationsRoundTripAndRemoveAsync()
         {
@@ -458,7 +561,7 @@ namespace Opc.Ua.History.Tests
                 CancellationToken cancellationToken = default)
             {
                 var notifier = new BaseObjectState(null);
-                notifier.CreateAsPredefinedNode(SystemContext);
+                notifier.CreateAsPredefinedNode(SystemContext, cancellationToken);
                 notifier.NodeId = new NodeId(NotifierIdentifier, NamespaceIndex);
                 notifier.BrowseName = new QualifiedName("EventHistoryNotifier", NamespaceIndex);
                 notifier.DisplayName = new LocalizedText("EventHistoryNotifier");
@@ -487,7 +590,7 @@ namespace Opc.Ua.History.Tests
                     cancellationToken).ConfigureAwait(false);
 
                 var variable = new BaseDataVariableState(null);
-                variable.CreateAsPredefinedNode(SystemContext);
+                variable.CreateAsPredefinedNode(SystemContext, cancellationToken);
                 variable.NodeId = new NodeId(AnnotationVariableIdentifier, NamespaceIndex);
                 variable.BrowseName = new QualifiedName(
                     "AnnotationHistoryVariable",

@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -72,6 +73,9 @@ namespace Opc.Ua.Redundancy.Server
             Initialize(messageContext);
         }
 
+        /// <summary>
+        /// Creates a protected continuation store whose message context is supplied later.
+        /// </summary>
         internal SharedKeyValueHistoryContinuationStore(
             ISharedKeyValueStore store,
             IRecordProtector protector,
@@ -115,7 +119,7 @@ namespace Opc.Ua.Redundancy.Server
             }
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_logger = logger;
-            m_deleteChannel = Channel.CreateUnbounded<string>(
+            m_deleteChannel = Channel.CreateUnbounded<DeleteRequest>(
                 new UnboundedChannelOptions
                 {
                     SingleReader = true,
@@ -124,6 +128,9 @@ namespace Opc.Ua.Redundancy.Server
             m_deleteTask = Task.Run(() => DrainDeletesAsync(m_disposeCts.Token));
         }
 
+        /// <summary>
+        /// Sets the envelope serialization context, rejecting a different context after initialization.
+        /// </summary>
         internal void Initialize(IServiceMessageContext messageContext)
         {
             if (messageContext == null)
@@ -181,17 +188,45 @@ namespace Opc.Ua.Redundancy.Server
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Protected history continuation payload is invalid or too large.");
             }
-            bool stored = await CompareAndSwapResolvedAsync(
-                KeyFor(envelope.OwnerSessionId, envelope.Id),
-                default,
-                protectedPayload,
-                cancellationToken).ConfigureAwait(false);
-            if (!stored)
+            string key = KeyFor(envelope.OwnerSessionId, envelope.Id);
+            for (int attempt = 0; attempt < kMaxStoreAttempts; attempt++)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadEntryExists,
-                    "The history continuation identifier already exists.");
+                if (await CompareAndSwapResolvedAsync(
+                        key,
+                        default,
+                        protectedPayload,
+                        cancellationToken).ConfigureAwait(false))
+                {
+                    RememberIncarnation(key, protectedPayload);
+                    return;
+                }
+                (bool found, ByteString current) = await m_store.TryGetAsync(
+                    key,
+                    cancellationToken).ConfigureAwait(false);
+                if (!found)
+                {
+                    continue;
+                }
+                if (!IsRecoverableValue(
+                        current,
+                        envelope.OwnerSessionId,
+                        envelope.Id))
+                {
+                    break;
+                }
+                if (await CompareAndSwapResolvedAsync(
+                        key,
+                        current,
+                        protectedPayload,
+                        cancellationToken).ConfigureAwait(false))
+                {
+                    RememberIncarnation(key, protectedPayload);
+                    return;
+                }
             }
+            throw new ServiceResultException(
+                StatusCodes.BadEntryExists,
+                "The history continuation identifier already exists.");
         }
 
         /// <inheritdoc/>
@@ -216,7 +251,17 @@ namespace Opc.Ua.Redundancy.Server
                 payload.IsEmpty ||
                 payload.Length > m_maxPayloadBytes)
             {
-                QueueDelete(key);
+                ForgetIncarnation(key, value);
+                QueueDelete(key, value);
+                return false;
+            }
+            if (TryGetMarkerKind(payload, out MarkerKind markerKind))
+            {
+                ForgetIncarnation(key, value);
+                if (markerKind == MarkerKind.Claim)
+                {
+                    QueueDelete(key, value);
+                }
                 return false;
             }
             HistoryContinuationPointEnvelope? envelope = Decode(payload);
@@ -224,11 +269,12 @@ namespace Opc.Ua.Redundancy.Server
                 envelope.Id != id ||
                 envelope.OwnerSessionId != ownerSessionId)
             {
-                QueueDelete(key);
+                ForgetIncarnation(key, value);
+                QueueDelete(key, value);
                 return false;
             }
-            ByteString claimMarker = m_protector.Protect(
-                ByteString.From(Guid.NewGuid().ToByteArray()));
+            RememberIncarnation(key, value);
+            ByteString claimMarker = CreateMarker(MarkerKind.Claim);
             bool claimed = await CompareAndSwapClaimResolvedAsync(
                     key,
                     value,
@@ -237,19 +283,12 @@ namespace Opc.Ua.Redundancy.Server
                 .ConfigureAwait(false);
             if (claimed)
             {
-                try
-                {
-                    if (!await m_store.DeleteAsync(
-                            key,
-                            cancellationToken).ConfigureAwait(false))
-                    {
-                        QueueDelete(key);
-                    }
-                }
-                catch (Exception)
-                {
-                    QueueDelete(key);
-                }
+                ForgetIncarnation(key, value);
+                QueueDelete(key, claimMarker);
+            }
+            else
+            {
+                ForgetIncarnation(key, value);
             }
             return claimed;
         }
@@ -274,10 +313,10 @@ namespace Opc.Ua.Redundancy.Server
                     m_deleteTask.Exception!);
                 return;
             }
-            if (!m_deleteChannel.Writer.TryWrite(
-                    KeyFor(ownerSessionId, id)))
+            string key = KeyFor(ownerSessionId, id);
+            if (TryTakeRememberedIncarnation(key, out ByteString expectedValue))
             {
-                m_logger?.HistoryContinuationCleanupQueueClosed();
+                QueueDelete(key, expectedValue);
             }
         }
 
@@ -300,7 +339,17 @@ namespace Opc.Ua.Redundancy.Server
                     !m_protector.TryUnprotect(pair.Value, out ByteString payload) ||
                     payload.Length > m_maxPayloadBytes)
                 {
-                    QueueDelete(pair.Key);
+                    ForgetIncarnation(pair.Key, pair.Value);
+                    QueueDelete(pair.Key, pair.Value);
+                    continue;
+                }
+                if (TryGetMarkerKind(payload, out MarkerKind markerKind))
+                {
+                    ForgetIncarnation(pair.Key, pair.Value);
+                    if (markerKind == MarkerKind.Claim)
+                    {
+                        QueueDelete(pair.Key, pair.Value);
+                    }
                     continue;
                 }
                 HistoryContinuationPointEnvelope? envelope = Decode(payload);
@@ -311,6 +360,7 @@ namespace Opc.Ua.Redundancy.Server
                         KeyFor(ownerSessionId, envelope.Id),
                         StringComparison.Ordinal))
                 {
+                    RememberIncarnation(pair.Key, pair.Value);
                     result.Add(envelope);
                     if (result.Count > m_maxEnvelopesPerSession)
                     {
@@ -321,7 +371,8 @@ namespace Opc.Ua.Redundancy.Server
                 }
                 else
                 {
-                    QueueDelete(pair.Key);
+                    ForgetIncarnation(pair.Key, pair.Value);
+                    QueueDelete(pair.Key, pair.Value);
                 }
             }
             return [.. result];
@@ -341,12 +392,19 @@ namespace Opc.Ua.Redundancy.Server
                 return;
             }
             m_deleteChannel.Writer.TryComplete();
-            m_disposeCts.Cancel();
+            Task completedTask = await Task.WhenAny(
+                m_deleteTask,
+                Task.Delay(s_deleteShutdownTimeout)).ConfigureAwait(false);
+            if (completedTask != m_deleteTask)
+            {
+                m_logger?.HistoryContinuationCleanupShutdownTimedOut();
+                m_disposeCts.Cancel();
+            }
             try
             {
                 await m_deleteTask.ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (m_disposeCts.IsCancellationRequested)
             {
             }
             finally
@@ -355,6 +413,9 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
+        /// <summary>
+        /// Builds the shared-store key for a continuation within its owning session's keyspace.
+        /// </summary>
         internal static string KeyFor(NodeId ownerSessionId, Guid id)
         {
             return PrefixFor(ownerSessionId) +
@@ -370,6 +431,9 @@ namespace Opc.Ua.Redundancy.Server
         {
             using var encoder = new BinaryEncoder(GetMessageContext());
             encoder.WriteInt32(null, kFormatVersion);
+            encoder.WriteByteString(
+                null,
+                ByteString.From(Guid.NewGuid().ToByteArray()));
             encoder.WriteDateTime(
                 null,
                 m_timeProvider.GetUtcNow().Add(m_retentionTime).UtcDateTime);
@@ -389,7 +453,17 @@ namespace Opc.Ua.Redundancy.Server
                 using var decoder = new BinaryDecoder(
                     payload.ToArray(),
                     GetMessageContext());
-                if (decoder.ReadInt32(null) != kFormatVersion)
+                int formatVersion = decoder.ReadInt32(null);
+                if (formatVersion == kFormatVersion)
+                {
+                    ByteString incarnation = decoder.ReadByteString(null);
+                    if (incarnation.Length != 16 ||
+                        new Guid(incarnation.ToArray()) == Guid.Empty)
+                    {
+                        return null;
+                    }
+                }
+                else if (formatVersion != kLegacyFormatVersion)
                 {
                     return null;
                 }
@@ -440,7 +514,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private async Task DrainDeletesAsync(CancellationToken cancellationToken)
         {
-            await foreach (string key in m_deleteChannel.Reader
+            await foreach (DeleteRequest queuedRequest in m_deleteChannel.Reader
                 .ReadAllAsync(cancellationToken)
                 .ConfigureAwait(false))
             {
@@ -450,36 +524,130 @@ namespace Opc.Ua.Redundancy.Server
                     !cancellationToken.IsCancellationRequested;
                     attempt++)
                 {
-                    try
+                    if (await TryDeleteExpectedAsync(
+                            queuedRequest,
+                            cancellationToken).ConfigureAwait(false))
                     {
-                        if (await m_store.DeleteAsync(
-                                key,
-                                cancellationToken).ConfigureAwait(false))
-                        {
-                            removed = true;
-                            break;
-                        }
-                        (bool found, _) = await m_store.TryGetAsync(
-                            key,
+                        removed = true;
+                        break;
+                    }
+                    if (attempt + 1 < kMaxDeleteAttempts)
+                    {
+                        await Task.Delay(
+                            TimeSpan.FromSeconds(1),
                             cancellationToken).ConfigureAwait(false);
-                        if (!found)
-                        {
-                            removed = true;
-                            break;
-                        }
                     }
-                    catch (Exception exception) when (
-                        IsRetryableDeleteException(exception))
-                    {
-                    }
-                    await Task.Delay(
-                        TimeSpan.FromSeconds(1),
-                        cancellationToken).ConfigureAwait(false);
                 }
                 if (!removed && !cancellationToken.IsCancellationRequested)
                 {
-                    m_logger?.HistoryContinuationDeleteRetriesExhausted(key);
+                    m_logger?.HistoryContinuationDeleteRetriesExhausted(
+                        queuedRequest.Key);
                 }
+            }
+        }
+
+        private async ValueTask<bool> TryDeleteExpectedAsync(
+            DeleteRequest request,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                _ = await m_store.CompareAndSwapAsync(
+                    request.Key,
+                    request.ExpectedValue,
+                    default,
+                    cancellationToken).ConfigureAwait(false);
+                ForgetIncarnation(request.Key, request.ExpectedValue);
+                return true;
+            }
+            catch (Exception compareException) when (
+                IsDeferredCleanupException(compareException))
+            {
+                try
+                {
+                    (bool found, ByteString current) =
+                        await m_store.TryGetAsync(
+                            request.Key,
+                            cancellationToken).ConfigureAwait(false);
+                    if (!found || current != request.ExpectedValue)
+                    {
+                        ForgetIncarnation(
+                            request.Key,
+                            request.ExpectedValue);
+                        return true;
+                    }
+                }
+                catch (Exception resolutionException) when (
+                    IsDeferredCleanupException(resolutionException))
+                {
+                    return false;
+                }
+                return false;
+            }
+        }
+
+        private bool IsRecoverableValue(
+            ByteString value,
+            NodeId ownerSessionId,
+            Guid id)
+        {
+            if (value.IsEmpty)
+            {
+                return true;
+            }
+            if (!m_protector.TryUnprotect(value, out ByteString payload))
+            {
+                return false;
+            }
+            if (TryGetMarkerKind(payload, out _))
+            {
+                return true;
+            }
+            if (payload.IsEmpty || payload.Length > m_maxPayloadBytes)
+            {
+                return true;
+            }
+            HistoryContinuationPointEnvelope? envelope = Decode(payload);
+            return envelope == null ||
+                envelope.Id != id ||
+                envelope.OwnerSessionId != ownerSessionId;
+        }
+
+        private void RememberIncarnation(string key, ByteString value)
+        {
+            lock (m_incarnationLock)
+            {
+                m_knownIncarnations[key] = value;
+            }
+        }
+
+        private void ForgetIncarnation(string key, ByteString expectedValue)
+        {
+            lock (m_incarnationLock)
+            {
+                if (m_knownIncarnations.TryGetValue(
+                        key,
+                        out ByteString current) &&
+                    current == expectedValue)
+                {
+                    m_knownIncarnations.Remove(key);
+                }
+            }
+        }
+
+        private bool TryTakeRememberedIncarnation(
+            string key,
+            out ByteString value)
+        {
+            lock (m_incarnationLock)
+            {
+                if (m_knownIncarnations.TryGetValue(key, out value))
+                {
+                    m_knownIncarnations.Remove(key);
+                    return true;
+                }
+                value = default;
+                return false;
             }
         }
 
@@ -512,10 +680,12 @@ namespace Opc.Ua.Redundancy.Server
                 }
                 catch (Exception resolutionException)
                 {
+                    QueueDelete(key, value);
                     throw CreateIndeterminateCasException(
                         compareException,
                         resolutionException);
                 }
+                QueueDelete(key, value);
                 throw;
             }
         }
@@ -536,13 +706,18 @@ namespace Opc.Ua.Redundancy.Server
             }
             catch (Exception compareException)
             {
+                bool unchanged;
                 try
                 {
                     (bool found, ByteString current) =
                         await m_store.TryGetAsync(
                             key,
                             CancellationToken.None).ConfigureAwait(false);
-                    return found && current == claimMarker;
+                    if (found && current == claimMarker)
+                    {
+                        return true;
+                    }
+                    unchanged = found && current == expected;
                 }
                 catch (Exception resolutionException)
                 {
@@ -550,12 +725,51 @@ namespace Opc.Ua.Redundancy.Server
                         compareException,
                         resolutionException);
                 }
+                if (unchanged)
+                {
+                    ExceptionDispatchInfo.Capture(compareException).Throw();
+                }
+                return false;
             }
         }
 
-        private void QueueDelete(string key)
+        private ByteString CreateMarker(MarkerKind markerKind)
         {
-            if (!m_deleteChannel.Writer.TryWrite(key))
+            byte[] marker = new byte[kMarkerLength];
+            marker[0] = (byte)'H';
+            marker[1] = (byte)'C';
+            marker[2] = (byte)'P';
+            marker[3] = kMarkerVersion;
+            marker[4] = (byte)markerKind;
+            Guid.NewGuid().ToByteArray().CopyTo(marker, kMarkerHeaderLength);
+            return m_protector.Protect(ByteString.From(marker));
+        }
+
+        private static bool TryGetMarkerKind(
+            ByteString payload,
+            out MarkerKind markerKind)
+        {
+            markerKind = default;
+            if (payload.Length != kMarkerLength ||
+                payload[0] != (byte)'H' ||
+                payload[1] != (byte)'C' ||
+                payload[2] != (byte)'P' ||
+                payload[3] != kMarkerVersion)
+            {
+                return false;
+            }
+            markerKind = (MarkerKind)payload[4];
+            return markerKind is MarkerKind.Claim or MarkerKind.Deleted;
+        }
+
+        private void QueueDelete(string key, ByteString expectedValue)
+        {
+            QueueDelete(new DeleteRequest(key, expectedValue));
+        }
+
+        private void QueueDelete(DeleteRequest request)
+        {
+            if (!m_deleteChannel.Writer.TryWrite(request))
             {
                 m_logger?.HistoryContinuationCleanupQueueClosed();
             }
@@ -571,14 +785,15 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
-        private static bool IsRetryableDeleteException(
+        private static bool IsDeferredCleanupException(
             Exception exception)
         {
             return exception is
                 ServiceResultException or
                 IOException or
                 TimeoutException or
-                InvalidOperationException;
+                InvalidOperationException or
+                NotSupportedException;
         }
 
         private static ServiceResultException CreateIndeterminateCasException(
@@ -594,10 +809,21 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         private const string kPrefix = "history-continuation/v1/";
-        private const int kFormatVersion = 1;
+        private const int kLegacyFormatVersion = 1;
+        private const int kFormatVersion = 2;
+        private const int kMaxStoreAttempts = 5;
         private const int kMaxDeleteAttempts = 5;
+        private const byte kMarkerVersion = 1;
+        private const int kMarkerHeaderLength = 5;
+        private const int kMarkerLength = kMarkerHeaderLength + 16;
+
+        private static readonly TimeSpan s_deleteShutdownTimeout =
+            TimeSpan.FromSeconds(1);
+
         private readonly ISharedKeyValueStore m_store;
         private readonly Lock m_contextLock = new();
+        private readonly Lock m_incarnationLock = new();
+        private readonly Dictionary<string, ByteString> m_knownIncarnations = [];
         private IServiceMessageContext? m_messageContext;
         private readonly IRecordProtector m_protector;
         private readonly int m_maxPayloadBytes;
@@ -605,14 +831,39 @@ namespace Opc.Ua.Redundancy.Server
         private readonly TimeSpan m_retentionTime;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger<SharedKeyValueHistoryContinuationStore>? m_logger;
-        private readonly Channel<string> m_deleteChannel;
+        private readonly Channel<DeleteRequest> m_deleteChannel;
         private readonly CancellationTokenSource m_disposeCts = new();
         private readonly Task m_deleteTask;
         private int m_disposed;
+
+        private readonly struct DeleteRequest
+        {
+            public DeleteRequest(string key, ByteString expectedValue)
+            {
+                Key = key;
+                ExpectedValue = expectedValue;
+            }
+
+            public string Key { get; }
+
+            public ByteString ExpectedValue { get; }
+        }
+
+        private enum MarkerKind : byte
+        {
+            Claim = 1,
+            Deleted = 2
+        }
     }
 
+    /// <summary>
+    /// Defines log messages for shared history continuation cleanup failures.
+    /// </summary>
     internal static partial class SharedKeyValueHistoryContinuationStoreLog
     {
+        /// <summary>
+        /// Logs an exception that terminated the continuation cleanup worker.
+        /// </summary>
         [LoggerMessage(
             EventId = RedundancyServerEventIds.SharedHistoryContinuationStore + 0,
             Level = LogLevel.Error,
@@ -621,6 +872,9 @@ namespace Opc.Ua.Redundancy.Server
             this ILogger logger,
             Exception exception);
 
+        /// <summary>
+        /// Logs skipped cleanup because the continuation deletion queue is closed.
+        /// </summary>
         [LoggerMessage(
             EventId = RedundancyServerEventIds.SharedHistoryContinuationStore + 1,
             Level = LogLevel.Warning,
@@ -628,6 +882,9 @@ namespace Opc.Ua.Redundancy.Server
         public static partial void HistoryContinuationCleanupQueueClosed(
             this ILogger logger);
 
+        /// <summary>
+        /// Logs exhaustion of the retry budget for deleting a shared continuation.
+        /// </summary>
         [LoggerMessage(
             EventId = RedundancyServerEventIds.SharedHistoryContinuationStore + 2,
             Level = LogLevel.Warning,
@@ -635,5 +892,15 @@ namespace Opc.Ua.Redundancy.Server
         public static partial void HistoryContinuationDeleteRetriesExhausted(
             this ILogger logger,
             string key);
+
+        /// <summary>
+        /// Logs cancellation of cleanup after the shutdown drain deadline was exceeded.
+        /// </summary>
+        [LoggerMessage(
+            EventId = RedundancyServerEventIds.SharedHistoryContinuationStore + 3,
+            Level = LogLevel.Warning,
+            Message = "Cancelling shared history continuation cleanup after the shutdown drain budget was exceeded.")]
+        public static partial void HistoryContinuationCleanupShutdownTimedOut(
+            this ILogger logger);
     }
 }

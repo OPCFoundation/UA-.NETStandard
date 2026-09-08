@@ -61,6 +61,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── InsertBatchAsync – null values entry ────────────────────────────
 
+        /// <summary>
+        /// Verifies that a bulk insertion entry with null values returns an empty status collection.
+        /// </summary>
         [Test]
         public async Task InsertBatchAsyncWithNullValuesEntryReturnsEmptyStatusListAsync()
         {
@@ -85,6 +88,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── DeleteRawAsync – no archive ────────────────────────────────────
 
+        /// <summary>
+        /// Verifies that raw deletion on an unregistered node returns GoodNoData.
+        /// </summary>
         [Test]
         public async Task DeleteRawAsyncReturnsGoodNoDataWhenNodeNotRegisteredAsync()
         {
@@ -104,6 +110,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── DeleteRawAsync – isDeleteModified=true ──────────────────────────
 
+        /// <summary>
+        /// Verifies that modified-history deletion removes entries from the modification log.
+        /// </summary>
         [Test]
         public async Task DeleteRawAsyncWithIsDeleteModifiedTrueRemovesFromModifiedLogAsync()
         {
@@ -131,6 +140,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(outcome.OldValues[0].SourceTimestamp, Is.EqualTo((DateTimeUtc)t1));
         }
 
+        /// <summary>
+        /// Verifies that deleting from an empty modification log returns GoodNoData.
+        /// </summary>
         [Test]
         public async Task DeleteRawAsyncWithIsDeleteModifiedTrueReturnsGoodNoDataWhenModifiedLogIsEmptyAsync()
         {
@@ -151,6 +163,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── DeleteRawAsync – start > end swap ──────────────────────────────
 
+        /// <summary>
+        /// Verifies that raw deletion normalizes reversed time bounds before removing values.
+        /// </summary>
         [Test]
         public async Task DeleteRawAsyncWithStartGreaterThanEndSwapsAndDeletesAsync()
         {
@@ -174,6 +189,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── DeleteAtTimeAsync – no archive ─────────────────────────────────
 
+        /// <summary>
+        /// Verifies that at-time deletion on an unregistered node returns BadNoEntryExists for every timestamp.
+        /// </summary>
         [Test]
         public async Task DeleteAtTimeAsyncReturnsAllBadNoEntryExistsWhenNodeNotRegisteredAsync()
         {
@@ -193,6 +211,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── DeleteAnnotationsAsync – no archive ─────────────────────────────
 
+        /// <summary>
+        /// Verifies that annotation deletion on an unregistered node returns BadNoEntryExists for every entry.
+        /// </summary>
         [Test]
         public async Task DeleteAnnotationsAsyncReturnsAllBadNoEntryExistsWhenNodeNotRegisteredAsync()
         {
@@ -211,6 +232,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── Annotation paths ────────────────────────────────────────────────
 
+        /// <summary>
+        /// Verifies that inserting a duplicate annotation key returns BadEntryExists.
+        /// </summary>
         [Test]
         public async Task InsertAnnotationsAsyncDuplicateKeyReturnsBadEntryExistsAsync()
         {
@@ -230,6 +254,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.BadEntryExists));
         }
 
+        /// <summary>
+        /// Verifies that replacing a missing annotation returns BadNoEntryExists.
+        /// </summary>
         [Test]
         public async Task ReplaceAnnotationsAsyncReturnsBadNoEntryExistsForNonExistingEntryAsync()
         {
@@ -250,6 +277,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.BadNoEntryExists));
         }
 
+        /// <summary>
+        /// Verifies that annotation replacement updates an existing entry.
+        /// </summary>
         [Test]
         public async Task ReplaceAnnotationsAsyncReplacesExistingEntryAsync()
         {
@@ -271,6 +301,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(outcome.OldValues[0].Message, Is.EqualTo("original"));
         }
 
+        /// <summary>
+        /// Verifies that annotation update inserts missing entries and replaces existing entries.
+        /// </summary>
         [Test]
         public async Task UpdateAnnotationsAsyncInsertsOrReplacesAsync()
         {
@@ -296,6 +329,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── Backward raw read (exercises lo/hi swap and ReturnBounds) ────────
 
+        /// <summary>
+        /// Verifies that backward raw-history reads include requested bounding values.
+        /// </summary>
         [Test]
         public async Task ReadRawBackwardWithReturnBoundsIncludesBoundValuesAsync()
         {

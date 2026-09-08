@@ -45,7 +45,8 @@ namespace Opc.Ua.WotCon.Server.Registry
         public int MaxDocumentBytes { get; set; } = 4 * 1024 * 1024;
 
         /// <summary>
-        /// Gets or sets the maximum number of retained versions per resource.
+        /// Gets or sets the maximum number of retained committed Versions per Resource.
+        /// One additional contentless pending Version may exist while an upload is open.
         /// </summary>
         public int MaxVersionsPerResource { get; set; } = 32;
 

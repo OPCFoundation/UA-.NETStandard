@@ -52,6 +52,9 @@ namespace Opc.Ua.Server.Tests
     {
         private ServiceMessageContext m_context;
 
+        /// <summary>
+        /// Creates the serialization message context and registers the two fixture namespaces.
+        /// </summary>
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -63,6 +66,9 @@ namespace Opc.Ua.Server.Tests
                 "urn:test:namespace2");
         }
 
+        /// <summary>
+        /// Verifies that an empty durable subscription preserves its settings and empty item and message collections.
+        /// </summary>
         [Test]
         public void RoundTripEmptySubscription()
         {
@@ -77,6 +83,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.SentMessages, Has.Count.EqualTo(0));
         }
 
+        /// <summary>
+        /// Verifies that durable subscription serialization preserves its monitored items and their identifiers.
+        /// </summary>
         [Test]
         public void RoundTripSubscriptionWithMonitoredItems()
         {
@@ -98,6 +107,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(items[0].SubscriptionId, Is.EqualTo(100u));
         }
 
+        /// <summary>
+        /// Verifies that durable subscription serialization preserves monitored-item properties.
+        /// </summary>
         [Test]
         public void RoundTripMonitoredItemProperties()
         {
@@ -112,13 +124,6 @@ namespace Opc.Ua.Server.Tests
             mi.IsDurable = true;
             mi.LastValue = new DataValue(
                 new Variant(42), StatusCodes.Good, DateTime.UtcNow);
-            mi.RequiredValuePending = true;
-            mi.RequiredValue = new DataValue(
-                Variant.Null,
-                StatusCodes.BadCommunicationError,
-                DateTime.UtcNow);
-            mi.RequiredError =
-                new ServiceResult(StatusCodes.BadCommunicationError);
             original.MonitoredItems =
                 [mi];
 
@@ -140,15 +145,65 @@ namespace Opc.Ua.Server.Tests
             Assert.That(restored.LastValue.IsNull, Is.False);
             Assert.That((int)restored.LastValue.WrappedValue,
                 Is.EqualTo(42));
-            Assert.That(restored.RequiredValuePending, Is.True);
-            Assert.That(
-                restored.RequiredValue.StatusCode.Code,
-                Is.EqualTo(StatusCodes.BadCommunicationError));
-            Assert.That(
-                restored.RequiredError.StatusCode,
-                Is.EqualTo(StatusCodes.BadCommunicationError));
+            Assert.That(restored.LastValue, Is.EqualTo(mi.LastValue));
         }
 
+        /// <summary>
+        /// Verifies that the retired interim notification-state format is rejected before decoding a subscription.
+        /// </summary>
+        [Test]
+        public void DecodeRejectsInterimVersionTwoSubscriptions()
+        {
+            StoredMonitoredItem first = CreateMonitoredItem(id: 7, subscriptionId: 1);
+            first.LastValue = new DataValue(Variant.From(42), StatusCodes.Good);
+            StoredMonitoredItem second = CreateMonitoredItem(id: 8, subscriptionId: 2);
+            second.LastValue = new DataValue(Variant.From(43), StatusCodes.Good);
+            using var encoder = new BinaryEncoder(m_context);
+            foreach (StoredMonitoredItem item in new[] { first, second })
+            {
+                StoredSubscription subscription = CreateMinimalSubscription(item.SubscriptionId);
+                subscription.MonitoredItems = [item];
+                SubscriptionStore.EncodeSubscription(encoder, subscription);
+                encoder.WriteBoolean(null, true);
+                encoder.WriteDataValue(null, new DataValue(Variant.Null, StatusCodes.BadCommunicationError));
+                encoder.WriteStatusCode(null, StatusCodes.BadCommunicationError);
+            }
+            byte[] bytes = encoder.CloseAndReturnBuffer();
+            using var decoder = new BinaryDecoder(bytes, m_context);
+
+            Assert.That(
+                () => SubscriptionStore.DecodeSubscription(decoder, version: 2),
+                Throws.TypeOf<InvalidDataException>()
+                    .With.Message.Contains("Unsupported durable subscription store version 2"));
+            Assert.That(decoder.Position, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies that new subscription records contain raw monitored-item state rather than transient notifications.
+        /// </summary>
+        [Test]
+        public void NewSubscriptionRecordContainsOnlyRawMonitoredItemState()
+        {
+            StoredSubscription subscription = CreateMinimalSubscription(id: 1);
+            StoredMonitoredItem item = CreateMonitoredItem(id: 7, subscriptionId: 1);
+            item.LastValue = new DataValue(Variant.From(42), StatusCodes.Good);
+            subscription.MonitoredItems = [item];
+            using var encoder = new BinaryEncoder(m_context);
+            SubscriptionStore.EncodeSubscription(encoder, subscription);
+            byte[] bytes = encoder.CloseAndReturnBuffer();
+            using var decoder = new BinaryDecoder(bytes, m_context);
+
+            IStoredMonitoredItem restored = SubscriptionStore.DecodeSubscription(decoder, version: 1)
+                .MonitoredItems.Single();
+
+            Assert.That(restored.Id, Is.EqualTo(item.Id));
+            Assert.That(restored.LastValue, Is.EqualTo(item.LastValue));
+            Assert.That(decoder.Position, Is.EqualTo(bytes.Length));
+        }
+
+        /// <summary>
+        /// Verifies that durable subscription serialization preserves the user identity token.
+        /// </summary>
         [Test]
         public void RoundTripSubscriptionWithUserIdentityToken()
         {
@@ -169,6 +224,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(token.PolicyId, Is.EqualTo("username_policy"));
         }
 
+        /// <summary>
+        /// Verifies that multiple durable subscriptions round-trip independently.
+        /// </summary>
         [Test]
         public void RoundTripMultipleSubscriptions()
         {
@@ -202,6 +260,9 @@ namespace Opc.Ua.Server.Tests
                 Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that a storable data-change queue round-trips through serialization.
+        /// </summary>
         [Test]
         public void RoundTripStorableDataChangeQueue()
         {
@@ -222,6 +283,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.DequeueBatch, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that a storable data-change queue preserves its batches during serialization.
+        /// </summary>
         [Test]
         public void RoundTripStorableDataChangeQueueWithBatches()
         {
@@ -257,6 +321,9 @@ namespace Opc.Ua.Server.Tests
                 Has.Count.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that a storable event queue round-trips through serialization.
+        /// </summary>
         [Test]
         public void RoundTripStorableEventQueue()
         {
@@ -420,6 +487,9 @@ namespace Opc.Ua.Server.Tests
                 .DecodeEventQueue(decoder);
         }
 
+        /// <summary>
+        /// Verifies that a data-change batch round-trips through the queue persistor.
+        /// </summary>
         [Test]
         public void RoundTripDataChangeBatchViaPersistor()
         {
@@ -459,6 +529,9 @@ namespace Opc.Ua.Server.Tests
             persistor.DeleteBatches([]);
         }
 
+        /// <summary>
+        /// Verifies that an event batch round-trips through the queue persistor.
+        /// </summary>
         [Test]
         public void RoundTripEventBatchViaPersistor()
         {
@@ -489,6 +562,9 @@ namespace Opc.Ua.Server.Tests
             persistor.DeleteBatches([]);
         }
 
+        /// <summary>
+        /// Verifies that deleting a persisted queue batch removes its backing file.
+        /// </summary>
         [Test]
         public void PersistorDeleteBatchRemovesFile()
         {

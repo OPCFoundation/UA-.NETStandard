@@ -1648,6 +1648,10 @@ namespace Opc.Ua.Server.Tests
                 logger);
         }
 
+        /// <summary>
+        /// Verifies that an engineering-unit change emits a semantic-change event and a data notification with
+        /// SemanticsChanged.
+        /// </summary>
         [Test]
         public async Task SemanticChangeNotificationTestAsync()
         {

@@ -208,7 +208,11 @@ namespace Opc.Ua.Client.Historian
             {
                 throw new ArgumentNullException(nameof(events));
             }
-            ValidateEventUpdate(filter, events, performUpdate);
+            await ValidateEventUpdateAsync(
+                filter,
+                events,
+                performUpdate,
+                cancellationToken).ConfigureAwait(false);
             for (int i = 0; i < events.Count; i++)
             {
                 if (events[i] == null)
@@ -234,10 +238,11 @@ namespace Opc.Ua.Client.Historian
             return GetOperationResults(result, events.Count);
         }
 
-        private static void ValidateEventUpdate(
+        private async ValueTask ValidateEventUpdateAsync(
             EventFilter filter,
             ArrayOf<HistoryEventFieldList> events,
-            PerformUpdateType performUpdate)
+            PerformUpdateType performUpdate,
+            CancellationToken cancellationToken)
         {
             if (filter.SelectClauses.Count == 0 ||
                 filter.WhereClause.Elements.Count != 0)
@@ -267,18 +272,27 @@ namespace Opc.Ua.Client.Historian
                         nameof(filter));
                 }
             }
-            int eventIdIndex = FindStandardEventField(
+            var eventTypeCache = new Dictionary<NodeId, bool>();
+            int eventIdIndex = await FindStandardEventFieldAsync(
                 filter,
-                BrowseNames.EventId);
-            int eventTypeIndex = FindStandardEventField(
+                BrowseNames.EventId,
+                eventTypeCache,
+                cancellationToken).ConfigureAwait(false);
+            int eventTypeIndex = await FindStandardEventFieldAsync(
                 filter,
-                BrowseNames.EventType);
-            int timeIndex = FindStandardEventField(
+                BrowseNames.EventType,
+                eventTypeCache,
+                cancellationToken).ConfigureAwait(false);
+            int timeIndex = await FindStandardEventFieldAsync(
                 filter,
-                BrowseNames.Time);
-            int sourceNodeIndex = FindStandardEventField(
+                BrowseNames.Time,
+                eventTypeCache,
+                cancellationToken).ConfigureAwait(false);
+            int sourceNodeIndex = await FindStandardEventFieldAsync(
                 filter,
-                BrowseNames.SourceNode);
+                BrowseNames.SourceNode,
+                eventTypeCache,
+                cancellationToken).ConfigureAwait(false);
             if (eventIdIndex == kAmbiguousEventField ||
                 eventTypeIndex == kAmbiguousEventField ||
                 timeIndex == kAmbiguousEventField ||
@@ -374,17 +388,17 @@ namespace Opc.Ua.Client.Historian
             }
         }
 
-        private static int FindStandardEventField(
+        private async ValueTask<int> FindStandardEventFieldAsync(
             EventFilter filter,
-            string browseName)
+            string browseName,
+            Dictionary<NodeId, bool> eventTypeCache,
+            CancellationToken cancellationToken)
         {
             int found = -1;
             for (int i = 0; i < filter.SelectClauses.Count; i++)
             {
                 SimpleAttributeOperand clause = filter.SelectClauses[i];
-                if (clause.TypeDefinitionId ==
-                        ObjectTypeIds.BaseEventType &&
-                    clause.AttributeId == Attributes.Value &&
+                if (clause.AttributeId == Attributes.Value &&
                     clause.BrowsePath.Count == 1 &&
                     clause.BrowsePath[0].NamespaceIndex == 0 &&
                     string.Equals(
@@ -392,6 +406,28 @@ namespace Opc.Ua.Client.Historian
                         browseName,
                         StringComparison.Ordinal))
                 {
+                    NodeId typeDefinitionId = clause.TypeDefinitionId;
+                    if (typeDefinitionId.IsNull)
+                    {
+                        continue;
+                    }
+                    bool isEventType =
+                        typeDefinitionId == ObjectTypeIds.BaseEventType;
+                    if (!isEventType &&
+                        !eventTypeCache.TryGetValue(
+                            typeDefinitionId,
+                            out isEventType))
+                    {
+                        isEventType = await Session.NodeCache.IsTypeOfAsync(
+                            typeDefinitionId,
+                            ObjectTypeIds.BaseEventType,
+                            cancellationToken).ConfigureAwait(false);
+                        eventTypeCache.Add(typeDefinitionId, isEventType);
+                    }
+                    if (!isEventType)
+                    {
+                        continue;
+                    }
                     if (found >= 0)
                     {
                         return kAmbiguousEventField;

@@ -66,6 +66,9 @@ namespace Opc.Ua.Server.Tests.Historian
             BatchWindow = TimeSpan.FromMilliseconds(5)
         };
 
+        /// <summary>
+        /// Verifies that a value-change notification enqueues a historian sample.
+        /// </summary>
         [Test]
         public async Task StateChangedWithValueMaskEnqueuesSampleAsync()
         {
@@ -79,6 +82,9 @@ namespace Opc.Ua.Server.Tests.Historian
             await WaitForArchiveCountAsync(fixture.Provider, v.NodeId, 1).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that a state change without the Value mask is not archived.
+        /// </summary>
         [Test]
         public async Task StateChangedWithoutValueMaskIsIgnoredAsync()
         {
@@ -95,6 +101,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(await CountAsync(fixture.Provider, v.NodeId).ConfigureAwait(false), Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that batched capture archives all rapid value updates.
+        /// </summary>
         [Test]
         public async Task MultipleQuickUpdatesAreBatchedAsync()
         {
@@ -117,6 +126,9 @@ namespace Opc.Ua.Server.Tests.Historian
             await WaitForArchiveCountAsync(fixture.Provider, v.NodeId, 5).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that a bulk-capable provider receives bulk insertions instead of per-node insertions.
+        /// </summary>
         [Test]
         public async Task BulkProviderReceivesSingleCallPerFlushAsync()
         {
@@ -143,6 +155,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "Bulk-capable provider should never see per-node InsertAsync from the capture pipeline.");
         }
 
+        /// <summary>
+        /// Verifies that capture falls back to per-node insertion when the provider does not support bulk insertion.
+        /// </summary>
         [Test]
         public async Task NonBulkProviderFallsBackToPerNodeInsertAsync()
         {
@@ -161,6 +176,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "Non-bulk provider must receive at least one InsertAsync call from the capture pipeline.");
         }
 
+        /// <summary>
+        /// Verifies that disabling automatic capture leaves value changes unarchived.
+        /// </summary>
         [Test]
         public async Task AutoCaptureOptOutDoesNotInstallHandlerAsync()
         {
@@ -176,6 +194,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(await CountAsync(fixture.Provider, v.NodeId).ConfigureAwait(false), Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that bounded capture retains samples under overload with DropOldest enabled.
+        /// </summary>
         [Test]
         public async Task BoundedQueueDropsOldestUnderOverloadAsync()
         {
@@ -209,6 +230,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "At least some samples should survive even under heavy backpressure.");
         }
 
+        /// <summary>
+        /// Verifies that asynchronous disposal archives all pending captured samples.
+        /// </summary>
         [Test]
         public async Task DisposeAsyncFlushesPendingSamplesAsync()
         {
@@ -234,6 +258,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "All pending samples should be flushed during DisposeAsync.");
         }
 
+        /// <summary>
+        /// Verifies that a provider failure surfaces on disposal without escaping the live value-change callback.
+        /// </summary>
         [Test]
         public async Task ProviderExceptionFaultsConsumerAndSurfacesOnDisposeAsync()
         {
@@ -264,6 +291,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(disposeEx.InnerException!.Message, Is.EqualTo("forced"));
         }
 
+        /// <summary>
+        /// Verifies that a shared capture sink archives updates for multiple variables.
+        /// </summary>
         [Test]
         public async Task MultipleVariablesShareSinkAsync()
         {
@@ -280,6 +310,9 @@ namespace Opc.Ua.Server.Tests.Historian
             await WaitForArchiveCountAsync(fixture.Provider, v2.NodeId, 1).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that historizing a variable enables automatic capture when no explicit capture option is supplied.
+        /// </summary>
         [Test]
         public async Task DefaultIsOptInAsync()
         {

@@ -118,7 +118,7 @@ namespace Opc.Ua.SourceGeneration
 
             var resources = new List<Resource>(2)
             {
-                EmitNodeManager(targetNamespace, targetClass, typeStem, nsUriSymbol, fileStem)
+                EmitNodeManager(nsPrefix, targetNamespace, targetClass, typeStem, nsUriSymbol, fileStem)
             };
             if (EmitFactory)
             {
@@ -128,6 +128,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         private TextFileResource EmitNodeManager(
+            string modelNamespace,
             string targetNamespace,
             string targetClass,
             string typeStem,
@@ -142,7 +143,11 @@ namespace Opc.Ua.SourceGeneration
             using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, NodeManagerTemplates.File);
             template.AddReplacement(Tokens.NamespacePrefix, targetNamespace);
+            template.AddReplacement(Tokens.Prefix, modelNamespace);
             template.AddReplacement(Tokens.Namespace, typeStem);
+            template.AddReplacement(
+                Tokens.NodeSetImportFactoryProviderClassName,
+                typeStem + "NodeSetImportFactoryProvider");
             template.AddReplacement(Tokens.NodeManagerClassName, targetClass);
             template.AddReplacement(Tokens.NamespaceUri, nsUriSymbol);
             template.AddReplacement(

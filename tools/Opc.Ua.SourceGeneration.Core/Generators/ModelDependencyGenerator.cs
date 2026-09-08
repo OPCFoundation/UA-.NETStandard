@@ -284,9 +284,35 @@ namespace Opc.Ua.SourceGeneration
                             };
                             if (child is VariableDesign variable)
                             {
-                                entryChild.DataTypeName = variable.DataType?.Name ?? string.Empty;
-                                entryChild.DataTypeNamespace = variable.DataType?.Namespace ?? string.Empty;
-                                entryChild.ValueRank = (int)variable.ValueRank;
+                                var effectiveVariable =
+                                    (VariableDesign)variable.GetMergedInstance();
+                                entryChild.TypeDefinitionName =
+                                    effectiveVariable.TypeDefinition?.Name ?? string.Empty;
+                                entryChild.TypeDefinitionNamespace =
+                                    effectiveVariable.TypeDefinition?.Namespace ?? string.Empty;
+                                entryChild.DataTypeName =
+                                    effectiveVariable.DataType?.Name ?? string.Empty;
+                                entryChild.DataTypeNamespace =
+                                    effectiveVariable.DataType?.Namespace ?? string.Empty;
+                                entryChild.ValueRank = (int)effectiveVariable.ValueRank;
+                                entryChild.AccessLevel =
+                                    (byte)effectiveVariable.AccessLevel;
+                                entryChild.AccessLevelSpecified =
+                                    effectiveVariable.AccessLevelSpecified;
+                                entryChild.RawAccessLevel =
+                                    effectiveVariable.RawAccessLevel;
+                                entryChild.RawUserAccessLevel =
+                                    effectiveVariable.RawUserAccessLevel;
+                                entryChild.MinimumSamplingInterval =
+                                    effectiveVariable.MinimumSamplingInterval;
+                                entryChild.MinimumSamplingIntervalSpecified =
+                                    effectiveVariable.MinimumSamplingIntervalSpecified;
+                                entryChild.Historizing =
+                                    effectiveVariable.Historizing;
+                                entryChild.HistorizingSpecified =
+                                    effectiveVariable.HistorizingSpecified;
+                                entryChild.DefaultValueXml =
+                                    effectiveVariable.DefaultValue?.OuterXml;
                             }
                             else if (child is MethodDesign method)
                             {

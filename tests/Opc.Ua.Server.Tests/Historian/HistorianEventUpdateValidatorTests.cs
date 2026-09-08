@@ -36,11 +36,18 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies required event fields, canonical identifiers, operand validation, and defaulted historical event
+    /// values.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable]
     public sealed class HistorianEventUpdateValidatorTests
     {
+        /// <summary>
+        /// Verifies that historical event insertion requires EventType and Time fields.
+        /// </summary>
         [Test]
         public void InsertRequiresEventTypeAndTime()
         {
@@ -67,6 +74,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadArgumentsMissing));
         }
 
+        /// <summary>
+        /// Verifies that event updates reject unsupported select-clause index ranges.
+        /// </summary>
         [Test]
         public void UpdateRejectsSelectClauseIndexRange()
         {
@@ -88,6 +98,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadIndexRangeInvalid));
         }
 
+        /// <summary>
+        /// Verifies that event replacement rejects an index range on EventId.
+        /// </summary>
         [Test]
         public void ReplaceRejectsEventIdIndexRange()
         {
@@ -111,6 +124,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(StatusCodes.BadIndexRangeInvalid));
         }
 
+        /// <summary>
+        /// Verifies that event insertion generates a canonical EventId.
+        /// </summary>
         [Test]
         public async Task InsertGeneratesCanonicalEventIdAsync()
         {
@@ -170,6 +186,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(eventId, Is.EqualTo(decoded.Record.EventId));
         }
 
+        /// <summary>
+        /// Verifies that too few event fields produce an arguments-missing result.
+        /// </summary>
         [Test]
         public async Task ShortEventFieldListReturnsArgumentsMissingAsync()
         {
@@ -207,6 +226,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(decoded.StatusCode, Is.EqualTo(StatusCodes.BadArgumentsMissing));
         }
 
+        /// <summary>
+        /// Verifies that insertion rejects an unsupported event type.
+        /// </summary>
         [Test]
         public async Task UnsupportedEventTypeIsRejectedAsync()
         {
@@ -250,6 +272,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(StatusCodes.BadTypeDefinitionInvalid));
         }
 
+        /// <summary>
+        /// Verifies that insertion requires the provider's configured mandatory event fields.
+        /// </summary>
         [Test]
         public void InsertRequiresConfiguredMandatoryFields()
         {
@@ -290,6 +315,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadArgumentsMissing));
         }
 
+        /// <summary>
+        /// Verifies that unsupported event fields produce GoodDataIgnored.
+        /// </summary>
         [Test]
         public async Task UnsupportedFieldsReturnGoodDataIgnoredAsync()
         {
@@ -357,6 +385,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a base-event field name in a custom namespace is ignored.
+        /// </summary>
         [Test]
         public async Task BaseEventFieldNameInCustomNamespaceIsIgnoredAsync()
         {
@@ -422,6 +453,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(decoded.FieldIndexes[0], Is.EqualTo(3));
         }
 
+        /// <summary>
+        /// Verifies that a defaulted event time retains the selected operand's identity.
+        /// </summary>
         [Test]
         public async Task DefaultedTimeUsesSelectedOperandIdentityAsync()
         {
@@ -486,6 +520,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(timestamp, Is.Not.EqualTo(DateTimeUtc.MinValue));
         }
 
+        /// <summary>
+        /// Verifies that null EventType and Time values use server defaults.
+        /// </summary>
         [Test]
         public async Task NullEventTypeAndTimeUseServerDefaultsAsync()
         {

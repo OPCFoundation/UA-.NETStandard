@@ -24,7 +24,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>Resources\%(Filename)%(Extension)</Link>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\..\src\Opc.Ua.Gds.Common\Design\*" Exclude="..\..\src\Opc.Ua.Gds.Common\Design\OpcUaOnboardingModel.*">
+    <EmbeddedResource Include="..\..\src\Opc.Ua.Gds\Design\*" Exclude="..\..\src\Opc.Ua.Gds\Design\OpcUaOnboardingModel.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>Resources\%(Filename)%(Extension)</Link>
     </EmbeddedResource>

@@ -138,17 +138,7 @@ namespace Opc.Ua.Server.Historian
             {
                 throw new ArgumentNullException(nameof(result));
             }
-            HistorianNodeCapabilities capabilities = await provider
-                .GetCapabilitiesAsync(node.NodeId, cancellationToken)
-                .ConfigureAwait(false);
-            if (details.IsReadModified
-                ? !capabilities.ReadModifiedData
-                : !capabilities.ReadRawData)
-            {
-                return StatusCodes.BadHistoryOperationUnsupported;
-            }
-
-            HistorianContinuationState? state = await TryRestoreContinuationAsync(
+            HistorianContinuationClaim? claim = await TryClaimContinuationAsync(
                 systemContext,
                 provider,
                 nodeToRead,
@@ -156,52 +146,74 @@ namespace Opc.Ua.Server.Historian
                     ? HistorianReadKind.Modified
                     : HistorianReadKind.Raw,
                 cancellationToken).ConfigureAwait(false);
-
-            // A non-empty ContinuationPoint that does not resolve to a saved history
-            // continuation (unknown, released, foreign, or a Browse CP) is invalid
-            // (OPC UA Part 11; CTT HA Read Raw Err-014/Err-024).
-            if (state == null && !nodeToRead.ContinuationPoint.IsEmpty)
+            try
             {
-                result.StatusCode = StatusCodes.BadContinuationPointInvalid;
-                result.ContinuationPoint = ByteString.Empty;
-                return ServiceResult.Good;
-            }
+                // A non-empty ContinuationPoint that does not resolve to a saved history
+                // continuation (unknown, released, foreign, or a Browse CP) is invalid
+                // (OPC UA Part 11; CTT HA Read Raw Err-014/Err-024).
+                if (claim == null && !nodeToRead.ContinuationPoint.IsEmpty)
+                {
+                    result.StatusCode = StatusCodes.BadContinuationPointInvalid;
+                    result.ContinuationPoint = ByteString.Empty;
+                    return ServiceResult.Good;
+                }
 
-            // Part 11 6.5.3.3: Bounding Values are not defined for modified reads.
-            if (details.IsReadModified && details.ReturnBounds)
-            {
-                result.StatusCode = StatusCodes.BadInvalidArgument;
-                result.ContinuationPoint = ByteString.Empty;
-                return ServiceResult.Good;
-            }
-            if (!await SupportsRequestedTimestampsAsync(
-                provider,
-                node.NodeId,
-                timestampsToReturn,
-                cancellationToken).ConfigureAwait(false))
-            {
-                result.StatusCode = StatusCodes.BadTimestampNotSupported;
-                result.ContinuationPoint = ByteString.Empty;
-                return ServiceResult.Good;
-            }
+                HistorianNodeCapabilities capabilities = await provider
+                    .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                    .ConfigureAwait(false);
+                if (details.IsReadModified
+                    ? !capabilities.ReadModifiedData
+                    : !capabilities.ReadRawData)
+                {
+                    claim?.Retire();
+                    return StatusCodes.BadHistoryOperationUnsupported;
+                }
 
-            HistorianOperationContext opContext = new(
-                systemContext,
-                systemContext.OperationContext!,
-                node,
-                HistoryUpdateType.Insert);
+                // Part 11 6.5.3.3: Bounding Values are not defined for modified reads.
+                if (details.IsReadModified && details.ReturnBounds)
+                {
+                    claim?.Retire();
+                    result.StatusCode = StatusCodes.BadInvalidArgument;
+                    result.ContinuationPoint = ByteString.Empty;
+                    return ServiceResult.Good;
+                }
+                if (!await SupportsRequestedTimestampsAsync(
+                    provider,
+                    node.NodeId,
+                    timestampsToReturn,
+                    cancellationToken).ConfigureAwait(false))
+                {
+                    claim?.Retire();
+                    result.StatusCode = StatusCodes.BadTimestampNotSupported;
+                    result.ContinuationPoint = ByteString.Empty;
+                    return ServiceResult.Good;
+                }
 
-            if (details.IsReadModified)
-            {
-                return await ReadModifiedPageAsync(
+                HistorianOperationContext opContext = new(
+                    systemContext,
+                    systemContext.OperationContext!,
+                    node,
+                    HistoryUpdateType.Insert);
+
+                if (details.IsReadModified)
+                {
+                    return await ReadModifiedPageAsync(
+                        systemContext, provider, node, nodeToRead, details,
+                        timestampsToReturn, result, claim, opContext, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                return await ReadRawPageAsync(
                     systemContext, provider, node, nodeToRead, details,
-                    timestampsToReturn, result, state, opContext, cancellationToken)
+                    timestampsToReturn, result, claim, opContext, cancellationToken)
                     .ConfigureAwait(false);
             }
-            return await ReadRawPageAsync(
-                systemContext, provider, node, nodeToRead, details,
-                timestampsToReturn, result, state, opContext, cancellationToken)
-                .ConfigureAwait(false);
+            finally
+            {
+                if (claim != null)
+                {
+                    await claim.DisposeAsync().ConfigureAwait(false);
+                }
+            }
         }
 
         /// <summary>
@@ -586,24 +598,68 @@ namespace Opc.Ua.Server.Historian
                 return StatusCodes.BadInvalidArgument;
             }
 
-            HistorianContinuationState? cont = await TryRestoreContinuationAsync(
+            HistorianContinuationClaim? claim = await TryClaimContinuationAsync(
                 systemContext,
                 provider,
                 nodeToRead,
                 HistorianReadKind.Processed,
                 cancellationToken).ConfigureAwait(false);
-            if (cont == null && hasContinuationPoint)
+            if (claim == null && hasContinuationPoint)
             {
                 result.StatusCode = StatusCodes.BadContinuationPointInvalid;
                 result.ContinuationPoint = ByteString.Empty;
                 return ServiceResult.Good;
             }
 
+            if (claim == null)
+            {
+                return await DispatchProcessedReadCoreAsync(
+                    systemContext,
+                    provider,
+                    node,
+                    nodeToRead,
+                    details,
+                    aggregateId,
+                    timestampsToReturn,
+                    result,
+                    claim,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            await using (claim.ConfigureAwait(false))
+            {
+                return await DispatchProcessedReadCoreAsync(
+                    systemContext,
+                    provider,
+                    node,
+                    nodeToRead,
+                    details,
+                    aggregateId,
+                    timestampsToReturn,
+                    result,
+                    claim,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private static async ValueTask<ServiceResult>
+            DispatchProcessedReadCoreAsync(
+            ServerSystemContext systemContext,
+            IHistorianProvider provider,
+            NodeState node,
+            HistoryReadValueId nodeToRead,
+            ReadProcessedDetails details,
+            NodeId aggregateId,
+            TimestampsToReturn timestampsToReturn,
+            HistoryReadResult result,
+            HistorianContinuationClaim? claim,
+            CancellationToken cancellationToken)
+        {
+            HistorianContinuationState? cont = claim?.State;
             aggregateId = cont?.ProcessedRequest?.AggregateId ?? aggregateId;
             if (systemContext.Server?.AggregateManager is { } aggregateManager &&
                 !aggregateManager.IsSupported(aggregateId))
             {
-                cont?.Dispose();
+                claim?.Retire();
                 result.ContinuationPoint = ByteString.Empty;
                 return StatusCodes.BadAggregateNotSupported;
             }
@@ -613,48 +669,33 @@ namespace Opc.Ua.Server.Historian
                 if (provider is not IHistorianProcessedProvider and
                     not IHistorianAnnotationProvider)
                 {
-                    cont?.Dispose();
+                    claim?.Retire();
                     return StatusCodes.BadAggregateNotSupported;
                 }
             }
             else if (provider is not IHistorianProcessedProvider and
                 not IHistorianDataProvider)
             {
-                cont?.Dispose();
+                claim?.Retire();
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
-            HistorianNodeCapabilities capabilities;
-            bool timestampsSupported;
-            try
-            {
-                capabilities = await provider
-                    .GetCapabilitiesAsync(node.NodeId, cancellationToken)
-                    .ConfigureAwait(false);
-                timestampsSupported = await SupportsRequestedTimestampsAsync(
-                    provider,
-                    node.NodeId,
-                    timestampsToReturn,
-                    cancellationToken).ConfigureAwait(false);
-            }
-            catch
-            {
-                if (cont != null)
-                {
-                    await RestoreClaimedContinuationAsync(
-                        systemContext,
-                        cont).ConfigureAwait(false);
-                }
-                throw;
-            }
+            HistorianNodeCapabilities capabilities = await provider
+                .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                .ConfigureAwait(false);
+            bool timestampsSupported = await SupportsRequestedTimestampsAsync(
+                provider,
+                node.NodeId,
+                timestampsToReturn,
+                cancellationToken).ConfigureAwait(false);
             if (!capabilities.ReadProcessedData)
             {
-                cont?.Dispose();
+                claim?.Retire();
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
             if (!timestampsSupported)
             {
-                cont?.Dispose();
+                claim?.Retire();
                 result.StatusCode = StatusCodes.BadTimestampNotSupported;
                 result.ContinuationPoint = ByteString.Empty;
                 return ServiceResult.Good;
@@ -665,6 +706,7 @@ namespace Opc.Ua.Server.Historian
             {
                 await EmitProcessedPageAsync(
                     cont,
+                    claim,
                     result,
                     nodeToRead,
                     timestampsToReturn,
@@ -714,7 +756,7 @@ namespace Opc.Ua.Server.Historian
                     config.PercentDataBad > 100 ||
                     config.PercentDataGood < 100 - config.PercentDataBad)
                 {
-                    cont?.Dispose();
+                    claim?.Retire();
                     result.StatusCode = StatusCodes.BadAggregateInvalidInputs;
                     return StatusCodes.BadAggregateInvalidInputs;
                 }
@@ -737,25 +779,11 @@ namespace Opc.Ua.Server.Historian
             if (provider is IHistorianProcessedProvider native)
             {
                 HistorianResumeToken token = cont?.ResumeToken ?? default;
-                HistorianPage<DataValue> page;
-                try
-                {
-                    page = await native.ReadProcessedAsync(
-                        opContext,
-                        processedRequest,
-                        token,
-                        cancellationToken).ConfigureAwait(false);
-                }
-                catch
-                {
-                    if (cont != null)
-                    {
-                        await RestoreClaimedContinuationAsync(
-                            systemContext,
-                            cont).ConfigureAwait(false);
-                    }
-                    throw;
-                }
+                HistorianPage<DataValue> page = await native.ReadProcessedAsync(
+                    opContext,
+                    processedRequest,
+                    token,
+                    cancellationToken).ConfigureAwait(false);
 
                 FillHistoryData(
                     systemContext,
@@ -763,26 +791,45 @@ namespace Opc.Ua.Server.Historian
                     page.Values,
                     nodeToRead,
                     timestampsToReturn);
-                await SaveOrReleaseContinuationAsync(
-                    systemContext,
-                    nodeToRead,
-                    result,
-                    cont,
-                    page.NextToken,
-                    provider,
-                    node,
-                    processedRequest: processedRequest,
-                    kind: HistorianReadKind.Processed,
-                    timestampsToReturn: timestampsToReturn,
-                    indexRange: nodeToRead.ParsedIndexRange,
-                    dataEncoding: nodeToRead.DataEncoding,
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                HistorianContinuationState? initialState = null;
+                try
+                {
+                    if (claim == null && !page.NextToken.IsEmpty)
+                    {
+                        initialState = new HistorianContinuationState
+                        {
+                            Id = Guid.NewGuid(),
+                            Provider = provider,
+                            NodeId = node.NodeId,
+                            Kind = HistorianReadKind.Processed,
+                            ResumeToken = page.NextToken,
+                            ProcessedRequest = processedRequest,
+                            TimestampsToReturn = timestampsToReturn,
+                            IndexRange = nodeToRead.ParsedIndexRange,
+                            DataEncoding = nodeToRead.DataEncoding
+                        };
+                    }
+                    await SaveSuccessorOrCompleteAsync(
+                        systemContext,
+                        result,
+                        claim,
+                        hasMore: !page.NextToken.IsEmpty,
+                        page.NextToken,
+                        initialState,
+                        bufferedProcessedOffset: null,
+                        cancellationToken).ConfigureAwait(false);
+                    initialState = null;
+                }
+                finally
+                {
+                    initialState?.Dispose();
+                }
                 return ServiceResult.Good;
             }
 
             if (cont != null)
             {
-                cont.Dispose();
+                claim?.Retire();
                 result.StatusCode = StatusCodes.BadContinuationPointInvalid;
                 result.ContinuationPoint = ByteString.Empty;
                 return ServiceResult.Good;
@@ -878,39 +925,53 @@ namespace Opc.Ua.Server.Historian
             }
 
             // Buffer the entire output set and emit the first page from it.
-            HistorianContinuationState state = new()
+            HistorianContinuationState? state = null;
+            try
             {
-                Id = Guid.NewGuid(),
-                Provider = provider,
-                NodeId = node.NodeId,
-                Kind = HistorianReadKind.Processed,
-                ResumeToken = default,
-                ProcessedRequest = processedRequest,
-                TimestampsToReturn = timestampsToReturn,
-                IndexRange = nodeToRead.ParsedIndexRange,
-                DataEncoding = nodeToRead.DataEncoding,
-                BufferedProcessedOutputs = values,
-                BufferedProcessedOffset = 0
-            };
-            await EmitProcessedPageAsync(
-                state,
-                result,
-                nodeToRead,
-                timestampsToReturn,
-                systemContext,
-                cancellationToken).ConfigureAwait(false);
+                state = new HistorianContinuationState
+                {
+                    Id = Guid.NewGuid(),
+                    Provider = provider,
+                    NodeId = node.NodeId,
+                    Kind = HistorianReadKind.Processed,
+                    ResumeToken = default,
+                    ProcessedRequest = processedRequest,
+                    TimestampsToReturn = timestampsToReturn,
+                    IndexRange = nodeToRead.ParsedIndexRange,
+                    DataEncoding = nodeToRead.DataEncoding,
+                    BufferedProcessedOutputs =
+                        new HistorianBufferedProcessedPayload(
+                            values.ToArrayOf()),
+                    BufferedProcessedOffset = 0
+                };
+                await EmitProcessedPageAsync(
+                    state,
+                    claim: null,
+                    result,
+                    nodeToRead,
+                    timestampsToReturn,
+                    systemContext,
+                    cancellationToken).ConfigureAwait(false);
+                state = null;
+            }
+            finally
+            {
+                state?.Dispose();
+            }
             return ServiceResult.Good;
         }
 
         private static async ValueTask EmitProcessedPageAsync(
             HistorianContinuationState state,
+            HistorianContinuationClaim? claim,
             HistoryReadResult result,
             HistoryReadValueId nodeToRead,
             TimestampsToReturn timestampsToReturn,
             ServerSystemContext systemContext,
             CancellationToken cancellationToken)
         {
-            List<DataValue> buffered = state.BufferedProcessedOutputs!;
+            HistorianBufferedProcessedPayload buffered =
+                state.BufferedProcessedOutputs!;
             int remaining = buffered.Count - state.BufferedProcessedOffset;
             int configuredPageSize = state.ProcessedRequest?.MaxValues > 0
                 ? (int)Math.Min(
@@ -924,7 +985,7 @@ namespace Opc.Ua.Server.Historian
             {
                 page.Add(buffered[state.BufferedProcessedOffset + i]);
             }
-            state.BufferedProcessedOffset += pageSize;
+            int nextOffset = state.BufferedProcessedOffset + pageSize;
             FillHistoryData(
                 systemContext,
                 result,
@@ -932,37 +993,33 @@ namespace Opc.Ua.Server.Historian
                 nodeToRead,
                 timestampsToReturn);
 
-            if (state.BufferedProcessedOffset >= buffered.Count)
+            if (nextOffset >= buffered.Count)
             {
-                result.StatusCode = StatusCodes.Good;
-                result.ContinuationPoint = ByteString.Empty;
-                state.Dispose();
+                await SaveSuccessorOrCompleteAsync(
+                    systemContext,
+                    result,
+                    claim,
+                    hasMore: false,
+                    default,
+                    claim == null ? state : null,
+                    nextOffset,
+                    cancellationToken).ConfigureAwait(false);
                 return;
             }
 
-            state.Id = Guid.NewGuid();
-            ISessionContinuationPoints? continuationPoints =
-                systemContext.OperationContext?.Session?.ContinuationPoints;
-            if (continuationPoints == null)
+            if (claim == null)
             {
-                state.Dispose();
-                result.StatusCode = StatusCodes.BadNoContinuationPoints;
-                result.ContinuationPoint = ByteString.Empty;
-                return;
+                state.BufferedProcessedOffset = nextOffset;
             }
-            if (!await TrySaveHistoryContinuationAsync(
-                    continuationPoints,
-                    state,
-                    result,
-                    cancellationToken).ConfigureAwait(false))
-            {
-                return;
-            }
-            // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
-            // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
-            // ContinuationPoint alone signals to the client that more data can be fetched.
-            result.StatusCode = StatusCodes.Good;
-            result.ContinuationPoint = new ByteString(state.Id.ToByteArray());
+            await SaveSuccessorOrCompleteAsync(
+                systemContext,
+                result,
+                claim,
+                hasMore: true,
+                state.ResumeToken,
+                claim == null ? state : null,
+                nextOffset,
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1005,7 +1062,7 @@ namespace Opc.Ua.Server.Historian
                 StartTime = windowStart,
                 EndTime = windowEnd,
                 MaxValues = 0,
-                IsForward = true
+                IsForward = isForward
             };
 
             HistorianResumeToken token = default;
@@ -1025,14 +1082,21 @@ namespace Opc.Ua.Server.Historian
                 }
                 token = page.NextToken;
             }
-
-            // Bucket the annotation counts per processing interval (§5.4.3.1: the timestamp is the
-            // start of the interval and endTime is excluded).
-            var outputs = new List<DataValue>();
-            if (!TryBuildAnnotationCountIntervals(
-                startTime, endTime, details.ProcessingInterval, annotationTimes, outputs))
+            ArrayOf<DataValue> outputs;
+            try
             {
-                return StatusCodes.BadTooManyOperations;
+                outputs = CountAggregateCalculator.CalculateAnnotationCounts(
+                    annotationTimes.ToArrayOf(),
+                    startTime,
+                    endTime,
+                    details.ProcessingInterval,
+                    kMaxProcessedBufferedOutputs,
+                    cancellationToken);
+            }
+            catch (ServiceResultException exception) when (
+                exception.StatusCode == StatusCodes.BadTooManyOperations)
+            {
+                return exception.StatusCode;
             }
 
             HistorianContinuationState state = new()
@@ -1046,110 +1110,19 @@ namespace Opc.Ua.Server.Historian
                 TimestampsToReturn = timestampsToReturn,
                 IndexRange = nodeToRead.ParsedIndexRange,
                 DataEncoding = nodeToRead.DataEncoding,
-                BufferedProcessedOutputs = outputs,
+                BufferedProcessedOutputs =
+                    new HistorianBufferedProcessedPayload(outputs),
                 BufferedProcessedOffset = 0
             };
             await EmitProcessedPageAsync(
                 state,
+                claim: null,
                 result,
                 nodeToRead,
                 timestampsToReturn,
                 systemContext,
                 cancellationToken).ConfigureAwait(false);
             return ServiceResult.Good;
-        }
-
-        /// <summary>
-        /// Builds the per-interval AnnotationCount outputs. Returns false if the number of intervals
-        /// would exceed <see cref="kMaxProcessedBufferedOutputs"/>.
-        /// </summary>
-        private static bool TryBuildAnnotationCountIntervals(
-            DateTimeUtc startTime,
-            DateTimeUtc endTime,
-            double processingInterval,
-            List<DateTimeUtc> annotationTimes,
-            List<DataValue> outputs)
-        {
-            bool isForward = startTime <= endTime;
-
-            // ProcessingInterval == 0 → a single aggregate value over the entire range (§5.4.3.1).
-            if (processingInterval <= 0)
-            {
-                DateTimeUtc lo = isForward ? startTime : endTime;
-                DateTimeUtc hi = isForward ? endTime : startTime;
-                outputs.Add(CreateAnnotationCountValue(
-                    CountAnnotationsInRange(annotationTimes, lo, hi), startTime));
-                return true;
-            }
-
-            // Guard against unbounded buffering for very large windows.
-            double span = Math.Abs((endTime - startTime).TotalMilliseconds);
-            if (span / processingInterval > kMaxProcessedBufferedOutputs)
-            {
-                return false;
-            }
-
-            var interval = TimeSpan.FromMilliseconds(processingInterval);
-
-            if (isForward)
-            {
-                for (DateTimeUtc s = startTime; s < endTime; s += interval)
-                {
-                    DateTimeUtc e = s + interval;
-                    if (e > endTime)
-                    {
-                        e = endTime;
-                    }
-                    outputs.Add(CreateAnnotationCountValue(
-                        CountAnnotationsInRange(annotationTimes, s, e), s));
-                }
-            }
-            else
-            {
-                // Reverse time: intervals walk backward from startTime; each interval is timestamped
-                // with its (later) start time (§5.4.3.1).
-                for (DateTimeUtc s = startTime; s > endTime; s -= interval)
-                {
-                    DateTimeUtc e = s - interval;
-                    if (e < endTime)
-                    {
-                        e = endTime;
-                    }
-                    outputs.Add(CreateAnnotationCountValue(
-                        CountAnnotationsInRange(annotationTimes, e, s), s));
-                }
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// Counts annotation timestamps in the half-open interval [loInclusive, hiExclusive).
-        /// </summary>
-        private static int CountAnnotationsInRange(
-            List<DateTimeUtc> annotationTimes,
-            DateTimeUtc loInclusive,
-            DateTimeUtc hiExclusive)
-        {
-            int count = 0;
-            for (int i = 0; i < annotationTimes.Count; i++)
-            {
-                DateTimeUtc t = annotationTimes[i];
-                if (t >= loInclusive && t < hiExclusive)
-                {
-                    count++;
-                }
-            }
-            return count;
-        }
-
-        /// <summary>
-        /// Creates an AnnotationCount aggregate value (Int32, Good, Calculated) for an interval.
-        /// </summary>
-        private static DataValue CreateAnnotationCountValue(int count, DateTimeUtc timestamp)
-        {
-            var value = new DataValue(Variant.From(count), StatusCodes.Good, timestamp, timestamp);
-            return value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
         }
 
         private const int kProcessedPageSize = 1000;
@@ -1282,13 +1255,21 @@ namespace Opc.Ua.Server.Historian
                 raw,
                 node.NodeId,
                 reqTimes,
+                details.UseSimpleBounds,
+                capabilities.Stepped,
                 cancellationToken)
                 .ConfigureAwait(false);
 
+            ArrayOf<DataValue> orderedSamples = samples.ToArrayOf();
             var produced = new List<DataValue>(reqTimes.Count);
             foreach (DateTimeUtc requestedTime in reqTimes)
             {
-                produced.Add(InterpolateAtTime(samples, requestedTime, details.UseSimpleBounds));
+                cancellationToken.ThrowIfCancellationRequested();
+                produced.Add(AggregateCalculator.CalculateAtTime(
+                    orderedSamples,
+                    requestedTime,
+                    details.UseSimpleBounds,
+                    capabilities.Stepped));
             }
 
             FillHistoryData(
@@ -1308,6 +1289,11 @@ namespace Opc.Ua.Server.Historian
         /// returned annotation as a <see cref="DataValue"/>.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
+        // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
+        [SuppressMessage(
+            "Reliability",
+            "CA2000:Dispose objects before losing scope",
+            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state on invocation and either saves it to the session or disposes it.")]
         public static async ValueTask<ServiceResult> DispatchAnnotationReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1343,95 +1329,135 @@ namespace Opc.Ua.Server.Historian
                 throw new ArgumentNullException(nameof(result));
             }
 
-            if (provider is not IHistorianAnnotationProvider annotations)
-            {
-                return StatusCodes.BadHistoryOperationUnsupported;
-            }
-
-            HistorianContinuationState? state = await TryRestoreContinuationAsync(
+            HistorianContinuationClaim? claim = await TryClaimContinuationAsync(
                 systemContext,
                 provider,
                 nodeToRead,
                 HistorianReadKind.Annotations,
-                cancellationToken).ConfigureAwait(false);
-            if (state == null && !nodeToRead.ContinuationPoint.IsEmpty)
+                cancellationToken,
+                parentVariable.NodeId).ConfigureAwait(false);
+            try
             {
-                result.StatusCode = StatusCodes.BadContinuationPointInvalid;
-                result.ContinuationPoint = ByteString.Empty;
-                return ServiceResult.Good;
-            }
-            if (!await SupportsRequestedTimestampsAsync(
-                provider,
-                parentVariable.NodeId,
-                timestampsToReturn,
-                cancellationToken).ConfigureAwait(false))
-            {
-                result.StatusCode = StatusCodes.BadTimestampNotSupported;
-                result.ContinuationPoint = ByteString.Empty;
-                return ServiceResult.Good;
-            }
-
-            HistorianAnnotationReadRequest request;
-            HistorianResumeToken resumeToken;
-            if (state is { Kind: HistorianReadKind.Annotations, AnnotationRequest: { } existing })
-            {
-                request = existing;
-                resumeToken = state.ResumeToken;
-            }
-            else
-            {
-                HistorianNodeCapabilities capabilities = await provider
-                    .GetCapabilitiesAsync(parentVariable.NodeId, cancellationToken)
-                    .ConfigureAwait(false);
-                (DateTimeUtc start, DateTimeUtc end, bool isForward) =
-                    NormalizeTimeRange(
-                        details.StartTime,
-                        details.EndTime);
-                request = new HistorianAnnotationReadRequest
+                if (claim == null && !nodeToRead.ContinuationPoint.IsEmpty)
                 {
-                    NodeId = parentVariable.NodeId,
-                    StartTime = start,
-                    EndTime = end,
-                    MaxValues = ApplyHistorianLimit(
-                        details.NumValuesPerNode,
-                        capabilities.MaxReturnDataValues),
-                    IsForward = isForward
-                };
-                resumeToken = default;
+                    result.StatusCode = StatusCodes.BadContinuationPointInvalid;
+                    result.ContinuationPoint = ByteString.Empty;
+                    return ServiceResult.Good;
+                }
+                if (provider is not IHistorianAnnotationProvider annotations)
+                {
+                    claim?.Retire();
+                    return StatusCodes.BadHistoryOperationUnsupported;
+                }
+                if (!await SupportsRequestedTimestampsAsync(
+                    provider,
+                    parentVariable.NodeId,
+                    timestampsToReturn,
+                    cancellationToken).ConfigureAwait(false))
+                {
+                    claim?.Retire();
+                    result.StatusCode = StatusCodes.BadTimestampNotSupported;
+                    result.ContinuationPoint = ByteString.Empty;
+                    return ServiceResult.Good;
+                }
+
+                HistorianContinuationState? state = claim?.State;
+                HistorianAnnotationReadRequest request;
+                HistorianResumeToken resumeToken;
+                if (state is
+                    {
+                        Kind: HistorianReadKind.Annotations,
+                        AnnotationRequest: { } existing
+                    })
+                {
+                    request = existing;
+                    resumeToken = state.ResumeToken;
+                }
+                else
+                {
+                    HistorianNodeCapabilities capabilities = await provider
+                        .GetCapabilitiesAsync(parentVariable.NodeId, cancellationToken)
+                        .ConfigureAwait(false);
+                    (DateTimeUtc start, DateTimeUtc end, bool isForward) =
+                        NormalizeTimeRange(
+                            details.StartTime,
+                            details.EndTime);
+                    request = new HistorianAnnotationReadRequest
+                    {
+                        NodeId = parentVariable.NodeId,
+                        StartTime = start,
+                        EndTime = end,
+                        MaxValues = ApplyHistorianLimit(
+                            details.NumValuesPerNode,
+                            capabilities.MaxReturnDataValues),
+                        IsForward = isForward
+                    };
+                    resumeToken = default;
+                }
+
+                HistorianOperationContext opContext = new(
+                    systemContext,
+                    systemContext.OperationContext!,
+                    parentVariable,
+                    HistoryUpdateType.Insert);
+
+                HistorianPage<Annotation> page = await annotations.ReadAnnotationsAsync(
+                    opContext,
+                    request,
+                    resumeToken,
+                    cancellationToken).ConfigureAwait(false);
+
+                var dataValues = new List<DataValue>(page.Values.Count);
+                foreach (Annotation a in page.Values)
+                {
+                    dataValues.Add(new DataValue(
+                        new Variant(new ExtensionObject(a)),
+                        StatusCodes.Good,
+                        sourceTimestamp: a.AnnotationTime,
+                        serverTimestamp: DateTimeUtc.MinValue));
+                }
+                FillHistoryData(
+                    systemContext,
+                    result,
+                    dataValues,
+                    nodeToRead,
+                    timestampsToReturn);
+
+                HistorianContinuationState? initialState = null;
+                if (claim == null && !page.NextToken.IsEmpty)
+                {
+                    initialState = new HistorianContinuationState
+                    {
+                        Id = Guid.NewGuid(),
+                        Provider = provider,
+                        NodeId = nodeToRead.NodeId,
+                        Kind = HistorianReadKind.Annotations,
+                        ResumeToken = page.NextToken,
+                        AnnotationRequest = request,
+                        TimestampsToReturn = timestampsToReturn,
+                        IndexRange = nodeToRead.ParsedIndexRange,
+                        DataEncoding = nodeToRead.DataEncoding
+                    };
+                }
+                await SaveSuccessorOrCompleteAsync(
+                    systemContext,
+                    result,
+                    claim,
+                    hasMore: !page.NextToken.IsEmpty,
+                    page.NextToken,
+                    initialState,
+                    bufferedProcessedOffset: null,
+                    cancellationToken).ConfigureAwait(false);
+
+                return ServiceResult.Good;
             }
-
-            HistorianOperationContext opContext = new(
-                systemContext,
-                systemContext.OperationContext!,
-                parentVariable,
-                HistoryUpdateType.Insert);
-
-            HistorianPage<Annotation> page = await annotations.ReadAnnotationsAsync(
-                opContext, request, resumeToken, cancellationToken).ConfigureAwait(false);
-
-            var dataValues = new List<DataValue>(page.Values.Count);
-            foreach (Annotation a in page.Values)
+            finally
             {
-                dataValues.Add(new DataValue(
-                    new Variant(new ExtensionObject(a)),
-                    StatusCodes.Good,
-                    sourceTimestamp: a.AnnotationTime,
-                    serverTimestamp: DateTimeUtc.MinValue));
+                if (claim != null)
+                {
+                    await claim.DisposeAsync().ConfigureAwait(false);
+                }
             }
-            FillHistoryData(
-                systemContext,
-                result,
-                dataValues,
-                nodeToRead,
-                timestampsToReturn);
-
-            await SaveOrReleaseAnnotationContinuationAsync(
-                systemContext, nodeToRead, result, state, page.NextToken,
-                provider, parentVariable, request, timestampsToReturn,
-                nodeToRead.ParsedIndexRange, nodeToRead.DataEncoding,
-                cancellationToken).ConfigureAwait(false);
-
-            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -1707,77 +1733,6 @@ namespace Opc.Ua.Server.Historian
             return null;
         }
 
-        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory.")]
-        private static async ValueTask SaveOrReleaseAnnotationContinuationAsync(
-            ServerSystemContext systemContext,
-            HistoryReadValueId nodeToRead,
-            HistoryReadResult result,
-            HistorianContinuationState? existingState,
-            HistorianResumeToken nextToken,
-            IHistorianProvider provider,
-            BaseVariableState parentVariable,
-            HistorianAnnotationReadRequest request,
-            TimestampsToReturn timestampsToReturn,
-            NumericRange indexRange,
-            QualifiedName dataEncoding,
-            CancellationToken cancellationToken)
-        {
-            if (nextToken.IsEmpty)
-            {
-                result.StatusCode = StatusCodes.Good;
-                result.ContinuationPoint = ByteString.Empty;
-                existingState?.Dispose();
-                return;
-            }
-
-            HistorianContinuationState state;
-            if (existingState != null)
-            {
-                state = existingState;
-                state.ResumeToken = nextToken;
-            }
-            else
-            {
-                state = new HistorianContinuationState
-                {
-                    Id = Guid.NewGuid(),
-                    Provider = provider,
-                    NodeId = parentVariable.NodeId,
-                    Kind = HistorianReadKind.Annotations,
-                    ResumeToken = nextToken,
-                    AnnotationRequest = request,
-                    TimestampsToReturn = timestampsToReturn,
-                    IndexRange = indexRange,
-                    DataEncoding = dataEncoding
-                };
-            }
-
-            state.Id = Guid.NewGuid();
-            ISessionContinuationPoints? continuationPoints =
-                systemContext.OperationContext?.Session?.ContinuationPoints;
-            if (continuationPoints == null)
-            {
-                state.Dispose();
-                result.StatusCode = StatusCodes.BadNoContinuationPoints;
-                result.ContinuationPoint = ByteString.Empty;
-                return;
-            }
-            if (!await TrySaveHistoryContinuationAsync(
-                    continuationPoints,
-                    state,
-                    result,
-                    cancellationToken).ConfigureAwait(false))
-            {
-                return;
-            }
-            // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
-            // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
-            // ContinuationPoint alone signals to the client that more data can be fetched.
-            result.StatusCode = StatusCodes.Good;
-            result.ContinuationPoint = new ByteString(state.Id.ToByteArray());
-        }
-
         /// <summary>
         /// Dispatches a HistoryRead with <c>ReadEventDetails</c> against
         /// an event-history notifier. The provider returns raw event
@@ -1786,6 +1741,11 @@ namespace Opc.Ua.Server.Historian
         /// returned <c>HistoryEventFieldList</c> entries.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
+        // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
+        [SuppressMessage(
+            "Reliability",
+            "CA2000:Dispose objects before losing scope",
+            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state on invocation and either saves it to the session or disposes it.")]
         public static async ValueTask<ServiceResult> DispatchEventReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1822,115 +1782,154 @@ namespace Opc.Ua.Server.Historian
             }
             _ = timestampsToReturn;
 
-            if (provider is not IHistorianEventProvider events)
-            {
-                return StatusCodes.BadHistoryOperationUnsupported;
-            }
-            HistorianNodeCapabilities eventCapabilities = await provider
-                .GetCapabilitiesAsync(node.NodeId, cancellationToken)
-                .ConfigureAwait(false);
-            if (!eventCapabilities.ReadEventHistory)
-            {
-                return StatusCodes.BadHistoryOperationUnsupported;
-            }
-
-            HistorianContinuationState? state = await TryRestoreContinuationAsync(
+            HistorianContinuationClaim? claim = await TryClaimContinuationAsync(
                 systemContext,
                 provider,
                 nodeToRead,
                 HistorianReadKind.Events,
                 cancellationToken).ConfigureAwait(false);
-            if (state == null && !nodeToRead.ContinuationPoint.IsEmpty)
+            try
             {
-                result.StatusCode = StatusCodes.BadContinuationPointInvalid;
-                result.ContinuationPoint = ByteString.Empty;
-                return ServiceResult.Good;
-            }
-
-            HistorianEventReadRequest request;
-            HistorianResumeToken token;
-            if (state is { Kind: HistorianReadKind.Events, EventRequest: { } existing })
-            {
-                request = existing;
-                token = state.ResumeToken;
-            }
-            else
-            {
-                HistorianNodeCapabilities capabilities = await provider
+                if (claim == null && !nodeToRead.ContinuationPoint.IsEmpty)
+                {
+                    result.StatusCode = StatusCodes.BadContinuationPointInvalid;
+                    result.ContinuationPoint = ByteString.Empty;
+                    return ServiceResult.Good;
+                }
+                if (provider is not IHistorianEventProvider events)
+                {
+                    claim?.Retire();
+                    return StatusCodes.BadHistoryOperationUnsupported;
+                }
+                HistorianNodeCapabilities eventCapabilities = await provider
                     .GetCapabilitiesAsync(node.NodeId, cancellationToken)
                     .ConfigureAwait(false);
-                (DateTimeUtc start, DateTimeUtc end, bool isForward) =
-                    NormalizeTimeRange(
-                        details.StartTime,
-                        details.EndTime);
-                request = new HistorianEventReadRequest
+                if (!eventCapabilities.ReadEventHistory)
                 {
-                    NodeId = node.NodeId,
-                    StartTime = start,
-                    EndTime = end,
-                    MaxValues = ApplyHistorianLimit(
-                        details.NumValuesPerNode,
-                        capabilities.MaxReturnEventValues),
-                    IsForward = isForward,
-                    Filter = details.Filter
-                };
-                token = default;
-            }
-
-            HistorianOperationContext opContext = new(
-                systemContext,
-                systemContext.OperationContext!,
-                node,
-                HistoryUpdateType.Insert);
-
-            HistorianPage<HistorianEventRecord> page = await events.ReadEventsAsync(
-                opContext, request, token, cancellationToken).ConfigureAwait(false);
-
-            IServerInternal serverInternal = systemContext.Server;
-            var filterContext = new FilterContext(
-                serverInternal.NamespaceUris,
-                serverInternal.TypeTree,
-                systemContext.OperationContext,
-                serverInternal.Telemetry);
-
-            // Evaluate the WhereClause if any elements are present.
-            ArrayOf<HistorianEventRecord> filtered = page.Values;
-            if (details.Filter.WhereClause.Elements.Count > 0)
-            {
-                var keep = new List<HistorianEventRecord>(page.Values.Count);
-                foreach (HistorianEventRecord record in page.Values)
-                {
-                    var target = new HistorianEventFilterTarget(record);
-                    var evaluator = new FilterEvaluator(
-                        details.Filter.WhereClause,
-                        filterContext,
-                        target);
-                    if (evaluator.Result)
-                    {
-                        keep.Add(record);
-                    }
+                    claim?.Retire();
+                    return StatusCodes.BadHistoryOperationUnsupported;
                 }
-                filtered = keep;
+
+                HistorianContinuationState? state = claim?.State;
+                HistorianEventReadRequest request;
+                HistorianResumeToken token;
+                if (state is
+                    {
+                        Kind: HistorianReadKind.Events,
+                        EventRequest: { } existing
+                    })
+                {
+                    request = existing;
+                    token = state.ResumeToken;
+                }
+                else
+                {
+                    HistorianNodeCapabilities capabilities = await provider
+                        .GetCapabilitiesAsync(node.NodeId, cancellationToken)
+                        .ConfigureAwait(false);
+                    (DateTimeUtc start, DateTimeUtc end, bool isForward) =
+                        NormalizeTimeRange(
+                            details.StartTime,
+                            details.EndTime);
+                    request = new HistorianEventReadRequest
+                    {
+                        NodeId = node.NodeId,
+                        StartTime = start,
+                        EndTime = end,
+                        MaxValues = ApplyHistorianLimit(
+                            details.NumValuesPerNode,
+                            capabilities.MaxReturnEventValues),
+                        IsForward = isForward,
+                        Filter = details.Filter
+                    };
+                    token = default;
+                }
+
+                HistorianOperationContext opContext = new(
+                    systemContext,
+                    systemContext.OperationContext!,
+                    node,
+                    HistoryUpdateType.Insert);
+
+                HistorianPage<HistorianEventRecord> page = await events.ReadEventsAsync(
+                    opContext,
+                    request,
+                    token,
+                    cancellationToken).ConfigureAwait(false);
+
+                IServerInternal serverInternal = systemContext.Server;
+                var filterContext = new FilterContext(
+                    serverInternal.NamespaceUris,
+                    serverInternal.TypeTree,
+                    systemContext.OperationContext,
+                    serverInternal.Telemetry);
+
+                EventFilter filter = request.Filter;
+                ArrayOf<HistorianEventRecord> filtered = page.Values;
+                if (filter.WhereClause.Elements.Count > 0)
+                {
+                    var keep = new List<HistorianEventRecord>(page.Values.Count);
+                    foreach (HistorianEventRecord record in page.Values)
+                    {
+                        var target = new HistorianEventFilterTarget(record);
+                        var evaluator = new FilterEvaluator(
+                            filter.WhereClause,
+                            filterContext,
+                            target);
+                        if (evaluator.Result)
+                        {
+                            keep.Add(record);
+                        }
+                    }
+                    filtered = keep;
+                }
+
+                var fields = new HistoryEventFieldList[filtered.Count];
+                for (int i = 0; i < filtered.Count; i++)
+                {
+                    fields[i] = ProjectEventFields(
+                        filtered[i],
+                        filter,
+                        filterContext);
+                }
+
+                result.HistoryData = new ExtensionObject(new HistoryEvent
+                {
+                    Events = fields
+                });
+
+                HistorianContinuationState? initialState = null;
+                if (claim == null && !page.NextToken.IsEmpty)
+                {
+                    initialState = new HistorianContinuationState
+                    {
+                        Id = Guid.NewGuid(),
+                        Provider = provider,
+                        NodeId = nodeToRead.NodeId,
+                        Kind = HistorianReadKind.Events,
+                        ResumeToken = page.NextToken,
+                        EventRequest = request,
+                        TimestampsToReturn = TimestampsToReturn.Source
+                    };
+                }
+                await SaveSuccessorOrCompleteAsync(
+                    systemContext,
+                    result,
+                    claim,
+                    hasMore: !page.NextToken.IsEmpty,
+                    page.NextToken,
+                    initialState,
+                    bufferedProcessedOffset: null,
+                    cancellationToken).ConfigureAwait(false);
+                return ServiceResult.Good;
             }
-
-            var fields = new HistoryEventFieldList[filtered.Count];
-            for (int i = 0; i < filtered.Count; i++)
+            finally
             {
-                fields[i] = ProjectEventFields(
-                    filtered[i],
-                    details.Filter,
-                    filterContext);
+                if (claim != null)
+                {
+                    await claim.DisposeAsync().ConfigureAwait(false);
+                }
             }
-
-            result.HistoryData = new ExtensionObject(new HistoryEvent
-            {
-                Events = fields
-            });
-
-            await SaveOrReleaseEventContinuationAsync(
-                systemContext, nodeToRead, result, state, page.NextToken,
-                provider, node, request, cancellationToken).ConfigureAwait(false);
-            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -2334,73 +2333,6 @@ namespace Opc.Ua.Server.Historian
             };
         }
 
-        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory.")]
-        private static async ValueTask SaveOrReleaseEventContinuationAsync(
-            ServerSystemContext systemContext,
-            HistoryReadValueId nodeToRead,
-            HistoryReadResult result,
-            HistorianContinuationState? existingState,
-            HistorianResumeToken nextToken,
-            IHistorianProvider provider,
-            NodeState node,
-            HistorianEventReadRequest request,
-            CancellationToken cancellationToken)
-        {
-            if (nextToken.IsEmpty)
-            {
-                result.StatusCode = StatusCodes.Good;
-                result.ContinuationPoint = ByteString.Empty;
-                existingState?.Dispose();
-                return;
-            }
-
-            HistorianContinuationState state;
-            if (existingState != null)
-            {
-                state = existingState;
-                state.ResumeToken = nextToken;
-            }
-            else
-            {
-                state = new HistorianContinuationState
-                {
-                    Id = Guid.NewGuid(),
-                    Provider = provider,
-                    NodeId = node.NodeId,
-                    Kind = HistorianReadKind.Events,
-                    ResumeToken = nextToken,
-                    EventRequest = request,
-                    TimestampsToReturn = TimestampsToReturn.Source
-                };
-            }
-
-            state.Id = Guid.NewGuid();
-            ISessionContinuationPoints? continuationPoints =
-                systemContext.OperationContext?.Session?.ContinuationPoints;
-            if (continuationPoints == null)
-            {
-                state.Dispose();
-                result.StatusCode = StatusCodes.BadNoContinuationPoints;
-                result.ContinuationPoint = ByteString.Empty;
-                return;
-            }
-            if (!await TrySaveHistoryContinuationAsync(
-                    continuationPoints,
-                    state,
-                    result,
-                    cancellationToken).ConfigureAwait(false))
-            {
-                return;
-            }
-            // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
-            // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
-            // ContinuationPoint alone signals to the client that more data can be fetched.
-            result.StatusCode = StatusCodes.Good;
-            result.ContinuationPoint = new ByteString(state.Id.ToByteArray());
-            _ = nodeToRead;
-        }
-
         /// <summary>
         /// Releases a continuation point that was previously saved by the
         /// dispatcher.
@@ -2471,6 +2403,11 @@ namespace Opc.Ua.Server.Historian
             return StatusCodes.BadContinuationPointInvalid;
         }
 
+        // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
+        [SuppressMessage(
+            "Reliability",
+            "CA2000:Dispose objects before losing scope",
+            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state on invocation and either saves it to the session or disposes it.")]
         private static async ValueTask<ServiceResult> ReadRawPageAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -2479,12 +2416,13 @@ namespace Opc.Ua.Server.Historian
             ReadRawModifiedDetails details,
             TimestampsToReturn timestampsToReturn,
             HistoryReadResult result,
-            HistorianContinuationState? state,
+            HistorianContinuationClaim? claim,
             HistorianOperationContext opContext,
             CancellationToken cancellationToken)
         {
             if (provider is not IHistorianDataProvider data)
             {
+                claim?.Retire();
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
@@ -2495,11 +2433,13 @@ namespace Opc.Ua.Server.Historian
                 node is BaseVariableState scalarCheck &&
                 scalarCheck.ValueRank == ValueRanks.Scalar)
             {
+                claim?.Retire();
                 result.StatusCode = StatusCodes.BadIndexRangeNoData;
                 result.ContinuationPoint = ByteString.Empty;
                 return ServiceResult.Good;
             }
 
+            HistorianContinuationState? state = claim?.State;
             HistorianRawReadRequest request;
             HistorianResumeToken token;
             if (state is { Kind: HistorianReadKind.Raw, RawRequest: { } existingRaw })
@@ -2546,13 +2486,31 @@ namespace Opc.Ua.Server.Historian
                 nodeToRead,
                 timestampsToReturn);
 
-            await SaveOrReleaseContinuationAsync(
-                systemContext, nodeToRead, result, state, page.NextToken,
-                provider, node, request, kind: HistorianReadKind.Raw,
-                timestampsToReturn: timestampsToReturn,
-                indexRange: nodeToRead.ParsedIndexRange,
-                dataEncoding: nodeToRead.DataEncoding,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
+            HistorianContinuationState? initialState = null;
+            if (claim == null && !page.NextToken.IsEmpty)
+            {
+                initialState = new HistorianContinuationState
+                {
+                    Id = Guid.NewGuid(),
+                    Provider = provider,
+                    NodeId = node.NodeId,
+                    Kind = HistorianReadKind.Raw,
+                    ResumeToken = page.NextToken,
+                    RawRequest = request,
+                    TimestampsToReturn = timestampsToReturn,
+                    IndexRange = nodeToRead.ParsedIndexRange,
+                    DataEncoding = nodeToRead.DataEncoding
+                };
+            }
+            await SaveSuccessorOrCompleteAsync(
+                systemContext,
+                result,
+                claim,
+                hasMore: !page.NextToken.IsEmpty,
+                page.NextToken,
+                initialState,
+                bufferedProcessedOffset: null,
+                cancellationToken).ConfigureAwait(false);
 
             // Per OPC UA Part 11 6.5.3.2, an interval in which no data exists (and no
             // Bounding Values were requested/returned) is reported with Good_NoData.
@@ -2564,6 +2522,11 @@ namespace Opc.Ua.Server.Historian
             return ServiceResult.Good;
         }
 
+        // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
+        [SuppressMessage(
+            "Reliability",
+            "CA2000:Dispose objects before losing scope",
+            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state on invocation and either saves it to the session or disposes it.")]
         private static async ValueTask<ServiceResult> ReadModifiedPageAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -2572,15 +2535,17 @@ namespace Opc.Ua.Server.Historian
             ReadRawModifiedDetails details,
             TimestampsToReturn timestampsToReturn,
             HistoryReadResult result,
-            HistorianContinuationState? state,
+            HistorianContinuationClaim? claim,
             HistorianOperationContext opContext,
             CancellationToken cancellationToken)
         {
             if (provider is not IHistorianModifiedProvider modified)
             {
+                claim?.Retire();
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
+            HistorianContinuationState? state = claim?.State;
             HistorianModifiedReadRequest request;
             HistorianResumeToken token;
             if (state is { Kind: HistorianReadKind.Modified, ModifiedRequest: { } existing })
@@ -2629,13 +2594,31 @@ namespace Opc.Ua.Server.Historian
                 nodeToRead,
                 timestampsToReturn);
 
-            await SaveOrReleaseContinuationAsync(
-                systemContext, nodeToRead, result, state, page.NextToken,
-                provider, node, modifiedRequest: request, kind: HistorianReadKind.Modified,
-                timestampsToReturn: timestampsToReturn,
-                indexRange: nodeToRead.ParsedIndexRange,
-                dataEncoding: nodeToRead.DataEncoding,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
+            HistorianContinuationState? initialState = null;
+            if (claim == null && !page.NextToken.IsEmpty)
+            {
+                initialState = new HistorianContinuationState
+                {
+                    Id = Guid.NewGuid(),
+                    Provider = provider,
+                    NodeId = node.NodeId,
+                    Kind = HistorianReadKind.Modified,
+                    ResumeToken = page.NextToken,
+                    ModifiedRequest = request,
+                    TimestampsToReturn = timestampsToReturn,
+                    IndexRange = nodeToRead.ParsedIndexRange,
+                    DataEncoding = nodeToRead.DataEncoding
+                };
+            }
+            await SaveSuccessorOrCompleteAsync(
+                systemContext,
+                result,
+                claim,
+                hasMore: !page.NextToken.IsEmpty,
+                page.NextToken,
+                initialState,
+                bufferedProcessedOffset: null,
+                cancellationToken).ConfigureAwait(false);
 
             // Per OPC UA Part 11 6.5.3.2, an interval in which no data exists is reported
             // with Good_NoData.
@@ -2647,13 +2630,14 @@ namespace Opc.Ua.Server.Historian
             return ServiceResult.Good;
         }
 
-        private static async ValueTask<HistorianContinuationState?>
-            TryRestoreContinuationAsync(
+        private static async ValueTask<HistorianContinuationClaim?>
+            TryClaimContinuationAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
             HistoryReadValueId nodeToRead,
             HistorianReadKind expectedKind,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            NodeId legacyAnnotationProviderNodeId = default)
         {
             if (nodeToRead.ContinuationPoint.IsEmpty)
             {
@@ -2673,135 +2657,138 @@ namespace Opc.Ua.Server.Historian
                 raw?.Dispose();
                 return null;
             }
-            if (state.Kind != expectedKind)
-            {
-                state.Dispose();
-                return null;
-            }
-            // Reject cross-wired continuation points — a client that
-            // submits a CP from one node against a different node would
-            // otherwise get the wrong page from the wrong provider.
-            if (state.NodeId != nodeToRead.NodeId)
-            {
-                state.Dispose();
-                return null;
-            }
-            if (!ReferenceEquals(state.Provider, provider) &&
-                (state.Provider is not IHistorianProviderIdentity savedIdentity ||
-                    provider is not IHistorianProviderIdentity currentIdentity ||
-                    !string.Equals(
-                        savedIdentity.ProviderId,
-                        currentIdentity.ProviderId,
-                        StringComparison.Ordinal)))
-            {
-                state.Dispose();
-                return null;
-            }
-            return state;
-        }
-
-        private static async ValueTask RestoreClaimedContinuationAsync(
-            ServerSystemContext systemContext,
-            HistorianContinuationState state)
-        {
-            ISessionContinuationPoints? continuationPoints =
-                systemContext.OperationContext?.Session?.ContinuationPoints;
-            if (continuationPoints == null)
-            {
-                state.Dispose();
-                return;
-            }
+            HistorianContinuationClaim? claim = null;
             try
             {
-                await continuationPoints.SaveHistoryAsync(
-                    state,
-                    CancellationToken.None).ConfigureAwait(false);
+                claim = new HistorianContinuationClaim(
+                    continuationPoints,
+                    state);
+                bool annotationProviderNodeMatches =
+                    expectedKind != HistorianReadKind.Annotations ||
+                    (!legacyAnnotationProviderNodeId.IsNull &&
+                        state.AnnotationRequest is { } annotationRequest &&
+                        annotationRequest.NodeId ==
+                            legacyAnnotationProviderNodeId);
+                bool legacyAnnotationNodeMatches =
+                    expectedKind == HistorianReadKind.Annotations &&
+                    state.UsesLegacyAnnotationNodeId &&
+                    !nodeToRead.NodeId.IsNull &&
+                    !legacyAnnotationProviderNodeId.IsNull &&
+                    state.NodeId == legacyAnnotationProviderNodeId &&
+                    annotationProviderNodeMatches;
+                if (state.Kind != expectedKind ||
+                    !annotationProviderNodeMatches ||
+                    (state.NodeId != nodeToRead.NodeId &&
+                        !legacyAnnotationNodeMatches))
+                {
+                    claim.Retire();
+                    return null;
+                }
+                if (legacyAnnotationNodeMatches)
+                {
+                    claim.NormalizeLegacyAnnotationNodeId(
+                        nodeToRead.NodeId);
+                }
+                HistorianContinuationState claimedState = claim.State;
+                if (!ReferenceEquals(claimedState.Provider, provider) &&
+                    (claimedState.Provider is not
+                            IHistorianProviderIdentity savedIdentity ||
+                            provider is not IHistorianProviderIdentity currentIdentity ||
+                            !string.Equals(
+                                savedIdentity.ProviderId,
+                                currentIdentity.ProviderId,
+                                StringComparison.Ordinal)))
+                {
+                    claim.Retire();
+                    return null;
+                }
+                HistorianContinuationClaim result = claim;
+                claim = null;
+                return result;
             }
-            catch
+            finally
             {
-                state.Dispose();
+                if (claim != null)
+                {
+                    await claim.DisposeAsync().ConfigureAwait(false);
+                }
             }
         }
 
-        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory.")]
-        private static async ValueTask SaveOrReleaseContinuationAsync(
+        private static async ValueTask SaveSuccessorOrCompleteAsync(
             ServerSystemContext systemContext,
-            HistoryReadValueId nodeToRead,
             HistoryReadResult result,
-            HistorianContinuationState? existingState,
+            HistorianContinuationClaim? claim,
+            bool hasMore,
             HistorianResumeToken nextToken,
-            IHistorianProvider? provider = null,
-            NodeState? node = null,
-            HistorianRawReadRequest? rawRequest = null,
-            HistorianModifiedReadRequest? modifiedRequest = null,
-            HistorianProcessedReadRequest? processedRequest = null,
-            HistorianReadKind kind = HistorianReadKind.Raw,
-            TimestampsToReturn timestampsToReturn = TimestampsToReturn.Source,
-            NumericRange indexRange = default,
-            QualifiedName? dataEncoding = null,
-            CancellationToken cancellationToken = default)
+            HistorianContinuationState? initialState,
+            int? bufferedProcessedOffset,
+            CancellationToken cancellationToken)
         {
-            if (nextToken.IsEmpty)
+            if (!hasMore)
             {
-                // final page
+                initialState?.Dispose();
+                claim?.Retire();
                 result.StatusCode = StatusCodes.Good;
                 result.ContinuationPoint = ByteString.Empty;
-                existingState?.Dispose();
                 return;
             }
 
-            HistorianContinuationState state;
-            if (existingState != null)
+            HistorianContinuationState successor;
+            if (claim != null)
             {
-                state = existingState;
-                state.ResumeToken = nextToken;
+                try
+                {
+                    successor = await claim.CommitSuccessorAsync(
+                        nextToken,
+                        bufferedProcessedOffset,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                    when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception exception) when (
+                    exception is ServiceResultException or
+                    InvalidOperationException or
+                    IOException or
+                    TimeoutException)
+                {
+                    result.StatusCode =
+                        exception is ServiceResultException serviceException &&
+                        serviceException.StatusCode == StatusCodes.BadSessionClosed
+                            ? StatusCodes.BadSessionClosed
+                            : StatusCodes.BadNoContinuationPoints;
+                    result.ContinuationPoint = ByteString.Empty;
+                    return;
+                }
             }
             else
             {
-                if (provider == null || node == null)
+                ISessionContinuationPoints? continuationPoints =
+                    systemContext.OperationContext?.Session?.ContinuationPoints;
+                if (continuationPoints == null || initialState == null)
                 {
-                    throw new InvalidOperationException("Provider/node required for new continuation state.");
+                    initialState?.Dispose();
+                    result.StatusCode = StatusCodes.BadNoContinuationPoints;
+                    result.ContinuationPoint = ByteString.Empty;
+                    return;
                 }
-                state = new HistorianContinuationState
+                if (!await TrySaveHistoryContinuationAsync(
+                        continuationPoints,
+                        initialState,
+                        result,
+                        cancellationToken).ConfigureAwait(false))
                 {
-                    Id = Guid.NewGuid(),
-                    Provider = provider,
-                    NodeId = node.NodeId,
-                    Kind = kind,
-                    ResumeToken = nextToken,
-                    RawRequest = rawRequest,
-                    ModifiedRequest = modifiedRequest,
-                    ProcessedRequest = processedRequest,
-                    TimestampsToReturn = timestampsToReturn,
-                    IndexRange = indexRange,
-                    DataEncoding = dataEncoding ?? QualifiedName.Null
-                };
+                    return;
+                }
+                successor = initialState;
             }
 
-            state.Id = Guid.NewGuid();
-            ISessionContinuationPoints? continuationPoints =
-                systemContext.OperationContext?.Session?.ContinuationPoints;
-            if (continuationPoints == null)
-            {
-                state.Dispose();
-                result.StatusCode = StatusCodes.BadNoContinuationPoints;
-                result.ContinuationPoint = ByteString.Empty;
-                return;
-            }
-            if (!await TrySaveHistoryContinuationAsync(
-                    continuationPoints,
-                    state,
-                    result,
-                    cancellationToken).ConfigureAwait(false))
-            {
-                return;
-            }
-            // Per OPC UA Part 11 6.5.3.2 a HistoryRead that returns a ContinuationPoint
-            // (more data available) uses StatusCode Good, not Good_MoreData; the non-empty
-            // ContinuationPoint alone signals to the client that more data can be fetched.
             result.StatusCode = StatusCodes.Good;
-            result.ContinuationPoint = new ByteString(state.Id.ToByteArray());
+            result.ContinuationPoint = new ByteString(
+                successor.Id.ToByteArray());
         }
 
         private static async ValueTask<bool> TrySaveHistoryContinuationAsync(
@@ -2970,6 +2957,8 @@ namespace Opc.Ua.Server.Historian
             IHistorianDataProvider raw,
             NodeId nodeId,
             ArrayOf<DateTimeUtc> times,
+            bool useSimpleBounds,
+            bool stepped,
             CancellationToken cancellationToken)
         {
             if (times.Count == 0)
@@ -3020,138 +3009,251 @@ namespace Opc.Ua.Server.Historian
                 }
                 token = page.NextToken;
             }
+            if (max == DateTimeUtc.MaxValue &&
+                min != max &&
+                !collected.Exists(value =>
+                    value.SourceTimestamp == DateTimeUtc.MaxValue))
+            {
+                await AddExactRawValuesAsync(
+                    collected,
+                    context,
+                    raw,
+                    nodeId,
+                    DateTimeUtc.MaxValue,
+                    cancellationToken).ConfigureAwait(false);
+            }
             collected.Sort((a, b) => a.SourceTimestamp.CompareTo(b.SourceTimestamp));
+            if (!useSimpleBounds)
+            {
+                bool hasNonBadBefore = false;
+                bool hasNonBadAfter = false;
+                for (int i = 0; i < collected.Count; i++)
+                {
+                    DataValue value = collected[i];
+                    if (StatusCode.IsBad(value.StatusCode))
+                    {
+                        continue;
+                    }
+                    hasNonBadBefore |= value.SourceTimestamp < min;
+                    hasNonBadAfter |= value.SourceTimestamp > max;
+                }
+                if (!hasNonBadBefore)
+                {
+                    _ = await AddOuterNonBadValuesAsync(
+                        collected,
+                        context,
+                        raw,
+                        nodeId,
+                        min,
+                        before: true,
+                        requiredCount: 1,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                if (!hasNonBadAfter)
+                {
+                    hasNonBadAfter = await AddOuterNonBadValuesAsync(
+                        collected,
+                        context,
+                        raw,
+                        nodeId,
+                        max,
+                        before: false,
+                        requiredCount: 1,
+                        cancellationToken).ConfigureAwait(false) > 0;
+                }
+                if (!stepped && !hasNonBadAfter)
+                {
+                    int precedingCount = CountDistinctNonBadValuesBefore(
+                        collected,
+                        max);
+                    if (precedingCount < 2)
+                    {
+                        _ = await AddOuterNonBadValuesAsync(
+                            collected,
+                            context,
+                            raw,
+                            nodeId,
+                            max,
+                            before: true,
+                            requiredCount: 2 - precedingCount,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                collected.Sort((a, b) =>
+                    a.SourceTimestamp.CompareTo(b.SourceTimestamp));
+            }
             return collected;
         }
 
-        private static DataValue InterpolateAtTime(List<DataValue> samples, DateTimeUtc requestedTime, bool useSimpleBounds)
+        private static async ValueTask AddExactRawValuesAsync(
+            List<DataValue> collected,
+            HistorianOperationContext context,
+            IHistorianDataProvider raw,
+            NodeId nodeId,
+            DateTimeUtc timestamp,
+            CancellationToken cancellationToken)
         {
-            DataValue before = DataValue.Null;
-            DataValue after = DataValue.Null;
-            for (int i = 0; i < samples.Count; i++)
+            var request = new HistorianRawReadRequest
             {
-                DataValue v = samples[i];
-                int cmp = v.SourceTimestamp.CompareTo(requestedTime);
-                if (cmp == 0)
-                {
-                    return new DataValue(
-                        v.WrappedValue,
-                        v.StatusCode,
-                        sourceTimestamp: requestedTime,
-                        serverTimestamp: v.ServerTimestamp);
-                }
-                if (cmp < 0)
-                {
-                    before = v;
-                }
-                else
-                {
-                    after = v;
-                    break;
-                }
-            }
-
-            if (useSimpleBounds || before.IsNull || after.IsNull)
+                NodeId = nodeId,
+                StartTime = timestamp,
+                EndTime = timestamp,
+                MaxValues = 0,
+                IsForward = true,
+                ReturnBounds = false
+            };
+            HistorianResumeToken token = default;
+            while (true)
             {
-                DataValue closest = !before.IsNull ? before : after;
-                if (closest.IsNull)
+                HistorianPage<HistoricalDataValue> page =
+                    await raw.ReadRawAsync(
+                        context,
+                        request,
+                        token,
+                        cancellationToken).ConfigureAwait(false);
+                foreach (HistoricalDataValue historicalValue in page.Values)
                 {
-                    return new DataValue(
-                        Variant.Null,
-                        StatusCodes.BadNoData,
-                        sourceTimestamp: requestedTime,
-                        serverTimestamp: DateTimeUtc.MinValue);
+                    if (historicalValue.Value.SourceTimestamp == timestamp)
+                    {
+                        collected.Add(historicalValue.Value);
+                    }
                 }
-                return new DataValue(
-                    closest.WrappedValue,
-                    StatusCodes.UncertainNoCommunicationLastUsableValue,
-                    sourceTimestamp: requestedTime,
-                    serverTimestamp: DateTimeUtc.MinValue);
+                if (page.IsFinal)
+                {
+                    return;
+                }
+                token = page.NextToken;
             }
-
-            if (!TryGetDouble(before.WrappedValue, out double y0) ||
-                !TryGetDouble(after.WrappedValue, out double y1))
-            {
-                return new DataValue(
-                    before.WrappedValue,
-                    StatusCodes.UncertainNoCommunicationLastUsableValue,
-                    sourceTimestamp: requestedTime,
-                    serverTimestamp: DateTimeUtc.MinValue);
-            }
-            double t0 = before.SourceTimestamp.ToDateTime().Ticks;
-            double t1 = after.SourceTimestamp.ToDateTime().Ticks;
-            if (t1 == t0)
-            {
-                return new DataValue(
-                    before.WrappedValue,
-                    StatusCodes.UncertainNoCommunicationLastUsableValue,
-                    sourceTimestamp: requestedTime,
-                    serverTimestamp: DateTimeUtc.MinValue);
-            }
-            double t = requestedTime.ToDateTime().Ticks;
-            double ratio = (t - t0) / (t1 - t0);
-            double y = y0 + ((y1 - y0) * ratio);
-            return new DataValue(
-                Variant.From(y),
-                StatusCodes.UncertainDataSubNormal,
-                sourceTimestamp: requestedTime,
-                serverTimestamp: DateTimeUtc.MinValue);
         }
 
-        private static bool TryGetDouble(Variant value, out double result)
+        private static async ValueTask<int> AddOuterNonBadValuesAsync(
+            List<DataValue> collected,
+            HistorianOperationContext context,
+            IHistorianDataProvider raw,
+            NodeId nodeId,
+            DateTimeUtc boundary,
+            bool before,
+            int requiredCount,
+            CancellationToken cancellationToken)
         {
-            if (value.TryGetValue(out double doubleValue))
+            var existingTimestamps = new HashSet<DateTimeUtc>();
+            for (int i = 0; i < collected.Count; i++)
             {
-                result = doubleValue;
-                return true;
+                if (StatusCode.IsNotBad(collected[i].StatusCode))
+                {
+                    existingTimestamps.Add(collected[i].SourceTimestamp);
+                }
             }
-            if (value.TryGetValue(out float floatValue))
+            var request = new HistorianRawReadRequest
             {
-                result = floatValue;
-                return true;
-            }
-            if (value.TryGetValue(out long int64Value))
+                NodeId = nodeId,
+                StartTime = before ? DateTimeUtc.MinValue : boundary,
+                EndTime = before ? boundary : DateTimeUtc.MaxValue,
+                MaxValues = 0,
+                IsForward = !before,
+                ReturnBounds = false
+            };
+            int added = 0;
+            HistorianResumeToken token = default;
+            while (true)
             {
-                result = int64Value;
-                return true;
+                HistorianPage<HistoricalDataValue> page =
+                    await raw.ReadRawAsync(
+                        context,
+                        request,
+                        token,
+                        cancellationToken).ConfigureAwait(false);
+                foreach (HistoricalDataValue historicalValue in page.Values)
+                {
+                    DataValue value = historicalValue.Value;
+                    bool outside = before
+                        ? value.SourceTimestamp < boundary
+                        : value.SourceTimestamp > boundary;
+                    if (outside &&
+                        StatusCode.IsNotBad(value.StatusCode) &&
+                        existingTimestamps.Add(value.SourceTimestamp))
+                    {
+                        collected.Add(value);
+                        added++;
+                        if (added >= requiredCount)
+                        {
+                            return added;
+                        }
+                    }
+                }
+                if (page.IsFinal)
+                {
+                    break;
+                }
+                token = page.NextToken;
             }
-            if (value.TryGetValue(out ulong uint64Value))
+
+            DateTimeUtc extreme = before
+                ? DateTimeUtc.MinValue
+                : DateTimeUtc.MaxValue;
+            bool extremeIsOutside = before
+                ? extreme < boundary
+                : extreme > boundary;
+            if (!extremeIsOutside || added >= requiredCount)
             {
-                result = uint64Value;
-                return true;
+                return added;
             }
-            if (value.TryGetValue(out int int32Value))
+
+            var exactRequest = new HistorianRawReadRequest
             {
-                result = int32Value;
-                return true;
-            }
-            if (value.TryGetValue(out uint uint32Value))
+                NodeId = nodeId,
+                StartTime = extreme,
+                EndTime = extreme,
+                MaxValues = 0,
+                IsForward = true,
+                ReturnBounds = false
+            };
+            token = default;
+            while (true)
             {
-                result = uint32Value;
-                return true;
+                HistorianPage<HistoricalDataValue> page =
+                    await raw.ReadRawAsync(
+                        context,
+                        exactRequest,
+                        token,
+                        cancellationToken).ConfigureAwait(false);
+                foreach (HistoricalDataValue historicalValue in page.Values)
+                {
+                    DataValue value = historicalValue.Value;
+                    if (StatusCode.IsNotBad(value.StatusCode) &&
+                        existingTimestamps.Add(value.SourceTimestamp))
+                    {
+                        collected.Add(value);
+                        added++;
+                        if (added >= requiredCount)
+                        {
+                            return added;
+                        }
+                    }
+                }
+                if (page.IsFinal)
+                {
+                    return added;
+                }
+                token = page.NextToken;
             }
-            if (value.TryGetValue(out short int16Value))
+        }
+
+        private static int CountDistinctNonBadValuesBefore(
+            List<DataValue> values,
+            DateTimeUtc boundary)
+        {
+            var timestamps = new HashSet<DateTimeUtc>();
+            for (int i = 0; i < values.Count; i++)
             {
-                result = int16Value;
-                return true;
+                DataValue value = values[i];
+                if (value.SourceTimestamp < boundary &&
+                    StatusCode.IsNotBad(value.StatusCode))
+                {
+                    timestamps.Add(value.SourceTimestamp);
+                }
             }
-            if (value.TryGetValue(out ushort uint16Value))
-            {
-                result = uint16Value;
-                return true;
-            }
-            if (value.TryGetValue(out sbyte sbyteValue))
-            {
-                result = sbyteValue;
-                return true;
-            }
-            if (value.TryGetValue(out byte byteValue))
-            {
-                result = byteValue;
-                return true;
-            }
-            result = 0;
-            return false;
+            return timestamps.Count;
         }
 
         private static HistoryUpdateType MapPerformUpdate(PerformUpdateType performUpdate)

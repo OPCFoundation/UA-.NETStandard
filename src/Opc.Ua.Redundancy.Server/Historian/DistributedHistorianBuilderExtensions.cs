@@ -87,6 +87,7 @@ namespace Opc.Ua.Redundancy.Server
             builder.Services.TryAddSingleton<IHistorianProvider>(
                 services => services.GetRequiredService<
                     SharedKeyValueHistorianProvider>());
+            builder.AddHistorian<IHistorianProvider>();
             builder.Services.TryAddSingleton(
                     services =>
                         new SharedKeyValueHistoryContinuationStore(
@@ -115,19 +116,28 @@ namespace Opc.Ua.Redundancy.Server
                 ServiceDescriptor.Singleton<IStrongKeyspaceProvider>(
                     DistributedHistorianStrongKeyspaceProvider.Instance));
             builder.Services.TryAddSingleton<DistributedHistorianStartupTask>();
-            builder.Services.AddSingleton<IServerStartupTask>(
+            builder.Services.AddSingleton<IServerPreStartupTask>(
                 services => services.GetRequiredService<
                     DistributedHistorianStartupTask>());
             return builder;
         }
     }
 
+    /// <summary>
+    /// Declares historian and continuation-store key prefixes that require strong consistency.
+    /// </summary>
     internal sealed class DistributedHistorianStrongKeyspaceProvider :
         IStrongKeyspaceProvider
     {
+        /// <summary>
+        /// Shared provider for the distributed historian's strong-consistency keyspaces.
+        /// </summary>
         public static DistributedHistorianStrongKeyspaceProvider Instance { get; }
             = new();
 
+        /// <summary>
+        /// Returns the historian and history-continuation key prefixes requiring strong consistency.
+        /// </summary>
         public ArrayOf<string> GetStrongKeyPrefixes()
         {
             return

@@ -711,6 +711,10 @@ namespace Opc.Ua.SourceGeneration
                         System.Collections.Generic.IReadOnlyList<Variant> fields,
                         int index)
                         => default;
+                    public static uint? GetNullableUInt32(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
+                        => default;
                     public static NodeId? GetNullableNodeId(
                         System.Collections.Generic.IReadOnlyList<Variant> fields,
                         int index)
@@ -858,6 +862,9 @@ namespace Opc.Ua.SourceGeneration
                         global::System.Collections.Generic.IReadOnlyList<Variant> fields,
                         int index) => default;
                     public static ushort? GetUInt16(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index) => default;
+                    public static uint? GetNullableUInt32(
                         global::System.Collections.Generic.IReadOnlyList<Variant> fields,
                         int index) => default;
                     public static StatusCode GetStatusCode(

@@ -447,20 +447,32 @@ namespace Opc.Ua.Server.Historian
     /// </summary>
     internal static partial class HistorianCaptureSinkLog
     {
+        /// <summary>
+        /// Logs forced cancellation after the sample capture consumer failed to drain within five seconds.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 0, Level = LogLevel.Warning,
             Message = "HistorianCaptureSink consumer did not drain within 5s; cancelling forcibly.")]
         public static partial void HistorianCaptureSinkConsumerDidNotDrainWithin5s(this ILogger logger);
 
+        /// <summary>
+        /// Logs a sample capture consumer failure during shutdown.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 1, Level = LogLevel.Warning,
             Message = "HistorianCaptureSink consumer faulted during shutdown.")]
         public static partial void HistorianCaptureSinkConsumerFaultedDuringShutdown(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs an exception that unexpectedly terminated the sample capture consumer.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 2, Level = LogLevel.Error,
             Message = "HistorianCaptureSink consumer terminated unexpectedly.")]
         public static partial void HistorianCaptureSinkConsumerTerminatedUnexpectedly(
             this ILogger logger,
             Exception ex);
 
+        /// <summary>
+        /// Logs a failed historian flush and the number of nodes whose samples were dropped.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 3, Level = LogLevel.Warning,
             Message = "HistorianCaptureSink flush failed for {Nodes} node(s); samples dropped.")]
         public static partial void HistorianCaptureSinkFlushFailedForNodesNodeS(
@@ -468,6 +480,9 @@ namespace Opc.Ua.Server.Historian
             Exception ex,
             int nodes);
 
+        /// <summary>
+        /// Logs a sample dropped under the capture queue's configured full mode.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 4, Level = LogLevel.Trace,
             Message = "HistorianCaptureSink dropped sample for {NodeId} ({Mode}).")]
         public static partial void HistorianCaptureSinkDroppedSampleForNodeIdMode(
@@ -475,6 +490,9 @@ namespace Opc.Ua.Server.Historian
             NodeId nodeId,
             CaptureFullMode mode);
 
+        /// <summary>
+        /// Logs the count and first status code of samples rejected by the historian provider.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 5, Level = LogLevel.Warning,
             Message = "HistorianCaptureSink provider rejected {Count} sample(s) for {NodeId}; first status {StatusCode}.")]
         public static partial void HistorianCaptureSinkRejectedSamples(
@@ -483,6 +501,9 @@ namespace Opc.Ua.Server.Historian
             int count,
             StatusCode statusCode);
 
+        /// <summary>
+        /// Logs a sample dropped because the capture consumer is unavailable.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 6, Level = LogLevel.Error,
             Message = "HistorianCaptureSink is unavailable; dropping the sample for {NodeId}.")]
         public static partial void HistorianCaptureSinkUnavailable(
@@ -490,6 +511,9 @@ namespace Opc.Ua.Server.Historian
             Exception exception,
             NodeId nodeId);
 
+        /// <summary>
+        /// Logs a sample dropped because the capture queue is closed.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 7, Level = LogLevel.Warning,
             Message = "HistorianCaptureSink queue is closed; dropping the sample for {NodeId}.")]
         public static partial void HistorianCaptureSinkQueueClosed(

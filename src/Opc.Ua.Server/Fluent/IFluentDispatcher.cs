@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Opc.Ua.Server.Fluent
 {
     /// <summary>
@@ -99,6 +102,58 @@ namespace Opc.Ua.Server.Fluent
             ISystemContext context,
             NodeState source,
             ISampledDataChangeMonitoredItem monitoredItem);
+
+        /// <summary>
+        /// Gets the pre-creation decision registered for a source node.
+        /// </summary>
+        ValueTask<MonitoredItemCreateDecision> GetMonitoredItemCreateDecisionAsync(
+            MonitoredItemCreateContext context,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Notifies a registered monitored-item modified handler.
+        /// </summary>
+        ValueTask NotifyMonitoredItemModifiedAsync(
+            ISystemContext context,
+            NodeState source,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Notifies a registered monitored-item deleted handler.
+        /// </summary>
+        ValueTask NotifyMonitoredItemDeletedAsync(
+            ISystemContext context,
+            NodeState source,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Notifies a registered monitoring-mode changed handler.
+        /// </summary>
+        ValueTask NotifyMonitoringModeChangedAsync(
+            ISystemContext context,
+            NodeState source,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            MonitoringMode previousMode,
+            MonitoringMode monitoringMode,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Notifies the manager-level successful-create batch handler.
+        /// </summary>
+        ValueTask NotifyMonitoredItemsCreatedAsync(
+            ISystemContext context,
+            ArrayOf<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Notifies the manager-level successful-delete batch handler.
+        /// </summary>
+        ValueTask NotifyMonitoredItemsDeletedAsync(
+            ISystemContext context,
+            ArrayOf<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken);
 
         /// <summary>
         /// Notifies registered <c>OnNodeAdded</c> handlers for the

@@ -447,8 +447,8 @@ namespace Opc.Ua.Server.Tests
             // subscription/event infrastructure is ready.
             Assert.Multiple(() =>
             {
-                Assert.That(m_configManager.AlarmMonitoringActive, Is.True);
-                Assert.That(m_configManager.AlarmMonitors, Is.Not.Empty);
+                Assert.That(m_configManager.AlarmScheduler.IsActive, Is.True);
+                Assert.That(m_configManager.AlarmScheduler.Monitors, Is.Not.Empty);
             });
         }
 
@@ -462,10 +462,10 @@ namespace Opc.Ua.Server.Tests
                 s_telemetry.CreateLogger<ConfigurationNodeManager>(),
                 time);
 
-            Assert.That(manager.AlarmMonitoringActive, Is.False);
+            Assert.That(manager.AlarmScheduler.IsActive, Is.False);
 
             manager.StartAlarmMonitoring(TimeSpan.FromSeconds(30));
-            Assert.That(manager.AlarmMonitoringActive, Is.True);
+            Assert.That(manager.AlarmScheduler.IsActive, Is.True);
 
             // Firing the injected timer must not throw (no monitors on this
             // stand-alone manager, but the callback path is exercised).
@@ -475,7 +475,7 @@ namespace Opc.Ua.Server.Tests
             Assert.DoesNotThrow(() => manager.StartAlarmMonitoring(TimeSpan.FromSeconds(30)));
 
             manager.StopAlarmMonitoring();
-            Assert.That(manager.AlarmMonitoringActive, Is.False);
+            Assert.That(manager.AlarmScheduler.IsActive, Is.False);
 
             // Stopping again is safe.
             Assert.DoesNotThrow(manager.StopAlarmMonitoring);
@@ -559,11 +559,11 @@ namespace Opc.Ua.Server.Tests
                     {
                         for (int n = 0; n < 500; n++)
                         {
-                            manager.UpdateAndEvaluateAlarms(context, emitEvents: true);
+                            manager.AlarmScheduler.UpdateAndEvaluate(context, emitEvents: true);
                         }
 
                         release.Wait(TimeSpan.FromSeconds(10));
-                        manager.UpdateAndEvaluateAlarms(context, emitEvents: true);
+                        manager.AlarmScheduler.UpdateAndEvaluate(context, emitEvents: true);
                     }
                     catch (Exception ex)
                     {
@@ -585,7 +585,7 @@ namespace Opc.Ua.Server.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(failure, Is.Null, "concurrent evaluate/start/stop must not throw");
-                Assert.That(manager.AlarmMonitoringActive, Is.False,
+                Assert.That(manager.AlarmScheduler.IsActive, Is.False,
                     "the final Stop wins and leaves monitoring inactive");
             });
         }
@@ -597,7 +597,7 @@ namespace Opc.Ua.Server.Tests
             StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
             var manager = (ConfigurationNodeManager)server.CurrentInstance.ConfigurationNodeManager;
 
-            Assert.That(manager.AlarmMonitoringActive, Is.True,
+            Assert.That(manager.AlarmScheduler.IsActive, Is.True,
                 "monitoring is active while the server is running");
 
             // The async shutdown drives DeleteAddressSpaceAsync -> StopAlarmMonitoring
@@ -605,7 +605,7 @@ namespace Opc.Ua.Server.Tests
             // evaluation mutates a disposed node afterwards.
             await fixture.StopAsync().ConfigureAwait(false);
 
-            Assert.That(manager.AlarmMonitoringActive, Is.False,
+            Assert.That(manager.AlarmScheduler.IsActive, Is.False,
                 "server shutdown must stop alarm monitoring");
         }
 

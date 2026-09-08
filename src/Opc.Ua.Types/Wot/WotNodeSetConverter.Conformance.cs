@@ -93,6 +93,7 @@ namespace Opc.Ua.Wot
                 (element, pointer) =>
                 {
                     ValidateSelectClausePlacement(element, pointer, diagnostics);
+                    ValidatePropertyTermPlacement(element, pointer, diagnostics);
                     ValidateSecurityFloorPlacement(element, pointer, diagnostics);
                     ValidateOpaqueObjects(document, element, pointer, opaqueSeverity, diagnostics);
                     ValidateNodeClassAnnotation(element, pointer, diagnostics);
@@ -509,6 +510,63 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// Reports a property-affordance term that does not sit directly on a
+        /// property affordance (WoT Binding Sections 6.4, 6.4.1 and 7).
+        /// </summary>
+        /// <remarks>
+        /// The five terms describe the Variable an affordance projects: its
+        /// EngineeringUnits Property, the instrument range that Property is
+        /// bounded by, the sibling affordance that carries it, and the display
+        /// scaling a Client applies to its value. A member of an action's
+        /// <c>input</c>, of an event's <c>data</c>, or of a property
+        /// affordance's own DataSchema is a field of a payload, not a Variable,
+        /// so none of that exists for it. Deciding the role by the member's
+        /// position rather than by the name of the map it sits in is what stops
+        /// a <c>properties</c> map that is a DataSchema from being read as an
+        /// affordance map.
+        /// </remarks>
+        private static void ValidatePropertyTermPlacement(
+            JsonElement element,
+            string pointer,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (IsPropertyAffordancePointer(pointer))
+            {
+                return;
+            }
+            foreach (string term in s_propertyAffordanceTerms)
+            {
+                if (!element.TryGetProperty(term, out _))
+                {
+                    continue;
+                }
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.InvalidModelVocabularyValue,
+                    $"The {term} term appears at " +
+                    $"'{(pointer.Length == 0 ? "/" : pointer)}'. It describes the Variable " +
+                    "a property affordance projects and belongs only directly on a member " +
+                    "of the root 'properties' map (WoT Binding Sections 6.4, 6.4.1 and 7).",
+                    WotLocation.FromPointer(
+                        (pointer.Length == 0 ? string.Empty : pointer) + "/" +
+                        EscapeJsonPointerToken(term))));
+            }
+        }
+
+        /// <summary>
+        /// The terms that describe the Variable a property affordance projects,
+        /// and therefore say nothing anywhere else.
+        /// </summary>
+        private static readonly string[] s_propertyAffordanceTerms =
+        [
+            EngineeringUnitsTerm,
+            UnitPropertyTerm,
+            InstrumentRangeTerm,
+            "uav:scaleFactor",
+            "uav:decimalPlaces"
+        ];
+
+        /// <summary>
         /// Reports a <c>uav:eventSelectClauses</c> term that does not sit
         /// directly on an event affordance (WoT Binding Sections 6.1 and 7).
         /// </summary>
@@ -916,11 +974,55 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// Determines whether a JSON Pointer locates an event affordance, that
-        /// is <c>/events/&lt;name&gt;</c> exactly.
+        /// is a member of some <c>events</c> map.
         /// </summary>
+        /// <remarks>
+        /// An <c>events</c> map is an affordance map wherever it appears, not
+        /// only at the document root: a link that carries a collection of event
+        /// affordances carries event affordances. So the test is on the last
+        /// two tokens rather than on the whole pointer - which is also what
+        /// keeps the permission and the prohibition routing at the same places.
+        /// A rule that admitted a nested map while forbidding a clause inside
+        /// it would make one document simultaneously valid and invalid.
+        /// </remarks>
         private static bool IsEventAffordancePointer(string pointer)
         {
-            return IsTwoTokenPointer(pointer, "events");
+            return EndsWithMapMemberToken(pointer, "events");
+        }
+
+        /// <summary>
+        /// Determines whether a JSON Pointer locates a property affordance,
+        /// that is a member of the <em>root</em> <c>properties</c> map.
+        /// </summary>
+        /// <remarks>
+        /// Unlike <c>events</c>, this role is decided once and at the root. A
+        /// <c>properties</c> map deeper in the document is the member map of a
+        /// DataSchema - the fields of an action's input or of an event's
+        /// notification - and a field of a payload is not a Variable that
+        /// carries an <c>EngineeringUnits</c> Property.
+        /// </remarks>
+        private static bool IsPropertyAffordancePointer(string pointer)
+        {
+            return IsTwoTokenPointer(pointer, "properties");
+        }
+
+        /// <summary>
+        /// Determines whether a JSON Pointer's last two tokens are the named
+        /// map and one member of it.
+        /// </summary>
+        private static bool EndsWithMapMemberToken(string pointer, string map)
+        {
+            int lastSeparator = pointer.LastIndexOf('/');
+            if (lastSeparator <= 0)
+            {
+                return false;
+            }
+            int previousSeparator = pointer.LastIndexOf('/', lastSeparator - 1);
+            int start = previousSeparator + 1;
+            // A member name containing '/' is escaped as '~1' by the walker, so
+            // a separator is always a pointer-token boundary.
+            return lastSeparator - start == map.Length &&
+                string.CompareOrdinal(pointer, start, map, 0, map.Length) == 0;
         }
 
         /// <summary>

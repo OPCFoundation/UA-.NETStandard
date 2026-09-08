@@ -361,7 +361,7 @@ Inventory (measured line counts). "Absorbed" = the implementation survives as `i
 | **Direct `INodeManager` impls** | **1** | `samples/Quickstarts.Servers/SampleNodeManager` |
 | **`IServerInternal` referencing files** | **268** | core 65 · sib 35 · sample 18 · **test 150** |
 | **`[NodeManager]` generator entry points** | **7** | template hard-wired to `FluentNodeManagerBase` (`NodeManagerTemplates.cs:61`) |
-| **Companion server libraries** | **12** | Di, Gds.Server.Common, Lds, ISA95, OpenUsd (×2), Positioning, PubSub, Redundancy, Robotics, WotCon, XRegistry |
+| **Companion server libraries** | **12** | Di, Gds.Server, Lds, ISA95, OpenUsd (×2), Positioning, PubSub, Redundancy, Robotics, WotCon, XRegistry |
 | **Server test files ≥ removed surface** | **5** | 8,406 + 5,821 + 2,499 + 1,639 + 1,355 = **~19,720 lines** testing *through* the deleted surface |
 | **External consumers** | **unknown & uncounted** | out-of-repo servers that derive `CustomNodeManager2` — the real risk |
 
@@ -742,7 +742,7 @@ The two "against" verdicts are what make Option B a *shallow* fork (authoring on
 
 | Group | Projects / count | Base today |
 |---|---|---|
-| Companion‑spec servers (`src`) | `XRegistry.Server` (3 × `CustomNodeManager2`), `WotCon.Server` (2), `Gds.Server.Common` (1 + 2 base types), `Di.Server` (1), `ISA95.Server` (1), `Positioning.Server` (1), `PubSub.Server` (1), `Robotics.Server` (1) | mix of `AsyncCustomNodeManager` / `CustomNodeManager2` / `FluentNodeManagerBase` |
+| Companion‑spec servers (`src`) | `XRegistry.Server` (3 × `CustomNodeManager2`), `WotCon.Server` (2), `Gds.Server` (1 + 2 base types), `Di.Server` (1), `ISA95.Server` (1), `Positioning.Server` (1), `PubSub.Server` (1), `Robotics.Server` (1) | mix of `AsyncCustomNodeManager` / `CustomNodeManager2` / `FluentNodeManagerBase` |
 | Framework‑internal (`Opc.Ua.Server`) | `CoreNodeManager`, `DiagnosticsNodeManager`, `AliasNameNodeManager`, `FileSystemNodeManager`, `ConfigurationNodeManager`, `FluentNodeManager` | `AsyncCustomNodeManager` / `FluentNodeManagerBase` |
 | Samples (~10) | `ReferenceNodeManager`, `TestDataNodeManager`, `AlarmNodeManager`, `SampleNodeManager` (+`Boiler`,`MemoryBuffer`), `HaSampleNodeManager`, `FlatTagNodeManager`, `PumpNodeManager`, Minimal* | mostly `AsyncCustomNodeManager`; `SampleNodeManager` is the **1** direct `INodeManager` |
 | Tests (~15 subclasses) | `Opc.Ua.Server.Tests`, `Opc.Ua.Redundancy.Server.Tests` | `AsyncCustomNodeManager` / `CustomNodeManager2` / `FluentNodeManagerBase` |

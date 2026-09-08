@@ -35,8 +35,14 @@ using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.Historian
 {
+    /// <summary>
+    /// Snapshots reported events and queues them for background writes to an event historian.
+    /// </summary>
     internal sealed class HistorianEventCapture : IAsyncDisposable
     {
+        /// <summary>
+        /// Starts event capture using the provider's field capabilities and bounded queue options.
+        /// </summary>
         public HistorianEventCapture(
             IServerInternal server,
             IHistorianProvider provider,
@@ -75,12 +81,21 @@ namespace Opc.Ua.Server.Historian
                 () => ConsumeAsync(m_shutdownCts.Token));
         }
 
+        /// <summary>
+        /// Number of events dropped by the capture pipeline.
+        /// </summary>
         public long DroppedEventCount =>
             Interlocked.Read(ref m_droppedEvents);
 
+        /// <summary>
+        /// Number of captured events rejected by the historian provider.
+        /// </summary>
         public long RejectedEventCount =>
             Interlocked.Read(ref m_rejectedEvents);
 
+        /// <summary>
+        /// Snapshots a reported event and attempts to queue it for historical capture.
+        /// </summary>
         public void Enqueue(
             ISystemContext context,
             NodeState notifier,
@@ -140,6 +155,9 @@ namespace Opc.Ua.Server.Historian
             }
         }
 
+        /// <summary>
+        /// Closes the capture queue and waits for pending events to drain within the shutdown deadline.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             if (m_disposed)
@@ -676,8 +694,14 @@ namespace Opc.Ua.Server.Historian
         }
     }
 
+    /// <summary>
+    /// Defines log messages for event capture failures, dropped events, and provider rejections.
+    /// </summary>
     internal static partial class HistorianEventCaptureLog
     {
+        /// <summary>
+        /// Logs an exception that unexpectedly terminated the event capture consumer.
+        /// </summary>
         [LoggerMessage(
             EventId = ServerEventIds.HistorianEventCapture + 0,
             Level = LogLevel.Error,
@@ -686,6 +710,9 @@ namespace Opc.Ua.Server.Historian
             this ILogger logger,
             Exception exception);
 
+        /// <summary>
+        /// Logs an event dropped under the capture queue's configured full mode.
+        /// </summary>
         [LoggerMessage(
             EventId = ServerEventIds.HistorianEventCapture + 1,
             Level = LogLevel.Warning,
@@ -695,6 +722,9 @@ namespace Opc.Ua.Server.Historian
             NodeId nodeId,
             CaptureFullMode fullMode);
 
+        /// <summary>
+        /// Logs that the event capture consumer exceeded its five-second shutdown drain deadline.
+        /// </summary>
         [LoggerMessage(
             EventId = ServerEventIds.HistorianEventCapture + 2,
             Level = LogLevel.Error,
@@ -702,6 +732,9 @@ namespace Opc.Ua.Server.Historian
         public static partial void HistorianEventCaptureConsumerDidNotDrain(
             this ILogger logger);
 
+        /// <summary>
+        /// Logs an event dropped because the capture consumer is unavailable.
+        /// </summary>
         [LoggerMessage(
             EventId = ServerEventIds.HistorianEventCapture + 3,
             Level = LogLevel.Error,
@@ -711,6 +744,9 @@ namespace Opc.Ua.Server.Historian
             Exception exception,
             NodeId nodeId);
 
+        /// <summary>
+        /// Logs an event dropped because the capture queue is closed.
+        /// </summary>
         [LoggerMessage(
             EventId = ServerEventIds.HistorianEventCapture + 4,
             Level = LogLevel.Warning,
@@ -719,6 +755,9 @@ namespace Opc.Ua.Server.Historian
             this ILogger logger,
             NodeId nodeId);
 
+        /// <summary>
+        /// Logs the count and first status code of events rejected by the historian provider.
+        /// </summary>
         [LoggerMessage(
             EventId = ServerEventIds.HistorianEventCapture + 5,
             Level = LogLevel.Warning,
@@ -729,6 +768,9 @@ namespace Opc.Ua.Server.Historian
             int count,
             StatusCode statusCode);
 
+        /// <summary>
+        /// Logs a reported event rejected while creating its historical snapshot.
+        /// </summary>
         [LoggerMessage(
             EventId = ServerEventIds.HistorianEventCapture + 6,
             Level = LogLevel.Warning,

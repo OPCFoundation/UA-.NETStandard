@@ -37,11 +37,17 @@ using Opc.Ua.Client.Historian;
 
 namespace Opc.Ua.Client.Tests.Historian
 {
+    /// <summary>
+    /// Verifies Part 11 history reads, event updates, annotation batches, and client-side request validation.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
     public class HistoryClientPart11Tests
     {
+        /// <summary>
+        /// Verifies that modified-history reads pair each value with its modification metadata.
+        /// </summary>
         [Test]
         public async Task ReadModifiedAsyncPairsValuesWithModificationInfoAsync()
         {
@@ -118,6 +124,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(details.NumValuesPerNode, Is.EqualTo(10u));
         }
 
+        /// <summary>
+        /// Verifies that modified-history reads reject mismatched value and metadata counts.
+        /// </summary>
         [Test]
         public Task ReadModifiedAsyncRejectsMismatchedMetadataAsync()
         {
@@ -163,6 +172,9 @@ namespace Opc.Ua.Client.Tests.Historian
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Verifies that modified-history reads reject an unexpected response payload type.
+        /// </summary>
         [Test]
         public Task ReadModifiedAsyncRejectsUnexpectedPayloadTypeAsync()
         {
@@ -207,6 +219,9 @@ namespace Opc.Ua.Client.Tests.Historian
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Verifies that event-history reads follow continuation points to retrieve subsequent pages.
+        /// </summary>
         [Test]
         public async Task ReadEventsAsyncFollowsContinuationPointsAsync()
         {
@@ -295,6 +310,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Is.EqualTo(TimestampsToReturn.Source));
         }
 
+        /// <summary>
+        /// Verifies that disposing an event-history enumerator releases its outstanding continuation point.
+        /// </summary>
         [Test]
         public async Task ReadEventsAsyncReleasesContinuationPointWhenDisposedAsync()
         {
@@ -359,6 +377,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(releasedContinuationPoint, Is.EqualTo(continuationPoint));
         }
 
+        /// <summary>
+        /// Verifies that event-history reads reject rows with an unexpected number of selected fields.
+        /// </summary>
         [Test]
         public void ReadEventsAsyncRejectsMismatchedFieldCount()
         {
@@ -419,6 +440,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
+        /// <summary>
+        /// Verifies that each event update operation sends the matching history service details.
+        /// </summary>
         [Test]
         public async Task EventUpdateMethodsBuildMatchingServiceDetailsAsync()
         {
@@ -514,6 +538,318 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(deleteDetails.EventIds, Is.EqualTo([eventId]));
         }
 
+        /// <summary>
+        /// Verifies that event inserts and updates accept EventType and Time operands rooted in ConditionType.
+        /// </summary>
+        [Test]
+        public async Task InsertAndUpdateEventsAcceptConditionTypeRootedEventTypeAndTimeAsync()
+        {
+            var nodeCache = new Mock<INodeCache>();
+            nodeCache
+                .Setup(cache => cache.IsTypeOfAsync(
+                    ObjectTypeIds.ConditionType,
+                    ObjectTypeIds.BaseEventType,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            Mock<ISession> mockSession = CreateEventUpdateSession(nodeCache.Object);
+            var filter = new EventFilter();
+            filter.AddSelectClause(
+                ObjectTypeIds.ConditionType,
+                BrowseNames.EventType,
+                Attributes.Value);
+            filter.AddSelectClause(
+                ObjectTypeIds.ConditionType,
+                BrowseNames.Time,
+                Attributes.Value);
+            var client = new HistoryClient(mockSession.Object);
+            var eventFields = new HistoryEventFieldList
+            {
+                EventFields =
+                [
+                    new Variant(ObjectTypeIds.ConditionType),
+                    new Variant((DateTimeUtc)DateTime.UtcNow)
+                ]
+            };
+
+            ArrayOf<StatusCode> insertStatuses = await client.InsertEventsAsync(
+                new NodeId("Notifier", 2),
+                filter,
+                [eventFields]).ConfigureAwait(false);
+            ArrayOf<StatusCode> updateStatuses = await client.UpdateEventsAsync(
+                new NodeId("Notifier", 2),
+                filter,
+                [eventFields]).ConfigureAwait(false);
+
+            Assert.That(insertStatuses, Is.EqualTo([StatusCodes.Good]));
+            Assert.That(updateStatuses, Is.EqualTo([StatusCodes.Good]));
+            nodeCache.Verify(
+                cache => cache.IsTypeOfAsync(
+                    ObjectTypeIds.ConditionType,
+                    ObjectTypeIds.BaseEventType,
+                    It.IsAny<CancellationToken>()),
+                Times.Exactly(2));
+        }
+
+        /// <summary>
+        /// Verifies that event replacement accepts an EventId operand rooted in ConditionType.
+        /// </summary>
+        [Test]
+        public async Task ReplaceEventsAcceptsConditionTypeRootedEventIdAsync()
+        {
+            var nodeCache = new Mock<INodeCache>();
+            nodeCache
+                .Setup(cache => cache.IsTypeOfAsync(
+                    ObjectTypeIds.ConditionType,
+                    ObjectTypeIds.BaseEventType,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            Mock<ISession> mockSession = CreateEventUpdateSession(nodeCache.Object);
+            var filter = new EventFilter();
+            filter.AddSelectClause(
+                ObjectTypeIds.ConditionType,
+                BrowseNames.EventId,
+                Attributes.Value);
+            var client = new HistoryClient(mockSession.Object);
+
+            ArrayOf<StatusCode> statuses = await client.ReplaceEventsAsync(
+                new NodeId("Notifier", 2),
+                filter,
+                [
+                    new HistoryEventFieldList
+                    {
+                        EventFields =
+                        [
+                            new Variant(ByteString.From([0x10, 0x20]))
+                        ]
+                    }
+                ]).ConfigureAwait(false);
+
+            Assert.That(statuses, Is.EqualTo([StatusCodes.Good]));
+            nodeCache.Verify(
+                cache => cache.IsTypeOfAsync(
+                    ObjectTypeIds.ConditionType,
+                    ObjectTypeIds.BaseEventType,
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that event insertion rejects duplicate Time fields rooted in different event types.
+        /// </summary>
+        [Test]
+        public void InsertEventsRejectsDuplicateTimeAcrossEventTypeRoots()
+        {
+            var nodeCache = new Mock<INodeCache>();
+            nodeCache
+                .Setup(cache => cache.IsTypeOfAsync(
+                    ObjectTypeIds.ConditionType,
+                    ObjectTypeIds.BaseEventType,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            Mock<ISession> mockSession = CreateEventUpdateSession(nodeCache.Object);
+            var filter = new EventFilter();
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.EventType,
+                Attributes.Value);
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.Time,
+                Attributes.Value);
+            filter.AddSelectClause(
+                ObjectTypeIds.ConditionType,
+                BrowseNames.Time,
+                Attributes.Value);
+            var client = new HistoryClient(mockSession.Object);
+
+            Assert.That(
+                async () => await client.InsertEventsAsync(
+                    new NodeId("Notifier", 2),
+                    filter,
+                    [
+                        new HistoryEventFieldList
+                        {
+                            EventFields =
+                            [
+                                new Variant(ObjectTypeIds.ConditionType),
+                                new Variant((DateTimeUtc)DateTime.UtcNow),
+                                new Variant((DateTimeUtc)DateTime.UtcNow)
+                            ]
+                        }
+                    ]).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentException>());
+            mockSession.Verify(
+                session => session.HistoryUpdateAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<ExtensionObject>>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that event insertion rejects structurally malformed standard fields rooted in an event subtype.
+        /// </summary>
+        [TestCase("Attribute")]
+        [TestCase("BrowsePath")]
+        [TestCase("Namespace")]
+        [TestCase("BrowseName")]
+        public void InsertEventsRejectsStructurallyMalformedSubtypeRootedStandardField(
+            string malformedPart)
+        {
+            var nodeCache = new Mock<INodeCache>();
+            Mock<ISession> mockSession = CreateEventUpdateSession(nodeCache.Object);
+            var clause = new SimpleAttributeOperand
+            {
+                TypeDefinitionId = ObjectTypeIds.ConditionType,
+                BrowsePath = [new QualifiedName(BrowseNames.EventType)],
+                AttributeId = Attributes.Value
+            };
+            switch (malformedPart)
+            {
+                case "Attribute":
+                    clause.AttributeId = Attributes.DisplayName;
+                    break;
+                case "BrowsePath":
+                    clause.BrowsePath =
+                    [
+                        new QualifiedName(BrowseNames.EventType),
+                        new QualifiedName(BrowseNames.Time)
+                    ];
+                    break;
+                case "Namespace":
+                    clause.BrowsePath = [new QualifiedName(BrowseNames.EventType, 2)];
+                    break;
+                case "BrowseName":
+                    clause.BrowsePath = [new QualifiedName("eventtype")];
+                    break;
+                default:
+                    Assert.Fail($"Unknown malformed part {malformedPart}.");
+                    break;
+            }
+            var filter = new EventFilter();
+            filter.SelectClauses = filter.SelectClauses.AddItem(clause);
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.Time,
+                Attributes.Value);
+            var client = new HistoryClient(mockSession.Object);
+
+            Assert.That(
+                async () => await client.InsertEventsAsync(
+                    new NodeId("Notifier", 2),
+                    filter,
+                    [
+                        new HistoryEventFieldList
+                        {
+                            EventFields =
+                            [
+                                new Variant(ObjectTypeIds.ConditionType),
+                                new Variant((DateTimeUtc)DateTime.UtcNow)
+                            ]
+                        }
+                    ]).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentException>());
+            nodeCache.Verify(
+                cache => cache.IsTypeOfAsync(
+                    ObjectTypeIds.ConditionType,
+                    ObjectTypeIds.BaseEventType,
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that event insertion rejects standard fields with null type-definition roots.
+        /// </summary>
+        [Test]
+        public void InsertEventsRejectsNullRootedStandardFields()
+        {
+            var nodeCache = new Mock<INodeCache>();
+            Mock<ISession> mockSession = CreateEventUpdateSession(nodeCache.Object);
+            var filter = new EventFilter();
+            filter.AddSelectClause(
+                NodeId.Null,
+                BrowseNames.EventType,
+                Attributes.Value);
+            filter.AddSelectClause(
+                NodeId.Null,
+                BrowseNames.Time,
+                Attributes.Value);
+            var client = new HistoryClient(mockSession.Object);
+
+            Assert.That(
+                async () => await client.InsertEventsAsync(
+                    new NodeId("Notifier", 2),
+                    filter,
+                    [
+                        new HistoryEventFieldList
+                        {
+                            EventFields =
+                            [
+                                new Variant(ObjectTypeIds.BaseEventType),
+                                new Variant((DateTimeUtc)DateTime.UtcNow)
+                            ]
+                        }
+                    ]).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentException>());
+            nodeCache.Verify(
+                cache => cache.IsTypeOfAsync(
+                    NodeId.Null,
+                    ObjectTypeIds.BaseEventType,
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that event insertion rejects standard fields rooted in non-event types.
+        /// </summary>
+        [Test]
+        public void InsertEventsRejectsNonEventTypeRootedStandardFields()
+        {
+            var nodeCache = new Mock<INodeCache>();
+            nodeCache
+                .Setup(cache => cache.IsTypeOfAsync(
+                    ObjectTypeIds.BaseObjectType,
+                    ObjectTypeIds.BaseEventType,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(false));
+            Mock<ISession> mockSession = CreateEventUpdateSession(nodeCache.Object);
+            var filter = new EventFilter();
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseObjectType,
+                BrowseNames.EventType,
+                Attributes.Value);
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseObjectType,
+                BrowseNames.Time,
+                Attributes.Value);
+            var client = new HistoryClient(mockSession.Object);
+
+            Assert.That(
+                async () => await client.InsertEventsAsync(
+                    new NodeId("Notifier", 2),
+                    filter,
+                    [
+                        new HistoryEventFieldList
+                        {
+                            EventFields =
+                            [
+                                new Variant(ObjectTypeIds.BaseObjectType),
+                                new Variant((DateTimeUtc)DateTime.UtcNow)
+                            ]
+                        }
+                    ]).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentException>());
+            nodeCache.Verify(
+                cache => cache.IsTypeOfAsync(
+                    ObjectTypeIds.BaseObjectType,
+                    ObjectTypeIds.BaseEventType,
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that removing an annotation batch sends a single structured history update request.
+        /// </summary>
         [Test]
         public async Task WriteAnnotationsAsyncSendsOneStructuredRemoveBatchAsync()
         {
@@ -587,6 +923,9 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(details.UpdateValues[1].SourceTimestamp, Is.EqualTo(secondTime));
         }
 
+        /// <summary>
+        /// Verifies that structured history updates reject unknown update types.
+        /// </summary>
         [Test]
         public void UpdateStructureDataRejectsUnknownUpdateType()
         {
@@ -601,6 +940,9 @@ namespace Opc.Ua.Client.Tests.Historian
                 Throws.TypeOf<ArgumentOutOfRangeException>());
         }
 
+        /// <summary>
+        /// Verifies that event replacement rejects an index range on the EventId operand.
+        /// </summary>
         [Test]
         public void ReplaceEventsRejectsEventIdIndexRange()
         {
@@ -635,6 +977,29 @@ namespace Opc.Ua.Client.Tests.Historian
             namespaceTable.Append("urn:test:history-client-part11");
             var mockSession = new Mock<ISession>();
             mockSession.SetupGet(s => s.NamespaceUris).Returns(namespaceTable);
+            return mockSession;
+        }
+
+        private static Mock<ISession> CreateEventUpdateSession(INodeCache nodeCache)
+        {
+            var mockSession = new Mock<ISession>();
+            mockSession.SetupGet(session => session.NodeCache).Returns(nodeCache);
+            mockSession
+                .Setup(session => session.HistoryUpdateAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<ExtensionObject>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistoryUpdateResponse>(new HistoryUpdateResponse
+                {
+                    Results =
+                    [
+                        new HistoryUpdateResult
+                        {
+                            StatusCode = StatusCodes.Good,
+                            OperationResults = [StatusCodes.Good]
+                        }
+                    ]
+                }));
             return mockSession;
         }
 

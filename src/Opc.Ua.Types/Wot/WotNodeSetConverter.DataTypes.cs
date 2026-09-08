@@ -61,6 +61,7 @@ namespace Opc.Ua.Wot
             WotDocument document,
             UANodeSet nodeSet,
             List<UANode> items,
+            HashSet<string> nestedOnly,
             List<WotDiagnostic> diagnostics)
         {
             var empty = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -111,7 +112,7 @@ namespace Opc.Ua.Wot
                 {
                     SynthesizeDataType(
                         document, entry.Value, identity, identities, nodeSet, items,
-                        diagnostics);
+                        nestedOnly, diagnostics);
                 }
             }
             ValidateEncodingIdentities(complete, identities, diagnostics);
@@ -726,6 +727,7 @@ namespace Opc.Ua.Wot
             Dictionary<string, string> identities,
             UANodeSet nodeSet,
             List<UANode> items,
+            HashSet<string> nestedOnly,
             List<WotDiagnostic> diagnostics)
         {
             string name = GetElementString(definition, "uav:dataTypeName")!;
@@ -756,10 +758,16 @@ namespace Opc.Ua.Wot
                 : BuildDataTypeDefinition(
                     document, definition, kind, name, identities, nodeSet, diagnostics);
 
-            bool exposesEncodings = dataType.Definition is not null &&
+            // The declaration is checked before the kind is, because a kind
+            // with no encodings to begin with may not state anything about
+            // them: short-circuiting past the check would make the term
+            // silently ignored exactly where it is meaningless.
+            bool declared = ExposesDefaultEncoding(
+                definition, name, isAbstract, kind, diagnostics);
+            bool exposesEncodings = declared &&
+                dataType.Definition is not null &&
                 !isAbstract &&
-                !IsEnumerationKind(kind) &&
-                ExposesDefaultEncoding(definition, name, isAbstract, kind, diagnostics);
+                !IsEnumerationKind(kind);
             if (exposesEncodings)
             {
                 // §6.11.7 derives an encoding identity from the name-derived
@@ -776,6 +784,16 @@ namespace Opc.Ua.Wot
             else if (isAbstract)
             {
                 RejectEncodingIdsOnAbstractType(definition, diagnostics, name);
+            }
+            else if (!declared && dataType.Definition is not null && !IsEnumerationKind(kind))
+            {
+                // A concrete Structure or Union that states it has no default
+                // encoding is reachable only from inside another Structure: it
+                // has a null DefaultEncodingId, so nothing can put a value of
+                // it into an ExtensionObject on its own. Remembering it here is
+                // what lets closure validation refuse a Variable, argument or
+                // Event field that selects it directly.
+                nestedOnly.Add(identity);
             }
 
             dataType.References = [.. references];
@@ -1136,7 +1154,7 @@ namespace Opc.Ua.Wot
                 {
                     entry.MaxStringLength = length;
                 }
-                string? arrayDimensions = ReadArrayDimensions(field);
+                string? arrayDimensions = ReadArrayDimensions(field, fieldName, diagnostics);
                 if (arrayDimensions is not null)
                 {
                     entry.ArrayDimensions = arrayDimensions;
@@ -1273,21 +1291,60 @@ namespace Opc.Ua.Wot
             return WotVocabulary.BaseDataType;
         }
 
-        private static string? ReadArrayDimensions(JsonElement field)
+        /// <summary>
+        /// Reads an authored <c>uav:arrayDimensions</c> as the NodeSet
+        /// attribute, rejecting anything OPC 10000-3 cannot express.
+        /// </summary>
+        /// <remarks>
+        /// A dimension is a <c>UInt32</c>: OPC 10000-3 uses zero for a bound
+        /// that is not fixed and has no way to say "minus one" or "two and a
+        /// half". Dropping an entry that is none of those would silently change
+        /// the rank the remaining entries describe - three authored dimensions
+        /// of which one is <c>-1</c> would materialize as a two-dimensional
+        /// array the author never wrote - so a malformed entry rejects the
+        /// whole term and the document with it.
+        /// </remarks>
+        private static string? ReadArrayDimensions(
+            JsonElement field,
+            string where,
+            List<WotDiagnostic> diagnostics)
         {
-            if (!field.TryGetProperty("uav:arrayDimensions", out JsonElement declared) ||
-                declared.ValueKind != JsonValueKind.Array)
+            if (!field.TryGetProperty("uav:arrayDimensions", out JsonElement declared))
             {
                 return null;
             }
+            if (declared.ValueKind != JsonValueKind.Array)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.InvalidValueRank,
+                    "The uav:arrayDimensions term shall be an ordered array of " +
+                    "non-negative integers, one per dimension (WoT Binding Section 7).",
+                    new WotLocation(reference: where)));
+                return null;
+            }
             var parts = new List<string>();
+            int index = 0;
             foreach (JsonElement dimension in declared.EnumerateArray())
             {
-                if (dimension.ValueKind == JsonValueKind.Number &&
-                    dimension.TryGetUInt32(out uint value))
+                if (dimension.ValueKind != JsonValueKind.Number ||
+                    !IsIntegerLiteral(dimension) ||
+                    !dimension.TryGetUInt32(out uint value))
                 {
-                    parts.Add(value.ToString(CultureInfo.InvariantCulture));
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.InvalidValueRank,
+                        $"The uav:arrayDimensions entry at index {index} of '{where}' is " +
+                        $"'{dimension.GetRawText()}'. A dimension is an OPC 10000-3 UInt32, " +
+                        "which has no negative, fractional, textual or out-of-range value; " +
+                        "an entry that is none of those is rejected rather than dropped, " +
+                        "because dropping one changes the rank the rest describe " +
+                        "(WoT Binding Section 7).",
+                        new WotLocation(reference: where)));
+                    return null;
                 }
+                parts.Add(value.ToString(CultureInfo.InvariantCulture));
+                index++;
             }
             return parts.Count == 0 ? null : string.Join(",", parts);
         }
@@ -1431,9 +1488,20 @@ namespace Opc.Ua.Wot
             }
         }
 
+        /// <summary>
+        /// Reads a whole-number member of a DataSchema.
+        /// </summary>
+        /// <remarks>
+        /// The kind of the carrier is checked first. A DataSchema may be
+        /// written as something other than an object - a Thing Model that
+        /// states <c>"Speed": 7</c> is malformed but parses - and asking a
+        /// number for a member throws rather than answering, which would turn a
+        /// document defect into an exception out of a describe-and-report call.
+        /// </remarks>
         private static int? GetElementInt32(JsonElement element, string name)
         {
-            return element.TryGetProperty(name, out JsonElement value) &&
+            return element.ValueKind == JsonValueKind.Object &&
+                element.TryGetProperty(name, out JsonElement value) &&
                 value.ValueKind == JsonValueKind.Number &&
                 value.TryGetInt32(out int result)
                 ? result
@@ -2010,7 +2078,7 @@ namespace Opc.Ua.Wot
                 {
                     field.ValueRank = rank;
                 }
-                string? dimensions = ReadArrayDimensions(fieldSchema);
+                string? dimensions = ReadArrayDimensions(fieldSchema, fieldName, diagnostics);
                 if (dimensions is not null)
                 {
                     field.ArrayDimensions = dimensions;

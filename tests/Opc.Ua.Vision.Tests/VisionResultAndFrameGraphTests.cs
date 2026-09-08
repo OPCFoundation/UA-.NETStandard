@@ -100,7 +100,7 @@ namespace Opc.Ua.Vision.Tests
             harness.AddValueChild(harness.ResultNodeId, BrowseNames.CreationTime,
                 new(3231u, 3), new DateTimeUtc(new DateTime(2024, 1, 1)));
             harness.AddValueChild(harness.ResultNodeId, BrowseNames.LabelClasses,
-                new(3232u, 3), new Variant(new[] { "background", "part" }));
+                new(3232u, 3), new Variant(s_stringValues1));
 
             VisionResultReader reader = harness.Client.Result(harness.ResultNodeId);
             VisionSegmentationResultSnapshot snapshot = await reader.ReadSegmentationAsync()
@@ -129,6 +129,8 @@ namespace Opc.Ua.Vision.Tests
             Assert.Throws<ArgumentNullException>(() =>
                 reader.ObserveDetectionsAsync(null!));
         }
+
+        private static readonly string[] s_stringValues1 = ["background", "part"];
     }
 
     /// <summary>
@@ -146,8 +148,8 @@ namespace Opc.Ua.Vision.Tests
             var identityTransform = new VisionPose3DDataType
             {
                 FrameId = "root",
-                Position = new[] { 0.0, 0.0, 0.0 }.ToArrayOf(),
-                Orientation = new[] { 0.0, 0.0, 0.0, 1.0 }.ToArrayOf()
+                Position = s_doubleValues1.ToArrayOf(),
+                Orientation = s_doubleValues2.ToArrayOf()
             };
             harness.AddValueChild(harness.FrameNodeId, BrowseNames.FrameId,
                 new(4010u, 3), "root");
@@ -263,6 +265,9 @@ namespace Opc.Ua.Vision.Tests
             Assert.That(transform.Orientation.Count, Is.GreaterThanOrEqualTo(4),
                 "An identity quaternion has four components.");
         }
+
+        private static readonly double[] s_doubleValues1 = [0.0, 0.0, 0.0];
+        private static readonly double[] s_doubleValues2 = [0.0, 0.0, 0.0, 1.0];
     }
 
     /// <summary>

@@ -56,8 +56,9 @@ namespace Opc.Ua.Redundancy
     /// back to the caller (by request id) to return the result.
     /// </para>
     /// <para>
-    /// Reads (<see cref="TryGetAsync"/>/<see cref="ScanAsync"/>) are served from the materialized map. The change-feed
-    /// (<see cref="WatchAsync"/>) is derived from the same apply stream, so watchers observe changes in commit order.
+    /// Reads (<see cref="TryGetAsync"/>/<see cref="ScanAsync"/>) first commit and apply a no-op barrier, then snapshot
+    /// the materialized map. The change-feed (<see cref="WatchAsync"/>) is derived from the same apply stream, so
+    /// watchers observe changes in commit order.
     /// </para>
     /// </remarks>
     public sealed class RaftSharedKeyValueStore :
@@ -122,7 +123,7 @@ namespace Opc.Ua.Redundancy
             {
                 throw new ArgumentNullException(nameof(key));
             }
-            await EnsureStartedAsync(ct).ConfigureAwait(false);
+            _ = await ProposeAsync(OpBarrier, string.Empty, default, default, ct).ConfigureAwait(false);
             lock (m_lock)
             {
                 return m_state.TryGetValue(key, out ByteString value) ? (true, value) : (false, default);
@@ -157,7 +158,7 @@ namespace Opc.Ua.Redundancy
             [EnumeratorCancellation] CancellationToken ct = default)
         {
             keyPrefix ??= string.Empty;
-            await EnsureStartedAsync(ct).ConfigureAwait(false);
+            _ = await ProposeAsync(OpBarrier, string.Empty, default, default, ct).ConfigureAwait(false);
 
             List<KeyValuePair<string, ByteString>> snapshot;
             lock (m_lock)
@@ -187,15 +188,23 @@ namespace Opc.Ua.Redundancy
             await EnsureStartedAsync(ct).ConfigureAwait(false);
 
             var watcher = new Watcher(keyPrefix ?? string.Empty);
-            lock (m_lock)
+            CancellationToken disposeToken;
+            lock (m_proposalLock)
             {
-                m_watchers.Add(watcher);
+                ThrowIfDisposed();
+                disposeToken = m_cts.Token;
+                lock (m_lock)
+                {
+                    m_watchers.Add(watcher);
+                }
             }
 
+            using var linkedCts = CancellationTokenSource
+                .CreateLinkedTokenSource(ct, disposeToken);
             try
             {
                 await foreach (KeyValueChange change in watcher.Channel.Reader
-                    .ReadAllAsync(ct)
+                    .ReadAllAsync(linkedCts.Token)
                     .ConfigureAwait(false))
                 {
                     yield return change;
@@ -214,12 +223,24 @@ namespace Opc.Ua.Redundancy
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
-            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            lock (m_proposalLock)
             {
-                return;
+                if (m_disposed != 0)
+                {
+                    return;
+                }
+                m_disposed = 1;
+                m_cts.Cancel();
+                foreach (KeyValuePair<long, TaskCompletionSource<bool>> pending
+                    in m_pending)
+                {
+                    pending.Value.TrySetCanceled(m_cts.Token);
+                }
+                m_pending.Clear();
             }
 
-            m_cts.Cancel();
+            await m_startGate.WaitAsync().ConfigureAwait(false);
+            m_startGate.Release();
             if (m_applyLoop != null)
             {
                 try
@@ -240,12 +261,6 @@ namespace Opc.Ua.Redundancy
                 }
                 m_watchers.Clear();
             }
-
-            foreach (KeyValuePair<long, TaskCompletionSource<bool>> pending in m_pending)
-            {
-                pending.Value.TrySetCanceled();
-            }
-            m_pending.Clear();
 
             if (m_ownsConsensus)
             {
@@ -269,14 +284,24 @@ namespace Opc.Ua.Redundancy
             }
             await EnsureStartedAsync(ct).ConfigureAwait(false);
 
-            long requestId = Interlocked.Increment(ref m_requestId);
-            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            m_pending[requestId] = tcs;
+            long requestId;
+            TaskCompletionSource<bool> tcs;
+            CancellationToken disposeToken;
+            lock (m_proposalLock)
+            {
+                ThrowIfDisposed();
+                requestId = Interlocked.Increment(ref m_requestId);
+                tcs = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                m_pending[requestId] = tcs;
+                disposeToken = m_cts.Token;
+            }
 
             // Bound the wait for commit: either the caller's token or the commit
             // timeout fails the pending proposal, so a no-leader / leadership-
             // change / lost-quorum window never blocks the caller indefinitely.
-            using var commitCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            using var commitCts = CancellationTokenSource
+                .CreateLinkedTokenSource(ct, disposeToken);
             if (m_commitTimeout != Timeout.InfiniteTimeSpan)
             {
                 commitCts.CancelAfter(m_commitTimeout);
@@ -289,11 +314,14 @@ namespace Opc.Ua.Redundancy
                     {
                         pending.TrySetCanceled(ct);
                     }
+                    else if (disposeToken.IsCancellationRequested)
+                    {
+                        pending.TrySetCanceled(disposeToken);
+                    }
                     else
                     {
-                        pending.TrySetException(new TimeoutException(
-                            "The Raft proposal did not commit within the commit timeout (no leader, leadership " +
-                            "change, or lost quorum). Retry the operation."));
+                        pending.TrySetException(
+                            CreateCommitTimeoutException());
                     }
                 }
             });
@@ -301,7 +329,17 @@ namespace Opc.Ua.Redundancy
             byte[] command = Encode(op, m_originator, requestId, key, expected, value);
             try
             {
-                await m_consensus.ProposeAsync(command, ct).ConfigureAwait(false);
+                await m_consensus
+                    .ProposeAsync(command, commitCts.Token)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+                when (!ct.IsCancellationRequested &&
+                    !disposeToken.IsCancellationRequested &&
+                    commitCts.IsCancellationRequested)
+            {
+                m_pending.TryRemove(requestId, out _);
+                throw CreateCommitTimeoutException();
             }
             catch
             {
@@ -314,17 +352,28 @@ namespace Opc.Ua.Redundancy
 
         private async ValueTask EnsureStartedAsync(CancellationToken ct)
         {
+            CancellationToken disposeToken;
+            lock (m_proposalLock)
+            {
+                ThrowIfDisposed();
+                disposeToken = m_cts.Token;
+            }
             if (Volatile.Read(ref m_started) == 1)
             {
                 return;
             }
 
-            await m_startGate.WaitAsync(ct).ConfigureAwait(false);
+            using var linkedCts = CancellationTokenSource
+                .CreateLinkedTokenSource(ct, disposeToken);
+            await m_startGate.WaitAsync(linkedCts.Token).ConfigureAwait(false);
             try
             {
+                ThrowIfDisposed();
                 if (m_started == 0)
                 {
-                    await m_consensus.StartAsync(ct).ConfigureAwait(false);
+                    await m_consensus
+                        .StartAsync(linkedCts.Token)
+                        .ConfigureAwait(false);
                     m_applyLoop = Task.Run(() => ApplyLoopAsync(m_cts.Token), m_cts.Token);
                     Volatile.Write(ref m_started, 1);
                 }
@@ -333,6 +382,23 @@ namespace Opc.Ua.Redundancy
             {
                 m_startGate.Release();
             }
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                throw new ObjectDisposedException(
+                    nameof(RaftSharedKeyValueStore));
+            }
+        }
+
+        private static TimeoutException CreateCommitTimeoutException()
+        {
+            return new TimeoutException(
+                "The Raft proposal did not commit within the commit timeout " +
+                "(no leader, leadership change, or lost quorum). Retry the " +
+                "operation.");
         }
 
         private async Task ApplyLoopAsync(CancellationToken ct)
@@ -408,7 +474,7 @@ namespace Opc.Ua.Redundancy
             }
 
             ByteString value = default;
-            if (op != OpDelete)
+            if (op is OpSet or OpCas)
             {
                 value = ReadValue(command, ref offset);
             }
@@ -436,10 +502,33 @@ namespace Opc.Ua.Redundancy
                         bool matches = expected.IsNull ? !present : present && current.Equals(expected);
                         if (matches)
                         {
-                            m_state[key] = value;
-                            change = new KeyValueChange { Kind = KeyValueChangeKind.Set, Key = key, Value = value };
+                            if (value.IsNull)
+                            {
+                                if (present)
+                                {
+                                    m_state.Remove(key);
+                                    change = new KeyValueChange
+                                    {
+                                        Kind = KeyValueChangeKind.Delete,
+                                        Key = key
+                                    };
+                                }
+                            }
+                            else
+                            {
+                                m_state[key] = value;
+                                change = new KeyValueChange
+                                {
+                                    Kind = KeyValueChangeKind.Set,
+                                    Key = key,
+                                    Value = value
+                                };
+                            }
                             result = true;
                         }
+                        break;
+                    case OpBarrier:
+                        result = true;
                         break;
                     default:
                         throw new InvalidOperationException($"Unsupported Raft key/value operation '{op}'.");
@@ -479,7 +568,7 @@ namespace Opc.Ua.Redundancy
         {
             byte[] keyBytes = Encoding.UTF8.GetBytes(key);
             byte[]? expectedBytes = op == OpCas && !expected.IsNull ? expected.ToArray() : null;
-            byte[]? valueBytes = op != OpDelete && !value.IsNull ? value.ToArray() : null;
+            byte[]? valueBytes = op is OpSet or OpCas && !value.IsNull ? value.ToArray() : null;
 
             int length = 1 + 16 + 8 + 4 + keyBytes.Length;
             length++;
@@ -487,7 +576,7 @@ namespace Opc.Ua.Redundancy
             {
                 length += 4 + (expectedBytes?.Length ?? 0);
             }
-            if (op != OpDelete)
+            if (op is OpSet or OpCas)
             {
                 length += 4 + (valueBytes?.Length ?? 0);
             }
@@ -509,7 +598,7 @@ namespace Opc.Ua.Redundancy
             {
                 WriteValue(buffer, ref offset, expected.IsNull, expectedBytes);
             }
-            if (op != OpDelete)
+            if (op is OpSet or OpCas)
             {
                 WriteValue(buffer, ref offset, value.IsNull, valueBytes);
             }
@@ -576,6 +665,7 @@ namespace Opc.Ua.Redundancy
         private const byte OpSet = 0;
         private const byte OpDelete = 1;
         private const byte OpCas = 2;
+        private const byte OpBarrier = 3;
         private const byte s_commandEncodingVersion = 1;
         private const int s_minCommandLength = 30;
 
@@ -588,6 +678,7 @@ namespace Opc.Ua.Redundancy
         private readonly List<Watcher> m_watchers = [];
         private readonly ConcurrentDictionary<long, TaskCompletionSource<bool>> m_pending = new();
         private readonly Lock m_lock = new();
+        private readonly Lock m_proposalLock = new();
         private readonly SemaphoreSlim m_startGate = new(1, 1);
         private readonly CancellationTokenSource m_cts = new();
         private Task? m_applyLoop;

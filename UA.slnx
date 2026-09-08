@@ -116,9 +116,9 @@
     <Project Path="src/Opc.Ua.Vision.Client/Opc.Ua.Vision.Client.csproj" />
     <Project Path="src/Opc.Ua.Vision.Server/Opc.Ua.Vision.Server.csproj" />
     <Project Path="src/Opc.Ua.Vision.OpenUsd/Opc.Ua.Vision.OpenUsd.csproj" />
-    <Project Path="src/Opc.Ua.Gds.Client.Common/Opc.Ua.Gds.Client.Common.csproj" />
-    <Project Path="src/Opc.Ua.Gds.Common/Opc.Ua.Gds.Common.csproj" />
-    <Project Path="src/Opc.Ua.Gds.Server.Common/Opc.Ua.Gds.Server.Common.csproj" />
+    <Project Path="src/Opc.Ua.Gds/Opc.Ua.Gds.csproj" />
+    <Project Path="src/Opc.Ua.Gds.Client/Opc.Ua.Gds.Client.csproj" />
+    <Project Path="src/Opc.Ua.Gds.Server/Opc.Ua.Gds.Server.csproj" />
     <Project Path="src/Opc.Ua.ISA95.Client/Opc.Ua.ISA95.Client.csproj" />
     <Project Path="src/Opc.Ua.ISA95.Server/Opc.Ua.ISA95.Server.csproj" />
     <Project Path="src/Opc.Ua.ISA95/Opc.Ua.ISA95.csproj" />
@@ -277,6 +277,8 @@
     <Project Path="tests/Opc.Ua.Core.Schema.Tests/Opc.Ua.Core.Schema.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Aot.Tests.Historian/Opc.Ua.Aot.Tests.Historian.csproj" />
+    <Project Path="tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj" />
     <Project Path="tests/Opc.Ua.Configuration.Tests/Opc.Ua.Configuration.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Encoders.Tests/Opc.Ua.Core.Encoders.Tests.csproj" />

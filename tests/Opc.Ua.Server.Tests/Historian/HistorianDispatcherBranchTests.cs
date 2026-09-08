@@ -48,11 +48,17 @@ using Opc.Ua.Server.Historian.InMemory;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies historian provider selection, fallback dispatch, aggregate capability gates, and continuation errors.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
     public class HistorianDispatcherBranchTests
     {
+        /// <summary>
+        /// Verifies that provider resolution prefers the node-manager override.
+        /// </summary>
         [Test]
         public void ResolveProviderReturnsNodeManagerOverrideWhenProvided()
         {
@@ -70,6 +76,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(resolved, Is.SameAs(sentinel));
         }
 
+        /// <summary>
+        /// Verifies that provider resolution falls back to the registry when no override is supplied.
+        /// </summary>
         [Test]
         public void ResolveProviderFallsBackToRegistryWhenNoOverride()
         {
@@ -95,6 +104,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(resolved, Is.SameAs(sentinel));
         }
 
+        /// <summary>
+        /// Verifies that provider resolution returns null when neither an override nor a registry is available.
+        /// </summary>
         [Test]
         public void ResolveProviderReturnsNullWhenNoRegistryAndNoOverride()
         {
@@ -111,6 +123,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(resolved, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that raw deletion without a data-provider interface returns BadHistoryOperationUnsupported.
+        /// </summary>
         [Test]
         public async Task DispatchDeleteRawWithNonDataProviderReturnsHistoryOperationUnsupportedAsync()
         {
@@ -134,6 +149,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
+        /// <summary>
+        /// Verifies that raw deletion completes and propagates the provider's operation status.
+        /// </summary>
         [Test]
         public async Task DispatchDeleteRawCompletesAndPropagatesProviderStatusAsync()
         {
@@ -180,6 +198,9 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
+        /// <summary>
+        /// Verifies that at-time deletion without a data-provider interface returns BadHistoryOperationUnsupported.
+        /// </summary>
         [Test]
         public async Task DispatchDeleteAtTimeWithNonDataProviderReturnsBadHistoryOperationUnsupportedAsync()
         {
@@ -201,6 +222,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
+        /// <summary>
+        /// Verifies that at-time deletion reports separate statuses for found and missing timestamps.
+        /// </summary>
         [Test]
         public async Task DispatchDeleteAtTimeMixedFoundNotFoundProducesPerTimestampStatusAsync()
         {
@@ -243,6 +267,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.OperationResults[3], Is.EqualTo(StatusCodes.BadNoEntryExists));
         }
 
+        /// <summary>
+        /// Verifies that an unsupported processed aggregate returns BadAggregateNotSupported.
+        /// </summary>
         [Test]
         public async Task DispatchProcessedReadAggregateNotSupportedReturnsBadAggregateNotSupportedAsync()
         {
@@ -273,6 +300,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadAggregateNotSupported));
         }
 
+        /// <summary>
+        /// Verifies that an unsupported aggregate is rejected without invoking the native processed provider.
+        /// </summary>
         [Test]
         public async Task DispatchProcessedReadUnsupportedAggregateDoesNotInvokeNativeProviderAsync()
         {
@@ -331,6 +361,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that a supported aggregate invokes the native processed provider.
+        /// </summary>
         [Test]
         public async Task DispatchProcessedReadSupportedAggregateInvokesNativeProviderAsync()
         {
@@ -391,6 +424,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that a processed continuation uses its persisted aggregate for capability validation.
+        /// </summary>
         [Test]
         public async Task DispatchProcessedReadContinuationUsesPersistedAggregateForSupportGateAsync()
         {
@@ -478,6 +514,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Times.Exactly(2));
         }
 
+        /// <summary>
+        /// Verifies that failed capability lookup restores a claimed processed-history continuation.
+        /// </summary>
         [Test]
         public async Task DispatchProcessedReadRestoresClaimedContinuationWhenCapabilityLookupFailsAsync()
         {
@@ -587,6 +626,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Times.Exactly(2));
         }
 
+        /// <summary>
+        /// Verifies that AnnotationCount dispatch counts annotations in each processing interval.
+        /// </summary>
         [Test]
         public async Task DispatchProcessedReadAnnotationCountCountsAnnotationsPerIntervalAsync()
         {
@@ -654,6 +696,9 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
+        /// <summary>
+        /// Verifies that AnnotationCount without an annotation provider returns BadAggregateNotSupported.
+        /// </summary>
         [Test]
         public async Task DispatchProcessedReadAnnotationCountWithoutAnnotationProviderReturnsBadAggregateNotSupportedAsync()
         {
@@ -691,6 +736,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadAggregateNotSupported));
         }
 
+        /// <summary>
+        /// Verifies that a zero AnnotationCount interval returns a single whole-range bucket.
+        /// </summary>
         [Test]
         public async Task DispatchProcessedReadAnnotationCountWithZeroIntervalReturnsSingleBucketAsync()
         {
@@ -735,8 +783,14 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(values, Is.Not.Null.And.Length.EqualTo(1));
             Assert.That(values![0].WrappedValue.TryGetValue(out int count), Is.True);
             Assert.That(count, Is.EqualTo(3));
+            Assert.That(
+                values[0].StatusCode.AggregateBits,
+                Is.EqualTo(AggregateBits.Calculated));
         }
 
+        /// <summary>
+        /// Verifies that reverse AnnotationCount dispatch returns processing buckets.
+        /// </summary>
         [Test]
         public async Task DispatchProcessedReadAnnotationCountReverseTimeReturnsBucketsAsync()
         {
@@ -754,7 +808,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 new() { Message = "a", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(2) },
                 new() { Message = "b", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(5) },
                 new() { Message = "c", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(8) },
-                new() { Message = "d", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(15) }
+                new() { Message = "d", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(15) },
+                new() { Message = "included-start", UserName = "t", AnnotationTime = HarnessFixture.BaseTime.AddSeconds(30) },
+                new() { Message = "excluded-end", UserName = "t", AnnotationTime = HarnessFixture.BaseTime }
             };
             await h.Provider.InsertAnnotationsAsync(context, nodeId, annotations, CancellationToken.None).ConfigureAwait(false);
 
@@ -788,10 +844,143 @@ namespace Opc.Ua.Server.Tests.Historian
                 Assert.That(v.WrappedValue.TryGetValue(out int count), Is.True);
                 total += count;
             }
-            Assert.That(total, Is.EqualTo(4),
-                "Reverse-time AnnotationCount must total all four annotations across the buckets.");
+            Assert.That(total, Is.EqualTo(5),
+                "Reverse-time AnnotationCount includes StartTime and excludes EndTime.");
         }
 
+        /// <summary>
+        /// Verifies that AnnotationCount includes an annotation at the maximum start timestamp.
+        /// </summary>
+        [Test]
+        public async Task DispatchProcessedReadAnnotationCountIncludesMaximumStartTimeAsync()
+        {
+            HarnessFixture h = CreateHarnessWithAggregateManager();
+            await h.RegisterAggregateAsync(
+                ObjectIds.AggregateFunction_AnnotationCount).ConfigureAwait(false);
+            var nodeId = new NodeId($"anncount-max-start-{Guid.NewGuid():N}", 1);
+            h.Provider.Register(nodeId);
+            HistorianOperationContext context =
+                HarnessFixture.CreateContext(h.SystemContext);
+            DateTimeUtc startTime = DateTimeUtc.MaxValue;
+            DateTimeUtc endTime = new(
+                DateTime.MaxValue.AddSeconds(-10));
+            await h.Provider.InsertAnnotationsAsync(
+                context,
+                nodeId,
+                [
+                    new Annotation
+                    {
+                        Message = "included",
+                        AnnotationTime = startTime
+                    },
+                    new Annotation
+                    {
+                        Message = "excluded",
+                        AnnotationTime = endTime
+                    }
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
+                h.SystemContext,
+                h.Provider,
+                CreateVariable(nodeId),
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId
+                },
+                new ReadProcessedDetails
+                {
+                    StartTime = startTime,
+                    EndTime = endTime,
+                    ProcessingInterval = 0
+                },
+                ObjectIds.AggregateFunction_AnnotationCount,
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? history), Is.True);
+            Assert.That(history!.DataValues, Has.Count.EqualTo(1));
+            Assert.That(history.DataValues[0].WrappedValue.TryGetValue(out int count), Is.True);
+            Assert.That(count, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies that AnnotationCount paging advances from the maximum start timestamp.
+        /// </summary>
+        [Test]
+        public async Task DispatchProcessedReadAnnotationCountAdvancesFromMaximumStartTimeAsync()
+        {
+            HarnessFixture h = CreateHarnessWithAggregateManager();
+            await h.RegisterAggregateAsync(
+                ObjectIds.AggregateFunction_AnnotationCount).ConfigureAwait(false);
+            var nodeId = new NodeId($"anncount-max-interval-{Guid.NewGuid():N}", 1);
+            h.Provider.Register(nodeId);
+            HistorianOperationContext context =
+                HarnessFixture.CreateContext(h.SystemContext);
+            DateTimeUtc startTime = DateTimeUtc.MaxValue;
+            DateTime maximum = startTime.ToDateTime();
+            DateTimeUtc middle = new(
+                maximum.AddMilliseconds(-5));
+            DateTimeUtc endTime = new(
+                maximum.AddMilliseconds(-10));
+            await h.Provider.InsertAnnotationsAsync(
+                context,
+                nodeId,
+                [
+                    new Annotation
+                    {
+                        Message = "first",
+                        AnnotationTime = startTime
+                    },
+                    new Annotation
+                    {
+                        Message = "second",
+                        AnnotationTime = middle
+                    },
+                    new Annotation
+                    {
+                        Message = "excluded",
+                        AnnotationTime = endTime
+                    }
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchProcessedReadAsync(
+                h.SystemContext,
+                h.Provider,
+                CreateVariable(nodeId),
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId
+                },
+                new ReadProcessedDetails
+                {
+                    StartTime = startTime,
+                    EndTime = endTime,
+                    ProcessingInterval = 5
+                },
+                ObjectIds.AggregateFunction_AnnotationCount,
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? history), Is.True);
+            Assert.That(history!.DataValues, Has.Count.EqualTo(2));
+            Assert.That(history.DataValues[0].WrappedValue.TryGetValue(out int first), Is.True);
+            Assert.That(history.DataValues[1].WrappedValue.TryGetValue(out int second), Is.True);
+            Assert.That(first, Is.EqualTo(1));
+            Assert.That(second, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies that AnnotationCount returns zero-valued buckets when no annotations exist.
+        /// </summary>
         [Test]
         public async Task DispatchProcessedReadAnnotationCountWithNoAnnotationsReturnsZerosAsync()
         {
@@ -830,9 +1019,15 @@ namespace Opc.Ua.Server.Tests.Historian
                 Assert.That(v.WrappedValue.TryGetValue(out int count), Is.True);
                 Assert.That(count, Is.Zero);
                 Assert.That(StatusCode.IsGood(v.StatusCode), Is.True);
+                Assert.That(
+                    v.StatusCode.AggregateBits,
+                    Is.EqualTo(AggregateBits.Calculated));
             }
         }
 
+        /// <summary>
+        /// Verifies that processed reads with equal start and end times return BadInvalidArgument.
+        /// </summary>
         [Test]
         public async Task DispatchProcessedReadWithEqualStartAndEndTimeReturnsBadInvalidArgumentAsync()
         {
@@ -866,6 +1061,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that invalid processed-history intervals return BadInvalidArgument.
+        /// </summary>
         [TestCase(-1d)]
         [TestCase(double.NaN)]
         [TestCase(double.NegativeInfinity)]
@@ -927,6 +1125,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that reverse processed-history ranges are not rejected as invalid arguments.
+        /// </summary>
         [Test]
         public async Task DispatchProcessedReadWithReverseTimeRangeIsNotRejectedAsInvalidArgumentAsync()
         {
@@ -961,6 +1162,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadAggregateNotSupported));
         }
 
+        /// <summary>
+        /// Verifies that at-time fallback dispatch interpolates between raw samples.
+        /// </summary>
         [Test]
         public async Task DispatchAtTimeReadInterpolatesBetweenSamplesAsync()
         {
@@ -1004,11 +1208,17 @@ namespace Opc.Ua.Server.Tests.Historian
             DataValue[]? values = hd!.DataValues.ToArray();
             Assert.That(values, Is.Not.Null.And.Length.EqualTo(1));
             Assert.That(values![0].SourceTimestamp.ToDateTime(), Is.EqualTo(t15));
-            Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
+            Assert.That(StatusCode.IsGood(values[0].StatusCode), Is.True);
+            Assert.That(
+                values[0].StatusCode.AggregateBits,
+                Is.EqualTo(AggregateBits.Interpolated));
             double interpolated = Convert.ToDouble(values[0].WrappedValue.AsBoxedObject(), CultureInfo.InvariantCulture);
             Assert.That(interpolated, Is.EqualTo(150.0).Within(0.01));
         }
 
+        /// <summary>
+        /// Verifies that at-time reads without a data provider return BadHistoryOperationUnsupported.
+        /// </summary>
         [Test]
         public async Task DispatchAtTimeReadWithoutDataProviderReturnsBadHistoryOperationUnsupportedAsync()
         {
@@ -1037,6 +1247,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
+        /// <summary>
+        /// Verifies that at-time dispatch rejects a provider result count that differs from the requested count.
+        /// </summary>
         [Test]
         public async Task DispatchAtTimeReadRejectsMismatchedProviderCountAsync()
         {
@@ -1091,6 +1304,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
 
+        /// <summary>
+        /// Verifies that releasing an empty continuation returns BadContinuationPointInvalid.
+        /// </summary>
         [Test]
         public void ReleaseContinuationPointWithEmptyContinuationReturnsBadContinuationPointInvalid()
         {
@@ -1106,6 +1322,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
         }
 
+        /// <summary>
+        /// Verifies that releasing an unknown continuation returns BadContinuationPointInvalid.
+        /// </summary>
         [Test]
         public void ReleaseContinuationPointWithUnknownContinuationReturnsBadContinuationPointInvalid()
         {

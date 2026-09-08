@@ -153,15 +153,17 @@ dotnet publish tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj -c Release && \
 
 ## CI Integration
 
-The GitHub Actions workflow `.github/workflows/buildandtest.yml` defines an
-`aot-test` job that runs on both `ubuntu-latest` and `windows-latest`. The
-steps are:
+The GitHub Actions workflow `.github/workflows/buildandtest.yml` runs AOT
+jobs on Ubuntu and both Intel and ARM64 macOS. Azure's `Test Native AoT`
+matrix covers Windows. Each platform performs these steps:
 
 1. **Checkout** the repository.
 2. **Setup** .NET 10.0 SDK.
 3. **Publish** the project with `dotnet publish` in `Release` configuration.
 4. **Execute** the platform-specific binary directly.
-5. **Upload** any `TestResults` artifacts.
+5. **Publish + execute** the `.Historian` and `.Mcp` companions the same way,
+   keeping results separate.
+6. **Upload** any `TestResults` artifacts.
 
 The job runs in a separate matrix from the main `dotnet test` build so that AOT
 failures are isolated and clearly visible.

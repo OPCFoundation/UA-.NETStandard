@@ -51,6 +51,9 @@ namespace Opc.Ua.Server.Tests
         private static readonly NodeId s_sessionId = new(1000);
         private static readonly NodeId s_ownerSessionId = new(2000);
 
+        /// <summary>
+        /// Verifies that continuation storage construction rejects a null session-identifier provider.
+        /// </summary>
         [Test]
         public void ConstructorThrowsWhenSessionIdProviderNull()
         {
@@ -59,6 +62,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ex.ParamName, Is.EqualTo("sessionIdProvider"));
         }
 
+        /// <summary>
+        /// Verifies that the maximum number of browse continuations can be configured.
+        /// </summary>
         [Test]
         public void MaxBrowseIsConfigurable()
         {
@@ -70,6 +76,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.MaxBrowse, Is.EqualTo(5));
         }
 
+        /// <summary>
+        /// Verifies that saving a null browse continuation is rejected.
+        /// </summary>
         [Test]
         public void SaveBrowseThrowsOnNullContinuationPoint()
         {
@@ -80,6 +89,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ex.ParamName, Is.EqualTo("continuationPoint"));
         }
 
+        /// <summary>
+        /// Verifies that saving and restoring a browse continuation returns the same instance.
+        /// </summary>
         [Test]
         public void SaveBrowseThenRestoreBrowseReturnsSamePoint()
         {
@@ -94,6 +106,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreBrowse(ToByteString(cp.Id)), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that saving a browse continuation evicts the oldest entry and notifies the backing store.
+        /// </summary>
         [Test]
         public void SaveBrowseEvictsOldestAndNotifiesStore()
         {
@@ -121,6 +136,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that browse continuation eviction occurs when the configured count limit is reached.
+        /// </summary>
         [Test]
         public void SaveBrowseEvictsWhenCountReachesConfiguredLimit()
         {
@@ -145,6 +163,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that persisted browse envelopes normalize node identifiers.
+        /// </summary>
         [Test]
         public void SaveBrowseStoresEnvelopeWithNormalizedNodeIds()
         {
@@ -169,6 +190,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(captured.ReferenceTypeId.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that browse restoration returns null before any continuation is saved.
+        /// </summary>
         [Test]
         public void RestoreBrowseReturnsNullBeforeAnySave()
         {
@@ -177,6 +201,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreBrowse(ToByteString(Guid.NewGuid())), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that browse restoration returns null for an identifier with the wrong length.
+        /// </summary>
         [Test]
         public void RestoreBrowseReturnsNullForWrongLength()
         {
@@ -186,6 +213,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreBrowse(new ByteString(new byte[] { 1, 2, 3 })), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that browse restoration returns null for an unknown continuation.
+        /// </summary>
         [Test]
         public void RestoreBrowseReturnsNullWhenNotFound()
         {
@@ -195,6 +225,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreBrowse(ToByteString(Guid.NewGuid())), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that browse cleanup rejects a null node manager.
+        /// </summary>
         [Test]
         public void RemoveBrowseForManagerThrowsOnNullNodeManager()
         {
@@ -205,6 +238,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ex.ParamName, Is.EqualTo("nodeManager"));
         }
 
+        /// <summary>
+        /// Verifies that browse cleanup without saved points has no effect.
+        /// </summary>
         [Test]
         public void RemoveBrowseForManagerIsNoOpWhenNoBrowsePointsSaved()
         {
@@ -214,6 +250,9 @@ namespace Opc.Ua.Server.Tests
             Assert.DoesNotThrow(() => holder.RemoveBrowseForManager(nodeManager));
         }
 
+        /// <summary>
+        /// Verifies that browse cleanup removes matching node-manager points and notifies the store.
+        /// </summary>
         [Test]
         public void RemoveBrowseForManagerRemovesMatchingManagerAndNotifiesStore()
         {
@@ -242,6 +281,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that browse cleanup matches the underlying synchronous manager across different adapter instances.
+        /// </summary>
         [Test]
         public void RemoveBrowseForManagerMatchesBySyncNodeManagerWhenManagerInstancesDiffer()
         {
@@ -259,6 +301,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreBrowse(ToByteString(cp.Id)), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that saving a null history continuation is rejected.
+        /// </summary>
         [Test]
         public void SaveHistoryThrowsOnNullContinuationPoint()
         {
@@ -269,6 +314,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ex.ParamName, Is.EqualTo("continuationPoint"));
         }
 
+        /// <summary>
+        /// Verifies that a saved history continuation can be restored.
+        /// </summary>
         [Test]
         public void SaveHistoryThenRestoreHistoryReturnsValue()
         {
@@ -283,6 +331,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreHistory(ToByteString(id)), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that asynchronous history saving evicts the oldest point and schedules its durable removal.
+        /// </summary>
         [Test]
         public async Task SaveHistoryAsyncEvictsOldestAndSchedulesRemovalAsync()
         {
@@ -310,6 +361,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that asynchronous history saving persists a continuation envelope.
+        /// </summary>
         [Test]
         public async Task SaveHistoryAsyncStoresEnvelopeAsync()
         {
@@ -332,6 +386,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(captured.OwnerSessionId, Is.EqualTo(s_sessionId));
         }
 
+        /// <summary>
+        /// Verifies that history restoration returns null before any continuation is saved.
+        /// </summary>
         [Test]
         public void RestoreHistoryReturnsNullBeforeAnySave()
         {
@@ -340,6 +397,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreHistory(ToByteString(Guid.NewGuid())), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that history restoration returns null for an identifier with the wrong length.
+        /// </summary>
         [Test]
         public void RestoreHistoryReturnsNullForWrongLength()
         {
@@ -349,6 +409,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreHistory(new ByteString("\t"u8.ToArray())), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that history restoration returns null for an unknown continuation.
+        /// </summary>
         [Test]
         public void RestoreHistoryReturnsNullWhenNotFound()
         {
@@ -358,6 +421,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreHistory(ToByteString(Guid.NewGuid())), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that mirrored continuation loading performs no work without a backing store.
+        /// </summary>
         [Test]
         public async Task LoadMirroredAsyncReturnsEarlyWithoutStoreAsync()
         {
@@ -370,6 +436,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreBrowse(ToByteString(Guid.NewGuid())), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that mirrored continuation loading performs no work for a null owner.
+        /// </summary>
         [Test]
         public async Task LoadMirroredAsyncReturnsEarlyForNullOwnerAsync()
         {
@@ -383,6 +452,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that mirrored loading consumes both browse and history continuation envelopes.
+        /// </summary>
         [Test]
         public async Task LoadMirroredAsyncConsumesMirroredBrowseAndHistoryAsync()
         {
@@ -426,6 +498,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that clearing continuation storage disposes browse and history points.
+        /// </summary>
         [Test]
         public void ClearDisposesBrowseAndHistoryPoints()
         {
@@ -453,6 +528,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that clearing empty continuation storage does not throw.
+        /// </summary>
         [Test]
         public void ClearWithoutPointsDoesNotThrow()
         {
@@ -461,6 +539,9 @@ namespace Opc.Ua.Server.Tests
             Assert.DoesNotThrow(holder.Clear);
         }
 
+        /// <summary>
+        /// Verifies that history cleanup rejects a null node manager.
+        /// </summary>
         [Test]
         public void RemoveHistoryForManagerThrowsOnNullNodeManager()
         {
@@ -471,6 +552,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ex.ParamName, Is.EqualTo("nodeManager"));
         }
 
+        /// <summary>
+        /// Verifies that history cleanup without saved points has no effect.
+        /// </summary>
         [Test]
         public void RemoveHistoryForManagerIsNoOpWhenNoHistoryPointsSaved()
         {
@@ -480,6 +564,9 @@ namespace Opc.Ua.Server.Tests
                 () => holder.RemoveHistoryForManager(NewNodeManager(Mock.Of<INodeManager>())));
         }
 
+        /// <summary>
+        /// Verifies that manager-specific cleanup preserves history continuations not attributable to that manager.
+        /// </summary>
         [Test]
         public void RemoveHistoryForManagerLeavesPointsOfOtherOwners()
         {

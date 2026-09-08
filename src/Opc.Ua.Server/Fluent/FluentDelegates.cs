@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.Fluent
 {
@@ -88,6 +90,59 @@ namespace Opc.Ua.Server.Fluent
         ISystemContext context,
         NodeState source,
         ISampledDataChangeMonitoredItem monitoredItem);
+
+    /// <summary>
+    /// Invoked after a monitored item has been modified successfully.
+    /// </summary>
+    public delegate ValueTask MonitoredItemModifiedHandler(
+        ISystemContext context,
+        NodeState source,
+        ISampledDataChangeMonitoredItem monitoredItem,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Invoked after a monitored item has been deleted successfully.
+    /// </summary>
+    public delegate ValueTask MonitoredItemDeletedHandler(
+        ISystemContext context,
+        NodeState source,
+        ISampledDataChangeMonitoredItem monitoredItem,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Invoked after a monitored item's monitoring mode changes.
+    /// </summary>
+    public delegate ValueTask MonitoringModeChangedHandler(
+        ISystemContext context,
+        NodeState source,
+        ISampledDataChangeMonitoredItem monitoredItem,
+        MonitoringMode previousMode,
+        MonitoringMode monitoringMode,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Invoked before the stack creates a data-change monitored item.
+    /// </summary>
+    public delegate ValueTask<MonitoredItemCreateDecision> MonitoredItemCreatingHandler(
+        MonitoredItemCreateContext context,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Invoked when a node transitions between zero and one active
+    /// data-change subscribers.
+    /// </summary>
+    public delegate ValueTask MonitoredSourceLifecycleHandler(
+        ISystemContext context,
+        NodeState source,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Invoked after a successful monitored-item create or delete batch.
+    /// </summary>
+    public delegate ValueTask MonitoredItemsBatchHandler(
+        ISystemContext context,
+        ArrayOf<IMonitoredItem> monitoredItems,
+        CancellationToken cancellationToken);
 
     /// <summary>
     /// Invoked when an event is reported by the wired source node. The

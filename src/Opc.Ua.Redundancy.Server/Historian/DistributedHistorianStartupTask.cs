@@ -37,9 +37,9 @@ using Opc.Ua.Server.Hosting;
 namespace Opc.Ua.Redundancy.Server
 {
     /// <summary>
-    /// Initializes and conditionally registers the distributed historian.
+    /// Validates and initializes the distributed historian and starts leader election.
     /// </summary>
-    public sealed class DistributedHistorianStartupTask : IServerStartupTask
+    public sealed class DistributedHistorianStartupTask : IServerPreStartupTask
     {
         /// <summary>
         /// Creates the startup task.
@@ -54,7 +54,9 @@ namespace Opc.Ua.Redundancy.Server
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_provider = provider ??
                 throw new ArgumentNullException(nameof(provider));
-            m_selectedProvider = selectedProvider ??
+            // The host registers the selected provider before this task runs.
+            // Retain the constructor parameter for compatibility, including custom providers.
+            _ = selectedProvider ??
                 throw new ArgumentNullException(nameof(selectedProvider));
             m_election = election ??
                 throw new ArgumentNullException(nameof(election));
@@ -63,7 +65,7 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask OnServerStartedAsync(
+        public async ValueTask OnServerStartingAsync(
             IServerContext server,
             CancellationToken cancellationToken = default)
         {
@@ -97,21 +99,10 @@ namespace Opc.Ua.Redundancy.Server
             await m_election.TryAcquireOrRenewAsync(cancellationToken)
                 .ConfigureAwait(false);
             m_election.Start();
-            if (!ReferenceEquals(m_selectedProvider, m_provider))
-            {
-                return;
-            }
-            if (server.DefaultSystemContext.Server is
-                    IHistorianRegistryProvider registryProvider &&
-                registryProvider.HistorianRegistry.Providers.Count == 0)
-            {
-                registryProvider.HistorianRegistry.RegisterDefault(m_provider);
-            }
         }
 
         private readonly ISharedKeyValueStore m_store;
         private readonly SharedKeyValueHistorianProvider m_provider;
-        private readonly IHistorianProvider m_selectedProvider;
         private readonly ILeaderElection m_election;
         private readonly IHistoryContinuationPointStore m_continuationStore;
     }

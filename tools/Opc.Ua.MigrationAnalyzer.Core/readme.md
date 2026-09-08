@@ -17,7 +17,7 @@ flattened directly under the project root. For example:
 | `Opc.Ua.Core`               | `Core/`             |
 | `Opc.Ua.Client`             | `Client/`           |
 | `Opc.Ua.Configuration`      | `Configuration/`    |
-| `Opc.Ua.Gds.Client.Common`  | `Gds.Client.Common/`|
+| `Opc.Ua.Gds.Client`  | `Gds.Client/`|
 
 Within each top-level directory the file path mirrors the directory layout of
 the source project — e.g. the obsolete extension surface around

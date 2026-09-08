@@ -39,6 +39,9 @@ namespace Opc.Ua.Server.Historian
     /// </summary>
     internal static class HistorianEventUpdateValidator
     {
+        /// <summary>
+        /// Validates an event history update and resolves the selected fields needed to decode its events.
+        /// </summary>
         public static ServiceResult Validate(
             ServerSystemContext systemContext,
             NodeState node,
@@ -154,6 +157,9 @@ namespace Opc.Ua.Server.Historian
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Decodes and validates one incoming event against the update plan and historian capabilities.
+        /// </summary>
         public static async ValueTask<HistorianEventDecodeResult> DecodeAsync(
             ServerSystemContext systemContext,
             HistorianNodeCapabilities capabilities,
@@ -593,6 +599,15 @@ namespace Opc.Ua.Server.Historian
         private const int kAmbiguousClause = -2;
     }
 
+    /// <summary>
+    /// Carries resolved field indexes and the target operation for decoding an event history update.
+    /// </summary>
+    /// <param name="EventIdIndex">Index of the EventId field, or a negative value when absent.</param>
+    /// <param name="EventTypeIndex">Index of the EventType field, or a negative value when absent.</param>
+    /// <param name="TimeIndex">Index of the Time field, or a negative value when absent.</param>
+    /// <param name="SourceNodeIndex">Index of the SourceNode field, or a negative value when absent.</param>
+    /// <param name="NodeId">Node identifier targeted by the event update.</param>
+    /// <param name="UpdateType">Insert, replace, or update operation requested for the events.</param>
     internal readonly record struct HistorianEventUpdatePlan(
         int EventIdIndex,
         int EventTypeIndex,
@@ -601,6 +616,13 @@ namespace Opc.Ua.Server.Historian
         NodeId NodeId,
         PerformUpdateType UpdateType);
 
+    /// <summary>
+    /// Reports an event decoding status, its decoded record, and any field-specific error details.
+    /// </summary>
+    /// <param name="StatusCode">Status of decoding and validating the event.</param>
+    /// <param name="Record">Decoded event record, or null when decoding fails.</param>
+    /// <param name="FieldIndexes">Indexes of event fields associated with a decoding error.</param>
+    /// <param name="FieldNames">Names of event fields associated with a decoding error.</param>
     internal readonly record struct HistorianEventDecodeResult(
         StatusCode StatusCode,
         HistorianEventRecord? Record,

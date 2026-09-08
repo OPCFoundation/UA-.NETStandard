@@ -54,6 +54,9 @@ namespace Opc.Ua.Server.Tests.Historian
     {
         private const ushort NamespaceIndex = 1;
 
+        /// <summary>
+        /// Verifies that provider-wide capability lookup reports no capabilities when no nodes are registered.
+        /// </summary>
         [Test]
         public async Task NullNodeRollupWithNoRegisteredNodesReturnsNoCapabilitiesAsync()
         {
@@ -81,6 +84,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(rollup.ServerTimestampSupported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that provider-wide capability lookup combines flags across registered nodes.
+        /// </summary>
         [Test]
         public async Task NullNodeRollupUnionsFlagsAcrossRegisteredNodesAsync()
         {
@@ -117,6 +123,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(rollup.ReadStructuredData, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that read-only registrations do not cause provider-wide lookup to overadvertise capabilities.
+        /// </summary>
         [Test]
         public async Task NullNodeRollupDoesNotOverAdvertiseWhenAllRegisteredNodesAreReadOnlyAsync()
         {
@@ -144,6 +153,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(rollup.ReadStructuredData, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that the None capability preset disables every capability flag.
+        /// </summary>
         [Test]
         public void NoneStaticPresetHasEveryFlagFalse()
         {
@@ -159,6 +171,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(none.SupportsAnyStructuredUpdate, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that an unregistered non-null node still uses the provider's default capabilities.
+        /// </summary>
         [Test]
         public async Task NonNullUnregisteredNodeStillFallsBackToDefaultCapabilitiesAsync()
         {
@@ -176,6 +191,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(caps, Is.EqualTo(HistorianNodeCapabilities.ReadWrite));
         }
 
+        /// <summary>
+        /// Verifies that ordinary data registration does not advertise event or structured-data facets.
+        /// </summary>
         [Test]
         public async Task DefaultDataRegistrationDoesNotClaimEventOrStructuredFacetsAsync()
         {
@@ -196,6 +214,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(rollup.SupportsAnyStructuredUpdate, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that structured-data registration advertises only structured-data facets.
+        /// </summary>
         [Test]
         public async Task StructuredRegistrationOnlyClaimsStructuredFacetsAsync()
         {

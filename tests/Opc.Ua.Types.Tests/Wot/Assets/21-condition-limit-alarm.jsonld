@@ -4,14 +4,15 @@
     {
       "uav": "http://opcfoundation.org/UA/WoT-Binding/",
       "ua": "http://opcfoundation.org/UA/",
-      "pump": "http://example.com/demo/pump"
+      "pump": "http://example.com/demo/pump",
+      "evt": "urn:example:opcua:event-type:"
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
   "@type": "uav:object",
   "id": "urn:dev:opcua:pump-01-conditions",
   "title": "Pump 01 Conditions",
-  "description": "A Thing Description showing a high-temperature OPC UA LimitAlarmType notification paired with acknowledge and confirm actions. The event affordance links to the EventType definition its fields are selected from and states only the two clauses that refine it.",
+  "description": "A Thing Description showing a high-temperature OPC UA LimitAlarmType notification paired with acknowledge and confirm actions. The event affordance's evt:highTemperatureAlarm reference expands through this document's context and resolves to the matching @id in 27-event-type-models.jsonld; the affordance states only the two clauses that refine that definition-derived selection.",
   "uav:browseName": "pump:Pump",
   "uav:id": "nsu=http://example.com/demo/pump;s=Pump",
   "securityDefinitions": {
@@ -38,18 +39,18 @@
     "highTemperature": {
       "@type": "uav:eventType",
       "title": "High Temperature",
-      "uav:isEvent": true,
+      "description": "The evt:highTemperatureAlarm identifier resolves to the EventType definition declared by example 27.",
       "uav:browseName": "pump:HighTemperatureAlarmType",
       "uav:conditionType": "ua:LimitAlarmType",
       "uav:conditionTypeId": "i=2955",
-      "tm:ref": "./27-event-type-models.jsonld#/events/highTemperatureAlarm",
+      "tm:ref": "evt:highTemperatureAlarm",
       "uav:eventSelectClauses": [
         {
           "tm:ref": "./27-event-type-models.jsonld#/events/limitAlarm",
           "uav:browsePath": "HighHighLimit"
         },
         {
-          "tm:ref": "./27-event-type-models.jsonld#/events/highTemperatureAlarm",
+          "tm:ref": "evt:highTemperatureAlarm",
           "uav:browsePath": "Severity"
         }
       ],

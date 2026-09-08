@@ -2567,10 +2567,16 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class DiagnosticsNodeManagerLog
     {
+        /// <summary>
+        /// Logs an unexpected exception while scanning server diagnostics.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.DiagnosticsNodeManager + 0, Level = LogLevel.Error,
             Message = "Unexpected error during diagnostics scan.")]
         public static partial void UnexpectedErrorDuringDiagnosticsScan(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a provider skipped while aggregating historian capabilities.
+        /// </summary>
         [LoggerMessage(
             EventId = ServerEventIds.DiagnosticsNodeManager + 1,
             Level = LogLevel.Warning,

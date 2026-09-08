@@ -85,6 +85,9 @@ namespace Opc.Ua.Redundancy.Server
             Initialize(messageContext);
         }
 
+        /// <summary>
+        /// Creates a protected shared-store historian whose message context is supplied later.
+        /// </summary>
         internal SharedKeyValueHistorianProvider(
             ISharedKeyValueStore store,
             IRecordProtector protector,
@@ -567,13 +570,18 @@ namespace Opc.Ua.Redundancy.Server
             ArchiveState state = await LoadStateAsync(stored.Manifest, ct)
                 .ConfigureAwait(false);
             NodeArchive? archive = state.TryGetArchive(request.NodeId);
+            ArrayOf<DataValue> orderedValues = archive == null
+                ? []
+                : archive.Raw.Values.ToArrayOf();
             var result = new List<DataValue>(request.RequestedTimes.Count);
             foreach (DateTimeUtc requestedTime in request.RequestedTimes)
             {
-                result.Add(InterpolateAtTime(
-                    archive?.Raw.Values,
+                ct.ThrowIfCancellationRequested();
+                result.Add(AggregateCalculator.CalculateAtTime(
+                    orderedValues,
                     requestedTime,
-                    request.UseSimpleBounds));
+                    request.UseSimpleBounds,
+                    m_options.Capabilities.Stepped));
             }
             return result.ToArrayOf();
         }
@@ -845,6 +853,9 @@ namespace Opc.Ua.Redundancy.Server
             m_writerFenceSemaphore.Dispose();
         }
 
+        /// <summary>
+        /// Sets the serialization context, rejecting a different context after initialization.
+        /// </summary>
         internal void Initialize(IServiceMessageContext messageContext)
         {
             if (messageContext == null)
@@ -863,6 +874,9 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
+        /// <summary>
+        /// Recovers cleanup work for expired generations and unreferenced history segments.
+        /// </summary>
         internal async ValueTask RecoverGarbageCollectionAsync(
             CancellationToken ct)
         {
@@ -992,6 +1006,9 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
+        /// <summary>
+        /// Shared-store key for the currently published historian manifest.
+        /// </summary>
         internal static string CurrentManifestKey => kCurrentManifestKey;
 
         private ValueTask<HistorianUpdateOutcome<DataValue>> ApplyDataUpdateAsync(
@@ -1473,25 +1490,36 @@ namespace Opc.Ua.Redundancy.Server
             var mutations = new List<Mutation>();
             for (int i = 0; i < timestamps.Count; i++)
             {
-                var key =
-                    HistoricalValueKey.FromTimestamp(timestamps[i]);
-                if (!archive.Raw.TryGetValue(key, out DataValue prior))
+                List<HistoricalValueKey> keys =
+                [
+                    .. archive.Raw.Keys.Where(
+                        key => key.SourceTimestamp == timestamps[i])
+                ];
+                if (keys.Count == 0)
                 {
                     statuses[i] = StatusCodes.BadNoEntryExists;
                     continue;
                 }
-                archive.Raw.Remove(key);
-                oldValues.Add(prior);
-                var info = new ModificationInfo
+
+                foreach (HistoricalValueKey key in keys)
                 {
-                    ModificationTime = defaultInfo.ModificationTime,
-                    UpdateType = HistoryUpdateType.Delete,
-                    UserName = defaultInfo.UserName
-                };
-                var modified = new ModifiedEntry(prior, info, ++nextSequence);
-                archive.Modified.Add(modified);
-                mutations.Add(Mutation.AddModified(nodeId, modified));
-                mutations.Add(Mutation.DeleteRaw(nodeId, key));
+                    DataValue prior = archive.Raw[key];
+                    archive.Raw.Remove(key);
+                    oldValues.Add(prior);
+                    var info = new ModificationInfo
+                    {
+                        ModificationTime = defaultInfo.ModificationTime,
+                        UpdateType = HistoryUpdateType.Delete,
+                        UserName = defaultInfo.UserName
+                    };
+                    var modified = new ModifiedEntry(
+                        prior,
+                        info,
+                        ++nextSequence);
+                    archive.Modified.Add(modified);
+                    mutations.Add(Mutation.AddModified(nodeId, modified));
+                    mutations.Add(Mutation.DeleteRaw(nodeId, key));
+                }
                 statuses[i] = StatusCodes.Good;
             }
             return new UpdatePlan<DataValue>(
@@ -2263,8 +2291,8 @@ namespace Opc.Ua.Redundancy.Server
                     .ThenByDescending(entry => entry.Sequence)
                 : archive.Modified
                     .Where(entry =>
-                        entry.Value.SourceTimestamp >= lower &&
-                        entry.Value.SourceTimestamp < upper)
+                        entry.Value.SourceTimestamp > lower &&
+                        entry.Value.SourceTimestamp <= upper)
                     .OrderByDescending(entry => entry.Value.SourceTimestamp)
                     .ThenBy(entry => entry.Info.ModificationTime)
                     .ThenBy(entry => entry.Sequence);
@@ -2288,12 +2316,13 @@ namespace Opc.Ua.Redundancy.Server
                 ? request.EndTime
                 : request.StartTime;
             IEnumerable<KeyValuePair<DateTimeUtc, Annotation>> source =
-                archive.Annotations.Where(entry =>
-                    entry.Key >= lower && entry.Key < upper);
-            if (!request.IsForward)
-            {
-                source = source.Reverse();
-            }
+                request.IsForward
+                    ? archive.Annotations.Where(entry =>
+                        entry.Key >= lower && entry.Key < upper)
+                    : archive.Annotations
+                        .Where(entry =>
+                            entry.Key > lower && entry.Key <= upper)
+                        .Reverse();
             return [.. source.Select(entry => CloneAnnotation(entry.Value))];
         }
 
@@ -2326,57 +2355,6 @@ namespace Opc.Ua.Redundancy.Server
                     .OrderByDescending(entry => entry.Record.SourceTimestamp)
                     .ThenByDescending(entry => entry.Sequence);
             return [.. source.Select(entry => CloneEvent(entry.Record))];
-        }
-
-        private static DataValue InterpolateAtTime(
-            IEnumerable<DataValue>? values,
-            DateTimeUtc requestedTime,
-            bool useSimpleBounds)
-        {
-            DataValue before = DataValue.Null;
-            DataValue after = DataValue.Null;
-            if (values != null)
-            {
-                foreach (DataValue value in values)
-                {
-                    int comparison = value.SourceTimestamp.CompareTo(
-                        requestedTime);
-                    if (comparison == 0)
-                    {
-                        return value;
-                    }
-                    if (comparison < 0)
-                    {
-                        before = value;
-                    }
-                    else
-                    {
-                        after = value;
-                        break;
-                    }
-                }
-            }
-            if (useSimpleBounds || before.IsNull || after.IsNull)
-            {
-                DataValue closest = !before.IsNull ? before : after;
-                if (closest.IsNull)
-                {
-                    return new DataValue(
-                        Variant.Null,
-                        StatusCodes.BadNoData,
-                        requestedTime,
-                        DateTimeUtc.MinValue);
-                }
-                return new DataValue(
-                    closest.WrappedValue,
-                    StatusCodes.UncertainNoCommunicationLastUsableValue,
-                    requestedTime,
-                    DateTimeUtc.MinValue);
-            }
-            return AggregateCalculator.SlopedInterpolate(
-                requestedTime,
-                before,
-                after);
         }
 
         private List<DataValue> BuildProcessedValues(
@@ -2417,64 +2395,20 @@ namespace Opc.Ua.Redundancy.Server
             HistorianProcessedReadRequest request,
             CancellationToken ct)
         {
-            if (double.IsNaN(request.ProcessingInterval) ||
-                double.IsInfinity(request.ProcessingInterval) ||
-                request.ProcessingInterval <= 0)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadAggregateInvalidInputs);
-            }
             NodeArchive? archive = state.TryGetArchive(request.NodeId);
-            bool forward = request.StartTime <= request.EndTime;
-            DateTimeUtc cursor = request.StartTime;
-            var values = new List<DataValue>();
-            while (forward ? cursor < request.EndTime : cursor > request.EndTime)
-            {
-                ct.ThrowIfCancellationRequested();
-                if (values.Count >= kMaxProcessedValues)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadTooManyOperations);
-                }
-                DateTimeUtc next;
-                try
-                {
-                    next = cursor.AddMilliseconds(
-                        forward
-                            ? request.ProcessingInterval
-                            : -request.ProcessingInterval);
-                }
-                catch (ArgumentOutOfRangeException exception)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadAggregateInvalidInputs,
-                        "The annotation-count interval does not produce a valid timestamp.",
-                        exception);
-                }
-                if (next == cursor)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadAggregateInvalidInputs,
-                        "The annotation-count interval does not advance.");
-                }
-                if ((forward && next > request.EndTime) ||
-                    (!forward && next < request.EndTime))
-                {
-                    next = request.EndTime;
-                }
-                DateTimeUtc lower = forward ? cursor : next;
-                DateTimeUtc upper = forward ? next : cursor;
-                int count = archive?.Annotations.Count(entry =>
-                    entry.Key >= lower && entry.Key < upper) ??
-                    0;
-                values.Add(new DataValue(
-                    Variant.From(count),
-                    StatusCodes.Good,
-                    cursor,
-                    DateTimeUtc.MinValue));
-                cursor = next;
-            }
-            return values;
+            ArrayOf<DateTimeUtc> timestamps = archive == null
+                ? []
+                : archive.Annotations.Keys.ToArrayOf();
+            return
+            [
+                .. CountAggregateCalculator.CalculateAnnotationCounts(
+                    timestamps,
+                    request.StartTime,
+                    request.EndTime,
+                    request.ProcessingInterval,
+                    kMaxProcessedValues,
+                    ct)
+            ];
         }
 
         private static void FlushCalculator(

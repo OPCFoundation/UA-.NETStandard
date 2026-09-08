@@ -36,11 +36,17 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies durable history continuation ownership, persistence ordering, cleanup, and session-close races.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable]
     public sealed class SessionHistoryContinuationPersistenceTests
     {
+        /// <summary>
+        /// Verifies that a continuation is persisted before another session can restore its portable state.
+        /// </summary>
         [Test]
         public async Task SavePersistsBeforePortableContinuationCanRestoreAsync()
         {
@@ -67,6 +73,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(store.TakeCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that a nonportable codec result retains the local continuation.
+        /// </summary>
         [Test]
         public async Task NonPortableCodecResultKeepsLocalContinuationAsync()
         {
@@ -92,6 +101,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(store.Stored, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that persistence failure removes and disposes the local continuation state.
+        /// </summary>
         [Test]
         public void PersistenceFailureRemovesAndDisposesLocalState()
         {
@@ -120,6 +132,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that a mirrored continuation transfers its atomic claim to the local owner.
+        /// </summary>
         [Test]
         public async Task MirroredContinuationTransfersAtomicTakeToLocalOwnerAsync()
         {
@@ -157,6 +172,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(store.TakeCount, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that cleanup by the original session cannot delete a transferred continuation.
+        /// </summary>
         [Test]
         public async Task OriginalSessionCleanupCannotDeleteTransferredContinuationAsync()
         {
@@ -195,6 +213,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(store.LastTakeOwner, Is.EqualTo(localSessionId));
         }
 
+        /// <summary>
+        /// Verifies that a mirrored envelope belonging to another owner is ignored.
+        /// </summary>
         [Test]
         public async Task MirroredEnvelopeForAnotherOwnerIsIgnoredAsync()
         {
@@ -231,6 +252,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that a transient atomic-take failure preserves the local continuation.
+        /// </summary>
         [Test]
         public async Task TransientTakeFailurePreservesLocalContinuationAsync()
         {
@@ -263,6 +287,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.SameAs(continuation));
         }
 
+        /// <summary>
+        /// Verifies that concurrent restoration cannot claim the same portable continuation twice.
+        /// </summary>
         [Test]
         public async Task ConcurrentRestoreCannotClaimPortablePointTwiceAsync()
         {
@@ -298,6 +325,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(store.TakeCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that a continuation awaiting persistence cannot be evicted.
+        /// </summary>
         [Test]
         public async Task PendingPersistenceCannotBeEvictedAsync()
         {
@@ -342,6 +372,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.SameAs(first));
         }
 
+        /// <summary>
+        /// Verifies that synchronous release removes a portable continuation.
+        /// </summary>
         [Test]
         public async Task SynchronousReleaseRemovesPortableContinuationAsync()
         {
@@ -365,6 +398,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(store.Stored, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that a store commit followed by an exception schedules durable cleanup.
+        /// </summary>
         [Test]
         public void StoreCommitThenThrowSchedulesDurableCleanup()
         {
@@ -388,6 +424,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(continuation.Disposed, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that cleanup failure does not abort clearing the session's continuations.
+        /// </summary>
         [Test]
         public async Task CleanupFailureDoesNotAbortSessionClearAsync()
         {
@@ -410,6 +449,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(continuation.Disposed, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a closed session rejects and disposes a late history continuation.
+        /// </summary>
         [Test]
         public void ClosedSessionRejectsAndDisposesLateHistoryContinuation()
         {

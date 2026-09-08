@@ -54,6 +54,9 @@ namespace Opc.Ua.Server.Tests.Historian
     {
         private const ushort NamespaceIndex = 1;
 
+        /// <summary>
+        /// Verifies that a fully capable provider without notifier configuration reports only non-event profiles.
+        /// </summary>
         [Test]
         public void FullyCapableProviderWithoutNotifierConfigurationReportsNonEventProfilesOnly()
         {
@@ -77,6 +80,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "No Events-family profile may be reported supported without notifier EventTypes/MandatoryEventFields.");
         }
 
+        /// <summary>
+        /// Verifies that a fully configured provider and notifier report all 15 server profiles.
+        /// </summary>
         [Test]
         public void FullyCapableProviderWithNotifierConfigurationReportsAllFifteenServerProfiles()
         {
@@ -107,6 +113,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(supported, Has.Count.EqualTo(15));
         }
 
+        /// <summary>
+        /// Verifies that the combined capability rollup reports all 15 server profiles.
+        /// </summary>
         [Test]
         public void CombinedRollupReportsAllFifteenServerProfiles()
         {
@@ -121,6 +130,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(supported, Has.Count.EqualTo(15));
         }
 
+        /// <summary>
+        /// Verifies that removing a required capability removes the corresponding server profile claim.
+        /// </summary>
         [Test]
         public void EveryServerProfileDropsWhenItsRequiredCapabilityIsRemoved()
         {
@@ -152,6 +164,9 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
+        /// <summary>
+        /// Verifies that event facets are unsupported when event types are not configured.
+        /// </summary>
         [Test]
         public void EventFacetIsNotSupportedWhenEventTypesAreNotConfigured()
         {
@@ -172,6 +187,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(supported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that event facets are unsupported when mandatory event fields are not configured.
+        /// </summary>
         [Test]
         public void EventFacetIsNotSupportedWhenMandatoryEventFieldsAreNotConfigured()
         {
@@ -192,6 +210,10 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(supported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that event facets require the capability flag, event types, and mandatory field configuration
+        /// together.
+        /// </summary>
         [Test]
         public void EventFacetIsSupportedOnlyWithFlagEventTypesAndMandatoryFieldsAllConfigured()
         {
@@ -214,6 +236,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(HistorianProfileCatalog.IsSupportedByProvider(profile, provider, noInsert), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a provider-wide null-node capability rollup never satisfies event facets.
+        /// </summary>
         [Test]
         public async Task ProviderWideNullNodeRollupNeverSatisfiesEventFacetsAsync()
         {
@@ -238,6 +263,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(HistorianProfileCatalog.IsSupportedByProvider(profile, provider, rollup), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that provider support checks reject profiles not advertised by the catalog.
+        /// </summary>
         [Test]
         public void IsSupportedByProviderRejectsProfilesThatAreNotAdvertised()
         {
@@ -254,6 +282,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(supported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that provider support checks reject client-side profiles.
+        /// </summary>
         [Test]
         public void IsSupportedByProviderRejectsClientSideProfiles()
         {
@@ -271,6 +302,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(supported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that provider support checks require the interface associated with the profile family.
+        /// </summary>
         [Test]
         public void IsSupportedByProviderRequiresTheFamilysInterface()
         {
@@ -291,6 +325,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(supported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that implementing a provider interface does not replace the required capability flag.
+        /// </summary>
         [Test]
         public void IsSupportedByProviderRequiresTheCapabilityFlagEvenWhenInterfaceIsImplemented()
         {
@@ -310,6 +347,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(supported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that aggregate-family support can use the base data-provider fallback.
+        /// </summary>
         [Test]
         public void IsSupportedByProviderAcceptsAggregateFamilyViaBaseDataProviderFallback()
         {
@@ -330,6 +370,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(supported, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that provider support is accepted when both the required interface and capability flag are present.
+        /// </summary>
         [Test]
         public void IsSupportedByProviderAcceptsWhenBothInterfaceAndFlagAreSatisfied()
         {
@@ -346,6 +389,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(supported, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that insertion capability alone does not claim the replacement profile.
+        /// </summary>
         [Test]
         public void InsertCapabilityDoesNotClaimReplaceProfile()
         {
@@ -367,6 +413,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(supported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that profile support checks reject null arguments.
+        /// </summary>
         [Test]
         public void IsSupportedByProviderThrowsOnNullArguments()
         {

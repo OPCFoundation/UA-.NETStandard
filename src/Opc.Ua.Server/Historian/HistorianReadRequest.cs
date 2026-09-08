@@ -129,10 +129,10 @@ namespace Opc.Ua.Server.Historian
     /// <para>
     /// Providers that implement this interface return one value per
     /// requested timestamp. When the underlying archive does not have an
-    /// exact match the provider may either interpolate (per the
-    /// historization configuration) or return a bounded raw value. If no
-    /// provider override is registered the framework falls back to a
-    /// streaming interpolation pipeline over the raw read API.
+    /// exact match the provider calculates a value using the signal's
+    /// stepped or sloped interpolation rule. If no provider override is
+    /// registered the framework applies the same calculation over the raw
+    /// read API.
     /// </para>
     /// </remarks>
     public sealed record HistorianAtTimeReadRequest
@@ -148,8 +148,9 @@ namespace Opc.Ua.Server.Historian
         public required ArrayOf<DateTimeUtc> RequestedTimes { get; init; }
 
         /// <summary>
-        /// When true, returns the closest bound rather than interpolating
-        /// (Part 11 §5.2.6).
+        /// When true, the calculation uses the nearest raw values as simple
+        /// bounds. When false, it uses the nearest non-Bad values as
+        /// interpolated bounds (Part 11 §6.5.5.2 and Part 13 §3.1.8-3.1.9).
         /// </summary>
         public bool UseSimpleBounds { get; init; }
     }

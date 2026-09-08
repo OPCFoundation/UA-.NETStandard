@@ -295,7 +295,9 @@ namespace Opc.Ua.Server.Historian
         public ArrayOf<SimpleAttributeOperand> SortByEventFields { get; init; }
             = [];
 
-        /// <summary>True if the storage backend persists <see cref="DataValue.ServerTimestamp"/>.</summary>
+        /// <summary>
+        /// True if the storage backend persists <see cref="DataValue.ServerTimestamp"/>.
+        /// </summary>
         public bool ServerTimestampSupported { get; init; }
 
         /// <summary>

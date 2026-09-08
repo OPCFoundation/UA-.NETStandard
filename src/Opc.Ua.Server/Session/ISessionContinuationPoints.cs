@@ -65,20 +65,24 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Saves a history continuation point, dropping and disposing the oldest when the
-        /// limit is reached.
+        /// limit is reached. Ownership transfers to the session when this method is called;
+        /// the implementation disposes the point if it cannot retain it.
         /// </summary>
         /// <param name="continuationPoint">The continuation point.</param>
         void SaveHistory(IHistoryContinuationPoint continuationPoint);
 
         /// <summary>
-        /// Saves and durably mirrors a portable history continuation point.
+        /// Saves and durably mirrors a portable history continuation point. Ownership transfers
+        /// to the session when this method is called; the implementation disposes the point if
+        /// persistence fails.
         /// </summary>
         ValueTask SaveHistoryAsync(
             IHistoryContinuationPoint continuationPoint,
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Restores and removes a history continuation point.
+        /// Restores and removes a history continuation point, transferring ownership to the
+        /// caller. The caller must dispose it or save it back into the session.
         /// </summary>
         /// <param name="continuationPoint">The identifier the client returned.</param>
         /// <returns>The continuation point, or <c>null</c> when it is not held.</returns>
@@ -91,7 +95,9 @@ namespace Opc.Ua.Server
         bool ReleaseHistory(ByteString continuationPoint);
 
         /// <summary>
-        /// Atomically claims and restores a portable history continuation point.
+        /// Atomically claims and removes a portable history continuation point, transferring
+        /// ownership to the caller. The caller must dispose it, save a successor, or restore it
+        /// when the resumed operation does not complete.
         /// </summary>
         ValueTask<IHistoryContinuationPoint?> RestoreHistoryAsync(
             ByteString continuationPoint,

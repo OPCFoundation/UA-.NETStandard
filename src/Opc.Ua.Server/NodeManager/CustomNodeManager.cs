@@ -702,13 +702,22 @@ namespace Opc.Ua.Server
                 error.StatusCode == StatusCodes.BadDataEncodingUnsupported;
         }
 
+        /// <summary>
+        /// Whether root notifiers skip attachment to already existing event subscriptions.
+        /// </summary>
         internal bool SuppressExistingEventSubscriptions { get; set; }
 
+        /// <summary>
+        /// Gets the external references collected during address-space deletion.
+        /// </summary>
         internal List<LocalReference> GetRemovedExternalReferences()
         {
             return m_removedExternalReferences;
         }
 
+        /// <summary>
+        /// Clears the recorded external references pending removal.
+        /// </summary>
         internal void ClearRemovedExternalReferences()
         {
             m_removedExternalReferences = [];
@@ -1109,11 +1118,11 @@ namespace Opc.Ua.Server
                     Server.TypeTree);
             }
 
-            CompleteCreateLifecycleForRegistration(context, node);
+            NodeStateLifecycle.CompleteForRegistration(context, node, m_logger);
             NodeState activeNode = AddBehaviourToPredefinedNode(context, node);
             if (!ReferenceEquals(activeNode, node))
             {
-                CompleteCreateLifecycleForRegistration(context, activeNode);
+                NodeStateLifecycle.CompleteForRegistration(context, activeNode, m_logger);
             }
             PredefinedNodes.AddOrUpdate(activeNode.NodeId, activeNode, (key, _) => activeNode);
 
@@ -1174,24 +1183,6 @@ namespace Opc.Ua.Server
                 recovery.RecoverDetachedMonitoredItems(
                     m_asyncNodeManager,
                     [activeNode.NodeId]);
-            }
-        }
-
-        private void CompleteCreateLifecycleForRegistration(
-            ISystemContext context,
-            NodeState node)
-        {
-            if (node.IsCreated)
-            {
-                return;
-            }
-
-            node.CreateAsPredefinedNode(context);
-            if (m_logger != null)
-            {
-                m_logger.PredefinedNodeLifecycleCompletedAtRegistration(
-                    node.NodeId,
-                    node.BrowseName);
             }
         }
 
@@ -1444,6 +1435,9 @@ namespace Opc.Ua.Server
             AddTypesToTypeTree(type);
         }
 
+        /// <summary>
+        /// Repopulates the server type tree with this manager's types and encoding relationships.
+        /// </summary>
         internal void RebuildTypeTree()
         {
             foreach (NodeState node in PredefinedNodes.Values)

@@ -101,6 +101,23 @@ namespace Opc.Ua.Wot
             }
         }
 
+        /// <summary>
+        /// Gets whether a NodeSet BrowseName names the given Node of the base
+        /// OPC UA namespace.
+        /// </summary>
+        /// <remarks>
+        /// A NodeSet writes a base-namespace BrowseName without a prefix, or
+        /// with the explicit index <c>0</c>. Comparing the local name alone
+        /// would accept a vendor's own <c>1:Severity</c> or
+        /// <c>1:InputArguments</c>, which is a different QualifiedName standing
+        /// for something this converter knows nothing about.
+        /// </remarks>
+        private static bool IsBaseNamespaceBrowseName(string? browseName, string name)
+        {
+            return string.Equals(browseName, name, StringComparison.Ordinal) ||
+                string.Equals(browseName, "0:" + name, StringComparison.Ordinal);
+        }
+
         private static bool TryGetString(JsonElement element, string name, out string? value)
         {
             if (element.TryGetProperty(name, out JsonElement property) &&

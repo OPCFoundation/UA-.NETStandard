@@ -336,9 +336,9 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(members.Count(n => n == "Severity"), Is.EqualTo(1));
 
-            // Section 6.6: the authored default and the per-occurrence field
-            // are two different facts and both are stated.
-            Assert.That(affordance.GetProperty("uav:severity").GetInt32(), Is.EqualTo(700));
+            // Severity is a field of an occurrence and nothing else: the
+            // retired affordance-level term states no second fact.
+            Assert.That(affordance.TryGetProperty("uav:severity", out _), Is.False);
             Assert.That(
                 affordance.GetProperty("data").GetProperty("properties")
                     .GetProperty("Severity").GetProperty("type").GetString(),
@@ -1163,7 +1163,6 @@ namespace Opc.Ua.Types.Tests.Wot
             string pin = "")
         {
             return "\"events\":{\"highTemperature\":{\"@type\":\"uav:eventType\"," +
-                "\"uav:isEvent\":true," +
                 "\"uav:browseName\":\"pump:HighTemperatureAlarmType\"," +
                 "\"uav:conditionType\":\"" + conditionType + "\"," + pin +
                 "\"data\":{\"type\":\"object\",\"properties\":{" + members + "}" +

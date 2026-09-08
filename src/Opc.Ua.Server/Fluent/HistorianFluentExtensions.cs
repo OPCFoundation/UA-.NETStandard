@@ -225,6 +225,9 @@ namespace Opc.Ua.Server.Fluent
             return variable;
         }
 
+        /// <summary>
+        /// Configures a variable's history access, provider binding, and optional automatic capture.
+        /// </summary>
         internal static void ApplyHistorization(
             INodeManagerBuilder nodeManagerBuilder,
             BaseVariableState variable,

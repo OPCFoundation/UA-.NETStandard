@@ -58,6 +58,9 @@ namespace Opc.Ua.Server.Tests.Historian
     {
         private const ushort Ns = 2;
 
+        /// <summary>
+        /// Verifies that historizing a null variable throws ArgumentNullException.
+        /// </summary>
         [Test]
         public void HistorianBuilderHistorizeNullVariableThrowsArgumentNullException()
         {
@@ -70,6 +73,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that namespace registration binds the historian to the namespace URI.
+        /// </summary>
         [Test]
         public void HistorianBuilderRegisterForNamespaceBindsToNamespaceUri()
         {
@@ -94,6 +100,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "Node outside the namespace should not resolve to the provider.");
         }
 
+        /// <summary>
+        /// Verifies that historian namespace registration fails when no provider is configured.
+        /// </summary>
         [Test]
         public void HistorianBuilderRegisterForNamespaceWithoutProviderThrows()
         {
@@ -105,6 +114,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<InvalidOperationException>());
         }
 
+        /// <summary>
+        /// Verifies that asynchronous historian-builder disposal completes without error.
+        /// </summary>
         [Test]
         public async Task HistorianBuilderDisposeAsyncCompletesWithoutErrorAsync()
         {
@@ -127,6 +139,9 @@ namespace Opc.Ua.Server.Tests.Historian
             await builder.DisposeAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that disabling automatic capture permits historizing without a system context.
+        /// </summary>
         [Test]
         public void HistorianBuilderHistorizeWithAutoCaptureFalseDoesNotRequireSystemContext()
         {
@@ -149,6 +164,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(AccessLevels.HistoryRead));
         }
 
+        /// <summary>
+        /// Verifies that the UseHistorian extension rejects a null builder.
+        /// </summary>
         [Test]
         public void FluentUseHistorianWithNullBuilderThrowsArgumentNullException()
         {
@@ -159,6 +177,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that historizing creates the Annotations property when provider capabilities advertise annotations.
+        /// </summary>
         [Test]
         public void HistorianBuilderHistorizeCreatesAnnotationsPropertyWhenCapabilitiesAdvertise()
         {
@@ -198,6 +219,10 @@ namespace Opc.Ua.Server.Tests.Historian
             };
         }
 
+        /// <summary>
+        /// Verifies that installation assigns instance node identifiers throughout the historical configuration
+        /// subtree.
+        /// </summary>
         [Test]
         public async Task InstallerAssignsInstanceNodeIdsToConfigurationSubtreeAsync()
         {

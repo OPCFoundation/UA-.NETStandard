@@ -191,6 +191,9 @@ namespace Opc.Ua.Server
             RemoveHistoryForManager(nodeManager);
         }
 
+        /// <summary>
+        /// Removes and disposes browse continuation points owned by the specified node manager.
+        /// </summary>
         public void RemoveBrowseForManager(IAsyncNodeManager nodeManager)
         {
             if (nodeManager is null)

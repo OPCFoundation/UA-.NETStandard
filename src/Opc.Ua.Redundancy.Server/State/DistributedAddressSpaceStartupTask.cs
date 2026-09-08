@@ -45,7 +45,8 @@ namespace Opc.Ua.Redundancy.Server
     /// and attaches an <see cref="AddressSpaceSynchronizer"/> to every node
     /// manager that exposes non-standard owned namespaces through
     /// <see cref="ILocalAddressSpaceSource"/>. Replica-local namespace-zero
-    /// infrastructure is never replicated.
+    /// infrastructure is never replicated. Built-in core, diagnostics, and
+    /// configuration managers remain excluded even when they inherit the source interface.
     /// </summary>
     public sealed class DistributedAddressSpaceStartupTask : IServerStartupTask, IAsyncDisposable
     {
@@ -109,6 +110,11 @@ namespace Opc.Ua.Redundancy.Server
                 foreach (ILocalAddressSpaceSource source in
                     server.FindNodeManagers<ILocalAddressSpaceSource>())
                 {
+                    if (source is ICoreNodeManager or IDiagnosticsNodeManager)
+                    {
+                        continue;
+                    }
+
                     ILocalAddressSpace addressSpace = source.CreateLocalAddressSpace();
                     IEnumerable<string>? namespaceUris = source switch
                     {

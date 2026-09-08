@@ -3239,7 +3239,7 @@ namespace Opc.Ua
             Initialize(context);
 
             // Call OnBeforeCreate on all children.
-            CallOnBeforeCreate(context, true);
+            CallOnBeforeCreate(context, true, default);
 
             // override node id.
             if (!nodeId.IsNull)
@@ -3261,7 +3261,7 @@ namespace Opc.Ua
                 DisplayName = displayName;
             }
 
-            CreateInternal(context, assignNodeIds, true);
+            CreateInternal(context, assignNodeIds, true, default);
         }
 
         /// <summary>
@@ -3270,7 +3270,8 @@ namespace Opc.Ua
         private void CreateInternal(
             ISystemContext context,
             bool assignNodeIds,
-            bool forceCreateLifecycle)
+            bool forceCreateLifecycle,
+            CancellationToken ct)
         {
             // get all children.
             var children = new List<BaseInstanceState>();
@@ -3289,7 +3290,7 @@ namespace Opc.Ua
                 UpdateReferenceTargets(context, children, mappingTable);
             }
 
-            CallOnAfterCreate(context, children, forceCreateLifecycle);
+            CallOnAfterCreate(context, children, forceCreateLifecycle, ct);
 
             const int maxLifecycleCompletionPasses = 100;
             for (int pass = 0; HasUncreatedNodes(context); pass++)
@@ -3301,8 +3302,9 @@ namespace Opc.Ua
                         "kept adding uncreated nodes.");
                 }
 
-                CallOnBeforeCreate(context, false);
-                CallOnAfterCreate(context, null, false);
+                ct.ThrowIfCancellationRequested();
+                CallOnBeforeCreate(context, false, ct);
+                CallOnAfterCreate(context, null, false, ct);
             }
 
             ClearChangeMasks(context, true);
@@ -3330,10 +3332,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Recusivesly calls OnBeforeCreate for the node and its children.
+        /// Recursively calls OnBeforeCreate for the node and its children.
         /// </summary>
-        private void CallOnBeforeCreate(ISystemContext context, bool force)
+        private void CallOnBeforeCreate(
+            ISystemContext context,
+            bool force,
+            CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
+
             if (force || !IsCreated)
             {
                 OnBeforeCreate(context, this);
@@ -3344,12 +3351,12 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < children.Count; ii++)
             {
-                children[ii].CallOnBeforeCreate(context, force);
+                children[ii].CallOnBeforeCreate(context, force, ct);
             }
         }
 
         /// <summary>
-        /// Recusivesly calls OnBeforeCreate for the node and its children.
+        /// Recursively calls OnBeforeAssignNodeIds for the node and its children.
         /// </summary>
         private void CallOnBeforeAssignNodeIds(
             ISystemContext context,
@@ -3370,7 +3377,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Recusivesly calls OnAfterCreate for the node and its children.
+        /// Recursively calls OnAfterCreate for the node and its children.
         /// </summary>
         private void CallOnAfterCreate(
             ISystemContext context,
@@ -3378,6 +3385,8 @@ namespace Opc.Ua
             bool force,
             CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
+
             if (children == null)
             {
                 children = [];
@@ -3402,8 +3411,8 @@ namespace Opc.Ua
         public virtual void Create(ISystemContext context, NodeState source)
         {
             Initialize(context, source);
-            CallOnBeforeCreate(context, true);
-            CreateInternal(context, false, true);
+            CallOnBeforeCreate(context, true, default);
+            CreateInternal(context, false, true, default);
         }
 
         /// <summary>
@@ -3451,8 +3460,21 @@ namespace Opc.Ua
         /// </summary>
         public void CreateAsPredefinedNode(ISystemContext context)
         {
-            CallOnBeforeCreate(context, false);
-            CreateInternal(context, false, false);
+            CreateAsPredefinedNode(context, default);
+        }
+
+        /// <summary>
+        /// Completes the create lifecycle for a predefined node and any
+        /// children which have not already completed it.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="ct">The cancellation token.</param>
+        public void CreateAsPredefinedNode(
+            ISystemContext context,
+            CancellationToken ct)
+        {
+            CallOnBeforeCreate(context, false, ct);
+            CreateInternal(context, false, false, ct);
         }
 
         /// <summary>
@@ -5084,6 +5106,125 @@ namespace Opc.Ua
             }
 
             FindChild(context, child.BrowseName, true, child);
+        }
+
+        /// <summary>
+        /// Replaces a child which is held in a generated, explicitly defined
+        /// slot rather than in the ordinary child collection.
+        /// </summary>
+        /// <remarks>
+        /// Returns <c>false</c> for an ordinary child so that importing a node
+        /// does not evict an application-authored child which happens to share
+        /// its browse name.
+        /// </remarks>
+        /// <param name="context">The system context.</param>
+        /// <param name="replacement">The replacement child.</param>
+        /// <param name="replaced">The displaced explicitly defined child.</param>
+        /// <param name="explicitSlotFound">
+        /// Whether the browse name maps to an explicitly defined child slot.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when an explicitly defined child was replaced.
+        /// </returns>
+        internal bool TryReplaceExplicitlyDefinedChild(
+            ISystemContext context,
+            BaseInstanceState replacement,
+            out BaseInstanceState? replaced,
+            out bool explicitSlotFound)
+        {
+            replaced = null;
+            explicitSlotFound = false;
+
+            BaseInstanceState? existing = FindChild(
+                context,
+                replacement.BrowseName,
+                createOrReplace: false,
+                replacement: null);
+            if (existing is not null)
+            {
+                if (ContainsBaseChildReference(existing))
+                {
+                    // An ordinary child, not a slot: never evict one.
+                    return false;
+                }
+                if (existing.BrowseName != replacement.BrowseName)
+                {
+                    // A state may dispatch on the browse name alone and offer
+                    // a slot declared in another namespace.
+                    return false;
+                }
+            }
+
+            // A state which declares the child adopts the replacement into its
+            // slot; the base implementation appends it to the ordinary child
+            // collection instead.
+            BaseInstanceState? adopted = FindChild(
+                context,
+                replacement.BrowseName,
+                createOrReplace: true,
+                replacement);
+            if (!ReferenceEquals(adopted, replacement))
+            {
+                return false;
+            }
+            if (ContainsBaseChildReference(replacement))
+            {
+                // There was no slot. Undo the append so the caller can attach
+                // the child the ordinary way.
+                RemoveChild(replacement);
+                return false;
+            }
+
+            explicitSlotFound = true;
+            if (existing is not null && !ReferenceEquals(existing, replacement))
+            {
+                existing.Parent = null;
+                replaced = existing;
+            }
+            return true;
+        }
+
+        private bool ContainsBaseChildReference(BaseInstanceState child)
+        {
+            lock (m_childrenLock)
+            {
+                if (m_children is null)
+                {
+                    return false;
+                }
+                for (int ii = 0; ii < m_children.Count; ii++)
+                {
+                    if (ReferenceEquals(m_children[ii], child))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Gets whether the child is held in a generated, explicitly defined
+        /// slot of this node rather than in the ordinary child collection.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="child">The child to test.</param>
+        /// <returns><c>true</c> when the child occupies a generated slot.</returns>
+        public bool IsExplicitlyDefinedChild(ISystemContext context, BaseInstanceState child)
+        {
+            if (child is null)
+            {
+                throw new ArgumentNullException(nameof(child));
+            }
+
+            return !ContainsBaseChildReference(child) &&
+                ReferenceEquals(
+                    FindChild(
+                        context,
+                        child.BrowseName,
+                        createOrReplace: false,
+                        replacement: null),
+                    child);
         }
 
         /// <summary>

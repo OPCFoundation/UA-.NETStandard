@@ -47,7 +47,7 @@ namespace AggregationClient
     /// <summary>
     /// Executes the real sample loader and reader workflow in process.
     /// </summary>
-    public static class AggregationClientRunner
+    public static partial class AggregationClientRunner
     {
         /// <summary>
         /// Builds the client host used by the workflow.
@@ -90,7 +90,7 @@ namespace AggregationClient
         }
 
         /// <summary>
-        /// Loads the four documents, refreshes the registry and reads the Pump.
+        /// Loads the linked documents, refreshes the registry and exercises the selected pump workflow.
         /// </summary>
         public static async Task<AggregationClientResult> RunAsync(
             AggregationClientOptions options,
@@ -121,26 +121,52 @@ namespace AggregationClient
                         refresh: true,
                         requestId: Guid.NewGuid().ToString("N"),
                         ct: cancellationToken).ConfigureAwait(false);
-                    EnsureRefreshSucceeded(loadResult);
+                    EnsureRefreshSucceeded(loadResult, options.ExerciseControls);
                     await session.FetchNamespaceTablesAsync(cancellationToken).ConfigureAwait(false);
                     session.MessageContext.NamespaceUris.Update(
                         session.NamespaceUris.ToArray());
 
-                    NodeId pumpNodeId = ResolvePumpNodeId(session);
-                    ArrayOf<WotPumpBrowseNode> browsedNodes = await BrowsePumpAsync(
-                        session,
-                        pumpNodeId,
-                        cancellationToken).ConfigureAwait(false);
-                    ArrayOf<WotPumpValueResult> values = await ReadPumpValuesAsync(
-                        session,
-                        cancellationToken).ConfigureAwait(false);
-                    return new AggregationClientResult(loadResult, browsedNodes, values);
+                    var pumps = new WotPumpResult[2];
+                    for (int i = 0; i < pumps.Length; i++)
+                    {
+                        string name = i == 0 ? "Pump1" : "Pump2";
+                        NodeId pumpNodeId = await DiscoverPumpAsync(session, name, cancellationToken)
+                            .ConfigureAwait(false);
+                        ArrayOf<WotPumpBrowseNode> browsedNodes = await BrowsePumpAsync(
+                            session, pumpNodeId, cancellationToken).ConfigureAwait(false);
+                        ArrayOf<WotPumpValueResult> values = await ReadPumpValuesAsync(
+                            session, name, cancellationToken).ConfigureAwait(false);
+                        pumps[i] = new WotPumpResult(name, pumpNodeId, browsedNodes, values);
+                    }
+                    var pumpResults = new ArrayOf<WotPumpResult>(pumps);
+                    ArrayOf<WotPumpControlResult> controls = options.ExerciseControls
+                        ? await ExerciseControlsAsync(
+                            session, options, documents, pumpResults, cancellationToken).ConfigureAwait(false)
+                        : [];
+                    return new AggregationClientResult(loadResult, pumpResults, controls);
                 }
             }
             finally
             {
-                await host.StopAsync(cancellationToken).ConfigureAwait(false);
+                await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
             }
+        }
+
+        internal static byte[] SubstituteEndpoints(string content, AggregationClientOptions options)
+        {
+            if (content.IndexOf("${SOURCE_A_ENDPOINT}", StringComparison.Ordinal) < 0 &&
+                content.IndexOf("${SOURCE_B_ENDPOINT}", StringComparison.Ordinal) < 0)
+            {
+                return Encoding.UTF8.GetBytes(content);
+            }
+            using JsonDocument document = JsonDocument.Parse(content);
+            using var output = new MemoryStream();
+            bool substituted = false;
+            using (var writer = new Utf8JsonWriter(output))
+            {
+                WriteDocumentValue(writer, document.RootElement, options, documentRoot: true, ref substituted);
+            }
+            return substituted ? output.ToArray() : Encoding.UTF8.GetBytes(content);
         }
 
         private static async ValueTask<ArrayOf<WotRegistryDocument>> LoadDocumentsAsync(
@@ -182,40 +208,105 @@ namespace AggregationClient
                     Path.Combine(options.DocumentsDirectory, entry.Path),
                     cancellationToken).ConfigureAwait(false);
                 WoTDocumentKindEnum kind = ParseKind(entry.DocumentKind);
-                if (kind == WoTDocumentKindEnum.ThingDescription &&
-                    string.Equals(entry.Path, "SamplePump.td.json", StringComparison.Ordinal))
-                {
-#if NET8_0_OR_GREATER
-                    content = content
-                        .Replace(
-                            "${SOURCE_A_ENDPOINT}",
-                            options.SourceAEndpoint,
-                            StringComparison.Ordinal)
-                        .Replace(
-                            "${SOURCE_B_ENDPOINT}",
-                            options.SourceBEndpoint,
-                            StringComparison.Ordinal);
-#else
-                    content = content
-                        .Replace("${SOURCE_A_ENDPOINT}", options.SourceAEndpoint)
-                        .Replace("${SOURCE_B_ENDPOINT}", options.SourceBEndpoint);
-#endif
-                }
+                byte[] json = SubstituteEndpoints(content, options);
 
                 documents[i] = new WotRegistryDocument(
                     kind,
                     entry.GroupId,
                     entry.ResourceId,
-                    ByteString.From(Encoding.UTF8.GetBytes(content)));
+                    ByteString.From(json));
             }
             return new ArrayOf<WotRegistryDocument>(documents);
         }
 
-        private static void EnsureRefreshSucceeded(WotRegistryBulkLoadResult loadResult)
+        private static void WriteDocumentValue(
+            Utf8JsonWriter writer,
+            JsonElement value,
+            AggregationClientOptions options,
+            bool documentRoot,
+            ref bool substituted)
+        {
+            if (value.ValueKind == JsonValueKind.Object)
+            {
+                writer.WriteStartObject();
+                foreach (JsonProperty member in value.EnumerateObject())
+                {
+                    writer.WritePropertyName(member.Name);
+                    if (member.Name == "forms" && member.Value.ValueKind == JsonValueKind.Array)
+                    {
+                        WriteForms(writer, member.Value, options, ref substituted);
+                    }
+                    else if (documentRoot && member.Name is "properties" or "actions" or "events" &&
+                        member.Value.ValueKind == JsonValueKind.Object)
+                    {
+                        writer.WriteStartObject();
+                        foreach (JsonProperty affordance in member.Value.EnumerateObject())
+                        {
+                            writer.WritePropertyName(affordance.Name);
+                            WriteDocumentValue(
+                                writer, affordance.Value, options, documentRoot: false, ref substituted);
+                        }
+                        writer.WriteEndObject();
+                    }
+                    else
+                    {
+                        member.Value.WriteTo(writer);
+                    }
+                }
+                writer.WriteEndObject();
+            }
+            else
+            {
+                value.WriteTo(writer);
+            }
+        }
+
+        private static void WriteForms(
+            Utf8JsonWriter writer,
+            JsonElement forms,
+            AggregationClientOptions options,
+            ref bool substituted)
+        {
+            writer.WriteStartArray();
+            foreach (JsonElement form in forms.EnumerateArray())
+            {
+                if (form.ValueKind != JsonValueKind.Object)
+                {
+                    form.WriteTo(writer);
+                    continue;
+                }
+                writer.WriteStartObject();
+                foreach (JsonProperty member in form.EnumerateObject())
+                {
+                    writer.WritePropertyName(member.Name);
+                    string? endpoint = member.Name == "href" && member.Value.ValueKind == JsonValueKind.String
+                        ? member.Value.GetString() switch
+                        {
+                            "${SOURCE_A_ENDPOINT}" => options.SourceAEndpoint,
+                            "${SOURCE_B_ENDPOINT}" => options.SourceBEndpoint,
+                            _ => null
+                        }
+                        : null;
+                    if (endpoint is not null)
+                    {
+                        writer.WriteStringValue(endpoint);
+                        substituted = true;
+                    }
+                    else
+                    {
+                        member.Value.WriteTo(writer);
+                    }
+                }
+                writer.WriteEndObject();
+            }
+            writer.WriteEndArray();
+        }
+
+        private static void EnsureRefreshSucceeded(WotRegistryBulkLoadResult loadResult, bool requireComplete)
         {
             WotRegistryRefreshResult refresh = loadResult.Refresh ??
                 throw new InvalidOperationException("The registry refresh did not run.");
-            if (!refresh.HasFailures)
+            if (!refresh.HasFailures && !requireComplete)
             {
                 return;
             }
@@ -223,16 +314,20 @@ namespace AggregationClient
             var details = new List<string>();
             foreach (WoTResourceLoadResultDataType resource in refresh.Results)
             {
-                if (resource.Outcome is WoTOutcomeEnum.Failed or WoTOutcomeEnum.Rejected)
+                if (resource.Outcome is WoTOutcomeEnum.Failed or WoTOutcomeEnum.Rejected ||
+                    (requireComplete && resource.Outcome == WoTOutcomeEnum.Warning))
                 {
                     details.Add(
                         $"{resource.ResourceId}: {resource.Phase}/{resource.Outcome}: " +
                         resource.Message);
                 }
             }
-            throw new ServiceResultException(
-                StatusCodes.BadUnexpectedError,
-                string.Join("; ", details));
+            if (details.Count > 0 || refresh.HasFailures)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "The aggregation refresh is incomplete: " + string.Join("; ", details));
+            }
         }
 
         private static List<ManifestEntry> OrderByDependencies(List<ManifestEntry> entries)
@@ -297,14 +392,35 @@ namespace AggregationClient
             };
         }
 
-        private static NodeId ResolvePumpNodeId(ManagedSession session)
+        private static async ValueTask<NodeId> DiscoverPumpAsync(
+            ManagedSession session, string name, CancellationToken cancellationToken)
         {
             const string pumpNamespace =
                 "urn:opcfoundation.org:UA:WotAggregation:PumpInstance";
             ushort namespaceIndex = ResolveRequiredNamespaceIndex(
                 session.NamespaceUris,
                 pumpNamespace);
-            return new NodeId("Pump1", namespaceIndex);
+            var expected = new NodeId(name, namespaceIndex);
+            var browser = new Browser(session)
+            {
+                BrowseDirection = BrowseDirection.Forward,
+                NodeClassMask = (uint)NodeClass.Object,
+                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                IncludeSubtypes = true
+            };
+            ArrayOf<ReferenceDescription> children = await browser.BrowseAsync(
+                Opc.Ua.ObjectIds.ObjectsFolder, cancellationToken).ConfigureAwait(false);
+            foreach (ReferenceDescription child in children)
+            {
+                NodeId nodeId = ExpandedNodeId.ToNodeId(child.NodeId, session.NamespaceUris);
+                if (nodeId == expected)
+                {
+                    return nodeId;
+                }
+            }
+            throw new ServiceResultException(
+                StatusCodes.BadNodeIdUnknown,
+                $"The materialized {name} is not browseable from the Objects folder.");
         }
 
         private static async ValueTask<ArrayOf<WotPumpBrowseNode>> BrowsePumpAsync(
@@ -315,7 +431,7 @@ namespace AggregationClient
             var browser = new Browser(session)
             {
                 BrowseDirection = BrowseDirection.Forward,
-                NodeClassMask = (uint)NodeClass.Object | (uint)NodeClass.Variable,
+                NodeClassMask = (uint)NodeClass.Object | (uint)NodeClass.Variable | (uint)NodeClass.Method,
                 ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
                 IncludeSubtypes = true
             };
@@ -335,15 +451,22 @@ namespace AggregationClient
                     var nodeId = ExpandedNodeId.ToNodeId(
                         reference.NodeId,
                         session.NamespaceUris);
+                    if (nodeId.IsNull)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNodeIdInvalid,
+                            $"The {pumpNodeId} browse returned an unresolved node '{reference.NodeId}'.");
+                    }
+                    if (!visited.Add(nodeId))
+                    {
+                        continue;
+                    }
                     nodes.Add(new WotPumpBrowseNode(
                         nodeId,
                         reference.BrowseName,
                         reference.DisplayName,
                         reference.NodeClass));
-                    if (reference.NodeClass == NodeClass.Object && visited.Add(nodeId))
-                    {
-                        pending.Enqueue(nodeId);
-                    }
+                    pending.Enqueue(nodeId);
                 }
             }
             return nodes.ToArray().ToArrayOf();
@@ -351,6 +474,7 @@ namespace AggregationClient
 
         private static async ValueTask<ArrayOf<WotPumpValueResult>> ReadPumpValuesAsync(
             ManagedSession session,
+            string pumpName,
             CancellationToken cancellationToken)
         {
             const string pumpNamespace =
@@ -369,14 +493,19 @@ namespace AggregationClient
                 ("Level", "Operational.Measurements.Level"),
                 ("NumberOfStarts", "Operational.Measurements.NumberOfStarts"),
                 ("Cavitation", "Events.SupervisionProcessFluid.Cavitation"),
-                ("MotorOverheat", "Events.SupervisionPumpOperation.MotorOverheat")
+                ("MotorOverheat", "Events.SupervisionPumpOperation.MotorOverheat"),
+                ("Manufacturer", "Identification.Manufacturer"),
+                ("SerialNumber", "Identification.SerialNumber"),
+                ("ProductInstanceUri", "Identification.ProductInstanceUri"),
+                ("SourceARunning", "SourceARunning"),
+                ("SourceBRunning", "SourceBRunning")
             ];
             var nodesToRead = new ReadValueId[definitions.Length];
             for (int i = 0; i < definitions.Length; i++)
             {
                 nodesToRead[i] = new ReadValueId
                 {
-                    NodeId = new NodeId($"Pump1.{definitions[i].Path}", namespaceIndex),
+                    NodeId = new NodeId($"{pumpName}.{definitions[i].Path}", namespaceIndex),
                     AttributeId = Attributes.Value
                 };
             }

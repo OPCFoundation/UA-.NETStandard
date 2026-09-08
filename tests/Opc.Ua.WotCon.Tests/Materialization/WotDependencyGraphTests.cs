@@ -47,8 +47,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [TestFixture]
     public sealed class WotDependencyGraphTests
     {
-        private static readonly string[] s_tmTdResourceIds = ["tm", "td"];
-
         /// <summary>
         /// A snapshot plus a reader for the bytes behind its versions. The
         /// snapshot carries only digests, so a caller that needs the content has
@@ -81,6 +79,62 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return new SnapshotFixture(
                 service.Current,
                 (version, _) => new ValueTask<ByteString>(byDigest[version.DigestHex]));
+        }
+
+        [TestCase("#/schemaDefinitions/Event")]
+        [TestCase("self#/schemaDefinitions/Event")]
+        [TestCase("urn:self#/schemaDefinitions/Event")]
+        public async Task SameDocumentDefinitionFragmentsDoNotCreateDependencyCycles(string reference)
+        {
+            byte[] document = System.Text.Encoding.UTF8.GetBytes($$"""
+                {
+                  "@type": "tm:ThingModel",
+                  "id": "urn:self",
+                  "properties": { "Value": { "tm:ref": "{{reference}}" } },
+                  "events": {
+                    "Event": {
+                      "tm:ref": "{{reference}}",
+                      "uav:eventSelectClauses": [{ "tm:ref": "{{reference}}", "uav:browsePath": "EventId" }]
+                    }
+                  }
+                }
+                """);
+            SnapshotFixture fixture = await Snapshot((WoTDocumentKindEnum.ThingModel, "self", document));
+
+            ImmutableArray<WotDependencyClosure> closures = await WotDependencyGraph.BuildClosuresAsync(
+                fixture.Snapshot, fixture.Snapshot.AllResources().ToArray(), 64,
+                fixture.ReadContent, CancellationToken.None);
+
+            Assert.That(closures, Has.Length.EqualTo(1));
+            Assert.That(closures[0].IsProjectable, Is.True, string.Join("; ", closures[0].Diagnostics));
+            Assert.That(closures[0].Dependencies, Is.Empty);
+        }
+
+        [Test]
+        public async Task CycleDiagnosticsDescribeTheCycleRatherThanEveryDependentResource()
+        {
+            var documents = new List<(WoTDocumentKindEnum Kind, string Id, byte[] Content)>
+            {
+                (WoTDocumentKindEnum.ThingModel, "cycle-a", TestMaterialization.Tm("urn:a", extendsHrefs: "urn:b")),
+                (WoTDocumentKindEnum.ThingModel, "cycle-b", TestMaterialization.Tm("urn:b", extendsHrefs: "urn:a"))
+            };
+            for (int i = 0; i < 100; i++)
+            {
+                string id = "dependent-" + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                documents.Add((WoTDocumentKindEnum.ThingModel, id, TestMaterialization.Tm("urn:" + id,
+                    extendsHrefs: "urn:a")));
+            }
+            SnapshotFixture fixture = await Snapshot(documents.ToArray());
+
+            ImmutableArray<WotDependencyClosure> closures = await WotDependencyGraph.BuildClosuresAsync(
+                fixture.Snapshot, fixture.Snapshot.AllResources().ToArray(), 64,
+                fixture.ReadContent, CancellationToken.None);
+
+            Assert.That(closures, Has.Length.EqualTo(1));
+            Assert.That(closures[0].HasCycle, Is.True);
+            Assert.That(closures[0].Diagnostics.Single(), Has.Length.LessThan(512));
+            Assert.That(closures[0].Diagnostics.Single(), Does.Contain("cycle-a").And.Contain("cycle-b"));
+            Assert.That(closures[0].Diagnostics.Single(), Does.Not.Contain("dependent-"));
         }
 
         [Test]
@@ -167,7 +221,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(closures, Has.Length.EqualTo(1));
             Assert.That(
                 closures[0].OrderedResources.Select(r => r.ResourceId),
-                Is.EqualTo(new[] { "events", "td" }).AsCollection,
+                Is.EqualTo(s_eventTdResourceIds).AsCollection,
                 "A consumer resolves the reference against the documents it holds, so the " +
                 "definition is materialized before the document that names it.");
         }
@@ -257,5 +311,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(closures[0].Members, Has.Length.EqualTo(2),
                 "A cyclic closure must still report its members for diagnostics.");
         }
+
+        private static readonly string[] s_tmTdResourceIds = ["tm", "td"];
+        private static readonly string[] s_eventTdResourceIds = ["events", "td"];
     }
 }

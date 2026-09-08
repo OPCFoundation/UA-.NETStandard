@@ -34,8 +34,8 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Client.Common\Opc.Ua.Gds.Client.Common.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Client\Opc.Ua.Gds.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Server\Opc.Ua.Gds.Server.csproj" />
     <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />

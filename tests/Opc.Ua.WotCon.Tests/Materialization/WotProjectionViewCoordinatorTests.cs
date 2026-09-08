@@ -284,6 +284,54 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "Retiring the closure must remove the materialized View.");
         }
 
+        [Test]
+        public async Task RetiredNestedProjectionIsNotReactivatedAsADependency()
+        {
+            await RegisterTd("src-retire", TestMaterialization.Td("urn:src-retire"));
+            await RegisterTd(
+                "view-inner",
+                Projection(
+                    "urn:view:inner-retire",
+                    "http://example.com/scenario/InnerRetire",
+                    "urn:src-retire"));
+            await RegisterTd(
+                "view-outer",
+                Projection(
+                    "urn:view:outer-retire",
+                    "http://example.com/scenario/OuterRetire",
+                    "urn:view:inner-retire"));
+            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            Assert.That(m_viewHost.Applied, Has.Count.EqualTo(2));
+
+            WotDeleteOutcome outcome = await m_coordinator.DeleteAsync(new WotDeleteRequest
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions,
+                ResourceId = "view-inner",
+                Policy = WoTDeletePolicyEnum.Retire
+            });
+
+            WotResource inner = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "view-inner")!;
+            WotResource outer = m_registry.Current.FindResource(
+                WotRegistryGroups.ThingDescriptions,
+                "view-outer")!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(outcome.Summary.Retired, Is.EqualTo(1));
+                Assert.That(inner.LoadState, Is.EqualTo(WoTLoadStateEnum.Retired));
+                Assert.That(inner.ActiveVersionId, Is.Null);
+                Assert.That(outer.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+                Assert.That(m_viewHost.Applied, Has.Count.EqualTo(1));
+                Assert.That(
+                    m_viewHost.Applied.Single().ResourceXid,
+                    Does.EndWith("/view-outer"));
+                Assert.That(
+                    outcome.Results.Any(result => result.ResourceId == "view-inner"),
+                    Is.False);
+            });
+        }
+
         private Task<WotRegistryMutationResult> RegisterTd(string resourceId, byte[] content)
         {
             return m_registry.UpsertResourceAsync(new WotUpsertResourceRequest

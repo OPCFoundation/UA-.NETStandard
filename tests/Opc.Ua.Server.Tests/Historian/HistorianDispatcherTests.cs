@@ -44,11 +44,17 @@ using Opc.Ua.Server.Historian.InMemory;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies history dispatch results, timestamp rules, annotation operations, and single-use continuation paging.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
     public class HistorianDispatcherTests
     {
+        /// <summary>
+        /// Verifies that paged raw-history reads use continuation points only once.
+        /// </summary>
         [Test]
         public async Task PagedRawReadUsesSingleUseContinuationPointsAsync()
         {
@@ -129,6 +135,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(staleResult.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a continuation persistence failure is reported on the affected node.
+        /// </summary>
         [Test]
         public async Task ContinuationPersistenceFailureIsReturnedPerNodeAsync()
         {
@@ -175,6 +184,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that asynchronous release disposes a custom history continuation.
+        /// </summary>
         [Test]
         public async Task AsyncReleaseDisposesCustomHistoryContinuationAsync()
         {
@@ -203,6 +215,9 @@ namespace Opc.Ua.Server.Tests.Historian
             continuation.Verify(point => point.Dispose(), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that open-ended annotation reads begin at the specified timestamp.
+        /// </summary>
         [Test]
         public async Task OpenEndedAnnotationReadStartsAtSpecifiedTimeAsync()
         {
@@ -266,6 +281,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(annotation!.Message, Is.EqualTo("after"));
         }
 
+        /// <summary>
+        /// Verifies that open-ended event reads begin at the specified timestamp.
+        /// </summary>
         [Test]
         public async Task OpenEndedEventReadStartsAtSpecifiedTimeAsync()
         {
@@ -336,6 +354,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(message.Text, Is.EqualTo("after"));
         }
 
+        /// <summary>
+        /// Verifies that requesting unsupported server timestamps produces BadTimestampNotSupported on the node result.
+        /// </summary>
         [Test]
         public async Task UnsupportedServerTimestampReturnsRequiredStatusAsync()
         {
@@ -375,6 +396,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(StatusCodes.BadTimestampNotSupported));
         }
 
+        /// <summary>
+        /// Verifies that a raw-history request with one specified time selects the required read direction.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public async Task RawReadWithOneSpecifiedTimeUsesRequiredDirectionAsync(bool startOnly)
@@ -425,6 +449,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that equal-time raw-history reads with bounds return the exact value and end bound.
+        /// </summary>
         [TestCase(1, 1)]
         [TestCase(2, 2)]
         public async Task EqualTimeRawReadWithBoundsReturnsExactAndEndBoundAsync(
@@ -476,6 +503,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that one-sided bounded reads add a missing-bound marker after archive exhaustion.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public async Task OneSidedRawReadWithBoundsAddsMissingBoundaryWhenArchiveIsExhaustedAsync(
@@ -525,6 +555,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that modified-history reads reject ReturnBounds with BadInvalidArgument.
+        /// </summary>
         [Test]
         public async Task ModifiedReadWithReturnBoundsReturnsBadInvalidArgumentAsync()
         {
@@ -566,6 +599,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a nonfinal raw-history page returns Good status and a continuation point.
+        /// </summary>
         [Test]
         public async Task RawReadWithMoreDataReturnsGoodStatusAndContinuationPointAsync()
         {
@@ -614,6 +650,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "A read with more data available must return a ContinuationPoint.");
         }
 
+        /// <summary>
+        /// Verifies that raw-history reads over an empty interval return GoodNoData.
+        /// </summary>
         [Test]
         public async Task RawReadOfEmptyIntervalReturnsGoodNoDataAsync()
         {
@@ -663,6 +702,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a raw-history index range on a scalar returns BadIndexRangeNoData.
+        /// </summary>
         [Test]
         public async Task RawReadWithIndexRangeOnScalarReturnsBadIndexRangeNoDataAsync()
         {
@@ -713,6 +755,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that an unknown raw-history continuation returns BadContinuationPointInvalid.
+        /// </summary>
         [Test]
         public async Task RawReadWithUnknownContinuationPointReturnsBadContinuationPointInvalidAsync()
         {
@@ -760,6 +805,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
         }
 
+        /// <summary>
+        /// Verifies that the final raw-history page does not expose a continuation point.
+        /// </summary>
         [Test]
         public async Task PagedRawReadFinalPageHasNoContinuationPointAsync()
         {
@@ -829,6 +877,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "The final page of a paged raw read must not return a ContinuationPoint.");
         }
 
+        /// <summary>
+        /// Verifies that annotation update dispatch inserts and deletes annotations.
+        /// </summary>
         [Test]
         public async Task AnnotationUpdateDispatchInsertsAndDeletesAsync()
         {
@@ -901,6 +952,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(StatusCode.IsGood(removeResult.OperationResults[0]), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that annotation read dispatch returns stored annotations.
+        /// </summary>
         [Test]
         public async Task AnnotationReadDispatchReturnsAnnotationsAsync()
         {

@@ -53,7 +53,7 @@ namespace Opc.Ua.XRegistry.Tests
         /// mandatory children; a bare state would leave the lifecycle Methods unbound.
         /// </summary>
         [Test]
-        public void RegistryRootIsPublishedWithItsModelMetadata()
+        public async Task RegistryRootIsPublishedWithItsModelMetadataAsync()
         {
             using XRegistryRegistrationNodeManager nm = CreateNodeManager(new XRegistryServerOptions
             {
@@ -62,7 +62,9 @@ namespace Opc.Ua.XRegistry.Tests
                 SpecVersion = "1.2.3"
             });
 
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
 
             var registry = (RegistryState?)nm.Find(RegistryNodeId(nm));
             Assert.That(registry, Is.Not.Null);
@@ -81,7 +83,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task CreateGroupPublishesAGroupFromTheModelAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
 
             CreateGroupMethodStateResult result = await CreateGroupAsync(nm, "schemas")
                 .ConfigureAwait(false);
@@ -103,7 +106,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task CreateGroupRejectsADuplicateGroupIdAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
 
             CreateGroupMethodStateResult first = await CreateGroupAsync(nm, "schemas").ConfigureAwait(false);
             CreateGroupMethodStateResult second = await CreateGroupAsync(nm, "schemas").ConfigureAwait(false);
@@ -118,7 +122,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task CreateGroupRejectsAnEmptyGroupIdAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
 
             CreateGroupMethodStateResult result = await CreateGroupAsync(nm, string.Empty)
                 .ConfigureAwait(false);
@@ -129,7 +134,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task GetOrCreateGroupIsIdempotentAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
 
             GetOrCreateGroupMethodStateResult created = await GetOrCreateGroupAsync(nm, "schemas")
                 .ConfigureAwait(false);
@@ -147,7 +153,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task GetOrCreateGroupRejectsAnEmptyGroupIdAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
 
             GetOrCreateGroupMethodStateResult result = await GetOrCreateGroupAsync(nm, string.Empty)
                 .ConfigureAwait(false);
@@ -158,7 +165,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task CreatedGroupsUseTheDynamicInstanceRangeAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
 
             CreateGroupMethodStateResult first = await CreateGroupAsync(nm, "a").ConfigureAwait(false);
             CreateGroupMethodStateResult second = await CreateGroupAsync(nm, "b").ConfigureAwait(false);
@@ -194,10 +202,12 @@ namespace Opc.Ua.XRegistry.Tests
             return new NodeId(XRegistryWellKnown.RegistryObject, ns);
         }
 
-        private static XRegistryRegistrationNodeManager CreateAddressSpace()
+        private static async Task<XRegistryRegistrationNodeManager> CreateAddressSpaceAsync()
         {
             XRegistryRegistrationNodeManager nm = CreateNodeManager(new XRegistryServerOptions());
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
             return nm;
         }
 

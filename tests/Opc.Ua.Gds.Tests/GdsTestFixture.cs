@@ -42,11 +42,6 @@ using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 using ISession = Opc.Ua.Client.ISession;
 
-// Conformance tests use inline literal arrays as expected-value
-// assertions; the per-call allocation cost is irrelevant for tests
-// and keeping the literal adjacent to the assertion improves readability.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
-
 namespace Opc.Ua.Gds.Tests
 {
     /// <summary>
@@ -290,14 +285,14 @@ namespace Opc.Ua.Gds.Tests
                 record.DiscoveryUrls = new string[] {
                     $"opc.tcp://localhost:4840/ConformanceTestApp{suffix}"
                 }.ToArrayOf();
-                record.ServerCapabilities = new string[] {
-                    "DA"
-                }.ToArrayOf();
+                record.ServerCapabilities = s_stringValues1.ToArrayOf();
             }
 
             return record;
         }
 
         private readonly ILogger m_logger;
+
+        private static readonly string[] s_stringValues1 = ["DA"];
     }
 }

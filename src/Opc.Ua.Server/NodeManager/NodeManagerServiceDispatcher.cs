@@ -82,6 +82,9 @@ namespace Opc.Ua.Server
         private IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> NamespaceManagers
             => m_nodeManagers.NamespaceManagers;
 
+        /// <summary>
+        /// Resolves a node's handle and owning synchronous node manager through the namespace routing table.
+        /// </summary>
         internal object? GetManagerHandle(NodeId nodeId, out INodeManager? nodeManager)
         {
             object? handle;
@@ -124,6 +127,9 @@ namespace Opc.Ua.Server
             return null;
         }
 
+        /// <summary>
+        /// Resolves a node's handle and owning asynchronous node manager through the namespace routing table.
+        /// </summary>
         internal async ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>
             GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
@@ -166,6 +172,9 @@ namespace Opc.Ua.Server
             return (null, null);
         }
 
+        /// <summary>
+        /// Translates browse paths to target node identifiers and collects per-path results and diagnostics.
+        /// </summary>
         internal async ValueTask<(ArrayOf<BrowsePathResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             TranslateBrowsePathsToNodeIdsAsync(
             OperationContext context,
@@ -243,6 +252,9 @@ namespace Opc.Ua.Server
             return (results, diagnosticInfos);
         }
 
+        /// <summary>
+        /// Clears the diagnostics result when no reportable operation diagnostics remain.
+        /// </summary>
         internal void UpdateDiagnostics(
             OperationContext context,
             bool diagnosticsExist,
@@ -276,6 +288,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Validates and follows a single browse path, adding matching targets to its result.
+        /// </summary>
         internal async ValueTask<ServiceResult> TranslateBrowsePathAsync(
             OperationContext context,
             BrowsePath browsePath,
@@ -530,6 +545,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Browses the requested nodes, applying view validation and collecting results and continuation points.
+        /// </summary>
         internal async ValueTask<(ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> BrowseAsync(
             OperationContext context,
             ViewDescription view,
@@ -724,6 +742,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Resumes or releases browse continuation points and returns per-point results and diagnostics.
+        /// </summary>
         internal async ValueTask<(ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             BrowseNextAsync(
                 OperationContext context,
@@ -883,6 +904,9 @@ namespace Opc.Ua.Server
             return (results, diagnosticInfos);
         }
 
+        /// <summary>
+        /// Validates a single browse request and fetches its first page through the owning node manager.
+        /// </summary>
         internal async ValueTask<ServiceResult> BrowseAsync(
             OperationContext context,
             ViewDescription? view,
@@ -991,6 +1015,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Fetches and filters references, retaining or releasing the browse continuation as needed.
+        /// </summary>
         internal async ValueTask<(
             ServiceResult serviceResult,
             ContinuationPoint? cp,
@@ -1137,6 +1164,9 @@ namespace Opc.Ua.Server
             return true;
         }
 
+        /// <summary>
+        /// Finds a node state exposed through a node handle by one of the server's node managers.
+        /// </summary>
         internal async ValueTask<NodeState?> FindNodeInAddressSpaceAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
             if (nodeId.IsNull)
@@ -1156,6 +1186,9 @@ namespace Opc.Ua.Server
             return null;
         }
 
+        /// <summary>
+        /// Validates and dispatches attribute reads, applying timestamp selection and collecting diagnostics.
+        /// </summary>
         internal async ValueTask<(ArrayOf<DataValue> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> ReadAsync(
             OperationContext context,
             double maxAge,
@@ -1290,6 +1323,9 @@ namespace Opc.Ua.Server
             return (values, diagnosticInfos);
         }
 
+        /// <summary>
+        /// Validates history read requests and dispatches reads or continuation releases to the node managers.
+        /// </summary>
         internal async ValueTask<(ArrayOf<HistoryReadResult> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> HistoryReadAsync(
             OperationContext context,
             ExtensionObject historyReadDetails,
@@ -1417,6 +1453,9 @@ namespace Opc.Ua.Server
             return (results, diagnosticInfos);
         }
 
+        /// <summary>
+        /// Validates and dispatches attribute writes, collecting operation status codes and diagnostics.
+        /// </summary>
         internal async ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> WriteAsync(
             OperationContext context,
             ArrayOf<WriteValue> nodesToWrite,
@@ -1529,6 +1568,9 @@ namespace Opc.Ua.Server
             return (results, diagnosticInfos);
         }
 
+        /// <summary>
+        /// Validates historical update details and dispatches supported update operations to the node managers.
+        /// </summary>
         internal async ValueTask<(ArrayOf<HistoryUpdateResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             HistoryUpdateAsync(
                 OperationContext context,
@@ -1679,6 +1721,9 @@ namespace Opc.Ua.Server
             return (results, diagnosticInfos);
         }
 
+        /// <summary>
+        /// Validates method call requests and dispatches them to node managers, collecting results and diagnostics.
+        /// </summary>
         internal async ValueTask<(ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             CallAsync(
                 OperationContext context,
@@ -1797,6 +1842,9 @@ namespace Opc.Ua.Server
             return (results, diagnosticInfos);
         }
 
+        /// <summary>
+        /// Routes condition refresh requests to the node managers serving the event monitored items.
+        /// </summary>
         internal async ValueTask ConditionRefreshAsync(
             OperationContext context,
             IList<IEventMonitoredItem> monitoredItems,
@@ -1832,6 +1880,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Validates and dispatches monitored-item creation, collecting created items and filter results.
+        /// </summary>
         internal async ValueTask CreateMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
@@ -2118,6 +2169,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Restores persisted monitored items and their queues during server startup.
+        /// </summary>
         internal async ValueTask RestoreMonitoredItemsAsync(
             IList<IStoredMonitoredItem> itemsToRestore,
             IList<IMonitoredItem> monitoredItems,
@@ -2186,6 +2240,9 @@ namespace Opc.Ua.Server
             m_monitoredItemIdFactory.SetStartValue(itemsToRestore.Max(i => i.Id));
         }
 
+        /// <summary>
+        /// Loads persisted data-change and event queues before monitored-item restoration consumes them.
+        /// </summary>
         internal async ValueTask PreHydrateMonitoredItemQueuesAsync(
             IList<IStoredMonitoredItem> itemsToRestore,
             CancellationToken cancellationToken)
@@ -2306,6 +2363,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Validates monitored-item modifications and dispatches them to the items' owning node managers.
+        /// </summary>
         internal async ValueTask ModifyMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
@@ -2522,6 +2582,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Prepares monitored-item transfers and commits any requested initial-value delivery.
+        /// </summary>
         internal async ValueTask TransferMonitoredItemsAsync(
             OperationContext context,
             bool sendInitialValues,
@@ -2554,6 +2617,9 @@ namespace Opc.Ua.Server
             transaction.Commit();
         }
 
+        /// <summary>
+        /// Prepares owner-specific transfers while deferring requested initial-value delivery until commit.
+        /// </summary>
         internal async ValueTask<IMonitoredItemTransferTransaction>
             PrepareMonitoredItemsTransferAsync(
                 OperationContext destinationContext,
@@ -2716,6 +2782,9 @@ namespace Opc.Ua.Server
             private int m_state;
         }
 
+        /// <summary>
+        /// Deletes monitored items through their owning node managers and handles detached items locally.
+        /// </summary>
         internal async ValueTask DeleteMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
@@ -2884,6 +2953,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Updates monitoring modes through the items' owning node managers or detached-item handlers.
+        /// </summary>
         internal async ValueTask SetMonitoringModeAsync(
             OperationContext context,
             MonitoringMode monitoringMode,
@@ -3172,6 +3244,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Validates a monitored-item request's target, permissions, monitoring mode, and filter parameters.
+        /// </summary>
         internal async ValueTask<ServiceResult?> ValidateMonitoredItemCreateRequestAsync(
             OperationContext operationContext,
             MonitoredItemCreateRequest item,
@@ -3236,6 +3311,9 @@ namespace Opc.Ua.Server
             return null;
         }
 
+        /// <summary>
+        /// Validates a call's object and method identifiers and checks permissions for a resolved method.
+        /// </summary>
         internal async ValueTask<ServiceResult> ValidateCallRequestItemAsync(
             OperationContext operationContext,
             CallMethodRequest callMethodRequest,
@@ -3291,6 +3369,9 @@ namespace Opc.Ua.Server
             return StatusCodes.Good;
         }
 
+        /// <summary>
+        /// Validates an attribute read and the permissions required by its requested attribute.
+        /// </summary>
         internal async ValueTask<ServiceResult?> ValidateReadRequestAsync(
             OperationContext operationContext,
             ReadValueId readValueId,
@@ -3326,6 +3407,9 @@ namespace Opc.Ua.Server
             return serviceResult;
         }
 
+        /// <summary>
+        /// Validates an attribute write and the permissions required by its target attribute.
+        /// </summary>
         internal async ValueTask<ServiceResult?> ValidateWriteRequestAsync(
             OperationContext operationContext,
             WriteValue writeValue,
@@ -3364,6 +3448,9 @@ namespace Opc.Ua.Server
             return serviceResult;
         }
 
+        /// <summary>
+        /// Validates a history read target and its historical read permissions.
+        /// </summary>
         internal async ValueTask<ServiceResult?> ValidateHistoryReadRequestAsync(
             OperationContext operationContext,
             HistoryReadValueId historyReadValueId,
@@ -3386,6 +3473,9 @@ namespace Opc.Ua.Server
             return serviceResult;
         }
 
+        /// <summary>
+        /// Validates historical update details and the permissions required by the update operation.
+        /// </summary>
         internal async ValueTask<ServiceResult?> ValidateHistoryUpdateRequestAsync(
             OperationContext operationContext,
             HistoryUpdateDetails historyUpdateDetails,
@@ -3410,6 +3500,9 @@ namespace Opc.Ua.Server
             return serviceResult;
         }
 
+        /// <summary>
+        /// Validates permissions and access restrictions for a node identified by its NodeId.
+        /// </summary>
         internal async ValueTask<ServiceResult> ValidatePermissionsAsync(
             OperationContext context,
             NodeId nodeId,
@@ -3436,6 +3529,9 @@ namespace Opc.Ua.Server
             return StatusCodes.Good;
         }
 
+        /// <summary>
+        /// Validates permissions and access restrictions using an already resolved node handle.
+        /// </summary>
         internal async ValueTask<ServiceResult> ValidatePermissionsAsync(
             OperationContext context,
             IAsyncNodeManager? nodeManager,
@@ -3457,6 +3553,9 @@ namespace Opc.Ua.Server
             return result;
         }
 
+        /// <summary>
+        /// Retrieves node metadata and validates session-specific permissions and access restrictions.
+        /// </summary>
         internal async ValueTask<(ServiceResult result, NodeMetadata? metadata)>
             ValidatePermissionsAndGetMetadataAsync(
                 OperationContext context,
@@ -3511,6 +3610,9 @@ namespace Opc.Ua.Server
                 nodeMetadata);
         }
 
+        /// <summary>
+        /// Validates role permissions and access restrictions from the supplied node metadata.
+        /// </summary>
         internal ServiceResult ValidatePermissionMetadata(
             OperationContext context,
             NodeMetadata nodeMetadata,

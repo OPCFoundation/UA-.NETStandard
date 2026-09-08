@@ -37,6 +37,9 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Client.Historian
 {
+    /// <summary>
+    /// Provides historical read paging and continuation-point handling.
+    /// </summary>
     public sealed partial class HistoryClient
     {
         private async IAsyncEnumerable<T> ReadDetailsAsync<T>(

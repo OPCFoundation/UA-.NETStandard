@@ -183,6 +183,13 @@ namespace Opc.Ua.Types.Tests.Wot
         /// prove this on their own, because a regeneration that used the wrong
         /// source would record the wrong hashes just as consistently.
         /// </summary>
+        /// <remarks>
+        /// The comparison is against the commit the manifest names, not against
+        /// whatever the contributor's working tree currently holds. A checkout
+        /// sitting on an older or newer commit says nothing about whether the
+        /// fixtures were vendored correctly, and comparing against it turns an
+        /// ordinary local state into a failure that no change can fix.
+        /// </remarks>
         [Test]
         public void VendoredExamplesMatchTheSpecificationCheckout()
         {
@@ -197,22 +204,29 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             WotSpecFixtureManifest manifest = WotSpecFixtureManifest.Load();
-            string[] published = [.. Directory
-                .EnumerateFiles(examples, "*.jsonld")
-                .Select(p => System.IO.Path.GetFileName(p)!)
-                .OrderBy(n => n, StringComparer.Ordinal)];
+            if (!TryReadPinnedExamples(examples, manifest, out var pinned))
+            {
+                Assert.Ignore(
+                    $"The checkout at '{examples}' does not contain commit " +
+                    $"{manifest.Commit}, so it cannot witness the vendored bytes. Fetch " +
+                    "that commit to run this comparison.");
+                return;
+            }
 
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    published,
+                    pinned.Keys.OrderBy(n => n, StringComparer.Ordinal),
                     Is.EqualTo(manifest.Files.Select(f => f.Name)).AsCollection,
-                    $"The examples published at '{examples}' are not the vendored set. " +
-                    RegenerationHint);
+                    $"The examples published at commit {manifest.Commit} are not the " +
+                    "vendored set. " + RegenerationHint);
 
                 foreach (WotSpecFixtureEntry entry in manifest.Files)
                 {
-                    byte[] source = File.ReadAllBytes(Path.Combine(examples, entry.Name));
+                    if (!pinned.TryGetValue(entry.Name, out byte[]? source))
+                    {
+                        continue;
+                    }
                     Assert.That(
                         Sha256Hex(source),
                         Is.EqualTo(entry.Sha256),
@@ -220,6 +234,51 @@ namespace Opc.Ua.Types.Tests.Wot
                         RegenerationHint);
                 }
             });
+        }
+
+        /// <summary>
+        /// Reads the examples of the pinned commit out of the object database
+        /// of a checkout, leaving the working tree untouched.
+        /// </summary>
+        private static bool TryReadPinnedExamples(
+            string examples,
+            WotSpecFixtureManifest manifest,
+            out Dictionary<string, byte[]> pinned)
+        {
+            pinned = [];
+            string root;
+            try
+            {
+                root = FindSpecificationRoot(examples);
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
+
+            string? listing = TryGit(
+                root, $"ls-tree --name-only {manifest.Commit} {manifest.SourcePath}/");
+            if (listing is null)
+            {
+                return false;
+            }
+
+            foreach (string path in listing.Split(
+                ['\n'], StringSplitOptions.RemoveEmptyEntries))
+            {
+                string entry = path.Trim();
+                if (!entry.EndsWith(".jsonld", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                byte[]? bytes = TryGitBlob(root, $"{manifest.Commit}:{entry}");
+                if (bytes is null)
+                {
+                    return false;
+                }
+                pinned[entry.Substring(entry.LastIndexOf('/') + 1)] = bytes;
+            }
+            return pinned.Count > 0;
         }
 
         /// <summary>
@@ -242,8 +301,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 repositoryRoot, "tests", "Opc.Ua.Types.Tests", "Wot", "Assets");
             Assert.That(Directory.Exists(assets), Is.True, $"'{assets}' should exist.");
 
-            string specificationRoot = Path.GetFullPath(
-                Path.Combine(examples, "..", "..", ".."));
+            string specificationRoot = FindSpecificationRoot(examples);
             var entries = new List<WotSpecFixtureEntry>();
             foreach (string source in Directory
                 .EnumerateFiles(examples, "*.jsonld")
@@ -337,9 +395,68 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
+        /// Runs git for a question whose answer may legitimately be "no": a
+        /// checkout that does not hold the pinned commit is a local state, not
+        /// a defect in what is checked in.
+        /// </summary>
+        private static string? TryGit(string workingDirectory, string arguments)
+        {
+            try
+            {
+                return Git(workingDirectory, arguments);
+            }
+            catch (InvalidOperationException)
+            {
+                return null;
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Reads one blob of a checkout's object database verbatim.
+        /// </summary>
+        private static byte[]? TryGitBlob(string workingDirectory, string specifier)
+        {
+            var start = new ProcessStartInfo("git", "cat-file blob " + specifier)
+            {
+                WorkingDirectory = workingDirectory,
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            try
+            {
+                using Process? process = Process.Start(start);
+                if (process is null)
+                {
+                    return null;
+                }
+                using var buffer = new MemoryStream();
+                process.StandardOutput.BaseStream.CopyTo(buffer);
+                process.WaitForExit();
+                return process.ExitCode == 0 ? buffer.ToArray() : null;
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Locates the examples of a sibling specification checkout, without
         /// requiring one: the offline checks are the ones CI runs.
         /// </summary>
+        /// <remarks>
+        /// The specification repository has moved its sources under a
+        /// <c>source/</c> directory, and a contributor may point the variable
+        /// at the repository root, at that source directory, or straight at the
+        /// examples. Probing every shape keeps the comparison from silently
+        /// degrading into an ignored test the moment the upstream layout
+        /// changes - which is the one failure this check exists to catch.
+        /// </remarks>
         private static string? TryFindSpecificationExamples()
         {
             string? configured = Environment.GetEnvironmentVariable(SpecCheckoutVariable);
@@ -356,11 +473,16 @@ namespace Opc.Ua.Types.Tests.Wot
 
             foreach (string root in roots)
             {
-                string examples = Path.GetFullPath(
-                    Path.Combine(root, "wot-specs", "WoT-Binding", "examples"));
-                if (Directory.Exists(examples))
+                foreach (string relative in s_specExampleLayouts)
                 {
-                    return examples;
+                    string examples = Path.GetFullPath(
+                        Path.Combine(
+                            root,
+                            relative.Replace('/', Path.DirectorySeparatorChar)));
+                    if (Directory.Exists(examples))
+                    {
+                        return examples;
+                    }
                 }
                 // Tolerate being pointed straight at the examples directory.
                 string direct = Path.GetFullPath(root);
@@ -372,6 +494,38 @@ namespace Opc.Ua.Types.Tests.Wot
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// The layouts the specification repository has published its WoT
+        /// Binding examples under, newest first.
+        /// </summary>
+        private static readonly string[] s_specExampleLayouts =
+        [
+            "source/wot-specs/WoT-Binding/examples",
+            "wot-specs/WoT-Binding/examples"
+        ];
+
+        /// <summary>
+        /// Walks up from the examples to the working tree that holds them, so
+        /// the recorded commit describes the repository rather than whichever
+        /// directory happens to sit three levels up.
+        /// </summary>
+        private static string FindSpecificationRoot(string examples)
+        {
+            string? directory = Path.GetFullPath(examples);
+            while (!string.IsNullOrEmpty(directory))
+            {
+                if (Directory.Exists(Path.Combine(directory, ".git")) ||
+                    File.Exists(Path.Combine(directory, ".git")))
+                {
+                    return directory;
+                }
+                directory = Path.GetDirectoryName(directory);
+            }
+            throw new InvalidOperationException(
+                $"'{examples}' is not inside a git working tree, so the source commit " +
+                "cannot be recorded.");
         }
 
         private static string FindRepositoryRoot()

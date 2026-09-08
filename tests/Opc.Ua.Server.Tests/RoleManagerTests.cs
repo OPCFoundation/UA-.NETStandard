@@ -35,11 +35,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 
-// Test fixtures construct short-lived literal arrays inline as method
-// arguments; the per-call allocation cost is irrelevant for tests and
-// keeping the data adjacent to the assertion improves readability.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
-
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>
@@ -250,6 +245,83 @@ namespace Opc.Ua.Server.Tests
             ServiceResult duplicate = manager.AddEndpoint(ObjectIds.WellKnownRole_Observer, ep);
             Assert.That(duplicate.StatusCode,
                 Is.EqualTo(StatusCodes.BadAlreadyExists));
+        }
+
+        [Test]
+        public void AddEndpointAcceptsEverySingleFieldConstraint()
+        {
+            using var manager = new RoleManager();
+            EndpointType[] endpoints =
+            [
+                new() { EndpointUrl = "opc.tcp://srv:4840" },
+                new() { SecurityMode = MessageSecurityMode.SignAndEncrypt },
+                new() { SecurityPolicyUri = SecurityPolicies.Basic256Sha256 },
+                new() { TransportProfileUri = "urn:test:transport-profile" }
+            ];
+
+            foreach (EndpointType endpoint in endpoints)
+            {
+                Assert.That(
+                    ServiceResult.IsGood(
+                        manager.AddEndpoint(ObjectIds.WellKnownRole_Observer, endpoint)),
+                    Is.True);
+            }
+
+            RoleEntry? entry = manager.GetRole(ObjectIds.WellKnownRole_Observer);
+            Assert.That(entry, Is.Not.Null);
+            Assert.That(entry!.Endpoints, Has.Count.EqualTo(endpoints.Length));
+        }
+
+        [Test]
+        public void AddEndpointSecurityModeOnlyRuleSupportsDuplicateDetectionAndRemoval()
+        {
+            using var manager = new RoleManager();
+            var endpoint = new EndpointType
+            {
+                SecurityMode = MessageSecurityMode.SignAndEncrypt
+            };
+
+            ServiceResult add = manager.AddEndpoint(
+                ObjectIds.WellKnownRole_Observer,
+                endpoint);
+            Assert.That(ServiceResult.IsGood(add), Is.True);
+
+            RoleEntry? entry = manager.GetRole(ObjectIds.WellKnownRole_Observer);
+            Assert.That(entry, Is.Not.Null);
+            Assert.That(entry!.Endpoints, Has.Count.EqualTo(1));
+            Assert.That(
+                entry.Endpoints[0].SecurityMode,
+                Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+            Assert.That(string.IsNullOrEmpty(entry.Endpoints[0].EndpointUrl), Is.True);
+
+            ServiceResult duplicate = manager.AddEndpoint(
+                ObjectIds.WellKnownRole_Observer,
+                endpoint);
+            Assert.That(duplicate.StatusCode, Is.EqualTo(StatusCodes.BadAlreadyExists));
+
+            ServiceResult remove = manager.RemoveEndpoint(
+                ObjectIds.WellKnownRole_Observer,
+                endpoint);
+            Assert.That(ServiceResult.IsGood(remove), Is.True);
+            Assert.That(
+                manager.GetRole(ObjectIds.WellKnownRole_Observer)!.Endpoints,
+                Is.Empty);
+        }
+
+        [Test]
+        public void AddEndpointNullOrAllDefaultRuleReturnsBadInvalidArgument()
+        {
+            using var manager = new RoleManager();
+
+            ServiceResult nullEndpoint = manager.AddEndpoint(
+                ObjectIds.WellKnownRole_Observer,
+                null!);
+            ServiceResult defaultEndpoint = manager.AddEndpoint(
+                ObjectIds.WellKnownRole_Observer,
+                new EndpointType());
+
+            Assert.That(nullEndpoint.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(defaultEndpoint.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -626,6 +698,62 @@ namespace Opc.Ua.Server.Tests
                 TransportProfileUri = "http://example/Profile"
             };
             Assert.That(EndpointTypeComparer.Matches(rule, candidate), Is.True);
+        }
+
+        [Test]
+        public void ResolveGrantedRolesSecurityModeOnlyEndpointRuleMatchesAcrossUrls()
+        {
+            using var manager = new RoleManager();
+            Assert.That(
+                ServiceResult.IsGood(
+                    manager.AddIdentity(
+                        ObjectIds.WellKnownRole_Operator,
+                        AuthenticatedUser())),
+                Is.True);
+            Assert.That(
+                ServiceResult.IsGood(
+                    manager.AddEndpoint(
+                        ObjectIds.WellKnownRole_Operator,
+                        new EndpointType
+                        {
+                            SecurityMode = MessageSecurityMode.SignAndEncrypt
+                        })),
+                Is.True);
+            Assert.That(
+                ServiceResult.IsGood(
+                    manager.SetEndpointsExclude(
+                        ObjectIds.WellKnownRole_Operator,
+                        false)),
+                Is.True);
+
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
+            identity.Setup(i => i.DisplayName).Returns("operator");
+            identity.Setup(i => i.GrantedRoleIds).Returns([]);
+
+            IList<NodeId> matchingRoles = manager.ResolveGrantedRoles(
+                identity.Object,
+                clientCertificate: null,
+                new EndpointDescription
+                {
+                    EndpointUrl = "opc.tcp://first-host:4840",
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt
+                });
+            IList<NodeId> nonMatchingRoles = manager.ResolveGrantedRoles(
+                identity.Object,
+                clientCertificate: null,
+                new EndpointDescription
+                {
+                    EndpointUrl = "opc.tcp://second-host:4840",
+                    SecurityMode = MessageSecurityMode.Sign
+                });
+
+            Assert.That(
+                matchingRoles,
+                Has.Member(ObjectIds.WellKnownRole_Operator));
+            Assert.That(
+                nonMatchingRoles,
+                Has.No.Member(ObjectIds.WellKnownRole_Operator));
         }
 
         // ----------------------------------------------------------------

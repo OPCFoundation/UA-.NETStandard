@@ -1255,13 +1255,22 @@ namespace Quickstarts.ReferenceServer
         ];
     }
 
+    /// <summary>
+    /// Defines log messages for reference node manager variable-write failures.
+    /// </summary>
     internal static partial class ReferenceNodeManagerLog
     {
+        /// <summary>
+        /// Logs a failure to write the simulation-enabled variable.
+        /// </summary>
         [LoggerMessage(
             EventId = QuickstartsServersEventIds.ReferenceNodeManager + 2, Level = LogLevel.Error,
             Message = "Error writing Enabled variable.")]
         public static partial void ErrorWritingEnabledVariable(this ILogger logger, Exception exception);
 
+        /// <summary>
+        /// Logs a failure to write the simulation interval variable.
+        /// </summary>
         [LoggerMessage(
             EventId = QuickstartsServersEventIds.ReferenceNodeManager + 6, Level = LogLevel.Error,
             Message = "Error writing Interval variable.")]

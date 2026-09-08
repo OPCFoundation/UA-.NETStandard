@@ -88,6 +88,29 @@ namespace Opc.Ua.Wot
         private const string EventIdField = "EventId";
 
         /// <summary>
+        /// The BrowseName of the <c>BaseEventType</c> field that carries the
+        /// occurrence severity, in the base OPC UA namespace (OPC 10000-5).
+        /// </summary>
+        /// <remarks>
+        /// <c>Severity</c> is one of the eight mandatory <c>BaseEventType</c>
+        /// fields, so it is part of the notification data schema and of the
+        /// implicit select-clause set. It is a field of an occurrence, not
+        /// free-standing affordance metadata: WoT Binding 1.1 defines no term
+        /// that states a default severity, and none is synthesized.
+        /// </remarks>
+        internal const string SeverityBrowseName = "Severity";
+
+        /// <summary>
+        /// The inclusive range OPC 10000-5 defines for
+        /// <c>BaseEventType.Severity</c>, which bounds the generated schema of
+        /// the <c>Severity</c> notification field.
+        /// </summary>
+        internal const int MinimumSeverity = 1;
+
+        /// <inheritdoc cref="MinimumSeverity"/>
+        internal const int MaximumSeverity = 1000;
+
+        /// <summary>
         /// The WoT member carrying an event affordance's notification schema.
         /// </summary>
         internal const string DataMember = "data";
@@ -1726,7 +1749,7 @@ namespace Opc.Ua.Wot
         {
             string? authoredNodeId = GetElementString(schema, "uav:id");
             string nodeId = authoredNodeId is null
-                ? GenerateNodeId(rootLocal + "/" + eventLocal + "/" + local)
+                ? GenerateNestedNodeId(nodeSet, rootLocal, eventLocal, local)
                 : ToNodeSetNodeId(authoredNodeId, nodeSet, diagnostics);
             string? authoredBrowseName = GetElementString(schema, "uav:browseName");
             var field = new UAVariable
@@ -1739,7 +1762,7 @@ namespace Opc.Ua.Wot
                 ParentNodeId = eventNodeId,
                 DataType = MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics),
                 ValueRank = GetElementInt32(schema, "uav:valueRank") ?? -1,
-                ArrayDimensions = ReadArrayDimensions(schema),
+                ArrayDimensions = ReadArrayDimensions(schema, local, diagnostics),
                 AccessLevel = AccessLevelCurrentRead,
                 References =
                 [
@@ -1822,7 +1845,7 @@ namespace Opc.Ua.Wot
             string? authoredNodeId = GetElementString(eventAffordance, "uav:id");
             var ignored = new List<WotDiagnostic>();
             return authoredNodeId is null
-                ? GenerateNodeId(rootLocal + "/" + local)
+                ? GenerateMemberNodeId(nodeSet, rootLocal, local)
                 : ToNodeSetNodeId(authoredNodeId, nodeSet, ignored);
         }
 

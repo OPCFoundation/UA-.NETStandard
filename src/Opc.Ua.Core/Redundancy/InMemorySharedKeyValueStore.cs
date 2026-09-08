@@ -119,8 +119,28 @@ namespace Opc.Ua.Redundancy
                     return new ValueTask<bool>(false);
                 }
 
-                m_data[key] = value;
-                PublishLocked(new KeyValueChange { Kind = KeyValueChangeKind.Set, Key = key, Value = value });
+                if (value.IsNull)
+                {
+                    if (present)
+                    {
+                        m_data.Remove(key);
+                        PublishLocked(new KeyValueChange
+                        {
+                            Kind = KeyValueChangeKind.Delete,
+                            Key = key
+                        });
+                    }
+                }
+                else
+                {
+                    m_data[key] = value;
+                    PublishLocked(new KeyValueChange
+                    {
+                        Kind = KeyValueChangeKind.Set,
+                        Key = key,
+                        Value = value
+                    });
+                }
                 return new ValueTask<bool>(true);
             }
         }
