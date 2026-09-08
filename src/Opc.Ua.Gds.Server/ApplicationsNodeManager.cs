@@ -129,6 +129,13 @@ namespace Opc.Ua.Gds.Server
                   configuration,
                   [ApplicationsNamespaceUri, Namespaces.OpcUaGds])
         {
+            // Counter identifiers: applications, certificate groups and trust
+            // lists are registered and unregistered under repeating names, and
+            // Counter is the only mode that stays unique when a browse path
+            // repeats. The namespace order comes from the constructor chain
+            // above, so the factory keeps this manager's own namespace.
+            NodeIdFactory = NodeIdFactory.WithMode(NodeIdAssignmentMode.Counter);
+
             m_configuration = configuration;
             // get the configuration for the node manager.
             m_globalDiscoveryServerConfiguration =

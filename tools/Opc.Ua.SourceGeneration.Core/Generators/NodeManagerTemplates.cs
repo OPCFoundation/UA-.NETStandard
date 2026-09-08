@@ -113,7 +113,6 @@ namespace Opc.Ua.SourceGeneration
                                 server.Telemetry),
                             namespaceUris ?? DefaultNamespaceUris())
                     {
-                        SystemContext.NodeIdFactory = this;
                     }
 
                     /// <summary>

@@ -102,7 +102,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var builder = new NodeManagerBuilder(
                 ctx,
-                nodeManager: Mock.Of<IAsyncNodeManager>(),
+                nodeManager: FluentTestNodeManager.Create(kNs),
                 defaultNamespaceIndex: kNs,
                 rootResolver: q => roots.TryGetValue(q, out NodeState? n) ? n! : null!,
                 nodeIdResolver: id => byId.TryGetValue(id, out NodeState? n) ? n! : null!,
@@ -246,8 +246,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(child.Node.BrowseName, Is.EqualTo(new QualifiedName("Group1", kNs)));
             Assert.That(child.Node.Parent, Is.SameAs(root));
             Assert.That(child.Node.NodeId.IdentifierAsString,
-                Is.EqualTo("Root_Group1"),
-                "Generated NodeId should follow parentId_childName pattern.");
+                Does.Contain("Root").And.Contain("Group1"),
+                "The NodeId is minted from the parent and the browse name.");
             Assert.That(child.Node.TypeDefinitionId, Is.EqualTo(ObjectTypeIds.BaseObjectType));
 
             var children = new List<BaseInstanceState>();
@@ -286,13 +286,26 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void AddObjectNullBrowseNameThrowsArgumentNullException()
+        public void AddObjectRejectsABrowseNameItCannotAuthorWith()
         {
             (NodeManagerBuilder b, _, _, _) = CreateBuilder();
             INodeBuilder nb = b.Node(new NodeId("Root", kNs));
 
-            Assert.Throws<ArgumentNullException>(
-                () => nb.AddObject(QualifiedName.Null));
+            Assert.Multiple(() =>
+            {
+                // a browse name failure is reported the same way here as on
+                // the builder's own Add methods, rather than as an argument
+                // exception from this one helper.
+                ServiceResultException missing = Assert.Throws<ServiceResultException>(
+                    () => nb.AddObject(QualifiedName.Null))!;
+                Assert.That(missing.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
+
+                ServiceResultException namespaceZero = Assert.Throws<ServiceResultException>(
+                    () => nb.AddObject(new QualifiedName("Press")))!;
+                Assert.That(
+                    namespaceZero.StatusCode,
+                    Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
+            });
         }
 
         [Test]

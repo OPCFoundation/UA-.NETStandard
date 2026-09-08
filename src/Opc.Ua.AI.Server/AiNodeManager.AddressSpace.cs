@@ -187,13 +187,15 @@ namespace Opc.Ua.AI.Server
             // does so when the parent actually changes - so a node handed its parent
             // in the constructor is indexed by the Server and invisible to a client,
             // which is a great deal harder to notice than an outright failure.
+            // The state object starts out carrying ModelType's own NodeId, so
+            // the instance is given one explicitly. Left to default, the root
+            // would keep the type's identifier and the predefined-node index
+            // would silently replace ModelType with this instance.
             var model = new ModelState(null);
-            model.Create(
-                SystemContext,
-                NodeId.Null,
+            SystemContext.CreateInstance(
+                model,
                 new QualifiedName(browseName, NamespaceIndex),
-                new LocalizedText(source.Name),
-                true);
+                new LocalizedText(source.Name));
 
             Child<PropertyState<string>>(model, BrowseNames.ModelId).Value =
                 FormattableString.Invariant(
@@ -289,12 +291,10 @@ namespace Opc.Ua.AI.Server
         {
             InferenceLocationEnum site = MapSite(backend.Site);
             var deployment = new DeploymentState(null);
-            deployment.Create(
-                SystemContext,
-                NodeId.Null,
+            SystemContext.CreateInstance(
+                deployment,
                 new QualifiedName(browseName, NamespaceIndex),
-                new LocalizedText(deploymentId),
-                true);
+                new LocalizedText(deploymentId));
 
             Child<PropertyState<string>>(deployment, BrowseNames.DeploymentId).Value =
                 deploymentId;
