@@ -832,6 +832,46 @@ namespace (legacy MSBuild mode) or the user class's namespace
 `INodeManagerFactory` and `IAsyncNodeManagerFactory`; the generated
 async factory binds to the latter automatically.
 
+#### The generated activation pipeline
+
+The order the generated `CreateAddressSpaceAsync` runs in is part of the
+contract — the ordering test in `NodeManagerGeneratorTests` pins it — so
+it is worth seeing whole:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant M as Generated NodeManager
+    participant U as Your partial or override
+    participant B as NodeManagerBuilder
+
+    M->>M: await base.CreateAddressSpaceAsync
+    Note over M: LoadPredefinedNodesAsync has<br/>populated PredefinedNodes
+    M->>B: construct, then AttachToBuilder
+
+    M->>U: await ConfigureAsync(builder, ct)
+    Note over U: the awaitable seam — materialise<br/>instances, read a store, await I/O
+    M->>U: Configure(builder), Configure(typedBuilder)
+    Note over U: synchronous wiring, against nodes<br/>ConfigureAsync has already created
+
+    M->>M: await RegisterAuthoredNodesAsync(builder, ct)
+    Note over M: staged nodes reach the address space
+    M->>M: await CompleteConfigureAsync(externalReferences, ct)
+    Note over M: reverse-reference pass, so authored nodes<br/>publish edges to other managers
+
+    Note over M,B: await SealConfigurationAsync(builder, ct)
+    M->>B: SealGraphAuthoring
+    Note over B: no further authoring, nothing activated yet
+    M->>U: replay NotifyNodeAdded for every predefined node
+    M->>B: CompleteSealAsync
+    Note over B: drain staged root notifiers,<br/>then start the simulations
+```
+
+Both ends of the seal matter. Sealing before the replay stops an
+`OnNodeAdded` handler from authoring nodes nothing would register any
+more; activating after it keeps a simulated value change from preceding
+the `OnNodeAdded` handler of its own node.
+
 ### Opting in
 
 Add the generator analyzer to your project (this is what

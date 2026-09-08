@@ -575,6 +575,39 @@ The runner is injected into the manager via the factory. The base
   the builder is sealed — subclasses do not need to call
   `PostSetupRunner.RunAsync` themselves.
 
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Host as Hosting / factory
+    participant Base as DiNodeManager
+    participant Sub as Subclass, e.g. PumpNodeManager
+    participant B as NodeManagerBuilder
+    participant Run as IDiPostSetupRunner
+
+    Host->>Base: CreateAddressSpaceAsync(externalReferences, ct)
+    Base->>Base: await base.CreateAddressSpaceAsync
+    Note over Base: predefined nodes loaded, type tree wired
+    Base->>B: CreateFluentBuilder(InstanceNamespaceIndex)
+    Note over B: attached to the manager's event-source<br/>and simulation registries
+
+    Base->>Sub: await ConfigureAsync(builder, ct)
+    Note over Sub: asynchronous setup and synchronous wiring<br/>in one awaited method
+
+    Base->>Base: await RegisterAuthoredNodesAsync(builder, ct)
+    Base->>Base: await CompleteConfigureAsync(externalReferences, ct)
+
+    Base->>Run: await RunAsync(this, ct)
+    Note over Run: configurators still register simulation<br/>loops and event sources here
+
+    Base->>B: await SealAsync(ct)
+    Note over B: drain staged root notifiers,<br/>then start the simulations
+```
+
+Sealing is the last step for a reason: the fluent registries belong to
+the manager rather than to one builder, and sealing starts them. Sealing
+before `RunAsync` would leave the post-setup configurators unable to
+register a simulation loop of their own.
+
 ### Runtime conformance advertisement
 
 `DiNodeManager` implements `IConformanceContributor`, so the hosted
