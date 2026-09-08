@@ -160,6 +160,112 @@ namespace Opc.Ua.XRegistry.Server
                 ct);
         }
 
+        /// <summary>
+        /// Discards a closing Session's projected file handles and logical Resource pins without committing writes.
+        /// </summary>
+        /// <param name="sessionId">The Session that is closing.</param>
+        /// <param name="ct">Cancels waiting to capture the cleanup scope.</param>
+        /// <exception cref="ArgumentException">The SessionId is null.</exception>
+        /// <exception cref="ServiceResultException">
+        /// A file provider does not implement <see cref="IXRegistryProjectedResourceSessionDiscard"/>.
+        /// Supported providers are still cleaned up before BadNotSupported is reported.
+        /// </exception>
+        public async ValueTask DiscardSessionAsync(NodeId sessionId, CancellationToken ct = default)
+        {
+            if (sessionId.IsNull)
+            {
+                throw new ArgumentException("A SessionId is required.", nameof(sessionId));
+            }
+            var files = new HashSet<IXRegistryProjectedResourceSessionDiscard>();
+            var nodes = new HashSet<ResourceState>();
+            var logicals = new List<LogicalResourceEntry>();
+            bool unsupported = false;
+            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                foreach (GroupEntry group in m_groups.Values)
+                {
+                    foreach (ResourceEntry resource in group.Resources.Values)
+                    {
+                        CaptureFile(resource);
+                    }
+                    foreach (LogicalResourceEntry logical in group.LogicalResources.Values)
+                    {
+                        logicals.Add(logical);
+                        foreach (ResourceEntry version in logical.Versions.Values)
+                        {
+                            CaptureFile(version);
+                        }
+                        lock (m_fileHandlesGate)
+                        {
+                            foreach (KeyValuePair<uint, PinnedFileHandle> pinned in logical.PinnedHandles)
+                            {
+                                if (pinned.Value.SessionId != sessionId ||
+                                    !((ICollection<KeyValuePair<uint, PinnedFileHandle>>)logical.PinnedHandles)
+                                        .Remove(pinned))
+                                {
+                                    continue;
+                                }
+                                nodes.Add(pinned.Value.VersionNode);
+                                if (pinned.Value.Forwarder is IXRegistryProjectedResourceSessionDiscard file)
+                                {
+                                    files.Add(file);
+                                }
+                                else
+                                {
+                                    unsupported = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+
+            foreach (IXRegistryProjectedResourceSessionDiscard file in files)
+            {
+                await file.DiscardSessionAsync(sessionId, CancellationToken.None).ConfigureAwait(false);
+            }
+            foreach (ResourceState node in nodes)
+            {
+                await node.ClearChangeMasksAsync(
+                    m_context.SystemContext, includeChildren: true, cancellationToken: CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            foreach (LogicalResourceEntry logical in logicals)
+            {
+                string? selected = logical.LogicalNode.VersionId?.Value;
+                if (selected is not null && logical.Versions.TryGetValue(selected, out ResourceEntry? version))
+                {
+                    MirrorFileTypeProperties(logical.LogicalNode, version.Node);
+                }
+                await logical.LogicalNode.ClearChangeMasksAsync(
+                    m_context.SystemContext, includeChildren: true, cancellationToken: CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            if (unsupported)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "A projected file provider does not support Session discard.");
+            }
+
+            void CaptureFile(ResourceEntry resource)
+            {
+                nodes.Add(resource.Node);
+                if (resource.File is IXRegistryProjectedResourceSessionDiscard file)
+                {
+                    files.Add(file);
+                }
+                else if (resource.File is not null)
+                {
+                    unsupported = true;
+                }
+            }
+        }
+
         private async ValueTask ReconcileCoreAsync(
             XRegistryProjectionGeneration? suppliedGeneration,
             XRegistryProjectionEventSnapshot? previousEventSnapshot,
@@ -978,45 +1084,38 @@ namespace Opc.Ua.XRegistry.Server
                     (context, method, objectId,
                      mode, ref fileHandle) =>
                     {
-                        // Resolve the current default Version by reading VersionId.
-                        // Versions is a ConcurrentDictionary: this read happens on an
-                        // OPC UA method-dispatch thread, outside m_gate, concurrently
-                        // with reconciliation writes under that gate.
-                        string? defaultVersionId = node.VersionId?.Value;
-                        if (string.IsNullOrEmpty(defaultVersionId) ||
-                            !logical.Versions.TryGetValue(defaultVersionId, out ResourceEntry? vEntry) ||
-                            vEntry.File is null)
+                        ResourceState? openedVersion = null;
+                        ServiceResult result;
+                        lock (m_fileHandlesGate)
                         {
-                            return StatusCodes.BadNotSupported;
+                            if (IsSessionClosing(context))
+                            {
+                                return StatusCodes.BadSessionClosed;
+                            }
+                            string? defaultVersionId = node.VersionId?.Value;
+                            if (string.IsNullOrEmpty(defaultVersionId) ||
+                                !logical.Versions.TryGetValue(defaultVersionId, out ResourceEntry? vEntry) ||
+                                vEntry.File is not IXRegistryProjectedResourceFileHandleForwarder forwarder)
+                            {
+                                return StatusCodes.BadNotSupported;
+                            }
+                            uint underlyingHandle = 0;
+                            result = forwarder.ForwardOpen(
+                                context, method, objectId, mode, ref underlyingHandle);
+                            if (ServiceResult.IsGood(result))
+                            {
+                                // Publish the pin in the same critical section as Open, so Session
+                                // cleanup cannot pass between the underlying reservation and its pin.
+                                uint syntheticHandle = logical.AllocatePinnedHandle();
+                                logical.PinnedHandles[syntheticHandle] = new PinnedFileHandle(
+                                    forwarder, vEntry.Node, underlyingHandle, SessionIdOf(context));
+                                fileHandle = syntheticHandle;
+                                openedVersion = vEntry.Node;
+                            }
                         }
-
-                        if (vEntry.File is not IXRegistryProjectedResourceFileHandleForwarder forwarder)
+                        if (openedVersion is not null && !IsSessionClosing(context))
                         {
-                            return StatusCodes.BadNotSupported;
-                        }
-
-                        uint underlyingHandle = 0;
-                        ServiceResult result = forwarder.ForwardOpen(
-                            context, method, objectId, mode, ref underlyingHandle);
-                        if (ServiceResult.IsGood(result))
-                        {
-                            // Allocate an engine-owned synthetic handle: every Version's
-                            // own file manager numbers its underlying handles
-                            // independently starting from 1, so two different Versions
-                            // opened through the logical Resource (e.g. across a default
-                            // switch) can otherwise produce the same underlying handle
-                            // number. Keying PinnedHandles by that raw number alone would
-                            // let a later Open silently overwrite an earlier pin for a
-                            // different Version, misrouting/closing the wrong one.
-                            uint syntheticHandle = logical.AllocatePinnedHandle();
-                            logical.PinnedHandles[syntheticHandle] = new PinnedFileHandle(
-                                forwarder, vEntry.Node, underlyingHandle, SessionIdOf(context));
-                            fileHandle = syntheticHandle;
-
-                            // Mirror the resolved Version's FileType Properties (Size,
-                            // OpenCount, ...) onto the logical Resource promptly, rather
-                            // than waiting for the next reconciliation pass.
-                            MirrorFileTypeProperties(node, vEntry.Node);
+                            MirrorFileTypeProperties(node, openedVersion);
                             node.ClearChangeMasks(m_context.SystemContext, includeChildren: true);
                         }
                         return result;
@@ -1047,9 +1146,7 @@ namespace Opc.Ua.XRegistry.Server
                         }
 
                         NodeId callerSessionId = SessionIdOf(context);
-                        if (!pinned.SessionId.IsNull &&
-                            !callerSessionId.IsNull &&
-                            pinned.SessionId != callerSessionId)
+                        if (pinned.SessionId != callerSessionId)
                         {
                             // Reject outright without forwarding to the underlying
                             // manager and without removing the pin, so the rightful
@@ -1062,8 +1159,8 @@ namespace Opc.Ua.XRegistry.Server
                             };
                         }
 
-                        // Ownership confirmed (or no session context on either side, e.g.
-                        // an in-process call): the underlying manager will now either
+                        // Ownership confirmed, including matching in-process scopes:
+                        // the underlying manager will now either
                         // release the handle on success, or on any failure path reached
                         // past its own session check (unknown handle, commit-authorization
                         // failure, stale content, ...), all of which also remove it from
@@ -1140,14 +1237,6 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         /// <summary>
-        /// Mirrors the inherited FileType Properties (Size, Writable, UserWritable,
-        /// OpenCount, MimeType, LastModifiedTime, MaxByteStringLength) from the exact
-        /// Version node currently represented by a logical Resource onto that logical
-        /// Resource's own node, so a client reading these Properties directly on the
-        /// logical Resource observes the represented Version's file state instead of
-        /// stale or default values.
-        /// </summary>
-        /// <summary>
         /// Gets the session a call arrived on, or a null NodeId for an in-process
         /// call or a context without session information.
         /// </summary>
@@ -1158,6 +1247,17 @@ namespace Opc.Ua.XRegistry.Server
                 : NodeId.Null;
         }
 
+        private static bool IsSessionClosing(ISystemContext context)
+        {
+            return context is SessionSystemContext
+            {
+                OperationContext: Opc.Ua.Server.OperationContext { Session.IsClosing: true }
+            };
+        }
+
+        /// <summary>
+        /// Mirrors the selected Version's inherited FileType Properties onto its logical Resource.
+        /// </summary>
         private static void MirrorFileTypeProperties(ResourceState target, ResourceState source)
         {
             if (source.Size is not null)
@@ -1579,6 +1679,10 @@ namespace Opc.Ua.XRegistry.Server
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                if (IsSessionClosing(context))
+                {
+                    return (true, StatusCodes.BadSessionClosed);
+                }
                 ResourceEntry? entry = null;
                 if (m_versionedStrategy is not null)
                 {
@@ -1691,6 +1795,10 @@ namespace Opc.Ua.XRegistry.Server
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                if (requestOpen && IsSessionClosing(context))
+                {
+                    return StatusCodes.BadSessionClosed;
+                }
                 if (requestOpen &&
                     m_groups.TryGetValue(groupId, out GroupEntry? group))
                 {
@@ -3001,6 +3109,7 @@ namespace Opc.Ua.XRegistry.Server
         private readonly XRegistryServerOptions? m_eventOptions;
         private readonly string m_registryNodeIdPath;
         private readonly SemaphoreSlim m_gate = new(1, 1);
+        private readonly Lock m_fileHandlesGate = new();
         private readonly Dictionary<string, GroupEntry> m_groups = new(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, ResourceState> m_resourcesByXid = new(StringComparer.Ordinal);
         private readonly HashSet<ulong> m_reportedTransitions = [];

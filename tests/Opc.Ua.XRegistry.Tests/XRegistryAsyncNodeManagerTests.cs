@@ -592,13 +592,13 @@ namespace Opc.Ua.XRegistry.Tests
                 ByteString.From([5, 6]), CancellationToken.None).ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            store.Setup(s => s.WriteAsync(
-                    It.IsAny<string>(), It.IsAny<long>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
-                .Returns(async (string key, long offset, ByteString data, CancellationToken ct) =>
+            store.As<IXRegistryAtomicResourceStore>().Setup(s => s.ReplaceAsync(
+                    It.IsAny<string>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns(async (string key, ByteString data, CancellationToken ct) =>
                 {
                     entered.TrySetResult(true);
                     await release.Task.WaitAsync(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
-                    await contents.WriteAsync(key, offset, data, ct).ConfigureAwait(false);
+                    await contents.ReplaceAsync(key, data, ct).ConfigureAwait(false);
                 });
             Task<CloseMethodStateResult> closing = resource.Close!.OnCallAsync!(
                 manager.SystemContext, resource.Close, resource.NodeId, opened.FileHandle, CancellationToken.None)
@@ -763,6 +763,55 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public async Task DirtyCloseKeepsFileExclusiveUntilNotificationCompletes()
+        {
+            using XRegistryRegistrationNodeManager manager = await CreateRegistrationAsync(
+                new InMemoryResourceStore(), eventsEnabled: true).ConfigureAwait(false);
+            ResourceState resource = await CreateCommittedResourceAsync(manager).ConfigureAwait(false);
+            OpenMethodStateResult opened = await resource.Open!.OnCallAsync!(
+                manager.SystemContext, resource.Open, resource.NodeId, 6, CancellationToken.None)
+                .ConfigureAwait(false);
+            await resource.Write!.OnCallAsync!(
+                manager.SystemContext, resource.Write, resource.NodeId, opened.FileHandle,
+                ByteString.From([9, 8]), CancellationToken.None).ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int reports = 0;
+            RegistryOf(manager).OnReportEventAsync = async (context, node, evt, ct) =>
+            {
+                if (Interlocked.Increment(ref reports) == 1)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+                }
+            };
+
+            Task<CloseMethodStateResult> closing = resource.Close!.OnCallAsync!(
+                manager.SystemContext, resource.Close, resource.NodeId, opened.FileHandle,
+                CancellationToken.None).AsTask();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            try
+            {
+                OpenMethodStateResult reader = await resource.Open.OnCallAsync!(
+                    manager.SystemContext, resource.Open, resource.NodeId, 1, CancellationToken.None)
+                    .ConfigureAwait(false);
+                OpenMethodStateResult writer = await resource.Open.OnCallAsync!(
+                    manager.SystemContext, resource.Open, resource.NodeId, 6, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(reader.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotReadable));
+                    Assert.That(writer.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotWritable));
+                });
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await closing.ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task AwaitingAnEventSinkDoesNotHoldTheMutationGate()
         {
             using XRegistryRegistrationNodeManager manager = await CreateRegistrationAsync(
@@ -870,6 +919,11 @@ namespace Opc.Ua.XRegistry.Tests
         private static Mock<IXRegistryResourceStore> CreateStore(InMemoryResourceStore contents)
         {
             var store = new Mock<IXRegistryResourceStore>(MockBehavior.Strict);
+            store.As<IXRegistryAtomicResourceStore>()
+                .Setup(s => s.ReplaceAsync(
+                    It.IsAny<string>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns((string key, ByteString document, CancellationToken ct) =>
+                    contents.ReplaceAsync(key, document, ct));
             store.Setup(s => s.ReadAsync(
                     It.IsAny<string>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .Returns((string key, long offset, int count, CancellationToken ct) =>

@@ -80,6 +80,33 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public async Task SessionDiscardReportsUnsupportedForAnExistingProviderWithoutTheOptionalCapability()
+        {
+            var strategy = new ContentlessClaimStrategy();
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            using XRegistryProjectionEngine engine = harness.Engine;
+            await engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+
+            await Assert.ThatAsync(
+                async () => await engine.DiscardSessionAsync(new NodeId("closing-session", 1))
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNotSupported)).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task SessionDiscardRejectsANullSessionId()
+        {
+            ProjectionHarness harness = ProjectionHarness.Create();
+            using XRegistryProjectionEngine engine = harness.Engine;
+            await engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+
+            await Assert.ThatAsync(
+                async () => await engine.DiscardSessionAsync(NodeId.Null).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentException>()).ConfigureAwait(false);
+        }
+
+        [Test]
         public async Task ReconcileRemovesNodesThatLeftTheSnapshotAsync()
         {
             ProjectionHarness harness = ProjectionHarness.Create();
@@ -1502,8 +1529,12 @@ namespace Opc.Ua.XRegistry.Tests
         /// slot) afterwards using the same handle, and a further close
         /// attempt must then correctly report the handle as gone.
         /// </summary>
-        [Test]
-        public async Task CrossSessionCloseCannotStrandLegitimateOwnerHandleAsync()
+        [TestCase(true, true)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        public async Task CrossSessionCloseCannotStrandLegitimateOwnerHandleAsync(
+            bool ownerHasSession,
+            bool otherHasSession)
         {
             Mock<IXRegistryProjectedResourceFileHandleForwarder> forwarder =
                 CreateForwarderMock(underlyingOpenHandle: 1);
@@ -1520,9 +1551,9 @@ namespace Opc.Ua.XRegistry.Tests
             ResourceState logicalNode = FindLogicalResourceNode(harness, "pump");
 
             var ownerContext = (ServerSystemContext)harness.Context.Copy();
-            ownerContext.SessionId = new NodeId("owner-session", 1);
+            ownerContext.SessionId = ownerHasSession ? new NodeId("owner-session", 1) : NodeId.Null;
             var attackerContext = (ServerSystemContext)harness.Context.Copy();
-            attackerContext.SessionId = new NodeId("attacker-session", 1);
+            attackerContext.SessionId = otherHasSession ? new NodeId("attacker-session", 1) : NodeId.Null;
 
             uint handle = 0;
             ServiceResult open = logicalNode.Open!.OnCall!.Invoke(
@@ -2626,7 +2657,8 @@ namespace Opc.Ua.XRegistry.Tests
             IXRegistryVersionedProjectionStrategy
         {
             public Func<ResourceState, IXRegistryProjectionResource, IXRegistryProjectedResourceFile?>?
-                FileFactory { get; set; }
+                FileFactory
+            { get; set; }
 
             public override IXRegistryProjectedResourceFile? CreateResourceFile(
                 ResourceState node,
@@ -2828,9 +2860,11 @@ namespace Opc.Ua.XRegistry.Tests
             public List<ProjectedDeleteInvocation> ProjectedDeletes { get; } = [];
             public List<ResourceDeleteInvocation> ResourceDeletes { get; } = [];
             public List<(string GroupId, string ResourceId, string VersionId, string Key, string Value, long? Epoch)>
-                AddVersionLabelCalls { get; } = [];
+                AddVersionLabelCalls
+            { get; } = [];
             public List<(string GroupId, string ResourceId, string VersionId, string Key, long? Epoch)>
-                RemoveVersionLabelCalls { get; } = [];
+                RemoveVersionLabelCalls
+            { get; } = [];
 
             public override XRegistryProjectionGeneration CaptureProjectionGeneration()
             {

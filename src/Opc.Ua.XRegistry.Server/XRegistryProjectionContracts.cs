@@ -176,6 +176,24 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Optional capability for abandoning a Session's projected file handles without committing writes.
+    /// </summary>
+    /// <remarks>
+    /// Discard only the specified Session's handles and staged buffers. Other Sessions and persisted
+    /// content remain unchanged. Repeated discard is safe. An explicit Close already committing may
+    /// finish and must retain its reservation until completion.
+    /// </remarks>
+    public interface IXRegistryProjectedResourceSessionDiscard
+    {
+        /// <summary>
+        /// Discards all unclosed handles belonging to the specified Session, without invoking Close.
+        /// </summary>
+        /// <param name="sessionId">The Session whose handles are abandoned.</param>
+        /// <param name="ct">Cancels cleanup before it begins.</param>
+        ValueTask DiscardSessionAsync(NodeId sessionId, CancellationToken ct = default);
+    }
+
+    /// <summary>
     /// Optional additive capability for projections whose <see cref="IXRegistryProjectedResourceFile"/>
     /// can service Open/Read/Write/Close/GetPosition/SetPosition calls arriving through a
     /// <em>different</em> FileState (the logical Resource's inherited FileType members) while

@@ -107,6 +107,14 @@ namespace Opc.Ua.WotCon.Server
         }
 
         /// <summary>
+        /// Discards the closing Session's Version handles and logical Resource pins without committing writes.
+        /// </summary>
+        public ValueTask DiscardSessionAsync(NodeId sessionId, CancellationToken ct)
+        {
+            return m_engine.DiscardSessionAsync(sessionId, ct);
+        }
+
+        /// <summary>
         /// Reconciles the exact immutable registry transition supplied by a change event.
         /// </summary>
         public ValueTask ReconcileAsync(
@@ -1214,7 +1222,8 @@ namespace Opc.Ua.WotCon.Server
         private sealed class ResourceFileAdapter :
             IXRegistryProjectedResourceFile,
             IXRegistryProjectedContentlessResourceFile,
-            IXRegistryProjectedResourceFileHandleForwarder
+            IXRegistryProjectedResourceFileHandleForwarder,
+            IXRegistryProjectedResourceSessionDiscard
         {
             public ResourceFileAdapter(
                 WotResourceFileManager file,
@@ -1261,7 +1270,12 @@ namespace Opc.Ua.WotCon.Server
                 m_file.Dispose();
             }
 
-            // --- IXRegistryProjectedResourceFileHandleForwarder ---
+            public ValueTask DiscardSessionAsync(NodeId sessionId, CancellationToken ct = default)
+            {
+                ct.ThrowIfCancellationRequested();
+                m_file.CloseSession(sessionId);
+                return default;
+            }
 
             ServiceResult IXRegistryProjectedResourceFileHandleForwarder.ForwardOpen(
                 ISystemContext context, MethodState method, NodeId objectId,

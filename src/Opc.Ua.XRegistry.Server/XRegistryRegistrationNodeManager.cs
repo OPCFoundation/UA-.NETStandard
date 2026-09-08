@@ -1024,10 +1024,13 @@ namespace Opc.Ua.XRegistry.Server
             }
             foreach (uint handle in orphaned)
             {
-                if (m_fileHandles.TryGetValue(handle, out ResourceFileHandle? entry) &&
-                    entry.Writing)
+                if (m_fileHandles.TryGetValue(handle, out ResourceFileHandle? entry))
                 {
-                    m_writeHandlesByResource.Remove(entry.ResourceNodeId);
+                    if (entry.Writing)
+                    {
+                        m_writeHandlesByResource.Remove(entry.ResourceNodeId);
+                    }
+                    entry.Dispose();
                 }
                 m_fileHandles.Remove(handle);
             }
@@ -1071,6 +1074,10 @@ namespace Opc.Ua.XRegistry.Server
             // to be closable on that same channel, or it leaks and consumes the handle budget.
             resource.Close?.OnCallAsync = (ctx, m, id, handle, ct) =>
                 OnFileCloseAsync(resource, handle, ctx, ct);
+            resource.GetPosition?.OnCallAsync = (ctx, m, id, handle, ct) =>
+                OnFileGetPositionAsync(resource, handle, ctx, ct);
+            resource.SetPosition?.OnCallAsync = (ctx, m, id, handle, position, ct) =>
+                OnFileSetPositionAsync(resource, handle, position, ctx, ct);
         }
 
         /// <summary>
@@ -1097,21 +1104,11 @@ namespace Opc.Ua.XRegistry.Server
             bool erase = (mode & kEraseExistingMode) != 0;
             bool append = (mode & kAppendMode) != 0;
 
-            if (!wantsRead && !wantsWrite)
+            if ((!wantsRead && !wantsWrite) || (mode & 0xF0) != 0)
             {
                 return Failed(StatusCodes.BadInvalidArgument);
             }
-            if (wantsRead && wantsWrite)
-            {
-                // FileType does not define a simultaneous read+write handle.
-                return Failed(StatusCodes.BadInvalidArgument);
-            }
-            if (!wantsWrite && (erase || append))
-            {
-                // EraseExisting and Append only qualify a write.
-                return Failed(StatusCodes.BadInvalidArgument);
-            }
-            if (erase && append)
+            if (!wantsWrite && erase)
             {
                 return Failed(StatusCodes.BadInvalidArgument);
             }
@@ -1151,14 +1148,15 @@ namespace Opc.Ua.XRegistry.Server
                             context,
                             seedStagedContent: !erase,
                             append,
-                            out handle))
+                            out handle,
+                            reading: wantsRead))
                         {
                             return Failed(StatusCodes.BadNotWritable);
                         }
                     }
                     else
                     {
-                        handle = OpenReadHandle(resource, context);
+                        handle = OpenReadHandle(resource, context, append);
                     }
                 }
 
@@ -1212,7 +1210,7 @@ namespace Opc.Ua.XRegistry.Server
             ushort open = 0;
             foreach (ResourceFileHandle handle in m_fileHandles.Values)
             {
-                if (handle.ResourceNodeId == resource.NodeId)
+                if (handle.ResourceNodeId == resource.NodeId && !handle.Closing)
                 {
                     open++;
                 }
@@ -1226,6 +1224,7 @@ namespace Opc.Ua.XRegistry.Server
             {
                 if (m_fileHandles.Remove(handle, out ResourceFileHandle? entry))
                 {
+                    entry.Dispose();
                     if (entry.Writing &&
                         m_writeHandlesByResource.TryGetValue(entry.ResourceNodeId, out uint writer) &&
                         writer == handle)
@@ -1293,66 +1292,179 @@ namespace Opc.Ua.XRegistry.Server
             }
         }
 
-        private async ValueTask<ReadMethodStateResult> OnFileReadAsync(
+        private ValueTask<ReadMethodStateResult> OnFileReadAsync(
             ResourceState resource,
             uint fileHandle,
             int length,
             ISystemContext context,
             CancellationToken cancellationToken)
         {
-            using OperationLease operation = BeginOperation(cancellationToken);
-            ResourceFileHandle? entry;
-            int position;
-            await using (await EnterGateAsync(cancellationToken).ConfigureAwait(false))
+            return ExecuteFileCursorAsync(
+                resource, fileHandle, context, ReadAsync,
+                new ReadMethodStateResult { ServiceResult = StatusCodes.BadInvalidState }, cancellationToken);
+
+            async ValueTask<ReadMethodStateResult> ReadAsync(ResourceFileHandle entry)
             {
-                if (!TryGetHandle(resource, fileHandle, context, out entry) || entry.Writing)
+                int position;
+                await using (await EnterGateAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    return new ReadMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
-                }
-                if (length <= 0)
-                {
-                    return new ReadMethodStateResult
+                    if (!entry.Reading || !entry.Ready)
                     {
-                        ServiceResult = ServiceResult.Good,
-                        Data = ByteString.From([])
-                    };
+                        return new ReadMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
+                    }
+                    if (length <= 0)
+                    {
+                        return new ReadMethodStateResult
+                        {
+                            ServiceResult = StatusCodes.BadInvalidArgument
+                        };
+                    }
+                    if (entry.Writing)
+                    {
+                        int count = Math.Min(length, entry.Buffer.Count - entry.Position);
+                        byte[] data = new byte[count];
+                        entry.Buffer.CopyTo(entry.Position, data, 0, count);
+                        entry.Position += count;
+                        return new ReadMethodStateResult
+                        {
+                            ServiceResult = ServiceResult.Good,
+                            Data = ByteString.From(data)
+                        };
+                    }
+                    if (!entry.HasCommittedContent)
+                    {
+                        return new ReadMethodStateResult
+                        {
+                            ServiceResult = ServiceResult.Good,
+                            Data = ByteString.Empty
+                        };
+                    }
+                    position = entry.Position;
                 }
 
-                // Take the cursor and reserve the range under the lock. Reading Position outside it
-                // would let two concurrent Reads on one handle both start at the same offset, so
-                // both would return the same bytes and the cursor would then skip a slice.
-                position = entry.Position;
-                entry.Position = position + length;
-            }
-
-            // Read the slice the caller asked for straight out of the store rather than
-            // materializing the whole document, which is what the FileType access model implies.
-            // StoreKey and Writing are immutable for the life of the handle, so they are safe here.
-            ByteString chunk = default;
-            bool completed = false;
-            try
-            {
-                chunk = await m_resourceStore
+                ByteString chunk = await m_resourceStore
                     .ReadAsync(entry.StoreKey, position, length, cancellationToken)
                     .ConfigureAwait(false);
-                completed = true;
-            }
-            finally
-            {
+                if (chunk.IsNull)
+                {
+                    return new ReadMethodStateResult { ServiceResult = StatusCodes.BadNotFound };
+                }
                 await using (await EnterGateAsync(CancellationToken.None).ConfigureAwait(false))
                 {
-                    // Rewind a cancelled or short reservation only if no later read has advanced it.
-                    if (entry.Position == position + length)
+                    if (!TryGetHandle(resource, fileHandle, context, out ResourceFileHandle? current) ||
+                        !ReferenceEquals(current, entry))
                     {
-                        entry.Position = position + (completed && !chunk.IsNull ? chunk.Length : 0);
+                        return new ReadMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
                     }
+                    entry.Position = checked(position + chunk.Length);
+                }
+                return new ReadMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Good,
+                    Data = chunk
+                };
+            }
+        }
+
+        private ValueTask<GetPositionMethodStateResult> OnFileGetPositionAsync(
+            ResourceState resource,
+            uint fileHandle,
+            ISystemContext context,
+            CancellationToken cancellationToken)
+        {
+            return ExecuteFileCursorAsync(
+                resource, fileHandle, context, GetPositionAsync,
+                new GetPositionMethodStateResult { ServiceResult = StatusCodes.BadInvalidArgument },
+                cancellationToken);
+
+            async ValueTask<GetPositionMethodStateResult> GetPositionAsync(ResourceFileHandle entry)
+            {
+                await using (await EnterGateAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    if (!entry.Ready)
+                    {
+                        return new GetPositionMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
+                    }
+                    if (!IsReadChannelSecure(context))
+                    {
+                        return new GetPositionMethodStateResult
+                        {
+                            ServiceResult = StatusCodes.BadSecurityModeInsufficient
+                        };
+                    }
+                    return new GetPositionMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Good,
+                        Position = (ulong)entry.Position
+                    };
                 }
             }
-            return new ReadMethodStateResult
+        }
+
+        private ValueTask<SetPositionMethodStateResult> OnFileSetPositionAsync(
+            ResourceState resource,
+            uint fileHandle,
+            ulong position,
+            ISystemContext context,
+            CancellationToken cancellationToken)
+        {
+            return ExecuteFileCursorAsync(
+                resource, fileHandle, context, SetPositionAsync,
+                new SetPositionMethodStateResult { ServiceResult = StatusCodes.BadInvalidArgument },
+                cancellationToken);
+
+            async ValueTask<SetPositionMethodStateResult> SetPositionAsync(ResourceFileHandle entry)
             {
-                ServiceResult = ServiceResult.Good,
-                Data = chunk.IsNull ? ByteString.Empty : chunk
-            };
+                await using (await EnterGateAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    if (!entry.Ready)
+                    {
+                        return new SetPositionMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
+                    }
+                    if (entry.Writing ? !IsWriteChannelSecure(context) : !IsReadChannelSecure(context))
+                    {
+                        return new SetPositionMethodStateResult
+                        {
+                            ServiceResult = StatusCodes.BadSecurityModeInsufficient
+                        };
+                    }
+                    ulong length = entry.Writing ? (ulong)entry.Buffer.Count : resource.Size?.Value ?? 0;
+                    entry.Position = checked((int)Math.Min(position, length));
+                    return new SetPositionMethodStateResult { ServiceResult = ServiceResult.Good };
+                }
+            }
+        }
+
+        private async ValueTask<TResult> ExecuteFileCursorAsync<TResult>(
+            ResourceState resource,
+            uint fileHandle,
+            ISystemContext context,
+            Func<ResourceFileHandle, ValueTask<TResult>> action,
+            TResult invalidHandle,
+            CancellationToken cancellationToken)
+        {
+            using OperationLease operation = BeginOperation(cancellationToken);
+            ResourceFileHandle entry;
+            await using (await EnterGateAsync(cancellationToken).ConfigureAwait(false))
+            {
+                if (!TryGetHandle(resource, fileHandle, context, out ResourceFileHandle? found))
+                {
+                    return invalidHandle;
+                }
+                entry = found;
+            }
+            return await entry.ExecuteAsync(async () =>
+            {
+                await using (await EnterGateAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    if (!TryGetHandle(resource, fileHandle, context, out ResourceFileHandle? current) ||
+                        !ReferenceEquals(current, entry))
+                    {
+                        return invalidHandle;
+                    }
+                }
+                return await action(entry).ConfigureAwait(false);
+            }, invalidHandle, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1405,64 +1517,97 @@ namespace Opc.Ua.XRegistry.Server
                             StringComparison.Ordinal)))
                 {
                     m_fileHandles.Remove(fileHandle);
+                    entry.Dispose();
                     m_writeHandlesByResource.Remove(resource.NodeId);
+                    UpdateOpenCountLocked(resource);
                     return new CloseMethodStateResult
                     {
                         ServiceResult = StatusCodes.BadInvalidState
                     };
                 }
 
-                m_fileHandles.Remove(fileHandle);
-                if (entry.Writing && !dirty)
-                {
-                    m_writeHandlesByResource.Remove(resource.NodeId);
-                }
+                entry.Closing = true;
+                entry.Dispose();
             }
 
-            if (!dirty)
+            try
             {
-                await UpdateFilePropertiesAsync(resource).ConfigureAwait(false);
-                return new CloseMethodStateResult { ServiceResult = ServiceResult.Good };
+                return dirty
+                    ? await CommitFileAsync(resource, entry).ConfigureAwait(false)
+                    : new CloseMethodStateResult { ServiceResult = ServiceResult.Good };
             }
-
-            if (m_contentIdProvider == null)
+            finally
             {
-                await using (await EnterGateAsync(CancellationToken.None).ConfigureAwait(false))
+                try
                 {
-                    m_writeHandlesByResource.Remove(resource.NodeId);
+                    await UpdateFilePropertiesAsync(resource).ConfigureAwait(false);
                 }
-                await UpdateFilePropertiesAsync(resource).ConfigureAwait(false);
+                finally
+                {
+                    await using (await EnterGateAsync(CancellationToken.None).ConfigureAwait(false))
+                    {
+                        if (m_fileHandles.TryGetValue(fileHandle, out ResourceFileHandle? current) &&
+                            ReferenceEquals(current, entry))
+                        {
+                            m_fileHandles.Remove(fileHandle);
+                        }
+                        if (entry.Writing &&
+                            m_writeHandlesByResource.TryGetValue(resource.NodeId, out uint writer) &&
+                            writer == fileHandle)
+                        {
+                            m_writeHandlesByResource.Remove(resource.NodeId);
+                        }
+                    }
+                }
+            }
+        }
+
+        private async ValueTask<CloseMethodStateResult> CommitFileAsync(
+            ResourceState resource,
+            ResourceFileHandle entry)
+        {
+            if (m_contentIdProvider == null ||
+                (entry.BaselineContentKey.Length > 0 &&
+                    m_resourceStore is not IXRegistryAtomicResourceStore))
+            {
                 return new CloseMethodStateResult { ServiceResult = StatusCodes.BadNotSupported };
             }
 
             byte[] document = [.. entry.Buffer];
             string format = resource.Format?.Value ?? kDefaultFormat;
-            ByteString contentId;
-
-            try
+            ByteString contentId = m_contentIdProvider.ComputeContentId(format, document);
+            // Once Close consumes a dirty handle, finish publication without caller cancellation.
+            if (m_resourceStore is IXRegistryAtomicResourceStore atomicStore)
             {
-                contentId = m_contentIdProvider.ComputeContentId(format, document);
-                // Once Close consumes a dirty handle, complete replacement and any compensation.
-                _ = await m_resourceStore.DeleteAsync(entry.StoreKey, CancellationToken.None).ConfigureAwait(false);
-                await m_resourceStore.WriteAsync(
-                    entry.StoreKey, 0, ByteString.From(document), CancellationToken.None)
-                    .ConfigureAwait(false);
+                await atomicStore.ReplaceAsync(
+                    entry.StoreKey, ByteString.From(document), CancellationToken.None).ConfigureAwait(false);
             }
-            catch
+            else
             {
-                await using (await EnterGateAsync(CancellationToken.None).ConfigureAwait(false))
+                // Only initial content reaches this branch. A failed upload and cleanup may have
+                // left a longer document, which an offset write cannot truncate on retry.
+                _ = await m_resourceStore.DeleteAsync(entry.StoreKey, CancellationToken.None).ConfigureAwait(false);
+                bool stored = false;
+                try
                 {
-                    m_writeHandlesByResource.Remove(resource.NodeId);
+                    await m_resourceStore.WriteAsync(
+                        entry.StoreKey, 0, ByteString.From(document), CancellationToken.None).ConfigureAwait(false);
+                    stored = true;
                 }
-                await UpdateFilePropertiesAsync(resource).ConfigureAwait(false);
-                throw;
+                finally
+                {
+                    if (!stored)
+                    {
+                        _ = await m_resourceStore.DeleteAsync(entry.StoreKey, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                }
             }
 
             bool stillRegistered;
             List<XRegistryEventChange>? changes = null;
             await using (await EnterGateAsync(CancellationToken.None).ConfigureAwait(false))
             {
-                m_writeHandlesByResource.Remove(resource.NodeId);
                 stillRegistered = IsRegisteredLocked(resource);
                 if (stillRegistered &&
                     TryGetResourceKeyLocked(resource, out ResourceKey key))
@@ -1560,7 +1705,7 @@ namespace Opc.Ua.XRegistry.Server
                 var orphaned = new List<uint>();
                 foreach (KeyValuePair<uint, ResourceFileHandle> handle in m_fileHandles)
                 {
-                    if (handle.Value.SessionId == sessionId)
+                    if (handle.Value.SessionId == sessionId && !handle.Value.Closing)
                     {
                         orphaned.Add(handle.Key);
                     }
@@ -1569,6 +1714,7 @@ namespace Opc.Ua.XRegistry.Server
                 {
                     if (m_fileHandles.TryGetValue(handle, out ResourceFileHandle? entry))
                     {
+                        entry.Dispose();
                         if (entry.Writing)
                         {
                             m_writeHandlesByResource.Remove(entry.ResourceNodeId);
@@ -1689,7 +1835,8 @@ namespace Opc.Ua.XRegistry.Server
             ISystemContext? context,
             bool seedStagedContent,
             bool append,
-            out uint handle)
+            out uint handle,
+            bool reading = false)
         {
             handle = 0;
             if (m_writeHandlesByResource.ContainsKey(resource.NodeId) ||
@@ -1697,14 +1844,22 @@ namespace Opc.Ua.XRegistry.Server
             {
                 return false;
             }
+            foreach (ResourceFileHandle existing in m_fileHandles.Values)
+            {
+                if (existing.ResourceNodeId == resource.NodeId)
+                {
+                    return false;
+                }
+            }
 
             handle = ++m_nextFileHandle;
             var entry = new ResourceFileHandle(
-                StoreKeyOf(resource), resource.NodeId, writing: true)
+                StoreKeyOf(resource), resource.NodeId, writing: true, reading)
             {
                 SessionId = SessionIdOf(context),
                 SeedStagedContent = seedStagedContent,
-                Append = append
+                Append = append,
+                BaselineLength = checked((int)(resource.Size?.Value ?? 0))
             };
             if (TryGetResourceKeyLocked(resource, out ResourceKey key))
             {
@@ -1731,7 +1886,8 @@ namespace Opc.Ua.XRegistry.Server
             await using (await EnterGateAsync(CancellationToken.None).ConfigureAwait(false))
             {
                 if (!m_fileHandles.TryGetValue(handle, out ResourceFileHandle? found) ||
-                    !found.Writing)
+                    !found.Writing ||
+                    found.Closing)
                 {
                     return StatusCodes.BadInvalidState;
                 }
@@ -1745,15 +1901,32 @@ namespace Opc.Ua.XRegistry.Server
             bool initialized = false;
             try
             {
-                ByteString existing = await m_resourceStore
-                    .ReadAsync(entry.StoreKey, 0, int.MaxValue, cancellationToken)
-                    .ConfigureAwait(false);
-                byte[] baseline = existing.IsNull ? [] : existing.Span.ToArray();
+                var baseline = new byte[entry.BaselineLength];
+                int offset = 0;
+                do
+                {
+                    ByteString existing = await m_resourceStore
+                        .ReadAsync(entry.StoreKey, offset, baseline.Length - offset, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (existing.IsNull)
+                    {
+                        return StatusCodes.BadNotFound;
+                    }
+                    if ((existing.Length == 0 && offset < baseline.Length) ||
+                        existing.Length > baseline.Length - offset)
+                    {
+                        return StatusCodes.BadUnexpectedError;
+                    }
+                    existing.Span.CopyTo(baseline.AsSpan(offset));
+                    offset += existing.Length;
+                }
+                while (offset < baseline.Length);
 
                 await using (await EnterGateAsync(CancellationToken.None).ConfigureAwait(false))
                 {
                     if (!m_fileHandles.TryGetValue(handle, out ResourceFileHandle? current) ||
-                        !ReferenceEquals(current, entry))
+                        !ReferenceEquals(current, entry) ||
+                        entry.Closing)
                     {
                         return StatusCodes.BadInvalidState;
                     }
@@ -1779,6 +1952,7 @@ namespace Opc.Ua.XRegistry.Server
                             ReferenceEquals(current, entry))
                         {
                             m_fileHandles.Remove(handle);
+                            entry.Dispose();
                             m_writeHandlesByResource.Remove(entry.ResourceNodeId);
                         }
                         resource = Find(entry.ResourceNodeId) as ResourceState;
@@ -1791,14 +1965,20 @@ namespace Opc.Ua.XRegistry.Server
             }
         }
 
-        private uint OpenReadHandle(ResourceState resource, ISystemContext? context = null)
+        private uint OpenReadHandle(
+            ResourceState resource,
+            ISystemContext? context = null,
+            bool append = false)
         {
             uint handle = ++m_nextFileHandle;
             m_fileHandles[handle] = new ResourceFileHandle(
-                StoreKeyOf(resource), resource.NodeId, writing: false)
+                StoreKeyOf(resource), resource.NodeId, writing: false, reading: true)
             {
                 SessionId = SessionIdOf(context),
-                Ready = true
+                Ready = true,
+                HasCommittedContent = TryGetResourceKeyLocked(resource, out ResourceKey key) &&
+                    m_versionContentKeys.ContainsKey(key),
+                Position = append ? checked((int)(resource.Size?.Value ?? 0)) : 0
             };
             return handle;
         }
@@ -1830,7 +2010,7 @@ namespace Opc.Ua.XRegistry.Server
             ISystemContext context,
             [NotNullWhen(true)] out ResourceFileHandle? entry)
         {
-            if (!m_fileHandles.TryGetValue(fileHandle, out entry))
+            if (!m_fileHandles.TryGetValue(fileHandle, out entry) || entry.Closing)
             {
                 return false;
             }
@@ -2169,6 +2349,8 @@ namespace Opc.Ua.XRegistry.Server
             foreach (BaseInstanceState child in children)
             {
                 if (child is PropertyState<string> property &&
+                    m_dynamicAttributes.TryGetValue(property.NodeId, out PropertyState<string>? registered) &&
+                    ReferenceEquals(property, registered) &&
                     property.BrowseName.Name is string name)
                 {
                     existing[name] = property;
@@ -2375,7 +2557,11 @@ namespace Opc.Ua.XRegistry.Server
         /// An open file handle on a resource: a bounded upload buffer for a write handle, or a
         /// cursor over the stored document for a read handle.
         /// </summary>
-        private sealed class ResourceFileHandle(string storeKey, NodeId resourceNodeId, bool writing)
+        private sealed class ResourceFileHandle(
+            string storeKey,
+            NodeId resourceNodeId,
+            bool writing,
+            bool reading) : IDisposable
         {
             public string StoreKey { get; } = storeKey;
 
@@ -2392,6 +2578,7 @@ namespace Opc.Ua.XRegistry.Server
             public NodeId SessionId { get; set; }
 
             public bool Writing { get; } = writing;
+            public bool Reading { get; } = reading;
 
             /// <summary>
             /// Whether the handle has finished being seeded from the store. A write handle that does
@@ -2399,15 +2586,77 @@ namespace Opc.Ua.XRegistry.Server
             /// </summary>
             public bool Ready { get; set; }
 
+            public bool Closing { get; set; }
             public bool SeedStagedContent { get; set; }
             public bool Append { get; set; }
             public bool HasAcceptedWrite { get; set; }
+            public bool HasCommittedContent { get; set; }
+            public int BaselineLength { get; set; }
             public byte[] Baseline { get; set; } = [];
             public string BaselineContentKey { get; set; } = string.Empty;
 
             public List<byte> Buffer { get; } = [];
             public ByteString Content { get; set; }
             public int Position { get; set; }
+
+            public async ValueTask<TResult> ExecuteAsync<TResult>(
+                Func<ValueTask<TResult>> action,
+                TResult invalidHandle,
+                CancellationToken cancellationToken)
+            {
+                lock (m_lifetimeLock)
+                {
+                    if (m_disposed)
+                    {
+                        return invalidHandle;
+                    }
+                    m_activeOperations++;
+                }
+                try
+                {
+                    await m_cursorGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        return await action().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        m_cursorGate.Release();
+                    }
+                }
+                finally
+                {
+                    lock (m_lifetimeLock)
+                    {
+                        m_activeOperations--;
+                        if (m_disposed && m_activeOperations == 0)
+                        {
+                            m_cursorGate.Dispose();
+                        }
+                    }
+                }
+            }
+
+            public void Dispose()
+            {
+                lock (m_lifetimeLock)
+                {
+                    if (m_disposed)
+                    {
+                        return;
+                    }
+                    m_disposed = true;
+                    if (m_activeOperations == 0)
+                    {
+                        m_cursorGate.Dispose();
+                    }
+                }
+            }
+
+            private readonly SemaphoreSlim m_cursorGate = new(1, 1);
+            private readonly Lock m_lifetimeLock = new();
+            private int m_activeOperations;
+            private bool m_disposed;
         }
 
         /// <summary>
@@ -2533,6 +2782,19 @@ namespace Opc.Ua.XRegistry.Server
                     {
                         ServiceResult = StatusCodes.BadInvalidState
                     };
+                }
+                foreach (KeyValuePair<ResourceKey, ResourceState> version in m_resources)
+                {
+                    if (version.Key.GroupNodeId == logicalKey.GroupNodeId &&
+                        string.Equals(version.Key.ResourceId, logicalKey.ResourceId, StringComparison.Ordinal) &&
+                        version.Value.MetaLabels is AttributesState labels &&
+                        HasFixedAttributeMemberLocked(labels, key))
+                    {
+                        return new AddAttributeMethodStateResult
+                        {
+                            ServiceResult = StatusCodes.BadBrowseNameDuplicated
+                        };
+                    }
                 }
                 if (meta.Labels.TryGetValue(key, out string? existing) &&
                     string.Equals(existing, value, StringComparison.Ordinal))
@@ -2709,6 +2971,13 @@ namespace Opc.Ua.XRegistry.Server
                         ServiceResult = StatusCodes.BadInvalidState
                     };
                 }
+                if (HasFixedAttributeMemberLocked(labels, key))
+                {
+                    return new AddAttributeMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadBrowseNameDuplicated
+                    };
+                }
                 if (!await SetAttributeLockedAsync(labels, key, value).ConfigureAwait(false))
                 {
                     return new AddAttributeMethodStateResult { ServiceResult = ServiceResult.Good };
@@ -2782,6 +3051,13 @@ namespace Opc.Ua.XRegistry.Server
                 {
                     return new AddAttributeMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
                 }
+                if (HasFixedAttributeMemberLocked(labels, key))
+                {
+                    return new AddAttributeMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadBrowseNameDuplicated
+                    };
+                }
 
                 if (!await SetAttributeLockedAsync(labels, key, value).ConfigureAwait(false))
                 {
@@ -2831,6 +3107,11 @@ namespace Opc.Ua.XRegistry.Server
 
         private async ValueTask<bool> SetAttributeLockedAsync(AttributesState labels, string key, string value)
         {
+            if (HasFixedAttributeMemberLocked(labels, key))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadBrowseNameDuplicated, "A fixed member already uses the attribute name.");
+            }
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
             var browseName = new QualifiedName(key, ns);
             if (labels.FindChild(SystemContext, browseName) is PropertyState<string> existing)
@@ -2853,8 +3134,18 @@ namespace Opc.Ua.XRegistry.Server
             attribute.AccessLevel = AccessLevels.CurrentRead;
             attribute.UserAccessLevel = AccessLevels.CurrentRead;
             labels.AddChild(attribute);
+            m_dynamicAttributes.Add(attribute.NodeId, attribute);
             await AddPredefinedNodeAsync(SystemContext, attribute).ConfigureAwait(false);
             return true;
+        }
+
+        private bool HasFixedAttributeMemberLocked(AttributesState labels, string key)
+        {
+            ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
+            BaseInstanceState? existing = labels.FindChild(SystemContext, new QualifiedName(key, ns));
+            return existing is not null &&
+                (!m_dynamicAttributes.TryGetValue(existing.NodeId, out PropertyState<string>? attribute) ||
+                    !ReferenceEquals(attribute, existing));
         }
 
         private bool IsAttributeOwnerRegisteredLocked(AttributesState labels)
@@ -2874,7 +3165,9 @@ namespace Opc.Ua.XRegistry.Server
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(m_namespaceUri);
             if (labels.FindChild(
                     SystemContext,
-                    new QualifiedName(key, ns)) is not BaseInstanceState attribute)
+                    new QualifiedName(key, ns)) is not PropertyState<string> attribute ||
+                !m_dynamicAttributes.TryGetValue(attribute.NodeId, out PropertyState<string>? registered) ||
+                !ReferenceEquals(registered, attribute))
             {
                 return new ValueTask<bool>(false);
             }
@@ -2900,7 +3193,17 @@ namespace Opc.Ua.XRegistry.Server
         private void ScheduleNodeDeletionLocked(NodeState node)
         {
             m_pendingDeletions ??= new DeletionBatch();
+            int first = m_pendingDeletions.Nodes.Count;
             m_pendingDeletions.AddSubtree(node, SystemContext);
+            for (int i = first; i < m_pendingDeletions.Nodes.Count; i++)
+            {
+                NodeState removed = m_pendingDeletions.Nodes[i];
+                if (m_dynamicAttributes.TryGetValue(removed.NodeId, out PropertyState<string>? attribute) &&
+                    ReferenceEquals(attribute, removed))
+                {
+                    m_dynamicAttributes.Remove(removed.NodeId);
+                }
+            }
         }
 
         private ValueTask ExitGateAsync()
@@ -3129,11 +3432,16 @@ namespace Opc.Ua.XRegistry.Server
 
         private void ClearRuntimeState()
         {
+            foreach (ResourceFileHandle handle in m_fileHandles.Values)
+            {
+                handle.Dispose();
+            }
             m_fileHandles.Clear();
             m_writeHandlesByResource.Clear();
             m_groups.Clear();
             m_groupsByNodeId.Clear();
             m_resources.Clear();
+            m_dynamicAttributes.Clear();
             m_versionCounters.Clear();
             m_resourceMeta.Clear();
             m_defaultVersions.Clear();
@@ -3186,6 +3494,7 @@ namespace Opc.Ua.XRegistry.Server
         private readonly Dictionary<string, GroupState> m_groups = [];
         private readonly Dictionary<NodeId, GroupState> m_groupsByNodeId = [];
         private readonly Dictionary<ResourceKey, ResourceState> m_resources = [];
+        private readonly Dictionary<NodeId, PropertyState<string>> m_dynamicAttributes = [];
         private readonly Dictionary<uint, ResourceFileHandle> m_fileHandles = [];
         private readonly Dictionary<NodeId, uint> m_writeHandlesByResource = [];
         private readonly Dictionary<VersionCounterKey, uint> m_versionCounters = [];

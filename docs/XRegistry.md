@@ -127,6 +127,13 @@ A handle is valid only on the resource *and* the session that opened it, and a s
 released when it closes. `EraseExisting` stages an empty buffer but does not mutate the committed
 file until a dirty `Close`.
 
+`GetPosition` and `SetPosition` return `Bad_InvalidArgument` for unknown, closed, or foreign-session
+handles (OPC 10000-20, 4.2.6 and 4.2.7), without moving a cursor or consuming the owner's handle.
+Genuine handle-state errors still return `Bad_InvalidState`.
+
+For projected logical files, explicit `Close` also requires exact session ownership: a scoped
+caller cannot consume an unscoped pin, or vice versa.
+
 ### Resource storage
 
 Document bytes live behind an injectable `IXRegistryResourceStore`. Because a resource is a
@@ -236,6 +243,13 @@ Two rules make a store substitutable:
 
 The contract is exercised by `XRegistryResourceStoreContractTests`; deriving a fixture from it is the
 quickest way to validate a new implementation.
+
+Whole-document publication uses the optional `IXRegistryAtomicResourceStore.ReplaceAsync` capability,
+implemented by both stock stores. An offset-only store supports initial uploads, but the registrar
+must first remove any **uncommitted** bytes left by a failed upload and failed compensating cleanup.
+If that cleanup still fails, `Close` fails without writing or publishing the retry. Replacing
+**committed** content requires the atomic capability and otherwise returns `Bad_NotSupported`;
+the registrar never deletes established content to emulate atomic replacement.
 
 `Opc.Ua.WotCon.Server` is a worked example: `WotBlobResourceStore` implements this interface over
 the `{root}/{digest}.bin` layout the WoT registry has always written, so a domain registry can adopt

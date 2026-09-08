@@ -104,9 +104,10 @@ namespace Opc.Ua.WotCon.Tests
                 m_projectionHost,
                 documentConverter: m_converter);
             var factory = new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator);
-            _ = await m_server.NodeManagerLifecycle
+            Opc.Ua.Server.NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
                 .AddAsync(factory, callerContext: null)
                 .ConfigureAwait(false);
+            m_nodeManager = (WotRegistryNodeManager)registration.NodeManager;
 
             m_clientFixture = new ClientFixture(false, false, m_telemetry);
             await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
@@ -304,6 +305,432 @@ namespace Opc.Ua.WotCon.Tests
                 Assert.That(stored.Versions.Select(version => version.VersionId),
                     Is.EquivalentTo(s_expectedVersionIds));
             });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReturnedCreateHandlesAreUsableOnlyByTheirCreatingSession(bool getOrCreate)
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client.CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            NodeId resourceNodeId;
+            uint handle;
+            if (getOrCreate)
+            {
+                (resourceNodeId, _, handle, _) = await group.Proxy.GetOrCreateResourceAsync(
+                    "session-create", "v1", requestFileOpen: true).ConfigureAwait(false);
+            }
+            else
+            {
+                (resourceNodeId, _, handle) = await group.Proxy.CreateResourceAsync(
+                    "session-create", "v1", requestFileOpen: true).ConfigureAwait(false);
+            }
+            var ownerFile = new ThingDescriptionFileTypeClient(m_session, resourceNodeId, m_telemetry);
+            using var otherFixture = new ClientFixture(false, false, m_telemetry);
+            await otherFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            using ISession otherSession = await otherFixture.ConnectAsync(
+                new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"), SecurityPolicies.None)
+                .ConfigureAwait(false);
+            try
+            {
+                var otherFile = new ThingDescriptionFileTypeClient(otherSession, resourceNodeId, m_telemetry);
+                Assert.That(() => otherFile.WriteAsync(handle, ByteString.From([9])).AsTask(),
+                    Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(() => otherFile.CloseAsync(handle).AsTask(),
+                    Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadUserAccessDenied));
+
+                byte[] document = TestMaterialization.Td("urn:session-create", "committed by owner");
+                await ownerFile.WriteAsync(handle, ByteString.From(document)).ConfigureAwait(false);
+                await ownerFile.CloseAsync(handle).ConfigureAwait(false);
+                byte[] downloaded = await otherFile.DownloadAllAsync().ConfigureAwait(false);
+
+                Assert.That(downloaded, Is.EqualTo(document));
+            }
+            finally
+            {
+                await otherSession.CloseAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task LogicalReaderExcludesAnExactVersionWriterUntilClose()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client.CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            (WotRegistryResourceClient version, _) = await group.CreateResourceAsync("reader-alias", "v1")
+                .ConfigureAwait(false);
+            byte[] document = TestMaterialization.Td("urn:reader-alias", "original");
+            await version.Proxy.UploadAsync(ByteString.From(document)).ConfigureAwait(false);
+            WotRegistryResourceClient logical = await group.OpenResourceAsync("reader-alias").ConfigureAwait(false);
+            uint reader = await logical.Proxy.OpenAsync(1).ConfigureAwait(false);
+            try
+            {
+                Assert.That(() => version.Proxy.OpenAsync(6).AsTask(),
+                    Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadNotWritable));
+                ByteString content = await logical.Proxy.ReadAsync(reader, int.MaxValue).ConfigureAwait(false);
+                Assert.That(content.Span.ToArray(), Is.EqualTo(document));
+            }
+            finally
+            {
+                await logical.Proxy.CloseAsync(reader).ConfigureAwait(false);
+            }
+            uint writer = await version.Proxy.OpenAsync(6).ConfigureAwait(false);
+            await version.Proxy.CloseAsync(writer).ConfigureAwait(false);
+            byte[] unchanged = await logical.Proxy.DownloadAllAsync().ConfigureAwait(false);
+
+            Assert.That(unchanged, Is.EqualTo(document));
+        }
+
+        [Test]
+        public async Task LogicalReadHandlesKeepTheirVersionsAcrossADefaultSwitch()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client.CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            (WotRegistryResourceClient firstVersion, _) = await group.CreateResourceAsync("pinned-read", "v1")
+                .ConfigureAwait(false);
+            byte[] firstDocument = TestMaterialization.Td("urn:pinned-read", "first");
+            await firstVersion.Proxy.UploadAsync(ByteString.From(firstDocument)).ConfigureAwait(false);
+            (WotRegistryResourceClient secondVersion, _) = await group.CreateResourceAsync("pinned-read", "v2")
+                .ConfigureAwait(false);
+            byte[] secondDocument = TestMaterialization.Td("urn:pinned-read", "second");
+            await secondVersion.Proxy.UploadAsync(ByteString.From(secondDocument)).ConfigureAwait(false);
+            await firstVersion.SetDefaultVersionAsync("v1", expectedEpoch: 0).ConfigureAwait(false);
+            WotRegistryResourceClient logical = await group.OpenResourceAsync("pinned-read").ConfigureAwait(false);
+            await WaitForPublishedDefaultAsync(logical, "v1").ConfigureAwait(false);
+            uint first = await logical.Proxy.OpenAsync(1).ConfigureAwait(false);
+            uint second = 0;
+            try
+            {
+                await secondVersion.SetDefaultVersionAsync("v2", expectedEpoch: 0).ConfigureAwait(false);
+                await WaitForPublishedDefaultAsync(logical, "v2").ConfigureAwait(false);
+                second = await logical.Proxy.OpenAsync(1).ConfigureAwait(false);
+                ByteString firstContent = await logical.Proxy.ReadAsync(first, int.MaxValue).ConfigureAwait(false);
+                ByteString secondContent = await logical.Proxy.ReadAsync(second, int.MaxValue).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(first, Is.Not.EqualTo(second));
+                    Assert.That(firstContent.Span.ToArray(), Is.EqualTo(firstDocument));
+                    Assert.That(secondContent.Span.ToArray(), Is.EqualTo(secondDocument));
+                });
+            }
+            finally
+            {
+                await logical.Proxy.CloseAsync(first).ConfigureAwait(false);
+                if (second != 0)
+                {
+                    await logical.Proxy.CloseAsync(second).ConfigureAwait(false);
+                }
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ClosingSessionDiscardsVersionAndLogicalWritersWithoutCommitting(bool logical)
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client.CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            (WotRegistryResourceClient version, _) = await group.CreateResourceAsync("session-discard", "v1")
+                .ConfigureAwait(false);
+            byte[] original = TestMaterialization.Td("urn:session-discard", "original");
+            await version.Proxy.UploadAsync(ByteString.From(original)).ConfigureAwait(false);
+            WotRegistryResourceClient writer = logical
+                ? await group.OpenResourceAsync("session-discard").ConfigureAwait(false)
+                : version;
+            uint handle = await writer.Proxy.OpenAsync(6).ConfigureAwait(false);
+            await writer.Proxy.WriteAsync(
+                handle, ByteString.From(TestMaterialization.Td("urn:session-discard", "uncommitted")))
+                .ConfigureAwait(false);
+
+            using var otherFixture = new ClientFixture(false, false, m_telemetry);
+            await otherFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            using ISession otherSession = await otherFixture.ConnectAsync(
+                new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"), SecurityPolicies.None)
+                .ConfigureAwait(false);
+            try
+            {
+                WotRegistryClient otherClient = await WotRegistryClient.ForServerAsync(otherSession, m_telemetry)
+                    .ConfigureAwait(false);
+                (WotRegistryGroupClient otherGroup, _) = await otherClient.GetOrCreateThingDescriptionGroupAsync()
+                    .ConfigureAwait(false);
+                WotRegistryResourceClient survivor = await otherGroup.OpenResourceAsync("session-discard")
+                    .ConfigureAwait(false);
+
+                await m_session.CloseAsync().ConfigureAwait(false);
+                byte[]? downloaded = null;
+                Assert.That(async () =>
+                {
+                    downloaded = await survivor.Proxy.DownloadAllAsync().ConfigureAwait(false);
+                }, Throws.Nothing);
+                Assert.That(downloaded, Is.EqualTo(original));
+                if (logical)
+                {
+                    Assert.That(() => survivor.Proxy.CloseAsync(handle).AsTask(),
+                        Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                            .EqualTo(StatusCodes.BadInvalidArgument));
+                }
+            }
+            finally
+            {
+                await otherSession.CloseAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task ClosingSessionDiscardsOldDefaultPinsButPreservesOtherSessionReaders()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client.CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            (WotRegistryResourceClient firstVersion, _) = await group.CreateResourceAsync("session-readers", "v1")
+                .ConfigureAwait(false);
+            byte[] firstDocument = TestMaterialization.Td("urn:session-readers", "first");
+            await firstVersion.Proxy.UploadAsync(ByteString.From(firstDocument)).ConfigureAwait(false);
+            (WotRegistryResourceClient secondVersion, _) = await group.CreateResourceAsync("session-readers", "v2")
+                .ConfigureAwait(false);
+            byte[] secondDocument = TestMaterialization.Td("urn:session-readers", "second");
+            await secondVersion.Proxy.UploadAsync(ByteString.From(secondDocument)).ConfigureAwait(false);
+            WotRegistryResourceClient logical = await group.OpenResourceAsync("session-readers").ConfigureAwait(false);
+            await firstVersion.SetDefaultVersionAsync("v1", expectedEpoch: 0).ConfigureAwait(false);
+            await WaitForPublishedDefaultAsync(logical, "v1").ConfigureAwait(false);
+            uint firstPin = await logical.Proxy.OpenAsync(1).ConfigureAwait(false);
+            uint firstDirect = await firstVersion.Proxy.OpenAsync(1).ConfigureAwait(false);
+            await secondVersion.SetDefaultVersionAsync("v2", expectedEpoch: 0).ConfigureAwait(false);
+            await WaitForPublishedDefaultAsync(logical, "v2").ConfigureAwait(false);
+            uint secondPin = await logical.Proxy.OpenAsync(1).ConfigureAwait(false);
+            uint secondDirect = await secondVersion.Proxy.OpenAsync(1).ConfigureAwait(false);
+
+            using var otherFixture = new ClientFixture(false, false, m_telemetry);
+            await otherFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            using ISession otherSession = await otherFixture.ConnectAsync(
+                new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"), SecurityPolicies.None)
+                .ConfigureAwait(false);
+            try
+            {
+                var otherFirst = new ThingDescriptionFileTypeClient(
+                    otherSession, firstVersion.ResourceNodeId, m_telemetry);
+                var otherSecond = new ThingDescriptionFileTypeClient(
+                    otherSession, secondVersion.ResourceNodeId, m_telemetry);
+                var otherLogical = new ThingDescriptionFileTypeClient(
+                    otherSession, logical.ResourceNodeId, m_telemetry);
+                uint retainedFirst = await otherFirst.OpenAsync(1).ConfigureAwait(false);
+                uint retainedDefault = await otherLogical.OpenAsync(1).ConfigureAwait(false);
+
+                await m_session.CloseAsync().ConfigureAwait(false);
+                Assert.That(() => otherLogical.CloseAsync(firstPin).AsTask(),
+                    Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(() => otherLogical.CloseAsync(secondPin).AsTask(),
+                    Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(() => otherFirst.CloseAsync(firstDirect).AsTask(),
+                    Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(() => otherSecond.CloseAsync(secondDirect).AsTask(),
+                    Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadInvalidArgument));
+                ByteString retainedFirstBytes = await otherFirst.ReadAsync(retainedFirst, int.MaxValue)
+                    .ConfigureAwait(false);
+                ByteString retainedDefaultBytes = await otherLogical.ReadAsync(retainedDefault, int.MaxValue)
+                    .ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(retainedFirstBytes.Span.ToArray(), Is.EqualTo(firstDocument));
+                    Assert.That(retainedDefaultBytes.Span.ToArray(), Is.EqualTo(secondDocument));
+                });
+
+                await otherFirst.CloseAsync(retainedFirst).ConfigureAwait(false);
+                await otherLogical.CloseAsync(retainedDefault).ConfigureAwait(false);
+                uint availableFirst = await otherFirst.OpenAsync(6).ConfigureAwait(false);
+                uint availableDefault = await otherLogical.OpenAsync(6).ConfigureAwait(false);
+                await otherFirst.CloseAsync(availableFirst).ConfigureAwait(false);
+                await otherLogical.CloseAsync(availableDefault).ConfigureAwait(false);
+            }
+            finally
+            {
+                await otherSession.CloseAsync().ConfigureAwait(false);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LateOpenCannotReserveAHandleAfterSessionDiscard(bool logical)
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client.CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            (WotRegistryResourceClient version, _) = await group.CreateResourceAsync("late-open", "v1")
+                .ConfigureAwait(false);
+            await version.Proxy.UploadAsync(ByteString.From(TestMaterialization.Td("urn:late-open")))
+                .ConfigureAwait(false);
+            WotRegistryResourceClient resource = logical
+                ? await group.OpenResourceAsync("late-open").ConfigureAwait(false)
+                : version;
+            FileState file = m_nodeManager.FindPredefinedNode<FileState>(resource.ResourceNodeId)!;
+            OpenMethodStateMethodCallHandler original = file.Open!.OnCall!;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            file.Open.OnCall = null;
+            file.Open.OnCallAsync = async (context, method, objectId, mode, ct) =>
+            {
+                entered.TrySetResult(true);
+                // The original synchronous provider has no cancellation token.
+                await release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None).ConfigureAwait(false);
+                uint handle = 0;
+                ServiceResult result = original(context, method, objectId, mode, ref handle);
+                return new OpenMethodStateResult { ServiceResult = result, FileHandle = handle };
+            };
+
+            Task<uint> opening = resource.Proxy.OpenAsync(1).AsTask();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            try
+            {
+                await m_server.CurrentInstance.CloseSessionAsync(
+                    null!, m_session.SessionId, deleteSubscriptions: false, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            Assert.That(() => opening,
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSessionClosed));
+
+            using var otherFixture = new ClientFixture(false, false, m_telemetry);
+            await otherFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            using ISession otherSession = await otherFixture.ConnectAsync(
+                new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"), SecurityPolicies.None)
+                .ConfigureAwait(false);
+            try
+            {
+                var other = new ThingDescriptionFileTypeClient(otherSession, version.ResourceNodeId, m_telemetry);
+                uint writer = await other.OpenAsync(6).ConfigureAwait(false);
+                await other.CloseAsync(writer).ConfigureAwait(false);
+            }
+            finally
+            {
+                await otherSession.CloseAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task UnscopedCloseCannotConsumeTheOwnersLogicalPin()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client.CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            (WotRegistryResourceClient version, _) = await group.CreateResourceAsync("unscoped-pin", "v1")
+                .ConfigureAwait(false);
+            await version.Proxy.UploadAsync(ByteString.From(TestMaterialization.Td("urn:unscoped-pin")))
+                .ConfigureAwait(false);
+            WotRegistryResourceClient logical = await group.OpenResourceAsync("unscoped-pin").ConfigureAwait(false);
+            uint handle = await logical.Proxy.OpenAsync(6).ConfigureAwait(false);
+            FileState file = m_nodeManager.FindPredefinedNode<FileState>(logical.ResourceNodeId)!;
+
+            CloseMethodStateResult unscoped = await file.Close!.OnCallAsync!(
+                m_nodeManager.SystemContext, file.Close, file.NodeId, handle, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(unscoped.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            byte[] document = TestMaterialization.Td("urn:unscoped-pin", "owner committed");
+            Assert.That(async () =>
+            {
+                await logical.Proxy.WriteAsync(handle, ByteString.From(document)).ConfigureAwait(false);
+                await logical.Proxy.CloseAsync(handle).ConfigureAwait(false);
+            }, Throws.Nothing);
+            byte[] downloaded = await logical.Proxy.DownloadAllAsync().ConfigureAwait(false);
+
+            Assert.That(downloaded, Is.EqualTo(document));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LateCreateCannotReturnAnOpenHandleAfterSessionDiscard(bool getOrCreate)
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client.CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            GroupState node = m_nodeManager.FindPredefinedNode<GroupState>(group.GroupNodeId)!;
+            MethodState method = getOrCreate ? node.GetOrCreateResource! : node.CreateResource!;
+            GenericMethodCalledEventHandler2Async original = method.OnCallMethod2Async!;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            method.OnCallMethod2Async = async (context, called, objectId, input, output, ct) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None).ConfigureAwait(false);
+                return await original(context, called, objectId, input, output, CancellationToken.None)
+                    .ConfigureAwait(false);
+            };
+
+            Task creating = getOrCreate
+                ? group.Proxy.GetOrCreateResourceAsync("late-create", "v1", requestFileOpen: true).AsTask()
+                : group.Proxy.CreateResourceAsync("late-create", "v1", requestFileOpen: true).AsTask();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            try
+            {
+                await m_server.CurrentInstance.CloseSessionAsync(
+                    null!, m_session.SessionId, deleteSubscriptions: false, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            Assert.That(() => creating,
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSessionClosed));
+
+            using var otherFixture = new ClientFixture(false, false, m_telemetry);
+            await otherFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            using ISession otherSession = await otherFixture.ConnectAsync(
+                new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"), SecurityPolicies.None)
+                .ConfigureAwait(false);
+            try
+            {
+                WotRegistryClient otherClient = await WotRegistryClient.ForServerAsync(otherSession, m_telemetry)
+                    .ConfigureAwait(false);
+                (WotRegistryGroupClient otherGroup, _) = await otherClient.GetOrCreateThingDescriptionGroupAsync()
+                    .ConfigureAwait(false);
+                (WotRegistryResourceClient resource, _, _) = await otherGroup
+                    .GetOrCreateResourceAsync("late-create", "v1")
+                    .ConfigureAwait(false);
+                uint available = await resource.Proxy.OpenAsync(6).ConfigureAwait(false);
+                await resource.Proxy.CloseAsync(available).ConfigureAwait(false);
+            }
+            finally
+            {
+                await otherSession.CloseAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task SessionClosingCannotBeCancelledBeforeDiscardingItsHandles()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client.CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            (WotRegistryResourceClient version, _) = await group.CreateResourceAsync("cancel-discard", "v1")
+                .ConfigureAwait(false);
+            byte[] original = TestMaterialization.Td("urn:cancel-discard", "original");
+            await version.Proxy.UploadAsync(ByteString.From(original)).ConfigureAwait(false);
+            WotRegistryResourceClient logical = await group.OpenResourceAsync("cancel-discard").ConfigureAwait(false);
+            uint handle = await logical.Proxy.OpenAsync(6).ConfigureAwait(false);
+            await logical.Proxy.WriteAsync(
+                handle, ByteString.From(TestMaterialization.Td("urn:cancel-discard", "uncommitted")))
+                .ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            await Assert.ThatAsync(async () =>
+            {
+                await m_nodeManager.SessionClosingAsync(
+                    null!, m_session.SessionId, deleteSubscriptions: true, cancellation.Token).ConfigureAwait(false);
+            }, Throws.Nothing).ConfigureAwait(false);
+            byte[] downloaded = await logical.Proxy.DownloadAllAsync().ConfigureAwait(false);
+
+            Assert.That(downloaded, Is.EqualTo(original));
+            Assert.That(() => logical.Proxy.CloseAsync(handle).AsTask(),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
@@ -1601,7 +2028,10 @@ namespace Opc.Ua.WotCon.Tests
         /// rather than the transport channel's message context, which may not include
         /// application-level namespaces.
         /// </summary>
-        private async ValueTask<NodeId> BrowseForChildNodeIdAsync(NodeId parent, string name)
+        private async ValueTask<NodeId> BrowseForChildNodeIdAsync(
+            NodeId parent,
+            string name,
+            NodeId referenceType = default)
         {
             ushort xNs = m_session.NamespaceUris.GetIndexOrAppend(XRegistryWellKnown.XRegistryNamespaceUri);
             ArrayOf<BrowsePath> paths = new[]
@@ -1615,7 +2045,9 @@ namespace Opc.Ua.WotCon.Tests
                         [
                             new RelativePathElement
                             {
-                                ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent,
+                                ReferenceTypeId = referenceType.IsNull
+                                    ? Ua.ReferenceTypeIds.HasComponent
+                                    : referenceType,
                                 IsInverse = false,
                                 IncludeSubtypes = true,
                                 TargetName = new QualifiedName(name, xNs)
@@ -1635,6 +2067,29 @@ namespace Opc.Ua.WotCon.Tests
             }
             return ExpandedNodeId.ToNodeId(
                 response.Results[0].Targets[0].TargetId, m_session.NamespaceUris);
+        }
+
+        private async ValueTask WaitForPublishedDefaultAsync(WotRegistryResourceClient logical, string expected)
+        {
+            NodeId versionId = await BrowseForChildNodeIdAsync(
+                logical.ResourceNodeId, XRegistry.BrowseNames.VersionId, Ua.ReferenceTypeIds.HasProperty)
+                .ConfigureAwait(false);
+            Assert.That(versionId.IsNull, Is.False);
+
+            // Reconciliation is queued; observe the published default before testing its file forwarding.
+            await Assert.ThatAsync(async () =>
+            {
+                DataValue value = await m_session.ReadValueAsync(versionId).ConfigureAwait(false);
+                if (StatusCode.IsBad(value.StatusCode))
+                {
+                    throw new ServiceResultException(value.StatusCode);
+                }
+                if (!value.WrappedValue.TryGetValue(out string selected))
+                {
+                    throw new ServiceResultException(StatusCodes.BadTypeMismatch);
+                }
+                return selected;
+            }, Is.EqualTo(expected).After(5000, 10)).ConfigureAwait(false);
         }
 
         private async ValueTask<T> ReadWotChildValueAsync<T>(NodeId parent, string name)
@@ -1692,6 +2147,7 @@ namespace Opc.Ua.WotCon.Tests
         private ISession m_session = null!;
         private ITelemetryContext m_telemetry = null!;
         private WotRegistryService m_registry = null!;
+        private WotRegistryNodeManager m_nodeManager = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
         private FakeWotDocumentConverter m_converter = null!;
         private PausableProjectionHost m_projectionHost = null!;

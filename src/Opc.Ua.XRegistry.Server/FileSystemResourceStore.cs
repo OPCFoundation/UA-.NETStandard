@@ -42,7 +42,7 @@ namespace Opc.Ua.XRegistry.Server
     /// Built on the <see cref="IFileSystem"/> abstraction, which makes the store testable against a
     /// virtual file system and lets a deployment substitute its own.
     /// </summary>
-    public sealed class FileSystemResourceStore : IXRegistryResourceStore, IDisposable
+    public sealed class FileSystemResourceStore : IXRegistryAtomicResourceStore, IDisposable
     {
         /// <summary>
         /// Initializes the store over a directory of a file system.
@@ -166,6 +166,41 @@ namespace Opc.Ua.XRegistry.Server
             finally
             {
                 m_gate.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask ReplaceAsync(
+            string resourceKey,
+            ByteString document,
+            CancellationToken ct = default)
+        {
+            string path = PathFor(resourceKey);
+            string stagedPath = path + "." + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture) + ".tmp";
+            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                using (Stream output = m_fileSystem.OpenWrite(stagedPath))
+                {
+                    await WriteBlockAsync(output, document.Span.ToArray(), ct).ConfigureAwait(false);
+                    await output.FlushAsync(ct).ConfigureAwait(false);
+                }
+                ct.ThrowIfCancellationRequested();
+                m_fileSystem.Replace(stagedPath, path);
+            }
+            finally
+            {
+                try
+                {
+                    if (m_fileSystem.Exists(stagedPath))
+                    {
+                        m_fileSystem.Delete(stagedPath);
+                    }
+                }
+                finally
+                {
+                    m_gate.Release();
+                }
             }
         }
 

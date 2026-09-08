@@ -200,6 +200,25 @@ namespace Opc.Ua.WotCon.Server
         }
 
         /// <inheritdoc/>
+        public override async ValueTask SessionClosingAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // Session closure is irreversible; caller cancellation must not strand its file state.
+                await m_projection.DiscardSessionAsync(sessionId, CancellationToken.None).ConfigureAwait(false);
+            }
+            finally
+            {
+                await base.SessionClosingAsync(context, sessionId, deleteSubscriptions, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
         public override async ValueTask DeleteAddressSpaceAsync(
             CancellationToken cancellationToken = default)
         {

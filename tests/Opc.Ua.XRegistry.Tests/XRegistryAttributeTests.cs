@@ -133,6 +133,106 @@ namespace Opc.Ua.XRegistry.Tests
             });
         }
 
+        [TestCase("registry")]
+        [TestCase("group")]
+        [TestCase("version")]
+        [TestCase("meta")]
+        public async Task AddAttributeCannotShadowFixedManagementMethodAsync(string owner)
+        {
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
+            (AttributesState labels, PropertyState<uint> epoch) = await LabelsOfAsync(nm, owner)
+                .ConfigureAwait(false);
+            MethodState fixedMethod = labels.AddAttribute!;
+            uint before = epoch.Value;
+
+            AddAttributeMethodStateResult added = await labels.AddAttribute!.OnCallAsync!(
+                nm.SystemContext, labels.AddAttribute, labels.NodeId, "AddAttribute", "shadow", 0,
+                CancellationToken.None).ConfigureAwait(false);
+            var children = new List<BaseInstanceState>();
+            labels.GetChildren(nm.SystemContext, children);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(added.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+                Assert.That(nm.Find(fixedMethod.NodeId), Is.SameAs(fixedMethod));
+                Assert.That(children.FindAll(child => child.BrowseName == fixedMethod.BrowseName),
+                    Has.Count.EqualTo(1));
+                Assert.That(epoch.Value, Is.EqualTo(before));
+            });
+        }
+
+        [TestCase("registry")]
+        [TestCase("group")]
+        [TestCase("version")]
+        [TestCase("meta")]
+        public async Task DynamicLabelsCannotReplaceOrRemoveFixedMetadataAsync(string owner)
+        {
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
+            (AttributesState labels, PropertyState<uint> epoch) = await LabelsOfAsync(nm, owner)
+                .ConfigureAwait(false);
+            var fixedMetadata = PropertyState<string>.With<VariantBuilder>(labels, "fixed");
+            fixedMetadata.NodeId = new NodeId("fixed-metadata", NamespaceIndex(nm));
+            fixedMetadata.BrowseName = new QualifiedName("FixedMetadata", NamespaceIndex(nm));
+            labels.AddChild(fixedMetadata);
+            uint before = epoch.Value;
+
+            AddAttributeMethodStateResult added = await labels.AddAttribute!.OnCallAsync!(
+                nm.SystemContext, labels.AddAttribute, labels.NodeId, "FixedMetadata", "replacement", 0,
+                CancellationToken.None).ConfigureAwait(false);
+            RemoveAttributeMethodStateResult removed = await labels.RemoveAttribute!.OnCallAsync!(
+                nm.SystemContext, labels.RemoveAttribute, labels.NodeId, "FixedMetadata", 0,
+                CancellationToken.None).ConfigureAwait(false);
+            AddAttributeMethodStateResult ordinary = await labels.AddAttribute.OnCallAsync!(
+                nm.SystemContext, labels.AddAttribute, labels.NodeId, "owner", "plant-1", before,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(added.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+                Assert.That(removed.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotFound));
+                Assert.That(ordinary.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.Good));
+                Assert.That(labels.FindChild(nm.SystemContext, fixedMetadata.BrowseName), Is.SameAs(fixedMetadata));
+                Assert.That(fixedMetadata.Value, Is.EqualTo("fixed"));
+                Assert.That(epoch.Value, Is.EqualTo(before + 1));
+            });
+        }
+
+        [TestCase("registry")]
+        [TestCase("group")]
+        [TestCase("version")]
+        [TestCase("meta")]
+        public async Task IdenticalLabelUpdatesAndMissingRemovalsDoNotAdvanceTheEpochAsync(string owner)
+        {
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
+            (AttributesState labels, PropertyState<uint> epoch) = await LabelsOfAsync(nm, owner)
+                .ConfigureAwait(false);
+            await labels.AddAttribute!.OnCallAsync!(
+                nm.SystemContext, labels.AddAttribute, labels.NodeId, "owner", "plant-1", 0,
+                CancellationToken.None).ConfigureAwait(false);
+            uint before = epoch.Value;
+
+            AddAttributeMethodStateResult unchanged = await labels.AddAttribute.OnCallAsync!(
+                nm.SystemContext, labels.AddAttribute, labels.NodeId, "owner", "plant-1", before,
+                CancellationToken.None).ConfigureAwait(false);
+            AddAttributeMethodStateResult stale = await labels.AddAttribute.OnCallAsync!(
+                nm.SystemContext, labels.AddAttribute, labels.NodeId, "owner", "plant-1", before + 1,
+                CancellationToken.None).ConfigureAwait(false);
+            RemoveAttributeMethodStateResult missing = await labels.RemoveAttribute!.OnCallAsync!(
+                nm.SystemContext, labels.RemoveAttribute, labels.NodeId, "missing", before,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(unchanged.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.Good));
+                Assert.That(stale.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(missing.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotFound));
+                Assert.That(epoch.Value, Is.EqualTo(before));
+            });
+        }
+
         [Test]
         public async Task AddAttributeRejectsAnEmptyKeyAsync()
         {
@@ -180,6 +280,29 @@ namespace Opc.Ua.XRegistry.Tests
                 Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
                 Assert.That(FindLabel(nm, registry, "owner"), Is.Null);
                 Assert.That(nm.Find(labelNodeId), Is.Null, "The label is unpublished from the address space.");
+            });
+        }
+
+        [TestCase("AddAttribute")]
+        [TestCase("RemoveAttribute")]
+        public async Task RemoveAttributeCannotDeleteFixedManagementMethodsAsync(string key)
+        {
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
+            RegistryState registry = Registry(nm);
+            AttributesState labels = registry.Labels!;
+            MethodState fixedMethod = key == "AddAttribute" ? labels.AddAttribute! : labels.RemoveAttribute!;
+            uint epoch = registry.Epoch!.Value;
+
+            RemoveAttributeMethodStateResult removed = await labels.RemoveAttribute!.OnCallAsync!(
+                nm.SystemContext, labels.RemoveAttribute, labels.NodeId, key, 0, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(removed.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotFound));
+                Assert.That(nm.Find(fixedMethod.NodeId), Is.SameAs(fixedMethod));
+                Assert.That(registry.Epoch.Value, Is.EqualTo(epoch));
             });
         }
 
@@ -259,6 +382,32 @@ namespace Opc.Ua.XRegistry.Tests
             uint expectedEpoch)
         {
             return nm.OnAddAttributeAsync(registry.Labels!, registry.Epoch, key, value, expectedEpoch);
+        }
+
+        private static async Task<(AttributesState Labels, PropertyState<uint> Epoch)> LabelsOfAsync(
+            XRegistryRegistrationNodeManager nm,
+            string owner)
+        {
+            RegistryState registry = Registry(nm);
+            if (owner == "registry")
+            {
+                return (registry.Labels!, registry.Epoch!);
+            }
+            CreateGroupMethodStateResult createdGroup = await registry.CreateGroup!.OnCallAsync!(
+                nm.SystemContext, registry.CreateGroup, registry.NodeId, "schemas", CancellationToken.None)
+                .ConfigureAwait(false);
+            var group = (GroupState)nm.Find(createdGroup.GroupNodeId)!;
+            if (owner == "group")
+            {
+                return (group.Labels!, group.Epoch!);
+            }
+            CreateResourceMethodStateResult created = await group.CreateResource!.OnCallAsync!(
+                nm.SystemContext, group.CreateResource, group.NodeId, "document", "v1", false,
+                CancellationToken.None).ConfigureAwait(false);
+            var resource = (ResourceState)nm.Find(created.ResourceNodeId)!;
+            return owner == "meta"
+                ? (resource.MetaLabels!, resource.MetaEpoch!)
+                : (resource.Labels!, resource.Epoch!);
         }
 
         private static ValueTask<RemoveAttributeMethodStateResult> RemoveAsync(
