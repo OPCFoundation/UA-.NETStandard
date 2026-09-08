@@ -23,6 +23,38 @@ Two assemblies that previously shipped only as transitive content inside `Opc.Ua
 <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Security.Certificates" Version="2.0.0-preview.*" />
 ```
 
+### Renamed packages — the GDS libraries drop `.Common`
+
+The three GDS packages lose their `.Common` suffix, so the family matches every
+other companion specification in the stack (`Opc.Ua.Di`, `Opc.Ua.ISA95`,
+`Opc.Ua.Robotics`, … each ship as `<Family>` / `<Family>.Client` /
+`<Family>.Server`).
+
+| 1.5.378 package | 2.0 package |
+|---|---|
+| `OPCFoundation.NetStandard.Opc.Ua.Gds.Common` | `OPCFoundation.NetStandard.Opc.Ua.Gds` |
+| `OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Common` | `OPCFoundation.NetStandard.Opc.Ua.Gds.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Gds.Server.Common` | `OPCFoundation.NetStandard.Opc.Ua.Gds.Server` |
+
+Update the `<PackageReference>` id; nothing else changes:
+
+```xml
+<!-- Before -->
+<PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Gds.Server.Common" Version="1.5.378.145" />
+
+<!-- After -->
+<PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Gds.Server" Version="2.0.0-preview.*" />
+```
+
+**No `using` directives change.** The assemblies were already named for their
+namespaces — `Opc.Ua.Gds`, `Opc.Ua.Gds.Client`, `Opc.Ua.Gds.Server` — and only
+the assembly and package ids carried the `.Common` suffix. Source that compiled
+against 1.5.378 compiles unchanged once the package id is updated.
+
+Assembly names follow the package ids (`Opc.Ua.Gds.Server.dll`, not
+`Opc.Ua.Gds.Server.Common.dll`), so update any binding redirects, ILMerge or
+trimming descriptors, or signing manifests that name the files directly.
+
 ### Target Frameworks (only Opc.Ua.Types changes)
 
 The TFM matrix for the main libraries (Core, Client, Server, Configuration, etc.) is unchanged from 1.5.378: `net472;net48;netstandard2.1;net8.0;net9.0;net10.0`. The only consumer-visible change is the `Opc.Ua.Types` assembly: on 1.5.378 it tracked the dedicated `LibTypesTargetFrameworks` variable (`net472;net48;netstandard2.0;netstandard2.1;net8.0;net9.0;net10.0`); on 2.0 the variable is removed and `Opc.Ua.Types` tracks `LibCoreTargetFrameworks`, the same matrix as every other library. The net effect is that `netstandard2.0` is no longer offered for `Opc.Ua.Types`.

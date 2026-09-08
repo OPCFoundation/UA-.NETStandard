@@ -260,6 +260,12 @@ namespace Opc.Ua.Wot
             }
             foreach (System.Xml.XmlNode node in value.ChildNodes)
             {
+                if (node.NodeType is System.Xml.XmlNodeType.Whitespace or
+                    System.Xml.XmlNodeType.SignificantWhitespace or
+                    System.Xml.XmlNodeType.Comment or System.Xml.XmlNodeType.ProcessingInstruction)
+                {
+                    continue;
+                }
                 if (node is not System.Xml.XmlElement extension ||
                     !string.Equals(
                         extension.LocalName, "ExtensionObject", StringComparison.Ordinal))

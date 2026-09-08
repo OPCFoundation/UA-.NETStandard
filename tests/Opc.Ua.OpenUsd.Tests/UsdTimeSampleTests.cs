@@ -96,7 +96,7 @@ namespace Opc.Ua.OpenUsd.Tests
                 "    }");
 
             Assert.That(attr.Value.IsNull, Is.True, "no authored default was declared");
-            Assert.That(attr.TimeSamples.Keys, Is.EqualTo(new[] { 0.0, 24.0, 48.0 }));
+            Assert.That(attr.TimeSamples.Keys, Is.EqualTo(s_doubleValues1));
             Assert.That(attr.TimeSamples.Values, Is.EqualTo(new[]
             {
                 UsdValue.From(0.0),
@@ -112,7 +112,7 @@ namespace Opc.Ua.OpenUsd.Tests
                 "TS",
                 "    double a.timeSamples = { 0: 0.0, 24: 90.0 }");
 
-            Assert.That(attr.TimeSamples.Keys, Is.EqualTo(new[] { 0.0, 24.0 }));
+            Assert.That(attr.TimeSamples.Keys, Is.EqualTo(s_doubleValues2));
             Assert.That(attr.TimeSamples.Values, Is.EqualTo(new[] { UsdValue.From(0.0), UsdValue.From(90.0) }));
         }
 
@@ -143,7 +143,7 @@ namespace Opc.Ua.OpenUsd.Tests
                 "        24: 90.0,",
                 "    }");
 
-            Assert.That(attr.TimeSamples.Keys, Is.EqualTo(new[] { 0.0, 24.0, 48.0 }));
+            Assert.That(attr.TimeSamples.Keys, Is.EqualTo(s_doubleValues1));
         }
 
         [Test]
@@ -214,7 +214,7 @@ namespace Opc.Ua.OpenUsd.Tests
                 "    }");
 
             UsdTestHelpers.AssertDouble(attr.Value, 5.0);
-            Assert.That(attr.TimeSamples.Keys, Is.EqualTo(new[] { 0.0, 24.0 }));
+            Assert.That(attr.TimeSamples.Keys, Is.EqualTo(s_doubleValues2));
         }
 
         [Test]
@@ -393,5 +393,8 @@ namespace Opc.Ua.OpenUsd.Tests
 
             Assert.That(signature, Does.Not.Contain("TS("));
         }
+
+        private static readonly double[] s_doubleValues1 = [0.0, 24.0, 48.0];
+        private static readonly double[] s_doubleValues2 = [0.0, 24.0];
     }
 }

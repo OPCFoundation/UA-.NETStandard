@@ -443,7 +443,7 @@ namespace Opc.Ua.OpenUsd.Tests
 
             Assert.That(ok, Is.True);
             Assert.That(v.TryGetValue(out ArrayOf<int> items), Is.True);
-            Assert.That(items.ToArray(), Is.EqualTo(new[] { 4 }));
+            Assert.That(items.ToArray(), Is.EqualTo(s_intValues1));
         }
 
         [Test]
@@ -457,7 +457,7 @@ namespace Opc.Ua.OpenUsd.Tests
 
             Assert.That(ok, Is.True);
             Assert.That(v.TryGetValue(out ArrayOf<int> items), Is.True);
-            Assert.That(items.ToArray(), Is.EqualTo(new[] { 1, 0 }));
+            Assert.That(items.ToArray(), Is.EqualTo(s_intValues2));
         }
 
         [Test]
@@ -585,5 +585,8 @@ namespace Opc.Ua.OpenUsd.Tests
         {
             Assert.That(UsdValueCoercion.Decoerce(default).IsNull, Is.True);
         }
+
+        private static readonly int[] s_intValues1 = [4];
+        private static readonly int[] s_intValues2 = [1, 0];
     }
 }

@@ -39,6 +39,18 @@ namespace System.Collections.Generic
     {
 #if NETSTANDARD2_0 || NETFRAMEWORK
         /// <summary>
+        /// Deconstructs a key/value pair on platforms without the instance method.
+        /// </summary>
+        /// <typeparam name="TKey">The key type.</typeparam>
+        /// <typeparam name="TValue">The value type.</typeparam>
+        public static void Deconstruct<TKey, TValue>(
+            this KeyValuePair<TKey, TValue> pair, out TKey key, out TValue value)
+        {
+            key = pair.Key;
+            value = pair.Value;
+        }
+
+        /// <summary>
         /// Try add value
         /// </summary>
         /// <typeparam name="TKey"></typeparam>

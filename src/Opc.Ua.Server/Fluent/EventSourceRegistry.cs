@@ -215,6 +215,23 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        public ValueTask WaitUntilReadyAsync(NodeState source, CancellationToken cancellationToken)
+        {
+            if (source is null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (m_sourcesLock)
+            {
+                ThrowIfDisposed();
+                m_waiters.Add(new ReadinessWaiter(source, completion));
+            }
+            SignalReconcile();
+            return new ValueTask(completion.Task.WaitAsync(cancellationToken));
+        }
+
         /// <summary>
         /// Cancels every running iterator, waits for them to drain (bounded
         /// by each source's <see cref="EventPublishOptions.CancellationTimeout"/>),
@@ -225,6 +242,14 @@ namespace Opc.Ua.Server.Fluent
             if (Interlocked.Exchange(ref m_disposed, 1) != 0)
             {
                 return;
+            }
+            lock (m_sourcesLock)
+            {
+                foreach (ReadinessWaiter waiter in m_waiters)
+                {
+                    waiter.Completion.TrySetCanceled();
+                }
+                m_waiters.Clear();
             }
 
             // Stop the reconcile loop first so it cannot race with us.
@@ -335,9 +360,12 @@ namespace Opc.Ua.Server.Fluent
         private void ReconcileAll()
         {
             List<SourceEntry> snapshot;
+            List<ReadinessWaiter> waiters;
             lock (m_sourcesLock)
             {
                 snapshot = [.. m_sources.Values];
+                waiters = [.. m_waiters];
+                m_waiters.Clear();
             }
 
             foreach (SourceEntry entry in snapshot)
@@ -356,11 +384,76 @@ namespace Opc.Ua.Server.Fluent
                 }
                 catch (Exception ex)
                 {
+                    entry.Ready.TrySetException(ex);
+                    _ = entry.Ready.Task.Exception;
                     m_logger?.PublishReconcilePassFailedForBrowseId(
                         ex,
                         entry.Notifier.BrowseName,
                         entry.Notifier.NodeId);
                 }
+            }
+            foreach (ReadinessWaiter waiter in waiters)
+            {
+                var ready = new List<Task>();
+                foreach (SourceEntry entry in snapshot)
+                {
+                    if (entry.WorkerCts is not null && IsNotifierAncestor(waiter.Source, entry.Notifier))
+                    {
+                        ready.Add(entry.Ready.Task);
+                    }
+                }
+                _ = CompleteWaiterAsync(waiter, ready);
+            }
+        }
+
+        private bool IsNotifierAncestor(NodeState ancestor, NodeState source)
+        {
+            var visited = new HashSet<NodeId>();
+            var pending = new Stack<NodeState>();
+            pending.Push(source);
+            while (pending.Count > 0)
+            {
+                NodeState node = pending.Pop();
+                if (!visited.Add(node.NodeId))
+                {
+                    continue;
+                }
+                if (node.NodeId == ancestor.NodeId)
+                {
+                    return true;
+                }
+                if (node is BaseInstanceState { Parent: { } parent })
+                {
+                    pending.Push(parent);
+                }
+                var notifiers = new List<NodeState.Notifier>();
+                node.GetNotifiers(m_owner.SystemContext, notifiers);
+                foreach (NodeState.Notifier notifier in notifiers)
+                {
+                    if (notifier.IsInverse && notifier.Node is { } target)
+                    {
+                        pending.Push(target);
+                    }
+                }
+            }
+            return false;
+        }
+
+        private async Task CompleteWaiterAsync(ReadinessWaiter waiter, List<Task> ready)
+        {
+            try
+            {
+                await Task.WhenAll(ready).WaitAsync(m_managerCts.Token).ConfigureAwait(false);
+                waiter.Completion.TrySetResult(true);
+            }
+            catch (OperationCanceledException)
+            {
+                waiter.Completion.TrySetCanceled();
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                waiter.Completion.TrySetException(exception);
+                _ = waiter.Completion.Task.Exception;
             }
         }
 
@@ -368,8 +461,10 @@ namespace Opc.Ua.Server.Fluent
         {
             var cts = CancellationTokenSource.CreateLinkedTokenSource(m_managerCts.Token);
             entry.WorkerCts = cts;
+            var ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            entry.Ready = ready;
             Volatile.Write(ref entry.LeakedFaulted, 0);
-            entry.WorkerTask = Task.Run(() => RunSourceAsync(entry, cts.Token));
+            entry.WorkerTask = Task.Run(() => RunSourceAsync(entry, ready, cts.Token));
             m_logger?.PublishActivatedSourceForBrowseIdNodeId(entry.Notifier.BrowseName, entry.Notifier.NodeId);
         }
 
@@ -424,7 +519,8 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
-        private async Task RunSourceAsync(SourceEntry entry, CancellationToken ct)
+        private async Task RunSourceAsync(
+            SourceEntry entry, TaskCompletionSource<bool> ready, CancellationToken ct)
         {
             ISystemContext systemContext = m_owner.SystemContext;
 
@@ -434,16 +530,22 @@ namespace Opc.Ua.Server.Fluent
                 stream = entry.Factory(entry.Notifier, systemContext, ct);
                 if (stream == null)
                 {
+                    ready.TrySetException(new ServiceResultException(
+                        StatusCodes.BadConfigurationError, "The event source factory returned no stream."));
+                    _ = ready.Task.Exception;
                     m_logger?.PublishFactoryForBrowseIdNodeIdReturned(entry.Notifier.BrowseName, entry.Notifier.NodeId);
                     return;
                 }
             }
             catch (OperationCanceledException)
             {
+                ready.TrySetCanceled(ct);
                 return;
             }
             catch (Exception ex)
             {
+                ready.TrySetException(ex);
+                _ = ready.Task.Exception;
                 m_logger?.PublishFactoryInvocationForBrowseIdNodeId(
                     ex,
                     entry.Notifier.BrowseName,
@@ -459,11 +561,23 @@ namespace Opc.Ua.Server.Fluent
                 return;
             }
 
+            using var startupLifetime = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            await RunStreamAsync(entry, ready, stream, systemContext, startupLifetime).ConfigureAwait(false);
+        }
+
+        private async Task RunStreamAsync(
+            SourceEntry entry,
+            TaskCompletionSource<bool> ready,
+            IAsyncEnumerable<BaseEventState> stream,
+            ISystemContext systemContext,
+            CancellationTokenSource startupLifetime)
+        {
+            Task startup = CompleteStartupAsync(entry, ready, stream, startupLifetime, startupLifetime.Token);
             try
             {
-                await foreach (BaseEventState e in stream.WithCancellation(ct).ConfigureAwait(false))
+                await foreach (BaseEventState e in stream.WithCancellation(startupLifetime.Token).ConfigureAwait(false))
                 {
-                    if (ct.IsCancellationRequested ||
+                    if (startupLifetime.IsCancellationRequested ||
                         Volatile.Read(ref entry.LeakedFaulted) != 0)
                     {
                         return;
@@ -477,6 +591,8 @@ namespace Opc.Ua.Server.Fluent
             }
             catch (Exception ex)
             {
+                ready.TrySetException(ex);
+                _ = ready.Task.Exception;
                 m_logger?.PublishIteratorForBrowseIdNodeIdThrew(ex, entry.Notifier.BrowseName, entry.Notifier.NodeId);
                 try
                 {
@@ -484,6 +600,50 @@ namespace Opc.Ua.Server.Fluent
                 }
                 catch
                 {
+                }
+            }
+            finally
+            {
+                startupLifetime.Cancel();
+                await startup.ConfigureAwait(false);
+            }
+        }
+
+        private async Task CompleteStartupAsync(
+            SourceEntry entry,
+            TaskCompletionSource<bool> ready,
+            IAsyncEnumerable<BaseEventState> stream,
+            CancellationTokenSource lifetime,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (stream is IEventSourceReadiness readiness)
+                {
+                    await readiness.WaitUntilReadyAsync(cancellationToken).AsTask()
+                        .WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+                ready.TrySetResult(true);
+            }
+            catch (OperationCanceledException)
+            {
+                ready.TrySetCanceled(cancellationToken);
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                ready.TrySetException(exception);
+                _ = ready.Task.Exception;
+                lifetime.Cancel();
+                m_logger?.PublishFactoryInvocationForBrowseIdNodeId(
+                    exception, entry.Notifier.BrowseName, entry.Notifier.NodeId);
+                try
+                {
+                    entry.Options.OnError?.Invoke(exception);
+                }
+                catch (Exception callbackFailure) when (callbackFailure is not OutOfMemoryException)
+                {
+                    m_logger?.PublishFactoryInvocationForBrowseIdNodeId(
+                        callbackFailure, entry.Notifier.BrowseName, entry.Notifier.NodeId);
                 }
             }
         }
@@ -615,8 +775,12 @@ namespace Opc.Ua.Server.Fluent
             public EventPublishOptions Options { get; }
             public CancellationTokenSource? WorkerCts;
             public Task? WorkerTask;
+            public TaskCompletionSource<bool> Ready =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
             public int LeakedFaulted;
         }
+
+        private sealed record ReadinessWaiter(NodeState Source, TaskCompletionSource<bool> Completion);
 
         private readonly FluentNodeManagerBase m_owner;
         private readonly ILogger m_logger;
@@ -625,6 +789,7 @@ namespace Opc.Ua.Server.Fluent
         private readonly Task m_reconcileTask;
         private readonly Lock m_sourcesLock = new();
         private readonly Dictionary<NodeId, SourceEntry> m_sources = [];
+        private readonly List<ReadinessWaiter> m_waiters = [];
         private int m_disposed;
     }
 

@@ -1108,7 +1108,7 @@ namespace Opc.Ua.Server
         /// <para>
         /// Registration completes the create lifecycle for nodes which have
         /// not already passed through
-        /// <see cref="NodeState.CreateAsPredefinedNode"/>.
+        /// <see cref="NodeState.CreateAsPredefinedNode(ISystemContext)"/>.
         /// </para>
         /// <para>
         /// The supplied <paramref name="node"/> should already be attached to
@@ -2184,14 +2184,26 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             PrepareInstanceNodeIdsForRegistration(context, node);
-            CompleteCreateLifecycleForRegistration(context, node);
+            NodeStateLifecycle.CompleteForRegistration(
+                context,
+                node,
+                m_logger,
+                cancellationToken);
             NodeState activeNode = await AddBehaviourToPredefinedNodeAsync(context, node, cancellationToken).ConfigureAwait(false);
             if (!ReferenceEquals(activeNode, node))
             {
                 PrepareInstanceNodeIdsForRegistration(context, activeNode);
-                CompleteCreateLifecycleForRegistration(context, activeNode);
+                NodeStateLifecycle.CompleteForRegistration(
+                    context,
+                    activeNode,
+                    m_logger,
+                    cancellationToken);
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
             IndexPredefinedNode(activeNode);
 
             var children = new List<BaseInstanceState>();
@@ -2392,7 +2404,11 @@ namespace Opc.Ua.Server
 
         private void AddPredefinedNodeSynchronously(ISystemContext context, NodeState node)
         {
-            CompleteCreateLifecycleForRegistration(context, node);
+            NodeStateLifecycle.CompleteForRegistration(
+                context,
+                node,
+                m_logger,
+                CancellationToken.None);
             IndexPredefinedNode(node);
 
             var children = new List<BaseInstanceState>();
@@ -2407,24 +2423,6 @@ namespace Opc.Ua.Server
                 }
 
                 AddPredefinedNodeSynchronously(context, children[ii]);
-            }
-        }
-
-        private void CompleteCreateLifecycleForRegistration(
-            ISystemContext context,
-            NodeState node)
-        {
-            if (node.IsCreated)
-            {
-                return;
-            }
-
-            node.CreateAsPredefinedNode(context);
-            if (m_logger != null)
-            {
-                m_logger.PredefinedNodeLifecycleCompletedAtRegistration(
-                    node.NodeId,
-                    node.BrowseName);
             }
         }
 

@@ -170,7 +170,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 // Node rather than because the mapping found one.
                 return new ValueTask<WotResolvedNode?>(
                     string.Equals(expandedNodeId, LineNodeId, StringComparison.Ordinal)
-                        ? new WotResolvedNode("ns=1;s=Line01", WotExpectedNodeClass.Any)
+                        ? new WotResolvedNode(LineNodeId, WotExpectedNodeClass.Any)
                         : null);
             }
 

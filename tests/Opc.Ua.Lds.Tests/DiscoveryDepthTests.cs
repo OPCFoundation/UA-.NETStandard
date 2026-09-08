@@ -32,11 +32,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 
-// Conformance tests use inline literal arrays as expected-value
-// assertions; the per-call allocation cost is irrelevant for tests
-// and keeping the literal adjacent to the assertion improves readability.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
-
 namespace Opc.Ua.Lds.Tests
 {
     /// <summary>
@@ -94,10 +89,7 @@ namespace Opc.Ua.Lds.Tests
 
             ArrayOf<ApplicationDescription> result =
                 await client.FindServersAsync(
-                    new string[]
-                    {
-                        "urn:nonexistent:test:server:12345"
-                    }.ToArrayOf(),
+                    s_stringValues1.ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(result.Count, Is.Zero,
@@ -364,5 +356,7 @@ namespace Opc.Ua.Lds.Tests
                 Telemetry,
                 ct: CancellationToken.None);
         }
+
+        private static readonly string[] s_stringValues1 = ["urn:nonexistent:test:server:12345"];
     }
 }

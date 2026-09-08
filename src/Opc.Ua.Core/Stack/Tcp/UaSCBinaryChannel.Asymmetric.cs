@@ -1133,6 +1133,19 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Test-only hook invoked with the sender certificate chain the moment
+        /// <see cref="ReadAsymmetricMessageHeader"/> parsed it, before any
+        /// validation that can reject the header. It lets the leak regression
+        /// tests observe the disposal of the exact handles the parser allocated
+        /// - the chain is never handed back through the out parameter when the
+        /// method throws - instead of sampling the process-wide
+        /// <see cref="Certificate.InstancesCreated"/> counters, which every
+        /// certificate allocated by a concurrently running test also moves.
+        /// Visible to friend test assemblies via <c>InternalsVisibleTo</c>.
+        /// </summary>
+        internal Action<CertificateCollection>? SenderCertificateChainParsedForTest { get; set; }
+
+        /// <summary>
         /// Reads the asymmetric security header to the buffer.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -1184,6 +1197,7 @@ namespace Opc.Ua.Bindings
                     senderCertificateChain = Utils.ParseCertificateChainBlob(
                         certificateData,
                         Telemetry);
+                    SenderCertificateChainParsedForTest?.Invoke(senderCertificateChain);
 
                     try
                     {

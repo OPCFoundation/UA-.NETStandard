@@ -193,7 +193,7 @@ namespace Opc.Ua.Robotics.Tests
                     IntentId = "seven-axis",
                     BufferMode = BufferModeEnum.Aborting,
                     HasJointTargets = true,
-                    JointTargets = new[] { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 }.ToArrayOf()
+                    JointTargets = s_doubleValues1.ToArrayOf()
                 });
 
             Assert.Multiple(() =>
@@ -411,5 +411,7 @@ namespace Opc.Ua.Robotics.Tests
 
             private ServerFixture<StandardServer>? m_fixture;
         }
+
+        private static readonly double[] s_doubleValues1 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     }
 }

@@ -34,11 +34,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 
-// Conformance tests use inline literal arrays as expected-value
-// assertions; the per-call allocation cost is irrelevant for tests
-// and keeping the literal adjacent to the assertion improves readability.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
-
 namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
@@ -390,7 +385,7 @@ namespace Opc.Ua.Subscriptions.Tests
             SetPublishingModeResponse response = await Session.SetPublishingModeAsync(
                 null,
                 true,
-                new uint[] { 999999u }.ToArrayOf(),
+                s_uintValues1.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(response.ResponseHeader.ServiceResult), Is.True);
@@ -442,7 +437,7 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             DeleteSubscriptionsResponse response = await Session.DeleteSubscriptionsAsync(
                 null,
-                new uint[] { 999999u }.ToArrayOf(),
+                s_uintValues1.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(response.ResponseHeader.ServiceResult), Is.True);
@@ -789,5 +784,7 @@ namespace Opc.Ua.Subscriptions.Tests
         private const double DefaultPublishingInterval = 1000;
         private const uint DefaultLifetimeCount = 100;
         private const uint DefaultMaxKeepAliveCount = 10;
+
+        private static readonly uint[] s_uintValues1 = [999999u];
     }
 }

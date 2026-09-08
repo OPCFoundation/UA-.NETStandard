@@ -1157,7 +1157,12 @@ namespace Opc.Ua.SourceGeneration
             constantsGenerator.Emit();
             var nodeIdGenerator = new NodeIdGenerator(context);
             nodeIdGenerator.Emit();
-            var nodeStateCodeGenerator = new NodeStateGenerator(context);
+            var nodeStateCodeGenerator = new NodeStateGenerator(context)
+            {
+                // The provider references Opc.Ua.Server contracts, so it is
+                // only emitted for models that also generate a node manager.
+                GenerateNodeSetImportSupport = designOptions?.GenerateNodeManager == true
+            };
             nodeStateCodeGenerator.Emit();
             var dataTypesGenerator = new DataTypeGenerator(context);
             dataTypesGenerator.Emit();

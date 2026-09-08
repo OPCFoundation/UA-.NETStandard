@@ -29,10 +29,9 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -40,16 +39,15 @@ using Opc.Ua.Wot;
 namespace Opc.Ua.WotCon.Tests.Samples
 {
     /// <summary>
-    /// Holds the companion models to the readable mapping: each converts to a
-    /// set of linked documents in which no document needs the
-    /// <c>uav:nodes</c> projection.
+    /// Holds companion document-set conversion to full semantic preservation,
+    /// including the structured fallback for facts the readable vocabulary
+    /// cannot represent.
     /// </summary>
     /// <remarks>
-    /// A companion model states many type definitions side by side and has no
-    /// single root. Converted as one document it leaves everything but the
-    /// first root unreachable and falls back to the projection for the whole
-    /// model — which is what §6.11.8 and §9.1 exist to avoid. These tests are
-    /// the measure of that, model by model.
+    /// Node counts and NodeClasses do not prove completeness. These fixtures
+    /// compare all source facts without an archival envelope; an incomplete
+    /// readable candidate must retain its missing facts through verified
+    /// structured preservation instead of claiming to be complete.
     /// </remarks>
     [TestFixture]
     [Category("WotCon")]
@@ -57,9 +55,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
     public sealed class WotCompanionModelDocumentSetTests
     {
         [Test]
-        public void DeviceIntegrationModelStatesEveryDocumentReadably()
+        public async Task DeviceIntegrationModelRetainsEverySourceFactAsync()
         {
-            AssertSetIsReadable(
+            await AssertSetIsEquivalentAsync(
                 Path.Combine(
                     RepositoryRoot,
                     "tests",
@@ -67,13 +65,13 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "Resources",
                     "Opc.Ua.Di.NodeSet2.xml"),
                 "opc-ua-di",
-                "OPC UA Device Integration");
+                "OPC UA Device Integration").ConfigureAwait(false);
         }
 
         [Test]
-        public void MachineryModelStatesEveryDocumentReadably()
+        public async Task MachineryModelRetainsEverySourceFactAsync()
         {
-            AssertSetIsReadable(
+            await AssertSetIsEquivalentAsync(
                 Path.Combine(
                     RepositoryRoot,
                     "samples",
@@ -82,13 +80,13 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "Model",
                     "Opc.Ua.Machinery.NodeSet2.xml"),
                 "opc-ua-machinery",
-                "OPC UA Machinery");
+                "OPC UA Machinery").ConfigureAwait(false);
         }
 
         [Test]
-        public void PumpsModelStatesEveryDocumentReadably()
+        public async Task PumpsModelRetainsEverySourceFactAsync()
         {
-            AssertSetIsReadable(
+            await AssertSetIsEquivalentAsync(
                 Path.Combine(
                     RepositoryRoot,
                     "samples",
@@ -97,104 +95,63 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "Model",
                     "Opc.Ua.Pumps.NodeSet2.xml"),
                 "opc-ua-pumps",
-                "OPC UA Pumps");
+                "OPC UA Pumps").ConfigureAwait(false);
         }
 
-        private static void AssertSetIsReadable(
+        [Test]
+        public async Task SamplePumpRetainsRawRangesAndModelMetadataAsync()
+        {
+            await AssertSetIsEquivalentAsync(
+                Path.Combine(
+                    RepositoryRoot,
+                    "samples",
+                    "WotCon",
+                    "AggregationClient",
+                    "Documents",
+                    "SamplePump.NodeSet2.xml"),
+                "sample-pump",
+                "Sample Pump Aggregate").ConfigureAwait(false);
+        }
+
+        private static async Task AssertSetIsEquivalentAsync(
             string sourcePath,
             string modelPrefix,
             string title)
         {
             Assert.That(File.Exists(sourcePath), Is.True, $"'{sourcePath}' should exist.");
 
-            IReadOnlyList<WotAggregationDocumentGenerator.GeneratedDocument> documents =
-                WotAggregationDocumentGenerator.GenerateThingModelSet(
-                    sourcePath, modelPrefix, title);
-
-            Assert.That(documents, Is.Not.Empty);
-
-            var projected = new List<string>();
-            foreach (WotAggregationDocumentGenerator.GeneratedDocument document in documents)
-            {
-                using var parsed = JsonDocument.Parse(document.Json);
-                if (parsed.RootElement.TryGetProperty("uav:nodes", out _))
-                {
-                    projected.Add(document.Href);
-                }
-            }
-
-            Assert.That(
-                projected,
-                Is.Empty,
-                $"{Path.GetFileName(sourcePath)}: {projected.Count} of {documents.Count} " +
-                "documents still need the uav:nodes projection.");
-
-            // An href identifies a document within the set and becomes its file
-            // name, so a duplicate would silently overwrite a sibling.
-            Assert.That(
-                documents.Select(d => d.Href).Distinct(StringComparer.Ordinal).Count(),
-                Is.EqualTo(documents.Count),
-                "Every document in the set should have a distinct href.");
-
-            // The assertion above is necessary but not sufficient on its own:
-            // the document-set path never writes uav:nodes, so its absence
-            // proves nothing by itself. What earns the omission is that the set
-            // rebuilds the model — every Node, and no Node the source never
-            // stated. Without this the model could be silently emptied and the
-            // projection check would still pass.
-            AssertSetRebuildsTheModel(sourcePath, modelPrefix, title);
-        }
-
-        private static void AssertSetRebuildsTheModel(
-            string sourcePath,
-            string modelPrefix,
-            string title)
-        {
             using FileStream stream = File.OpenRead(sourcePath);
             UANodeSet? source = UANodeSet.Read(stream);
             Assert.That(source, Is.Not.Null);
 
+            var options = new WotNodeSetConverterOptions
+            {
+                PreservationMode = WotNodeSetPreservationMode.Never
+            };
             WotConversionResult<WotDocumentSet> result =
-                WotNodeSetConverter.FromNodeSetDocuments(source!, modelPrefix, title);
+                await WotNodeSetConverter.FromNodeSetDocumentsAsync(
+                    source!, modelPrefix, title, options).ConfigureAwait(false);
+            Assert.That(
+                result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.ToString())));
             using WotDocumentSet set = result.Value!;
+            var entries = set.Entries.ToList();
+            Assert.That(set.Entries.IsEmpty, Is.False);
+            Assert.That(
+                entries.Select(entry => entry.Href).Distinct(StringComparer.Ordinal).Count(),
+                Is.EqualTo(entries.Count));
+            foreach (WotDocumentSetEntry entry in entries)
+            {
+                Assert.That(entry.Document.TryGetEnvelope(out _), Is.False);
+            }
             WotConversionResult<UANodeSet> restored =
-                WotNodeSetConverter.ToNodeSetAsync(set).AsTask().GetAwaiter().GetResult();
-
-            Assert.That(restored.Value, Is.Not.Null);
-
-            var before = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (UANode node in source!.Items ?? [])
-            {
-                if (!string.IsNullOrEmpty(node.NodeId))
-                {
-                    before[node.NodeId!] = node.GetType().Name;
-                }
-            }
-            var after = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (UANode node in restored.Value!.Items ?? [])
-            {
-                if (!string.IsNullOrEmpty(node.NodeId))
-                {
-                    after[node.NodeId!] = node.GetType().Name;
-                }
-            }
-
-            string name = Path.GetFileName(sourcePath);
+                await WotNodeSetConverter.ToNodeSetAsync(set, options).ConfigureAwait(false);
             Assert.That(
-                before.Keys.Where(id => !after.ContainsKey(id)).ToArray(),
-                Is.Empty,
-                $"{name}: Nodes were lost, so the set does not rebuild the model.");
+                restored.Success, Is.True, string.Join("; ", restored.Diagnostics.Select(d => d.ToString())));
+            NodeSetComparisonResult comparison =
+                WotNodeSetConverter.CompareDocumentSet(source!, restored.Value!, options);
             Assert.That(
-                after.Keys.Where(id => !before.ContainsKey(id)).ToArray(),
-                Is.Empty,
-                $"{name}: Nodes were created that the source never stated.");
-            foreach (KeyValuePair<string, string> entry in before)
-            {
-                Assert.That(
-                    after[entry.Key],
-                    Is.EqualTo(entry.Value),
-                    $"{name}: '{entry.Key}' came back as a different NodeClass.");
-            }
+                comparison.AreEquivalent, Is.True,
+                $"{Path.GetFileName(sourcePath)}: {string.Join("; ", comparison.Differences)}");
         }
 
         private static string RepositoryRoot

@@ -8,7 +8,7 @@ landed; this is the remaining work item.
 
 ## Problem
 
-The public surface of `src/Opc.Ua.Gds.Client.Common` still
+The public surface of `src/Opc.Ua.Gds.Client` still
 exposes legacy .NET certificate types and raw `char[]` passwords:
 
 | File | Line | Signature |
@@ -46,7 +46,7 @@ Goals (per research §3.13):
   interop story this turns into a leaky pseudo‑port.
 - The cascade is wide — at minimum
   `tests/Opc.Ua.Gds.Tests`, `tools/GdsAdminUI`, and
-  `src/Opc.Ua.Gds.Server.Common` consume these signatures.
+  `src/Opc.Ua.Gds.Server` consume these signatures.
   Estimated ~50 call sites.
 - All other phases shipped clean (Release build 0/0,
   `Opc.Ua.Gds.Tests` 518 passed). Holding P4.1 keeps the rest
@@ -105,7 +105,7 @@ Goals (per research §3.13):
 
 ### Phase C — Downstream consumers
 
-- `src/Opc.Ua.Gds.Server.Common` — update where it calls
+- `src/Opc.Ua.Gds.Server` — update where it calls
   `IServerPushConfigurationClient` / `IGlobalDiscoveryServerClient`.
 - `tools/GdsAdminUI` — UI bindings around the rejected list /
   certificate add flow.

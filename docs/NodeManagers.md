@@ -72,6 +72,7 @@
     - [Subscription-gated sources](#subscription-gated-sources)
     - [Multi-model composition](#multi-model-composition)
     - [Mixing ModelDesign and NodeSet2 in one project](#mixing-modeldesign-and-nodeset2-in-one-project)
+    - [Importing a NodeSet2 overlay at runtime — `builder.Import`](#importing-a-nodeset2-overlay-at-runtime--builderimport)
     - [NodeSet2 access-level bitmasks](#nodeset2-access-level-bitmasks)
   - [Materialising instances at runtime — NodeId assignment](#materialising-instances-at-runtime--nodeid-assignment)
   - [Current limitations](#current-limitations)
@@ -797,6 +798,16 @@ namespace (legacy MSBuild mode) or the user class's namespace
     the per-node hook.
   - Declares `partial void Configure(INodeManagerBuilder builder);` for
     user wiring.
+  - Implements `INodeSetImportFactoryProvider` by delegating to the
+    model's generated `{Ns}NodeSetImportFactoryProvider`, so a NodeSet2
+    document imported through `builder.Import` materialises this model's
+    nodes as their generated `*State` subclasses. A
+    `partial void AddNodeSetImportFactories(List<INodeSetImportFactory>)`
+    hook lets a dependency model contribute its own factories. See
+    [Importing a NodeSet2 overlay at runtime](#importing-a-nodeset2-overlay-at-runtime--builderimport).
+- `public sealed class {Ns}NodeSetImportFactoryProvider`
+  - One `INodeSetImportFactory` per model type/declaration, each calling
+    a concrete constructor for an empty state.
 - `public class {Ns}NodeManagerFactory : IAsyncNodeManagerFactory`
   - Returns the namespace URI in `NamespacesUris`.
   - `CreateAsync(IServerInternal, ApplicationConfiguration, CancellationToken)`
@@ -1498,6 +1509,15 @@ builder.Boilers.Boiler__1.DrumX001
 
 #### Hand-written node managers
 
+An event stream that connects an asynchronous upstream producer can also
+implement `IEventSourceReadiness`. The registry enumerates the stream while
+awaiting `WaitUntilReadyAsync`; creation of a corresponding event monitored
+item completes only after the producer can deliver notifications. Readiness
+must not wait for the first event. Failures are returned to the subscribing
+client, reported through `OnError`, and stop that activation. For reactivatable
+producers, return a new readiness-aware stream from the `Publish` factory on
+each activation.
+
 Managers that don't use the source generator can opt in by deriving
 from `Opc.Ua.Server.Fluent.FluentNodeManagerBase` and calling
 `AttachToBuilder(builder)` from inside their address-space-build
@@ -2056,6 +2076,63 @@ input is supplied to the others as a resolution dependency (both
 > referencing ModelDesign's `<opc:Namespaces>` does **not** rename the
 > NodeSet2's generated types — set the per-file MSBuild metadata on the
 > NodeSet2 entry to control it.
+
+#### Importing a NodeSet2 overlay at runtime — `builder.Import`
+
+The models above are compiled into the assembly. A NodeSet2 document
+that is only known at runtime — an overlay shipped by an integrator, a
+document downloaded from a device — can be imported into the *same*
+manager from inside `Configure`:
+
+```csharp
+partial void Configure(INodeManagerBuilder builder)
+{
+    using var stream = File.OpenRead("overlay.NodeSet2.xml");
+    builder.Import(UANodeSet.Read(stream));
+
+    // Imported nodes resolve immediately, so they can be wired in the
+    // same pass.
+    builder.Node(new NodeId(3300u, NamespaceIndex))
+           .As<BaseDataVariableState>()
+           .OnSimpleRead(ReadOverlayValue);
+}
+```
+
+What the import guarantees:
+
+- **One batch per `Configure` pass.** Every document imported during
+  one pass is linked exactly once, after the pass returns. A node may
+  therefore declare a `ParentNodeId` that lives in another document of
+  the same batch, or a node the manager already owns — which is how an
+  overlay extends the generated model.
+- **Typed states without reflection.** The generated node manager
+  implements `INodeSetImportFactoryProvider`. Its factories are matched
+  by TypeDefinition (Object, Variable), by MethodDeclaration (Method)
+  and by NodeId (declarations), so an imported node of a generated type
+  materialises as its generated `*State` subclass. Each factory calls a
+  concrete constructor — nothing is looked up at runtime, which keeps
+  the path NativeAOT-safe. Pass an
+  `INodeSetImportFactoryProvider` to `Import` to supply factories from
+  somewhere else, or implement
+  `partial void AddNodeSetImportFactories(List<INodeSetImportFactory>)`
+  on the manager to add the factories of a dependency model.
+- **Empty typed states.** A factory returns a state without children:
+  the document, not the model, decides which children the imported node
+  has.
+- **Placeholder replacement.** When an imported child lands in a slot
+  that the generated parent declares (same BrowseName), it replaces the
+  generated placeholder, and the displaced node and every descendant it
+  does not carry over are removed from the address space. References to
+  the displaced node are retargeted at the replacement. Wiring a node in
+  `Configure` *before* an import displaces it is rejected with
+  `BadInvalidState` rather than silently dropping the wiring — import
+  first, then wire.
+
+The three contracts (`INodeSetImportFactoryProvider`,
+`INodeSetImportFactory`, `NodeSetImportDiscriminator`) live in
+`Opc.Ua.Server.Nodes`. For a manager built entirely from NodeSet2
+documents with no compiled model at all, see
+[Runtime NodeSets](RuntimeNodeSets.md).
 
 #### NodeSet2 access-level bitmasks
 

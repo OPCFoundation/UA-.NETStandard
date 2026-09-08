@@ -34,11 +34,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-// Conformance tests use inline literal arrays as expected-value
-// assertions; the per-call allocation cost is irrelevant for tests
-// and keeping the literal adjacent to the assertion improves readability.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
-
 namespace Opc.Ua.Gds.Tests
 {
     /// <summary>
@@ -64,11 +59,11 @@ namespace Opc.Ua.Gds.Tests
                     i <= 3 ? ApplicationType.Server : ApplicationType.Client);
                 if (i == 2)
                 {
-                    appRecord.ServerCapabilities = new string[] { "DA", "HDA" }.ToArrayOf();
+                    appRecord.ServerCapabilities = s_stringValues1.ToArrayOf();
                 }
                 if (i == 3)
                 {
-                    appRecord.ServerCapabilities = new string[] { "AC" }.ToArrayOf();
+                    appRecord.ServerCapabilities = s_stringValues2.ToArrayOf();
                 }
                 NodeId appId = await RegisterApplicationAsync(appRecord).ConfigureAwait(false);
                 m_registeredAppIds.Add(appId);
@@ -194,7 +189,7 @@ namespace Opc.Ua.Gds.Tests
                 applicationUri: string.Empty,
                 applicationType: 0,
                 productUri: string.Empty,
-                serverCapabilities: new string[] { "HDA" }.ToArrayOf()).ConfigureAwait(false);
+                serverCapabilities: s_stringValues3.ToArrayOf()).ConfigureAwait(false);
 
             Assert.That(applications, Is.Not.Empty,
                 "Should find at least one app with HDA capability.");
@@ -444,5 +439,9 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private NodeId m_directoryNodeId;
+
+        private static readonly string[] s_stringValues1 = ["DA", "HDA"];
+        private static readonly string[] s_stringValues2 = ["AC"];
+        private static readonly string[] s_stringValues3 = ["HDA"];
     }
 }

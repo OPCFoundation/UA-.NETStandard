@@ -196,7 +196,7 @@ namespace Opc.Ua.OpenUsd.Tests
 
             Assert.That(ok, Is.True, "matrix4d[] rows authored as nested tuples must not be dropped");
             Assert.That(v.TryGetValue(out MatrixOf<double> m), Is.True);
-            Assert.That(m.Dimensions, Is.EqualTo(new[] { 2, 16 }));
+            Assert.That(m.Dimensions, Is.EqualTo(s_intValues1));
         }
 
         [Test]
@@ -213,7 +213,7 @@ namespace Opc.Ua.OpenUsd.Tests
 
             Assert.That(ok, Is.True);
             Assert.That(v.TryGetValue(out MatrixOf<float> m), Is.True);
-            Assert.That(m.Dimensions, Is.EqualTo(new[] { 2, 3 }));
+            Assert.That(m.Dimensions, Is.EqualTo(s_intValues2));
         }
 
         [Test]
@@ -369,5 +369,8 @@ namespace Opc.Ua.OpenUsd.Tests
             Assert.That(v.TryGetValue(out ulong recovered), Is.True);
             Assert.That(recovered, Is.EqualTo(ulong.MaxValue));
         }
+
+        private static readonly int[] s_intValues1 = [2, 16];
+        private static readonly int[] s_intValues2 = [2, 3];
     }
 }

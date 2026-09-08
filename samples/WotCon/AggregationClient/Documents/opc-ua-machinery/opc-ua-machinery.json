@@ -1,1 +1,222 @@
-{"@context":["https://www.w3.org/2022/wot/td/v1.1",{"@language":"en","ns1":"http://opcfoundation.org/UA/Machinery/","ns2":"http://opcfoundation.org/UA/DI/","ua":"http://opcfoundation.org/UA/","uav":"http://opcfoundation.org/UA/WoT-Binding/"}],"@type":["tm:ThingModel","uav:objectType"],"description":"Interface containing information of the identification of a machine set by the customer","links":[{"href":"nsu=http://opcfoundation.org/UA/Machinery/;i=1012","rel":"ua:InterfaceOf","uav:refId":"i=17603","uav:refName":"MachineIdentificationType"}],"properties":{"Location":{"@type":"uav:variableType","description":"To be used by end users to store the location of the machine in a scheme specific to the end user Servers shall support at least 60 Unicode characters for the clients writing this value, this means clients can expect to be able to write strings with a length of 60 Unicode characters into that field.","links":[{"href":"i=68","rel":"ua:HasTypeDefinition"}],"observable":true,"title":"Location","type":"string","uav:browseName":"ns1:Location","uav:id":"nsu=http://opcfoundation.org/UA/Machinery/;i=6028","uav:mapToType":"i=12","uav:modellingRule":"Optional"}},"title":"OPC UA Machinery","uav:bindingVersion":"1.1","uav:browseName":"ns1:IMachineTagNameplateType","uav:id":"nsu=http://opcfoundation.org/UA/Machinery/;i=1011"}
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "@language": "en",
+      "ns1": "http://opcfoundation.org/UA/Machinery/",
+      "ns2": "http://opcfoundation.org/UA/DI/",
+      "ua": "http://opcfoundation.org/UA/",
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/"
+    },
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": [
+    "tm:ThingModel",
+    "uav:objectType"
+  ],
+  "description": "Interface containing information of the identification of a machine set by the customer",
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1012",
+      "rel": "ua:InterfaceOf",
+      "uav:refId": "i=17603",
+      "uav:refName": "MachineIdentificationType"
+    }
+  ],
+  "properties": {
+    "Location": {
+      "@type": "uav:variableType",
+      "description": "To be used by end users to store the location of the machine in a scheme specific to the end user Servers shall support at least 60 Unicode characters for the clients writing this value, this means clients can expect to be able to write strings with a length of 60 Unicode characters into that field.",
+      "links": [
+        {
+          "href": "i=68",
+          "rel": "ua:HasTypeDefinition"
+        }
+      ],
+      "observable": true,
+      "title": "Location",
+      "type": "string",
+      "uav:browseName": "ns1:Location",
+      "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=6028",
+      "uav:mapToType": "i=12",
+      "uav:modellingRule": "Optional"
+    }
+  },
+  "title": "IMachineTagNameplateType",
+  "uav:bindingVersion": "1.1",
+  "uav:browseName": "ns1:IMachineTagNameplateType",
+  "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=1011",
+  "uav:nodes": {
+    "@type": "uav:NodeModel",
+    "aliases": [
+      {
+        "alias": "Boolean",
+        "value": "i=1"
+      },
+      {
+        "alias": "Byte",
+        "value": "i=3"
+      },
+      {
+        "alias": "UInt16",
+        "value": "i=5"
+      },
+      {
+        "alias": "String",
+        "value": "i=12"
+      },
+      {
+        "alias": "DateTime",
+        "value": "i=13"
+      },
+      {
+        "alias": "QualifiedName",
+        "value": "i=20"
+      },
+      {
+        "alias": "LocalizedText",
+        "value": "i=21"
+      },
+      {
+        "alias": "Organizes",
+        "value": "i=35"
+      },
+      {
+        "alias": "HasModellingRule",
+        "value": "i=37"
+      },
+      {
+        "alias": "HasTypeDefinition",
+        "value": "i=40"
+      },
+      {
+        "alias": "HasSubtype",
+        "value": "i=45"
+      },
+      {
+        "alias": "HasProperty",
+        "value": "i=46"
+      },
+      {
+        "alias": "HasComponent",
+        "value": "i=47"
+      },
+      {
+        "alias": "IdType",
+        "value": "i=256"
+      },
+      {
+        "alias": "NumericRange",
+        "value": "i=291"
+      },
+      {
+        "alias": "HasInterface",
+        "value": "i=17603"
+      },
+      {
+        "alias": "HasAddIn",
+        "value": "i=17604"
+      }
+    ],
+    "extensions": [
+      "<ua:ModelInfo Tool=\"UaModeler\" Hash=\"1kZ2yQ20PUIIUHL71Tn8vA==\" Version=\"1.6.5\" xmlns:ua=\"http://unifiedautomation.com/Configuration/NodeSet.xsd\" />"
+    ],
+    "models": [
+      {
+        "modelUri": "http://opcfoundation.org/UA/Machinery/",
+        "publicationDate": "2021-02-25T00:00:00Z",
+        "requiredModels": [
+          {
+            "modelUri": "http://opcfoundation.org/UA/",
+            "publicationDate": "2020-07-15T00:00:00Z",
+            "version": "1.04.7"
+          },
+          {
+            "modelUri": "http://opcfoundation.org/UA/DI/",
+            "publicationDate": "2020-06-02T00:00:00Z",
+            "version": "1.02.2"
+          }
+        ],
+        "version": "1.01.0"
+      }
+    ],
+    "namespaceUris": [
+      "http://opcfoundation.org/UA/Machinery/",
+      "http://opcfoundation.org/UA/DI/"
+    ],
+    "nodes": [
+      {
+        "browseName": "1:IMachineTagNameplateType",
+        "description": [
+          {
+            "locale": "en",
+            "value": "Interface containing information of the identification of a machine set by the customer"
+          }
+        ],
+        "displayName": [
+          {
+            "value": "IMachineTagNameplateType"
+          }
+        ],
+        "documentation": "https://reference.opcfoundation.org/v104/Machinery/v101/docs/8.5",
+        "isAbstract": true,
+        "nodeClass": "ObjectType",
+        "nodeId": "ns=1;i=1011",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasSubtype",
+            "target": "ns=2;i=15048"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasInterface",
+            "target": "ns=1;i=1012"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6028"
+          }
+        ],
+        "superType": "ns=2;i=15048"
+      },
+      {
+        "accessLevel": 3,
+        "browseName": "1:Location",
+        "dataType": "String",
+        "description": [
+          {
+            "locale": "en",
+            "value": "To be used by end users to store the location of the machine in a scheme specific to the end user Servers shall support at least 60 Unicode characters for the clients writing this value, this means clients can expect to be able to write strings with a length of 60 Unicode characters into that field."
+          }
+        ],
+        "displayName": [
+          {
+            "value": "Location"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6028",
+        "parentNodeId": "ns=1;i=1011",
+        "references": [
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=1011"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          }
+        ],
+        "typeDefinition": "i=68"
+      }
+    ],
+    "profileVersion": "1.0"
+  }
+}
