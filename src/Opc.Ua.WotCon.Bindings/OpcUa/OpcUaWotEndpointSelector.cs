@@ -44,9 +44,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
     /// The clause constrains a choice among the endpoints a Server already
     /// offers and nothing else. Certificate trust and trust-list policy, the
     /// filtering of endpoints on any other attribute, transport-profile
-    /// negotiation and the user-token policy within an endpoint stay with the
-    /// application's own security configuration, so none of them is decided
-    /// here.
+    /// negotiation and the choice among compatible user-token policies stay
+    /// with the application's own security configuration. An explicit token
+    /// kind filters endpoints that do not advertise that kind.
     /// </remarks>
     public static class OpcUaWotEndpointSelector
     {
@@ -69,6 +69,22 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 floor.Permits(
                     endpoint.SecurityMode.ToString(),
                     GetSecurityPolicyName(endpoint.SecurityPolicyUri));
+        }
+
+        /// <summary>
+        /// Determines whether an endpoint satisfies the floor and one complete
+        /// alternative, including support for its required user-token kind.
+        /// </summary>
+        public static bool Satisfies(
+            EndpointDescription endpoint,
+            WotSecurityFloor? floor,
+            ArrayOf<WotOpcUaSecurityRequirement> requirements)
+        {
+            return Satisfies(endpoint, floor) &&
+                (requirements.IsEmpty || requirements.Contains(requirement =>
+                    requirement.Satisfies(endpoint) &&
+                    (!requirement.UserIdentityToken.HasValue || endpoint.UserIdentityTokens.Contains(policy =>
+                        policy is not null && policy.TokenType == requirement.UserIdentityToken.Value))));
         }
 
         /// <summary>
@@ -96,6 +112,18 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         public static EndpointDescription? Select(
             ArrayOf<EndpointDescription> endpoints, WotSecurityFloor? floor)
         {
+            return Select(endpoints, floor, []);
+        }
+
+        /// <summary>
+        /// Selects the strongest endpoint that satisfies the floor and one
+        /// complete alternative, including its advertised user-token kind.
+        /// </summary>
+        public static EndpointDescription? Select(
+            ArrayOf<EndpointDescription> endpoints,
+            WotSecurityFloor? floor,
+            ArrayOf<WotOpcUaSecurityRequirement> requirements)
+        {
             EndpointDescription? best = null;
             if (endpoints.IsNull)
             {
@@ -104,7 +132,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             for (int ii = 0; ii < endpoints.Count; ii++)
             {
                 EndpointDescription candidate = endpoints[ii];
-                if (candidate is null || !Satisfies(candidate, floor))
+                if (candidate is null || !Satisfies(candidate, floor, requirements))
                 {
                     continue;
                 }
@@ -125,14 +153,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// <returns>The policy name.</returns>
         public static string GetSecurityPolicyName(string? securityPolicyUri)
         {
-            const string prefix = global::Opc.Ua.Namespaces.OpcUa + "SecurityPolicy#";
-            if (securityPolicyUri is null ||
-                !securityPolicyUri.StartsWith(prefix, StringComparison.Ordinal))
-            {
-                return string.Empty;
-            }
-            string name = securityPolicyUri.Substring(prefix.Length);
-            return WotBindingConformance.IsSecurityPolicy(name) ? name : string.Empty;
+            return WotOpcUaSecurityRequirement.GetSecurityPolicyName(securityPolicyUri);
         }
 
         /// <summary>

@@ -486,7 +486,10 @@ WoT Binding Section 5.7.1 lets an `auto` security scheme state a floor:
 }
 ```
 
-The planner compiles it onto `WotCompiledForm.SecurityFloor`. A floor the Binding cannot
+The planner compiles a shared floor onto `WotCompiledForm.SecurityFloor`. When a
+`oneOf` combination offers different floors, each remains attached to its own
+`WotCompiledForm.OpcUaSecurityRequirements` alternative instead of becoming an
+unconditional floor on every alternative. A floor the Binding cannot
 read — one carried by a scheme other than `auto`, or naming a mode or policy Section 5.7
 does not — fails the form (`InvalidSecurityFloor`) instead of compiling without the
 constraint.
@@ -497,7 +500,8 @@ the *rules* are made here, and the executor never opens a session it could not h
 chosen:
 
 * `OpcUaWotBindingOptions.ConstrainedSessionFactory` receives an
-  `OpcUaWotSessionRequest` carrying the floor, so a caller's own factory can discard
+  `OpcUaWotSessionRequest` carrying `SecurityRequirements` and a shared `MinimumSecurity`,
+  so a caller's own factory can discard
   endpoints before opening a channel.
 * `OpcUaWotBindingOptions.EndpointDiscovery` together with
   `SelectedEndpointSessionFactory` is the **built-in** path: the executor calls
@@ -511,7 +515,7 @@ chosen:
   `BadSecurityModeRejected` and no session is opened: a client **shall** fail and report
   rather than fall back below a stated floor.
 * The endpoint-blind `SessionFactory` stays exactly as it was where the form states **no**
-  floor. A form that states one and finds only that factory configured fails with
+  floor or exact requirement. A constrained form with only that factory configured fails with
   `BadConfigurationError` naming what to configure, rather than opening a session through
   a factory that could not honour the floor and rejecting whatever endpoint it happened
   to pick — a false negative that reads as "no endpoint is strong enough" even when the
@@ -524,6 +528,32 @@ chosen:
 The clause constrains a choice among the endpoints a Server already offers and nothing
 else: certificate trust, trust-list policy, filtering on any other endpoint attribute and
 transport-profile negotiation stay with the application's own security configuration.
+
+The explicit `uav:channelsec` scheme requires an exact mode and complete standard
+policy identity, not a minimum strength. `uav:authentication` requires the actual
+session's `Anonymous`, `UserName`, `Certificate`, or `IssuedToken` identity kind.
+The planner preserves `allOf` conjunctions and `oneOf` alternatives without mixing
+the channel of one alternative with the identity of another. Invalid references,
+cycles, contradictory requirements, and configured depth/alternative limits are
+reported before connection; requirements are not truncated. An optional
+`uav:issueToken` remains a secret-free security-scheme reference for the factory's
+out-of-band credential provider, not an issuer URL or a token embedded in the TD.
+
+Factories that previously read only `MinimumSecurity` must also honor
+`SecurityRequirements`. The built-in discovery path filters both channel constraints
+and advertised user-token kinds, retaining the existing deterministic ranking among
+eligible endpoints. Custom selection can use the same overload:
+
+```csharp
+EndpointDescription? selected = OpcUaWotEndpointSelector.Select(
+    discovered, request.MinimumSecurity, request.SecurityRequirements);
+```
+
+The executor verifies the established session again: channel mismatches return
+`BadSecurityModeRejected`, and a non-matching actual identity returns
+`BadIdentityTokenRejected`. Rejected owned sessions are disposed; borrowed sessions
+are not. Certificate trust, credential acquisition, and the choice among compatible
+token policies remain application-controlled.
 
 ## Adding your own binding
 

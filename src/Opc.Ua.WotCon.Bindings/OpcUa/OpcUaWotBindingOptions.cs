@@ -37,8 +37,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
 {
     /// <summary>
     /// The request a session factory answers: the endpoint the compiled form
-    /// targets and the security floor WoT Binding Section 5.7.1 puts on
-    /// selecting an endpoint at it.
+    /// targets, its exact security alternatives, and any shared floor.
     /// </summary>
     /// <remarks>
     /// The floor is handed to the factory rather than applied behind it because
@@ -73,15 +72,36 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         }
 
         /// <summary>
+        /// Initializes a session request with its exact security alternatives.
+        /// </summary>
+        public OpcUaWotSessionRequest(
+            string endpointUrl,
+            WotSecurityFloor? minimumSecurity,
+            string? affordanceName,
+            ArrayOf<WotOpcUaSecurityRequirement> securityRequirements)
+            : this(endpointUrl, minimumSecurity, affordanceName)
+        {
+            WotOpcUaSecurityRequirement.Validate(securityRequirements, nameof(securityRequirements));
+            SecurityRequirements = securityRequirements;
+        }
+
+        /// <summary>
         /// Gets the endpoint the compiled form targets.
         /// </summary>
         public string EndpointUrl { get; }
 
         /// <summary>
         /// Gets the security floor the document states for an <c>auto</c>
-        /// endpoint selection, or <c>null</c> when it constrains nothing.
+        /// endpoint selection when all alternatives agree. Per-alternative
+        /// floors remain available through <see cref="SecurityRequirements"/>.
         /// </summary>
         public WotSecurityFloor? MinimumSecurity { get; }
+
+        /// <summary>
+        /// Gets the exact security alternatives the factory must honor.
+        /// Every constraint in one alternative must hold.
+        /// </summary>
+        public ArrayOf<WotOpcUaSecurityRequirement> SecurityRequirements { get; }
 
         /// <summary>
         /// Gets the name of the affordance the session serves, for logging and
@@ -104,12 +124,10 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// </summary>
         /// <remarks>
         /// The delegate learns the endpoint URL and nothing else, so it cannot
-        /// honour the <c>uav:minimumSecurity</c> floor of WoT Binding
-        /// Section 5.7.1 on its own. The executor still enforces the floor
-        /// against the endpoint the returned session reports, and fails closed
-        /// when the session is below it; a caller whose factory should apply
-        /// the floor while choosing an endpoint sets
-        /// <see cref="ConstrainedSessionFactory"/> instead.
+        /// honor document-stated exact requirements or an automatic-selection
+        /// floor. Such a form requires <see cref="ConstrainedSessionFactory"/>
+        /// or the discovery/selected-endpoint factory pair before connecting.
+        /// Forms without these requirements keep the existing behavior.
         /// </remarks>
         public Func<string, CancellationToken, ValueTask<ISession>>? SessionFactory { get; set; }
 
@@ -125,7 +143,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
 
         /// <summary>
         /// Gets or sets the factory that connects an <see cref="ISession"/> for a
-        /// request carrying the security floor of WoT Binding Section 5.7.1. It
+        /// request carrying exact alternatives and security floors. It
         /// takes precedence over <see cref="SessionFactory"/>.
         /// </summary>
         public ConstrainedSessionFactoryDelegate? ConstrainedSessionFactory { get; set; }
@@ -159,7 +177,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// selection rules of WoT Binding Section 5.7.1 to. Configured together
         /// with <see cref="SelectedEndpointSessionFactory"/>, it makes the
         /// deterministic selection of <see cref="OpcUaWotEndpointSelector"/>
-        /// the built-in path for a form that states a security floor.
+        /// the built-in path for a form that states security requirements.
         /// </summary>
         /// <remarks>
         /// Discovery is a delegate rather than an internal call because

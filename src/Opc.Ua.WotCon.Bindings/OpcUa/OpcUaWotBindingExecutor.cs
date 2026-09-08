@@ -88,6 +88,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             try
             {
                 EnforceSecurityFloor(session, form, floor);
+                EnforceExactSecurity(session, form);
             }
             catch (ServiceResultException)
             {
@@ -126,13 +127,14 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             WotCompiledForm form,
             CancellationToken cancellationToken)
         {
-            var request = new OpcUaWotSessionRequest(endpoint, floor, form.AffordanceName);
+            var request = new OpcUaWotSessionRequest(
+                endpoint, floor, form.AffordanceName, form.OpcUaSecurityRequirements);
             if (m_options.ConstrainedSessionFactory is not null)
             {
                 return await m_options.ConstrainedSessionFactory(request, cancellationToken)
                     .ConfigureAwait(false);
             }
-            bool constrained = floor is not null && !floor.IsEmpty;
+            bool constrained = (floor is not null && !floor.IsEmpty) || !request.SecurityRequirements.IsEmpty;
             if (constrained && HasBuiltInSelection(m_options))
             {
                 return await SelectAndConnectAsync(request, form, cancellationToken)
@@ -142,11 +144,11 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             {
                 throw new ServiceResultException(
                     StatusCodes.BadConfigurationError,
-                    $"The '{form.AffordanceName}' form states the security floor {floor}, but the " +
+                    $"The '{form.AffordanceName}' form states security constraints, but the " +
                     "executor is configured only with the endpoint-blind SessionFactory, which " +
-                    "cannot discard an endpoint below the floor before connecting to it. " +
+                    "cannot apply the document's requirements before connecting. " +
                     "Configure ConstrainedSessionFactory, or EndpointDiscovery together with " +
-                    "SelectedEndpointSessionFactory, so the floor is applied where the endpoint " +
+                    "SelectedEndpointSessionFactory, so the requirements are applied where the endpoint " +
                     "is chosen (WoT Binding Section 5.7.1).");
             }
             if (m_options.SessionFactory is not null)
@@ -176,16 +178,16 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 .EndpointDiscovery!(request.EndpointUrl, cancellationToken)
                 .ConfigureAwait(false);
             EndpointDescription? selected = OpcUaWotEndpointSelector.Select(
-                discovered, request.MinimumSecurity);
+                discovered, request.MinimumSecurity, request.SecurityRequirements);
             if (selected is null)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityModeRejected,
-                    $"The '{form.AffordanceName}' form states the security floor " +
-                    $"{request.MinimumSecurity}, and none of the " +
+                    "None of the " +
                     $"{(discovered.IsNull ? 0 : discovered.Count)} endpoints " +
-                    $"'{request.EndpointUrl}' offers is at or above it. A client shall fail and " +
-                    "report rather than fall back below a stated floor " +
+                    $"'{request.EndpointUrl}' offers satisfies the security alternatives of " +
+                    $"'{form.AffordanceName}'. A client shall fail and " +
+                    "report rather than discard an exact constraint or fall below its floor " +
                     "(WoT Binding Section 5.7.1).");
             }
             return await m_options
@@ -201,6 +203,29 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         {
             return options.EndpointDiscovery is not null &&
                 options.SelectedEndpointSessionFactory is not null;
+        }
+
+        private static void EnforceExactSecurity(ISession session, WotCompiledForm form)
+        {
+            if (form.OpcUaSecurityRequirements.IsEmpty)
+            {
+                return;
+            }
+            EndpointDescription? endpoint = session.ConfiguredEndpoint?.Description;
+            if (endpoint is null ||
+                !form.OpcUaSecurityRequirements.Contains(requirement => requirement.Satisfies(endpoint)))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityModeRejected,
+                    $"The session does not satisfy the exact channel requirements of '{form.AffordanceName}'.");
+            }
+            if (!form.OpcUaSecurityRequirements.Contains(requirement =>
+                requirement.Satisfies(endpoint) && requirement.SatisfiesIdentity(session.Identity?.TokenType)))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadIdentityTokenRejected,
+                    $"The session identity does not satisfy the requirements of '{form.AffordanceName}'.");
+            }
         }
 
         /// <summary>

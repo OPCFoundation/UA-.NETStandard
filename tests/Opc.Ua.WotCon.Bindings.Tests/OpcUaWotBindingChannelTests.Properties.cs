@@ -33,12 +33,67 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Tests;
+using Opc.Ua.WotCon.Bindings.OpcUa;
+using Opc.Ua.WotCon.Bindings.Planners;
 
 namespace Opc.Ua.WotCon.Bindings.Tests
 {
     public sealed partial class OpcUaWotBindingChannelTests
     {
+        [TestCase("Anonymous", true)]
+        [TestCase("UserName", false)]
+        public async Task ExplicitSecurityChecksTheEstablishedLiveSession(string requiredToken, bool accepted)
+        {
+            var registry = new WotProtocolBinderRegistry(
+                [new OpcUaBindingPlanner()],
+                [new OpcUaWotBindingExecutor(new OpcUaWotBindingOptions
+                {
+                    ConstrainedSessionFactory = (_, _) => new ValueTask<ISession>(m_session),
+                    DisposeSession = false
+                })],
+                endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
+            string href = new UriBuilder("opc.tcp", "localhost", m_serverFixture.Port).Uri.AbsoluteUri;
+            string document = $$"""
+                {
+                  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+                  "title": "Explicit live session contract",
+                  "securityDefinitions": {
+                    "channel": { "scheme": "uav:channelsec", "uav:securityMode": "None", "uav:securityPolicy": "None" },
+                    "identity": { "scheme": "uav:authentication", "uav:userIdentityToken": "{{requiredToken}}" },
+                    "combined": { "scheme": "combo", "allOf": ["channel", "identity"] }
+                  },
+                  "security": "combined",
+                  "properties": { "time": {
+                    "type": "string",
+                    "forms": [{ "href": "{{href}}?id=i%3D2258", "op": "readproperty" }]
+                  }
+                  }
+                }
+                """;
+            WotBindingPlan plan = registry.Prepare(WotBindingPlanRequest.FromDocument(
+                "live-security", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document)));
+            Assert.That(plan.Diagnostics.Where(diagnostic => diagnostic.IsError), Is.Empty);
+            WotCompiledForm form = plan.CompiledForms.Single();
+
+            if (accepted)
+            {
+                await using IWotBindingChannel channel = await registry.OpenChannelAsync(form).ConfigureAwait(false);
+                WotReadResult value = await channel.ReadAsync().ConfigureAwait(false);
+                Assert.That(value.Status, Is.EqualTo(StatusCodes.Good));
+                Assert.That(value.Value.WrappedValue.TryGetValue(out DateTimeUtc time), Is.True);
+                Assert.That(time, Is.GreaterThan(DateTimeUtc.MinValue));
+            }
+            else
+            {
+                ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await registry.OpenChannelAsync(form).ConfigureAwait(false));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+            }
+            Assert.That(m_session.Connected, Is.True);
+        }
+
         [Test]
         public async Task IndexedPropertyOperationsChangeOnlyRequestedUpstreamSlice()
         {

@@ -64,6 +64,16 @@ namespace Opc.Ua.WotCon.Bindings
         public int MaxPayloadBytes { get; set; } = 1024 * 1024;
 
         /// <summary>
+        /// Gets or sets the maximum number of compiled security alternatives.
+        /// </summary>
+        public int MaxSecurityAlternatives { get; set; } = 64;
+
+        /// <summary>
+        /// Gets or sets the maximum nesting depth of referenced security schemes.
+        /// </summary>
+        public int MaxSecurityDepth { get; set; } = 32;
+
+        /// <summary>
         /// Gets or sets the maximum Modbus register quantity for a read.
         /// </summary>
         public int MaxRegisterQuantity { get; set; } = 125;

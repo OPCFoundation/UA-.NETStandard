@@ -90,7 +90,17 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// A scheme not otherwise enumerated.
         /// </summary>
-        Other
+        Other,
+
+        /// <summary>
+        /// Exact OPC UA secure-channel mode and policy.
+        /// </summary>
+        OpcUaChannelSecurity,
+
+        /// <summary>
+        /// OPC UA user identity token authentication.
+        /// </summary>
+        OpcUaAuthentication
     }
 
     /// <summary>
@@ -226,6 +236,32 @@ namespace Opc.Ua.WotCon.Bindings
         public ImmutableArray<string> Combines { get; }
 
         /// <summary>
+        /// Gets the authored exact OPC UA channel mode, when present.
+        /// </summary>
+        public string? OpcUaSecurityMode { get; private init; }
+
+        /// <summary>
+        /// Gets the authored exact OPC UA policy name, when present.
+        /// </summary>
+        public string? OpcUaSecurityPolicy { get; private init; }
+
+        /// <summary>
+        /// Gets the authored OPC UA user identity token kind, when present.
+        /// </summary>
+        public string? OpcUaUserIdentityToken { get; private init; }
+
+        /// <summary>
+        /// Gets the referenced security scheme for issued-token acquisition, when declared.
+        /// </summary>
+        public string? OpcUaIssueToken { get; private init; }
+
+        internal bool DeclaresIssueToken { get; private init; }
+
+        internal bool CombinesAlternatives { get; private init; }
+
+        internal string? CombinationError { get; private init; }
+
+        /// <summary>
         /// Parses a <c>securityDefinitions</c> entry into a definition.
         /// </summary>
         public static WotSecurityDefinition Parse(string name, JsonElement definition)
@@ -270,7 +306,48 @@ namespace Opc.Ua.WotCon.Bindings
                 }
             }
             return new WotSecurityDefinition(
-                name, scheme, @in, parameterName, floor, declaresFloor, combines);
+                name, scheme, @in, parameterName, floor, declaresFloor, combines)
+            {
+                OpcUaSecurityMode = ReadString(definition, WotBindingConformance.SecurityModeTerm),
+                OpcUaSecurityPolicy = ReadString(definition, WotBindingConformance.SecurityPolicyTerm),
+                OpcUaUserIdentityToken = ReadString(definition, "uav:userIdentityToken"),
+                OpcUaIssueToken = ReadString(definition, "uav:issueToken"),
+                DeclaresIssueToken = definition.ValueKind == JsonValueKind.Object &&
+                    definition.TryGetProperty("uav:issueToken", out _),
+                CombinesAlternatives = definition.ValueKind == JsonValueKind.Object &&
+                    definition.TryGetProperty("oneOf", out _),
+                CombinationError = scheme == WotSecurityScheme.Combo ? ValidateCombination(definition) : null
+            };
+        }
+
+        private static string? ValidateCombination(JsonElement definition)
+        {
+            bool hasAll = definition.TryGetProperty("allOf", out JsonElement all);
+            bool hasOne = definition.TryGetProperty("oneOf", out JsonElement one);
+            if (hasAll == hasOne)
+            {
+                return "A combo must declare exactly one of allOf and oneOf.";
+            }
+            JsonElement values = hasOne ? one : all;
+            if (values.ValueKind != JsonValueKind.Array || values.GetArrayLength() == 0)
+            {
+                return "A security combination requires a non-empty array of scheme names.";
+            }
+            foreach (JsonElement value in values.EnumerateArray())
+            {
+                if (value.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(value.GetString()))
+                {
+                    return "Every combined security scheme reference must be a non-empty name.";
+                }
+            }
+            return null;
+        }
+
+        private static string? ReadString(JsonElement definition, string name)
+        {
+            return definition.ValueKind == JsonValueKind.Object &&
+                definition.TryGetProperty(name, out JsonElement value) &&
+                value.ValueKind == JsonValueKind.String ? value.GetString() : null;
         }
 
         /// <summary>
@@ -320,6 +397,10 @@ namespace Opc.Ua.WotCon.Bindings
                 "oauth2" => WotSecurityScheme.OAuth2,
                 "auto" => WotSecurityScheme.Auto,
                 "combo" => WotSecurityScheme.Combo,
+                "uav:channelsec" or WotBindingConformance.VocabularyNamespace + "channelsec" =>
+                    WotSecurityScheme.OpcUaChannelSecurity,
+                "uav:authentication" or WotBindingConformance.VocabularyNamespace + "authentication" =>
+                    WotSecurityScheme.OpcUaAuthentication,
                 _ => WotSecurityScheme.Other
             };
         }

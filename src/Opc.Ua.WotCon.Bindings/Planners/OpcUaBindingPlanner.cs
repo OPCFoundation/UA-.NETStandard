@@ -167,7 +167,9 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             }
             var addressing = new WotAddressingDescriptor(nodeId!, metadata);
             ImmutableArray<WotCredentialReference> security = ResolveSecurity(form, context, authority, diagnostics);
-            if (!TryResolveSecurityFloor(form, context, diagnostics, out WotSecurityFloor? securityFloor))
+            if (!TryResolveSecurityRequirements(
+                form, context, authority, diagnostics, out ArrayOf<WotOpcUaSecurityRequirement> exact,
+                out WotSecurityFloor? securityFloor))
             {
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
@@ -180,6 +182,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                     Identity, form.Kind, form.AffordanceName, form.JsonPointer, capability, op,
                     endpoint, addressing, operation, payload, security, Capability.IsExecutable,
                     targetMapping: null, eventSelection, securityFloor)
+                    .WithOpcUaSecurityRequirements(exact)
                     .WithConditionInvocation(WotConditionInvocation.FromAffordance(form)));
             }
 
@@ -467,71 +470,6 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         }
 
         /// <summary>
-        /// Resolves the security floor an <c>auto</c> scheme referenced by the
-        /// form puts on endpoint selection (WoT Binding Section 5.7.1).
-        /// </summary>
-        /// <remarks>
-        /// A floor the document declares but this Binding cannot read - one
-        /// carried by a scheme other than <c>auto</c>, or naming a mode or
-        /// policy Section 5.7 does not - fails the form rather than compiling
-        /// it without the constraint. A floor a client may quietly step below
-        /// states nothing, and a floor a client never learned about states
-        /// less.
-        /// </remarks>
-        private static bool TryResolveSecurityFloor(
-            WotAffordanceForm form,
-            WotBindingPlanContext context,
-            List<WotBindingDiagnostic> diagnostics,
-            out WotSecurityFloor? floor)
-        {
-            floor = null;
-            WotSecurityFloor? combined = null;
-            var visited = new HashSet<string>(StringComparer.Ordinal);
-            var pending = new Queue<string>();
-            foreach (string schemeName in form.SecuritySchemes)
-            {
-                pending.Enqueue(schemeName);
-            }
-            while (pending.Count > 0)
-            {
-                string schemeName = pending.Dequeue();
-                if (!visited.Add(schemeName) ||
-                    !context.SecurityDefinitions.TryGetValue(
-                        schemeName, out WotSecurityDefinition? definition))
-                {
-                    continue;
-                }
-                // A `combo` scheme is the standard way to require a secure
-                // channel and a user token together, so a floor stated on the
-                // channel scheme it combines is a floor the form is subject to.
-                foreach (string referenced in definition.Combines)
-                {
-                    pending.Enqueue(referenced);
-                }
-                if (definition.MinimumSecurity is { IsEmpty: false } stated)
-                {
-                    combined = Combine(combined, stated);
-                    continue;
-                }
-                if (definition.DeclaresMinimumSecurity)
-                {
-                    diagnostics.Add(WotBindingDiagnostic.Error(
-                        WotBindingDiagnosticCode.InvalidSecurityFloor,
-                        $"The '{schemeName}' security scheme declares " +
-                        $"'{WotBindingConformance.MinimumSecurityTerm}' but the floor cannot be " +
-                        "read: WoT Binding Section 5.7.1 carries it only on an 'auto' scheme and " +
-                        "only with the mode and policy names Section 5.7 lists.",
-                        "/securityDefinitions/" + WotAffordanceForm.EscapePointerToken(schemeName) +
-                            "/" + WotBindingConformance.MinimumSecurityTerm,
-                        WotBindingConformance.MinimumSecurityTerm));
-                    return false;
-                }
-            }
-            floor = combined;
-            return true;
-        }
-
-        /// <summary>
         /// Combines two floors into the stronger constraint in each dimension,
         /// which is what a form that references two constrained schemes means.
         /// </summary>
@@ -571,6 +509,272 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             WotBindingConformance.TryGetSecurityPolicyRank(left, out int leftRank);
             WotBindingConformance.TryGetSecurityPolicyRank(right, out int rightRank);
             return leftRank >= rightRank ? left : right;
+        }
+
+        private static bool TryResolveSecurityRequirements(
+            WotAffordanceForm form,
+            WotBindingPlanContext context,
+            string? endpoint,
+            List<WotBindingDiagnostic> diagnostics,
+            out ArrayOf<WotOpcUaSecurityRequirement> requirements,
+            out WotSecurityFloor? commonFloor)
+        {
+            requirements = [];
+            commonFloor = null;
+            if (context.Bounds.MaxSecurityAlternatives <= 0 || context.Bounds.MaxSecurityDepth <= 0)
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.BoundsExceeded, "Security compilation bounds must be positive."));
+                return false;
+            }
+            List<WotOpcUaSecurityRequirement> result = [new(null, null)];
+            var active = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string name in form.SecuritySchemes)
+            {
+                List<WotOpcUaSecurityRequirement>? expanded = Expand(name);
+                if (expanded is null)
+                {
+                    return false;
+                }
+                List<WotOpcUaSecurityRequirement>? merged = CombineAlternatives(result, expanded);
+                if (merged is null)
+                {
+                    return false;
+                }
+                result = merged;
+            }
+            if (result.Exists(requirement => requirement.SecurityMode.HasValue ||
+                requirement.SecurityPolicyUri is not null || requirement.UserIdentityToken.HasValue ||
+                requirement.MinimumSecurity is { IsEmpty: false }))
+            {
+                requirements = result.ToArrayOf();
+            }
+            commonFloor = result[0].MinimumSecurity;
+            foreach (WotOpcUaSecurityRequirement requirement in result)
+            {
+                if (requirement.MinimumSecurity?.SecurityMode != commonFloor?.SecurityMode ||
+                    requirement.MinimumSecurity?.SecurityPolicy != commonFloor?.SecurityPolicy)
+                {
+                    commonFloor = null;
+                    break;
+                }
+            }
+            return true;
+
+            List<WotOpcUaSecurityRequirement>? Expand(string name)
+            {
+                string pointer = "/securityDefinitions/" + WotAffordanceForm.EscapePointerToken(name);
+                if (active.Count >= context.Bounds.MaxSecurityDepth || !active.Add(name))
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.BoundsExceeded,
+                        "The security scheme graph is cyclic or exceeds the configured depth.", pointer));
+                    return null;
+                }
+                try
+                {
+                    if (!context.SecurityDefinitions.TryGetValue(name, out WotSecurityDefinition? definition))
+                    {
+                        if (name == "nosec_sc")
+                        {
+                            return [new(null, null)];
+                        }
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.UnknownSecurityScheme,
+                            $"The required security scheme '{name}' is not declared.", pointer));
+                        return null;
+                    }
+                    if (definition.CombinationError is not null)
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidFieldValue, definition.CombinationError, pointer));
+                        return null;
+                    }
+                    if (definition.DeclaresIssueToken && definition.Scheme != WotSecurityScheme.OpcUaAuthentication)
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidFieldValue,
+                            "Only an OPC UA authentication scheme can reference token acquisition.",
+                            pointer + "/uav:issueToken"));
+                        return null;
+                    }
+                    if (definition.DeclaresMinimumSecurity &&
+                        (definition.Scheme != WotSecurityScheme.Auto ||
+                         definition.MinimumSecurity is not { IsEmpty: false }))
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidSecurityFloor,
+                            $"The '{name}' security scheme declares an invalid minimum security floor; " +
+                            "only an auto scheme can carry a floor with recognized mode and policy names.",
+                            pointer + "/" + WotBindingConformance.MinimumSecurityTerm,
+                            WotBindingConformance.MinimumSecurityTerm));
+                        return null;
+                    }
+                    if (definition.Scheme == WotSecurityScheme.Combo)
+                    {
+                        List<WotOpcUaSecurityRequirement> combinations = definition.CombinesAlternatives
+                            ? [] : [new(null, null)];
+                        foreach (string child in definition.Combines)
+                        {
+                            List<WotOpcUaSecurityRequirement>? nested = Expand(child);
+                            if (nested is null)
+                            {
+                                return null;
+                            }
+                            if (definition.CombinesAlternatives)
+                            {
+                                combinations.AddRange(nested);
+                                if (!CheckBound(combinations.Count))
+                                {
+                                    return null;
+                                }
+                            }
+                            else
+                            {
+                                List<WotOpcUaSecurityRequirement>? merged = CombineAlternatives(combinations, nested);
+                                if (merged is null)
+                                {
+                                    return null;
+                                }
+                                combinations = merged;
+                            }
+                        }
+                        return combinations;
+                    }
+                    if (definition.Scheme == WotSecurityScheme.OpcUaAuthentication)
+                    {
+                        UserTokenType? requiredToken = definition.OpcUaUserIdentityToken switch
+                        {
+                            "Anonymous" => UserTokenType.Anonymous,
+                            "UserName" => UserTokenType.UserName,
+                            "Certificate" => UserTokenType.Certificate,
+                            "IssuedToken" => UserTokenType.IssuedToken,
+                            _ => null
+                        };
+                        if (requiredToken.HasValue)
+                        {
+                            WotCredentialReference? issuer = null;
+                            if (definition.DeclaresIssueToken)
+                            {
+                                if (requiredToken != UserTokenType.IssuedToken ||
+                                    string.IsNullOrEmpty(definition.OpcUaIssueToken) ||
+                                    !context.SecurityDefinitions.TryGetValue(
+                                        definition.OpcUaIssueToken!, out WotSecurityDefinition? issuerDefinition))
+                                {
+                                    diagnostics.Add(WotBindingDiagnostic.Error(
+                                        WotBindingDiagnosticCode.InvalidFieldValue,
+                                        "IssuedToken acquisition requires a declared security scheme name.",
+                                        pointer + "/uav:issueToken"));
+                                    return null;
+                                }
+                                if (Expand(definition.OpcUaIssueToken!) is null)
+                                {
+                                    return null;
+                                }
+                                issuer = WotCredentialReference.FromDefinition(issuerDefinition, BindingUri, endpoint);
+                            }
+                            return [new(null, null, requiredToken, null, issuer)];
+                        }
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidFieldValue,
+                            "The OPC UA authentication scheme requires a valid user token kind.", pointer));
+                        return null;
+                    }
+                    if (definition.Scheme != WotSecurityScheme.OpcUaChannelSecurity)
+                    {
+                        return [new(null, null, null, definition.MinimumSecurity)];
+                    }
+                    if (!WotBindingConformance.IsSecurityMode(definition.OpcUaSecurityMode) ||
+                        !WotBindingConformance.IsSecurityPolicy(definition.OpcUaSecurityPolicy))
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidFieldValue,
+                            "An OPC UA channel scheme requires a valid exact security mode and policy.", pointer));
+                        return null;
+                    }
+                    MessageSecurityMode mode = definition.OpcUaSecurityMode switch
+                    {
+                        "None" => MessageSecurityMode.None,
+                        "Sign" => MessageSecurityMode.Sign,
+                        _ => MessageSecurityMode.SignAndEncrypt
+                    };
+                    var channel = new WotOpcUaSecurityRequirement(
+                        mode, WotOpcUaSecurityRequirement.PolicyPrefix + definition.OpcUaSecurityPolicy);
+                    if (!channel.IsConsistent)
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.ConflictingFields,
+                            "Security mode None requires policy None, and a secured mode requires a secured policy.",
+                            pointer));
+                        return null;
+                    }
+                    return [channel];
+                }
+                finally
+                {
+                    active.Remove(name);
+                }
+            }
+
+            List<WotOpcUaSecurityRequirement>? CombineAlternatives(
+                List<WotOpcUaSecurityRequirement> left, List<WotOpcUaSecurityRequirement> right)
+            {
+                var combinations = new List<WotOpcUaSecurityRequirement>();
+                foreach (WotOpcUaSecurityRequirement first in left)
+                {
+                    foreach (WotOpcUaSecurityRequirement second in right)
+                    {
+                        if ((first.SecurityMode.HasValue && second.SecurityMode.HasValue &&
+                             first.SecurityMode != second.SecurityMode) ||
+                            (first.SecurityPolicyUri is not null && second.SecurityPolicyUri is not null &&
+                             first.SecurityPolicyUri != second.SecurityPolicyUri) ||
+                            (first.UserIdentityToken.HasValue && second.UserIdentityToken.HasValue &&
+                             first.UserIdentityToken != second.UserIdentityToken) ||
+                            (first.IssueTokenReference is not null && second.IssueTokenReference is not null &&
+                             first.IssueTokenReference.SchemeName != second.IssueTokenReference.SchemeName))
+                        {
+                            continue;
+                        }
+                        var combined = new WotOpcUaSecurityRequirement(
+                            first.SecurityMode ?? second.SecurityMode,
+                            first.SecurityPolicyUri ?? second.SecurityPolicyUri,
+                            first.UserIdentityToken ?? second.UserIdentityToken,
+                            second.MinimumSecurity is null ? first.MinimumSecurity :
+                                Combine(first.MinimumSecurity, second.MinimumSecurity),
+                            first.IssueTokenReference ?? second.IssueTokenReference);
+                        if (!combined.IsConsistent)
+                        {
+                            continue;
+                        }
+                        combinations.Add(combined);
+                        if (!CheckBound(combinations.Count))
+                        {
+                            return null;
+                        }
+                    }
+                }
+                if (combinations.Count == 0)
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.ConflictingFields,
+                        "The combined OPC UA schemes have no compatible mode, policy and identity combination.",
+                        form.Pointer("security")));
+                    return null;
+                }
+                return combinations;
+            }
+
+            bool CheckBound(int count)
+            {
+                if (count <= context.Bounds.MaxSecurityAlternatives)
+                {
+                    return true;
+                }
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.BoundsExceeded,
+                    "The security combinations exceed the configured alternative limit.", form.Pointer("security")));
+                return false;
+            }
         }
 
         private static bool IsOpcScheme(string scheme)
