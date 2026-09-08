@@ -610,12 +610,18 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        /// Reports a builder that was sealed while behavior registrations were still
-        /// pending, which means nothing will ever activate or release them.
+        /// Lets the builder drive behavior activation from its seal.
         /// </summary>
-        internal void WarnSealedWithPendingNodeBehaviors(int pending)
+        /// <remarks>
+        /// <see cref="NodeManagerBuilder"/> is not a subclass, so it cannot reach the
+        /// protected activation entry point directly. Sealing is the one point every
+        /// manager passes through, which is what makes activation reliable rather than
+        /// dependent on the manager also calling <see cref="CompleteConfigureAsync"/>.
+        /// </remarks>
+        internal ValueTask ActivateNodeBehaviorsFromSealAsync(
+            CancellationToken cancellationToken)
         {
-            m_logger?.SealedWithPendingNodeBehaviors(pending, GetType().Name);
+            return ActivateNodeBehaviorsAsync(cancellationToken);
         }
 
         /// <summary>
@@ -1404,23 +1410,5 @@ namespace Opc.Ua.Server.Fluent
         private readonly List<NodeManagerBuilder> m_attachedBuilders = [];
         private readonly Lock m_behaviorActivationsLock = new();
         private readonly List<NodeBehaviorActivation> m_behaviorActivations = [];
-    }
-
-    /// <summary>
-    /// Source-generated log messages for the fluent node manager base.
-    /// </summary>
-    internal static partial class FluentNodeManagerLog
-    {
-        [LoggerMessage(
-            EventId = ServerEventIds.FluentNodeManager + 0,
-            Level = LogLevel.Warning,
-            Message = "Sealed '{Manager}' with {Pending} node behavior registration(s) " +
-                "still pending; they will never activate or release. Complete the " +
-                "manager asynchronously (CompleteConfigureAsync or " +
-                "ActivateNodeBehaviorsAsync) before sealing.")]
-        public static partial void SealedWithPendingNodeBehaviors(
-            this ILogger logger,
-            int pending,
-            string manager);
     }
 }

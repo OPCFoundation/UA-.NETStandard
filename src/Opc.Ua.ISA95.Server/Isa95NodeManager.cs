@@ -1045,14 +1045,8 @@ namespace Opc.Ua.ISA95.Server
                     CreateStatusEventsAsync,
                     new EventPublishOptions { AlwaysOn = true });
 
-            // This second builder is created after the manager's only
-            // CompleteConfigureAsync call, so it drains its own behavior
-            // registrations — otherwise the event source's release would never be
-            // activated.
-            await ActivateNodeBehaviorsAsync(cancellationToken).ConfigureAwait(false);
-
-            // Sealing completes the root-notifier registration the Publish
-            // above staged, so the second builder pass has to be awaited.
+            // Sealing activates this pass's behaviors and completes the root-notifier
+            // registration the Publish above staged, so it has to be awaited.
             await builder.SealAsync(cancellationToken).ConfigureAwait(false);
         }
 
