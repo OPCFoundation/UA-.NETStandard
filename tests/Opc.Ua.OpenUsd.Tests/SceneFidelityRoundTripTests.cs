@@ -125,14 +125,14 @@ namespace Opc.Ua.OpenUsd.Tests
             // Time samples: the default and every sample survive the address-space round trip.
             UsdAttribute spin = prim.Attributes.Single(a => a.Name == "spin");
             UsdTestHelpers.AssertDouble(spin.Value, 5.0);
-            Assert.That(spin.TimeSamples.Keys, Is.EqualTo(new[] { 0.0, 24.0, 48.0 }));
+            Assert.That(spin.TimeSamples.Keys, Is.EqualTo(s_doubleValues1));
             UsdTestHelpers.AssertDouble(spin.TimeSamples[48.0], 180.0);
 
             // Variant branches: the selection and every authored branch (with body) survive.
             UsdVariantSet set = prim.VariantSets.Single();
             Assert.That(set.SetName, Is.EqualTo("lod"));
             Assert.That(set.Selection, Is.EqualTo("high"));
-            Assert.That(set.Variants.Select(v => v.Name), Is.EqualTo(new[] { "high", "low" }));
+            Assert.That(set.Variants.Select(v => v.Name), Is.EqualTo(s_stringValues1));
             Assert.That(
                 set.Variants[0].Attributes.Single(a => a.Name == "resolution").Value,
                 Is.EqualTo(UsdValue.From(1024L)));
@@ -151,10 +151,14 @@ namespace Opc.Ua.OpenUsd.Tests
             // attribute — the variant-branch attribute ("resolution") is authoring provenance and
             // is deliberately excluded (§7.4).
             Assert.That(
-                ms.Result.HistoricalAccessByPath.Keys, Is.EqualTo(new[] { "/Turntable.spin" }));
+                ms.Result.HistoricalAccessByPath.Keys, Is.EqualTo(s_stringValues2));
             UsdHistoricalAccess ha = ms.Result.HistoricalAccessByPath["/Turntable.spin"];
-            Assert.That(ha.Samples.Select(s => s.TimeCode), Is.EqualTo(new[] { 0.0, 24.0, 48.0 }));
+            Assert.That(ha.Samples.Select(s => s.TimeCode), Is.EqualTo(s_doubleValues1));
             Assert.That(ms.Attr("/Turntable.spin").Historizing, Is.True);
         }
+
+        private static readonly double[] s_doubleValues1 = [0.0, 24.0, 48.0];
+        private static readonly string[] s_stringValues1 = ["high", "low"];
+        private static readonly string[] s_stringValues2 = ["/Turntable.spin"];
     }
 }

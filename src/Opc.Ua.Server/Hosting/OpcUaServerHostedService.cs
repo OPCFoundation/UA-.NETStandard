@@ -77,6 +77,9 @@ namespace Opc.Ua.Server.Hosting
         private StandardServer? m_server;
         private bool m_ownsApplication;
 
+        /// <summary>
+        /// Initializes the hosted server with its options, injected registrations, factories, and lifecycle services.
+        /// </summary>
         public OpcUaServerHostedService(
             IOptions<OpcUaServerOptions> options,
             ITelemetryContext telemetry,
@@ -194,6 +197,10 @@ namespace Opc.Ua.Server.Hosting
 
             m_server = m_serverFactory.CreateServer(m_telemetry, m_timeProvider);
             m_nodeManagerLifecycle.Attach(m_server.NodeManagerLifecycle);
+            if (m_server is not DependencyInjectionStandardServer)
+            {
+                OpcUaServerRegistrationStaging.Apply(m_server, m_services);
+            }
 
             // Complex-type loading is on by default (StandardServer.LoadComplexTypes);
             // build and register stand-in encodeables for runtime-loaded custom
@@ -213,6 +220,8 @@ namespace Opc.Ua.Server.Hosting
             m_server.RedundantServerSetProvider = m_services.GetService<IRedundantServerSetProvider>();
             m_server.GetEndpointsDirector = m_services.GetService<IGetEndpointsDirector>();
             m_server.SubscriptionStore = m_services.GetService<ISubscriptionStore>();
+            m_server.HistoryContinuationPointStore =
+                m_services.GetService<IHistoryContinuationPointStore>();
             m_server.MonitoredItemQueueFactory = m_services.GetService<IMonitoredItemQueueFactory>();
             if (m_services.GetService<ITransportBindingRegistry>() is { } transportBindings)
             {
@@ -471,15 +480,6 @@ namespace Opc.Ua.Server.Hosting
             }
 
             IServerInternal server = m_server.CurrentInstance;
-            if (server is IHistorianRegistryProvider historianRegistryProvider)
-            {
-                foreach (OpcUaServerHistorianRegistration registration in
-                    m_services.GetServices<OpcUaServerHistorianRegistration>())
-                {
-                    historianRegistryProvider.HistorianRegistry.RegisterDefault(registration.Provider);
-                }
-            }
-
             if (server is IAliasNameStoreRegistryProvider aliasNameStoreRegistryProvider)
             {
                 foreach (IAliasNameStoreRegistry registry in m_services.GetServices<IAliasNameStoreRegistry>())
@@ -612,6 +612,9 @@ namespace Opc.Ua.Server.Hosting
             return false;
         }
 
+        /// <summary>
+        /// Stops the hosted server and disposes the application instance when this service owns it.
+        /// </summary>
         public override async Task StopAsync(CancellationToken cancellationToken)
         {
             await base.StopAsync(cancellationToken).ConfigureAwait(false);
@@ -643,6 +646,9 @@ namespace Opc.Ua.Server.Hosting
             }
         }
 
+        /// <summary>
+        /// Detaches the node-manager lifecycle and disposes the server and background service.
+        /// </summary>
         public override void Dispose()
         {
             if (m_server is not null)
@@ -659,6 +665,9 @@ namespace Opc.Ua.Server.Hosting
     /// </summary>
     internal static partial class OpcUaServerHostedServiceLog
     {
+        /// <summary>
+        /// Logs a startup task failure after the OPC UA server has started.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 0, Level = LogLevel.Error,
             Message = "Server startup task {StartupTask} failed after server start.")]
         public static partial void ServerStartupTaskStartupTaskFailedAfterServer(
@@ -666,30 +675,48 @@ namespace Opc.Ua.Server.Hosting
             Exception ex,
             string? startupTask);
 
+        /// <summary>
+        /// Logs an endpoint on which the OPC UA server is listening.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 1, Level = LogLevel.Information,
             Message = "OPC UA server listening at {Endpoint}.")]
         public static partial void OPCUAServerListeningAtEndpoint(this ILogger logger, string endpoint);
 
+        /// <summary>
+        /// Logs a configured user token policy that lacks a matching identity authenticator.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 2, Level = LogLevel.Warning,
             Message = "User token policy {TokenType} is configured without a matching identity authenticator.")]
         public static partial void UserTokenPolicyTokenTypeIsConfiguredWithout(
             this ILogger logger,
             UserTokenType tokenType);
 
+        /// <summary>
+        /// Logs the start of hosted OPC UA server shutdown.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 3, Level = LogLevel.Information,
             Message = "Stopping OPC UA server...")]
         public static partial void StoppingOPCUAServer(this ILogger logger);
 
+        /// <summary>
+        /// Logs an exception while stopping the hosted OPC UA server.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 4, Level = LogLevel.Warning,
             Message = "Error while stopping OPC UA server.")]
         public static partial void ErrorWhileStoppingOPCUAServer(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs the file used to load the OPC UA server configuration.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 5, Level = LogLevel.Information,
             Message = "Loading OPC UA server configuration from file {ConfigurationFile}.")]
         public static partial void LoadingOPCUAServerConfigurationFromFile(
             this ILogger logger,
             string configurationFile);
 
+        /// <summary>
+        /// Logs loading of the OPC UA server configuration from a stream.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 6, Level = LogLevel.Information,
             Message = "Loading OPC UA server configuration from a stream.")]
         public static partial void LoadingOPCUAServerConfigurationFromStream(this ILogger logger);

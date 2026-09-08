@@ -69,6 +69,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
         }
 
+        private static OperationContext SessionContext()
+        {
+            return new OperationContext(
+                new RequestHeader(),
+                null,
+                RequestType.CreateMonitoredItems,
+                RequestLifetime.None,
+                new Mock<ISession>().Object);
+        }
+
+        /// <summary>
+        /// Verifies that sampling-group manager construction rejects a null server.
+        /// </summary>
         [Test]
         public void ConstructorWithNullServerThrows()
         {
@@ -79,6 +92,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that sampling-group manager construction rejects a null node manager.
+        /// </summary>
         [Test]
         public void ConstructorWithNullNodeManagerThrows()
         {
@@ -89,6 +105,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that an empty sampling-rate collection selects the default rates.
+        /// </summary>
         [Test]
         public void ConstructorWithEmptySamplingRatesUsesDefaults()
         {
@@ -98,6 +117,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(manager, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that a null sampling-rate collection selects the default rates.
+        /// </summary>
         [Test]
         public void ConstructorWithNullSamplingRatesUsesDefaults()
         {
@@ -110,10 +132,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(manager, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that creating a monitored item with an event filter creates an exception-based item.
+        /// </summary>
         [Test]
         public void CreateMonitoredItemWithEventFilterCreatesExceptionBasedItem()
         {
             using SamplingGroupManager manager = CreateManager(out _);
+            var filter = new EventFilter();
 
             var itemToCreate = new MonitoredItemCreateRequest
             {
@@ -125,10 +151,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     SamplingInterval = 1000,
                     QueueSize = 5,
                     DiscardOldest = true,
-                    Filter = new ExtensionObject(new EventFilter())
+                    Filter = new ExtensionObject(filter)
                 }
             };
-
             ISampledDataChangeMonitoredItem item = manager.CreateMonitoredItem(
                 SessionlessContext(),
                 1,
@@ -137,6 +162,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 7,
                 null!,
                 itemToCreate,
+                filter,
                 new Range(),
                 0,
                 false);
@@ -146,10 +172,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(item.SamplingInterval, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that stopping monitoring removes an exception-based item.
+        /// </summary>
         [Test]
         public void StopMonitoringRemovesExceptionBasedItem()
         {
             using SamplingGroupManager manager = CreateManager(out _);
+            var filter = new EventFilter();
 
             var itemToCreate = new MonitoredItemCreateRequest
             {
@@ -161,10 +191,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     SamplingInterval = 1000,
                     QueueSize = 5,
                     DiscardOldest = true,
-                    Filter = new ExtensionObject(new EventFilter())
+                    Filter = new ExtensionObject(filter)
                 }
             };
-
             ISampledDataChangeMonitoredItem item = manager.CreateMonitoredItem(
                 SessionlessContext(),
                 1,
@@ -173,15 +202,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 8,
                 null!,
                 itemToCreate,
+                filter,
                 new Range(),
                 0,
                 false);
 
-            Assert.DoesNotThrow(() => manager.StopMonitoring(item));
+            Assert.That(() => manager.StopMonitoring(item), Throws.Nothing);
             // second stop is a no-op because the item is no longer tracked.
-            Assert.DoesNotThrow(() => manager.StopMonitoring(item));
+            Assert.That(() => manager.StopMonitoring(item), Throws.Nothing);
         }
 
+        /// <summary>
+        /// Verifies that shutting down a manager without sampling groups is safe.
+        /// </summary>
         [Test]
         public void ShutdownWithoutGroupsIsSafe()
         {
@@ -190,12 +223,128 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.DoesNotThrow(manager.Shutdown);
         }
 
+        /// <summary>
+        /// Verifies that applying changes without sampling groups is safe.
+        /// </summary>
         [Test]
         public void ApplyChangesWithoutGroupsIsSafe()
         {
             using SamplingGroupManager manager = CreateManager(out _);
 
             Assert.DoesNotThrow(manager.ApplyChanges);
+        }
+
+        /// <summary>
+        /// Verifies that create and modify retain original filters and request objects separately from revised filters.
+        /// </summary>
+        [Test]
+        public void RevisedFiltersPreserveOriginalFiltersAndRequests()
+        {
+            using SamplingGroupManager manager = CreateManager(out _);
+            var originalCreateFilter = new DataChangeFilter
+            {
+                DeadbandType = (uint)DeadbandType.Absolute,
+                DeadbandValue = 1
+            };
+            var revisedCreateFilter = new DataChangeFilter
+            {
+                DeadbandType = (uint)DeadbandType.Absolute,
+                DeadbandValue = 2
+            };
+            var itemToCreate = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId
+                {
+                    NodeId = new NodeId("V", 1),
+                    AttributeId = Attributes.Value
+                },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 1,
+                    SamplingInterval = 1000,
+                    QueueSize = 5,
+                    DiscardOldest = true,
+                    Filter = new ExtensionObject(originalCreateFilter)
+                }
+            };
+            MonitoringParameters createParameters = itemToCreate.RequestedParameters;
+            using OperationContext context = SessionContext();
+
+            ISampledDataChangeMonitoredItem item = manager.CreateMonitoredItem(
+                context,
+                1,
+                1000,
+                TimestampsToReturn.Both,
+                9,
+                null!,
+                itemToCreate,
+                revisedCreateFilter,
+                new Range(),
+                0,
+                false);
+
+            IStoredMonitoredItem stored = item.ToStorableMonitoredItem();
+            Assert.That(stored.OriginalFilter, Is.SameAs(originalCreateFilter));
+            Assert.That(stored.FilterToUse, Is.SameAs(revisedCreateFilter));
+            Assert.That(itemToCreate.RequestedParameters, Is.SameAs(createParameters));
+            Assert.That(
+                createParameters.Filter.TryGetValue(out MonitoringFilter createRequestFilter),
+                Is.True);
+            Assert.That(createRequestFilter, Is.SameAs(originalCreateFilter));
+            Assert.That(originalCreateFilter.DeadbandType, Is.EqualTo((uint)DeadbandType.Absolute));
+            Assert.That(originalCreateFilter.DeadbandValue, Is.EqualTo(1));
+            Assert.That(createParameters.ClientHandle, Is.EqualTo(1));
+            Assert.That(createParameters.SamplingInterval, Is.EqualTo(1000));
+            Assert.That(createParameters.QueueSize, Is.EqualTo(5));
+            Assert.That(createParameters.DiscardOldest, Is.True);
+
+            var originalModifyFilter = new DataChangeFilter
+            {
+                DeadbandType = (uint)DeadbandType.Absolute,
+                DeadbandValue = 3
+            };
+            var revisedModifyFilter = new DataChangeFilter
+            {
+                DeadbandType = (uint)DeadbandType.Absolute,
+                DeadbandValue = 4
+            };
+            var itemToModify = new MonitoredItemModifyRequest
+            {
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 2,
+                    SamplingInterval = 1000,
+                    QueueSize = 5,
+                    DiscardOldest = true,
+                    Filter = new ExtensionObject(originalModifyFilter)
+                }
+            };
+            MonitoringParameters modifyParameters = itemToModify.RequestedParameters;
+
+            ServiceResult result = manager.ModifyMonitoredItem(
+                context,
+                TimestampsToReturn.Both,
+                item,
+                itemToModify,
+                revisedModifyFilter,
+                new Range());
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            stored = item.ToStorableMonitoredItem();
+            Assert.That(stored.OriginalFilter, Is.SameAs(originalModifyFilter));
+            Assert.That(stored.FilterToUse, Is.SameAs(revisedModifyFilter));
+            Assert.That(itemToModify.RequestedParameters, Is.SameAs(modifyParameters));
+            Assert.That(
+                modifyParameters.Filter.TryGetValue(out MonitoringFilter modifyRequestFilter),
+                Is.True);
+            Assert.That(modifyRequestFilter, Is.SameAs(originalModifyFilter));
+            Assert.That(originalModifyFilter.DeadbandType, Is.EqualTo((uint)DeadbandType.Absolute));
+            Assert.That(originalModifyFilter.DeadbandValue, Is.EqualTo(3));
+            Assert.That(modifyParameters.ClientHandle, Is.EqualTo(2));
+            Assert.That(modifyParameters.SamplingInterval, Is.EqualTo(1000));
+            Assert.That(modifyParameters.QueueSize, Is.EqualTo(5));
+            Assert.That(modifyParameters.DiscardOldest, Is.True);
         }
     }
 }

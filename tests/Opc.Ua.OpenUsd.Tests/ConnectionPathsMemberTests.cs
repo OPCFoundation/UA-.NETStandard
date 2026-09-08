@@ -87,11 +87,7 @@ namespace Opc.Ua.OpenUsd.Tests
             Assert.That(node.ConnectionPaths, Is.Not.Null);
             ArrayOf<string> paths = node.ConnectionPaths!.Value;
 
-            Assert.That(paths.ToArray(), Is.EqualTo(new[]
-            {
-                "/Root/Shader.outputs:a",
-                "/Root/Shader.outputs:b"
-            }));
+            Assert.That(paths.ToArray(), Is.EqualTo(s_stringValues1));
         }
 
         [Test]
@@ -104,11 +100,7 @@ namespace Opc.Ua.OpenUsd.Tests
 
             UsdStage exported = ms.Context.ExportUsdStage(ms.Result.Stage);
 
-            Assert.That(ExportedSink(exported).Connections, Is.EqualTo(new[]
-            {
-                "/Root/Shader.outputs:b",
-                "/Root/Shader.outputs:a"
-            }));
+            Assert.That(ExportedSink(exported).Connections, Is.EqualTo(s_stringValues2));
         }
 
         [Test]
@@ -121,7 +113,7 @@ namespace Opc.Ua.OpenUsd.Tests
             UsdStage exported = ms.Context.ExportUsdStage(ms.Result.Stage);
 
             Assert.That(ExportedSink(exported).Connections,
-                Is.EqualTo(new[] { "/Elsewhere/Other.outputs:surface" }));
+                Is.EqualTo(s_stringValues3));
         }
 
         [Test]
@@ -145,5 +137,9 @@ namespace Opc.Ua.OpenUsd.Tests
 
             Assert.That(ExportedSink(exported).Connections, Is.Empty);
         }
+
+        private static readonly string[] s_stringValues1 = ["/Root/Shader.outputs:a", "/Root/Shader.outputs:b"];
+        private static readonly string[] s_stringValues2 = ["/Root/Shader.outputs:b", "/Root/Shader.outputs:a"];
+        private static readonly string[] s_stringValues3 = ["/Elsewhere/Other.outputs:surface"];
     }
 }

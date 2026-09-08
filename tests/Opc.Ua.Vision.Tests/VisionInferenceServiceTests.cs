@@ -597,7 +597,7 @@ namespace Opc.Ua.Vision.Tests
             var summary = new VisionSegmentationSummary
             {
                 CreationTime = new DateTimeUtc(new DateTime(2024, 6, 1, 12, 0, 0, DateTimeKind.Utc)),
-                LabelClasses = new[] { "background", "part" }.ToArrayOf(),
+                LabelClasses = s_stringValues1.ToArrayOf(),
                 MaskWidth = 640,
                 MaskHeight = 480,
                 MaskFormat = "Mono8"
@@ -823,5 +823,7 @@ namespace Opc.Ua.Vision.Tests
                     IsForward = true
                 }]);
         }
+
+        private static readonly string[] s_stringValues1 = ["background", "part"];
     }
 }

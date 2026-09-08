@@ -50,14 +50,7 @@ namespace Opc.Ua.Server.Historian
         /// queued samples; appropriate when older samples are more
         /// important than the latest reading (rare).
         /// </summary>
-        DropNewest = 1,
-
-        /// <summary>
-        /// Block the value-setting thread until queue space frees up.
-        /// Guarantees no sample loss at the cost of back-pressuring the
-        /// producer.
-        /// </summary>
-        Wait = 2
+        DropNewest = 1
     }
 
     /// <summary>

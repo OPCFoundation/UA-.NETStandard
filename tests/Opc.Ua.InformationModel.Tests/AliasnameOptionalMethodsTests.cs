@@ -37,11 +37,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using static Opc.Ua.InformationModel.Tests.AliasNameTestHelpers;
 
-// Conformance tests use inline literal arrays as expected-value
-// assertions; the per-call allocation cost is irrelevant for tests
-// and keeping the literal adjacent to the assertion improves readability.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
-
 namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
@@ -181,7 +176,7 @@ namespace Opc.Ua.InformationModel.Tests
 
             CallMethodResult result = await CallMethodAsync(
                 Session, category, addAliases,
-                new Variant(new string[] { "AnonymousShouldNotAdd" }.ToArrayOf()),
+                new Variant(s_stringValues1.ToArrayOf()),
                 new Variant(new ExpandedNodeId[] { new(ObjectIds.Server) }.ToArrayOf()),
                 new Variant(new string[] { string.Empty }.ToArrayOf()),
                 new Variant(AliasForNodeId)).ConfigureAwait(false);
@@ -225,7 +220,7 @@ namespace Opc.Ua.InformationModel.Tests
 
                 CallMethodResult result = await CallMethodAsync(
                     secure, category, addAliases,
-                    new Variant(new string[] { "NonAdminShouldNotAdd" }.ToArrayOf()),
+                    new Variant(s_stringValues2.ToArrayOf()),
                     new Variant(new ExpandedNodeId[] { new(ObjectIds.Server) }.ToArrayOf()),
                     new Variant(new string[] { string.Empty }.ToArrayOf()),
                     new Variant(AliasForNodeId)).ConfigureAwait(false);
@@ -493,5 +488,8 @@ namespace Opc.Ua.InformationModel.Tests
                 admin.Dispose();
             }
         }
+
+        private static readonly string[] s_stringValues1 = ["AnonymousShouldNotAdd"];
+        private static readonly string[] s_stringValues2 = ["NonAdminShouldNotAdd"];
     }
 }

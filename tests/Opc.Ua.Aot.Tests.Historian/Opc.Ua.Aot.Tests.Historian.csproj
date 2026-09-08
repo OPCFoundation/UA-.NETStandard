@@ -1,0 +1,68 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Opc.Ua.Aot.Tests</RootNamespace>
+    <PublishAot>true</PublishAot>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <!-- Suppress the assembly-level IL2104 (trim) and IL3053 (AOT) rollup
+         warnings from third-party packages that are not trim/AOT-analysis-clean.
+         These are referenced-assembly rollups only; our own assemblies are still
+         analyzed individually per-project via IsAotCompatible on net8.0+. -->
+    <NoWarn>$(NoWarn);IL2104;IL3053</NoWarn>
+    <!-- Opt into the root Directory.Build.targets no-op shape on
+         per-TFM CI matrix entries that pin CustomTestTarget to a
+         legacy TFM this test project cannot target. -->
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+  </PropertyGroup>
+  <!-- This is a deliberately small companion to Opc.Ua.Aot.Tests. The
+       distributed-historian round-trip test roots the shared key/value
+       historian read/write and continuation codec pipelines, whose many
+       generic instantiations pushed the monolithic Opc.Ua.Aot.Tests binary
+       past the Apple ld64 "too many large addends" limit on macOS ARM64.
+       A separate executable bounds the linker input while keeping this
+       scenario enabled on every AOT platform. -->
+  <!-- On macOS (notably ARM64 / Apple silicon CI runners) the Apple linker can hit
+       assertions when linking a large NativeAOT binary. Prefer a size-focused
+       publish with no native debug payload: it keeps the CI-only test binary below
+       the linker thresholds without changing the managed test surface. These
+       settings mirror the sibling Opc.Ua.Aot.Tests project. -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX')) AND ('$(TF_BUILD)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true')">
+    <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
+    <OptimizationPreference>Size</OptimizationPreference>
+    <DebugType>none</DebugType>
+    <DebuggerSupport>false</DebuggerSupport>
+    <StackTraceSupport>false</StackTraceSupport>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.Server\Opc.Ua.Redundancy.Server.csproj" />
+    <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
+  </ItemGroup>
+  <!-- Reuse the sibling project's shared fixtures verbatim (link, do not copy)
+       so the server/session bring-up stays identical and there is a single
+       source of truth. Referencing the Opc.Ua.Aot.Tests assembly is avoided
+       on purpose: its generated TUnit test registration would re-root every
+       test and defeat the size split. -->
+  <ItemGroup>
+    <Compile Include="..\Opc.Ua.Aot.Tests\AotServerFixture.cs" Link="AotServerFixture.cs" />
+    <Compile Include="..\Opc.Ua.Aot.Tests\AotTestFixture.cs" Link="AotTestFixture.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Opc.Ua.Aot.Tests\Quickstarts.ReferenceServer.Config.xml"
+          Link="Quickstarts.ReferenceServer.Config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\Opc.Ua.Aot.Tests\Quickstarts.ReferenceClient.Config.xml"
+          Link="Quickstarts.ReferenceClient.Config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>

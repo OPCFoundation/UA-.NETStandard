@@ -51,8 +51,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task DeleteResourceRemovesTheNodeAndReleasesItsSlotAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
-                out _, o => o.MaxRegisteredResources = 1);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(
+                o => o.MaxRegisteredResources = 1).ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
 
             CreateResourceMethodStateResult first = await CreateResourceAsync(nm, group, "a")
@@ -81,7 +81,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task DeleteResourceRejectsAStaleEpochAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
             CreateResourceMethodStateResult created = await CreateResourceAsync(nm, group, "a")
                 .ConfigureAwait(false);
@@ -100,8 +101,9 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task DeleteResourceAlsoRemovesTheFastPathNodeAndStoredDocumentAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(
-                out IXRegistryResourceStore store);
+            (XRegistryRegistrationNodeManager nodeManager, IXRegistryResourceStore store) =
+                await CreateAddressSpaceWithStoreAsync().ConfigureAwait(false);
+            using XRegistryRegistrationNodeManager nm = nodeManager;
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
             byte[] document = [7, 8, 9];
 
@@ -133,7 +135,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task DeleteGroupRemovesItsResourcesAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId groupNodeId = await CreateGroupAsync(nm).ConfigureAwait(false);
             var group = (GroupState)nm.Find(groupNodeId)!;
 
@@ -157,7 +160,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task DeleteResourceWithEpochZeroForcesTheDeleteAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
             CreateResourceMethodStateResult created = await CreateResourceAsync(nm, group, "a")
                 .ConfigureAwait(false);
@@ -178,7 +182,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task DeleteGroupWithEpochZeroForcesTheDeleteAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm).ConfigureAwait(false);
             var groupState = (GroupState)nm.Find(group)!;
 
@@ -195,7 +200,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task DeleteGroupRejectsAStaleEpochAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId groupNodeId = await CreateGroupAsync(nm).ConfigureAwait(false);
             var group = (GroupState)nm.Find(groupNodeId)!;
 
@@ -212,7 +218,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task DeletingAGroupFreesItsGroupIdAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(out _);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId groupNodeId = await CreateGroupAsync(nm).ConfigureAwait(false);
             var group = (GroupState)nm.Find(groupNodeId)!;
 
@@ -247,8 +254,7 @@ namespace Opc.Ua.XRegistry.Tests
                 XRegistryWellKnown.XRegistryNamespaceUri);
         }
 
-        private static XRegistryRegistrationNodeManager CreateAddressSpace(
-            out IXRegistryResourceStore store,
+        private static async Task<XRegistryRegistrationNodeManager> CreateAddressSpaceAsync(
             System.Action<XRegistryServerOptions>? configure = null)
         {
             var options = new XRegistryServerOptions
@@ -256,13 +262,31 @@ namespace Opc.Ua.XRegistry.Tests
                 ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
             };
             configure?.Invoke(options);
-            store = options.ResourceStore;
 
             Mock<IServerInternal> server =
                 XRegistryServerTestHarness.CreateServer(options.RegistryNamespaceUri);
             var nm = new XRegistryRegistrationNodeManager(server.Object, null!, options);
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
             return nm;
+        }
+
+        private static async Task<(
+            XRegistryRegistrationNodeManager Manager,
+            IXRegistryResourceStore Store)> CreateAddressSpaceWithStoreAsync()
+        {
+            var options = new XRegistryServerOptions
+            {
+                ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider()
+            };
+            Mock<IServerInternal> server =
+                XRegistryServerTestHarness.CreateServer(options.RegistryNamespaceUri);
+            var nm = new XRegistryRegistrationNodeManager(server.Object, null!, options);
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
+            return (nm, options.ResourceStore);
         }
     }
 }

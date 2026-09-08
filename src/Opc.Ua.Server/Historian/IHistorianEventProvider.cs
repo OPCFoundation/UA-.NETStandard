@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -57,38 +56,38 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Inserts events into the archive.
         /// </summary>
-        ValueTask<IList<StatusCode>> InsertEventsAsync(
+        ValueTask<HistorianUpdateOutcome<HistorianEventRecord>> InsertEventsAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<HistorianEventRecord> events,
+            ArrayOf<HistorianEventRecord> events,
             CancellationToken ct);
 
         /// <summary>
         /// Replaces existing events identified by their
         /// <see cref="HistorianEventRecord.EventId"/>.
         /// </summary>
-        ValueTask<IList<StatusCode>> ReplaceEventsAsync(
+        ValueTask<HistorianUpdateOutcome<HistorianEventRecord>> ReplaceEventsAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<HistorianEventRecord> events,
+            ArrayOf<HistorianEventRecord> events,
             CancellationToken ct);
 
         /// <summary>
         /// Upserts events (insert if absent, replace otherwise).
         /// </summary>
-        ValueTask<IList<StatusCode>> UpdateEventsAsync(
+        ValueTask<HistorianUpdateOutcome<HistorianEventRecord>> UpdateEventsAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<HistorianEventRecord> events,
+            ArrayOf<HistorianEventRecord> events,
             CancellationToken ct);
 
         /// <summary>
         /// Deletes events by <see cref="HistorianEventRecord.EventId"/>.
         /// </summary>
-        ValueTask<IList<StatusCode>> DeleteEventsAsync(
+        ValueTask<HistorianUpdateOutcome<HistorianEventRecord>> DeleteEventsAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<ByteString> eventIds,
+            ArrayOf<ByteString> eventIds,
             CancellationToken ct);
     }
 }

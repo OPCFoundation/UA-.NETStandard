@@ -150,8 +150,8 @@ namespace Opc.Ua.Vision.Intent.Tests
             detection.Pose = new VisionPose3DDataType
             {
                 FrameId = TestVisionCell.CameraFrameId,
-                Position = new[] { 0.2, 0.1, 0.5 }.ToArrayOf(),
-                Orientation = new[] { 0.0, 0.0, 0.0, 0.0 }.ToArrayOf(),
+                Position = s_doubleValues1.ToArrayOf(),
+                Orientation = s_doubleValues2.ToArrayOf(),
                 Covariance = ArrayOf<double>.Empty
             };
 
@@ -257,8 +257,8 @@ namespace Opc.Ua.Vision.Intent.Tests
                 Pose = new VisionPose3DDataType
                 {
                     FrameId = TestVisionCell.CameraFrameId,
-                    Position = new[] { 0.2, 0.1, 0.5 }.ToArrayOf(),
-                    Orientation = new[] { 0.0, 0.0, 0.0, 1.0 }.ToArrayOf(),
+                    Position = s_doubleValues1.ToArrayOf(),
+                    Orientation = s_doubleValues3.ToArrayOf(),
                     Covariance = ArrayOf<double>.Empty
                 },
                 TrackId = "TestCube"
@@ -299,5 +299,9 @@ namespace Opc.Ua.Vision.Intent.Tests
         }
 
         private VisionIntentServerFixture m_fixture = null!;
+
+        private static readonly double[] s_doubleValues1 = [0.2, 0.1, 0.5];
+        private static readonly double[] s_doubleValues2 = [0.0, 0.0, 0.0, 0.0];
+        private static readonly double[] s_doubleValues3 = [0.0, 0.0, 0.0, 1.0];
     }
 }
