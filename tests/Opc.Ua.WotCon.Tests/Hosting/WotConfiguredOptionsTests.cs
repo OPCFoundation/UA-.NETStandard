@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -44,6 +45,7 @@ using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Hosting;
+using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Server.ThingDescriptions;
 using Opc.Ua.WotCon.Tests.Providers;
 using Quickstarts.ReferenceServer;
@@ -226,8 +228,52 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                 Is.EqualTo("number"));
         }
 
+        [Test]
+        public async Task DeletingMixedCaseAssetRemovesAssignedRegistryResource()
+        {
+            using var registry = new WotRegistryService();
+            await registry.GetOrCreateGroupAsync(
+                WotRegistryGroups.ThingDescriptions,
+                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
+            await using ConfiguredServer server = await ConfiguredServer.StartAsync(
+                useDependencyInjection: true,
+                options => options.RegistryBridge = registry).ConfigureAwait(false);
+
+            WotAssetClient asset = await server.Client.CreateAssetAsync("Pump01").ConfigureAwait(false);
+            await asset.UploadThingDescriptionAsync(CreateDescriptionBytes("Pump01")).ConfigureAwait(false);
+            WotResourceGroup group = registry.Current.Groups[WotRegistryGroups.ThingDescriptions];
+            Assert.That(group.Resources, Has.Count.EqualTo(1));
+            WotResource mirrored = group.Resources.Values.Single();
+
+            await server.Client.DeleteAssetAsync(asset.AssetId).ConfigureAwait(false);
+
+            Assert.That(registry.Current.FindResource(group.GroupId, mirrored.ResourceId), Is.Null);
+        }
+
         private static async Task<ByteString> WriteDescriptionAsync(
             string folder,
+            string name,
+            int depth = 0,
+            bool includeByteOrderMark = false)
+        {
+            byte[] bytes = CreateDescriptionBytes(name, depth, includeByteOrderMark);
+            using var stream = new FileStream(
+                Path.Combine(folder, name + ".jsonld"),
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 4096,
+                useAsync: true);
+#if NETSTANDARD2_1_OR_GREATER || NET
+            await stream.WriteAsync(bytes.AsMemory()).ConfigureAwait(false);
+#else
+            await stream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);
+#endif
+            await stream.FlushAsync().ConfigureAwait(false);
+            return ByteString.From(bytes);
+        }
+
+        private static byte[] CreateDescriptionBytes(
             string name,
             int depth = 0,
             bool includeByteOrderMark = false)
@@ -261,20 +307,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             {
                 bytes = [0xEF, 0xBB, 0xBF, .. bytes];
             }
-            using var stream = new FileStream(
-                Path.Combine(folder, name + ".jsonld"),
-                FileMode.CreateNew,
-                FileAccess.Write,
-                FileShare.None,
-                bufferSize: 4096,
-                useAsync: true);
-#if NETSTANDARD2_1_OR_GREATER || NET
-            await stream.WriteAsync(bytes.AsMemory()).ConfigureAwait(false);
-#else
-            await stream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);
-#endif
-            await stream.FlushAsync().ConfigureAwait(false);
-            return ByteString.From(bytes);
+            return bytes;
         }
 
         private sealed class ConfiguredServer : IAsyncDisposable

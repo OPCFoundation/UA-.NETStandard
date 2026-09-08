@@ -188,6 +188,8 @@ namespace Opc.Ua.WotCon.Server
                     asset.WoTFile.BrowseName = new QualifiedName(BrowseNames.WoTFile, WotConNamespaceIndex);
                     asset.WoTFile.DisplayName = new LocalizedText("WoTFile");
                     AssignChildNodeIds(asset.WoTFile, $"Assets/{assetName}/File");
+                    asset.WoTFile.CloseAndUpdate?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                        MethodIds.WoTAssetFileType_CloseAndUpdate, Server.NamespaceUris);
                 }
 
                 m_managementObject!.AddChild(asset);

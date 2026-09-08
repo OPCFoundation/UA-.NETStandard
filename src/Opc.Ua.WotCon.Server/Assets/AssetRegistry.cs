@@ -75,17 +75,19 @@ namespace Opc.Ua.WotCon.Server.Assets
         {
             get
             {
-                lock (m_byName)
+                lock (m_assetsLock)
                 {
                     return [.. m_byName.Keys];
                 }
             }
         }
 
-        /// <summary>Looks up an asset by NodeId. Returns <c>null</c> when missing.</summary>
+        /// <summary>
+        /// Looks up an asset by NodeId. Returns <c>null</c> when missing.
+        /// </summary>
         public AssetEntry? FindByNodeId(NodeId nodeId)
         {
-            lock (m_byName)
+            lock (m_assetsLock)
             {
                 return m_byNodeId.TryGetValue(nodeId, out AssetEntry? entry) ? entry : null;
             }
@@ -100,7 +102,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             out BaseDataVariableState variable,
             out WotPropertyTag tag)
         {
-            lock (m_byName)
+            lock (m_assetsLock)
             {
                 foreach (AssetEntry candidate in m_byNodeId.Values)
                 {
@@ -130,7 +132,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             out MethodState method,
             out WotActionTag tag)
         {
-            lock (m_byName)
+            lock (m_assetsLock)
             {
                 foreach (AssetEntry candidate in m_byNodeId.Values)
                 {
@@ -169,7 +171,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             await m_writeLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                lock (m_byName)
+                lock (m_assetsLock)
                 {
                     if (m_byName.ContainsKey(assetName))
                     {
@@ -190,7 +192,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                     m_logger,
                     m_manager.EnforceManagementAccess);
 
-                lock (m_byName)
+                lock (m_assetsLock)
                 {
                     m_byName[assetName] = entry;
                     m_byNodeId[entry.Asset.NodeId] = entry;
@@ -214,7 +216,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             AssetEntry? entry;
             try
             {
-                lock (m_byName)
+                lock (m_assetsLock)
                 {
                     if (!m_byNodeId.TryGetValue(assetId, out entry))
                     {
@@ -239,7 +241,7 @@ namespace Opc.Ua.WotCon.Server.Assets
 
                 await m_manager.DeleteAssetNodeAsync(entry.Asset, ct).ConfigureAwait(false);
                 DeleteTdFromDisk(entry.Name);
-                await RemoveFromRegistryAsync(entry.Name, ct).ConfigureAwait(false);
+                await RemoveFromRegistryAsync(entry, ct).ConfigureAwait(false);
                 return ServiceResult.Good;
             }
             finally
@@ -652,7 +654,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                     PersistTdToDisk(entry.Name, td);
                 }
 
-                await MirrorToRegistryAsync(entry.Name, td, ct).ConfigureAwait(false);
+                await MirrorToRegistryAsync(entry, td, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -1327,9 +1329,10 @@ namespace Opc.Ua.WotCon.Server.Assets
         }
 
         private async ValueTask MirrorToRegistryAsync(
-            string name, ThingDescription td, CancellationToken ct)
+            AssetEntry entry, ThingDescription td, CancellationToken ct)
         {
-            IWotRegistryService? registry = m_options.RegistryBridge;
+            AssetRegistryMirror? previous = entry.RegistryMirror;
+            IWotRegistryService? registry = previous?.Registry ?? m_options.RegistryBridge;
             if (registry is null)
             {
                 return;
@@ -1343,49 +1346,53 @@ namespace Opc.Ua.WotCon.Server.Assets
                 WotRegistryMutationResult result = await registry.UpsertResourceAsync(
                     new WotUpsertResourceRequest
                     {
-                        GroupId = m_options.RegistryBridgeGroupId,
-                        ResourceId = name,
+                        GroupId = previous?.Resource.GroupId ?? m_options.RegistryBridgeGroupId,
+                        ResourceId = previous?.Resource.ResourceId ?? entry.Name,
                         Kind = WoTDocumentKindEnum.ThingDescription,
                         Content = ByteString.From(bytes),
                         ContentType = "application/td+json",
                         Format = "WoT-TD/1.1",
-                        Name = name,
+                        Name = entry.Name,
                         SetAsDefault = true
                     },
                     ct).ConfigureAwait(false);
                 if (result.Outcome is WoTOutcomeEnum.Rejected or WoTOutcomeEnum.Failed)
                 {
-                    m_logger.RegistryBridgeMirrorRejected(name, result.Outcome, result.Message);
+                    m_logger.RegistryBridgeMirrorRejected(entry.Name, result.Outcome, result.Message);
+                }
+                else if (result.Resource is not null)
+                {
+                    entry.RegistryMirror = new AssetRegistryMirror(registry, result.Resource);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                m_logger.RegistryBridgeMirrorFailed(ex, name);
+                m_logger.RegistryBridgeMirrorFailed(ex, entry.Name);
             }
         }
 
-        private async ValueTask RemoveFromRegistryAsync(string name, CancellationToken ct)
+        private async ValueTask RemoveFromRegistryAsync(AssetEntry entry, CancellationToken ct)
         {
-            IWotRegistryService? registry = m_options.RegistryBridge;
-            if (registry is null)
+            AssetRegistryMirror? mirror = entry.RegistryMirror;
+            if (mirror is null)
             {
                 return;
             }
 
             try
             {
-                WotRegistryMutationResult result = await registry.DeleteResourceAsync(
-                    m_options.RegistryBridgeGroupId,
-                    name,
+                WotRegistryMutationResult result = await mirror.Registry.DeleteResourceAsync(
+                    mirror.Resource.GroupId,
+                    mirror.Resource.ResourceId,
                     cancellationToken: ct).ConfigureAwait(false);
                 if (result.Outcome is WoTOutcomeEnum.Rejected or WoTOutcomeEnum.Failed)
                 {
-                    m_logger.RegistryBridgeDeleteRejected(name, result.Outcome, result.Message);
+                    m_logger.RegistryBridgeDeleteRejected(entry.Name, result.Outcome, result.Message);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                m_logger.RegistryBridgeDeleteFailed(ex, name);
+                m_logger.RegistryBridgeDeleteFailed(ex, entry.Name);
             }
         }
 
@@ -1559,7 +1566,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         public async ValueTask DisposeAsync()
         {
             AssetEntry[] entries;
-            lock (m_byName)
+            lock (m_assetsLock)
             {
                 entries = [.. m_byNodeId.Values];
                 m_byName.Clear();
@@ -1676,6 +1683,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         private readonly WotConnectivityServerOptions m_options;
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_writeLock = new(1, 1);
+        private readonly Lock m_assetsLock = new();
         private readonly Dictionary<string, AssetEntry> m_byName = new(StringComparer.Ordinal);
         private readonly Dictionary<NodeId, AssetEntry> m_byNodeId = [];
     }
