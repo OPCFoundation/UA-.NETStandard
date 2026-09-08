@@ -1828,6 +1828,7 @@ namespace Opc.Ua.Server.Tests
             return parent;
         }
 
+#nullable enable
         /// <summary>
         /// A browser that produces its references only through
         /// <see cref="NodeBrowser.NextAsync"/>, after a genuine asynchronous hop,
@@ -1838,16 +1839,16 @@ namespace Opc.Ua.Server.Tests
         private sealed class AsyncOnlyBrowser : NodeBrowser
         {
             private readonly Queue<IReference> m_pending;
-            private IReference m_pushBack;
+            private IReference? m_pushBack;
 
             public AsyncOnlyBrowser(
                 ISystemContext context,
-                ViewDescription view,
+                ViewDescription? view,
                 NodeId referenceType,
                 bool includeSubtypes,
                 BrowseDirection browseDirection,
                 QualifiedName browseName,
-                IEnumerable<IReference> additionalReferences,
+                IEnumerable<IReference>? additionalReferences,
                 bool internalOnly,
                 IEnumerable<NodeState> targets)
                 : base(context, view, referenceType, includeSubtypes, browseDirection,
@@ -1865,14 +1866,14 @@ namespace Opc.Ua.Server.Tests
 
             public int NextAsyncCalls { get; private set; }
 
-            public override IReference Next()
+            public override IReference? Next()
             {
                 NextCalls++;
                 throw new InvalidOperationException(
                     "This browser fetches its references asynchronously; iterate it through NextAsync.");
             }
 
-            public override async ValueTask<IReference> NextAsync(
+            public override async ValueTask<IReference?> NextAsync(
                 CancellationToken cancellationToken = default)
             {
                 NextAsyncCalls++;
@@ -1893,6 +1894,7 @@ namespace Opc.Ua.Server.Tests
                 m_pushBack = reference;
             }
         }
+#nullable restore
 
         /// <summary>
         /// Regression for issue #4061: when a node that has been cached (e.g.
