@@ -69,7 +69,7 @@ namespace Opc.Ua.Gds.Tests
                 ServerFixture.Config,
                 m_database,
                 Mock.Of<ICertificateGroup>());
-            m_database.NamespaceIndex = m_nodeManager.ApplicationNamespaceIndex;
+            m_database.NamespaceIndex = m_nodeManager.ApplicationsNamespaceIndex;
 
             ApplicationRecordDataType owner = CreateTestApplicationRecord("KeyCredentialOwner");
             ApplicationRecordDataType other = CreateTestApplicationRecord("KeyCredentialOther");
@@ -474,11 +474,13 @@ namespace Opc.Ua.Gds.Tests
             {
             }
 
-            public ushort ApplicationNamespaceIndex => NamespaceIndexes[0];
-
             public async ValueTask<KeyCredentialServiceState> CreateKeyCredentialServiceAsync()
             {
-                ushort namespaceIndex = NamespaceIndexes[1];
+                // The service is a node of the companion model's
+                // KeyCredentialManagement folder, so it is named in the
+                // manager's own namespace rather than in the one the GDS
+                // mints application records into.
+                ushort namespaceIndex = NamespaceIndex;
                 var service = new KeyCredentialServiceState(null);
                 service.Create(
                     SystemContext,

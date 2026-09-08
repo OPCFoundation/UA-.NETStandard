@@ -60,13 +60,13 @@ namespace Opc.Ua.Gds.Server
     /// I/O and the address-space work no longer need separate passes.
     /// </para>
     /// <para>
-    /// The namespace order is deliberate and load-bearing:
-    /// <c>NamespaceIndexes[0]</c> must stay the application-record
-    /// namespace, because it is the one the application database, the
-    /// certificate-request store and the base class's NodeId allocator
-    /// mint ids in. The generated <c>DefaultNamespaceUris()</c> puts the
-    /// model namespace first, so the constructor passes the order
-    /// explicitly instead.
+    /// The manager owns two namespaces in the order the attribute below
+    /// declares them: the companion model's, which every node it loads
+    /// lives in, and the application-record namespace, which the
+    /// application database, the certificate-request store and every
+    /// other server-owned instance mint into. The constructor points the
+    /// NodeId factory at the second one, so which of them comes first is
+    /// no longer part of the NodeIds this manager hands out.
     /// </para>
     /// <para>
     /// The model ships its <c>AuthorizationServices</c> and
@@ -123,18 +123,20 @@ namespace Opc.Ua.Gds.Server
             ICertificateRequest request,
             ICertificateGroup certificateGroupFactory,
             bool autoApprove = false)
-            // Application-record namespace first: see the note on the class.
-            : this(
-                  server,
-                  configuration,
-                  [ApplicationsNamespaceUri, Namespaces.OpcUaGds])
+            // null adopts DefaultNamespaceUris(): the companion model's
+            // namespace, then the application-record one.
+            : this(server, configuration, namespaceUris: null)
         {
-            // Counter identifiers: applications, certificate groups and trust
-            // lists are registered and unregistered under repeating names, and
-            // Counter is the only mode that stays unique when a browse path
-            // repeats. The namespace order comes from the constructor chain
-            // above, so the factory keeps this manager's own namespace.
-            NodeIdFactory = NodeIdFactory.WithMode(NodeIdAssignmentMode.Counter);
+            // Application records, certificate requests and the certificate
+            // groups a deployment adds are the server's own instances, so
+            // they are minted into the application-record namespace rather
+            // than into the model's, which is this manager's first one.
+            // Counter identifiers because those instances are registered and
+            // unregistered under repeating names, and Counter is the only
+            // mode that stays unique when a browse path repeats.
+            NodeIdFactory = NodeIdFactory
+                .WithMode(NodeIdAssignmentMode.Counter)
+                .WithDefaultNamespaceIndex(ApplicationsNamespaceIndex);
 
             m_configuration = configuration;
             // get the configuration for the node manager.
@@ -250,8 +252,8 @@ namespace Opc.Ua.Gds.Server
             }
 
             m_certTypeMap = CreateCertificateTypeMap();
-            m_database.NamespaceIndex = NamespaceIndexes[0];
-            m_request.NamespaceIndex = NamespaceIndexes[0];
+            m_database.NamespaceIndex = ApplicationsNamespaceIndex;
+            m_request.NamespaceIndex = ApplicationsNamespaceIndex;
 
             await InitializeCertificateGroupsAsync(builder).ConfigureAwait(false);
 
@@ -463,28 +465,23 @@ namespace Opc.Ua.Gds.Server
             {
                 // Create a new custom certificate group node in the address space
                 // for any group whose Id does not match one of the three predefined groups.
-                // The root needs an id of this manager's own before it is
-                // staged: Create only overrides the NodeId when it is given a
-                // non-null one, so passing NodeId.Null would leave the node
-                // holding the namespace-0 id of its type declaration.
                 var customGroupNode = new CertificateGroupState(null);
                 customGroupNode.Create(
                     SystemContext,
-                    new NodeId(
-                        BrowseNames.CertificateGroups + "/" + groupId,
-                        NamespaceIndex),
-                    new QualifiedName(groupId, NamespaceIndex),
+                    NodeId.Null,
+                    new QualifiedName(groupId, ApplicationsNamespaceIndex),
                     new LocalizedText(groupId),
                     assignNodeIds: false);
 
                 customGroupNode.CertificateTypes?.Value = [.. certificateGroup.CertificateTypes];
 
                 // Staging the subtree through the builder attaches it to the
-                // folder, rebases the declaration ids its children carry —
-                // Create ran with assignNodeIds: false — onto per-instance
-                // ids, and registers it once this pass returns. The ids are
-                // final by the time Add hands the node back, which is what
-                // lets the group key off one.
+                // folder, sheds the namespace-0 declaration ids the whole
+                // subtree still carries — Create ran with a null NodeId and
+                // assignNodeIds: false — for ids minted in the
+                // application-record namespace, and registers it once this
+                // pass returns. The ids are final by the time Add hands the
+                // node back, which is what lets the group key off one.
                 CertificateGroupState addedGroupNode = builder
                     .Add(
                         customGroupNode,
@@ -526,7 +523,7 @@ namespace Opc.Ua.Gds.Server
         private AuthorizationServiceState EnsureDefaultAuthorizationService(
             INodeManagerBuilder builder)
         {
-            ushort namespaceIndex = GdsNamespaceIndex;
+            ushort namespaceIndex = NamespaceIndex;
             var folderId = new NodeId(Objects.AuthorizationServices, namespaceIndex);
             var browseName = new QualifiedName(DefaultAuthorizationServiceName, namespaceIndex);
 
@@ -617,7 +614,7 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentNullException(nameof(service));
             }
 
-            NodeManagerBuilder builder = CreateFluentBuilder(GdsNamespaceIndex);
+            NodeManagerBuilder builder = CreateFluentBuilder(NamespaceIndex);
             ConfigureKeyCredentialService(builder, service);
             await builder.SealAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -689,17 +686,22 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         private QualifiedName GdsName(string browseName)
         {
-            return new QualifiedName(browseName, GdsNamespaceIndex);
+            return new QualifiedName(browseName, NamespaceIndex);
         }
 
         /// <summary>
-        /// The index of the GDS companion model namespace
-        /// (<c>http://opcfoundation.org/UA/GDS/</c>) this manager owns.
-        /// The application record namespace is
-        /// <c>NamespaceIndexes[0]</c>; every node of the loaded model
-        /// lives in this one.
+        /// The index of the namespace the GDS mints its own instances in
+        /// (<see cref="ApplicationsNamespaceUri"/>), as opposed to
+        /// <see cref="AsyncCustomNodeManager.NamespaceIndex"/>, which every node
+        /// of the loaded companion model lives in.
         /// </summary>
-        protected ushort GdsNamespaceIndex => NamespaceIndexes[1];
+        /// <remarks>
+        /// Resolved through the namespace table rather than read off a fixed
+        /// position in <c>NamespaceIndexes</c>, so that a subclass owning
+        /// further namespaces can order them as it likes.
+        /// </remarks>
+        public ushort ApplicationsNamespaceIndex
+            => (ushort)Server.NamespaceUris.GetIndex(ApplicationsNamespaceUri);
 
         private NodeId GetTrustListId(NodeId certificateGroupId)
         {
