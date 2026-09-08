@@ -105,6 +105,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         {
             var diagnostics = new List<WotBindingDiagnostic>();
 
+            string? nodeId = ResolveNodeId(form, out bool nodeIdInPath);
             WotEndpointDescriptor endpoint;
             string? authority;
             if (!string.IsNullOrEmpty(form.Href) && TryParseUri(form.Href!, out Uri uri))
@@ -116,14 +117,14 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                         $"'{uri.Scheme}' is not an OPC UA transport scheme.", form.Pointer("href")));
                     return WotBindingCompilation.Unsupported([.. diagnostics]);
                 }
-                endpoint = MakeEndpoint(uri);
+                endpoint = MakeOpcUaEndpoint(uri, nodeIdInPath);
                 authority = ToTransmittedAuthority(uri);
             }
             else if (!string.IsNullOrEmpty(context.BaseUri) &&
                 TryParseUri(context.BaseUri!, out Uri baseUri) &&
                 IsOpcScheme(baseUri.Scheme))
             {
-                endpoint = MakeEndpoint(baseUri);
+                endpoint = MakeOpcUaEndpoint(baseUri, nodeIdInPath: false);
                 authority = ToTransmittedAuthority(baseUri);
             }
             else
@@ -135,7 +136,6 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
 
-            string? nodeId = ResolveNodeId(form);
             if (string.IsNullOrEmpty(nodeId))
             {
                 diagnostics.Add(WotBindingDiagnostic.Error(
@@ -579,44 +579,47 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             return false;
         }
 
-        private static string? ResolveNodeId(WotAffordanceForm form)
+        private static WotEndpointDescriptor MakeOpcUaEndpoint(Uri uri, bool nodeIdInPath)
         {
+            WotEndpointDescriptor endpoint = MakeEndpoint(uri);
+            if (nodeIdInPath || uri.AbsolutePath is "" or "/")
+            {
+                return endpoint;
+            }
+            string address = ToTransmittedUri(uri);
+            int query = address.IndexOf('?', StringComparison.Ordinal);
+            int fragment = address.IndexOf('#', StringComparison.Ordinal);
+            int end = query < 0 ? fragment : fragment < 0 ? query : Math.Min(query, fragment);
+            if (end >= 0)
+            {
+                address = address.Substring(0, end);
+            }
+            return new WotEndpointDescriptor(
+                endpoint.Scheme, endpoint.Host, endpoint.Port, address, endpoint.Metadata);
+        }
+
+        private static string? ResolveNodeId(WotAffordanceForm form, out bool nodeIdInPath)
+        {
+            nodeIdInPath = false;
             if (form.TryGetString("uav:id", out string id) && !string.IsNullOrEmpty(id))
             {
                 return id;
             }
             if (!string.IsNullOrEmpty(form.Href) && TryParseUri(form.Href!, out Uri uri))
             {
-                string path = uri.AbsolutePath.Trim('/');
-                if (LooksLikeNodeId(path))
-                {
-                    return Uri.UnescapeDataString(path);
-                }
                 string query = uri.Query.TrimStart('?');
                 if (query.StartsWith("id=", StringComparison.OrdinalIgnoreCase))
                 {
                     return Uri.UnescapeDataString(query[3..]);
                 }
-            }
-            return null;
-        }
-
-        private static bool LooksLikeNodeId(string value)
-        {
-            if (string.IsNullOrEmpty(value))
-            {
-                return false;
-            }
-            // A textual OPC UA NodeId always carries an identifier assignment
-            // (for example "i=", "s=", "g=", "b=" or a namespace "ns=").
-            foreach (char c in value)
-            {
-                if (c == '=')
+                string path = Uri.UnescapeDataString(uri.AbsolutePath.Trim('/'));
+                if (ExpandedNodeId.TryParse(path, out _))
                 {
-                    return true;
+                    nodeIdInPath = true;
+                    return path;
                 }
             }
-            return false;
+            return null;
         }
 
         private static ImmutableDictionary<string, string> AddIfPresent(

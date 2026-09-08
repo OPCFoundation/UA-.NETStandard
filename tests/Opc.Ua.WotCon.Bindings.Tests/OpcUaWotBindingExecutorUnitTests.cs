@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Immutable;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
@@ -86,6 +88,53 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 async () => await executor.ActivateAsync(form, new WotExecutorContext()).ConfigureAwait(false),
                 Throws.InstanceOf<InvalidOperationException>());
             Assert.That(capturedEndpoint, Is.EqualTo("opc.tcp://actual.example:1111"));
+        }
+
+        [TestCase(
+            "opc.tcp://example.test:4841/UA/Pump/?id=i%3D2258",
+            "opc.tcp://example.test:4841/UA/Pump/")]
+        [TestCase(
+            "opc.tcp://example.test:4841/UA/Pump%20A/?id=i%3D2258",
+            "opc.tcp://example.test:4841/UA/Pump%20A/")]
+        [TestCase(
+            "opc.tcp://example.test:4841/UA/line=west/?id=i%3D2258",
+            "opc.tcp://example.test:4841/UA/line=west/")]
+        [TestCase("opc.tcp://example.test:4841/?id=i%3D2258", "opc.tcp://example.test:4841")]
+        [TestCase("opc.tcp://example.test:4841/i=2258", "opc.tcp://example.test:4841")]
+        public void CompiledFormsPreserveTheEndpointResourcePath(string href, string expected)
+        {
+            string? capturedEndpoint = null;
+            var registry = new WotProtocolBinderRegistry(
+                [new OpcUaBindingPlanner()],
+                [new OpcUaWotBindingExecutor(new OpcUaWotBindingOptions
+                {
+                    SessionFactory = (endpoint, _) =>
+                    {
+                        capturedEndpoint = endpoint;
+                        return ValueTask.FromException<ISession>(new InvalidOperationException("stop"));
+                    }
+                })]);
+            string document = $$"""
+                {
+                  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+                  "title": "Endpoint resource",
+                  "properties": {
+                    "value": {
+                      "type": "number",
+                      "forms": [{ "href": "{{href}}", "op": "readproperty" }]
+                    }
+                  }
+                }
+                """;
+            WotBindingPlan plan = registry.Prepare(WotBindingPlanRequest.FromDocument(
+                "endpoint-resource", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document)));
+            WotCompiledForm form = plan.CompiledForms.Single(
+                candidate => candidate.Operation == WoTBindingCapabilityEnum.ReadProperty);
+
+            Assert.That(
+                () => registry.OpenChannelAsync(form).AsTask(),
+                Throws.InstanceOf<InvalidOperationException>().With.Message.EqualTo("stop"));
+            Assert.That(capturedEndpoint, Is.EqualTo(expected));
         }
 
         private static WotCompiledForm BuildForm(string scheme, int port, string baseUri)
