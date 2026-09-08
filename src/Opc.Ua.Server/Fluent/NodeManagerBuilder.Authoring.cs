@@ -369,25 +369,19 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// Merges the staged nodes matching <paramref name="predicate"/> into
         /// the resolver-supplied candidates so type- and DataType-keyed
-        /// lookups also see nodes added in this pass.
+        /// lookups also see nodes added or imported in this pass.
         /// </summary>
         private IReadOnlyList<NodeState> CollectAuthoredCandidates(
             IReadOnlyList<NodeState> resolved,
             Func<NodeState, bool> predicate)
         {
-            if (m_authoredNodes.Count == 0)
+            if (m_authoredNodes.Count == 0 && m_nodeSetImporter is null)
             {
                 return resolved;
             }
 
-            List<NodeState> candidates = MatchAuthoredNodes(predicate);
-            for (int i = 0; i < resolved.Count; i++)
-            {
-                if (!ContainsByReference(candidates, resolved[i]))
-                {
-                    candidates.Add(resolved[i]);
-                }
-            }
+            List<NodeState> candidates = MatchStagedNodes(predicate);
+            AddResolvedCandidates(candidates, resolved);
             return candidates;
         }
 
@@ -396,12 +390,14 @@ namespace Opc.Ua.Server.Fluent
             ArrayOf<NodeState> resolved,
             Func<NodeState, bool> predicate)
         {
-            List<NodeState> candidates = m_authoredNodes.Count == 0
+            List<NodeState> candidates = m_authoredNodes.Count == 0 &&
+                m_nodeSetImporter is null
                 ? []
-                : MatchAuthoredNodes(predicate);
+                : MatchStagedNodes(predicate);
             for (int i = 0; i < resolved.Count; i++)
             {
-                if (!ContainsByReference(candidates, resolved[i]))
+                if (!IsImportedReplacementPlaceholder(resolved[i]) &&
+                    !ContainsByReference(candidates, resolved[i]))
                 {
                     candidates.Add(resolved[i]);
                 }
@@ -409,12 +405,41 @@ namespace Opc.Ua.Server.Fluent
             return candidates;
         }
 
-        private List<NodeState> MatchAuthoredNodes(Func<NodeState, bool> predicate)
+        private void AddResolvedCandidates(
+            List<NodeState> candidates,
+            IReadOnlyList<NodeState> resolved)
+        {
+            for (int i = 0; i < resolved.Count; i++)
+            {
+                // A node an import is about to displace must not win a lookup
+                // that the replacement will answer.
+                if (!IsImportedReplacementPlaceholder(resolved[i]) &&
+                    !ContainsByReference(candidates, resolved[i]))
+                {
+                    candidates.Add(resolved[i]);
+                }
+            }
+        }
+
+        private List<NodeState> MatchStagedNodes(Func<NodeState, bool> predicate)
         {
             var candidates = new List<NodeState>();
+            if (m_nodeSetImporter is not null)
+            {
+                NodeStateCollection importedNodes = m_nodeSetImporter.ImportedNodes;
+                for (int i = 0; i < importedNodes.Count; i++)
+                {
+                    if (predicate(importedNodes[i]))
+                    {
+                        candidates.Add(importedNodes[i]);
+                    }
+                }
+            }
             foreach (NodeState authored in m_authoredNodes.Values)
             {
-                if (predicate(authored))
+                if (predicate(authored) &&
+                    !IsImportedReplacementPlaceholder(authored) &&
+                    !ContainsByReference(candidates, authored))
                 {
                     candidates.Add(authored);
                 }

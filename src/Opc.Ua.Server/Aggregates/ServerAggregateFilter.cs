@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Server.Historian;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -38,5 +40,25 @@ namespace Opc.Ua.Server
         /// Whether the variable requires stepped interpolation.
         /// </summary>
         public bool Stepped { get; set; }
+
+        /// <summary>
+        /// Whether the aggregate calculator requires historical initial-value input.
+        /// </summary>
+        internal bool PrimeInitialValue { get; set; }
+
+        /// <summary>
+        /// Historian used to supply initial values for the aggregate calculator.
+        /// </summary>
+        internal IHistorianProvider? HistorianProvider { get; set; }
+
+        /// <summary>
+        /// History capabilities of the provider supplying the aggregate's initial values.
+        /// </summary>
+        internal HistorianNodeCapabilities? HistorianCapabilities { get; set; }
+
+        /// <summary>
+        /// Structured-history key selector used when priming the aggregate calculator.
+        /// </summary>
+        internal IHistorianStructuredDataKeySelector? HistorianKeySelector { get; set; }
     }
 }

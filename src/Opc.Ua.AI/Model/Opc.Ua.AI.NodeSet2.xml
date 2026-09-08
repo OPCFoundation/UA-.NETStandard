@@ -6,9 +6,9 @@
     <Uri>http://opcfoundation.org/UA/AI/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/AI/" Version="0.4.0" PublicationDate="2026-08-06T00:00:00Z">
+    <Model ModelUri="http://opcfoundation.org/UA/AI/" Version="0.4.1" PublicationDate="2026-09-03T00:00:00Z">
       <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2023-12-15T00:00:00Z" />
-      <RequiredModel ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.4.0" PublicationDate="2026-07-31T00:00:00Z" />
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.5.0" PublicationDate="2026-09-03T00:00:00Z" />
     </Model>
   </Models>
   <Aliases>

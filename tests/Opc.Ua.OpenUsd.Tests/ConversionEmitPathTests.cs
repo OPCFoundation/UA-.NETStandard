@@ -77,7 +77,7 @@ namespace Opc.Ua.OpenUsd.Tests
         {
             // UsdValueCoercion.Decoerce hands the writer an object?[] for a token[] array.
             UsdValue decoerced = UsdValueCoercion.Decoerce(
-                Variant.From((ArrayOf<string>)new[] { "xformOp:translate" }));
+                Variant.From((ArrayOf<string>)s_stringValues1));
 
             string usda = EmitRootAttribute(
                 "Xform",
@@ -146,7 +146,7 @@ namespace Opc.Ua.OpenUsd.Tests
         public void AssetArray_FromDecoercedShape_EmitsAtDelimitedElements()
         {
             UsdValue decoerced = UsdValueCoercion.Decoerce(
-                Variant.From((ArrayOf<string>)new[] { "./a.usda" }));
+                Variant.From((ArrayOf<string>)s_stringValues2));
 
             string usda = EmitRootAttribute(
                 "Xform",
@@ -164,7 +164,7 @@ namespace Opc.Ua.OpenUsd.Tests
             // The type-name keying must not turn a fixed-size math scalar into an array: a double3
             // (ValueRank one-dimension, three components) is a single parenthesised tuple.
             UsdValue decoerced = UsdValueCoercion.Decoerce(
-                Variant.From((ArrayOf<double>)new[] { 1.0, 2.0, 3.0 }));
+                Variant.From((ArrayOf<double>)s_doubleValues1));
 
             string usda = EmitRootAttribute(
                 "Xform",
@@ -229,7 +229,7 @@ namespace Opc.Ua.OpenUsd.Tests
             Assert.That(matching, Has.Count.EqualTo(1),
                 "a value co-authored with a .connect must re-parse as one attribute, not two");
             UsdTestHelpers.AssertText(matching[0].Value, "fallback");
-            Assert.That(matching[0].Connections, Is.EqualTo(new[] { "/P/Shader.outputs:surface" }));
+            Assert.That(matching[0].Connections, Is.EqualTo(s_stringValues3));
         }
 
         [Test]
@@ -255,7 +255,7 @@ namespace Opc.Ua.OpenUsd.Tests
 
             Assert.That(matching, Has.Count.EqualTo(1),
                 "value, time samples and .connect on one attribute must not split into duplicates");
-            Assert.That(matching[0].Connections, Is.EqualTo(new[] { "/P/Rig.outputs:translate" }));
+            Assert.That(matching[0].Connections, Is.EqualTo(s_stringValues4));
             Assert.That(matching[0].TimeSamples, Has.Count.EqualTo(2));
             Assert.That(matching[0].Value.IsNull, Is.False);
         }
@@ -317,7 +317,7 @@ namespace Opc.Ua.OpenUsd.Tests
 
             Assert.That(ok, Is.True);
             Assert.That(result.TryGetValue(out ArrayOf<string> tokens), Is.True);
-            Assert.That(tokens.ToArray(), Is.EqualTo(new[] { "a", "b" }));
+            Assert.That(tokens.ToArray(), Is.EqualTo(s_stringValues5));
         }
 
         // ---- M-3: a ')' inside a quoted metadata string must not truncate the block ----
@@ -514,5 +514,12 @@ namespace Opc.Ua.OpenUsd.Tests
 
             Assert.That(usda, Does.Contain("bool visible = false"));
         }
+
+        private static readonly string[] s_stringValues1 = ["xformOp:translate"];
+        private static readonly string[] s_stringValues2 = ["./a.usda"];
+        private static readonly double[] s_doubleValues1 = [1.0, 2.0, 3.0];
+        private static readonly string[] s_stringValues3 = ["/P/Shader.outputs:surface"];
+        private static readonly string[] s_stringValues4 = ["/P/Rig.outputs:translate"];
+        private static readonly string[] s_stringValues5 = ["a", "b"];
     }
 }

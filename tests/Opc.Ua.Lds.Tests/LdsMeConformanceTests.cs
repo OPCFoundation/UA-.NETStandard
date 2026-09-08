@@ -33,11 +33,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-// Conformance tests use inline literal arrays as expected-value
-// assertions; the per-call allocation cost is irrelevant for tests
-// and keeping the literal adjacent to the assertion improves readability.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
-
 namespace Opc.Ua.Lds.Tests
 {
     /// <summary>

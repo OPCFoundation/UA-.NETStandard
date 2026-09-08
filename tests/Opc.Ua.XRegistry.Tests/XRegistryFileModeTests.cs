@@ -57,7 +57,8 @@ namespace Opc.Ua.XRegistry.Tests
         [TestCase((byte)14, TestName = "EraseExistingAndAppendTogether")]
         public async Task InvalidOpenModesAreRejectedAsync(byte mode)
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             ResourceState resource = await CreateResourceAsync(nm).ConfigureAwait(false);
 
             OpenMethodStateResult opened = await resource.Open!.OnCallAsync!(
@@ -71,7 +72,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task WriteWithoutEraseExistingPreservesTheRestOfTheDocumentAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             ResourceState resource = await CreateResourceAsync(nm).ConfigureAwait(false);
             await CommitAsync(nm, resource, [1, 2, 3, 4, 5, 6]).ConfigureAwait(false);
 
@@ -94,7 +96,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task WriteWithEraseExistingReplacesTheDocumentAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             ResourceState resource = await CreateResourceAsync(nm).ConfigureAwait(false);
             await CommitAsync(nm, resource, [1, 2, 3, 4, 5, 6]).ConfigureAwait(false);
 
@@ -109,13 +112,14 @@ namespace Opc.Ua.XRegistry.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             byte[] document = await ReadWholeDocumentAsync(nm, resource).ConfigureAwait(false);
-            Assert.That(document, Is.EqualTo(new byte[] { 9, 9 }));
+            Assert.That(document, Is.EqualTo("\t\t"u8.ToArray()));
         }
 
         [Test]
         public async Task WriteWithAppendAddsToTheEndAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             ResourceState resource = await CreateResourceAsync(nm).ConfigureAwait(false);
             await CommitAsync(nm, resource, [1, 2, 3]).ConfigureAwait(false);
 
@@ -136,7 +140,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task OpenCountAndSizeTrackTheFileAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             ResourceState resource = await CreateResourceAsync(nm).ConfigureAwait(false);
             await CommitAsync(nm, resource, [1, 2, 3, 4]).ConfigureAwait(false);
 
@@ -204,7 +209,7 @@ namespace Opc.Ua.XRegistry.Tests
             return (ResourceState)nm.Find(created.ResourceNodeId)!;
         }
 
-        private static XRegistryRegistrationNodeManager CreateAddressSpace()
+        private static async Task<XRegistryRegistrationNodeManager> CreateAddressSpaceAsync()
         {
             var options = new XRegistryServerOptions
             {
@@ -213,7 +218,9 @@ namespace Opc.Ua.XRegistry.Tests
             Mock<IServerInternal> server =
                 XRegistryServerTestHarness.CreateServer(options.RegistryNamespaceUri);
             var nm = new XRegistryRegistrationNodeManager(server.Object, null!, options);
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
             return nm;
         }
 

@@ -47,9 +47,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [TestFixture]
     public sealed class WotDependencyGraphTests
     {
-        private static readonly string[] s_tmTdResourceIds = ["tm", "td"];
-        private static readonly string[] s_eventTdResourceIds = ["events", "td"];
-
         /// <summary>
         /// A snapshot plus a reader for the bytes behind its versions. The
         /// snapshot carries only digests, so a caller that needs the content has
@@ -314,5 +311,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(closures[0].Members, Has.Length.EqualTo(2),
                 "A cyclic closure must still report its members for diagnostics.");
         }
+
+        private static readonly string[] s_tmTdResourceIds = ["tm", "td"];
+        private static readonly string[] s_eventTdResourceIds = ["events", "td"];
     }
 }

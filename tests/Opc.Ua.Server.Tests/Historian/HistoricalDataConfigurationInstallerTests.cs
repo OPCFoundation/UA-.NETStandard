@@ -58,6 +58,9 @@ namespace Opc.Ua.Server.Tests.Historian
     {
         private const ushort Ns = 2;
 
+        /// <summary>
+        /// Verifies that historical data configuration installation rejects a null context.
+        /// </summary>
         [Test]
         public void EnsureInstalledAsyncThrowsWhenContextIsNull()
         {
@@ -70,6 +73,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that historical data configuration installation rejects a null variable.
+        /// </summary>
         [Test]
         public void EnsureInstalledAsyncThrowsWhenVariableIsNull()
         {
@@ -82,6 +88,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that historical data configuration installation rejects a null provider.
+        /// </summary>
         [Test]
         public void EnsureInstalledAsyncThrowsWhenProviderIsNull()
         {
@@ -94,6 +103,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that the first installation creates the historical configuration child.
+        /// </summary>
         [Test]
         public async Task EnsureInstalledAsyncCreatesConfigChildOnFirstCallAsync()
         {
@@ -111,6 +123,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(found, Is.SameAs(config));
         }
 
+        /// <summary>
+        /// Verifies that repeated historical configuration installation is idempotent.
+        /// </summary>
         [Test]
         public async Task EnsureInstalledAsyncIsIdempotentAsync()
         {
@@ -130,6 +145,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "Second call must reuse the existing configuration child.");
         }
 
+        /// <summary>
+        /// Verifies that configuration installation copies the provider's stepped-interpolation capability.
+        /// </summary>
         [Test]
         public async Task EnsureInstalledAsyncPopulatesSteppedFromCapabilitiesAsync()
         {
@@ -149,6 +167,9 @@ namespace Opc.Ua.Server.Tests.Historian
             // the property population must not throw and the installer must complete.
         }
 
+        /// <summary>
+        /// Verifies that configuration installation copies the configured data definition.
+        /// </summary>
         [Test]
         public async Task EnsureInstalledAsyncPopulatesDefinitionWhenSetAsync()
         {
@@ -168,6 +189,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(config, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that Historize creates the configuration child when configuration installation is enabled.
+        /// </summary>
         [Test]
         public async Task HistorianBuilderHistorizeWithInstallConfigurationNodeCreatesConfigChildAsync()
         {
@@ -178,17 +202,15 @@ namespace Opc.Ua.Server.Tests.Historian
 
             BaseDataVariableState variable = CreateVariable("v-builder-cfg");
 
-            // installConfigurationNode: true triggers EnsureInstalledAsync synchronously.
-            builder.Historize(
+            await builder.HistorizeAsync(
                 variable,
-                installConfigurationNode: true,
                 systemContext: ctx,
-                autoCapture: false);
+                autoCapture: false).ConfigureAwait(false);
 
             var browseName = new QualifiedName(BrowseNames.HAConfiguration);
             BaseInstanceState? found = variable.FindChild(ctx, browseName);
             Assert.That(found, Is.Not.Null,
-                "installConfigurationNode: true must attach HAConfiguration as child.");
+                "HistorizeAsync must attach HAConfiguration as a child.");
             Assert.That(found, Is.InstanceOf<HistoricalDataConfigurationState>());
 
             // Dispose is part of the API contract.

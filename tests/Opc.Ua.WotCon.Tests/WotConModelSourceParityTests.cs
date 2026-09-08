@@ -71,18 +71,17 @@ namespace Opc.Ua.WotCon.Tests
             {
                 Assert.That(
                     model.Attribute("Version")?.Value,
-                    Is.EqualTo("1.1"),
-                    "Draft iterations do not increment the information model version.");
+                    Is.EqualTo("1.1"));
                 Assert.That(
                     model.Attribute("PublicationDate")?.Value,
-                    Is.EqualTo("2026-09-02T00:00:00Z"));
+                    Is.EqualTo("2026-09-05T00:00:00Z"));
             });
         }
 
         [TestCase("ns=2;i=39", "ModelVersion", "i=24263", "1.1.0")]
         [TestCase("ns=2;i=68", "NamespaceUri", "String", ConnectivityNamespace)]
         [TestCase("ns=2;i=69", "NamespaceVersion", "String", "1.1")]
-        [TestCase("ns=2;i=70", "NamespacePublicationDate", "DateTime", "2026-09-02T00:00:00Z")]
+        [TestCase("ns=2;i=70", "NamespacePublicationDate", "DateTime", "2026-09-05T00:00:00Z")]
         public void TheConnectivityNamespaceMetadataMatchesItsPropertyContract(
             string nodeId,
             string browseName,
@@ -110,10 +109,10 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(model.Attribute("Version")?.Value, Is.EqualTo("0.4.0"));
+                Assert.That(model.Attribute("Version")?.Value, Is.EqualTo("0.6.0"));
                 Assert.That(
                     model.Attribute("PublicationDate")?.Value,
-                    Is.EqualTo("2026-08-31T00:00:00Z"));
+                    Is.EqualTo("2026-09-05T00:00:00Z"));
             });
         }
 
@@ -168,8 +167,8 @@ namespace Opc.Ua.WotCon.Tests
                 }
                 Assert.That(
                     nodes,
-                    Has.Count.EqualTo(286),
-                    "The connectivity model has 286 Nodes; a re-sync that drops one is " +
+                    Has.Count.EqualTo(292),
+                    "The connectivity model has 292 Nodes; a re-sync that drops one is " +
                     "invisible in a diff of two large NodeSets.");
             });
         }
@@ -192,7 +191,7 @@ namespace Opc.Ua.WotCon.Tests
                         Is.EqualTo(browseName),
                         $"'{nodeId}' now names a different Node.");
                 }
-                Assert.That(nodes, Has.Count.EqualTo(71));
+                Assert.That(nodes, Has.Count.EqualTo(117));
             });
         }
 
@@ -229,7 +228,7 @@ namespace Opc.Ua.WotCon.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(Property("NamespaceUri"), Is.EqualTo(RegistryNamespace));
-                Assert.That(Property("NamespaceVersion"), Is.EqualTo("0.4.0"));
+                Assert.That(Property("NamespaceVersion"), Is.EqualTo("0.6.0"));
                 Assert.That(Property("IsNamespaceSubset"), Is.EqualTo("false"));
             });
         }

@@ -2710,6 +2710,63 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void CreateAsPredefinedNodePassesCancellationToken()
+        {
+            using var cts = new System.Threading.CancellationTokenSource();
+            System.Threading.CancellationToken observed = default;
+            var node = new LifecycleProbeState(
+                null,
+                ct => observed = ct);
+
+            node.CreateAsPredefinedNode(m_context, cts.Token);
+
+            Assert.That(observed, Is.EqualTo(cts.Token));
+        }
+
+        [Test]
+        public void CreateAsPredefinedNodeThrowsWhenAlreadyCanceled()
+        {
+            using var cts = new System.Threading.CancellationTokenSource();
+            cts.Cancel();
+            var node = new LifecycleProbeState(null);
+
+            Assert.That(
+                () => node.CreateAsPredefinedNode(m_context, cts.Token),
+                Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(node.IsCreated, Is.False);
+            Assert.That(node.BeforeCreateCount, Is.Zero);
+            Assert.That(node.AfterCreateCount, Is.Zero);
+        }
+
+        [Test]
+        public void CreateAsPredefinedNodeResumesAfterCancellationBetweenChildren()
+        {
+            using var cts = new System.Threading.CancellationTokenSource();
+            var parent = new LifecycleProbeState(null);
+            var first = new LifecycleProbeState(parent, _ => cts.Cancel());
+            var second = new LifecycleProbeState(parent);
+            parent.AddChild(first);
+            parent.AddChild(second);
+
+            Assert.That(
+                () => parent.CreateAsPredefinedNode(m_context, cts.Token),
+                Throws.InstanceOf<OperationCanceledException>());
+
+            Assert.That(first.IsCreated, Is.True);
+            Assert.That(second.IsCreated, Is.False);
+            Assert.That(parent.IsCreated, Is.False);
+
+            parent.CreateAsPredefinedNode(m_context);
+
+            Assert.That(first.IsCreated, Is.True);
+            Assert.That(first.AfterCreateCount, Is.EqualTo(1));
+            Assert.That(second.IsCreated, Is.True);
+            Assert.That(second.AfterCreateCount, Is.EqualTo(1));
+            Assert.That(parent.IsCreated, Is.True);
+            Assert.That(parent.AfterCreateCount, Is.EqualTo(1));
+        }
+
+        [Test]
         public void DeleteResetsCreatedState()
         {
             var node = new LifecycleProbeState(null);
@@ -2806,9 +2863,14 @@ namespace Opc.Ua.Types.Tests.State
 
         private sealed class LifecycleProbeState : BaseObjectState
         {
-            public LifecycleProbeState(NodeState parent)
+            private readonly Action<System.Threading.CancellationToken> m_afterCreate;
+
+            public LifecycleProbeState(
+                NodeState parent,
+                Action<System.Threading.CancellationToken> afterCreate = null)
                 : base(parent)
             {
+                m_afterCreate = afterCreate;
             }
 
             public int BeforeCreateCount { get; private set; }
@@ -2827,6 +2889,7 @@ namespace Opc.Ua.Types.Tests.State
                 System.Threading.CancellationToken ct = default)
             {
                 AfterCreateCount++;
+                m_afterCreate?.Invoke(ct);
                 base.OnAfterCreate(context, node, ct);
             }
         }
