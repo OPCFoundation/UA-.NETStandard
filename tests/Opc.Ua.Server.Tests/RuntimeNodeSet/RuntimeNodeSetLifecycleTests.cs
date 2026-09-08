@@ -37,6 +37,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
@@ -203,6 +204,111 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(urisVersionAfter, Is.EqualTo(urisVersionBefore + 1));
         }
 
+        /// <summary>
+        /// The fluent base class dispatches monitored-item lifecycle callbacks
+        /// to every attached builder, so the manager must not dispatch a second
+        /// time on its own.
+        /// </summary>
+        [Test]
+        public async Task RuntimeNodeSetMonitoredItemCallbacksRunOnceAsync()
+        {
+            int created = 0;
+            int deleted = 0;
+            RuntimeNodeSetOptions options = CreateOptions(generation: 1);
+            options.Configure += builder =>
+                builder.Node($"{kRootBrowseName}/{kValueBrowseName}")
+                    .OnMonitoredItemCreated((_, _, _) => created++)
+                    .OnMonitoredItemDeleted((_, _, _, _) =>
+                    {
+                        deleted++;
+                        return default;
+                    });
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(options, null).ConfigureAwait(false);
+            try
+            {
+                var services = new ServerTestServices(m_server, m_secureChannelContext);
+                ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris
+                    .GetIndex(kModelNamespaceUri);
+                uint subscriptionId = await CreateSubscriptionWithMonitoredItemAsync(
+                    services, new NodeId(kValueNodeId, namespaceIndex)).ConfigureAwait(false);
+                try
+                {
+                    Assert.That(created, Is.EqualTo(1));
+                }
+                finally
+                {
+                    await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+                }
+                Assert.That(deleted, Is.EqualTo(1));
+            }
+            finally
+            {
+                await m_server.NodeManagerLifecycle.RemoveAsync(
+                    registration, callerContext: null).ConfigureAwait(false);
+            }
+        }
+        /// <summary>
+        /// Simulations must not start before the NotifyNodeAdded replay, so a
+        /// simulated value change can never precede the OnNodeAdded handler of
+        /// its own node.
+        /// </summary>
+        [Test]
+        public async Task RuntimeNodeSetSimulationStartsAfterNodeAddedReplayAsync()
+        {
+            int nodeAddedCompleted = 0;
+            int ticks = 0;
+            bool? firstTickSawCompletedReplay = null;
+            RuntimeNodeSetOptions options = CreateOptions(generation: 1);
+            options.Configure += builder =>
+            {
+                builder.Node($"{kRootBrowseName}/{kValueBrowseName}")
+                    .OnNodeAdded((_, _) =>
+                    {
+                        // Hold the replay open long enough that a simulation
+                        // started too early is certain to tick meanwhile.
+                        Thread.Sleep(100);
+                        Volatile.Write(ref nodeAddedCompleted, 1);
+                    });
+                builder.Simulation(TimeSpan.FromMilliseconds(5))
+                    .OnTick((_, _) =>
+                    {
+                        if (Interlocked.Increment(ref ticks) == 1)
+                        {
+                            firstTickSawCompletedReplay =
+                                Volatile.Read(ref nodeAddedCompleted) == 1;
+                        }
+                    });
+            };
+
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(options, null).ConfigureAwait(false);
+            try
+            {
+                DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+                while (Volatile.Read(ref ticks) == 0 && DateTime.UtcNow < deadline)
+                {
+                    await Task.Delay(10).ConfigureAwait(false);
+                }
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        Volatile.Read(ref ticks),
+                        Is.GreaterThan(0),
+                        "The configured simulation must run once the manager is active.");
+                    Assert.That(
+                        firstTickSawCompletedReplay,
+                        Is.True,
+                        "The OnNodeAdded replay must complete before a simulation ticks.");
+                });
+            }
+            finally
+            {
+                await m_server.NodeManagerLifecycle.RemoveAsync(
+                    registration, callerContext: null).ConfigureAwait(false);
+            }
+        }
         [Test]
         public async Task PreparedRuntimeNodeSetRemainsHiddenUntilCommitAsync()
         {
