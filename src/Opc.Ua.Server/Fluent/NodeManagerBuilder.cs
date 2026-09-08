@@ -160,13 +160,14 @@ namespace Opc.Ua.Server.Fluent
 
         /// <summary>
         /// Closes the builder for further wiring and node authoring without
-        /// starting the simulations yet.
+        /// activating anything yet.
         /// </summary>
         /// <remarks>
-        /// A manager which replays <c>NotifyNodeAdded</c> after sealing seals
-        /// first - so a lifecycle handler cannot author nodes that nothing
-        /// would register any more - and starts the simulations only once the
-        /// replay is done, so no simulated value change can precede the
+        /// The first half of sealing. A manager which replays
+        /// <c>NotifyNodeAdded</c> after sealing seals first - so a lifecycle
+        /// handler cannot author nodes that nothing would register any more -
+        /// and calls <see cref="CompleteSealAsync"/> only once the replay is
+        /// done, so no simulated value change can precede the
         /// <c>OnNodeAdded</c> handler for its own node.
         /// </remarks>
         internal void SealGraphAuthoring()
@@ -184,16 +185,24 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        /// Completes the registrations the <c>Configure</c> pass could not
-        /// finish synchronously, then starts the simulations it registered.
+        /// Activates everything the <c>Configure</c> pass registered:
+        /// completes the registrations it could not finish synchronously,
+        /// then starts the simulation loops.
         /// </summary>
         /// <remarks>
-        /// The asynchronous half of sealing, split out so a manager which
-        /// replays <c>NotifyNodeAdded</c> between the two halves — see
-        /// <see cref="FluentNodeManagerBase.SealConfigurationAsync"/> — still
-        /// reaches it. Root-notifier registration for <c>Publish(...)</c>
-        /// sources is drained here: it has to await the manager's
-        /// monitored-item semaphore, which <c>Configure</c> cannot do.
+        /// <para>
+        /// The second half of sealing, split from
+        /// <see cref="SealGraphAuthoring"/> so a manager can replay
+        /// <c>NotifyNodeAdded</c> between the two — see
+        /// <see cref="FluentNodeManagerBase.SealConfigurationAsync"/>.
+        /// </para>
+        /// <para>
+        /// Activation is deliberately a single step. Starting the simulations
+        /// without draining the staged registrations would leave a builder
+        /// half-activated: root-notifier registration for <c>Publish(...)</c>
+        /// sources has to await the manager's monitored-item semaphore, which
+        /// <c>Configure</c> cannot do, so it is drained here and nowhere else.
+        /// </para>
         /// </remarks>
         /// <param name="cancellationToken">The cancellation token.</param>
         internal async ValueTask CompleteSealAsync(
@@ -205,14 +214,6 @@ namespace Opc.Ua.Server.Fluent
                     .ConfigureAwait(false);
             }
 
-            StartSimulations();
-        }
-
-        /// <summary>
-        /// Starts the simulations registered during the <c>Configure</c> pass.
-        /// </summary>
-        internal void StartSimulations()
-        {
             Simulations?.Start();
         }
 

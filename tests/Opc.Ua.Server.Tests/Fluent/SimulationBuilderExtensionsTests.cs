@@ -86,7 +86,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         /// can precede the OnNodeAdded handler of its own node.
         /// </summary>
         [Test]
-        public void SealingWithoutStartingLeavesSimulationsRegisterable()
+        public async Task SealingWithoutStartingLeavesSimulationsRegisterableAsync()
         {
             using var h = SimulationHarness.Create();
             h.Builder.Simulation(TimeSpan.FromMilliseconds(25))
@@ -100,7 +100,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 () => h.Builder.Simulation(TimeSpan.FromMilliseconds(25)),
                 "Sealing must not start the simulations.");
 
-            h.Builder.StartSimulations();
+            await h.Builder.CompleteSealAsync().ConfigureAwait(false);
 
             ServiceResultException exception = Assert.Throws<ServiceResultException>(
                 () => h.Builder.Simulation(TimeSpan.FromMilliseconds(25)))!;
