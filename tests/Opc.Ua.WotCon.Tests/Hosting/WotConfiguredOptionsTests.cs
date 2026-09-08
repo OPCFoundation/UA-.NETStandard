@@ -72,6 +72,11 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                 Throws.InstanceOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(
+                () => server.Client.CreateAssetForEndpointAsync("Blocked", "https://unlisted.example/device").AsTask(),
+                Throws.InstanceOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
 
             (bool success, string status) = await server.Client
                 .ConnectionTestAsync(SimulatedWotDiscoveryProvider.CannedEndpoint)
@@ -79,6 +84,46 @@ namespace Opc.Ua.WotCon.Tests.Hosting
 
             Assert.That(success, Is.True);
             Assert.That(status, Is.EqualTo("Healthy"));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CreatedAssetIsUsableThroughTheGeneratedManagementClient(bool useDependencyInjection)
+        {
+            await using ConfiguredServer server = await ConfiguredServer
+                .StartAsync(useDependencyInjection, _ => { })
+                .ConfigureAwait(false);
+
+            WotAssetClient asset = await server.Client.CreateAssetAsync("Pump01").ConfigureAwait(false);
+
+            Assert.That(asset.Name, Is.EqualTo("Pump01"));
+            Assert.That(asset.File.ObjectId.IsNull, Is.False);
+            Assert.That(
+                server.Client.Session.NamespaceUris.GetString(asset.File.ObjectId.NamespaceIndex),
+                Is.EqualTo(WotConnectivityServerOptions.DefaultAssetNamespaceUri));
+
+            await server.Client.DeleteAssetAsync(asset.AssetId).ConfigureAwait(false);
+
+            var remaining = new List<WotAssetEntry>();
+            await foreach (WotAssetEntry entry in server.Client.EnumerateAssetsAsync().ConfigureAwait(false))
+            {
+                remaining.Add(entry);
+            }
+            Assert.That(remaining, Is.Empty);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task GeneratedDiscoveryMethodReachesTheConfiguredProvider(bool useDependencyInjection)
+        {
+            await using ConfiguredServer server = await ConfiguredServer.StartAsync(
+                useDependencyInjection,
+                options => options.AssetEndpointPolicy.AllowedSchemes.Add("sim")).ConfigureAwait(false);
+
+            IReadOnlyList<string> endpoints = await server.Client.DiscoverAssetsAsync().ConfigureAwait(false);
+
+            Assert.That(endpoints, Has.Count.EqualTo(1));
+            Assert.That(endpoints[0], Is.EqualTo(SimulatedWotDiscoveryProvider.CannedEndpoint));
         }
 
         [TestCase(false, 0)]

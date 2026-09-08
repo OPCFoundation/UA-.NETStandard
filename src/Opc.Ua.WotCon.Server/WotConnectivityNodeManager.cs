@@ -185,7 +185,7 @@ namespace Opc.Ua.WotCon.Server
                 if (asset.WoTFile != null)
                 {
                     asset.WoTFile.NodeId = new NodeId($"Assets/{assetName}/File", AssetNamespaceIndex);
-                    asset.WoTFile.BrowseName = new QualifiedName("WoTFile", AssetNamespaceIndex);
+                    asset.WoTFile.BrowseName = new QualifiedName(BrowseNames.WoTFile, WotConNamespaceIndex);
                     asset.WoTFile.DisplayName = new LocalizedText("WoTFile");
                     AssignChildNodeIds(asset.WoTFile, $"Assets/{assetName}/File");
                 }
@@ -474,14 +474,19 @@ namespace Opc.Ua.WotCon.Server
             management
                 .AddDiscoverAssets(SystemContext, c => c.OnCallAsync = OnDiscoverAssetsAsync)
                 .AddCreateAssetForEndpoint(SystemContext, c => c.OnCallAsync = OnCreateAssetForEndpointAsync)
-                .AddConnectionTest(SystemContext, c =>
-                {
-                    c.MethodDeclarationId = ExpandedNodeId.ToNodeId(
-                        MethodIds.WoTAssetConnectionManagementType_ConnectionTest,
-                        Server.NamespaceUris);
-                    c.OnCallAsync = OnConnectionTestAsync;
-                })
+                .AddConnectionTest(SystemContext, c => c.OnCallAsync = OnConnectionTestAsync)
                 .AddSupportedWoTBindings(SystemContext, c => c.Value = new ArrayOf<string>(bindings.ToArray()));
+
+            management.CreateAsset?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                MethodIds.WoTAssetConnectionManagementType_CreateAsset, Server.NamespaceUris);
+            management.DeleteAsset?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                MethodIds.WoTAssetConnectionManagementType_DeleteAsset, Server.NamespaceUris);
+            management.DiscoverAssets?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                MethodIds.WoTAssetConnectionManagementType_DiscoverAssets, Server.NamespaceUris);
+            management.CreateAssetForEndpoint?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                MethodIds.WoTAssetConnectionManagementType_CreateAssetForEndpoint, Server.NamespaceUris);
+            management.ConnectionTest?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                MethodIds.WoTAssetConnectionManagementType_ConnectionTest, Server.NamespaceUris);
         }
 
         private void ApplyConfiguration(ISystemContext context, WoTAssetConnectionManagementState management)
