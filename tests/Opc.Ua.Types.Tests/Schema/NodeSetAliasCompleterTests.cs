@@ -116,11 +116,11 @@ namespace Opc.Ua.Types.Tests.Schema
 
             Assert.That(
                 nodeSet.Aliases!.Select(alias => alias.Alias),
-                Is.EqualTo(new[] { "Double", "HasComponent", "HasSubtype", "HasTypeDefinition" }),
+                Is.EqualTo(s_stringValues1),
                 "Declarations are appended in ascending ordinal order of the alias.");
             Assert.That(
                 nodeSet.Aliases!.Select(alias => alias.Value),
-                Is.EqualTo(new[] { "i=11", "i=47", "i=45", "i=40" }));
+                Is.EqualTo(s_stringValues2));
         }
 
         /// <summary>
@@ -176,14 +176,7 @@ namespace Opc.Ua.Types.Tests.Schema
 
             Assert.That(
                 nodeSet.Aliases!.Select(alias => alias.Alias),
-                Is.EqualTo(new[]
-                {
-                    "MachineTypeAlias",
-                    "HasComponent",
-                    "Double",
-                    "HasSubtype",
-                    "HasTypeDefinition"
-                }));
+                Is.EqualTo(s_stringValues3));
         }
 
         /// <summary>
@@ -378,5 +371,22 @@ namespace Opc.Ua.Types.Tests.Schema
             nodeSet.Import(context, nodes);
             return nodes;
         }
+
+        private static readonly string[] s_stringValues1 =
+        [
+            "Double",
+            "HasComponent",
+            "HasSubtype",
+            "HasTypeDefinition",
+        ];
+        private static readonly string[] s_stringValues2 = ["i=11", "i=47", "i=45", "i=40"];
+        private static readonly string[] s_stringValues3 =
+        [
+            "MachineTypeAlias",
+            "HasComponent",
+            "Double",
+            "HasSubtype",
+            "HasTypeDefinition",
+        ];
     }
 }

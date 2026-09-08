@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -56,6 +55,15 @@ namespace Opc.Ua.Client.Historian
         {
             Session = session ?? throw new ArgumentNullException(nameof(session));
             Options = options ?? new HistoryClientOptions();
+            if (Options.MaxReadDuration < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "MaxReadDuration must not be negative.");
+            }
+            _ = ResolveTimestamps(
+                requested: null,
+                parameterName: nameof(HistoryClientOptions.DefaultTimestampsToReturn));
         }
 
         /// <summary>
@@ -83,67 +91,86 @@ namespace Opc.Ua.Client.Historian
         /// </param>
         /// <param name="returnBounds">Whether to return bounding values.</param>
         /// <param name="timestampsToReturn">Timestamps to include with the values.</param>
+        /// <param name="nodeOptions">Optional index range and data encoding.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
-        public async IAsyncEnumerable<DataValue> ReadRawAsync(
+        /// <exception cref="ArgumentNullException"></exception>
+        public IAsyncEnumerable<DataValue> ReadRawAsync(
             NodeId nodeId,
             DateTime startTime,
             DateTime endTime,
             uint maxValuesPerNode = 0,
             bool returnBounds = false,
-            TimestampsToReturn timestampsToReturn = TimestampsToReturn.Source,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+            TimestampsToReturn? timestampsToReturn = null,
+            HistoryReadNodeOptions? nodeOptions = null,
+            CancellationToken cancellationToken = default)
         {
+            if (nodeId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(nodeId));
+            }
             var details = new ReadRawModifiedDetails
             {
                 IsReadModified = false,
                 StartTime = startTime,
                 EndTime = endTime,
-                NumValuesPerNode = maxValuesPerNode,
+                NumValuesPerNode = maxValuesPerNode == 0
+                    ? Options.DefaultMaxValuesPerNode
+                    : maxValuesPerNode,
                 ReturnBounds = returnBounds
             };
 
-            await foreach (DataValue value in ReadRawOrModifiedAsync(
-                nodeId, details, timestampsToReturn, cancellationToken)
-                .ConfigureAwait(false))
-            {
-                yield return value;
-            }
+            return ReadDetailsAsync(
+                nodeId,
+                new ExtensionObject(details),
+                ResolveTimestamps(timestampsToReturn, nameof(timestampsToReturn)),
+                DecodeHistoryData,
+                nodeOptions,
+                cancellationToken);
         }
 
         /// <summary>
         /// Reads the modified-history audit trail for a single variable
         /// (Part 11 §5.2.5).
         /// </summary>
-        public async IAsyncEnumerable<DataValue> ReadModifiedAsync(
+        /// <exception cref="ArgumentNullException"></exception>
+        public IAsyncEnumerable<ModifiedHistoryValue> ReadModifiedAsync(
             NodeId nodeId,
             DateTime startTime,
             DateTime endTime,
             uint maxValuesPerNode = 0,
-            TimestampsToReturn timestampsToReturn = TimestampsToReturn.Source,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+            TimestampsToReturn? timestampsToReturn = null,
+            HistoryReadNodeOptions? nodeOptions = null,
+            CancellationToken cancellationToken = default)
         {
+            if (nodeId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(nodeId));
+            }
             var details = new ReadRawModifiedDetails
             {
                 IsReadModified = true,
                 StartTime = startTime,
                 EndTime = endTime,
-                NumValuesPerNode = maxValuesPerNode
+                NumValuesPerNode = maxValuesPerNode == 0
+                    ? Options.DefaultMaxValuesPerNode
+                    : maxValuesPerNode
             };
 
-            await foreach (DataValue value in ReadRawOrModifiedAsync(
-                nodeId, details, timestampsToReturn, cancellationToken)
-                .ConfigureAwait(false))
-            {
-                yield return value;
-            }
+            return ReadDetailsAsync(
+                nodeId,
+                new ExtensionObject(details),
+                ResolveTimestamps(timestampsToReturn, nameof(timestampsToReturn)),
+                DecodeHistoryModifiedData,
+                nodeOptions,
+                cancellationToken);
         }
 
         /// <summary>
         /// Inserts raw values into the history archive.
         /// </summary>
-        public ValueTask<IList<StatusCode>> InsertAsync(
+        public ValueTask<ArrayOf<StatusCode>> InsertAsync(
             NodeId nodeId,
-            IList<DataValue> values,
+            ArrayOf<DataValue> values,
             CancellationToken cancellationToken = default)
         {
             return PerformUpdateAsync(nodeId, values, PerformUpdateType.Insert, cancellationToken);
@@ -152,9 +179,9 @@ namespace Opc.Ua.Client.Historian
         /// <summary>
         /// Replaces existing values in the history archive.
         /// </summary>
-        public ValueTask<IList<StatusCode>> ReplaceAsync(
+        public ValueTask<ArrayOf<StatusCode>> ReplaceAsync(
             NodeId nodeId,
-            IList<DataValue> values,
+            ArrayOf<DataValue> values,
             CancellationToken cancellationToken = default)
         {
             return PerformUpdateAsync(nodeId, values, PerformUpdateType.Replace, cancellationToken);
@@ -163,9 +190,9 @@ namespace Opc.Ua.Client.Historian
         /// <summary>
         /// Upserts values (insert if absent, replace if present).
         /// </summary>
-        public ValueTask<IList<StatusCode>> UpdateAsync(
+        public ValueTask<ArrayOf<StatusCode>> UpdateAsync(
             NodeId nodeId,
-            IList<DataValue> values,
+            ArrayOf<DataValue> values,
             CancellationToken cancellationToken = default)
         {
             return PerformUpdateAsync(nodeId, values, PerformUpdateType.Update, cancellationToken);
@@ -175,6 +202,7 @@ namespace Opc.Ua.Client.Historian
         /// Deletes raw values in the half-open interval
         /// <c>[startTime, endTime)</c>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public async ValueTask<StatusCode> DeleteRawAsync(
             NodeId nodeId,
             DateTime startTime,
@@ -182,6 +210,10 @@ namespace Opc.Ua.Client.Historian
             bool isDeleteModified = false,
             CancellationToken cancellationToken = default)
         {
+            if (nodeId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(nodeId));
+            }
             var details = new DeleteRawModifiedDetails
             {
                 NodeId = nodeId,
@@ -190,22 +222,30 @@ namespace Opc.Ua.Client.Historian
                 EndTime = endTime
             };
 
-            HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
-                null,
-                [new ExtensionObject(details)],
+            HistoryUpdateResult result = await SendHistoryUpdateAsync(
+                new ExtensionObject(details),
                 cancellationToken).ConfigureAwait(false);
 
-            return response.Results.Count > 0 ? response.Results[0].StatusCode : StatusCodes.BadInternalError;
+            return result.StatusCode;
         }
 
         /// <summary>
         /// Deletes values at the specified timestamps.
         /// </summary>
-        public async ValueTask<IList<StatusCode>> DeleteAtTimeAsync(
+        /// <exception cref="ArgumentNullException"></exception>
+        public async ValueTask<ArrayOf<StatusCode>> DeleteAtTimeAsync(
             NodeId nodeId,
-            IList<DateTime> timestamps,
+            ArrayOf<DateTime> timestamps,
             CancellationToken cancellationToken = default)
         {
+            if (nodeId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(nodeId));
+            }
+            if (timestamps.IsNull)
+            {
+                throw new ArgumentNullException(nameof(timestamps));
+            }
             var typed = new DateTimeUtc[timestamps.Count];
             for (int i = 0; i < timestamps.Count; i++)
             {
@@ -218,182 +258,55 @@ namespace Opc.Ua.Client.Historian
                 ReqTimes = typed
             };
 
-            HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
-                null,
-                [new ExtensionObject(details)],
+            HistoryUpdateResult result = await SendHistoryUpdateAsync(
+                new ExtensionObject(details),
                 cancellationToken).ConfigureAwait(false);
 
-            if (response.Results.Count == 0)
-            {
-                return [];
-            }
-
-            ArrayOf<StatusCode> opResults = response.Results[0].OperationResults;
-            var result = new StatusCode[opResults.Count];
-            for (int i = 0; i < opResults.Count; i++)
-            {
-                result[i] = opResults[i];
-            }
-            return result;
+            return GetOperationResults(result, timestamps.Count);
         }
 
-        private async IAsyncEnumerable<DataValue> ReadRawOrModifiedAsync(
+        private async ValueTask<ArrayOf<StatusCode>> PerformUpdateAsync(
             NodeId nodeId,
-            ReadRawModifiedDetails details,
-            TimestampsToReturn timestampsToReturn,
-            [EnumeratorCancellation] CancellationToken cancellationToken)
-        {
-            // See HistoryClient.Extras.cs ReadDetailsAsync for the rationale:
-            // tracks the in-flight continuation point so the finally block
-            // can release it when the consumer abandons iteration; counts
-            // consecutive empty pages to detect a buggy server.
-            ByteString continuationPoint = ByteString.Empty;
-            ByteString liveContinuationPoint = ByteString.Empty;
-            ExtensionObject detailsExt = new(details);
-            int emptyPagesInARow = 0;
-            try
-            {
-                while (true)
-                {
-                    var nodesToRead = new HistoryReadValueId[]
-                    {
-                        new()
-                        {
-                            NodeId = nodeId,
-                            ContinuationPoint = continuationPoint
-                        }
-                    };
-
-                    HistoryReadResponse response = await Session.HistoryReadAsync(
-                        null,
-                        detailsExt,
-                        timestampsToReturn,
-                        releaseContinuationPoints: false,
-                        nodesToRead,
-                        cancellationToken).ConfigureAwait(false);
-
-                    if (response.Results.Count == 0)
-                    {
-                        yield break;
-                    }
-
-                    HistoryReadResult result = response.Results[0];
-                    if (StatusCode.IsBad(result.StatusCode))
-                    {
-                        throw new ServiceResultException(result.StatusCode, "HistoryRead returned a bad status.");
-                    }
-
-                    liveContinuationPoint = result.ContinuationPoint;
-
-                    bool yieldedSomething = false;
-                    if (!result.HistoryData.IsNull &&
-                        result.HistoryData.TryGetValue(out HistoryData? hd))
-                    {
-                        DataValue[]? values = hd.DataValues.ToArray();
-                        if (values != null && values.Length > 0)
-                        {
-                            foreach (DataValue v in values)
-                            {
-                                yield return v;
-                            }
-                            yieldedSomething = true;
-                        }
-                    }
-
-                    if (result.ContinuationPoint.IsEmpty)
-                    {
-                        liveContinuationPoint = ByteString.Empty;
-                        yield break;
-                    }
-
-                    if (!yieldedSomething)
-                    {
-                        emptyPagesInARow++;
-                        if (emptyPagesInARow >= 3)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadInternalError,
-                                "Server returned three consecutive empty paginated history pages with a non-empty continuation point.");
-                        }
-                    }
-                    else
-                    {
-                        emptyPagesInARow = 0;
-                    }
-
-                    continuationPoint = result.ContinuationPoint;
-                }
-            }
-            finally
-            {
-                if (!liveContinuationPoint.IsEmpty)
-                {
-                    try
-                    {
-                        var releaseNodes = new HistoryReadValueId[]
-                        {
-                            new() { NodeId = nodeId, ContinuationPoint = liveContinuationPoint }
-                        };
-                        _ = await Session.HistoryReadAsync(
-                            null,
-                            detailsExt,
-                            timestampsToReturn,
-                            releaseContinuationPoints: true,
-                            releaseNodes,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (ServiceResultException)
-                    {
-                        // best-effort cleanup
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        // best-effort cleanup
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // best-effort cleanup
-                    }
-                }
-            }
-        }
-
-        private async ValueTask<IList<StatusCode>> PerformUpdateAsync(
-            NodeId nodeId,
-            IList<DataValue> values,
+            ArrayOf<DataValue> values,
             PerformUpdateType performUpdate,
             CancellationToken cancellationToken)
         {
-            var updateValues = new DataValue[values.Count];
-            for (int i = 0; i < values.Count; i++)
+            if (nodeId.IsNull)
             {
-                updateValues[i] = values[i];
+                throw new ArgumentNullException(nameof(nodeId));
+            }
+            if (values.IsNull)
+            {
+                throw new ArgumentNullException(nameof(values));
             }
 
             var details = new UpdateDataDetails
             {
                 NodeId = nodeId,
                 PerformInsertReplace = performUpdate,
-                UpdateValues = updateValues
+                UpdateValues = values
             };
 
-            HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
-                null,
-                [new ExtensionObject(details)],
+            HistoryUpdateResult result = await SendHistoryUpdateAsync(
+                new ExtensionObject(details),
                 cancellationToken).ConfigureAwait(false);
 
-            if (response.Results.Count == 0)
-            {
-                return [];
-            }
+            return GetOperationResults(result, values.Count);
+        }
 
-            ArrayOf<StatusCode> opResults = response.Results[0].OperationResults;
-            var result = new StatusCode[opResults.Count];
-            for (int i = 0; i < opResults.Count; i++)
+        private TimestampsToReturn ResolveTimestamps(
+            TimestampsToReturn? requested,
+            string parameterName)
+        {
+            TimestampsToReturn value = requested ??
+                Options.DefaultTimestampsToReturn;
+            if (value is not TimestampsToReturn.Source and
+                not TimestampsToReturn.Server and
+                not TimestampsToReturn.Both)
             {
-                result[i] = opResults[i];
+                throw new ArgumentOutOfRangeException(parameterName);
             }
-            return result;
+            return value;
         }
     }
 }

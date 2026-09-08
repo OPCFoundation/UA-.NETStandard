@@ -315,8 +315,8 @@ namespace Opc.Ua.Robotics.Tests
             return new Pose3DDataType
             {
                 FrameId = "base",
-                Position = new[] { 0.0, 0.0, 0.0 }.ToArrayOf(),
-                Orientation = new[] { 0.0, 0.0, 0.0, 1.0 }.ToArrayOf()
+                Position = s_doubleValues1.ToArrayOf(),
+                Orientation = s_doubleValues2.ToArrayOf()
             };
         }
 
@@ -329,14 +329,14 @@ namespace Opc.Ua.Robotics.Tests
                     AxisId = "Axis0",
                     Kind = AxisKindEnum.Revolute,
                     OriginTransform = Pose(),
-                    AxisVector = new[] { 0.0, 0.0, 1.0 }.ToArrayOf()
+                    AxisVector = s_doubleValues3.ToArrayOf()
                 },
                 new KinematicJointDataType
                 {
                     AxisId = "Axis1",
                     Kind = AxisKindEnum.Revolute,
                     OriginTransform = Pose(),
-                    AxisVector = new[] { 0.0, 1.0, 0.0 }.ToArrayOf()
+                    AxisVector = s_doubleValues4.ToArrayOf()
                 }
             }.ToArrayOf();
         }
@@ -563,5 +563,10 @@ namespace Opc.Ua.Robotics.Tests
 
             private ServerFixture<StandardServer>? m_fixture;
         }
+
+        private static readonly double[] s_doubleValues1 = [0.0, 0.0, 0.0];
+        private static readonly double[] s_doubleValues2 = [0.0, 0.0, 0.0, 1.0];
+        private static readonly double[] s_doubleValues3 = [0.0, 0.0, 1.0];
+        private static readonly double[] s_doubleValues4 = [0.0, 1.0, 0.0];
     }
 }

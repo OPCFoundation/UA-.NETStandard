@@ -151,13 +151,9 @@ server- and client-side implementations:
   suppression engine, rate metrics, a typed `AlarmClient`, the
   `AlarmEventFilterBuilder`, and `IAsyncEnumerable` alarm streaming. See
   [Alarms and Conditions](AlarmsAndConditions.md).
-- **Part 11 — Historical Access** + **Part 13 — Aggregates**: a provider
-  model with an in-memory historian and a `HistoryClient` for raw,
-  modified, at-time, processed, and annotation reads/updates. All 37
-  standard v1.05.07 aggregate functions, with native push-down where
-  available and a framework fallback otherwise. See
-  [Historical Access](HistoricalAccess.md) and
-  [Aggregates](Aggregates.md).
+- **Part 11 — Historical Access** + **Part 13 — Aggregates**:
+  provider-based [historical access](HistoricalAccess.md) with standard
+  [aggregates](Aggregates.md).
 - **Part 16 — State Machines**: a unified fluent
   [`StateMachineBuilder`](StateMachines.md) with both *definition*
   (`FluentFiniteStateMachineState`) and *lifecycle* (attach behaviour to

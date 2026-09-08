@@ -44,9 +44,9 @@ namespace Opc.Ua.Redundancy.Server
     /// server's <see cref="INodeStateStoreRegistry"/>, starts leader election,
     /// and attaches an <see cref="AddressSpaceSynchronizer"/> to every node
     /// manager that opts in via <see cref="ILocalAddressSpaceSource"/> (i.e.
-    /// every <c>CustomNodeManager2</c>-derived manager). Built-in
-    /// infrastructure managers (Core / Diagnostics / Configuration) do not opt
-    /// in and are never replicated.
+    /// every <c>CustomNodeManager2</c>-derived manager). Built-in core,
+    /// diagnostics, and configuration managers are excluded despite inheriting
+    /// the source interface, so their state remains replica-local.
     /// </summary>
     public sealed class DistributedAddressSpaceStartupTask : IServerStartupTask, IAsyncDisposable
     {
@@ -110,6 +110,11 @@ namespace Opc.Ua.Redundancy.Server
             foreach (ILocalAddressSpaceSource source in
                 server.FindNodeManagers<ILocalAddressSpaceSource>())
             {
+                if (source is ICoreNodeManager or IDiagnosticsNodeManager)
+                {
+                    continue;
+                }
+
                 ILocalAddressSpace addressSpace = source.CreateLocalAddressSpace();
                 var synchronizer = new AddressSpaceSynchronizer(
                     store, addressSpace, m_election, logger);

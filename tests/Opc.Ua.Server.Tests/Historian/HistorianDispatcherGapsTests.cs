@@ -59,12 +59,18 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── IsAnnotationsProperty ──────────────────────────────────────────
 
+        /// <summary>
+        /// Verifies that a null node is not recognized as an Annotations property.
+        /// </summary>
         [Test]
         public void IsAnnotationsPropertyReturnsFalseForNull()
         {
             Assert.That(HistorianDispatcher.IsAnnotationsProperty(null), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a non-property node is not recognized as an Annotations property.
+        /// </summary>
         [Test]
         public void IsAnnotationsPropertyReturnsFalseForNonPropertyState()
         {
@@ -72,6 +78,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(HistorianDispatcher.IsAnnotationsProperty(obj), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a property with the wrong browse name is not recognized as Annotations.
+        /// </summary>
         [Test]
         public void IsAnnotationsPropertyReturnsFalseForWrongBrowseName()
         {
@@ -86,6 +95,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(HistorianDispatcher.IsAnnotationsProperty(prop), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that an Annotations browse name outside namespace zero is not treated as the standard property.
+        /// </summary>
         [Test]
         public void IsAnnotationsPropertyReturnsFalseWhenBrowseNamespaceIsNonZero()
         {
@@ -100,6 +112,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(HistorianDispatcher.IsAnnotationsProperty(prop), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that an Annotations property without a variable parent is not recognized.
+        /// </summary>
         [Test]
         public void IsAnnotationsPropertyReturnsFalseWhenParentIsNotBaseVariableState()
         {
@@ -114,6 +129,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(HistorianDispatcher.IsAnnotationsProperty(prop), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a correctly named Annotations property on a variable is recognized.
+        /// </summary>
         [Test]
         public void IsAnnotationsPropertyReturnsTrueForWellFormedAnnotationsProperty()
         {
@@ -130,12 +148,18 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── GetAnnotationsParent ────────────────────────────────────────────
 
+        /// <summary>
+        /// Verifies that annotation-parent lookup returns null for a null node.
+        /// </summary>
         [Test]
         public void GetAnnotationsParentReturnsNullForNull()
         {
             Assert.That(HistorianDispatcher.GetAnnotationsParent(null), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that annotation-parent lookup returns the containing variable.
+        /// </summary>
         [Test]
         public void GetAnnotationsParentReturnsVariableParentForAnnotationsProperty()
         {
@@ -152,6 +176,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result, Is.SameAs(parent));
         }
 
+        /// <summary>
+        /// Verifies that annotation-parent lookup returns null when the parent is not a variable.
+        /// </summary>
         [Test]
         public void GetAnnotationsParentReturnsNullWhenParentIsNotVariable()
         {
@@ -170,6 +197,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── DispatchUpdateDataAsync ─────────────────────────────────────────
 
+        /// <summary>
+        /// Verifies that history data update dispatch rejects a null system context.
+        /// </summary>
         [Test]
         public async Task DispatchUpdateDataAsyncThrowsWhenSystemContextIsNullAsync()
         {
@@ -183,6 +213,9 @@ namespace Opc.Ua.Server.Tests.Historian
                     null!, provider, node, details, result, CancellationToken.None).AsTask()).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that data updates without a data-provider interface return BadHistoryOperationUnsupported.
+        /// </summary>
         [Test]
         public async Task DispatchUpdateDataAsyncWithNonDataProviderReturnsBadHistoryOperationUnsupportedAsync()
         {
@@ -205,6 +238,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
+        /// <summary>
+        /// Verifies that insert dispatch stores the requested historical values.
+        /// </summary>
         [Test]
         public async Task DispatchUpdateDataAsyncInsertStoresValuesAsync()
         {
@@ -234,6 +270,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(StatusCode.IsGood(result.OperationResults[0]), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that replace dispatch updates an existing historical value.
+        /// </summary>
         [Test]
         public async Task DispatchUpdateDataAsyncReplaceUpdatesExistingValueAsync()
         {
@@ -265,6 +304,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(ServiceResult.IsGood(error), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that update dispatch stores the requested historical values.
+        /// </summary>
         [Test]
         public async Task DispatchUpdateDataAsyncUpdateStoresValuesAsync()
         {
@@ -292,6 +334,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(ServiceResult.IsGood(error), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that data update dispatch rejects an invalid insertion operation.
+        /// </summary>
         [Test]
         public async Task DispatchUpdateDataAsyncWithInvalidPerformInsertReturnsBadArgumentAsync()
         {
@@ -314,14 +359,16 @@ namespace Opc.Ua.Server.Tests.Historian
             ServiceResult error = await HistorianDispatcher.DispatchUpdateDataAsync(
                 h.SystemContext, h.Provider, node, details, result, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(ServiceResult.IsGood(error), Is.True,
-                "Dispatcher returns Good; per-entry status in OperationResults carries the error.");
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(result.OperationResults, Has.Count.EqualTo(1));
             Assert.That(result.OperationResults[0], Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         // ─── DispatchEventReadAsync ──────────────────────────────────────────
 
+        /// <summary>
+        /// Verifies that event reads without an event-provider interface return BadHistoryOperationUnsupported.
+        /// </summary>
         [Test]
         public async Task DispatchEventReadAsyncWithNonEventProviderReturnsBadHistoryOperationUnsupportedAsync()
         {
@@ -346,11 +393,15 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
+        /// <summary>
+        /// Verifies that event-read dispatch returns stored event records.
+        /// </summary>
         [Test]
         public async Task DispatchEventReadAsyncReturnsStoredEventsAsync()
         {
             Fixture h = CreateFixture();
             var nodeId = new NodeId($"evt-read-{Guid.NewGuid():N}", 1);
+            h.Provider.SetCapabilities(nodeId, HistorianNodeCapabilities.ReadWrite);
             HistorianOperationContext ctx = CreateContext(h.SystemContext);
 
             var evtId = (ByteString)new byte[] { 0x01, 0x02 };
@@ -358,7 +409,10 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 new(evtId, ObjectTypeIds.BaseEventType,
                     (DateTimeUtc)BaseTime.AddSeconds(1),
-                    new Dictionary<string, Variant> { ["Message"] = new Variant("hello") })
+                    new Dictionary<string, Variant>
+                    {
+                        ["Message"] = new Variant("hello")
+                    }.ToArrayOf())
             };
             await h.Provider.InsertEventsAsync(ctx, nodeId, events, CancellationToken.None).ConfigureAwait(false);
 
@@ -383,6 +437,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── DispatchUpdateEventAsync ────────────────────────────────────────
 
+        /// <summary>
+        /// Verifies that event updates without an event-provider interface return BadHistoryOperationUnsupported.
+        /// </summary>
         [Test]
         public async Task DispatchUpdateEventAsyncWithNonEventProviderReturnsBadHistoryOperationUnsupportedAsync()
         {
@@ -406,13 +463,17 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
+        /// <summary>
+        /// Verifies that event-update dispatch supports an insert-and-delete round trip.
+        /// </summary>
         [Test]
         public async Task DispatchUpdateEventAsyncInsertAndDeleteRoundTripAsync()
         {
             Fixture h = CreateFixture();
             var nodeId = new NodeId($"evt-upd-{Guid.NewGuid():N}", 1);
-            BaseDataVariableState node = CreateVariable(nodeId);
-            HistorianOperationContext ctx = CreateContext(h.SystemContext);
+            BaseObjectState node = CreateEventNotifier(nodeId);
+            h.Provider.Register(nodeId);
+            h.Provider.SetCapabilities(nodeId, HistorianNodeCapabilities.ReadWrite);
 
             // Build an event filter with the standard select clauses for round-trip.
             var filter = new EventFilter
@@ -424,14 +485,32 @@ namespace Opc.Ua.Server.Tests.Historian
                         TypeDefinitionId = ObjectTypeIds.BaseEventType,
                         BrowsePath = new QualifiedName[] { new(BrowseNames.EventId) },
                         AttributeId = Attributes.Value
+                    },
+                    new()
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = new QualifiedName[] { new(BrowseNames.EventType) },
+                        AttributeId = Attributes.Value
+                    },
+                    new()
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = new QualifiedName[] { new(BrowseNames.Time) },
+                        AttributeId = Attributes.Value
                     }
                 }
             };
 
             var evtId = (ByteString)new byte[] { 0xAB, 0xCD };
+            DateTimeUtc eventTime = BaseTime.AddSeconds(1);
             var incoming = new HistoryEventFieldList
             {
-                EventFields = new Variant[] { new(evtId) }
+                EventFields =
+                [
+                    new Variant(evtId),
+                    new Variant(ObjectTypeIds.BaseEventType),
+                    new Variant(eventTime)
+                ]
             };
             var insertDetails = new UpdateEventDetails
             {
@@ -450,12 +529,16 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(StatusCode.IsGood(insertResult.OperationResults[0]), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that invalid event update operations produce an argument error for each entry.
+        /// </summary>
         [Test]
         public async Task DispatchUpdateEventAsyncInvalidPerformUpdateReturnsBadArgumentPerEntryAsync()
         {
             Fixture h = CreateFixture();
             var nodeId = new NodeId($"evt-inv-{Guid.NewGuid():N}", 1);
-            BaseDataVariableState node = CreateVariable(nodeId);
+            BaseObjectState node = CreateEventNotifier(nodeId);
+            h.Provider.Register(nodeId);
 
             var filter = new EventFilter
             {
@@ -485,13 +568,89 @@ namespace Opc.Ua.Server.Tests.Historian
             ServiceResult error = await HistorianDispatcher.DispatchUpdateEventAsync(
                 h.SystemContext, h.Provider, node, details, result, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(result.OperationResults, Has.Count.EqualTo(1));
             Assert.That(result.OperationResults[0], Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that event-update dispatch reports diagnostics for ignored fields.
+        /// </summary>
+        [Test]
+        public async Task DispatchUpdateEventAsyncReportsIgnoredFieldDiagnosticsAsync()
+        {
+            Fixture h = CreateFixture(DiagnosticsMasks.OperationAll);
+            var nodeId = new NodeId($"evt-ignored-{Guid.NewGuid():N}", 1);
+            BaseObjectState node = CreateEventNotifier(nodeId);
+            var supportedMessage = new SimpleAttributeOperand
+            {
+                TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                BrowsePath = [new QualifiedName(BrowseNames.Message)],
+                AttributeId = Attributes.Value
+            };
+            h.Provider.Register(nodeId, HistorianNodeCapabilities.ReadWrite with
+            {
+                EventFields = [supportedMessage]
+            });
+            var filter = new EventFilter();
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.EventType,
+                Attributes.Value);
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.Time,
+                Attributes.Value);
+            filter.SelectClauses = filter.SelectClauses.AddItem(
+                new SimpleAttributeOperand
+                {
+                    TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                    BrowsePath = [new QualifiedName("Unsupported")],
+                    AttributeId = Attributes.Value
+                });
+            var details = new UpdateEventDetails
+            {
+                NodeId = nodeId,
+                PerformInsertReplace = PerformUpdateType.Insert,
+                Filter = filter,
+                EventData =
+                [
+                    new HistoryEventFieldList
+                    {
+                        EventFields =
+                        [
+                            new Variant(ObjectTypeIds.BaseEventType),
+                            new Variant((DateTimeUtc)DateTime.UtcNow),
+                            Variant.From(42)
+                        ]
+                    }
+                ]
+            };
+            var result = new HistoryUpdateResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchUpdateEventAsync(
+                h.SystemContext,
+                h.Provider,
+                node,
+                details,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(
+                result.OperationResults[0],
+                Is.EqualTo(StatusCodes.GoodDataIgnored));
+            Assert.That(result.DiagnosticInfos, Has.Count.EqualTo(1));
+            Assert.That(result.DiagnosticInfos[0], Is.Not.Null);
+            Assert.That(result.DiagnosticInfos[0].SymbolicId, Is.GreaterThanOrEqualTo(0));
+            Assert.That(result.DiagnosticInfos[0].LocalizedText, Is.GreaterThanOrEqualTo(0));
+        }
+
         // ─── DispatchDeleteEventsAsync ───────────────────────────────────────
 
+        /// <summary>
+        /// Verifies that event deletion without an event-provider interface returns BadHistoryOperationUnsupported.
+        /// </summary>
         [Test]
         public async Task DispatchDeleteEventsAsyncWithNonEventProviderReturnsBadHistoryOperationUnsupportedAsync()
         {
@@ -513,11 +672,15 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
         }
 
+        /// <summary>
+        /// Verifies that event-delete dispatch removes a previously inserted event.
+        /// </summary>
         [Test]
         public async Task DispatchDeleteEventsAsyncRemovesInsertedEventAsync()
         {
             Fixture h = CreateFixture();
             var nodeId = new NodeId($"evt-del2-{Guid.NewGuid():N}", 1);
+            h.Provider.SetCapabilities(nodeId, HistorianNodeCapabilities.ReadWrite);
             BaseDataVariableState node = CreateVariable(nodeId);
             HistorianOperationContext ctx = CreateContext(h.SystemContext);
 
@@ -527,7 +690,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new HistorianEventRecord(
                     evtId, ObjectTypeIds.BaseEventType,
                     (DateTimeUtc)BaseTime.AddSeconds(1),
-                    new Dictionary<string, Variant>())
+                    new Dictionary<string, Variant>().ToArrayOf())
             ], CancellationToken.None).ConfigureAwait(false);
 
             var deleteDetails = new DeleteEventDetails
@@ -547,6 +710,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── ProjectEventFields ──────────────────────────────────────────────
 
+        /// <summary>
+        /// Verifies that event-field projection rejects a null record.
+        /// </summary>
         [Test]
         public void ProjectEventFieldsThrowsWhenRecordIsNull()
         {
@@ -557,19 +723,25 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that event-field projection rejects a null filter.
+        /// </summary>
         [Test]
         public void ProjectEventFieldsThrowsWhenFilterIsNull()
         {
             var record = new HistorianEventRecord(
                 ByteString.Empty, ObjectTypeIds.BaseEventType,
                 (DateTimeUtc)BaseTime,
-                new Dictionary<string, Variant>());
+                new Dictionary<string, Variant>().ToArrayOf());
 
             Assert.That(
                 () => HistorianDispatcher.ProjectEventFields(record, null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that one event select clause projects one result field.
+        /// </summary>
         [Test]
         public void ProjectEventFieldsReturnsSingleFieldForSingleSelectClause()
         {
@@ -579,7 +751,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new Dictionary<string, Variant>
                 {
                     ["Severity"] = new Variant((ushort)500)
-                });
+                }.ToArrayOf());
 
             var filter = new EventFilter
             {
@@ -601,6 +773,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(severity, Is.EqualTo(500));
         }
 
+        /// <summary>
+        /// Verifies that an empty event browse path resolves the NodeId attribute.
+        /// </summary>
         [Test]
         public void ProjectEventFieldsResolvesNodeIdAttributeFromEmptyBrowsePath()
         {
@@ -608,7 +783,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var record = new HistorianEventRecord(
                 ByteString.Empty, eventType,
                 (DateTimeUtc)BaseTime,
-                new Dictionary<string, Variant>());
+                new Dictionary<string, Variant>().ToArrayOf());
 
             // Select clause with empty BrowsePath + NodeId attribute asks for the EventType.
             var filter = new EventFilter
@@ -631,13 +806,16 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(resolved, Is.EqualTo(eventType));
         }
 
+        /// <summary>
+        /// Verifies that an unknown event browse name projects a default value.
+        /// </summary>
         [Test]
         public void ProjectEventFieldsReturnsDefaultForUnknownBrowseName()
         {
             var record = new HistorianEventRecord(
                 ByteString.Empty, ObjectTypeIds.BaseEventType,
                 (DateTimeUtc)BaseTime,
-                new Dictionary<string, Variant>());
+                new Dictionary<string, Variant>().ToArrayOf());
 
             var filter = new EventFilter
             {
@@ -658,6 +836,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(fields.EventFields[0], Is.EqualTo(Variant.Null));
         }
 
+        /// <summary>
+        /// Verifies that event-field projection resolves a multisegment browse path.
+        /// </summary>
         [Test]
         public void ProjectEventFieldsResolvesMultiSegmentBrowsePath()
         {
@@ -667,7 +848,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new Dictionary<string, Variant>
                 {
                     ["Parent/Child"] = new Variant("nested-value")
-                });
+                }.ToArrayOf());
 
             var filter = new EventFilter
             {
@@ -689,11 +870,55 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(val, Is.EqualTo("nested-value"));
         }
 
+        /// <summary>
+        /// Verifies that event-field projection does not match fields across different type definitions.
+        /// </summary>
+        [Test]
+        public void ProjectEventFieldsDoesNotCrossTypeDefinitions()
+        {
+            var key = new HistorianEventFieldKey(
+                ObjectTypeIds.BaseEventType,
+                [new QualifiedName("SharedName", 1)],
+                Attributes.Value,
+                null);
+            var record = new HistorianEventRecord(
+                ByteString.Empty,
+                ObjectTypeIds.BaseEventType,
+                (DateTimeUtc)BaseTime,
+                new Dictionary<string, Variant>().ToArrayOf())
+            {
+                QualifiedFields =
+                    new Dictionary<HistorianEventFieldKey, Variant>
+                    {
+                        [key] = new Variant("base")
+                    }.ToArrayOf()
+            };
+            var filter = new EventFilter
+            {
+                SelectClauses =
+                [
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.ConditionType,
+                        BrowsePath = [new QualifiedName("SharedName", 1)],
+                        AttributeId = Attributes.Value
+                    }
+                ]
+            };
+
+            HistoryEventFieldList fields =
+                HistorianDispatcher.ProjectEventFields(record, filter);
+
+            Assert.That(fields.EventFields, Has.Count.EqualTo(1));
+            Assert.That(fields.EventFields[0], Is.EqualTo(Variant.Null));
+        }
+
         // ─── Helpers ─────────────────────────────────────────────────────────
 
-        private static Fixture CreateFixture()
+        private static Fixture CreateFixture(
+            DiagnosticsMasks diagnosticsMask = DiagnosticsMasks.None)
         {
-            return new();
+            return new(diagnosticsMask);
         }
 
         private static BaseDataVariableState CreateVariable(NodeId nodeId)
@@ -704,6 +929,17 @@ namespace Opc.Ua.Server.Tests.Historian
                 BrowseName = new QualifiedName("TestVar"),
                 AccessLevel = AccessLevels.HistoryReadOrWrite,
                 Historizing = true
+            };
+        }
+
+        private static BaseObjectState CreateEventNotifier(NodeId nodeId)
+        {
+            return new BaseObjectState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("TestNotifier"),
+                EventNotifier = EventNotifiers.HistoryRead |
+                    EventNotifiers.HistoryWrite
             };
         }
 
@@ -726,7 +962,8 @@ namespace Opc.Ua.Server.Tests.Historian
             public InMemoryHistorianProvider Provider { get; }
             public ServerSystemContext SystemContext { get; }
 
-            public Fixture()
+            public Fixture(
+                DiagnosticsMasks diagnosticsMask = DiagnosticsMasks.None)
             {
                 Provider = new InMemoryHistorianProvider();
 
@@ -739,7 +976,6 @@ namespace Opc.Ua.Server.Tests.Historian
                     () => NodeId.Null, maxBrowse: 10, maxHistory: 10, store: null);
                 mockSession.Setup(s => s.ContinuationPoints).Returns(continuationPoints);
 
-
                 var mockServer = new Mock<IServerInternal>();
                 mockServer.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
                 mockServer.Setup(s => s.ServerUris).Returns(new StringTable());
@@ -748,7 +984,12 @@ namespace Opc.Ua.Server.Tests.Historian
                 mockServer.Setup(s => s.Telemetry).Returns(mockTelemetry.Object);
 
                 var opContext = new OperationContext(
-                    new RequestHeader(), null!, RequestType.HistoryRead,
+                    new RequestHeader
+                    {
+                        ReturnDiagnostics = (uint)diagnosticsMask
+                    },
+                    null!,
+                    RequestType.HistoryRead,
                     RequestLifetime.None, mockSession.Object);
                 SystemContext = new ServerSystemContext(mockServer.Object, opContext);
             }

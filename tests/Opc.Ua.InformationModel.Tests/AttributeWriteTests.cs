@@ -33,11 +33,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 
-// Conformance tests use inline literal arrays as expected-value
-// assertions; the per-call allocation cost is irrelevant for tests
-// and keeping the literal adjacent to the assertion improves readability.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
-
 namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
@@ -578,7 +573,7 @@ namespace Opc.Ua.InformationModel.Tests
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
 
-            ArrayOf<int> arrayValue = new int[] { 10, 20, 30 }.ToArrayOf();
+            ArrayOf<int> arrayValue = s_intValues1.ToArrayOf();
 
             WriteResponse writeResponse = await Session.WriteAsync(
                 null,
@@ -969,5 +964,7 @@ namespace Opc.Ua.InformationModel.Tests
                 Is.True,
                 $"Expected Good or BadWriteNotSupported, got {writeResponse.Results[0]}");
         }
+
+        private static readonly int[] s_intValues1 = [10, 20, 30];
     }
 }

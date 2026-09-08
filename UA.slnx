@@ -277,6 +277,8 @@
     <Project Path="tests/Opc.Ua.Core.Schema.Tests/Opc.Ua.Core.Schema.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Aot.Tests.Historian/Opc.Ua.Aot.Tests.Historian.csproj" />
+    <Project Path="tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj" />
     <Project Path="tests/Opc.Ua.Configuration.Tests/Opc.Ua.Configuration.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Encoders.Tests/Opc.Ua.Core.Encoders.Tests.csproj" />

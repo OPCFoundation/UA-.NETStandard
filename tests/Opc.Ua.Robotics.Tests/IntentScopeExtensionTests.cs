@@ -237,7 +237,7 @@ namespace Opc.Ua.Robotics.Tests
 
             Assert.That(admission.Accepted, Is.True);
             await WaitAsync(() => m_executor.Started.Length == 1).ConfigureAwait(false);
-                Assert.That(m_executor.Started, Is.EqualTo([admission.IntentId]));
+            Assert.That(m_executor.Started, Is.EqualTo([admission.IntentId]));
         }
 
         [Test]
@@ -330,7 +330,7 @@ namespace Opc.Ua.Robotics.Tests
             IntentAdmission admission = host.SubmitIntent(m_context, null,
                 new ForceIntentDataType
                 {
-                    Direction = new[] { 0.0, 0.0, 0.0 },
+                    Direction = s_doubleValues1,
                     ContactForce = 5,
                     MaxDistance = 0.1
                 });
@@ -1446,5 +1446,7 @@ namespace Opc.Ua.Robotics.Tests
 
             private int m_calls;
         }
+
+        private static readonly double[] s_doubleValues1 = [0.0, 0.0, 0.0];
     }
 }

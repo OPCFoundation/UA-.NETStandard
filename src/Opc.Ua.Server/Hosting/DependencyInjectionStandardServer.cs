@@ -32,7 +32,6 @@ using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Server.AliasNames;
-using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server.Hosting
 {
@@ -55,6 +54,7 @@ namespace Opc.Ua.Server.Hosting
         {
             m_services = services ?? throw new ArgumentNullException(nameof(services));
             SecurityPolicyRegistry = m_services.GetService<ISecurityPolicyRegistry>();
+            OpcUaServerRegistrationStaging.Apply(this, m_services);
         }
 
         /// <inheritdoc/>
@@ -233,23 +233,8 @@ namespace Opc.Ua.Server.Hosting
         /// <inheritdoc/>
         protected override void OnNodeManagerStarted(IServerInternal server)
         {
-            RegisterHistorians(server);
             RegisterAliasNames(server);
             base.OnNodeManagerStarted(server);
-        }
-
-        private void RegisterHistorians(IServerInternal server)
-        {
-            if (server is not IHistorianRegistryProvider registryProvider)
-            {
-                return;
-            }
-
-            foreach (OpcUaServerHistorianRegistration registration in
-                m_services.GetServices<OpcUaServerHistorianRegistration>())
-            {
-                registryProvider.HistorianRegistry.RegisterDefault(registration.Provider);
-            }
         }
 
         private void RegisterAliasNames(IServerInternal server)
