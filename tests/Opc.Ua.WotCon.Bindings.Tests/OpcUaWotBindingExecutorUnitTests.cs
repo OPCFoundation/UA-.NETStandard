@@ -137,6 +137,72 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(capturedEndpoint, Is.EqualTo(expected));
         }
 
+        [TestCase("?id=i%3D2258", "opc.tcp://example.test:4841/UA/Pump/")]
+        [TestCase("/?id=i%3D2258", "opc.tcp://example.test:4841")]
+        public void RelativeFormsResolveBeforeSelectionAndDirectCompilation(string href, string expectedEndpoint)
+        {
+            var planner = new OpcUaBindingPlanner();
+            var registry = new WotProtocolBinderRegistry([planner], []);
+            string document = $$"""
+                {
+                  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+                  "title": "Relative endpoint",
+                  "base": "opc.tcp://example.test:4841/UA/Pump/",
+                  "properties": {
+                    "value": {
+                      "type": "number",
+                      "forms": [{ "href": "{{href}}", "op": "readproperty" }]
+                    }
+                  }
+                }
+                """;
+            WotBindingPlanRequest request = WotBindingPlanRequest.FromDocument(
+                "relative-endpoint", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document));
+
+            WotBindingPlan plan = registry.Prepare(request);
+            Assert.That(plan.CompiledForms, Has.Length.EqualTo(1));
+            Assert.That(plan.CompiledForms[0].Endpoint.BaseUri, Is.EqualTo(expectedEndpoint));
+            Assert.That(plan.CompiledForms[0].Addressing.Target, Is.EqualTo("i=2258"));
+            Assert.That(request.Forms[0].FormElement.GetProperty("href").GetString(), Is.EqualTo(href));
+
+            WotBindingCompilation direct = planner.Compile(
+                request.Forms[0], request.CreateContext(WotPayloadCodecRegistry.Default, WotBindingBounds.Default));
+            Assert.That(direct.IsSupported, Is.True);
+            Assert.That(direct.Entries[0].Endpoint.BaseUri, Is.EqualTo(expectedEndpoint));
+        }
+
+        [Test]
+        public void InvalidBaseUriProducesAnAddressDiagnostic()
+        {
+            const string document = """
+                {
+                  "title": "Invalid base",
+                  "base": "not an absolute URI",
+                  "properties": {
+                    "value": {
+                      "type": "number",
+                      "forms": [{ "href": "?id=i%3D2258", "op": "readproperty" }]
+                    }
+                  }
+                }
+                """;
+            var planner = new OpcUaBindingPlanner();
+            var registry = new WotProtocolBinderRegistry([planner], []);
+            WotBindingPlanRequest request = WotBindingPlanRequest.FromDocument(
+                "invalid-base", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document));
+
+            WotBindingPlan plan = registry.Prepare(request);
+            WotBindingCompilation direct = planner.Compile(
+                request.Forms[0], request.CreateContext(WotPayloadCodecRegistry.Default, WotBindingBounds.Default));
+
+            Assert.That(plan.CompiledForms, Is.Empty);
+            Assert.That(plan.Diagnostics.Any(diagnostic => diagnostic.Code == WotBindingDiagnosticCode.InvalidHref),
+                Is.True);
+            Assert.That(direct.IsSupported, Is.False);
+            Assert.That(direct.Diagnostics.Any(diagnostic => diagnostic.Code == WotBindingDiagnosticCode.InvalidHref),
+                Is.True);
+        }
+
         private static WotCompiledForm BuildForm(string scheme, int port, string baseUri)
         {
             return new WotCompiledForm(

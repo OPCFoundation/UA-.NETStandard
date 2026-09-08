@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -338,6 +339,47 @@ namespace Opc.Ua.WotCon.Bindings
                 }
             }
             return builder.ToString();
+        }
+
+        /// <summary>
+        /// Resolves the target before protocol selection while retaining the authored JSON and location.
+        /// </summary>
+        internal bool TryResolveHref(
+            string? baseUri,
+            out WotAffordanceForm resolved,
+            [NotNullWhen(false)] out WotBindingDiagnostic? diagnostic)
+        {
+            resolved = this;
+            diagnostic = null;
+            if (Href is null || string.IsNullOrEmpty(baseUri))
+            {
+                return true;
+            }
+            if (!Uri.TryCreate(baseUri, UriKind.Absolute, out Uri? documentBase) ||
+                !Uri.TryCreate(documentBase, Href, out Uri? target))
+            {
+                diagnostic = WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.InvalidHref,
+                    "The form target cannot be resolved against the document base URI.",
+                    Pointer("href"));
+                return false;
+            }
+            if (!string.Equals(Href, target.AbsoluteUri, StringComparison.Ordinal))
+            {
+                resolved = new WotAffordanceForm(
+                    Kind,
+                    AffordanceName,
+                    Operations,
+                    target.AbsoluteUri,
+                    ContentType,
+                    Subprotocol,
+                    SecuritySchemes,
+                    JsonPointer,
+                    FormElement,
+                    AffordanceElement,
+                    TargetMapping);
+            }
+            return true;
         }
     }
 }

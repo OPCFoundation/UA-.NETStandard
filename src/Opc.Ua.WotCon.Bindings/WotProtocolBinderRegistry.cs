@@ -151,8 +151,15 @@ namespace Opc.Ua.WotCon.Bindings
                 ImmutableArray.CreateBuilder<WotBindingDiagnostic>();
             var participating = new Dictionary<string, WoTBindingCapabilityDataType>(StringComparer.Ordinal);
 
-            foreach (WotAffordanceForm form in request.Forms)
+            foreach (WotAffordanceForm authored in request.Forms)
             {
+                if (!authored.TryResolveHref(
+                    context.BaseUri, out WotAffordanceForm form, out WotBindingDiagnostic? addressDiagnostic))
+                {
+                    unsupported.Add(authored);
+                    diagnostics.Add(addressDiagnostic);
+                    continue;
+                }
                 if (form.AffordanceElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
                     !form.AffordanceElement.TryGetProperty("forms", out _) &&
                     (request.IsDeclarationContext ||

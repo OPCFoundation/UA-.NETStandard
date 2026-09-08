@@ -104,6 +104,12 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         public override WotBindingCompilation Compile(WotAffordanceForm form, WotBindingPlanContext context)
         {
             var diagnostics = new List<WotBindingDiagnostic>();
+            if (!form.TryResolveHref(
+                context.BaseUri, out WotAffordanceForm resolved, out WotBindingDiagnostic? addressDiagnostic))
+            {
+                return WotBindingCompilation.Unsupported([addressDiagnostic]);
+            }
+            form = resolved;
 
             string? nodeId = ResolveNodeId(form, out bool nodeIdInPath);
             WotEndpointDescriptor endpoint;

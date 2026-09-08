@@ -85,17 +85,19 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 baseUrl + "/action\",\"contentType\":\"" + contentType + "\"}]}}}";
         }
 
-        [Test]
-        public async Task HttpChannelReadUsesTheCompiledMethod()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HttpChannelReadUsesTheCompiledMethod(bool relativeHref)
         {
             string? receivedMethod = null;
-            using var server = new TestHttpServer((method, _, _) =>
+            using var server = new TestHttpServer((method, path, _) =>
             {
                 receivedMethod = method;
-                return method == "POST"
+                return method == "POST" && path == "/read"
                     ? new TestHttpResponse(200, "application/json", Encoding.UTF8.GetBytes("\"ready\""))
                     : new TestHttpResponse(405, "text/plain", []);
             });
+            string href = relativeHref ? "/read" : server.BaseUrl + "/read";
             string td = $$"""
                 {
                   "@context": [
@@ -103,11 +105,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                     { "htv": "http://www.w3.org/2011/http#" }
                   ],
                   "title": "Post-backed read",
+                  "base": "{{server.BaseUrl}}/thing/",
                   "properties": {
                     "state": {
                       "type": "string",
                       "forms": [{
-                        "href": "{{server.BaseUrl}}/read",
+                        "href": "{{href}}",
                         "contentType": "application/json",
                         "op": "readproperty",
                         "htv:methodName": "POST"
