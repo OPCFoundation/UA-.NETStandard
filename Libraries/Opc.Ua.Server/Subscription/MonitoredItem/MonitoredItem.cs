@@ -1087,13 +1087,22 @@ namespace Opc.Ua.Server
                 }
 
                 // apply filter.
-                if (!bypassFilter && !CanSendFilteredAlarm(context, filter, instance))
+                bool overrideRetain = false;
+                if (!bypassFilter &&
+                    !CanSendFilteredAlarm(context, filter, instance, out overrideRetain))
                 {
                     return;
                 }
 
-                // fetch the event fields.
-                EventFieldList fields = GetEventFields(context, filter, instance);
+                // fetch the event fields. The trailing filtered retain event reads them
+                // through a wrapper that reports Retain = false to this client only. The
+                // queue keeps the original handle: duplicate detection compares handles by
+                // reference, and node managers map the handle back onto the event state.
+                IFilterTarget fieldSource = overrideRetain
+                    ? new FilteredRetainTarget(instance)
+                    : instance;
+                EventFieldList fields = GetEventFields(context, filter, fieldSource);
+                fields.Handle = instance;
                 QueueEvent(fields);
             }
         }
@@ -1114,11 +1123,21 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Determines whether an event can be sent with SupportsFilteredRetain in consideration.
         /// </summary>
+        /// <remarks>
+        /// <paramref name="overrideRetain"/> is <c>true</c> only for the trailing event a
+        /// condition produces as it leaves this client's where clause. Part 9, 5.5.2 requires
+        /// that event to carry a client specific <c>Retain = false</c> whatever the server
+        /// retains, so the caller has to substitute that value into the delivered fields
+        /// without touching the shared filter target.
+        /// </remarks>
         protected bool CanSendFilteredAlarm(
             IFilterContext context,
             EventFilter filter,
-            IFilterTarget instance)
+            IFilterTarget instance,
+            out bool overrideRetain)
         {
+            overrideRetain = false;
+
             bool passedFilter = filter.WhereClause.Evaluate(context, instance);
 
             ConditionState alarmCondition = null;
@@ -1163,7 +1182,10 @@ namespace Opc.Ua.Server
                 }
                 else if (saved)
                 {
+                    // out of scope now: send the trailing event and tell this client
+                    // that it no longer retains the condition.
                     canSend = true;
+                    overrideRetain = true;
                 }
             }
 
