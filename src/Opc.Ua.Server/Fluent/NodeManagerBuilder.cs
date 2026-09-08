@@ -185,9 +185,9 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        /// Activates everything the <c>Configure</c> pass registered:
-        /// completes the registrations it could not finish synchronously,
-        /// then starts the simulation loops.
+        /// Activates everything the <c>Configure</c> pass registered: the node
+        /// behaviors — which start the simulation loops as one of their own — and
+        /// then the registrations that could not finish synchronously.
         /// </summary>
         /// <remarks>
         /// <para>
@@ -208,11 +208,11 @@ namespace Opc.Ua.Server.Fluent
         internal async ValueTask CompleteSealAsync(
             CancellationToken cancellationToken = default)
         {
-            // Behaviors go first. An attach callback may itself call Publish with
-            // RegisterAsRootNotifier, which only stages the notifier; the drain below
-            // snapshots and clears that queue, so activating after it would discard the
-            // registration without a word. Simulations must come later still, because
-            // NewSimulation is rejected once the registry has started.
+            // Behaviors go first, and the simulation loops start from inside that pass
+            // as a manager-scoped behavior. An attach callback may itself call Publish
+            // with RegisterAsRootNotifier, which only stages the notifier; the drain
+            // below snapshots and clears that queue, so activating after it would
+            // discard the registration without a word.
             if (FluentOwner != null)
             {
                 await FluentOwner
@@ -225,8 +225,6 @@ namespace Opc.Ua.Server.Fluent
                 await EventSources.CompleteRegistrationsAsync(cancellationToken)
                     .ConfigureAwait(false);
             }
-
-            Simulations?.Start();
         }
 
         /// <inheritdoc/>
@@ -491,8 +489,17 @@ namespace Opc.Ua.Server.Fluent
                 m_simulationLifecycleRegistered = true;
                 m_nodeAttachments.Add(
                     NodeAttachRegistration.ForManager(
-                        static (_, _, _, state) => new ValueTask<IAsyncDisposable?>(
-                            new SimulationLifetime((SimulationRegistry)state)),
+                        static (_, _, _, state) =>
+                        {
+                            // Start belongs here rather than at the end of the seal:
+                            // manager-scoped behaviors activate after every node
+                            // behavior, so the first tick cannot now precede the
+                            // wiring of the nodes it drives.
+                            var simulations = (SimulationRegistry)state;
+                            simulations.Start();
+                            return new ValueTask<IAsyncDisposable?>(
+                                new SimulationLifetime(simulations));
+                        },
                         registry));
             }
         }
