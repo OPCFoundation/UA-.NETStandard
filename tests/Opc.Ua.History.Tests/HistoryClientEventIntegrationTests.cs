@@ -561,7 +561,7 @@ namespace Opc.Ua.History.Tests
                 CancellationToken cancellationToken = default)
             {
                 var notifier = new BaseObjectState(null);
-                notifier.CreateAsPredefinedNode(SystemContext);
+                notifier.CreateAsPredefinedNode(SystemContext, cancellationToken);
                 notifier.NodeId = new NodeId(NotifierIdentifier, NamespaceIndex);
                 notifier.BrowseName = new QualifiedName("EventHistoryNotifier", NamespaceIndex);
                 notifier.DisplayName = new LocalizedText("EventHistoryNotifier");
@@ -590,7 +590,7 @@ namespace Opc.Ua.History.Tests
                     cancellationToken).ConfigureAwait(false);
 
                 var variable = new BaseDataVariableState(null);
-                variable.CreateAsPredefinedNode(SystemContext);
+                variable.CreateAsPredefinedNode(SystemContext, cancellationToken);
                 variable.NodeId = new NodeId(AnnotationVariableIdentifier, NamespaceIndex);
                 variable.BrowseName = new QualifiedName(
                     "AnnotationHistoryVariable",
