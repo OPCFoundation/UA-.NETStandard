@@ -55,7 +55,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
     /// failed subscription creation.
     /// </summary>
     [TestFixture]
-    public sealed class OpcUaWotBindingChannelTests
+    public sealed partial class OpcUaWotBindingChannelTests
     {
         private const string ReferenceServerNamespace =
             "http://opcfoundation.org/Quickstarts/ReferenceServer";

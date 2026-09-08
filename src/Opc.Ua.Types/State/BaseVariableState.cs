@@ -618,7 +618,9 @@ namespace Opc.Ua
         /// <see cref="WriteAttributeAsync(ISystemContext, uint, NumericRange, DataValue, CancellationToken)"/>
         /// invokes this delegate without holding <c>lock(this)</c>; on
         /// success the framework updates the cached value, status code
-        /// and timestamp.
+        /// and timestamp. Indexed writes merge into the cached value; if the
+        /// cache cannot represent the accepted update, it is invalidated until
+        /// a fresh read rather than storing the replacement slice as a full value.
         /// </summary>
         public NodeValueWriteEventHandlerAsync? OnWriteValueAsync;
 
@@ -2044,6 +2046,22 @@ namespace Opc.Ua
 
                     lock (m_attributeLock)
                     {
+                        if (!indexRange.IsNull)
+                        {
+                            Variant cachedValue = m_value;
+                            ServiceResult cacheResult = indexRange.UpdateRange(ref cachedValue, valueToWrite);
+                            if (ServiceResult.IsBad(cacheResult))
+                            {
+                                // The write already succeeded; a missing or stale local cache needs a fresh read.
+                                valueToWrite = Variant.Null;
+                                statusCode = StatusCodes.BadWaitingForInitialData;
+                                effectiveTimestamp = DateTimeUtc.MinValue;
+                            }
+                            else
+                            {
+                                valueToWrite = cachedValue;
+                            }
+                        }
                         m_value = valueToWrite;
                         m_statusCode = statusCode;
                         m_timestamp = effectiveTimestamp;

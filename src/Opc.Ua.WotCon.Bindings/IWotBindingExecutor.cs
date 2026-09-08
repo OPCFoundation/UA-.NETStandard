@@ -223,6 +223,11 @@ namespace Opc.Ua.WotCon.Bindings
         public DataValue Value { get; }
 
         /// <summary>
+        /// Gets the source namespace and encoding context of the read value.
+        /// </summary>
+        public IServiceMessageContext? Context { get; private init; }
+
+        /// <summary>
         /// Gets the error message on failure, if any.
         /// </summary>
         public string? Error { get; }
@@ -231,6 +236,17 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets whether the operation succeeded.
         /// </summary>
         public bool Success => StatusCode.IsGood(Status);
+
+        /// <summary>
+        /// Returns a read result with the context of its namespace-bearing value.
+        /// </summary>
+        public WotReadResult WithContext(IServiceMessageContext context)
+        {
+            return new WotReadResult(Status, Value, Error)
+            {
+                Context = context ?? throw new ArgumentNullException(nameof(context))
+            };
+        }
     }
 
     /// <summary>

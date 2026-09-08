@@ -46,7 +46,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
     /// preserving argument order and <see cref="DataValue"/> / <see cref="StatusCode"/>
     /// metadata.
     /// </summary>
-    internal sealed class OpcUaWotBindingChannel : IWotContextualBindingChannel
+    internal sealed class OpcUaWotBindingChannel : IWotContextualBindingChannel, IWotPropertyBindingChannel
     {
         public OpcUaWotBindingChannel(
             ISession session,
@@ -66,52 +66,35 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
 
         public WotCompiledForm Form { get; }
 
-        public async ValueTask<WotReadResult> ReadAsync(CancellationToken cancellationToken = default)
+        public ValueTask<WotReadResult> ReadAsync(CancellationToken cancellationToken = default)
         {
-            if (!TryResolveNodeId(m_nodeId, out NodeId nodeId))
-            {
-                return new WotReadResult(
-                    StatusCodes.BadNodeIdInvalid,
-                    DataValue.FromStatusCode(StatusCodes.BadNodeIdInvalid),
-                    $"'{m_nodeId}' is not a valid NodeId.");
-            }
-            try
-            {
-                DataValue value = await m_session.ReadValueAsync(nodeId, cancellationToken).ConfigureAwait(false);
-                return new WotReadResult(value.StatusCode, value);
-            }
-            catch (ServiceResultException ex)
-            {
-                StatusCode status = ex.StatusCode;
-                return new WotReadResult(status, DataValue.FromStatusCode(status), ex.Message);
-            }
+            return ReadCoreAsync(default, default, null, cancellationToken);
         }
 
-        public async ValueTask<WotWriteResult> WriteAsync(
+        public ValueTask<WotReadResult> ReadAsync(
+            WotReadRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request is null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+            return ReadCoreAsync(request.IndexRange, request.DataEncoding, request.Context, cancellationToken);
+        }
+
+        public ValueTask<WotWriteResult> WriteAsync(
             DataValue value, CancellationToken cancellationToken = default)
         {
-            if (!TryResolveNodeId(m_nodeId, out NodeId nodeId))
+            return WriteCoreAsync(value, default, null, cancellationToken);
+        }
+
+        public ValueTask<WotWriteResult> WriteAsync(
+            WotWriteRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request is null)
             {
-                return new WotWriteResult(StatusCodes.BadNodeIdInvalid, $"'{m_nodeId}' is not a valid NodeId.");
+                throw new ArgumentNullException(nameof(request));
             }
-            try
-            {
-                var write = new WriteValue
-                {
-                    NodeId = nodeId,
-                    AttributeId = Attributes.Value,
-                    Value = new DataValue(value.WrappedValue)
-                };
-                WriteResponse response = await m_session
-                    .WriteAsync(null, new WriteValue[] { write }, cancellationToken).ConfigureAwait(false);
-                StatusCode status = response.Results is { Count: > 0 }
-                    ? response.Results[0] : StatusCodes.BadUnexpectedError;
-                return new WotWriteResult(status, StatusCode.IsBad(status) ? status.ToString() : null);
-            }
-            catch (ServiceResultException ex)
-            {
-                return new WotWriteResult(ex.StatusCode, ex.Message);
-            }
+            return WriteCoreAsync(request.Value, request.IndexRange, request.Context, cancellationToken);
         }
 
         public ValueTask<WotInvokeResult> InvokeAsync(
@@ -191,6 +174,101 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 m_session.Dispose();
             }
             return default;
+        }
+
+        private async ValueTask<WotReadResult> ReadCoreAsync(
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            IServiceMessageContext? inputContext,
+            CancellationToken cancellationToken)
+        {
+            if (!TryResolveNodeId(m_nodeId, out NodeId nodeId))
+            {
+                return new WotReadResult(
+                    StatusCodes.BadNodeIdInvalid,
+                    DataValue.FromStatusCode(StatusCodes.BadNodeIdInvalid),
+                    $"'{m_nodeId}' is not a valid NodeId.");
+            }
+            try
+            {
+                if (!dataEncoding.IsNull && inputContext is not null)
+                {
+                    Variant encoding = WotBindingValueMapper.Translate(
+                        new Variant(dataEncoding), inputContext, CreateSourceContext());
+                    if (!encoding.TryGetValue(out dataEncoding))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadDataEncodingInvalid, "The data encoding must be a QualifiedName.");
+                    }
+                }
+                DataValue value;
+                if (indexRange.IsNull && dataEncoding.IsNull)
+                {
+                    value = await m_session.ReadValueAsync(nodeId, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    ArrayOf<ReadValueId> requests =
+                    [
+                        new ReadValueId
+                        {
+                            NodeId = nodeId,
+                            AttributeId = Attributes.Value,
+                            IndexRange = indexRange.ToString(),
+                            DataEncoding = dataEncoding
+                        }
+                    ];
+                    ReadResponse response = await m_session.ReadAsync(
+                        null, 0, TimestampsToReturn.Both, requests, cancellationToken).ConfigureAwait(false);
+                    ClientBase.ValidateResponse(response.Results, requests);
+                    ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
+                    value = response.Results[0];
+                }
+                return new WotReadResult(value.StatusCode, value).WithContext(CreateSourceContext());
+            }
+            catch (ServiceResultException ex)
+            {
+                StatusCode status = ex.StatusCode;
+                return new WotReadResult(status, DataValue.FromStatusCode(status), ex.Message);
+            }
+        }
+
+        private async ValueTask<WotWriteResult> WriteCoreAsync(
+            DataValue value,
+            NumericRange indexRange,
+            IServiceMessageContext? inputContext,
+            CancellationToken cancellationToken)
+        {
+            if (!TryResolveNodeId(m_nodeId, out NodeId nodeId))
+            {
+                return new WotWriteResult(StatusCodes.BadNodeIdInvalid, $"'{m_nodeId}' is not a valid NodeId.");
+            }
+            try
+            {
+                Variant writtenValue = inputContext is null
+                    ? value.WrappedValue
+                    : WotBindingValueMapper.Translate(value.WrappedValue, inputContext, CreateSourceContext());
+                ArrayOf<WriteValue> requests =
+                [
+                    new WriteValue
+                    {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        IndexRange = indexRange.ToString(),
+                        Value = new DataValue(writtenValue)
+                    }
+                ];
+                WriteResponse response = await m_session.WriteAsync(null, requests, cancellationToken)
+                    .ConfigureAwait(false);
+                ClientBase.ValidateResponse(response.Results, requests);
+                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
+                StatusCode status = response.Results[0];
+                return new WotWriteResult(status, StatusCode.IsBad(status) ? status.ToString() : null);
+            }
+            catch (ServiceResultException ex)
+            {
+                return new WotWriteResult(ex.StatusCode, ex.Message);
+            }
         }
 
         private async ValueTask<WotInvokeResult> InvokeCoreAsync(

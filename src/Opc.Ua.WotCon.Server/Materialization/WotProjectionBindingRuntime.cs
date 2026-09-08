@@ -357,13 +357,24 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return async (context, node, indexRange, dataEncoding, cancellationToken) =>
             {
                 IWotBindingChannel channel = await slot.GetAsync(cancellationToken).ConfigureAwait(false);
-                WotReadResult result = await channel.ReadAsync(cancellationToken).ConfigureAwait(false);
+                WotReadResult result;
+                bool nativeRead = channel is IWotPropertyBindingChannel;
+                if (channel is IWotPropertyBindingChannel propertyChannel)
+                {
+                    var request = new WotReadRequest(context.AsMessageContext(), indexRange, dataEncoding);
+                    result = await propertyChannel.ReadAsync(request, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    result = await channel.ReadAsync(cancellationToken).ConfigureAwait(false);
+                }
+                bool isWholeValue = !nativeRead || (indexRange.IsNull && dataEncoding.IsNull);
                 if (StatusCode.IsBad(result.Status))
                 {
                     DateTimeUtc failedTimestamp = result.Value.SourceTimestamp != DateTimeUtc.MinValue
                         ? result.Value.SourceTimestamp
                         : DateTimeUtc.Now;
-                    if (node is BaseVariableState failedVariable)
+                    if (isWholeValue && node is BaseVariableState failedVariable)
                     {
                         failedVariable.Value = Variant.Null;
                         failedVariable.StatusCode = result.Status;
@@ -375,22 +386,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         result.Status,
                         failedTimestamp);
                 }
-                DataValue value = result.Value;
+                DataValue value = TranslateReadValue(result, context);
                 StatusCode status = SelectStatus(value.StatusCode, result.Status);
                 DateTimeUtc timestamp = value.SourceTimestamp != DateTimeUtc.MinValue
                     ? value.SourceTimestamp
                     : DateTimeUtc.Now;
-                if (node is BaseVariableState variable)
+                if (isWholeValue && node is BaseVariableState variable)
                 {
                     variable.Value = value.WrappedValue;
                     variable.StatusCode = status;
                     variable.Timestamp = timestamp;
                 }
-                return new AttributeReadResult(
-                    ServiceResult.Good,
-                    value.WrappedValue,
-                    status,
-                    timestamp);
+                return nativeRead
+                    ? new AttributeReadResult(ServiceResult.Good, value.WrappedValue, status, timestamp)
+                    : ApplyReadConstraints(context, indexRange, dataEncoding, value.WrappedValue, status, timestamp);
             };
         }
 
@@ -399,9 +408,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return async (context, node, indexRange, value, cancellationToken) =>
             {
                 IWotBindingChannel channel = await slot.GetAsync(cancellationToken).ConfigureAwait(false);
-                WotWriteResult result = await channel
-                    .WriteAsync(new DataValue(value), cancellationToken)
-                    .ConfigureAwait(false);
+                WotWriteResult result = await WritePropertyAsync(
+                    channel, value, context.AsMessageContext(), indexRange, cancellationToken).ConfigureAwait(false);
                 return new AttributeWriteResult(new ServiceResult(result.Status));
             };
         }
@@ -428,10 +436,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
 
                 List<(WotFieldPathPlan Plan, WotBindingChannelSlot Slot)> fields = resolution.ReadFields;
+                IServiceMessageContext messageContext = context.AsMessageContext();
                 var tasks = new Task<(WotFieldPathPlan Plan, WotReadResult Result)>[fields.Count];
                 for (int i = 0; i < fields.Count; i++)
                 {
-                    tasks[i] = ReadFieldAsync(fields[i].Plan, fields[i].Slot, cancellationToken);
+                    tasks[i] = ReadFieldAsync(fields[i].Plan, fields[i].Slot, messageContext, cancellationToken);
                 }
                 (WotFieldPathPlan Plan, WotReadResult Result)[] results = await Task.WhenAll(tasks)
                     .ConfigureAwait(false);
@@ -451,12 +460,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 foreach ((WotFieldPathPlan plan, WotReadResult result) in results)
                 {
                     IStructure parent = WotStructuredFieldNavigator.CreateOrGetChild(root, plan.IntermediateSegments);
-                    parent[plan.LeafFieldName] = result.Value.WrappedValue;
+                    parent[plan.LeafFieldName] = TranslateReadValue(result, context).WrappedValue;
                 }
 
                 (StatusCode status, DateTimeUtc timestamp) = AggregateFieldMetadata(results);
-                return new AttributeReadResult(
-                    ServiceResult.Good,
+                return ApplyReadConstraints(
+                    context,
+                    indexRange,
+                    dataEncoding,
                     new Variant(new ExtensionObject(rootEncodeable)),
                     status,
                     timestamp);
@@ -467,6 +478,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             return async (context, node, indexRange, value, cancellationToken) =>
             {
+                if (!indexRange.IsNull)
+                {
+                    return new AttributeWriteResult(new ServiceResult(StatusCodes.BadWriteNotSupported));
+                }
                 WotStructuredGroupResolution resolution = state.EnsureResolved();
                 if (!resolution.Success)
                 {
@@ -541,11 +556,51 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return current;
         }
 
+        private static DataValue TranslateReadValue(WotReadResult result, ISystemContext context)
+        {
+            DataValue value = result.Value;
+            if (StatusCode.IsBad(value.StatusCode) || !WotBindingValueMapper.RequiresContext(value.WrappedValue))
+            {
+                return value;
+            }
+            IServiceMessageContext source = result.Context ??
+                new ServiceMessageContext(context.Telemetry, context.EncodeableFactory);
+            Variant mapped = WotBindingValueMapper.Translate(
+                value.WrappedValue, source, context.AsMessageContext(), allowNamespaceGrowth: true);
+            return value.WithWrappedValue(mapped);
+        }
+
+        private static AttributeReadResult ApplyReadConstraints(
+            ISystemContext context,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            Variant value,
+            StatusCode status,
+            DateTimeUtc timestamp)
+        {
+            if (StatusCode.IsNotBad(status))
+            {
+                ServiceResult result = BaseVariableState.ApplyIndexRangeAndDataEncoding(
+                    context, indexRange, dataEncoding, ref value);
+                if (ServiceResult.IsBad(result))
+                {
+                    return new AttributeReadResult(result, Variant.Null, result.StatusCode, timestamp);
+                }
+            }
+            return new AttributeReadResult(ServiceResult.Good, value, status, timestamp);
+        }
+
         private static async Task<(WotFieldPathPlan Plan, WotReadResult Result)> ReadFieldAsync(
-            WotFieldPathPlan plan, WotBindingChannelSlot slot, CancellationToken cancellationToken)
+            WotFieldPathPlan plan,
+            WotBindingChannelSlot slot,
+            IServiceMessageContext messageContext,
+            CancellationToken cancellationToken)
         {
             IWotBindingChannel channel = await slot.GetAsync(cancellationToken).ConfigureAwait(false);
-            WotReadResult result = await channel.ReadAsync(cancellationToken).ConfigureAwait(false);
+            WotReadResult result = channel is IWotPropertyBindingChannel propertyChannel
+                ? await propertyChannel.ReadAsync(new WotReadRequest(messageContext), cancellationToken)
+                    .ConfigureAwait(false)
+                : await channel.ReadAsync(cancellationToken).ConfigureAwait(false);
             return (plan, result);
         }
 
@@ -572,7 +627,34 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             Variant fieldValue = parent[plan.LeafFieldName];
             IWotBindingChannel channel = await slot.GetAsync(cancellationToken).ConfigureAwait(false);
-            return await channel.WriteAsync(new DataValue(fieldValue), cancellationToken).ConfigureAwait(false);
+            return await WritePropertyAsync(channel, fieldValue, messageContext, default, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        private static async ValueTask<WotWriteResult> WritePropertyAsync(
+            IWotBindingChannel channel,
+            Variant value,
+            IServiceMessageContext messageContext,
+            NumericRange indexRange,
+            CancellationToken cancellationToken)
+        {
+            if (channel is IWotPropertyBindingChannel propertyChannel)
+            {
+                var request = new WotWriteRequest(new DataValue(value), messageContext, indexRange);
+                return await propertyChannel.WriteAsync(request, cancellationToken).ConfigureAwait(false);
+            }
+            if (!indexRange.IsNull)
+            {
+                return new WotWriteResult(
+                    StatusCodes.BadWriteNotSupported, "The property channel does not support native indexed writes.");
+            }
+            Variant writtenValue = value;
+            if (WotBindingValueMapper.RequiresContext(value))
+            {
+                var independent = new ServiceMessageContext(messageContext.Telemetry, messageContext.Factory);
+                writtenValue = WotBindingValueMapper.Translate(value, messageContext, independent);
+            }
+            return await channel.WriteAsync(new DataValue(writtenValue), cancellationToken).ConfigureAwait(false);
         }
 
         private readonly INodeManagerBuilder m_builder;

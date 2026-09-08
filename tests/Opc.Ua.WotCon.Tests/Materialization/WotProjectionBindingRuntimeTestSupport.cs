@@ -262,6 +262,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public Variant ArrayValue { get; set; } = Variant.Null;
 
+        public NodeId Target { get; set; }
+
         public ExpandedNodeId TypeId => TestRootType.EncodingId;
 
         public ExpandedNodeId BinaryEncodingId => TestRootType.EncodingId;
@@ -283,7 +285,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public object Clone()
         {
-            return new TestRootStructure { A = A, ChildValue = ChildValue, ArrayValue = ArrayValue };
+            return new TestRootStructure { A = A, ChildValue = ChildValue, ArrayValue = ArrayValue, Target = Target };
         }
 
         public IReadOnlyList<IStructureField> GetFields()
@@ -298,6 +300,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 0 => new Variant(A),
                 1 => ChildValue,
                 2 => ArrayValue,
+                3 => new Variant(Target),
                 _ => throw new ArgumentOutOfRangeException(nameof(index))
             };
             set
@@ -316,6 +319,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     case 2:
                         ArrayValue = value;
                         break;
+                    case 3:
+                        if (value.TryGetValue(out NodeId target))
+                        {
+                            Target = target;
+                        }
+                        break;
                 }
             }
         }
@@ -327,6 +336,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "A" => new Variant(A),
                 "Child" => ChildValue,
                 "ArrayField" => ArrayValue,
+                "Target" => new Variant(Target),
                 _ => throw new ArgumentOutOfRangeException(nameof(name))
             };
             set
@@ -344,6 +354,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         break;
                     case "ArrayField":
                         ArrayValue = value;
+                        break;
+                    case "Target":
+                        if (value.TryGetValue(out NodeId target))
+                        {
+                            Target = target;
+                        }
                         break;
                 }
             }
@@ -391,6 +407,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         Name = "ArrayField",
                         DataType = Ua.DataTypeIds.Int32,
                         ValueRank = ValueRanks.OneDimension
+                    },
+                    new StructureField
+                    {
+                        Name = "Target",
+                        DataType = Ua.DataTypeIds.NodeId,
+                        ValueRank = ValueRanks.Scalar
                     }
                 ]
             };

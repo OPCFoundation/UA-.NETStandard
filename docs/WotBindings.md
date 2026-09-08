@@ -89,6 +89,7 @@ All contracts live in the `Opc.Ua.WotCon.Bindings` namespace.
 * **Lifecycle and operations**
   * `IWotBindingExecutor` — `ActivateAsync` opens a per-form `IWotBindingChannel`.
   * `IWotBindingChannel` — `ReadAsync` / `WriteAsync` / `InvokeAsync` / `ObserveAsync` / `SubscribeEventAsync`, returning `WotReadResult` / `WotWriteResult` / `WotInvokeResult` with mapped `StatusCode`s.
+  * `IWotPropertyBindingChannel` — optional contextual property capability. `WotReadRequest` carries `IndexRange`, `DataEncoding`, and the caller's message context; `WotWriteRequest` carries a value, its context, and a native index range. Existing channels do not need to implement this interface. `WotReadResult.WithContext` attaches the source context of returned values.
 * **Registry and structured diagnostics**
   * `IWotBinderRegistry` / `WotProtocolBinderRegistry` — the Prepare / Activate / Deactivate seam the coordinator uses.
   * `WotBindingDiagnostic` — severity + stable code + **RFC 6901 JSON Pointer**.
@@ -146,10 +147,28 @@ Once a closure's forms are materialized as NodeSet2 content, `LifecycleWotProjec
   * Missing, malformed, ambiguous, wrong-node-class or type-mismatch mappings fail activation with a deterministic `ServiceResultException` status (`BadNodeIdInvalid` / `BadNodeIdUnknown` / `BadBrowseNameDuplicated` / `BadTypeMismatch`); every portable NodeId parse failure — including one the parser itself raises as a `ServiceResultException` — is wrapped as `BadNodeIdInvalid` naming the offending term (`uav:mapToNodeId` / `uav:mapToType`) rather than surfacing the parser's own exception shape.
 * `IWotProjectionBindingRuntimeFactory` (default `WotProjectionBindingRuntimeFactory`) groups the closure's target-mapped, executable compiled forms by resolved target variable and returns a `WotProjectionBindingRuntime` — the `IAsyncDisposable` the NodeSet generation owns:
   * A **direct** target (`uav:mapToNodeId` and/or `uav:mapToType` alone) wires the executable `readproperty`/`writeproperty` forms as full async `OnRead`/`OnWrite` handlers that preserve the source `StatusCode` and `SourceTimestamp`; local monitored items sample the same read handler, so no second observe bridge is created for an `observeproperty` form on the same target.
-  * A **structured** target (`uav:mapToType` + `uav:mapByFieldPath`) composes the value by reading every mapped field concurrently, building nested structures via `IEncodeableFactory` / `IStructure` / `IDataTypeDefinitionSource` (no reflection); writes extract and write each mapped field concurrently from the incoming structure. A single failing field fails the whole read or write; a successful read preserves a non-default `Good` status if any field reported one and uses the oldest non-`MinValue` `SourceTimestamp` across the fields, rather than always reporting plain `Good`/now.
+  * A **structured** target (`uav:mapToType` + `uav:mapByFieldPath`) composes the value by reading every mapped field concurrently, building nested structures via `IEncodeableFactory` / `IStructure` / `IDataTypeDefinitionSource` (no reflection); writes extract and write each mapped field concurrently from the incoming structure. A Bad field fails the whole operation; Uncertain reads retain their usable values. The composed result preserves the first non-default status at the highest severity and uses the oldest non-`MinValue` `SourceTimestamp` across the fields. Direct and structured writes preserve successful subcodes such as `GoodClamped`.
   * Conflicting direct-vs-field mappings, duplicate read/write mappings for the same target/field, and unsupported target operations all fail activation deterministically. Everything else about a structured target that depends on its structure type being registered — the encodeable type lookup, root instance validation, and `uav:mapByFieldPath` path resolution (empty segments, unknown fields, array-valued or non-structure intermediate fields) — is deferred to the first structured read or write instead of failing activation, because `RuntimeNodeSetOptions.ConfigureAsync` runs before `NodeManagerLifecycle.RefreshComplexTypesAsync` registers the server's custom structure types. Resolution is retried, uncached, on every first use until it succeeds against the (by-then-populated) `IEncodeableFactory` instance; a still-unresolved first use returns a deterministic `BadConfigurationError` read/write status instead of throwing out of the request pipeline.
   * Channels are opened lazily and cached one-per-compiled-form for the generation; concurrent first use opens once, and a failed open is evicted so a later call can retry. Every successfully opened channel is disposed with the generation; disposal failures are aggregated. A channel open racing with, or started after, generation disposal never leaks: disposal marks the slot disposed under its lock so no later open can start, and still awaits and disposes a channel whose open was already in flight.
 * Both abstractions are always available via direct construction (no DI container required) and are registered through `AddWotRegistryServer` using `TryAdd*` so a host application can supply its own implementation.
+
+Property reads translate namespace-bearing values using `WotReadResult.Context`, including individual structured fields, before exposing them in the local AddressSpace. Contextual property writes use the same URI-based mapper in the opposite direction. Unknown remote namespaces fail without extending a Server's session table. A channel without contextual support can still exchange namespace-independent values, but cannot silently accept local namespace indexes; opaque ExtensionObjects that cannot be translated as decoded structures also fail explicitly.
+
+The OPC UA property channel forwards native `IndexRange` values on Read and Write and resolves requested data-encoding QualifiedNames in the source namespace table. The runtime does not apply a native range twice. For channels without this capability, it applies the Core read range/data-encoding helper locally and rejects indexed writes with `BadWriteNotSupported` before calling Write. It does not emulate an indexed write with an unsafe read-modify-write. An index range on a composed structured write is likewise rejected before writing its fields.
+
+Direct channel consumers can opt into the additive capability:
+
+```csharp
+if (channel is IWotPropertyBindingChannel propertyChannel)
+{
+    WotReadResult slice = await propertyChannel.ReadAsync(
+        new WotReadRequest(callerContext, NumericRange.Parse("1")),
+        cancellationToken);
+    WotWriteResult result = await propertyChannel.WriteAsync(
+        new WotWriteRequest(replacementSlice, callerContext, NumericRange.Parse("1")),
+        cancellationToken);
+}
+```
 
 ### Projected Methods, events, and Conditions
 
