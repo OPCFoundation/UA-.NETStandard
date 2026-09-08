@@ -31,9 +31,6 @@
 // UTF-8 "..."u8 literal would misrepresent their intent, so keep the explicit byte arrays.
 #pragma warning disable IDE0230 // Use UTF-8 string literal
 
-// CA1861: inline literal arrays here are one-shot test fixtures, not hot-path
-//   allocations, so hoisting them to static readonly fields adds no value. Suppressed file-level.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
 
 // CA2000: system-under-test disposables are created per test and released at teardown;
 //   there is no cross-test resource leak. Suppressed file-level for the suite.
@@ -255,7 +252,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
         {
             using var bulk = new InMemorySharedKeyValueStore();
             using var strong = new InMemorySharedKeyValueStore();
-            var prefixes = new ArrayOf<string>(new[] { "cas/" }.AsMemory());
+            var prefixes = new ArrayOf<string>(s_stringValues1.AsMemory());
             await using var hybrid = new HybridSharedKeyValueStore(bulk, strong, prefixes);
 
             await hybrid.SetAsync("cas/x", ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
@@ -313,5 +310,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(defaults[1], Is.EqualTo("lease/"));
             Assert.That(defaults[2], Is.EqualTo("election/"));
         }
+
+        private static readonly string[] s_stringValues1 = ["cas/"];
     }
 }

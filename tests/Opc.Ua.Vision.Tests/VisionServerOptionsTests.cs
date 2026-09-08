@@ -139,11 +139,13 @@ namespace Opc.Ua.Vision.Tests
             var options = new VisionServerOptions
             {
                 InstanceNamespaceUri = "urn:custom:vision:instances",
-                AdditionalFacets = new[] { "VIS-Custom" }.ToArrayOf()
+                AdditionalFacets = s_stringValues1.ToArrayOf()
             };
 
             Assert.That(options.Validate, Throws.Nothing);
             Assert.That(options.AdditionalFacets.Count, Is.EqualTo(1));
         }
+
+        private static readonly string[] s_stringValues1 = ["VIS-Custom"];
     }
 }

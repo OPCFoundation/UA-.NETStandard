@@ -816,7 +816,7 @@ namespace Opc.Ua.Robotics.Intent.Tests
             StatusCode supportedFacetsWriteStatus = await WriteValueAsync(
                 context.Session,
                 supportedFacets,
-                Variant.From(new[] { "RI-Fake" }.ToArrayOf())).ConfigureAwait(false);
+                Variant.From(s_stringValues1.ToArrayOf())).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -2439,5 +2439,7 @@ namespace Opc.Ua.Robotics.Intent.Tests
                 TaskCreationOptions.RunContinuationsAsynchronously);
             private int m_completionVersion;
         }
+
+        private static readonly string[] s_stringValues1 = ["RI-Fake"];
     }
 }

@@ -61,21 +61,7 @@ namespace Opc.Ua.OpenUsd.Tests
         {
             List<string> paths = _stage.AllPrims().Select(p => p.Path).OrderBy(p => p, System.StringComparer.Ordinal).ToList();
             Assert.That(paths, Has.Count.EqualTo(12));
-            Assert.That(paths, Is.EqualTo(new[]
-            {
-                "/Plant",
-                "/Plant/Pumps",
-                "/Plant/Pumps/P101",
-                "/Plant/Pumps/P101/Bearing",
-                "/Plant/Pumps/P101/Body",
-                "/Plant/Pumps/P101/Impeller",
-                "/Plant/Pumps/P101/Impeller/BladeA",
-                "/Plant/Pumps/P101/Impeller/BladeB",
-                "/Plant/Pumps/P101/StatusLight",
-                "/Plant/Pumps/P101/StatusLight/Bulb",
-                "/Plant/Pumps/P101/StatusLight/Mat",
-                "/Plant/Pumps/P101/StatusLight/Mat/Surface",
-            }));
+            Assert.That(paths, Is.EqualTo(s_stringValues1));
         }
 
         [Test]
@@ -139,14 +125,14 @@ namespace Opc.Ua.OpenUsd.Tests
             Assert.That(outer, Has.Count.EqualTo(1));
             Assert.That(outer[0].TryGetTuple(out ArrayOf<UsdValue> tuple), Is.True);
             Assert.That(tuple.ToArray()!.Select(v => v.TryGetInteger(out long integer) ? integer : -1L).ToArray(),
-                Is.EqualTo(new[] { 0L, 0L, 1L }));
+                Is.EqualTo(s_longValues1));
 
             UsdAttribute order = UsdTestHelpers.RequireAttribute(body, "xformOpOrder");
             Assert.That(order.TypeName, Is.EqualTo("token[]"));
             Assert.That(order.Variability, Is.EqualTo(UsdVariabilityEnum.Uniform));
             Assert.That(order.Value.TryGetArray(out ArrayOf<UsdValue> orderValues), Is.True);
             Assert.That(orderValues.ToArray()!.Select(v => v.TryGetText(out string token) ? token : string.Empty).ToArray(),
-                Is.EqualTo(new[] { "xformOp:translate" }));
+                Is.EqualTo(s_stringValues2));
         }
 
         [Test]
@@ -167,7 +153,7 @@ namespace Opc.Ua.OpenUsd.Tests
             UsdAttribute order = UsdTestHelpers.RequireAttribute(impeller, "xformOpOrder");
             Assert.That(order.Value.TryGetArray(out ArrayOf<UsdValue> orderValues), Is.True);
             Assert.That(orderValues.ToArray()!.Select(v => v.TryGetText(out string token) ? token : string.Empty).ToArray(),
-                Is.EqualTo(new[] { "xformOp:translate", "xformOp:rotateZ" }));
+                Is.EqualTo(s_stringValues3));
         }
 
         [Test]
@@ -175,10 +161,10 @@ namespace Opc.Ua.OpenUsd.Tests
         {
             UsdPrim bulb = UsdTestHelpers.RequirePrim(_stage, "/Plant/Pumps/P101/StatusLight/Bulb");
             Assert.That(bulb.TypeName, Is.EqualTo("Sphere"));
-            Assert.That(bulb.ApiSchemas.Select(s => s.SchemaName), Is.EqualTo(new[] { "MaterialBindingAPI" }));
+            Assert.That(bulb.ApiSchemas.Select(s => s.SchemaName), Is.EqualTo(s_stringValues4));
 
             UsdRelationship binding = UsdTestHelpers.RequireRelationship(bulb, "material:binding");
-            Assert.That(binding.Targets, Is.EqualTo(new[] { "/Plant/Pumps/P101/StatusLight/Mat" }));
+            Assert.That(binding.Targets, Is.EqualTo(s_stringValues5));
         }
 
         [Test]
@@ -190,10 +176,7 @@ namespace Opc.Ua.OpenUsd.Tests
             UsdAttribute surface = UsdTestHelpers.RequireAttribute(mat, "outputs:surface");
             Assert.That(surface.TypeName, Is.EqualTo("token"));
             Assert.That(surface.Value.IsNull, Is.True);
-            Assert.That(surface.Connections, Is.EqualTo(new[]
-            {
-                "/Plant/Pumps/P101/StatusLight/Mat/Surface.outputs:surface",
-            }));
+            Assert.That(surface.Connections, Is.EqualTo(s_stringValues6));
         }
 
         [Test]
@@ -211,16 +194,43 @@ namespace Opc.Ua.OpenUsd.Tests
             Assert.That(diffuse.TypeName, Is.EqualTo("color3f"));
             Assert.That(diffuse.Value.TryGetTuple(out ArrayOf<UsdValue> diffuseValues), Is.True);
             Assert.That(diffuseValues.ToArray()!.Select(v => v.TryGetDouble(out double d) ? d : double.NaN).ToArray(),
-                Is.EqualTo(new[] { 0.1, 0.1, 0.1 }));
+                Is.EqualTo(s_doubleValues1));
 
             UsdAttribute emissive = UsdTestHelpers.RequireAttribute(shader, "inputs:emissiveColor");
             Assert.That(emissive.Value.TryGetTuple(out ArrayOf<UsdValue> emissiveValues), Is.True);
             Assert.That(emissiveValues.ToArray()!.Select(v => v.TryGetInteger(out long integer) ? integer : -1L).ToArray(),
-                Is.EqualTo(new[] { 0L, 0L, 0L }));
+                Is.EqualTo(s_longValues2));
 
             UsdAttribute outputs = UsdTestHelpers.RequireAttribute(shader, "outputs:surface");
             Assert.That(outputs.Value.IsNull, Is.True);
             Assert.That(outputs.Connections, Is.Empty);
         }
+
+        private static readonly string[] s_stringValues1 =
+        [
+            "/Plant",
+            "/Plant/Pumps",
+            "/Plant/Pumps/P101",
+            "/Plant/Pumps/P101/Bearing",
+            "/Plant/Pumps/P101/Body",
+            "/Plant/Pumps/P101/Impeller",
+            "/Plant/Pumps/P101/Impeller/BladeA",
+            "/Plant/Pumps/P101/Impeller/BladeB",
+            "/Plant/Pumps/P101/StatusLight",
+            "/Plant/Pumps/P101/StatusLight/Bulb",
+            "/Plant/Pumps/P101/StatusLight/Mat",
+            "/Plant/Pumps/P101/StatusLight/Mat/Surface",
+        ];
+        private static readonly long[] s_longValues1 = [0L, 0L, 1L];
+        private static readonly string[] s_stringValues2 = ["xformOp:translate"];
+        private static readonly string[] s_stringValues3 = ["xformOp:translate", "xformOp:rotateZ"];
+        private static readonly string[] s_stringValues4 = ["MaterialBindingAPI"];
+        private static readonly string[] s_stringValues5 = ["/Plant/Pumps/P101/StatusLight/Mat"];
+        private static readonly string[] s_stringValues6 =
+        [
+            "/Plant/Pumps/P101/StatusLight/Mat/Surface.outputs:surface",
+        ];
+        private static readonly double[] s_doubleValues1 = [0.1, 0.1, 0.1];
+        private static readonly long[] s_longValues2 = [0L, 0L, 0L];
     }
 }

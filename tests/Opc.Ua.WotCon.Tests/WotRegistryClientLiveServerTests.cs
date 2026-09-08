@@ -170,10 +170,7 @@ namespace Opc.Ua.WotCon.Tests
                 .GetOrCreateResourceAsync("sensor01", "1.0.0")
                 .ConfigureAwait(false);
             Assert.That(created, Is.True);
-            // The server currently assigns its own version id on commit
-            // rather than honoring the caller-supplied one, so the
-            // pre-upload versionId is empty (no default version yet).
-            Assert.That(versionId, Is.Empty);
+            Assert.That(versionId, Is.EqualTo("1.0.0"));
 
             byte[] content = Encoding.UTF8.GetBytes(ValidThingDescriptionJson("sensor01"));
 

@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CA1861: inline constant-array expected-values used in test assertions are a clarity win
-// for the test author and aren't on a hot path. Disabled file-level for the suite.
-#pragma warning disable CA1861
 // CA2000: test code; disposables are ownership-transferred to test fixtures or are short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000

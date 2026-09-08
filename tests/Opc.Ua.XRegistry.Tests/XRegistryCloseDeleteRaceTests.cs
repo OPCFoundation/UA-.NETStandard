@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -55,7 +54,8 @@ namespace Opc.Ua.XRegistry.Tests
             // The store blocks inside the commit's Write, which is exactly the window in which the
             // resource can be deleted, making the race deterministic instead of timing dependent.
             var store = new BlockingOnWriteResourceStore();
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(store);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(store)
+                .ConfigureAwait(false);
 
             CreateGroupMethodStateResult group = await nm.OnCreateGroupAsync(
                 nm.SystemContext, null!, NodeId.Null, "schemas", CancellationToken.None)
@@ -103,7 +103,8 @@ namespace Opc.Ua.XRegistry.Tests
         public async Task ACommitThatIsNotRacedStillStoresTheDocumentAsync()
         {
             var store = new BlockingOnWriteResourceStore();
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace(store);
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync(store)
+                .ConfigureAwait(false);
             store.Release();
 
             CreateGroupMethodStateResult group = await nm.OnCreateGroupAsync(
@@ -134,7 +135,7 @@ namespace Opc.Ua.XRegistry.Tests
             });
         }
 
-        private static XRegistryRegistrationNodeManager CreateAddressSpace(
+        private static async Task<XRegistryRegistrationNodeManager> CreateAddressSpaceAsync(
             IXRegistryResourceStore store)
         {
             var options = new XRegistryServerOptions
@@ -145,7 +146,9 @@ namespace Opc.Ua.XRegistry.Tests
             Mock<IServerInternal> server =
                 XRegistryServerTestHarness.CreateServer(options.RegistryNamespaceUri);
             var nm = new XRegistryRegistrationNodeManager(server.Object, null!, options);
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
             return nm;
         }
 
@@ -202,8 +205,10 @@ namespace Opc.Ua.XRegistry.Tests
             }
 
             private readonly InMemoryResourceStore m_inner = new();
+
             private readonly TaskCompletionSource<bool> m_entered =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private readonly TaskCompletionSource<bool> m_release =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
         }

@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.XRegistry.Server
@@ -38,11 +40,11 @@ namespace Opc.Ua.XRegistry.Server
     /// is represented locally by a proxy carrying an <c>ExternalReference</c> (an
     /// <see cref="ExpandedNodeId"/> whose <c>ServerIndex</c> names the remote OPC UA server via the
     /// <c>ServerArray</c>, and whose <c>NamespaceUri</c> + <c>Identifier</c> are the remote resource
-    /// node's identity) and/or a <c>ResourceUrl</c>. Because a resource's identity (its content-id)
-    /// is content-derived and therefore stable across registries, the same resource federated from
-    /// several endpoints keeps <b>one</b> identity and can be de-duplicated by content-id.
+    /// node's identity) and/or a <c>ResourceUrl</c>. The proxy retains the remote resource's
+    /// structural xRegistry identity while the opaque content id remains an independent lookup
+    /// target carried by <c>ExternalReference</c>.
     /// </summary>
-    public class XRegistryFederationNodeManager : CustomNodeManager2
+    public class XRegistryFederationNodeManager : AsyncCustomNodeManager
     {
         /// <summary>
         /// Initializes the federation node manager for the registry namespace.
@@ -54,7 +56,11 @@ namespace Opc.Ua.XRegistry.Server
             IServerInternal server,
             ApplicationConfiguration configuration,
             XRegistryServerOptions options)
-            : base(server, configuration, (options ?? new XRegistryServerOptions()).RegistryNamespaceUri)
+            : base(
+                server,
+                configuration,
+                server.Telemetry.CreateLogger<XRegistryFederationNodeManager>(),
+                (options ?? new XRegistryServerOptions()).RegistryNamespaceUri)
         {
             XRegistryServerOptions opts = options ?? new XRegistryServerOptions();
             m_namespaceUri = opts.RegistryNamespaceUri;
@@ -66,6 +72,11 @@ namespace Opc.Ua.XRegistry.Server
             m_remoteEndpointUrl = opts.RemoteEndpointUrl;
             m_remoteServerIndex = opts.RemoteServerIndex;
             m_proxyBrowseName = opts.FederationProxyBrowseName;
+            m_groupsAttributeName = opts.GroupsAttributeName;
+            m_resourcesAttributeName = opts.ResourcesAttributeName;
+            m_proxyGroupId = opts.FederationProxyGroupId;
+            m_proxyResourceId = opts.FederationProxyResourceId;
+            m_proxyVersionId = opts.FederationProxyVersionId;
         }
 
         /// <summary>
@@ -73,10 +84,15 @@ namespace Opc.Ua.XRegistry.Server
         /// assembly by the OPC UA model source generator, so no NodeSet2 XML is parsed at runtime.
         /// </summary>
         /// <param name="context">The system context.</param>
+        /// <param name="cancellationToken">Cancels model loading.</param>
         /// <returns>The predefined nodes of the xRegistry base model.</returns>
-        protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
+        protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
+            ISystemContext context,
+            CancellationToken cancellationToken = default)
         {
-            return new NodeStateCollection().AddOpcUaXRegistry(context);
+            cancellationToken.ThrowIfCancellationRequested();
+            return new ValueTask<NodeStateCollection>(
+                new NodeStateCollection().AddOpcUaXRegistry(context));
         }
 
         /// <summary>
@@ -84,14 +100,30 @@ namespace Opc.Ua.XRegistry.Server
         /// <c>ResourceUrl</c> and content-id metadata.
         /// </summary>
         /// <param name="externalReferences">External reference sink (unused).</param>
+        /// <param name="cancellationToken">Cancels address-space creation.</param>
         /// <exception cref="InvalidOperationException">
         /// A federation proxy is published but no
         /// <see cref="XRegistryServerOptions.ContentIdProvider"/> is configured.
         /// </exception>
-        public override void CreateAddressSpace(
-            IDictionary<NodeId, IList<IReference>> externalReferences)
+        public override ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
         {
-            base.CreateAddressSpace(externalReferences);
+            cancellationToken.ThrowIfCancellationRequested();
+            return XRegistryNodeManagerStartup.RunAsync(
+                externalReferences,
+                InitializeAddressSpaceAsync,
+                base.DeleteAddressSpaceAsync,
+                cancellationToken);
+        }
+
+        private async ValueTask InitializeAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
 
             if (!m_publishProxy || m_federatedDocument.IsNull)
             {
@@ -114,23 +146,28 @@ namespace Opc.Ua.XRegistry.Server
                 parent: null!, new QualifiedName(m_proxyBrowseName, ns));
             proxy.NodeId = new NodeId(XRegistryWellKnown.FederationProxyObject, ns);
             proxy.DisplayName = new LocalizedText(m_proxyBrowseName);
-            proxy.AddExternalReference(SystemContext);
-            proxy.AddResourceUrl(SystemContext);
-            proxy.AddXid(SystemContext);
-            proxy.AddFormat(SystemContext);
-            proxy.AddEpoch(SystemContext);
+            proxy.AddExternalReference(SystemContext)
+                .AddResourceUrl(SystemContext)
+                .AddXid(SystemContext)
+                .AddFormat(SystemContext)
+                .AddEpoch(SystemContext)
+                .AddVersionId(SystemContext);
 
             // The federation link: ServerIndex -> remote ServerUri (via ServerArray),
             // NamespaceUri + Identifier -> the remote resource node (content-addressed by content-id).
             proxy.ExternalReference!.Value = new ExpandedNodeId(
                 contentId, m_remoteRegistryNamespaceUri, m_remoteServerIndex);
             proxy.ResourceUrl!.Value = m_remoteEndpointUrl;
-            proxy.ResourceId!.Value = contentId.ToHexString();
-            proxy.Xid!.Value = contentId.ToHexString();
+            proxy.ResourceId!.Value = m_proxyResourceId;
+            proxy.VersionId!.Value = m_proxyVersionId;
+            proxy.Xid!.Value =
+                $"/{m_groupsAttributeName}/{m_proxyGroupId}/" +
+                $"{m_resourcesAttributeName}/{m_proxyResourceId}/versions/{m_proxyVersionId}";
             proxy.Format!.Value = m_federatedFormat;
             proxy.Epoch!.Value = 1;
 
-            AddPredefinedNode(SystemContext, proxy);
+            await AddPredefinedNodeAsync(SystemContext, proxy, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         private readonly string m_namespaceUri;
@@ -142,5 +179,10 @@ namespace Opc.Ua.XRegistry.Server
         private readonly string m_remoteEndpointUrl;
         private readonly uint m_remoteServerIndex;
         private readonly string m_proxyBrowseName;
+        private readonly string m_groupsAttributeName;
+        private readonly string m_resourcesAttributeName;
+        private readonly string m_proxyGroupId;
+        private readonly string m_proxyResourceId;
+        private readonly string m_proxyVersionId;
     }
 }
