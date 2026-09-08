@@ -334,8 +334,10 @@ namespace Opc.Ua.Server.Fluent
             //
             // A bounded signal coalesces missed ticks the way PeriodicTimer does, so a
             // slow handler drops ticks rather than queueing them up.
-            // Ownership of both handles transfers to the loop task below, which disposes
-            // them in its finally; the analyzer cannot see across that lambda boundary.
+            // Ownership of the timer transfers to the loop task below, which disposes it
+            // in its finally; the analyzer cannot see across that lambda boundary. The
+            // signal is deliberately never disposed once the timer is armed — see the
+            // finally for why.
             // Baseline the clock before arming: the timer can fire before the loop task
             // is scheduled — deterministically so under a fake clock advanced right
             // after Start — and a baseline taken inside the task would report the first
@@ -401,8 +403,20 @@ namespace Opc.Ua.Server.Fluent
                     }
                     finally
                     {
+                        // The signal is deliberately not disposed here, and disposing it
+                        // is what CI caught on net48: ITimer.Dispose does not wait for a
+                        // callback already running, so a tick could be inside
+                        // SemaphoreSlim.Release — past its own disposed check — when
+                        // Dispose nulled the lock object out from under it. Release then
+                        // reached Monitor.Pulse(null) and threw ArgumentNullException on
+                        // a timer thread, where nothing could catch it. The callback's
+                        // ObjectDisposedException handler cannot close that window; the
+                        // race is inside Release, after the check.
+                        //
+                        // Not disposing costs nothing. SemaphoreSlim only holds a handle
+                        // once AvailableWaitHandle is read, which this loop never does,
+                        // so Dispose would null a few fields and free nothing.
                         timer.Dispose();
-                        tick.Dispose();
                     }
                 },
                 // Deliberately not the shutdown token: cancelling between the check
