@@ -41,7 +41,6 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -82,6 +81,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
     private readonly ILogger m_log;
     private CertificateManagerView? m_view;
     private ApplicationConfiguration? m_config;
+    private bool m_storesLoaded;
 
     [ObservableProperty]
     private string m_title;
@@ -123,8 +123,9 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         int n = Interlocked.Increment(ref s_nextNumber);
         m_title = string.Create(CultureInfo.InvariantCulture, $"Certificate Manager {n}");
 
-        // Load stores in the background — no session required.
-        _ = Dispatcher.UIThread.InvokeAsync(LoadStoresAsync);
+        // Certificate stores are a local, pre-connect concern. They load once
+        // in OnConnectionStateChangedAsync, which the workspace delivers on open
+        // even while disconnected. No fire-and-forget work runs in the constructor.
     }
 
     // ----- IPlugin -----
@@ -165,6 +166,24 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         return ValueTask.CompletedTask;
     }
 
+    /// <summary>
+    /// Loads the certificate stores the first time the workspace delivers a
+    /// connection state. Certificate management is a local, pre-connect concern:
+    /// stores resolve from the independent local-tools configuration, so this
+    /// runs whether or not a primary session exists, and later connection
+    /// transitions never reload (which would drop user-added directory stores).
+    /// </summary>
+    public async Task OnConnectionStateChangedAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (m_storesLoaded)
+        {
+            return;
+        }
+        m_storesLoaded = true;
+        await LoadStoresAsync(cancellationToken).ConfigureAwait(true);
+    }
+
     // ----- Property-changed hooks -----
 
     partial void OnSelectedStoreChanged(CertStoreNode? value)
@@ -174,11 +193,11 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
 
     // ----- Store-tree loading -----
 
-    private async Task LoadStoresAsync()
+    private async Task LoadStoresAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            m_config ??= await m_host.Connection.GetConfigAsync().ConfigureAwait(true);
+            m_config ??= await m_host.Connection.GetConfigAsync(cancellationToken).ConfigureAwait(true);
             SecurityConfiguration? sec = m_config.SecurityConfiguration;
             Stores.Clear();
 
@@ -217,17 +236,16 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
                 Stores.Add(new CertStoreNode(CertStoreRole.Rejected, "Rejected", rej));
             }
 
+            ApplyRestoredCustomStores();
+
             Status = string.Format(CultureInfo.InvariantCulture,
                 "● {0} store(s) — select one to enumerate certificates.", Stores.Count);
 
-            if (SelectedStore is null && Stores.Count > 0)
-            {
-                SelectedStore = Stores[0];
-            }
+            SelectRestoredOrFirstStore();
         }
         catch (Exception ex)
         {
-            m_log.LogError(ex, "Certificate Manager tab {Title} LoadStores failed.", Title);
+            m_log.CertLoadStoresFailed(ex, Title);
             Status = $"● Load stores failed: {ex.Message}";
         }
     }
@@ -256,8 +274,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Certificate Manager tab {Title} Enumerate({Store}) failed.",
-                Title, node.DisplayName);
+            m_log.CertEnumerateFailed(ex, Title, node.DisplayName);
             Status = $"● Enumerate {node.DisplayName} failed: {ex.Message}";
         }
     }
@@ -265,7 +282,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
     private async Task<IReadOnlyList<X509Certificate2>> EnumerateAsync(
         CertStoreNode node, CancellationToken ct = default)
     {
-        ICertificateStore? store = node.Identifier.OpenStore(m_host.Main.Telemetry);
+        ICertificateStore? store = node.Identifier.OpenStore(m_host.Telemetry);
         if (store is null)
         {
             return Array.Empty<X509Certificate2>();
@@ -290,7 +307,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
     private async Task<bool> AddToStoreAsync(
         CertStoreNode node, X509Certificate2 cert, CancellationToken ct = default)
     {
-        ICertificateStore? store = node.Identifier.OpenStore(m_host.Main.Telemetry);
+        ICertificateStore? store = node.Identifier.OpenStore(m_host.Telemetry);
         if (store is null)
         {
             return false;
@@ -303,13 +320,12 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
             // owns afterwards).
             using Certificate wrapper = Certificate.FromRawData(cert.RawData);
             await store.AddAsync(wrapper, password: null, ct).ConfigureAwait(true);
-            m_log.LogInformation("Added certificate {Thumbprint} ({Subject}) to {Store}.",
-                cert.Thumbprint, cert.Subject, node.DisplayName);
+            m_log.CertAdded(cert.Thumbprint, cert.Subject, node.DisplayName);
             return true;
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Add to {Store} failed.", node.DisplayName);
+            m_log.CertAddFailed(ex, node.DisplayName);
             return false;
         }
         finally
@@ -322,7 +338,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
     private async Task<bool> DeleteFromStoreAsync(
         CertStoreNode node, string thumbprint, CancellationToken ct = default)
     {
-        ICertificateStore? store = node.Identifier.OpenStore(m_host.Main.Telemetry);
+        ICertificateStore? store = node.Identifier.OpenStore(m_host.Telemetry);
         if (store is null)
         {
             return false;
@@ -410,7 +426,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         catch (Exception ex)
         {
             Status = $"● Add store failed: {ex.Message}";
-            m_log.LogWarning(ex, "Certificate Manager tab {Title} AddStore failed.", Title);
+            m_log.CertAddStoreFailed(ex, Title);
         }
     }
 
@@ -431,7 +447,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         try
         {
             m_config ??= await m_host.Connection.GetConfigAsync().ConfigureAwait(true);
-            var dlg = new CertificateStoreDialog(m_config, m_host.Main.Telemetry);
+            var dlg = new CertificateStoreDialog(m_config, m_host.Telemetry);
             await dlg.ShowDialog(owner).ConfigureAwait(true);
             // After the user closes the dialog, refresh in case they
             // added or removed certificates.
@@ -440,7 +456,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         catch (Exception ex)
         {
             Status = $"● Open trust dialog failed: {ex.Message}";
-            m_log.LogWarning(ex, "Certificate Manager tab {Title} OpenTrustDialog failed.", Title);
+            m_log.CertOpenTrustDialogFailed(ex, Title);
         }
     }
 
@@ -468,7 +484,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         catch (Exception ex)
         {
             Status = $"● View details failed: {ex.Message}";
-            m_log.LogWarning(ex, "Certificate Manager tab {Title} ViewDetails failed.", Title);
+            m_log.CertViewDetailsFailed(ex, Title);
         }
     }
 
@@ -520,7 +536,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         catch (Exception ex)
         {
             Status = $"● Move to {dst.DisplayName} failed: {ex.Message}";
-            m_log.LogWarning(ex, "Certificate Manager tab {Title} Move({Target}) failed.", Title, target);
+            m_log.CertMoveFailed(ex, Title, target);
         }
     }
 
@@ -543,7 +559,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         catch (Exception ex)
         {
             Status = $"● Delete failed: {ex.Message}";
-            m_log.LogWarning(ex, "Certificate Manager tab {Title} Delete failed.", Title);
+            m_log.CertDeleteFailed(ex, Title);
         }
     }
 
@@ -603,7 +619,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         catch (Exception ex)
         {
             Status = $"● Export failed: {ex.Message}";
-            m_log.LogWarning(ex, "Certificate Manager tab {Title} Export failed.", Title);
+            m_log.CertExportFailed(ex, Title);
         }
     }
 
@@ -654,7 +670,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         catch (Exception ex)
         {
             Status = $"● Import failed: {ex.Message}";
-            m_log.LogWarning(ex, "Certificate Manager tab {Title} Import failed.", Title);
+            m_log.CertImportFailed(ex, Title);
         }
     }
 

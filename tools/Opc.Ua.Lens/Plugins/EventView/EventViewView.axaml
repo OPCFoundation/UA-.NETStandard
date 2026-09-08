@@ -64,32 +64,45 @@
 
     <!-- ========= Filter / toolbar bar (WrapPanel wraps on small windows). ========= -->
     <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
-      <DockPanel LastChildFill="True">
-        <TextBlock DockPanel.Dock="Right"
-                   Text="{CompiledBinding SubscriptionStatus}"
-                   VerticalAlignment="Center"
-                   Margin="8,0,0,0"
-                   Foreground="{DynamicResource TextSecondary}"
-                   FontFamily="Cascadia Mono, Consolas, monospace"
-                   FontSize="11"
-                   ToolTip.Tip="Subscription state · publishing interval · monitored items (created/total) · publishing flag" />
-        <WrapPanel Classes="toolbar" Orientation="Horizontal" ItemHeight="32">
-          <Button Classes="tonal" Margin="0,0,4,0"
-                  Content="⚙ Filter…"
-                  Command="{CompiledBinding EditFilterCommand}" />
-          <ToggleButton Content="⏸ Pause" Margin="0,0,4,0"
-                        IsChecked="{CompiledBinding IsPaused, Mode=TwoWay}"
-                        Background="{DynamicResource SeparatorBrush}" Foreground="{DynamicResource TextPrimary}"
-                        Padding="10,4" />
-          <Button Classes="tonal" Margin="0,0,4,0"
-                  Content="🗑 Clear"
-                  Command="{CompiledBinding ClearLogCommand}" />
-          <Button Classes="tonal" Margin="0,0,4,0"
-                  Content="⚡ Trigger event"
-                  ToolTip.Tip="Pick a Method or Variable with a GeneratesEvent reference and invoke / write to it."
-                  Command="{CompiledBinding TriggerEventCommand}" />
-        </WrapPanel>
-      </DockPanel>
+      <StackPanel Spacing="6">
+        <DockPanel LastChildFill="True">
+          <TextBlock DockPanel.Dock="Right"
+                     Text="{CompiledBinding SubscriptionStatus}"
+                     VerticalAlignment="Center"
+                     Margin="8,0,0,0"
+                     Foreground="{DynamicResource TextSecondary}"
+                     FontFamily="Cascadia Mono, Consolas, monospace"
+                     FontSize="11"
+                     ToolTip.Tip="Subscription state · publishing interval · monitored items (created/total) · server publishing flag" />
+          <WrapPanel Classes="toolbar" Orientation="Horizontal" ItemHeight="32">
+            <Button Classes="tonal" Margin="0,0,4,0"
+                    Content="⚙ Filter…"
+                    ToolTip.Tip="Edit the severity threshold, select-clause fields, event type and where clause."
+                    Command="{CompiledBinding EditFilterCommand}" />
+            <ToggleButton Content="⏸ Pause display" Margin="0,0,4,0"
+                          IsChecked="{CompiledBinding IsPaused, Mode=TwoWay}"
+                          Background="{DynamicResource SeparatorBrush}" Foreground="{DynamicResource TextPrimary}"
+                          Padding="10,4"
+                          ToolTip.Tip="Freezes the visible log only. Collection and the server's publishing keep running; the backlog collected while paused is shown on resume." />
+            <Button Classes="tonal" Margin="0,0,4,0"
+                    Content="🗑 Clear"
+                    Command="{CompiledBinding ClearLogCommand}" />
+            <Button Classes="tonal" Margin="0,0,4,0"
+                    Content="⚡ Trigger event"
+                    ToolTip.Tip="Pick a Method or Variable with a GeneratesEvent reference and invoke / write to it."
+                    Command="{CompiledBinding TriggerEventCommand}" />
+          </WrapPanel>
+        </DockPanel>
+        <TextBlock Classes="caption code"
+                   Text="{CompiledBinding FilterSummary}"
+                   TextTrimming="CharacterEllipsis"
+                   ToolTip.Tip="{CompiledBinding FilterSummary}" />
+        <TextBlock Classes="caption"
+                   IsVisible="{CompiledBinding IsOffline}"
+                   TextWrapping="Wrap"
+                   Foreground="{DynamicResource TextDim}"
+                   Text="Offline: event sources and the filter are retained; connect the primary server to receive events." />
+      </StackPanel>
     </Border>
 
     <!-- ========= Main 3-column body — GridSplitters let the user drag

@@ -42,6 +42,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using UaLens.ViewModels;
 using UaLens.Views;
+using UaLens.Workspace;
 
 namespace UaLens.Plugins.Performance;
 
@@ -62,7 +63,7 @@ namespace UaLens.Plugins.Performance;
 /// </summary>
 internal sealed partial class PerformanceTargetDialog : Window
 {
-    private readonly MainViewModel m_main;
+    private readonly IPluginWorkspace m_main;
     private readonly ISession m_session;
     private readonly NodeViewModel? m_hint;
     private BenchmarkMode m_mode = BenchmarkMode.Write;
@@ -75,7 +76,7 @@ internal sealed partial class PerformanceTargetDialog : Window
     /// <summary>The configured target on OK; null on cancel.</summary>
     public BenchmarkTarget? Result { get; private set; }
 
-    public PerformanceTargetDialog(MainViewModel main, ISession session)
+    public PerformanceTargetDialog(IPluginWorkspace main, ISession session)
         : this(main, session, hint: null)
     {
     }
@@ -86,7 +87,7 @@ internal sealed partial class PerformanceTargetDialog : Window
     /// address-space selection.  The dialog uses <paramref name="hint"/>
     /// in lieu of <see cref="MainViewModel.SelectedNode"/>.
     /// </summary>
-    public PerformanceTargetDialog(MainViewModel main, ISession session, NodeViewModel? hint)
+    public PerformanceTargetDialog(IPluginWorkspace main, ISession session, NodeViewModel? hint)
     {
         m_main = main ?? throw new ArgumentNullException(nameof(main));
         m_session = session ?? throw new ArgumentNullException(nameof(session));
@@ -408,7 +409,7 @@ internal sealed partial class PerformanceTargetDialog : Window
             Result = new BenchmarkTarget(
                 BenchmarkMode.Write,
                 m_selected.NodeId,
-                ObjectId: null,
+                ObjectId: NodeId.Null,
                 m_resolvedBuiltIn,
                 m_resolvedValueRank,
                 InputArguments: null,

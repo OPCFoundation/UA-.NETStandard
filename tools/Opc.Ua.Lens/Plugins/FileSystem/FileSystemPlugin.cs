@@ -37,7 +37,6 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -125,17 +124,9 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         int n = Interlocked.Increment(ref s_nextNumber);
         m_title = $"File System {n}";
 
-        // Best-effort: try the standard Server.FileSystem root on open.
-        // It throws DirectoryNotFoundException on first op if the server
-        // doesn't expose it — discovered lazily on expansion.
-        if (m_host.Connection.Session is { } session)
-        {
-            TryAttachServerFileSystem(session);
-        }
-        else
-        {
-            m_log.LogWarning("File System opened without an active session.");
-        }
+        // Roots are session-bound and are attached in OnConnectionStateChangedAsync,
+        // which the workspace delivers on open and on every connection transition.
+        // The document owns no fire-and-forget work in its constructor.
     }
 
     // ----- IPlugin members -----
@@ -151,26 +142,54 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
     public void OnDeactivated() { }
 
     /// <summary>
-    /// On connect, lazily attach the Server.FileSystem root if the tab
-    /// was opened while disconnected (the ctor's normal init path was
-    /// skipped because Session was null). On disconnect, drop every
-    /// attached root because the <see cref="FileSystemClient"/> handles
-    /// hang off the dead session and any further operation would throw.
+    /// Attaches the session-bound roots on connect and drops them on disconnect.
+    /// The workspace awaits this on open and on every transition, and cancels it on
+    /// disconnect or close. On connect the standard <c>Server.FileSystem</c> root is
+    /// attached when the tree is empty, then any roots restored from a saved
+    /// workspace are re-attached. On disconnect every root is dropped because the
+    /// <see cref="FileSystemClient"/> handles hang off the dead session.
     /// </summary>
-    public void OnConnectionStateChanged()
+    public async Task OnConnectionStateChangedAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (m_host.Connection.Session is { } session)
         {
             if (Roots.Count == 0)
             {
                 TryAttachServerFileSystem(session);
             }
+            await AttachPendingRootsAsync(session, cancellationToken).ConfigureAwait(true);
         }
         else
         {
             Roots.Clear();
             SelectedNode = null;
             UpdateStatus();
+        }
+    }
+
+    /// <summary>
+    /// Re-attaches the roots restored from a saved workspace against a live session.
+    /// Each pending root is attached at most once; malformed or unreachable roots
+    /// are reported and skipped.
+    /// </summary>
+    private async Task AttachPendingRootsAsync(ISession session, CancellationToken cancellationToken)
+    {
+        if (m_pendingRoots.Count == 0)
+        {
+            return;
+        }
+        var specs = new List<FileSystemState.RootSpec>(m_pendingRoots);
+        m_pendingRoots.Clear();
+        foreach (FileSystemState.RootSpec spec in specs)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrEmpty(spec.NodeId) || !NodeId.TryParse(spec.NodeId, out NodeId rootId)
+                || rootId.IsNull)
+            {
+                continue;
+            }
+            await AttachRootAsync(session, rootId, spec.DisplayName).ConfigureAwait(true);
         }
     }
 
@@ -268,8 +287,7 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
             return;
         }
         m_filter = result;
-        m_log.LogInformation("File System filter: FileSystem={Fs} Directory={Dir} File={File}",
-            result.AllowFileSystem, result.AllowDirectory, result.AllowFile);
+        m_log.FsFilterChanged(result.AllowFileSystem, result.AllowDirectory, result.AllowFile);
     }
 
     /// <summary>Re-enumerates the currently selected directory (or all roots when none is selected).</summary>
@@ -380,7 +398,7 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Create directory '{Name}' in '{Path}' failed.", name, parent.FullPath);
+            m_log.FsCreateDirectoryFailed(ex, name, parent.FullPath);
             Status = $"● Create folder failed: {ex.Message}";
         }
     }
@@ -413,17 +431,40 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Rename '{Path}' → '{New}' failed.", info.FullPath, name);
+            m_log.FsRenameFailed(ex, info.FullPath, name);
             Status = $"● Rename failed: {ex.Message}";
         }
     }
 
-    /// <summary>Deletes the selected file or directory (recursive for non-empty directories).</summary>
+    /// <summary>
+    /// Deletes the selected file or directory after an explicit, scoped
+    /// confirmation. Deleting a directory removes it and all of its contents
+    /// recursively, which cannot be undone, so the confirmation states that scope.
+    /// </summary>
     [RelayCommand]
     public async Task DeleteAsync()
     {
         if (SelectedNode is not { } node || node.IsRoot || node.Info is null)
         {
+            return;
+        }
+        Window? owner = GetOwnerWindow();
+        if (owner is null)
+        {
+            return;
+        }
+        bool isDirectory = node.AsDirectory is not null;
+        string message = isDirectory
+            ? string.Format(CultureInfo.InvariantCulture,
+                "Delete directory '{0}' and ALL of its contents on the server?\n\n"
+                + "This is recursive and cannot be undone.", node.FullPath)
+            : string.Format(CultureInfo.InvariantCulture,
+                "Delete file '{0}' on the server?\n\nThis cannot be undone.", node.FullPath);
+        bool confirmed = await ConfirmDangerousAsync(owner, "Delete", message, "Delete")
+            .ConfigureAwait(true);
+        if (!confirmed)
+        {
+            Status = "● Delete cancelled.";
             return;
         }
         try
@@ -445,7 +486,7 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Delete '{Path}' failed.", node.FullPath);
+            m_log.FsDeleteFailed(ex, node.FullPath);
             Status = $"● Delete failed: {ex.Message}";
         }
     }
@@ -486,7 +527,7 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
             }
             catch (Exception ex)
             {
-                m_log.LogWarning(ex, "Import '{Local}' to '{Path}' failed.", local, target.FullPath);
+                m_log.FsImportFailed(ex, local, target.FullPath);
             }
         }
         await target.RefreshAsync(CancellationToken.None).ConfigureAwait(true);
@@ -516,7 +557,7 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Export '{Path}' failed.", file.FullPath);
+            m_log.FsExportFailed(ex, file.FullPath);
             Status = $"● Export failed: {ex.Message}";
         }
     }
@@ -536,7 +577,7 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogDebug(ex, "OpenServerFileSystem threw (root will not be added).");
+            m_log.FsOpenServerFileSystemThrew(ex);
         }
     }
 
@@ -556,9 +597,7 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
                 NodeId? parentId = await GetContainingDirectoryAsync(session, rootId).ConfigureAwait(true);
                 if (parentId is null || parentId.Value.IsNull)
                 {
-                    m_log.LogWarning(
-                        "Picked file '{Id}' has no containing FileDirectoryType — root not attached.",
-                        rootId);
+                    m_log.FsPickedFileNoDirectory(rootId);
                     return;
                 }
                 client = new FileSystemClient(session, parentId.Value);
@@ -571,11 +610,12 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
             Roots.Add(root);
             SelectedNode = root;
             UpdateStatus();
-            m_log.LogInformation("File System root attached: {Name} ({Id})", label, rootId);
+            TrackUserRoot(rootId.ToString(), label);
+            m_log.FsRootAttached(label, rootId);
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Attach FileSystem root '{Id}' failed.", rootId);
+            m_log.FsAttachRootFailed(ex, rootId);
             Status = $"● Attach root failed: {ex.Message}";
         }
     }
@@ -880,5 +920,69 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
             return null;
         }
         return await dlg.ShowDialog<string?>(owner).ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Shows a scoped confirmation for a destructive server-side operation. The
+    /// message states the exact target and consequence; the default button is the
+    /// safe Cancel. Returns true only when the user explicitly confirms.
+    /// </summary>
+    private static async Task<bool> ConfirmDangerousAsync(
+        Window owner, string title, string message, string confirmText)
+    {
+        var confirm = new Button
+        {
+            Content = confirmText,
+            Width = 110
+        };
+        var cancel = new Button
+        {
+            Content = "Cancel",
+            IsCancel = true,
+            IsDefault = true,
+            Width = 110,
+            Margin = new Avalonia.Thickness(8, 0, 0, 0)
+        };
+        var buttons = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+            Margin = new Avalonia.Thickness(0, 12, 0, 0),
+            Children = { confirm, cancel }
+        };
+        var body = new TextBlock
+        {
+            Text = message,
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap
+        };
+        var panel = new DockPanel
+        {
+            Margin = new Avalonia.Thickness(16),
+            LastChildFill = true
+        };
+        DockPanel.SetDock(buttons, Dock.Bottom);
+        panel.Children.Add(buttons);
+        panel.Children.Add(body);
+
+        var window = new Window
+        {
+            Title = title,
+            Width = 460,
+            Height = 220,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = panel
+        };
+        if (Avalonia.Application.Current?.FindResource("AppBg") is Avalonia.Media.IBrush bg)
+        {
+            window.Background = bg;
+        }
+        if (Avalonia.Application.Current?.FindResource("TextPrimary") is Avalonia.Media.IBrush fg)
+        {
+            window.Foreground = fg;
+        }
+        confirm.Click += (_, _) => window.Close(true);
+        cancel.Click += (_, _) => window.Close(false);
+        object? result = await window.ShowDialog<object?>(owner).ConfigureAwait(true);
+        return result is bool b && b;
     }
 }

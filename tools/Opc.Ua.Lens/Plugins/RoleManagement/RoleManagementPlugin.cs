@@ -31,10 +31,10 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -64,7 +64,7 @@ namespace UaLens.Plugins.RoleManagement;
 /// </summary>
 internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
 {
-    private static readonly Dictionary<PluginKind, int> s_perKindCounter = new();
+    private static int s_nextNumber;
 
     private readonly PluginHost m_host;
     private readonly ILogger m_log;
@@ -101,26 +101,13 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
     {
         m_host = host ?? throw new ArgumentNullException(nameof(host));
         m_log = host.Log;
-        int n;
-        lock (s_perKindCounter)
-        {
-            s_perKindCounter.TryGetValue(PluginKind.RoleManagement, out int prev);
-            n = prev + 1;
-            s_perKindCounter[PluginKind.RoleManagement] = n;
-        }
+        int n = Interlocked.Increment(ref s_nextNumber);
         m_title = string.Create(CultureInfo.InvariantCulture, $"Role Management {n}");
 
-        // Auto-refresh once if we are already connected at construction time.
-        // Subsequent connect / disconnect transitions are fanned out through
-        // the central IPlugin.OnConnectionStateChanged hook.
-        if (IsConnected)
-        {
-            _ = Dispatcher.UIThread.InvokeAsync(RefreshAsync);
-        }
-        else
-        {
-            UpdateStatus();
-        }
+        // Session-dependent initialization runs in OnConnectionStateChangedAsync,
+        // which the workspace delivers on open and on every connection transition.
+        // The document owns no fire-and-forget work in its constructor.
+        UpdateStatus();
     }
 
     // ----- IPlugin -----
@@ -159,17 +146,18 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
     // ----- Connection-state plumbing -----
 
     /// <summary>
-    /// Refresh / clear roles when the host connection state flips.
-    /// Always runs on the UI thread via the central
-    /// <see cref="MainViewModel"/> fan-out.
+    /// Refreshes or clears roles when the host connection state changes. The
+    /// workspace awaits this on open and on every transition, and cancels it on
+    /// disconnect or close, so no fire-and-forget dispatch is required here.
     /// </summary>
-    public void OnConnectionStateChanged()
+    public async Task OnConnectionStateChangedAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         OnPropertyChanged(nameof(IsConnected));
         UpdateStatus();
         if (IsConnected && Roles.Count == 0)
         {
-            _ = RefreshAsync();
+            await RefreshAsync().ConfigureAwait(true);
         }
         else if (!IsConnected)
         {
@@ -249,7 +237,7 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Role Management tab {Title} ListRoles failed.", Title);
+            m_log.RoleListRolesFailed(ex, Title);
             Status = $"● List roles failed: {ex.Message}";
         }
     }
@@ -277,7 +265,7 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         catch (Exception ex)
         {
             Status = $"● Add role dialog failed: {ex.Message}";
-            m_log.LogWarning(ex, "Role Management tab {Title} AddRole dialog failed.", Title);
+            m_log.RoleAddDialogFailed(ex, Title);
             return;
         }
         if (result is null)
@@ -290,15 +278,13 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
             NodeId id = await client
                 .AddRoleAsync(result.Name, result.NamespaceUri)
                 .ConfigureAwait(true);
-            m_log.LogInformation("Role Management tab {Title}: added role {Name} → {Id}.",
-                Title, result.Name, id);
+            m_log.RoleAdded(Title, result.Name, id);
             await RefreshAsync().ConfigureAwait(true);
             Status = $"● Added role {result.Name}.";
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Role Management tab {Title} AddRole({Name}) failed.",
-                Title, result.Name);
+            m_log.RoleAddFailed(ex, Title, result.Name);
             Status = $"● Add role failed: {ex.Message}";
         }
     }
@@ -345,15 +331,13 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         try
         {
             await client.RemoveRoleAsync(role.RoleId).ConfigureAwait(true);
-            m_log.LogInformation("Role Management tab {Title}: removed role {Name} ({Id}).",
-                Title, role.DisplayName, role.RoleId);
+            m_log.RoleRemoved(Title, role.DisplayName, role.RoleId);
             await RefreshAsync().ConfigureAwait(true);
             Status = $"● Removed role {role.DisplayName}.";
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Role Management tab {Title} RemoveRole({Name}) failed.",
-                Title, role.DisplayName);
+            m_log.RoleRemoveFailed(ex, Title, role.DisplayName);
             Status = $"● Remove role failed: {ex.Message}";
         }
     }
@@ -401,7 +385,7 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Role Management tab {Title} AddIdentity failed.", Title);
+            m_log.RoleAddIdentityFailed(ex, Title);
             Status = $"● Add identity failed: {ex.Message}";
         }
     }
@@ -427,7 +411,7 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Role Management tab {Title} RemoveIdentity failed.", Title);
+            m_log.RoleRemoveIdentityFailed(ex, Title);
             Status = $"● Remove identity failed: {ex.Message}";
         }
     }
@@ -475,7 +459,7 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Role Management tab {Title} AddApplication failed.", Title);
+            m_log.RoleAddApplicationFailed(ex, Title);
             Status = $"● Add application failed: {ex.Message}";
         }
     }
@@ -501,7 +485,7 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Role Management tab {Title} RemoveApplication failed.", Title);
+            m_log.RoleRemoveApplicationFailed(ex, Title);
             Status = $"● Remove application failed: {ex.Message}";
         }
     }
@@ -528,7 +512,7 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Role Management tab {Title} SetApplicationsExclude failed.", Title);
+            m_log.RoleSetApplicationsExcludeFailed(ex, Title);
             Status = $"● SetApplicationsExclude failed: {ex.Message}";
         }
     }
@@ -576,7 +560,7 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Role Management tab {Title} AddEndpoint failed.", Title);
+            m_log.RoleAddEndpointFailed(ex, Title);
             Status = $"● Add endpoint failed: {ex.Message}";
         }
     }
@@ -602,7 +586,7 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Role Management tab {Title} RemoveEndpoint failed.", Title);
+            m_log.RoleRemoveEndpointFailed(ex, Title);
             Status = $"● Remove endpoint failed: {ex.Message}";
         }
     }
@@ -629,7 +613,7 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Role Management tab {Title} SetEndpointsExclude failed.", Title);
+            m_log.RoleSetEndpointsExcludeFailed(ex, Title);
             Status = $"● SetEndpointsExclude failed: {ex.Message}";
         }
     }
@@ -655,7 +639,7 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Role Management tab {Title} SetCustomConfiguration failed.", Title);
+            m_log.RoleSetCustomConfigurationFailed(ex, Title);
             Status = $"● SetCustomConfiguration failed: {ex.Message}";
         }
     }

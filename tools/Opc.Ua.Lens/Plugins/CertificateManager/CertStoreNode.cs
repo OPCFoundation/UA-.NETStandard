@@ -76,14 +76,14 @@ internal sealed partial class CertStoreNode : ObservableObject
     /// <summary>Underlying SDK identifier used to <see cref="CertificateStoreIdentifier.OpenStore"/>.</summary>
     public CertificateStoreIdentifier Identifier { get; }
 
-    /// <summary>Small leading glyph for the tree row.</summary>
+    /// <summary>Small leading marker for the tree row.</summary>
     public string Glyph => Role switch
     {
-        CertStoreRole.Application => "🛡",
-        CertStoreRole.TrustedPeer => "✓",
-        CertStoreRole.TrustedIssuer => "🏛",
-        CertStoreRole.Rejected => "✗",
-        _ => "📁"
+        CertStoreRole.Application => "app",
+        CertStoreRole.TrustedPeer => "trust",
+        CertStoreRole.TrustedIssuer => "ca",
+        CertStoreRole.Rejected => "rej",
+        _ => "dir"
     };
 
     /// <summary>Tooltip-friendly description: <c>[StoreType]StorePath</c>.</summary>

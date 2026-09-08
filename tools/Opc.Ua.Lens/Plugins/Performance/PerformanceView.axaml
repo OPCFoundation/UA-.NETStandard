@@ -49,26 +49,6 @@
       <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
       <Setter Property="FontSize" Value="11" />
     </Style>
-    <Style Selector="Button.tonal">
-      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-      <Setter Property="Padding" Value="10,5" />
-      <Setter Property="MinWidth" Value="86" />
-    </Style>
-    <Style Selector="Button.primary">
-      <Setter Property="Background" Value="{DynamicResource AccentBlue}" />
-      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
-      <Setter Property="Padding" Value="10,5" />
-      <Setter Property="MinWidth" Value="86" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-    </Style>
-    <Style Selector="Button.danger">
-      <Setter Property="Background" Value="{DynamicResource AccentRed}" />
-      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
-      <Setter Property="Padding" Value="10,5" />
-      <Setter Property="MinWidth" Value="86" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-    </Style>
     <Style Selector="Border.runRow">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderBrush" Value="Transparent" />
@@ -94,27 +74,28 @@
                       ItemsSource="{CompiledBinding ModeOptions}"
                       SelectedItem="{CompiledBinding Mode, Mode=TwoWay}"
                       MinWidth="100" VerticalAlignment="Center" />
-            <Button Classes="tonal" Content="Pick target…" Margin="0,0,6,0"
+            <Button Classes="quiet" Content="Pick target…" Margin="0,0,6,0"
                     VerticalAlignment="Center"
                     Command="{CompiledBinding PickTargetCommand}" />
-            <Button Classes="primary" Content="▶ Run"  Margin="0,0,6,0"
+            <Button Classes="primary" Content="Run"  Margin="0,0,6,0"
                     VerticalAlignment="Center"
                     Command="{CompiledBinding RunCommand}" />
-            <Button Classes="danger"  Content="■ Stop" Margin="0,0,6,0"
+            <Button Content="Stop" Margin="0,0,6,0"
                     VerticalAlignment="Center"
+                    ToolTip.Tip="Stop the running workload."
                     Command="{CompiledBinding StopCommand}" />
-            <Button Classes="tonal"   Content="↺ Reset" Margin="0,0,6,0"
+            <Button Classes="quiet"   Content="Reset" Margin="0,0,6,0"
                     VerticalAlignment="Center"
                     Command="{CompiledBinding ResetCommand}" />
-            <Button Classes="tonal"   Content="💾 Save…" Margin="0,0,6,0"
+            <Button Classes="quiet"   Content="Save…" Margin="0,0,6,0"
                     VerticalAlignment="Center"
                     ToolTip.Tip="Save the run history to a CSV file."
                     Command="{CompiledBinding SaveResultsCommand}" />
-            <Button Classes="tonal"   Content="📂 Load…" Margin="0,0,6,0"
+            <Button Classes="quiet"   Content="Load…" Margin="0,0,6,0"
                     VerticalAlignment="Center"
                     ToolTip.Tip="Replace the run history with rows loaded from a CSV file."
                     Command="{CompiledBinding LoadResultsCommand}" />
-            <Button Classes="tonal"   Content="⚙ Settings…"
+            <Button Classes="quiet"   Content="Settings…"
                     VerticalAlignment="Center"
                     ToolTip.Tip="Open the workload editor (rate / duration / value generator)."
                     Command="{CompiledBinding OpenSettingsDialogCommand}" />

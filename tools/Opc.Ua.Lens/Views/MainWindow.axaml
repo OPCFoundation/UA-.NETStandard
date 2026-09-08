@@ -1,5 +1,5 @@
 <!-- ========================================================================
-   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+   Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
 
    OPC Foundation MIT License 1.00
 
@@ -46,37 +46,39 @@
       <Setter Property="Padding" Value="10" />
       <Setter Property="Background" Value="{DynamicResource PanelBg}" />
     </Style>
+    <Style Selector="Border.strip">
+      <Setter Property="Background" Value="{DynamicResource ToolbarBg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="Padding" Value="10,6" />
+    </Style>
     <Style Selector="TextBlock.h">
       <Setter Property="FontSize" Value="13" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
       <Setter Property="Margin" Value="0,0,0,6" />
     </Style>
-    <Style Selector="TextBlock.status">
-      <Setter Property="Foreground" Value="{DynamicResource AccentGreen}" />
-      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
-      <Setter Property="FontSize" Value="12" />
-    </Style>
-    <Style Selector="TextBlock.statusDim">
-      <Setter Property="Foreground" Value="{DynamicResource TextDim}" />
+    <Style Selector="TextBlock.mono">
       <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
       <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
     </Style>
     <Style Selector="Button.tonal">
       <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-      <Setter Property="Padding" Value="12,6" />
-      <Setter Property="MinWidth" Value="100" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinHeight" Value="28" />
     </Style>
-    <Style Selector="Button.primary">
-      <Setter Property="Background" Value="{DynamicResource AccentBlue}" />
-      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
-      <Setter Property="Padding" Value="12,6" />
-      <Setter Property="MinWidth" Value="120" />
-      <Setter Property="FontWeight" Value="SemiBold" />
+    <Style Selector="Button.node">
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="Margin" Value="0,0,4,0" />
     </Style>
-    <!-- Compact lists: drop the default tall padding so log + monitored items
-         render line-by-line without the visual blank gap between rows. -->
+    <Style Selector="Button.node:disabled">
+      <Setter Property="Opacity" Value="0.45" />
+    </Style>
     <Style Selector="ListBoxItem.compact">
       <Setter Property="Padding" Value="4,0" />
       <Setter Property="MinHeight" Value="14" />
@@ -85,110 +87,127 @@
 
   <DockPanel LastChildFill="True">
 
-    <!-- ========= MENU BAR + connection indicator ========= -->
-    <DockPanel DockPanel.Dock="Top" Background="{DynamicResource PanelBg}">
-      <Border DockPanel.Dock="Right" Margin="0,0,8,0"
-              ToolTip.Tip="Connection state (green=connected, amber=keep-alive lost, gray=disconnected)">
-        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <Ellipse x:Name="ConnectionDot" Width="10" Height="10" Fill="{DynamicResource TextDim}" />
-          <TextBlock x:Name="ConnectionDotLabel" VerticalAlignment="Center"
-                     FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
-                     Foreground="{DynamicResource TextSecondary}" Text="disconnected" />
-        </StackPanel>
-      </Border>
-      <Menu Background="{DynamicResource PanelBg}">
+    <!-- Compact, stable menu bar: File / View / Tools / Help. -->
+    <Menu x:Name="MainMenu" DockPanel.Dock="Top" Background="{DynamicResource PanelBg}">
       <MenuItem Header="_File">
-        <MenuItem x:Name="MenuExport"      Header="_Export NodeSet2..."  InputGesture="Ctrl+E" />
-        <MenuItem x:Name="MenuExportTab"   Header="Export _Plugin Data..." InputGesture="Ctrl+Shift+E" />
+        <MenuItem x:Name="MenuExport"    Header="_Export NodeSet2…"    InputGesture="Ctrl+E" />
+        <MenuItem x:Name="MenuExportTab" Header="Export _Document Data…" InputGesture="Ctrl+Shift+E" />
         <Separator />
-        <MenuItem x:Name="MenuQuit"        Header="_Quit"                InputGesture="Ctrl+Q" />
+        <MenuItem x:Name="MenuOpenWorkspace" Header="_Open Workspace…" InputGesture="Ctrl+O" />
+        <MenuItem x:Name="MenuSaveWorkspace" Header="_Save Workspace…" InputGesture="Ctrl+S" />
+        <Separator />
+        <MenuItem x:Name="MenuCertificates" Header="Manage _Certificates…" InputGesture="Ctrl+K" />
+        <Separator />
+        <MenuItem x:Name="MenuQuit" Header="_Quit" InputGesture="Ctrl+Q" />
       </MenuItem>
-      <MenuItem Header="_Session">
-        <MenuItem x:Name="MenuSessionCreate"
-                  Header="_Create..."
-                  InputGesture="Ctrl+N"
-                  IsEnabled="{CompiledBinding !IsConnected}" />
-        <MenuItem x:Name="MenuSessionClose"
-                  Header="_Close (Disconnect)"
-                  IsEnabled="{CompiledBinding IsConnected}" />
-        <MenuItem x:Name="MenuSessionReconnect"
-                  Header="_Reconnect"
-                  IsEnabled="{CompiledBinding IsConnected}" />
-        <MenuItem x:Name="MenuSessionChangeUser"
-                  Header="Change _User..."
-                  IsEnabled="{CompiledBinding IsConnected}" />
-        <Separator />
-        <MenuItem x:Name="MenuSessionEngine"
-                  Header="Use ChannelV2 _Engine"
-                  ToggleType="CheckBox"
-                  IsChecked="{CompiledBinding UseChannelV2Engine, Mode=TwoWay}" />
-        <Separator />
-        <MenuItem x:Name="MenuLoadSession"
-                  Header="_Load Session..."
-                  InputGesture="Ctrl+O"
-                  IsEnabled="{CompiledBinding IsConnected}" />
-        <MenuItem x:Name="MenuSaveSession"
-                  Header="_Save Session..."
-                  InputGesture="Ctrl+S"
-                  IsEnabled="{CompiledBinding IsConnected}" />
-        <Separator />
-        <MenuItem x:Name="MenuLocales"
-                  Header="Preferred _Locales..."
-                  IsEnabled="{CompiledBinding IsConnected}" />
-        <Separator />
-        <MenuItem x:Name="MenuCertificates" Header="_Manage Certificates..." InputGesture="Ctrl+K" />
-      </MenuItem>
-      <MenuItem Header="_Tabs">
-        <MenuItem x:Name="MenuTabsAdd" Header="_Add…" />
-        <Separator />
-        <MenuItem x:Name="MenuRenameTab"   Header="_Rename Active Tab"    InputGesture="F2" />
-        <MenuItem x:Name="MenuCloseTab"     Header="_Close Active Tab"     InputGesture="Ctrl+W" />
-      </MenuItem>
-      <MenuItem x:Name="MenuSubscription" Header="Subscri_ption"
-                IsVisible="{CompiledBinding IsSubscriptionTabActive}">
-        <MenuItem x:Name="MenuAddItemMenu"  Header="_Add Item..."          InputGesture="Ctrl+I" />
-        <MenuItem x:Name="MenuAddRecursive" Header="Add _Recursively..."  InputGesture="Ctrl+Shift+I" />
-        <MenuItem x:Name="MenuRemoveItem"   Header="_Remove Item..."       InputGesture="Ctrl+Shift+R" />
-        <MenuItem x:Name="MenuSettings"     Header="_Settings..."          InputGesture="Ctrl+OemComma" />
-      </MenuItem>
-      <MenuItem x:Name="DynamicKindMenuAnchor" Header="(kind menus injected here)" IsVisible="False" />
       <MenuItem Header="_View">
-        <MenuItem x:Name="MenuThemeDarkNavy"
-                  Header="Dark _Navy"
-                  ToggleType="Radio"
-                  GroupName="Theme" />
-        <MenuItem x:Name="MenuThemeDarkStandard"
-                  Header="Dark _Standard"
-                  ToggleType="Radio"
-                  GroupName="Theme" />
-        <MenuItem x:Name="MenuThemeLight"
-                  Header="_Light"
-                  ToggleType="Radio"
-                  GroupName="Theme" />
+        <MenuItem x:Name="MenuToggleAddressSpace" Header="_Address Space"
+                  ToggleType="CheckBox" IsChecked="True" InputGesture="Ctrl+B" />
+        <MenuItem x:Name="MenuToggleFilters" Header="Address-Space _Filters"
+                  ToggleType="CheckBox" InputGesture="Ctrl+Shift+F" />
+        <MenuItem Header="_Inspector">
+          <MenuItem x:Name="MenuToggleAttrs" Header="A_ttributes" ToggleType="CheckBox" />
+          <MenuItem x:Name="MenuToggleRefs"  Header="_References" ToggleType="CheckBox" />
+          <Separator />
+          <MenuItem x:Name="MenuCycleInspector" Header="_Cycle Inspector" InputGesture="Ctrl+Alt+I" />
+        </MenuItem>
         <Separator />
-        <MenuItem x:Name="MenuToggleDiag"         Header="_Diagnostics" ToggleType="CheckBox" InputGesture="F2" />
-        <MenuItem x:Name="MenuToggleLog"          Header="_Log"         ToggleType="CheckBox" InputGesture="Ctrl+L" />
+        <MenuItem x:Name="MenuToggleDiag" Header="_Diagnostics" ToggleType="CheckBox" InputGesture="Ctrl+Shift+G" />
+        <MenuItem x:Name="MenuToggleLog"  Header="_Log"         ToggleType="CheckBox" InputGesture="Ctrl+L" />
         <Separator />
-        <MenuItem Header="_Address Space">
-          <MenuItem x:Name="MenuToggleAddressSpace" Header="_Show Address Space" ToggleType="CheckBox" IsChecked="True" InputGesture="Ctrl+B" />
-          <MenuItem x:Name="MenuToggleAddressSpaceFilters" Header="_Filter / View Combo" ToggleType="CheckBox" InputGesture="Ctrl+Shift+F" />
-          <MenuItem x:Name="MenuToggleAttrs"        Header="A_ttributes"         ToggleType="CheckBox" InputGesture="Ctrl+A" />
-          <MenuItem x:Name="MenuToggleRefs"         Header="_References"         ToggleType="CheckBox" InputGesture="Ctrl+R" />
+        <MenuItem Header="_Appearance">
+          <MenuItem x:Name="MenuThemeSystem"   Header="_System" ToggleType="Radio" GroupName="Theme" />
+          <MenuItem x:Name="MenuThemeLight"    Header="_Light"  ToggleType="Radio" GroupName="Theme" />
+          <MenuItem x:Name="MenuThemeDark"     Header="_Dark"   ToggleType="Radio" GroupName="Theme" />
+          <MenuItem x:Name="MenuThemeDarkNavy" Header="Dark _Navy" ToggleType="Radio" GroupName="Theme"
+                    IsVisible="False" />
         </MenuItem>
       </MenuItem>
+      <MenuItem Header="_Tools">
+        <MenuItem x:Name="MenuAddTool" Header="_Add Tool…" InputGesture="Ctrl+T" />
+        <MenuItem x:Name="MenuOpenTool" Header="_Open Tool" />
+        <Separator />
+        <MenuItem x:Name="MenuActiveToolActions" Header="Active Tool _Actions" IsEnabled="False" />
+      </MenuItem>
       <MenuItem Header="_Help">
-        <MenuItem x:Name="MenuAbout" Header="_Cheat sheet" InputGesture="F1" />
+        <MenuItem x:Name="MenuAbout"       Header="_Cheat sheet" InputGesture="F1" />
         <MenuItem x:Name="MenuAboutDialog" Header="_About…" />
       </MenuItem>
-      </Menu>
-    </DockPanel>
+    </Menu>
 
-    <!-- ========= LOG (collapsed by default) ========= -->
+    <!-- Persistent connection strip. -->
+    <Border DockPanel.Dock="Top" Classes="strip">
+      <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
+        <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0"
+                   Foreground="{DynamicResource TextSecondary}" Text="Server" />
+        <TextBox Grid.Column="1" x:Name="EndpointBox" VerticalAlignment="Center"
+                 MinWidth="180" PlaceholderText="opc.tcp://host:port/path"
+                 Text="{CompiledBinding EndpointUrl, Mode=TwoWay}" />
+        <Button Grid.Column="2" x:Name="EndpointHistoryButton" Classes="tonal"
+                Margin="4,0,0,0" MinWidth="0" Padding="8,4" Content="▾"
+                ToolTip.Tip="Recent and favourite endpoints" />
+        <Button Grid.Column="3" x:Name="FavoriteToggle" Classes="tonal"
+                Margin="4,0,10,0" MinWidth="0" Padding="8,4" Content="★"
+                ToolTip.Tip="Add or remove this endpoint from favourites" />
+        <Grid Grid.Row="1" Grid.ColumnSpan="6" ColumnDefinitions="Auto,*" Margin="0,8,0,0">
+          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,14,0">
+            <Ellipse x:Name="ConnectionDot" Width="10" Height="10" Fill="{DynamicResource TextDim}"
+                     VerticalAlignment="Center" />
+            <TextBlock x:Name="ConnectionDotLabel" VerticalAlignment="Center" Classes="mono"
+                       Text="disconnected" />
+          </StackPanel>
+          <TextBlock Grid.Column="1" x:Name="ConnectionSecurityText" VerticalAlignment="Center"
+                     Classes="mono" Text="—" TextWrapping="Wrap"
+                     ToolTip.Tip="Security policy · identity of the primary connection" />
+        </Grid>
+        <Button Grid.Column="4" x:Name="ConnectButton" Classes="primary"
+                MinWidth="110" Content="Connect" Command="{CompiledBinding ConnectCommand}" />
+        <Button Grid.Column="5" x:Name="ConnectionSettingsButton" Classes="tonal"
+                Margin="6,0,0,0" MinWidth="0" Padding="8,4" Content="⚙"
+                ToolTip.Tip="Connection settings (engine, locales, identity, reconnect)" />
+      </Grid>
+    </Border>
+
+    <!-- Persistent, non-dismissable error surface (survives diagnostics collapse). -->
+    <Border DockPanel.Dock="Top" x:Name="OperationErrorBanner" IsVisible="False"
+            Padding="12,8" Background="{DynamicResource HighlightBg}">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" x:Name="OperationErrorDismiss" Classes="quiet"
+                Content="Dismiss" Foreground="{DynamicResource TextSecondary}" />
+        <TextBlock x:Name="OperationErrorText" TextWrapping="Wrap" VerticalAlignment="Center"
+                   Foreground="{DynamicResource AccentRed}" />
+      </DockPanel>
+    </Border>
+
+    <!-- Bottom status bar (one concise line + collapse toggles). -->
+    <Border DockPanel.Dock="Bottom" Background="{DynamicResource PanelBg}"
+            BorderBrush="{DynamicResource PanelBorder}" BorderThickness="0,1,0,0" Padding="10,4">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+        <TextBlock Grid.Column="0" x:Name="StatusConnectionText" VerticalAlignment="Center"
+                   Foreground="{DynamicResource TextSecondary}"
+                   Text="{CompiledBinding ConnectionStatus}" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Column="2" x:Name="StatusWarningText" VerticalAlignment="Center"
+                   Margin="10,0" Classes="mono" Foreground="{DynamicResource AccentYellowLight}"
+                   IsVisible="False" />
+        <ToggleButton Grid.Column="3" x:Name="ToggleDiagButton" Classes="tonal" Margin="4,0,0,0"
+                      MinHeight="24" Padding="8,2" Content="Diagnostics" />
+        <ToggleButton Grid.Column="4" x:Name="ToggleLogButton" Classes="tonal" Margin="6,0,0,0"
+                      MinHeight="24" Padding="8,2" Content="Log" />
+      </Grid>
+    </Border>
+
+    <!-- Collapsible log (raw traces off by default). -->
     <Border DockPanel.Dock="Bottom" x:Name="LogPanel" Classes="panel"
-            Margin="10,8,10,10" Height="180" IsVisible="False">
-      <Grid RowDefinitions="Auto,*">
-        <TextBlock Grid.Row="0" Classes="h" Text="≡ Log" />
-        <ListBox Grid.Row="1" x:Name="LogList" ItemsSource="{CompiledBinding LogLines}"
+            Margin="10,6,10,8" Height="180" IsVisible="False">
+      <Grid RowDefinitions="Auto,Auto,*">
+        <DockPanel Grid.Row="0">
+          <TextBlock DockPanel.Dock="Right" x:Name="ResourceStatusText" Classes="mono"
+                     Text="{CompiledBinding ResourceStatus}" VerticalAlignment="Center" />
+          <TextBlock Classes="h" Text="Log" />
+        </DockPanel>
+        <TextBlock Grid.Row="1" x:Name="SubscriptionCountersText" Classes="mono"
+                   Margin="0,0,0,4" Text="—" />
+        <ListBox Grid.Row="2" x:Name="LogList" ItemsSource="{CompiledBinding LogLines}"
                  Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextSecondaryAlt}"
                  FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11" BorderThickness="0">
           <ListBox.ItemContainerTheme>
@@ -201,48 +220,22 @@
       </Grid>
     </Border>
 
-    <!-- ========= RESOURCE STATUS PANE (CPU + Mem) ========= -->
-    <Border DockPanel.Dock="Bottom" Margin="10,4,10,10" Padding="8,2"
-            BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource PanelBg}">
-      <DockPanel>
-        <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource TextDim}" FontSize="11">📊 process</TextBlock>
-        <TextBlock HorizontalAlignment="Right" DockPanel.Dock="Right"
-                   Foreground="{DynamicResource TextSecondary}"
-                   FontFamily="Cascadia Mono, Consolas, monospace"
-                   FontSize="11"
-                   Text="{CompiledBinding ResourceStatus}" />
-      </DockPanel>
-    </Border>
-
-    <!-- ========= TAB STATUS BAR (subscription counters) ========= -->
-    <Border DockPanel.Dock="Bottom" Margin="10,4,10,0" Padding="8,2"
-            BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource PanelBg}">
-      <DockPanel>
-        <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource TextDim}" FontSize="11">📡 subscription</TextBlock>
-        <TextBlock HorizontalAlignment="Right" DockPanel.Dock="Right"
-                   x:Name="TabStatusLabel"
-                   Foreground="{DynamicResource TextSecondary}"
-                   FontFamily="Cascadia Mono, Consolas, monospace"
-                   FontSize="11"
-                   Text="—" />
-      </DockPanel>
-    </Border>
-
-    <!-- ========= DIAGNOSTICS PANEL (docked right, hidden by default) ========= -->
+    <!-- Diagnostics panel (docked right, hidden by default). -->
     <v:DiagnosticsView DockPanel.Dock="Right" x:Name="DiagnosticsPanel" IsVisible="False" />
 
-    <!-- ========= MAIN BODY: address space ⇿ right column (resizable) ========= -->
-    <Grid x:Name="MainBody" Margin="10,8,10,0" ClipToBounds="True">
+    <!-- Main body: resizable address-space explorer ⇿ document area. -->
+    <Grid x:Name="MainBody" Margin="10,8,10,6" ClipToBounds="True">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="360" />
+        <ColumnDefinition Width="360" MinWidth="0" />
         <ColumnDefinition Width="4" />
         <ColumnDefinition Width="*" />
       </Grid.ColumnDefinitions>
 
-      <!-- LEFT: address-space tree + attributes + references (stacked, dynamically sized) -->
-      <Border Grid.Column="0" Classes="panel" Margin="0,0,0,0">
+      <!-- LEFT: address-space explorer + node actions + contextual inspector. -->
+      <Border Grid.Column="0" x:Name="AddressSpaceColumn" Classes="panel">
         <Grid x:Name="LeftStackGrid" MinHeight="320">
           <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="4" />
@@ -252,60 +245,68 @@
           </Grid.RowDefinitions>
           <DockPanel Grid.Row="0">
             <Button x:Name="RefreshAddressSpaceBtn" Classes="tonal"
-                    DockPanel.Dock="Right" Content="↻"
-                    ToolTip.Tip="Refresh address space"
-                    Padding="2,0"
-                    MinWidth="0"
+                    DockPanel.Dock="Right" Content="Refresh"
+                    ToolTip.Tip="Refresh address space" Padding="8,2" MinWidth="0"
                     VerticalAlignment="Center" />
-            <Button x:Name="ToggleAddressSpaceFiltersBtn" Classes="tonal"
-                    DockPanel.Dock="Right" Content="🔽"
+            <ToggleButton x:Name="ToggleFiltersBtn" Classes="tonal"
+                    DockPanel.Dock="Right" Content="Filters"
                     ToolTip.Tip="Show/hide filters and view selector (Ctrl+Shift+F)"
-                    Padding="2,0" MinWidth="0" Margin="0,0,4,0"
+                    Padding="8,2" MinWidth="0" Margin="0,0,4,0" MinHeight="28"
                     VerticalAlignment="Center" />
-            <TextBlock Classes="h" Text="Address space" VerticalAlignment="Center" />
+            <TextBlock Classes="h" Text="Address space" VerticalAlignment="Center" Margin="0" />
           </DockPanel>
-          <v:AddressSpaceView Grid.Row="1" x:Name="LiveTree" DataContext="{CompiledBinding Browser}" />
-          <GridSplitter Grid.Row="2"
-                        Height="4"
-                        HorizontalAlignment="Stretch"
-                        VerticalAlignment="Center"
+          <!-- Primary node actions, reachable without opening a menu. -->
+          <Border Grid.Row="1" Margin="0,6,0,6" Padding="0,0,0,6"
+                  BorderBrush="{DynamicResource SeparatorBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Vertical" Spacing="4">
+              <WrapPanel Orientation="Horizontal">
+                <Button x:Name="NodeMonitorBtn" Classes="node" Content="Monitor"
+                        IsEnabled="{CompiledBinding CanAddSelectedItem}" />
+                <Button x:Name="NodeWriteBtn" Classes="node" Content="Write"
+                        IsEnabled="{CompiledBinding CanWriteVariable}" />
+                <Button x:Name="NodeCallBtn" Classes="node" Content="Call"
+                        IsEnabled="{CompiledBinding CanCallMethod}" />
+                <Button x:Name="NodeEventsBtn" Classes="node" Content="Events"
+                        IsEnabled="{CompiledBinding SelectionHasEvents}" />
+                <Button x:Name="NodeHistoryBtn" Classes="node" Content="History" />
+                <Button x:Name="NodeInspectBtn" Classes="node" Content="Inspect" Margin="0" />
+              </WrapPanel>
+              <TextBlock x:Name="NodeSelectionStatus" Classes="mono" TextWrapping="Wrap"
+                         Text="{CompiledBinding SelectedItemStatus}" />
+            </StackPanel>
+          </Border>
+          <v:AddressSpaceView Grid.Row="2" x:Name="LiveTree" DataContext="{CompiledBinding Browser}" />
+          <GridSplitter Grid.Row="3" Height="4" HorizontalAlignment="Stretch" VerticalAlignment="Center"
                         Background="{DynamicResource SeparatorBrush}"
                         IsVisible="{CompiledBinding ShowAttributes}" />
-          <ContentControl Grid.Row="3"
-                          x:Name="AttrsPanel"
-                          IsVisible="{CompiledBinding ShowAttributes}">
+          <ContentControl Grid.Row="4" x:Name="AttrsPanel" IsVisible="{CompiledBinding ShowAttributes}">
             <v:NodeAttributesView DataContext="{CompiledBinding Attributes}" />
           </ContentControl>
-          <GridSplitter Grid.Row="4"
-                        Height="4"
-                        HorizontalAlignment="Stretch"
-                        VerticalAlignment="Center"
+          <GridSplitter Grid.Row="5" Height="4" HorizontalAlignment="Stretch" VerticalAlignment="Center"
                         Background="{DynamicResource SeparatorBrush}"
                         IsVisible="{CompiledBinding ShowReferences}" />
-          <ContentControl Grid.Row="5"
-                          x:Name="RefsPanel"
-                          IsVisible="{CompiledBinding ShowReferences}">
+          <ContentControl Grid.Row="6" x:Name="RefsPanel" IsVisible="{CompiledBinding ShowReferences}">
             <v:ReferencesView DataContext="{CompiledBinding References}" />
           </ContentControl>
         </Grid>
       </Border>
 
-      <!-- VERTICAL splitter between address-space column and right column -->
-      <GridSplitter Grid.Column="1"
-                    Width="4"
-                    Margin="2,0,2,0"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Stretch"
+      <GridSplitter Grid.Column="1" x:Name="MainSplitter" Width="4" Margin="2,0,2,0"
+                    HorizontalAlignment="Center" VerticalAlignment="Stretch"
                     Background="{DynamicResource SeparatorBrush}" />
 
-      <!-- RIGHT: tab strip + body.  The old inline connection panel was
-           replaced by `Session → Create...` (ConnectDialog). -->
-      <Grid Grid.Column="2" RowDefinitions="*">
-        <Border Grid.Row="0" Classes="panel" ClipToBounds="True">
-          <Grid RowDefinitions="Auto,*,Auto">
-            <ListBox Grid.Row="0" x:Name="TabStrip" Margin="0,0,0,0"
+      <!-- RIGHT: document tab strip + single document host. -->
+      <Border Grid.Column="2" Classes="panel" ClipToBounds="True">
+        <Grid RowDefinitions="Auto,Auto,*,Auto">
+          <DockPanel Grid.Row="0">
+            <Button DockPanel.Dock="Right" x:Name="AddToolButton" Classes="tonal"
+                    Content="+ Add tool" Padding="10,4" MinWidth="0"
+                    ToolTip.Tip="Open the tool catalog (Ctrl+T)" />
+            <ListBox x:Name="TabStrip"
                      ItemsSource="{CompiledBinding Tabs}"
                      SelectedItem="{CompiledBinding SelectedTab, Mode=TwoWay}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
                      Background="Transparent" BorderThickness="0">
               <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -316,7 +317,7 @@
                 <ControlTheme TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
                   <Setter Property="Padding"   Value="8,4" />
                   <Setter Property="Margin"    Value="0,0,4,0" />
-                  <Setter Property="MinHeight" Value="22" />
+                  <Setter Property="MinHeight" Value="24" />
                 </ControlTheme>
               </ListBox.ItemContainerTheme>
               <ListBox.ItemTemplate>
@@ -324,288 +325,80 @@
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <StackPanel.ContextMenu>
                       <ContextMenu>
-                        <MenuItem x:Name="TabMenuRename"    Header="_Rename..." />
-                        <MenuItem x:Name="TabMenuDuplicate" Header="_Duplicate" />
+                        <MenuItem x:Name="TabMenuRename"    Header="_Rename…" />
+                        <MenuItem x:Name="TabMenuDuplicate" Header="_Duplicate"
+                                  IsEnabled="{CompiledBinding SupportsDuplicate}" />
                         <Separator />
                         <MenuItem x:Name="TabMenuClose"     Header="_Close" />
                       </ContextMenu>
                     </StackPanel.ContextMenu>
-                    <TextBlock Text="{CompiledBinding Title}"
-                               VerticalAlignment="Center"
-                               IsVisible="{CompiledBinding !IsRenaming}"
-                               x:Name="TabTitleText" />
-                    <TextBox   Text="{CompiledBinding Title, Mode=TwoWay}"
-                               VerticalAlignment="Center"
-                               MinWidth="80"
-                               Padding="2,0"
-                               IsVisible="{CompiledBinding IsRenaming}"
-                               x:Name="TabTitleEdit" />
-                    <Button x:Name="CloseTabButton" Content="×" Width="20" Padding="0" VerticalAlignment="Center"
-                            Background="Transparent" BorderThickness="0" Tag="{CompiledBinding}" />
+                    <TextBlock Text="{CompiledBinding Title}" VerticalAlignment="Center"
+                               IsVisible="{CompiledBinding !IsRenaming}" x:Name="TabTitleText" />
+                    <TextBox Text="{CompiledBinding Title, Mode=TwoWay}" VerticalAlignment="Center"
+                             MinWidth="80" Padding="2,0"
+                             IsVisible="{CompiledBinding IsRenaming}" x:Name="TabTitleEdit" />
+                    <Button x:Name="CloseTabButton" Content="×" Width="20" Padding="0"
+                            VerticalAlignment="Center" Background="Transparent" BorderThickness="0"
+                            AutomationProperties.Name="{CompiledBinding Title, StringFormat='Close {0}'}"
+                            Tag="{CompiledBinding}" ToolTip.Tip="Close document" />
                   </StackPanel>
                 </DataTemplate>
               </ListBox.ItemTemplate>
             </ListBox>
-            <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource SurfaceBg}" Margin="0,4,0,0">
-              <!-- Wrap the disabled-body Grid + the disconnected-overlay
-                   placeholder so the placeholder is NOT a child of the
-                   ``IsEnabled=IsConnected`` Grid; otherwise its Connect
-                   button would be greyed out exactly when we need it. -->
-              <Grid>
-              <!-- Whole tab body is hidden while disconnected so the
-                   Connect placeholder isn't overlaid on top of a
-                   half-rendered plug-in view.  When connected, the
-                   body is enabled and the placeholder is hidden via
-                   IsVisible bindings on opposite sides of IsConnected. -->
-              <Grid IsVisible="{CompiledBinding IsConnected}"
-                    IsEnabled="{CompiledBinding IsConnected}">
-                <!-- Subscription chart panel — visible only when a Subscription tab is active. -->
-                <Grid IsVisible="{CompiledBinding IsSubscriptionTabActive}"
-                      RowDefinitions="Auto,*">
-                  <!-- Toolbar moved here from above the tab strip so the
-                       subscription-specific buttons live INSIDE the tab.
-                       WrapPanel so the children flow onto the next line
-                       when the window narrows (no horizontal scroll). -->
-                  <Border Grid.Row="0" Background="{DynamicResource PanelBg}" Padding="8,6"
-                          BorderBrush="{DynamicResource PanelBorder}" BorderThickness="0,0,0,1">
-                    <WrapPanel Classes="toolbar" Orientation="Horizontal" HorizontalAlignment="Left" ItemHeight="32">
-                        <CheckBox x:Name="ResourceOverlayCheck"
-                                  VerticalAlignment="Center"
-                                  Margin="4,0"
-                                  Content="CPU/Mem" />
-                        <CheckBox x:Name="ItemStatusToggle"
-                                  VerticalAlignment="Center"
-                                  Margin="4,0"
-                                  Content="Monitored Items"
-                                  IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowItemStatusGrid, Mode=TwoWay, FallbackValue=False}" />
-                        <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="4,6" />
-                        <CheckBox x:Name="ShowLegendCheck"
-                                  VerticalAlignment="Center"
-                                  Margin="4,0"
-                                  Content="Legend"
-                                  ToolTip.Tip="Show / hide the chart legend (Signal / Histogram / Heatmap)"
-                                  IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowLegend, Mode=TwoWay, FallbackValue=False}" />
-                        <CheckBox x:Name="ShowXAxisCheck"
-                                  VerticalAlignment="Center"
-                                  Margin="4,0"
-                                  Content="X axis"
-                                  ToolTip.Tip="Show / hide the chart X axis (bottom)"
-                                  IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowXAxis, Mode=TwoWay, FallbackValue=False}" />
-                        <CheckBox x:Name="ShowYAxisCheck"
-                                  VerticalAlignment="Center"
-                                  Margin="4,0"
-                                  Content="Y axis"
-                                  ToolTip.Tip="Show / hide the chart Y axis (left)"
-                                  IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowYAxis, Mode=TwoWay, FallbackValue=False}" />
-                        <StackPanel Orientation="Horizontal" Margin="4,0" VerticalAlignment="Center">
-                          <TextBlock VerticalAlignment="Center" Margin="6,0,4,0" Foreground="{DynamicResource TextSecondary}" Text="View:" />
-                          <ComboBox x:Name="ViewModeCombo" MinWidth="110" SelectedIndex="0"
-                                    VerticalAlignment="Center" VerticalContentAlignment="Center"
-                                    MinHeight="28">
-                            <ComboBoxItem Content="Dots" />
-                            <ComboBoxItem Content="Bars" />
-                            <ComboBoxItem Content="Lines" />
-                            <ComboBoxItem Content="Signal" />
-                            <ComboBoxItem Content="Histogram" />
-                            <ComboBoxItem Content="Heatmap" />
-                          </ComboBox>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="4,0" VerticalAlignment="Center">
-                          <Button x:Name="TimeScaleDownBtn" Classes="tonal" Content="−" Width="30"
-                                  VerticalAlignment="Center" />
-                          <TextBlock x:Name="TimeScaleLabel" VerticalAlignment="Center"
-                                     HorizontalAlignment="Center" Width="40"
-                                     TextAlignment="Center"
-                                     Foreground="{DynamicResource TextSecondary}"
-                                     FontFamily="Cascadia Mono, Consolas, monospace" Text="1.0×" />
-                          <Button x:Name="TimeScaleUpBtn"   Classes="tonal" Content="+" Width="30"
-                                  VerticalAlignment="Center" />
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="4,0" VerticalAlignment="Center" Spacing="4">
-                          <Button x:Name="AddItemButton"    Classes="primary" Content="✚ Add" Width="100"
-                                  IsEnabled="{CompiledBinding CanAddSelectedItem}"
-                                  VerticalAlignment="Center" />
-                          <Button x:Name="RemoveItemButton" Classes="tonal"   Content="✗ Remove" Width="100"
-                                  VerticalAlignment="Center" />
-                          <Button x:Name="SettingsButton"   Classes="tonal"   Content="⚙ Settings" Width="100"
-                                  VerticalAlignment="Center" />
-                        </StackPanel>
+          </DockPanel>
+
+          <ContentControl Grid.Row="1" x:Name="DocumentHeaderToolbar"
+                          Content="{CompiledBinding SelectedTab.HeaderToolbar}" />
+
+          <Border Grid.Row="2" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1"
+                  CornerRadius="4" Background="{DynamicResource SurfaceBg}" Margin="0,4,0,0">
+            <Grid>
+              <!-- One document host used by EVERY tool (SelectedTab.View). -->
+              <ContentControl x:Name="DocumentHost" Content="{CompiledBinding SelectedTab.View}" />
+
+              <!-- Welcome area shown only when no documents are open. Not a tab,
+                   available offline (Connect / recent / workspace / local tools). -->
+              <ScrollViewer x:Name="WelcomePanel" HorizontalScrollBarVisibility="Disabled"
+                            VerticalScrollBarVisibility="Auto">
+                <Border Classes="card" MaxWidth="560" Margin="24"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <StackPanel Orientation="Vertical" Spacing="12">
+                    <TextBlock Classes="heading" Text="Welcome to UaLens" />
+                    <TextBlock Classes="caption" TextWrapping="Wrap"
+                               Text="Connect to a server to browse, read, write and monitor. Discovery and local certificate stores work offline." />
+                    <WrapPanel Orientation="Horizontal">
+                      <Button x:Name="WelcomeConnectBtn" Classes="primary" Content="Connect…"
+                              Margin="0,0,8,8" />
+                      <Button x:Name="WelcomeOpenWorkspaceBtn" Classes="tonal" Content="Open Workspace…"
+                              Margin="0,0,8,8" />
+                      <Button x:Name="WelcomeDiscoveryBtn" Classes="tonal" Content="Discovery"
+                              Margin="0,0,8,8" />
+                      <Button x:Name="WelcomeCertificatesBtn" Classes="tonal" Content="Certificates"
+                              Margin="0,0,8,8" />
+                      <Button x:Name="WelcomeAddToolBtn" Classes="tonal" Content="Add Tool…"
+                              Margin="0,0,0,8" />
                     </WrapPanel>
-                  </Border>
-                  <Grid Grid.Row="1" x:Name="ChartFlyoutGrid">
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="0" />
-                      <ColumnDefinition Width="0" />
-                    </Grid.ColumnDefinitions>
-                    <Grid Grid.Column="0">
-                      <v:AnimationCanvas x:Name="Animation" />
-                      <v:ScottPlotView   x:Name="ScottPlot" IsVisible="False" />
-                    </Grid>
-                    <!-- Splitter for the Monitored items flyout (drag to
-                         resize the chart / flyout columns). Visible only
-                         when the flyout itself is shown. -->
-                    <GridSplitter Grid.Column="1"
-                                  Width="4"
-                                  ResizeDirection="Columns"
-                                  ResizeBehavior="PreviousAndNext"
-                                  Background="{DynamicResource SeparatorBrush}"
-                                  IsVisible="{CompiledBinding SelectedSubscriptionTab.ShowItemStatusGrid, FallbackValue=False}" />
-                    <!-- B1: per-monitored-item status sub-pane.  Toggled
-                         via the toolbar's "📋 Items" checkbox.  Right-click
-                         a row to set its monitoring mode (B2).  Width is
-                         driven by the parent ColumnDefinition (default
-                         400px) — drag the splitter to resize. -->
-                    <Border Grid.Column="2"
-                            IsVisible="{CompiledBinding SelectedSubscriptionTab.ShowItemStatusGrid, FallbackValue=False}"
-                            MinWidth="240"
-                            Background="{DynamicResource PanelBg}"
-                            BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1,0,0,0">
-                      <Grid RowDefinitions="Auto,Auto,*" Grid.IsSharedSizeScope="True">
-                        <TextBlock Grid.Row="0"
-                                   Margin="10,8,10,6"
-                                   Foreground="{DynamicResource TextSecondary}" FontSize="12"
-                                   Text="Monitored items" />
-                        <!-- Column header row with GridSplitter cells
-                             between each column.  SharedSizeGroup mirrors
-                             the widths into every per-row Grid below. -->
-                        <Grid Grid.Row="1" Margin="10,0,10,4">
-                          <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="40"   MinWidth="32"  SharedSizeGroup="MiCol0" />
-                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep0" />
-                            <ColumnDefinition Width="100"  MinWidth="60"  SharedSizeGroup="MiCol1" />
-                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep1" />
-                            <ColumnDefinition Width="180"  MinWidth="80"  SharedSizeGroup="MiCol2" />
-                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep2" />
-                            <ColumnDefinition Width="80"   MinWidth="50"  SharedSizeGroup="MiCol3" />
-                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep3" />
-                            <ColumnDefinition Width="80"   MinWidth="60"  SharedSizeGroup="MiCol4" />
-                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep4" />
-                            <ColumnDefinition Width="70"   MinWidth="50"  SharedSizeGroup="MiCol5" />
-                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep5" />
-                            <ColumnDefinition Width="40"   MinWidth="30"  SharedSizeGroup="MiCol6" />
-                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep6" />
-                            <ColumnDefinition Width="70"   MinWidth="50"  SharedSizeGroup="MiCol7" />
-                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep7" />
-                            <ColumnDefinition Width="80"   MinWidth="60"  SharedSizeGroup="MiCol8" />
-                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep8" />
-                            <ColumnDefinition Width="*"    MinWidth="60"  SharedSizeGroup="MiCol9" />
-                          </Grid.ColumnDefinitions>
-                          <TextBlock Grid.Column="0"  Text="Id"        FontSize="11" Foreground="{DynamicResource TextDim}" />
-                          <GridSplitter Grid.Column="1"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
-                          <TextBlock Grid.Column="2"  Text="Browse"    FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
-                          <GridSplitter Grid.Column="3"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
-                          <TextBlock Grid.Column="4"  Text="NodeId"    FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
-                          <GridSplitter Grid.Column="5"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
-                          <TextBlock Grid.Column="6"  Text="Attr"      FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
-                          <GridSplitter Grid.Column="7"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
-                          <TextBlock Grid.Column="8"  Text="Mode"      FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
-                          <GridSplitter Grid.Column="9"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
-                          <TextBlock Grid.Column="10" Text="Sampling"  FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
-                          <GridSplitter Grid.Column="11" Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
-                          <TextBlock Grid.Column="12" Text="Q"         FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
-                          <GridSplitter Grid.Column="13" Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
-                          <TextBlock Grid.Column="14" Text="Samples"   FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
-                          <GridSplitter Grid.Column="15" Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
-                          <TextBlock Grid.Column="16" Text="Status"    FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
-                          <GridSplitter Grid.Column="17" Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
-                          <TextBlock Grid.Column="18" Text="Value"     FontSize="11" Foreground="{DynamicResource TextDim}" Margin="6,0,0,0" />
-                        </Grid>
-                        <ListBox Grid.Row="2"
-                                 x:Name="ItemStatusList"
-                                 Background="Transparent" BorderThickness="0"
-                                 ItemsSource="{CompiledBinding SelectedSubscriptionTab.ItemStatuses, FallbackValue={x:Null}}">
-                          <ListBox.ItemContainerTheme>
-                            <ControlTheme TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
-                              <Setter Property="Padding"   Value="10,2" />
-                              <Setter Property="MinHeight" Value="22" />
-                            </ControlTheme>
-                          </ListBox.ItemContainerTheme>
-                          <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="vm:MonitoredItemStatusRow">
-                              <Grid>
-                                <Grid.ColumnDefinitions>
-                                  <ColumnDefinition Width="40"   SharedSizeGroup="MiCol0" />
-                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep0" />
-                                  <ColumnDefinition Width="100"  SharedSizeGroup="MiCol1" />
-                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep1" />
-                                  <ColumnDefinition Width="180"  SharedSizeGroup="MiCol2" />
-                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep2" />
-                                  <ColumnDefinition Width="80"   SharedSizeGroup="MiCol3" />
-                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep3" />
-                                  <ColumnDefinition Width="80"   SharedSizeGroup="MiCol4" />
-                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep4" />
-                                  <ColumnDefinition Width="70"   SharedSizeGroup="MiCol5" />
-                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep5" />
-                                  <ColumnDefinition Width="40"   SharedSizeGroup="MiCol6" />
-                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep6" />
-                                  <ColumnDefinition Width="70"   SharedSizeGroup="MiCol7" />
-                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep7" />
-                                  <ColumnDefinition Width="80"   SharedSizeGroup="MiCol8" />
-                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep8" />
-                                  <ColumnDefinition Width="*"    SharedSizeGroup="MiCol9" />
-                                </Grid.ColumnDefinitions>
-                                <Grid.ContextMenu>
-                                  <ContextMenu>
-                                    <MenuItem Header="Set monitoring mode">
-                                      <MenuItem Header="_Disabled"  Click="OnStatusRowModeDisabledClick"  CommandParameter="{CompiledBinding .}" />
-                                      <MenuItem Header="_Sampling"  Click="OnStatusRowModeSamplingClick"  CommandParameter="{CompiledBinding .}" />
-                                      <MenuItem Header="_Reporting" Click="OnStatusRowModeReportingClick" CommandParameter="{CompiledBinding .}" />
-                                    </MenuItem>
-                                  </ContextMenu>
-                                </Grid.ContextMenu>
-                                <TextBlock Grid.Column="0"  Text="{CompiledBinding Id}"            FontSize="11" Foreground="{DynamicResource TextSecondaryAlt}"
-                                           FontFamily="Cascadia Mono, Consolas, monospace" />
-                                <TextBlock Grid.Column="2"  Text="{CompiledBinding BrowseName}"    FontSize="11" Foreground="{DynamicResource TextPrimary}" Margin="6,0,0,0" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Grid.Column="4"  Text="{CompiledBinding NodeId}"        FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="6,0,0,0"
-                                           FontFamily="Cascadia Mono, Consolas, monospace" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Grid.Column="6"  Text="{CompiledBinding AttributeName}" FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="6,0,0,0" />
-                                <TextBlock Grid.Column="8"  Text="{CompiledBinding Mode}"          FontSize="11" Foreground="{DynamicResource TextSecondaryAlt}" Margin="6,0,0,0" />
-                                <TextBlock Grid.Column="10" Text="{CompiledBinding Sampling}"      FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="6,0,0,0"
-                                           FontFamily="Cascadia Mono, Consolas, monospace" />
-                                <TextBlock Grid.Column="12" Text="{CompiledBinding Queue}"         FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="6,0,0,0"
-                                           FontFamily="Cascadia Mono, Consolas, monospace" />
-                                <TextBlock Grid.Column="14" Text="{CompiledBinding Samples}"       FontSize="11" Foreground="{DynamicResource TextSecondaryAlt}" Margin="6,0,0,0"
-                                           FontFamily="Cascadia Mono, Consolas, monospace" />
-                                <TextBlock Grid.Column="16" Text="{CompiledBinding LastStatus}"    FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="6,0,0,0" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Grid.Column="18" Text="{CompiledBinding LastValue}"     FontSize="11" Foreground="{DynamicResource TextSecondaryAlt}" Margin="6,0,0,0"
-                                           FontFamily="Cascadia Mono, Consolas, monospace" TextTrimming="CharacterEllipsis" />
-                              </Grid>
-                            </DataTemplate>
-                          </ListBox.ItemTemplate>
-                        </ListBox>
-                      </Grid>
-                    </Border>
-                  </Grid>
-                </Grid>
-                <!-- Generic per-app view for non-Subscription tabs. -->
-                <ContentControl Content="{CompiledBinding SelectedTab.View}"
-                                IsVisible="{CompiledBinding IsCustomTabActive}" />
-              </Grid>
-              <!-- Disconnected-overlay: friendly hint + Connect button.
-                   Sits on top of the disabled body and is NOT inside the
-                   ``IsEnabled=IsConnected`` Grid so the button stays
-                   interactive while disconnected. -->
-              <StackPanel IsVisible="{CompiledBinding !IsConnected}"
-                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                          Orientation="Vertical" Spacing="12">
-                <TextBlock HorizontalAlignment="Center"
-                           Foreground="{DynamicResource TextSecondary}" FontSize="14"
-                           Text="Connect to a server to activate this tab." />
-                <Button x:Name="DisconnectedConnectButton"
-                        HorizontalAlignment="Center"
-                        Padding="14,6"
-                        Background="{DynamicResource SeparatorBrush}" Foreground="{DynamicResource TextPrimary}"
-                        BorderBrush="{DynamicResource ToolbarBg}" BorderThickness="1"
-                        Content="Connect…" />
-              </StackPanel>
-              </Grid>
-            </Border>
-            <TextBlock Grid.Row="2" Margin="0,6,0,0" Classes="status"
-                       Text="{CompiledBinding SelectedTab.Status, FallbackValue='● No tab'}" />
-          </Grid>
-        </Border>
-      </Grid>
+                    <TextBlock Classes="h" Text="Recent &amp; favourites" Margin="0,4,0,0" />
+                    <ListBox x:Name="WelcomeRecentList" MaxHeight="200"
+                             Background="Transparent" BorderThickness="0">
+                      <ListBox.ItemContainerTheme>
+                        <ControlTheme TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                          <Setter Property="Padding"   Value="6,3" />
+                          <Setter Property="MinHeight" Value="24" />
+                        </ControlTheme>
+                      </ListBox.ItemContainerTheme>
+                    </ListBox>
+                  </StackPanel>
+                </Border>
+              </ScrollViewer>
+            </Grid>
+          </Border>
+
+          <TextBlock Grid.Row="3" Margin="0,6,0,0" Classes="mono"
+                     Foreground="{DynamicResource TextSecondary}"
+                     Text="{CompiledBinding SelectedTab.Status, FallbackValue='No document open'}" />
+        </Grid>
+      </Border>
     </Grid>
   </DockPanel>
 </Window>

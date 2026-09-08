@@ -185,7 +185,7 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Failed to browse references for {NodeId}", nodeId);
+            ReferencesViewModelLog.ReferenceBrowseFailed(m_log, ex, nodeId);
             Rows.Add(new ReferenceRow("!", "(browse failed)", ex.Message, string.Empty, string.Empty));
         }
     }

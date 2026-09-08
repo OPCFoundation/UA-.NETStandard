@@ -203,10 +203,10 @@
         <Button Classes="tonal" Content="− Unregister Selected" Margin="4,0"
                 IsEnabled="{CompiledBinding !IsBusy}"
                 Command="{CompiledBinding UnregisterApplicationCommand}" />
-        <Button Classes="tonal" Content="🔑 Issue Cert…" Margin="4,0"
+        <Button Classes="tonal" Content="Issue Cert…" Margin="4,0"
                 IsEnabled="{CompiledBinding !IsBusy}"
                 Command="{CompiledBinding IssueNewCertificateCommand}" />
-        <Button Classes="primary" Content="📜 View Cert Groups…" Margin="4,0"
+        <Button Classes="primary" Content="View Cert Groups…" Margin="4,0"
                 IsEnabled="{CompiledBinding !IsBusy}"
                 Command="{CompiledBinding ViewCertGroupsCommand}" />
       </WrapPanel>

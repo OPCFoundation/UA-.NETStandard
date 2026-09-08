@@ -1,0 +1,125 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in
+   all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+   IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.ViewModels"
+             xmlns:v="using:UaLens.Views"
+             x:Class="UaLens.Views.SubscriptionDocumentView"
+             x:DataType="vm:SubscriptionViewModel"
+             Background="{DynamicResource SurfaceBg}">
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+    <Border Background="{DynamicResource PanelBg}" Padding="12,8"
+            BorderBrush="{DynamicResource PanelBorder}" BorderThickness="0,0,0,1">
+      <WrapPanel Classes="toolbar" ItemHeight="36">
+        <TextBlock Text="Publishing (ms)" Margin="0,0,8,0" />
+        <NumericUpDown x:Name="PublishingIntervalInput" Minimum="0" Maximum="3600000"
+                       Increment="10" Width="150" FormatString="0.###"
+                       ToolTip.Tip="Requested interval. The server's revised value appears below." />
+        <Button x:Name="ApplyPublishingButton" Content="Apply" Margin="6,0,12,0" />
+        <CheckBox x:Name="PublishingEnabledCheck" Content="Publishing" Margin="0,0,12,0"
+                  ToolTip.Tip="Changes server publishing, not just display playback." />
+        <TextBlock Text="View" Margin="0,0,6,0" />
+        <ComboBox x:Name="DocumentViewMode" MinWidth="120" Margin="0,0,12,0">
+          <ComboBoxItem Content="Values" />
+          <ComboBoxItem Content="Trend" />
+          <ComboBoxItem Content="Timing: dots" />
+          <ComboBoxItem Content="Timing: bars" />
+          <ComboBoxItem Content="Timing: lines" />
+          <ComboBoxItem Content="Histogram" />
+          <ComboBoxItem Content="Heatmap" />
+        </ComboBox>
+        <Button x:Name="SubscriptionSettingsButton" Content="Settings"
+                ToolTip.Tip="Keep-alive, lifetime, priority and notification limits" />
+      </WrapPanel>
+    </Border>
+    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" Margin="12,10,12,4">
+      <TextBox x:Name="MonitoredNodeIdInput" PlaceholderText="Add a node by id, or use Monitor in the address space"
+               FontFamily="Cascadia Mono, Consolas, monospace"
+               ToolTip.Tip="Examples: i=2258 or ns=2;s=Scalar_Simulation_UInt32" />
+      <Button Grid.Column="1" x:Name="AddNodeIdButton" Content="Add node" Margin="6,0,0,0" />
+      <Button Grid.Column="2" x:Name="ItemSettingsButton" Content="Item settings" Margin="6,0,0,0"
+              ToolTip.Tip="Select an item to edit sampling, mode, queue and filter." />
+      <Button Grid.Column="3" x:Name="RemoveSelectedItemButton" Content="Remove" Margin="6,0,0,0" />
+    </Grid>
+    <StackPanel Grid.Row="2" Margin="12,4,12,6" Spacing="3">
+      <TextBlock Text="Offline: settings and nodes are retained until a connection is available."
+                 IsVisible="{CompiledBinding !IsBound}" Classes="caption" TextWrapping="Wrap" />
+      <TextBlock Text="{CompiledBinding ErrorText}" Foreground="{DynamicResource AccentRed}"
+                 TextWrapping="Wrap" />
+      <Expander x:Name="ChartOptions" Header="Chart options" IsExpanded="False" IsVisible="False">
+        <WrapPanel Classes="toolbar" ItemHeight="34">
+          <CheckBox x:Name="ChartLegendCheck" Content="Legend"
+                    IsChecked="{CompiledBinding ShowLegend, Mode=TwoWay}" Margin="0,0,12,0" />
+          <CheckBox x:Name="ChartXAxisCheck" Content="X axis"
+                    IsChecked="{CompiledBinding ShowXAxis, Mode=TwoWay}" Margin="0,0,12,0" />
+          <CheckBox x:Name="ChartYAxisCheck" Content="Y axis"
+                    IsChecked="{CompiledBinding ShowYAxis, Mode=TwoWay}" Margin="0,0,12,0" />
+          <CheckBox Content="Resource overlay"
+                    IsChecked="{CompiledBinding ShowResourceOverlay, Mode=TwoWay}" Margin="0,0,12,0" />
+          <Button x:Name="ChartZoomOutButton" Content="Zoom out" Margin="0,0,6,0" />
+          <Button x:Name="ChartZoomResetButton" Content="Reset zoom" Margin="0,0,6,0" />
+          <Button x:Name="ChartZoomInButton" Content="Zoom in" />
+        </WrapPanel>
+      </Expander>
+    </StackPanel>
+    <Grid Grid.Row="3" x:Name="DocumentDataGrid" RowDefinitions="*,0">
+      <Grid RowDefinitions="Auto,*">
+        <Grid ColumnDefinitions="160,*,120,120" Margin="12,4">
+          <TextBlock Text="Node" Classes="caption" />
+          <TextBlock Grid.Column="1" Text="Latest value" Classes="caption" />
+          <TextBlock Grid.Column="2" Text="Quality" Classes="caption" />
+          <TextBlock Grid.Column="3" Text="Source time (UTC)" Classes="caption" />
+        </Grid>
+        <ListBox Grid.Row="1" x:Name="MonitorValuesList"
+                 ItemsSource="{CompiledBinding ItemStatuses}" Background="Transparent" BorderThickness="0">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:MonitoredItemStatusRow">
+              <Grid ColumnDefinitions="160,*,120,120" Margin="4,4">
+                <TextBlock Text="{CompiledBinding BrowseName}" TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{CompiledBinding NodeId}" Margin="0,0,10,0" />
+                <TextBlock Grid.Column="1" Text="{CompiledBinding LastValue}" Classes="code"
+                           TextTrimming="CharacterEllipsis" Margin="0,0,10,0" />
+                <TextBlock Grid.Column="2" Text="{CompiledBinding LastStatus}" TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{CompiledBinding LastStatus}" />
+                <TextBlock Grid.Column="3" Text="{CompiledBinding SourceTimestamp}" Classes="code"
+                           ToolTip.Tip="{CompiledBinding ServerTimestamp, StringFormat='Server time (UTC): {0}'}" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
+      <Grid Grid.Row="1" x:Name="DocumentChart" IsVisible="False">
+        <v:AnimationCanvas x:Name="DocumentAnimation" />
+        <v:ScottPlotView x:Name="DocumentPlot" IsVisible="False" />
+      </Grid>
+    </Grid>
+    <Border Grid.Row="4" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="0,1,0,0"
+            Padding="12,8">
+      <StackPanel Spacing="3">
+        <TextBlock x:Name="DocumentDeliverySummary" Classes="caption" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

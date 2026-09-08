@@ -107,8 +107,7 @@ internal sealed class NodeSetExporter
             nodes = filtered;
         }
 
-        m_log.LogInformation(
-            "Browsed {Count} non-base nodes in {ElapsedMs}ms; writing NodeSet2 to {Path}",
+        NodeSetExporterLog.NodesBrowsed(m_log,
             nodes.Count,
             sw.ElapsedMilliseconds,
             filePath);
@@ -131,8 +130,7 @@ internal sealed class NodeSetExporter
         }, ct).ConfigureAwait(false);
 
         sw.Stop();
-        m_log.LogInformation(
-            "Exported {Count} nodes to {Path} in {ElapsedMs}ms",
+        NodeSetExporterLog.NodesExported(m_log,
             nodes.Count,
             filePath,
             sw.ElapsedMilliseconds);

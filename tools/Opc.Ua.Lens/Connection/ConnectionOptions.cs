@@ -38,6 +38,6 @@ internal enum SubscriptionEngineKind
 internal sealed record ConnectionOptions
 {
     public required string EndpointUrl { get; init; }
-    public bool UseSecurity { get; init; }
+    public bool UseSecurity { get; init; } = true;
     public SubscriptionEngineKind Engine { get; init; } = SubscriptionEngineKind.ChannelV2;
 }

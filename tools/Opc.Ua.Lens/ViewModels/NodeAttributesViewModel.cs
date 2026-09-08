@@ -140,7 +140,7 @@ internal sealed partial class NodeAttributesViewModel : ObservableObject, IDispo
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Failed to read attributes for {NodeId}", nodeId);
+            NodeAttributesViewModelLog.AttributeReadFailed(m_log, ex, nodeId);
             Rows.Add(new AttributeRow("(read failed)", ex.Message));
         }
     }

@@ -35,6 +35,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -46,6 +47,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using UaLens.Storage;
 using UaLens.ViewModels;
 using UaLens.Views;
 
@@ -151,7 +153,7 @@ internal sealed partial class AtTimeRow : ObservableObject
 /// session reference is re-fetched on every call because the underlying
 /// <see cref="ConnectionService"/> may reconnect under us.
 /// </summary>
-internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
+internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWorkspaceState
 {
     private static int s_nextNumber;
 
@@ -159,12 +161,17 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
     private readonly ILogger m_log;
     private HistorianView? m_view;
     private CancellationTokenSource? m_readCts;
+    private Task m_readTask = Task.CompletedTask;
+    private Task? m_disposal;
 
     [ObservableProperty]
     private string m_title;
 
     [ObservableProperty]
     private bool m_isRenaming;
+
+    [ObservableProperty]
+    private bool m_isOffline = true;
 
     [ObservableProperty]
     private string m_status = "● Idle — pick a Variable and click Read.";
@@ -369,7 +376,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
         AtTimes.CollectionChanged += OnAtTimesChanged;
         UpdateAtTimes.Add(NewSentinelRow(UpdateAtTimes));
         // Seed the target from the current address-space selection if any.
-        if (m_host.Main.SelectedNode is { } sel && sel.NodeClass == NodeClass.Variable)
+        if (m_host.Workspace.SelectedNode is { } sel && sel.NodeClass == NodeClass.Variable)
         {
             TargetNodeId = sel.NodeId;
             TargetDisplayName = sel.Text;
@@ -428,30 +435,59 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
     public void OnDeactivated() { }
 
     /// <summary>
-    /// Re-evaluate Read CanExecute when the host connects or
-    /// disconnects — <see cref="CanRead"/> pivots on
-    /// <c>m_host.Main.Connection.Session</c>.  Cached read results are
-    /// intentionally preserved so the user can still inspect the last
-    /// successful read after a disconnect.
+    /// Awaited connection lifecycle. On disconnect the in-flight read is cancelled and
+    /// awaited before the old session is released; on connect the Read command's
+    /// availability is refreshed. Cached read results are intentionally preserved so
+    /// the user can still inspect the last successful read after a disconnect, and no
+    /// read is auto-started on connect.
     /// </summary>
-    public void OnConnectionStateChanged()
+    public async Task OnConnectionStateChangedAsync(CancellationToken cancellationToken)
     {
+        if (m_host.Connection.CurrentSession is null)
+        {
+            await CancelAndDrainReadAsync().ConfigureAwait(true);
+        }
+        IsOffline = m_host.Connection.CurrentSession is null;
         ReadCommand.NotifyCanExecuteChanged();
+        ExecuteUpdateCommand.NotifyCanExecuteChanged();
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
-    public ValueTask DisposeAsync()
+    public ValueTask DisposeAsync() => new(m_disposal ??= DisposeCoreAsync());
+
+    private async Task DisposeCoreAsync()
     {
         try
         {
-            m_readCts?.Cancel();
-            m_readCts?.Dispose();
-            m_readCts = null;
+            await CancelAndDrainReadAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Historian tab {Title} dispose failed.", Title);
+            m_log.DisposeFailed(ex, Title);
         }
-        return ValueTask.CompletedTask;
+        finally
+        {
+            m_readCts?.Dispose();
+            m_readCts = null;
+        }
+    }
+
+    /// <summary>
+    /// Cancels any in-flight history read and awaits its completion so the operation
+    /// releases the session before the connection owner disposes it. Read results are
+    /// left intact.
+    /// </summary>
+    private async Task CancelAndDrainReadAsync()
+    {
+        m_readCts?.Cancel();
+        try
+        {
+            await m_readTask.ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            // The read observes cancellation and reports it on the status line.
+        }
     }
 
     // ---- Commands ----
@@ -468,8 +504,8 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
         // Smart default: when the address-space tree is visible AND a
         // suitable Variable is already selected (Historizing=true),
         // use it directly instead of opening the picker.
-        if (m_host.Main.IsAddressSpaceVisible
-            && m_host.Main.SelectedNode is { NodeClass: NodeClass.Variable } sel
+        if (m_host.Workspace.IsAddressSpaceVisible
+            && m_host.Workspace.SelectedNode is { NodeClass: NodeClass.Variable } sel
             && await IsHistorizingAsync(session, sel.NodeId, CancellationToken.None).ConfigureAwait(true))
         {
             TargetNodeId = sel.NodeId;
@@ -644,12 +680,14 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
     private bool CanRead() =>
         !IsReading
         && HasTarget
-        && m_host.Main.Connection.Session is not null;
+        && m_host.Connection.Session is not null;
 
     [RelayCommand(CanExecute = nameof(CanRead))]
-    private async Task ReadAsync()
+    private Task ReadAsync() => m_readTask = ReadCoreAsync();
+
+    private async Task ReadCoreAsync()
     {
-        if (m_host.Main.Connection.Session is not { } session)
+        if (m_host.Connection.Session is not { } session)
         {
             Status = "● Not connected — connect first.";
             return;
@@ -743,7 +781,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
             }
             catch (Exception ex)
             {
-                m_log.LogDebug(ex, "Historian tab {Title} annotation read skipped.", Title);
+                m_log.AnnotationReadSkipped(ex, Title);
             }
 
             Dispatcher.UIThread.Post(() =>
@@ -761,12 +799,12 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
         catch (ServiceResultException ex)
         {
             Status = $"● Read failed: {ex.StatusCode} — {ex.Message}";
-            m_log.LogWarning(ex, "Historian tab {Title} HistoryRead failed.", Title);
+            m_log.HistoryReadFailed(ex, Title);
         }
         catch (Exception ex)
         {
             Status = $"● Read failed: {ex.Message}";
-            m_log.LogWarning(ex, "Historian tab {Title} HistoryRead failed.", Title);
+            m_log.HistoryReadFailed(ex, Title);
         }
         finally
         {
@@ -792,7 +830,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
             return;
         }
 
-        if (m_host.Main.Connection.Session is not { } session)
+        if (m_host.Connection.Session is not { } session)
         {
             Status = "● Not connected — connect first.";
             return;
@@ -893,7 +931,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
     /// </summary>
     private async Task OpenInsertDialogAsync(DateTime timestamp, double value, string hint)
     {
-        if (m_host.Main.Connection.Session is not { } session)
+        if (m_host.Connection.Session is not { } session)
         {
             Status = "● Not connected — connect first.";
             return;
@@ -955,12 +993,12 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
         catch (ServiceResultException ex)
         {
             Status = FriendlyError("HistoryUpdate", ex);
-            m_log.LogWarning(ex, "Historian tab {Title} HistoryUpdate failed.", Title);
+            m_log.HistoryUpdateFailed(ex, Title);
         }
         catch (Exception ex)
         {
             Status = $"● HistoryUpdate failed: {ex.Message}";
-            m_log.LogWarning(ex, "Historian tab {Title} HistoryUpdate failed.", Title);
+            m_log.HistoryUpdateFailed(ex, Title);
         }
     }
 
@@ -1099,9 +1137,21 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
             return;
         }
 
-        if (m_host.Main.Connection.Session is not { } session)
+        if (m_host.Connection.Session is not { } session)
         {
             Status = "● Not connected — connect first.";
+            return;
+        }
+
+        if (!await ConfirmDestructiveAsync(
+            "Delete history value",
+            string.Format(CultureInfo.InvariantCulture,
+                "Permanently delete the history value at {0} for {1}?\n\n" +
+                "This change is written to the server and cannot be undone.",
+                Iso(row.SourceTimestamp), TargetLabel()),
+            "Delete").ConfigureAwait(true))
+        {
+            Status = "● Delete cancelled.";
             return;
         }
         try
@@ -1115,12 +1165,12 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
         catch (ServiceResultException ex)
         {
             Status = FriendlyError("HistoryDelete", ex);
-            m_log.LogWarning(ex, "Historian tab {Title} HistoryDelete failed.", Title);
+            m_log.HistoryDeleteFailed(ex, Title);
         }
         catch (Exception ex)
         {
             Status = $"● HistoryDelete failed: {ex.Message}";
-            m_log.LogWarning(ex, "Historian tab {Title} HistoryDelete failed.", Title);
+            m_log.HistoryDeleteFailed(ex, Title);
         }
     }
 
@@ -1138,7 +1188,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
         {
             return;
         }
-        if (m_host.Main.Connection.Session is not { } session)
+        if (m_host.Connection.Session is not { } session)
         {
             Status = "● Not connected — connect first.";
             return;
@@ -1166,20 +1216,18 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
             else
             {
                 Status = $"● Annotation update: {outcome.Summarise()}.";
-                m_log.LogWarning(
-                    "Historian tab {Title} UpdateAnnotation returned {Outcome}.",
-                    Title, outcome.Summarise());
+                m_log.UpdateAnnotationReturned(Title, outcome.Summarise());
             }
         }
         catch (Exception ex)
         {
             Status = $"● Annotation update failed: {ex.Message}";
-            m_log.LogWarning(ex, "Historian tab {Title} UpdateAnnotation failed.", Title);
+            m_log.UpdateAnnotationFailed(ex, Title);
         }
     }
 
     private bool CanExecuteUpdate() =>
-        HasTarget && !IsReading && m_host.Main.Connection.Session is not null;
+        HasTarget && !IsReading && m_host.Connection.Session is not null;
 
     /// <summary>
     /// Dispatches the HistoryUpdate selected in the
@@ -1193,9 +1241,14 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
     [RelayCommand(CanExecute = nameof(CanExecuteUpdate))]
     public async Task ExecuteUpdateAsync()
     {
-        if (m_host.Main.Connection.Session is not { } session || TargetNodeId.IsNull)
+        if (m_host.Connection.Session is not { } session || TargetNodeId.IsNull)
         {
             UpdateResult = "● Not connected or no target.";
+            return;
+        }
+        if (!await ConfirmUpdateOperationAsync().ConfigureAwait(true))
+        {
+            UpdateResult = "● Cancelled.";
             return;
         }
         var updater = new HistoryUpdater(session);
@@ -1229,9 +1282,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
             }
             else
             {
-                m_log.LogWarning(
-                    "Historian tab {Title} HistoryUpdate {Op} returned {Outcome}.",
-                    Title, SelectedUpdateOp, outcome.Summarise());
+                m_log.HistoryUpdateReturned(Title, SelectedUpdateOp, outcome.Summarise());
             }
         }
         catch (FormatException ex)
@@ -1241,7 +1292,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
         catch (Exception ex)
         {
             UpdateResult = $"● HistoryUpdate failed: {ex.Message}";
-            m_log.LogWarning(ex, "Historian tab {Title} HistoryUpdate {Op} failed.", Title, SelectedUpdateOp);
+            m_log.HistoryUpdateOpFailed(ex, Title, SelectedUpdateOp);
         }
     }
 
@@ -1333,7 +1384,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
         catch (Exception ex)
         {
             Status = $"● Export failed: {ex.Message}";
-            m_log.LogWarning(ex, "Historian tab {Title} CSV export failed.", Title);
+            m_log.CsvExportFailed(ex, Title);
         }
     }
 
@@ -1403,4 +1454,223 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
         }
         return null;
     }
+
+    private string TargetLabel()
+        => string.IsNullOrEmpty(TargetDisplayName)
+            ? TargetNodeId.ToString() ?? "(no target)"
+            : string.Format(CultureInfo.InvariantCulture, "{0} ({1})", TargetDisplayName, TargetNodeId);
+
+    private static string Iso(DateTime timestamp)
+        => (timestamp.Kind == DateTimeKind.Utc ? timestamp : timestamp.ToUniversalTime())
+            .ToString("u", CultureInfo.InvariantCulture);
+
+    private async Task<bool> ConfirmDestructiveAsync(string title, string message, string applyText)
+    {
+        Window? owner = GetOwnerWindow();
+        var dialog = new HistoryConfirmDialog(title, message, applyText);
+        bool? result = owner is null
+            ? await dialog.ShowDialog<bool?>(new Window()).ConfigureAwait(true)
+            : await dialog.ShowDialog<bool?>(owner).ConfigureAwait(true);
+        return result == true;
+    }
+
+    /// <summary>
+    /// Confirms a destructive HistoryUpdate operation with its real scope (target node
+    /// and the affected timestamp, range or list). Additive inserts need no
+    /// confirmation and return true immediately.
+    /// </summary>
+    private Task<bool> ConfirmUpdateOperationAsync()
+    {
+        string target = TargetLabel();
+        (string Title, string Message, string Apply)? prompt = SelectedUpdateOp switch
+        {
+            HistorianUpdateOp.Replace => (
+                "Replace history value",
+                string.Format(CultureInfo.InvariantCulture,
+                    "Replace the existing history value at {0} for {1} with {2}?\n\n" +
+                    "The current value is overwritten on the server.",
+                    Iso(UpdateTimestamp), target, UpdateValueText),
+                "Replace"),
+            HistorianUpdateOp.InsertReplace => (
+                "Insert or replace history value",
+                string.Format(CultureInfo.InvariantCulture,
+                    "Insert or replace the history value at {0} for {1} with {2}?\n\n" +
+                    "Any existing value at that timestamp is overwritten.",
+                    Iso(UpdateTimestamp), target, UpdateValueText),
+                "Apply"),
+            HistorianUpdateOp.Remove => (
+                "Remove history value",
+                string.Format(CultureInfo.InvariantCulture,
+                    "Permanently remove the history value at {0} for {1}?",
+                    Iso(UpdateTimestamp), target),
+                "Remove"),
+            HistorianUpdateOp.DeleteRaw => (
+                "Delete raw history",
+                string.Format(CultureInfo.InvariantCulture,
+                    "Permanently delete ALL raw history for {0} between {1} and {2}?",
+                    target, Iso(UpdateStart), Iso(UpdateEnd)),
+                "Delete"),
+            HistorianUpdateOp.DeleteModified => (
+                "Delete modified history",
+                string.Format(CultureInfo.InvariantCulture,
+                    "Permanently delete the modified-history entries for {0} between {1} and {2}?",
+                    target, Iso(UpdateStart), Iso(UpdateEnd)),
+                "Delete"),
+            HistorianUpdateOp.DeleteAtTime => (
+                "Delete history at listed times",
+                string.Format(CultureInfo.InvariantCulture,
+                    "Permanently delete {0} history value(s) at the listed timestamps for {1}?",
+                    CollectUpdateTimestamps().Count, target),
+                "Delete"),
+            _ => null
+        };
+        if (prompt is not { } confirm)
+        {
+            return Task.FromResult(true);
+        }
+        return ConfirmDestructiveAsync(confirm.Title, confirm.Message, confirm.Apply);
+    }
+
+    public JsonElement CaptureState()
+    {
+        var snapshot = new HistorianStateSnapshot(
+            Title,
+            TargetNodeId,
+            TargetDisplayName,
+            ReadMode,
+            ReturnBounds,
+            IsReadModified,
+            NumValuesPerNode,
+            SelectedAggregate.NodeId,
+            ProcessingIntervalMs,
+            CollectConfirmedTimes(AtTimes),
+            CustomStart,
+            CustomEnd,
+            SelectedUpdateOp,
+            UpdateTimestamp,
+            UpdateValueText,
+            UpdateStart,
+            UpdateEnd,
+            CollectConfirmedTimes(UpdateAtTimes));
+        return HistorianStateCodec.Capture(snapshot);
+    }
+
+    public Task RestoreStateAsync(JsonElement state, CancellationToken cancellationToken = default)
+    {
+        // Validate the snapshot before mutating anything so an invalid or unknown state
+        // is reported without half-applying the configuration.
+        HistorianStateSnapshot snapshot = HistorianStateCodec.Restore(state);
+        cancellationToken.ThrowIfCancellationRequested();
+        Title = snapshot.Title;
+        TargetNodeId = snapshot.TargetNodeId;
+        TargetDisplayName = snapshot.TargetDisplayName;
+        ReadMode = snapshot.ReadMode;
+        ReturnBounds = snapshot.ReturnBounds;
+        IsReadModified = snapshot.ReadModified;
+        NumValuesPerNode = snapshot.NumValuesPerNode;
+        SelectedAggregate = MatchAggregate(snapshot.AggregateNodeId);
+        ProcessingIntervalMs = snapshot.ProcessingIntervalMs;
+        CustomStart = snapshot.CustomStart;
+        CustomEnd = snapshot.CustomEnd;
+        SelectedUpdateOp = snapshot.UpdateOp;
+        UpdateTimestamp = snapshot.UpdateTimestamp;
+        UpdateValueText = snapshot.UpdateValueText;
+        UpdateStart = snapshot.UpdateStart;
+        UpdateEnd = snapshot.UpdateEnd;
+        ReplaceConfirmedTimes(AtTimes, snapshot.AtTimes);
+        ReplaceConfirmedTimes(UpdateAtTimes, snapshot.UpdateAtTimes);
+        // Configuration only: no history is read and no update is executed on restore.
+        return Task.CompletedTask;
+    }
+
+    private AggregateOption MatchAggregate(NodeId nodeId)
+    {
+        if (!nodeId.IsNull)
+        {
+            foreach (AggregateOption option in AggregateOptions)
+            {
+                if (option.NodeId == nodeId)
+                {
+                    return option;
+                }
+            }
+        }
+        return AggregateOptions[0];
+    }
+
+    private static ArrayOf<DateTime> CollectConfirmedTimes(ObservableCollection<AtTimeRow> rows)
+    {
+        var list = new List<DateTime>(rows.Count);
+        foreach (AtTimeRow row in rows)
+        {
+            if (row.IsAddButton || row.IsEditing)
+            {
+                continue;
+            }
+            list.Add(row.Timestamp.Kind == DateTimeKind.Utc ? row.Timestamp : row.Timestamp.ToUniversalTime());
+        }
+        return [.. list];
+    }
+
+    private void ReplaceConfirmedTimes(ObservableCollection<AtTimeRow> rows, ArrayOf<DateTime> times)
+    {
+        rows.Clear();
+        foreach (DateTime time in times)
+        {
+            AtTimeRow row = NewEditableRow(rows);
+            row.Timestamp = time;
+            row.IsEditing = false;
+            rows.Add(row);
+        }
+        rows.Add(NewSentinelRow(rows));
+    }
+}
+
+/// <summary>
+/// Source-generated log messages for the Historian document. Event ids are offset
+/// from <see cref="UaLensEventIds.HistorianPluginBase"/>.
+/// </summary>
+internal static partial class HistorianPluginLog
+{
+    [LoggerMessage(EventId = UaLensEventIds.HistorianPluginBase + 0, Level = LogLevel.Warning,
+        Message = "Historian tab {Title} dispose failed.")]
+    public static partial void DisposeFailed(this ILogger logger, Exception exception, string title);
+
+    [LoggerMessage(EventId = UaLensEventIds.HistorianPluginBase + 1, Level = LogLevel.Debug,
+        Message = "Historian tab {Title} annotation read skipped.")]
+    public static partial void AnnotationReadSkipped(this ILogger logger, Exception exception, string title);
+
+    [LoggerMessage(EventId = UaLensEventIds.HistorianPluginBase + 2, Level = LogLevel.Warning,
+        Message = "Historian tab {Title} HistoryRead failed.")]
+    public static partial void HistoryReadFailed(this ILogger logger, Exception exception, string title);
+
+    [LoggerMessage(EventId = UaLensEventIds.HistorianPluginBase + 3, Level = LogLevel.Warning,
+        Message = "Historian tab {Title} HistoryUpdate failed.")]
+    public static partial void HistoryUpdateFailed(this ILogger logger, Exception exception, string title);
+
+    [LoggerMessage(EventId = UaLensEventIds.HistorianPluginBase + 4, Level = LogLevel.Warning,
+        Message = "Historian tab {Title} HistoryDelete failed.")]
+    public static partial void HistoryDeleteFailed(this ILogger logger, Exception exception, string title);
+
+    [LoggerMessage(EventId = UaLensEventIds.HistorianPluginBase + 5, Level = LogLevel.Warning,
+        Message = "Historian tab {Title} UpdateAnnotation returned {Outcome}.")]
+    public static partial void UpdateAnnotationReturned(this ILogger logger, string title, string outcome);
+
+    [LoggerMessage(EventId = UaLensEventIds.HistorianPluginBase + 6, Level = LogLevel.Warning,
+        Message = "Historian tab {Title} UpdateAnnotation failed.")]
+    public static partial void UpdateAnnotationFailed(this ILogger logger, Exception exception, string title);
+
+    [LoggerMessage(EventId = UaLensEventIds.HistorianPluginBase + 7, Level = LogLevel.Warning,
+        Message = "Historian tab {Title} HistoryUpdate {Operation} returned {Outcome}.")]
+    public static partial void HistoryUpdateReturned(
+        this ILogger logger, string title, HistorianUpdateOp operation, string outcome);
+
+    [LoggerMessage(EventId = UaLensEventIds.HistorianPluginBase + 8, Level = LogLevel.Warning,
+        Message = "Historian tab {Title} HistoryUpdate {Operation} failed.")]
+    public static partial void HistoryUpdateOpFailed(
+        this ILogger logger, Exception exception, string title, HistorianUpdateOp operation);
+
+    [LoggerMessage(EventId = UaLensEventIds.HistorianPluginBase + 9, Level = LogLevel.Warning,
+        Message = "Historian tab {Title} CSV export failed.")]
+    public static partial void CsvExportFailed(this ILogger logger, Exception exception, string title);
 }

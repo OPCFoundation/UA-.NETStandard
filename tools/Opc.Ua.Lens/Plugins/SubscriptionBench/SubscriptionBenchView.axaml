@@ -1,5 +1,5 @@
 <!-- ========================================================================
-   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+   Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
 
    OPC Foundation MIT License 1.00
 
@@ -31,173 +31,142 @@
              xmlns:ScottPlot="clr-namespace:ScottPlot.Avalonia;assembly=ScottPlot.Avalonia"
              xmlns:vm="using:UaLens.Plugins.SubscriptionBench"
              x:Class="UaLens.Plugins.SubscriptionBench.SubscriptionBenchView"
-             x:DataType="vm:SubscriptionBenchPlugin">
+             x:DataType="vm:SubscriptionBenchPlugin"
+             Background="{DynamicResource SurfaceBg}">
   <UserControl.Styles>
-    <Style Selector="TextBlock.h">
-      <Setter Property="FontSize" Value="11" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
-      <Setter Property="Margin" Value="0,4,0,2" />
-    </Style>
-    <Style Selector="TextBlock.stat">
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    <Style Selector="TextBlock.metric">
       <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
       <Setter Property="FontSize" Value="12" />
     </Style>
-    <Style Selector="TextBlock.statDim">
+    <Style Selector="TextBlock.section">
+      <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
-      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
       <Setter Property="FontSize" Value="11" />
-    </Style>
-    <Style Selector="Button.tonal">
-      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-      <Setter Property="Padding" Value="10,5" />
-      <Setter Property="MinWidth" Value="120" />
-    </Style>
-    <Style Selector="Button.primary">
-      <Setter Property="Background" Value="{DynamicResource AccentBlue}" />
-      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
-      <Setter Property="Padding" Value="10,5" />
-      <Setter Property="MinWidth" Value="86" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-    </Style>
-    <Style Selector="Button.danger">
-      <Setter Property="Background" Value="{DynamicResource AccentRed}" />
-      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
-      <Setter Property="Padding" Value="10,5" />
-      <Setter Property="MinWidth" Value="86" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-    </Style>
-    <Style Selector="Border.sep">
-      <Setter Property="Width" Value="1" />
-      <Setter Property="Margin" Value="6,4" />
-      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Margin" Value="0,6,0,2" />
     </Style>
   </UserControl.Styles>
 
-  <Border Background="{DynamicResource AppBg}" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Padding="10">
-    <DockPanel>
+  <DockPanel Margin="10">
 
-      <!-- Top: action toolbar -->
-      <Border DockPanel.Dock="Top" Padding="10"
-              Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
-              BorderThickness="1" CornerRadius="4">
-        <WrapPanel Classes="toolbar" Orientation="Horizontal" ItemHeight="32">
-          <Button Classes="tonal" Content="🔎 Pick variables…" Margin="0,0,6,0"
-                  VerticalAlignment="Center"
-                  ToolTip.Tip="Open a flat browser, multi-pick Variable nodes to add to the pool."
-                  Command="{CompiledBinding PickVariablesCommand}" />
-          <Button Classes="tonal" Content="🌲 Pick subtree…" Margin="0,0,6,0"
-                  VerticalAlignment="Center"
-                  ToolTip.Tip="Pick a starting node; every Variable below it is appended to the pool."
-                  Command="{CompiledBinding PickSubtreeCommand}" />
-          <TextBlock VerticalAlignment="Center" Classes="statDim" Margin="6,0"
-                     Text="{CompiledBinding PoolDescription}" />
-          <Button Classes="tonal" Content="🗑 Clear pool" Margin="0,0,6,0"
-                  VerticalAlignment="Center"
-                  Command="{CompiledBinding ClearPoolCommand}" />
-          <Border Classes="sep" />
-          <Button Classes="tonal" Content="⚙ Subscription…" Margin="0,0,6,0"
-                  VerticalAlignment="Center"
-                  ToolTip.Tip="Edit the subscription parameters (publishing interval, keep-alive, lifetime, …). Applied to every live subscription."
-                  Command="{CompiledBinding EditSubscriptionCommand}" />
-          <Button Classes="tonal" Content="⚙ Item settings…" Margin="0,0,6,0"
-                  VerticalAlignment="Center"
-                  ToolTip.Tip="Edit the monitored-item defaults (sampling interval, queue size, mode, …). Applied to every live item across every subscription."
-                  Command="{CompiledBinding EditItemSettingsCommand}" />
-          <Button Classes="danger" Content="■ Stop" Margin="0,0,6,0"
-                  VerticalAlignment="Center"
-                  ToolTip.Tip="Zero both sliders and tear every subscription down."
-                  Command="{CompiledBinding StopCommand}" />
-          <Button Classes="tonal" Content="🗑 Clear counters" Margin="0,0,6,0"
-                  VerticalAlignment="Center"
-                  Command="{CompiledBinding ClearCommand}" />
-        </WrapPanel>
-      </Border>
+    <!-- Pool + settings actions -->
+    <Border DockPanel.Dock="Top" Padding="10"
+            Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+            BorderThickness="1" CornerRadius="6">
+      <WrapPanel Classes="toolbar" Orientation="Horizontal" ItemHeight="32">
+        <Button Classes="quiet" Content="Pick variables…" Margin="0,0,6,0"
+                ToolTip.Tip="Multi-pick Variable nodes to add to the bench pool."
+                Command="{CompiledBinding PickVariablesCommand}" />
+        <Button Classes="quiet" Content="Pick subtree…" Margin="0,0,6,0"
+                ToolTip.Tip="Pick a starting node; every Variable below it is appended to the pool."
+                Command="{CompiledBinding PickSubtreeCommand}" />
+        <TextBlock Classes="caption" Margin="6,0"
+                   Text="{CompiledBinding PoolDescription}" />
+        <Button Classes="quiet" Content="Clear pool" Margin="0,0,12,0"
+                Command="{CompiledBinding ClearPoolCommand}" />
+        <Button Classes="quiet" Content="Subscription settings…" Margin="0,0,6,0"
+                ToolTip.Tip="Publishing interval, keep-alive, lifetime and notification limits. Applied to every subscription."
+                Command="{CompiledBinding EditSubscriptionCommand}" />
+        <Button Classes="quiet" Content="Item settings…" Margin="0,0,6,0"
+                ToolTip.Tip="Sampling, queue, mode and filter. Applied to every item across every subscription."
+                Command="{CompiledBinding EditItemSettingsCommand}" />
+        <Button Content="Stop" Margin="0,0,6,0"
+                ToolTip.Tip="Reset both sliders and release every subscription."
+                Command="{CompiledBinding StopCommand}" />
+        <Button Classes="quiet" Content="Clear counters"
+                Command="{CompiledBinding ClearCommand}" />
+      </WrapPanel>
+    </Border>
 
-      <!-- Subscriptions slider row -->
-      <Border DockPanel.Dock="Top" Padding="10,8" Margin="0,8,0,0"
-              Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
-              BorderThickness="1" CornerRadius="4">
-        <Grid ColumnDefinitions="Auto,*,Auto">
-          <TextBlock Grid.Column="0" Classes="h"
-                     Text="Subscriptions:"
-                     VerticalAlignment="Center"
-                     Margin="0,0,8,0" />
-          <Slider Grid.Column="1"
-                  Minimum="0"
-                  Maximum="{CompiledBinding SubsSliderMax}"
-                  Value="{CompiledBinding SubsSliderValue, Mode=TwoWay}"
-                  IsEnabled="{CompiledBinding CanResize}"
-                  TickFrequency="1"
-                  ToolTip.Tip="Number of subscriptions created on the session. Subscriptions are torn down when reduced." />
-          <TextBlock Grid.Column="2" Classes="stat"
-                     Text="{CompiledBinding SubsSizeText}"
-                     VerticalAlignment="Center"
-                     Margin="12,0,0,0" />
-        </Grid>
-      </Border>
-
-      <!-- Items-per-subscription slider row -->
-      <Border DockPanel.Dock="Top" Padding="10,8" Margin="0,8,0,0"
-              Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
-              BorderThickness="1" CornerRadius="4">
-        <Grid ColumnDefinitions="Auto,*,Auto">
-          <TextBlock Grid.Column="0" Classes="h"
-                     Text="Items per sub:"
-                     VerticalAlignment="Center"
-                     Margin="0,0,8,0" />
-          <Slider Grid.Column="1"
-                  Minimum="0"
-                  Maximum="{CompiledBinding ItemsSliderMax}"
-                  Value="{CompiledBinding ItemsSliderValue, Mode=TwoWay}"
-                  IsEnabled="{CompiledBinding CanResize}"
-                  TickFrequency="100"
-                  ToolTip.Tip="Monitored items per subscription. Each sub fills slots 0..N-1 from the pool round-robin." />
-          <TextBlock Grid.Column="2" Classes="stat"
-                     Text="{CompiledBinding ItemsSizeText}"
-                     VerticalAlignment="Center"
-                     Margin="12,0,0,0" />
-        </Grid>
-      </Border>
-
-      <!-- Body: chart left, stats right -->
-      <Grid Margin="0,8,0,0" ColumnDefinitions="*,5,360">
-        <Border Grid.Column="0"
-                Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
-                BorderThickness="1" CornerRadius="4">
-          <ScottPlot:AvaPlot x:Name="Chart" />
-        </Border>
-        <GridSplitter Grid.Column="1"
-                      Background="{DynamicResource SeparatorBrush}"
-                      ResizeDirection="Columns" />
-        <Border Grid.Column="2" Padding="8"
-                Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
-                BorderThickness="1" CornerRadius="4">
-          <ScrollViewer>
-            <StackPanel Spacing="4">
-              <TextBlock Classes="h" Text="THROUGHPUT" />
-              <TextBlock Classes="stat" Text="{CompiledBinding Stats1sText}" />
-              <TextBlock Classes="stat" Text="{CompiledBinding Stats10sText}" />
-              <TextBlock Classes="stat" Text="{CompiledBinding Stats30sText}" />
-              <TextBlock Classes="stat" Text="{CompiledBinding Stats60sText}" />
-
-              <TextBlock Classes="h" Text="TOTALS" />
-              <TextBlock Classes="stat" Text="{CompiledBinding TotalValuesText}" />
-              <TextBlock Classes="stat" Text="{CompiledBinding TotalErrorsText}" />
-              <TextBlock Classes="stat" Text="{CompiledBinding PublishIntervalText}" />
-
-              <TextBlock Classes="h" Text="ENGINE" />
-              <TextBlock Foreground="{DynamicResource TextPrimary}"
-                         FontFamily="Cascadia Mono, Consolas, monospace"
-                         FontSize="11"
-                         Text="{CompiledBinding EngineMetricsText}" />
-            </StackPanel>
-          </ScrollViewer>
-        </Border>
+    <!-- Restored bench size: prepared but stopped until the user starts it -->
+    <Border DockPanel.Dock="Top" Margin="0,8,0,0" Padding="10,6"
+            IsVisible="{CompiledBinding HasSavedSize}"
+            Background="{DynamicResource HighlightBg}" BorderBrush="{DynamicResource PanelBorder}"
+            BorderThickness="1" CornerRadius="6">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0" Classes="caption" VerticalAlignment="Center"
+                   TextWrapping="Wrap" Text="{CompiledBinding SavedSizeText}" />
+        <Button Grid.Column="1" Classes="primary" Content="Apply saved size"
+                VerticalAlignment="Center"
+                Command="{CompiledBinding ApplySavedSizeCommand}" />
       </Grid>
+    </Border>
 
-    </DockPanel>
-  </Border>
+    <!-- Subscriptions slider -->
+    <Border DockPanel.Dock="Top" Padding="10,8" Margin="0,8,0,0"
+            Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+            BorderThickness="1" CornerRadius="6">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <TextBlock Grid.Column="0" Classes="caption" Text="Subscriptions"
+                   VerticalAlignment="Center" Margin="0,0,8,0" />
+        <Slider Grid.Column="1" Minimum="0"
+                Maximum="{CompiledBinding SubsSliderMax}"
+                Value="{CompiledBinding SubsSliderValue, Mode=TwoWay}"
+                IsEnabled="{CompiledBinding CanResize}"
+                TickFrequency="1"
+                ToolTip.Tip="Number of subscriptions on the session. Subscriptions are released when reduced." />
+        <TextBlock Grid.Column="2" Classes="metric"
+                   Text="{CompiledBinding SubsSizeText}"
+                   VerticalAlignment="Center" Margin="12,0,0,0" />
+      </Grid>
+    </Border>
+
+    <!-- Items-per-subscription slider -->
+    <Border DockPanel.Dock="Top" Padding="10,8" Margin="0,8,0,0"
+            Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+            BorderThickness="1" CornerRadius="6">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <TextBlock Grid.Column="0" Classes="caption" Text="Items per subscription"
+                   VerticalAlignment="Center" Margin="0,0,8,0" />
+        <Slider Grid.Column="1" Minimum="0"
+                Maximum="{CompiledBinding ItemsSliderMax}"
+                Value="{CompiledBinding ItemsSliderValue, Mode=TwoWay}"
+                IsEnabled="{CompiledBinding CanResize}"
+                TickFrequency="100"
+                ToolTip.Tip="Monitored items per subscription. Each subscription fills slots from the pool round-robin." />
+        <TextBlock Grid.Column="2" Classes="metric"
+                   Text="{CompiledBinding ItemsSizeText}"
+                   VerticalAlignment="Center" Margin="12,0,0,0" />
+      </Grid>
+    </Border>
+
+    <!-- Body: chart with legend (left) and metrics (right) -->
+    <Grid Margin="0,8,0,0" ColumnDefinitions="*,5,340">
+      <Border Grid.Column="0"
+              Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+              BorderThickness="1" CornerRadius="6">
+        <ScottPlot:AvaPlot x:Name="Chart" />
+      </Border>
+      <GridSplitter Grid.Column="1"
+                    Background="{DynamicResource SeparatorBrush}"
+                    ResizeDirection="Columns" />
+      <Border Grid.Column="2" Padding="10"
+              Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+              BorderThickness="1" CornerRadius="6">
+        <ScrollViewer>
+          <StackPanel Spacing="2">
+            <TextBlock Classes="section" Text="THROUGHPUT" />
+            <TextBlock Classes="metric" Text="{CompiledBinding Stats1sText}" />
+            <TextBlock Classes="metric" Text="{CompiledBinding Stats10sText}" />
+            <TextBlock Classes="metric" Text="{CompiledBinding Stats30sText}" />
+            <TextBlock Classes="metric" Text="{CompiledBinding Stats60sText}" />
+
+            <TextBlock Classes="section" Text="TOTALS" />
+            <TextBlock Classes="metric" Text="{CompiledBinding TotalValuesText}" />
+            <TextBlock Classes="metric" Text="{CompiledBinding TotalErrorsText}" />
+            <TextBlock Classes="metric" Text="{CompiledBinding PublishIntervalText}" />
+
+            <Expander Margin="0,8,0,0" Header="Engine details"
+                      IsExpanded="{CompiledBinding ShowEngineDetails, Mode=TwoWay}">
+              <TextBlock Classes="code" FontSize="11"
+                         Foreground="{DynamicResource TextPrimary}"
+                         TextWrapping="Wrap"
+                         Text="{CompiledBinding EngineMetricsText}" />
+            </Expander>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+
+  </DockPanel>
 </UserControl>

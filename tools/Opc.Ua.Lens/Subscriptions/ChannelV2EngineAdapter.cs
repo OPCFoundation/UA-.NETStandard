@@ -30,8 +30,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -44,413 +44,429 @@ using UaLens.Diagnostics;
 using V2MonitoredItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 using V2SubscriptionOptions = Opc.Ua.Client.Subscriptions.SubscriptionOptions;
 
-namespace UaLens.Subscriptions;
-
-/// <summary>
-/// Adapter on top of the V2 channel-based subscription engine
-/// (<see cref="ISubscriptionManager"/> + <see cref="ISubscriptionNotificationHandler"/>).
-/// </summary>
-internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
+namespace UaLens.Subscriptions
 {
-    private readonly ManagedSession m_session;
-    private readonly ILogger m_log;
-    private readonly Channel<NotificationEvent> m_channel;
-    private readonly PublishLogObserver? m_publishLog;
-    private readonly ConcurrentDictionary<int, ItemEntry> m_items = new();
-    private readonly ConcurrentDictionary<int, MonitoredItemLiveStats> m_stats = new();
-    private readonly object m_lock = new();
-    private OptionsMonitor<V2SubscriptionOptions>? m_subscriptionOptions;
-    private ISubscription? m_subscription;
-    private SubscriptionConfig m_currentConfig = new();
-    private int m_nextItemId;
-
-    public SubscriptionCounters Counters { get; } = new();
-    public ChannelReader<NotificationEvent> Events { get; }
-
-    public TimeSpan CurrentPublishingInterval => m_subscription?.CurrentPublishingInterval ?? TimeSpan.Zero;
-    public uint CurrentKeepAliveCount => m_subscription?.CurrentKeepAliveCount ?? 0;
-    public uint CurrentLifetimeCount => m_subscription?.CurrentLifetimeCount ?? 0;
-
-    public int PublishWorkerCount
-        => m_session.TryGetSubscriptionManager(out ISubscriptionManager? mgr)
-            ? mgr.PublishWorkerCount : 0;
-
-    public int GoodPublishRequestCount => m_session.GoodPublishRequestCount;
-
-    public int BadPublishRequestCount
-        => m_session.TryGetSubscriptionManager(out ISubscriptionManager? mgr)
-            ? mgr.BadPublishRequestCount : 0;
-
-    public long MissingMessageCount
-        => m_session.TryGetSubscriptionManager(out ISubscriptionManager? mgr)
-            ? mgr.MissingMessageCount : 0;
-
-    public long RepublishMessageCount
-        => m_session.TryGetSubscriptionManager(out ISubscriptionManager? mgr)
-            ? mgr.RepublishMessageCount : 0;
-
-    public long DroppedNotificationCount => System.Threading.Volatile.Read(ref m_droppedCount);
-
-    private long m_droppedCount;
-
-    /// <summary>Currently-configured floor for the V2 worker pool.</summary>
-    public int MinPublishWorkerCount
-        => m_session.TryGetSubscriptionManager(out ISubscriptionManager? mgr)
-            ? mgr.MinPublishWorkerCount : 0;
-
-    /// <summary>Currently-configured ceiling for the V2 worker pool.</summary>
-    public int MaxPublishWorkerCount
-        => m_session.TryGetSubscriptionManager(out ISubscriptionManager? mgr)
-            ? mgr.MaxPublishWorkerCount : 0;
-
-    public int MinPublishRequestCount => m_session.MinPublishRequestCount;
-    public int MaxPublishRequestCount => m_session.MaxPublishRequestCount;
-    public bool HasWorkerPool => true;
-
-    public IReadOnlyList<MonitoredItemConfig> Items
-        => m_items.Values.OrderBy(e => e.Config.Id).Select(e => e.Config).ToList();
-
-    public ChannelV2EngineAdapter(ManagedSession session, ITelemetryContext telemetry,
-        PublishLogObserver? publishLog = null)
-    {
-        m_session = session;
-        m_log = telemetry.CreateLogger("ChannelV2Adapter");
-        m_publishLog = publishLog;
-        m_channel = Channel.CreateBounded<NotificationEvent>(new BoundedChannelOptions(8192)
-        {
-            FullMode = BoundedChannelFullMode.DropOldest,
-            SingleReader = true,
-            SingleWriter = false
-        });
-        Events = m_channel.Reader;
-    }
-
     /// <summary>
-    /// Writes a notification to the channel and increments the dropped
-    /// counter when the channel is at capacity (DropOldest mode evicts an
-    /// event to make room).  Uses <see cref="ChannelReader{T}.Count"/> via
-    /// <see cref="ChannelReader{T}.CanCount"/> when supported, falling back
-    /// to a no-op count update otherwise.
+    /// Adapter on top of the V2 channel-based subscription engine
+    /// (<see cref="ISubscriptionManager"/> + <see cref="ISubscriptionNotificationHandler"/>).
     /// </summary>
-    internal void WriteEventOrCount(NotificationEvent ev)
+    internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
     {
-        if (m_channel.Reader.CanCount && m_channel.Reader.Count >= 8192)
+        public ChannelV2EngineAdapter(
+            ManagedSession session,
+            ITelemetryContext telemetry,
+            PublishLogObserver? publishLog = null)
         {
-            System.Threading.Interlocked.Increment(ref m_droppedCount);
+            m_session = session;
+            m_log = telemetry.CreateLogger("ChannelV2Adapter");
+            m_publishLog = publishLog;
+            m_channel = Channel.CreateBounded<NotificationEvent>(new BoundedChannelOptions(8192)
+            {
+                FullMode = BoundedChannelFullMode.DropOldest,
+                SingleReader = true,
+                SingleWriter = false
+            });
+            Events = m_channel.Reader;
         }
-        m_channel.Writer.TryWrite(ev);
-    }
 
-    public Task ApplySubscriptionAsync(SubscriptionConfig config, CancellationToken ct)
-    {
-        lock (m_lock)
+        public SubscriptionCounters Counters { get; } = new();
+        public ChannelReader<NotificationEvent> Events { get; }
+
+        public TimeSpan CurrentPublishingInterval => m_subscription?.CurrentPublishingInterval ?? TimeSpan.Zero;
+        public uint CurrentKeepAliveCount => m_subscription?.CurrentKeepAliveCount ?? 0;
+        public uint CurrentLifetimeCount => m_subscription?.CurrentLifetimeCount ?? 0;
+
+        public int PublishWorkerCount
+            => m_session.TryGetSubscriptionManager(out ISubscriptionManager? mgr)
+                ? mgr.PublishWorkerCount : 0;
+
+        public int GoodPublishRequestCount => m_session.GoodPublishRequestCount;
+
+        public int BadPublishRequestCount
+            => m_session.TryGetSubscriptionManager(out ISubscriptionManager? mgr)
+                ? mgr.BadPublishRequestCount : 0;
+
+        public long MissingMessageCount
+            => m_session.TryGetSubscriptionManager(out ISubscriptionManager? mgr)
+                ? mgr.MissingMessageCount : 0;
+
+        public long RepublishMessageCount
+            => m_session.TryGetSubscriptionManager(out ISubscriptionManager? mgr)
+                ? mgr.RepublishMessageCount : 0;
+
+        public long DroppedNotificationCount => Volatile.Read(ref m_droppedCount);
+
+        /// <summary>
+        /// Currently-configured floor for the V2 worker pool.
+        /// </summary>
+        public int MinPublishWorkerCount
+            => m_session.TryGetSubscriptionManager(out ISubscriptionManager? mgr)
+                ? mgr.MinPublishWorkerCount : 0;
+
+        /// <summary>
+        /// Currently-configured ceiling for the V2 worker pool.
+        /// </summary>
+        public int MaxPublishWorkerCount
+            => m_session.TryGetSubscriptionManager(out ISubscriptionManager? mgr)
+                ? mgr.MaxPublishWorkerCount : 0;
+
+        public int MinPublishRequestCount => m_session.MinPublishRequestCount;
+        public int MaxPublishRequestCount => m_session.MaxPublishRequestCount;
+        public bool HasWorkerPool => true;
+
+        public ArrayOf<MonitoredItemConfig> Items
+            => m_items.Values.OrderBy(e => e.Config.Id).Select(e => e.Config with
+            {
+                SamplingInterval = e.MonitoredItem.CurrentSamplingInterval,
+                QueueSize = e.MonitoredItem.CurrentQueueSize,
+                MonitoringMode = e.MonitoredItem.CurrentMonitoringMode
+            }).ToArray();
+
+        public Task ApplySubscriptionAsync(SubscriptionConfig config, CancellationToken ct)
         {
-            m_currentConfig = config;
-            V2SubscriptionOptions options = ToOptions(config);
-            // m_subscriptionOptions and m_subscription are set together; reuse
-            // the existing OptionsMonitor when the subscription is already up.
-            OptionsMonitor<V2SubscriptionOptions> opts = m_subscriptionOptions ??=
-                new OptionsMonitor<V2SubscriptionOptions>(options);
+            lock (m_lock)
+            {
+                V2SubscriptionOptions options = ToOptions(config);
+                // Both fields are set together; reuse the monitor once the subscription is up.
+                OptionsMonitor<V2SubscriptionOptions> opts = m_subscriptionOptions ??=
+                    new OptionsMonitor<V2SubscriptionOptions>(options);
+                if (m_subscription is null)
+                {
+                    var handler = new Handler(this);
+                    if (!m_session.TryGetSubscriptionManager(out ISubscriptionManager? manager))
+                    {
+                        throw new InvalidOperationException(
+                            "The V2 subscription engine is not available on this session.");
+                    }
+                    m_subscription = manager.Add(handler, opts);
+                    m_log.ChannelV2SubscriptionCreated();
+                }
+                else
+                {
+                    opts.CurrentValue = options;
+                    m_log.ChannelV2SubscriptionOptionsUpdated();
+                }
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task<int> AddItemAsync(MonitoredItemConfig config, CancellationToken ct)
+        {
             if (m_subscription is null)
             {
-                var handler = new Handler(this);
-                if (!m_session.TryGetSubscriptionManager(out ISubscriptionManager? manager))
+                throw new InvalidOperationException("Apply a subscription before adding items.");
+            }
+
+            int id = Interlocked.Increment(ref m_nextItemId);
+            MonitoredItemConfig stored = config with { Id = id };
+            var optionsMonitor = new OptionsMonitor<V2MonitoredItemOptions>(ToOptions(stored));
+
+            lock (m_lock)
+            {
+                string name = $"item-{id}";
+                if (!m_subscription.MonitoredItems.TryAdd(name, optionsMonitor, out IMonitoredItem? created))
                 {
-                    throw new InvalidOperationException(
-                        "The V2 subscription engine is not available on this session.");
+                    throw new InvalidOperationException($"Failed to add monitored item '{name}'.");
                 }
-                m_subscription = manager.Add(handler, opts);
-                m_log.LogInformation("V2 subscription created.");
+                // TryAdd's out value is non-null on success, but lacks NotNullWhen(true).
+                m_items[id] = new ItemEntry(stored, created!, optionsMonitor);
             }
-            else
+            m_stats[id] = new MonitoredItemLiveStats();
+            m_log.ChannelV2MonitoredItemAdded(id, stored.NodeId, stored.AttributeId);
+            return Task.FromResult(id);
+        }
+
+        public Task RemoveItemAsync(int id, CancellationToken ct)
+        {
+            if (m_subscription is null || !m_items.TryRemove(id, out ItemEntry? entry))
             {
-                opts.CurrentValue = options;
-                m_log.LogInformation("V2 subscription options updated.");
+                return Task.CompletedTask;
             }
-            ApplyEngineSettings(config);
-        }
-        return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Pushes the engine-level tuning knobs onto the V2 subscription manager
-    /// and the underlying session's publish pipeline.  In the V2 engine the
-    /// publish-worker pool size is the publish-request pipeline depth, so a
-    /// single (min, max) pair drives both.
-    /// </summary>
-    private void ApplyEngineSettings(SubscriptionConfig config)
-    {
-        try
-        {
-            int minReq = Math.Max(1, config.MinPublishRequestCount);
-            int maxReq = Math.Max(minReq, config.MaxPublishRequestCount);
-            // Order matters — bump max first when growing, min first when shrinking.
-            if (maxReq >= m_session.MaxPublishRequestCount)
+            m_stats.TryRemove(id, out _);
+            lock (m_lock)
             {
-                m_session.MaxPublishRequestCount = maxReq;
-                m_session.MinPublishRequestCount = minReq;
+                m_subscription.MonitoredItems.TryRemove(entry.MonitoredItem.ClientHandle);
             }
-            else
-            {
-                m_session.MinPublishRequestCount = minReq;
-                m_session.MaxPublishRequestCount = maxReq;
-            }
-        }
-        catch (Exception ex)
-        {
-            m_log.LogWarning(ex, "Failed to apply publish-request pipeline limits.");
-        }
-    }
-
-    public Task<int> AddItemAsync(MonitoredItemConfig config, CancellationToken ct)
-    {
-        if (m_subscription is null)
-        {
-            throw new InvalidOperationException("Apply a subscription before adding items.");
-        }
-
-        int id = Interlocked.Increment(ref m_nextItemId);
-        MonitoredItemConfig stored = config with { Id = id };
-        var optionsMonitor = new OptionsMonitor<V2MonitoredItemOptions>(ToOptions(stored));
-
-        lock (m_lock)
-        {
-            string name = $"item-{id}";
-            if (!m_subscription.MonitoredItems.TryAdd(name, optionsMonitor, out IMonitoredItem? created))
-            {
-                throw new InvalidOperationException($"Failed to add monitored item '{name}'.");
-            }
-            // TryAdd's out IMonitoredItem? is non-null when it returns true,
-            // but the SDK's signature lacks [NotNullWhen(true)]; the throw
-            // above guarantees we only reach here on success.
-            m_items[id] = new ItemEntry(stored, created!, optionsMonitor);
-        }
-        m_stats[id] = new MonitoredItemLiveStats();
-        m_log.LogInformation("V2 monitored item added: id={Id} node={Node} attr={Attr}", id, stored.NodeId, stored.AttributeId);
-        return Task.FromResult(id);
-    }
-
-    public Task RemoveItemAsync(int id, CancellationToken ct)
-    {
-        if (m_subscription is null || !m_items.TryRemove(id, out ItemEntry? entry))
-        {
+            m_log.ChannelV2MonitoredItemRemoved(id);
             return Task.CompletedTask;
         }
-        m_stats.TryRemove(id, out _);
-        lock (m_lock)
-        {
-            m_subscription.MonitoredItems.TryRemove(entry.MonitoredItem.ClientHandle);
-        }
-        m_log.LogInformation("V2 monitored item removed: id={Id}", id);
-        return Task.CompletedTask;
-    }
 
-    public Task SetMonitoringModeAsync(int id, MonitoringMode mode, CancellationToken ct)
-    {
-        if (m_subscription is null || !m_items.TryGetValue(id, out ItemEntry? entry))
+        public Task ConfigureItemAsync(MonitoredItemConfig config, CancellationToken ct)
         {
+            ArgumentNullException.ThrowIfNull(config);
+            ct.ThrowIfCancellationRequested();
+            if (!m_items.TryGetValue(config.Id, out ItemEntry? entry))
+            {
+                throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
+            }
+            if (config.NodeId != entry.Config.NodeId ||
+                config.AttributeId != entry.Config.AttributeId ||
+                config.IsEvent != entry.Config.IsEvent)
+            {
+                throw new ArgumentException("Item settings cannot change the monitored target.", nameof(config));
+            }
+            entry.Options.CurrentValue = ToOptions(config);
+            m_items[config.Id] = entry with { Config = config };
             return Task.CompletedTask;
         }
-        // V2 model: mutate the per-item OptionsMonitor.  The MonitoredItem
-        // change-tracking detects the new MonitoringMode in its OptionsMonitor
-        // listener and the SubscriptionManager schedules the SetMonitoringMode
-        // service call as part of its next apply pass; the change is then
-        // confirmed via Item.CurrentMonitoringMode (see
-        // MonitoredItem.Change.SetMonitoringModeResult).
-        V2MonitoredItemOptions current = entry.Options.CurrentValue;
-        entry.Options.CurrentValue = current with { MonitoringMode = mode };
-        MonitoredItemConfig updated = entry.Config with { MonitoringMode = mode };
-        m_items[id] = entry with { Config = updated };
-        m_log.LogInformation("V2 monitored item {Id} mode -> {Mode}", id, mode);
-        return Task.CompletedTask;
-    }
 
-    public bool TryGetItemStats(int id, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out MonitoredItemLiveStats? stats)
-    {
-        return m_stats.TryGetValue(id, out stats);
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        ISubscription? sub;
-        lock (m_lock)
+        public Task SetMonitoringModeAsync(int id, MonitoringMode mode, CancellationToken ct)
         {
-            sub = m_subscription;
-            m_subscription = null;
+            if (m_subscription is null || !m_items.TryGetValue(id, out ItemEntry? entry))
+            {
+                return Task.CompletedTask;
+            }
+            // Mutating the monitor schedules SetMonitoringMode on the next apply pass.
+            // CurrentMonitoringMode reports the server-confirmed state.
+            V2MonitoredItemOptions current = entry.Options.CurrentValue;
+            entry.Options.CurrentValue = current with { MonitoringMode = mode };
+            MonitoredItemConfig updated = entry.Config with { MonitoringMode = mode };
+            m_items[id] = entry with { Config = updated };
+            m_log.ChannelV2MonitoringModeChanged(id, mode);
+            return Task.CompletedTask;
         }
-        if (sub is not null)
+
+        public bool TryGetItemStats(int id, [NotNullWhen(true)] out MonitoredItemLiveStats? stats)
         {
+            return m_stats.TryGetValue(id, out stats);
+        }
+
+        public bool TryGetItemResult(int id, out MonitoredItemResult result)
+        {
+            if (m_items.TryGetValue(id, out ItemEntry? entry))
+            {
+                result = new MonitoredItemResult(
+                    entry.MonitoredItem.Created,
+                    entry.MonitoredItem is IMonitoredItemApplyState { HasPendingChanges: true },
+                    entry.MonitoredItem.Error.StatusCode);
+                return true;
+            }
+            result = default;
+            return false;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            ISubscription? sub;
+            lock (m_lock)
+            {
+                sub = m_subscription;
+                m_subscription = null;
+            }
             try
-            { await sub.DisposeAsync().ConfigureAwait(false); }
-            catch { /* ignore on shutdown */ }
-        }
-        m_channel.Writer.TryComplete();
-    }
-
-    private static V2SubscriptionOptions ToOptions(SubscriptionConfig c)
-        => new()
-        {
-            PublishingInterval = c.PublishingInterval,
-            KeepAliveCount = c.KeepAliveCount,
-            LifetimeCount = c.LifetimeCount,
-            Priority = c.Priority,
-            MaxNotificationsPerPublish = c.MaxNotificationsPerPublish,
-            PublishingEnabled = c.PublishingEnabled,
-            Disabled = false,
-            MinLifetimeInterval = TimeSpan.FromMinutes(1)
-        };
-
-    private static V2MonitoredItemOptions ToOptions(MonitoredItemConfig c)
-    {
-        var opts = new V2MonitoredItemOptions
-        {
-            StartNodeId = c.NodeId,
-            AttributeId = c.AttributeId,
-            SamplingInterval = c.SamplingInterval,
-            QueueSize = c.QueueSize,
-            DiscardOldest = c.DiscardOldest,
-            MonitoringMode = c.MonitoringMode,
-            Filter = c.IsEvent
-                ? DefaultEventFilters.Build()
-                : (MonitoringFilter?)c.DataChangeFilter
-        };
-        return opts;
-    }
-
-    private sealed record ItemEntry(MonitoredItemConfig Config, IMonitoredItem MonitoredItem,
-        OptionsMonitor<V2MonitoredItemOptions> Options);
-
-    /// <summary>
-    /// V2 notification handler: counters always update; the channel write may drop oldest under burst.
-    /// </summary>
-    private sealed class Handler : ISubscriptionNotificationHandler
-    {
-        private readonly ChannelV2EngineAdapter m_owner;
-        // Cache the lookup of the internal Id property on the concrete
-        // V2 subscription type — the public ISubscription interface
-        // doesn't expose the server-side subscription id, but it is set
-        // (and stable) on the underlying MessageProcessor base class.
-        private PropertyInfo? m_idProperty;
-        private uint m_resolvedSubscriptionId;
-
-        public Handler(ChannelV2EngineAdapter owner) => m_owner = owner;
-
-        public ValueTask OnDataChangeNotificationAsync(ISubscription subscription,
-            uint sequenceNumber, DateTime publishTime,
-            ReadOnlyMemory<DataValueChange> notification,
-            PublishState publishStateMask, IReadOnlyList<string> stringTable)
-        {
-            int n = notification.Length;
-            m_owner.Counters.IncDataMessage(n);
-            m_owner.m_publishLog?.Record(
-                ResolveSubscriptionId(subscription), sequenceNumber, publishTime, n,
-                PublishLogKind.Data);
-            // Emit one NotificationEvent per individual DataValueChange so
-            // the Lines view can plot each value's converted-to-double
-            // sample.  The Variant→double conversion (via VariantNumeric)
-            // returns null when the value is non-numeric / non-scalar /
-            // unparseable; the Lines lane silently skips those, while the
-            // Dots and Bars views still see the event (keyed by ItemId).
-            DateTime now = DateTime.UtcNow;
-            ReadOnlySpan<DataValueChange> span = notification.Span;
-            for (int i = 0; i < span.Length; i++)
             {
-                int itemId = ResolveItemId(span[i].MonitoredItem);
-                if (itemId != 0
-                    && m_owner.m_stats.TryGetValue(itemId, out MonitoredItemLiveStats? stats))
+                if (sub is not null)
                 {
-                    stats.RecordValue(span[i].Value);
+                    await sub.DisposeAsync().ConfigureAwait(false);
                 }
-                double? d = VariantNumeric.TryToDouble(span[i].Value.WrappedValue, out double parsed)
-                    ? parsed : (double?)null;
-                m_owner.WriteEventOrCount(new NotificationEvent(
-                    NotificationKind.DataChange, itemId, 1, sequenceNumber, now, d));
             }
-            return ValueTask.CompletedTask;
+            finally
+            {
+                m_channel.Writer.TryComplete();
+            }
         }
 
-        public ValueTask OnEventDataNotificationAsync(ISubscription subscription,
-            uint sequenceNumber, DateTime publishTime,
-            ReadOnlyMemory<EventNotification> notification,
-            PublishState publishStateMask, IReadOnlyList<string> stringTable)
+        /// <summary>
+        /// Writes a notification and samples channel capacity to count dropped events.
+        /// Falls back to no count update when the channel does not expose its count.
+        /// </summary>
+        internal void WriteEventOrCount(NotificationEvent ev)
         {
-            int n = notification.Length;
-            m_owner.Counters.IncEventMessage(n);
-            m_owner.m_publishLog?.Record(
-                ResolveSubscriptionId(subscription), sequenceNumber, publishTime, n,
-                PublishLogKind.Event);
-            // Events have field arrays — no single double — so we still
-            // emit one event per item (without a Value).
-            ReadOnlySpan<EventNotification> span = notification.Span;
-            DateTime now = DateTime.UtcNow;
-            for (int i = 0; i < span.Length; i++)
+            if (m_channel.Reader.CanCount && m_channel.Reader.Count >= 8192)
             {
-                int itemId = ResolveItemId(span[i].MonitoredItem);
-                if (itemId != 0
-                    && m_owner.m_stats.TryGetValue(itemId, out MonitoredItemLiveStats? stats))
+                Interlocked.Increment(ref m_droppedCount);
+            }
+            m_channel.Writer.TryWrite(ev);
+        }
+
+        private static V2SubscriptionOptions ToOptions(SubscriptionConfig c)
+        {
+            return new()
+            {
+                PublishingInterval = c.PublishingInterval,
+                KeepAliveCount = c.KeepAliveCount,
+                LifetimeCount = c.LifetimeCount,
+                Priority = c.Priority,
+                MaxNotificationsPerPublish = c.MaxNotificationsPerPublish,
+                PublishingEnabled = c.PublishingEnabled,
+                Disabled = false,
+                MinLifetimeInterval = TimeSpan.FromMinutes(1)
+            };
+        }
+
+        private static V2MonitoredItemOptions ToOptions(MonitoredItemConfig c)
+        {
+            return new V2MonitoredItemOptions
+            {
+                StartNodeId = c.NodeId,
+                AttributeId = c.AttributeId,
+                SamplingInterval = c.SamplingInterval,
+                QueueSize = c.QueueSize,
+                DiscardOldest = c.DiscardOldest,
+                MonitoringMode = c.MonitoringMode,
+                Filter = c.IsEvent ? DefaultEventFilters.Build() : c.DataChangeFilter
+            };
+        }
+
+        private readonly ManagedSession m_session;
+        private readonly ILogger m_log;
+        private readonly Channel<NotificationEvent> m_channel;
+        private readonly PublishLogObserver? m_publishLog;
+        private readonly ConcurrentDictionary<int, ItemEntry> m_items = new();
+        private readonly ConcurrentDictionary<int, MonitoredItemLiveStats> m_stats = new();
+        private readonly Lock m_lock = new();
+        private OptionsMonitor<V2SubscriptionOptions>? m_subscriptionOptions;
+        private ISubscription? m_subscription;
+        private int m_nextItemId;
+        private long m_droppedCount;
+
+        private sealed record ItemEntry(
+            MonitoredItemConfig Config,
+            IMonitoredItem MonitoredItem,
+            OptionsMonitor<V2MonitoredItemOptions> Options);
+
+        /// <summary>
+        /// Counters always update; channel writes may drop the oldest notification under burst.
+        /// </summary>
+        private sealed class Handler : ISubscriptionNotificationHandler
+        {
+            public Handler(ChannelV2EngineAdapter owner)
+            {
+                m_owner = owner;
+            }
+
+            public ValueTask OnDataChangeNotificationAsync(
+                ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<DataValueChange> notification,
+                PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                int n = notification.Length;
+                m_owner.Counters.IncDataMessage(n);
+                RecordPublish(subscription, sequenceNumber, publishTime, n, PublishLogKind.Data);
+                // Keep one event per value. Non-numeric samples still appear in Dots and Bars.
+                DateTime now = DateTime.UtcNow;
+                ReadOnlySpan<DataValueChange> span = notification.Span;
+                for (int i = 0; i < span.Length; i++)
                 {
-                    stats.RecordEvent();
+                    int itemId = ResolveItemId(span[i].MonitoredItem);
+                    if (itemId != 0 && m_owner.m_stats.TryGetValue(itemId, out MonitoredItemLiveStats? stats))
+                    {
+                        stats.RecordValue(span[i].Value);
+                    }
+                    double? d = VariantNumeric.TryToDouble(span[i].Value.WrappedValue, out double parsed)
+                        ? parsed : null;
+                    m_owner.WriteEventOrCount(new NotificationEvent(
+                        NotificationKind.DataChange, itemId, 1, sequenceNumber, now, d));
                 }
-                m_owner.WriteEventOrCount(new NotificationEvent(
-                    NotificationKind.Event, itemId, 1, sequenceNumber, now));
+                return ValueTask.CompletedTask;
             }
-            return ValueTask.CompletedTask;
-        }
 
-        public ValueTask OnKeepAliveNotificationAsync(ISubscription subscription,
-            uint sequenceNumber, DateTime publishTime, PublishState publishStateMask)
-        {
-            m_owner.Counters.IncKeepAlive();
-            m_owner.m_publishLog?.Record(
-                ResolveSubscriptionId(subscription), sequenceNumber, publishTime, 1,
-                PublishLogKind.KeepAlive);
-            m_owner.WriteEventOrCount(new NotificationEvent(
-                NotificationKind.KeepAlive, 0, 0, sequenceNumber, DateTime.UtcNow));
-            return ValueTask.CompletedTask;
-        }
-
-        public ValueTask OnSubscriptionStateChangedAsync(ISubscription subscription,
-            Opc.Ua.Client.Subscriptions.SubscriptionState state,
-            PublishState publishStateMask,
-            CancellationToken ct = default)
-        {
-            // The adapter tracks publish-side health (gaps, republishes, recovers)
-            // exclusively via the data/event/keep-alive PublishState masks; the
-            // dedicated lifecycle/publish-state callback is intentionally ignored
-            // here so we don't double-count anything on the chart.
-            return ValueTask.CompletedTask;
-        }
-
-        private int ResolveItemId(IMonitoredItem? mi)
-        {
-            if (mi is null)
+            public ValueTask OnEventDataNotificationAsync(
+                ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<EventNotification> notification,
+                PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
             {
+                int n = notification.Length;
+                m_owner.Counters.IncEventMessage(n);
+                RecordPublish(subscription, sequenceNumber, publishTime, n, PublishLogKind.Event);
+                // Events have field arrays, so emit one event per item without a numeric value.
+                ReadOnlySpan<EventNotification> span = notification.Span;
+                DateTime now = DateTime.UtcNow;
+                for (int i = 0; i < span.Length; i++)
+                {
+                    int itemId = ResolveItemId(span[i].MonitoredItem);
+                    if (itemId != 0 && m_owner.m_stats.TryGetValue(itemId, out MonitoredItemLiveStats? stats))
+                    {
+                        stats.RecordEvent();
+                    }
+                    m_owner.WriteEventOrCount(new NotificationEvent(
+                        NotificationKind.Event, itemId, 1, sequenceNumber, now));
+                }
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask OnKeepAliveNotificationAsync(
+                ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                PublishState publishStateMask)
+            {
+                m_owner.Counters.IncKeepAlive();
+                RecordPublish(subscription, sequenceNumber, publishTime, 1, PublishLogKind.KeepAlive);
+                m_owner.WriteEventOrCount(new NotificationEvent(
+                    NotificationKind.KeepAlive, 0, 0, sequenceNumber, DateTime.UtcNow));
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask OnSubscriptionStateChangedAsync(
+                ISubscription subscription,
+                Opc.Ua.Client.Subscriptions.SubscriptionState state,
+                PublishState publishStateMask,
+                CancellationToken ct = default)
+            {
+                // Health comes from notification PublishState masks; avoid counting it twice.
+                return ValueTask.CompletedTask;
+            }
+
+            private int ResolveItemId(IMonitoredItem? mi)
+            {
+                if (mi is null)
+                {
+                    return 0;
+                }
+                foreach (KeyValuePair<int, ItemEntry> kv in m_owner.m_items)
+                {
+                    if (ReferenceEquals(kv.Value.MonitoredItem, mi))
+                    {
+                        return kv.Key;
+                    }
+                }
                 return 0;
             }
-            foreach (KeyValuePair<int, ItemEntry> kv in m_owner.m_items)
-            {
-                if (ReferenceEquals(kv.Value.MonitoredItem, mi))
-                {
-                    return kv.Key;
-                }
-            }
-            return 0;
-        }
 
-        private uint ResolveSubscriptionId(ISubscription subscription)
-        {
-            if (m_resolvedSubscriptionId != 0)
+            private void RecordPublish(
+                ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                int count,
+                PublishLogKind kind)
             {
-                return m_resolvedSubscriptionId;
+                uint serverId = m_owner.m_subscription is IPartitionedSubscription { PartitionIds: { Count: 1 } ids }
+                    ? ids[0] : 0;
+                m_owner.m_publishLog?.RecordClient(subscription, serverId, sequenceNumber, publishTime, count, kind);
             }
-            m_idProperty ??= subscription.GetType().GetProperty("Id",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (m_idProperty?.GetValue(subscription) is uint id && id != 0)
-            {
-                m_resolvedSubscriptionId = id;
-                return id;
-            }
-            return 0;
+
+            private readonly ChannelV2EngineAdapter m_owner;
+
         }
+    }
+
+    internal static partial class ChannelV2EngineAdapterLog
+    {
+        [LoggerMessage(EventId = UaLensEventIds.ChannelV2EngineAdapter + 0, Level = LogLevel.Information,
+            Message = "V2 subscription created.")]
+        public static partial void ChannelV2SubscriptionCreated(this ILogger logger);
+
+        [LoggerMessage(EventId = UaLensEventIds.ChannelV2EngineAdapter + 1, Level = LogLevel.Information,
+            Message = "V2 subscription options updated.")]
+        public static partial void ChannelV2SubscriptionOptionsUpdated(this ILogger logger);
+
+        [LoggerMessage(EventId = UaLensEventIds.ChannelV2EngineAdapter + 2, Level = LogLevel.Information,
+            Message = "V2 monitored item added: id={Id} node={Node} attr={Attr}")]
+        public static partial void ChannelV2MonitoredItemAdded(this ILogger logger, int id, NodeId node, uint attr);
+
+        [LoggerMessage(EventId = UaLensEventIds.ChannelV2EngineAdapter + 3, Level = LogLevel.Information,
+            Message = "V2 monitored item removed: id={Id}")]
+        public static partial void ChannelV2MonitoredItemRemoved(this ILogger logger, int id);
+
+        [LoggerMessage(EventId = UaLensEventIds.ChannelV2EngineAdapter + 4, Level = LogLevel.Information,
+            Message = "V2 monitored item {Id} mode -> {Mode}")]
+        public static partial void ChannelV2MonitoringModeChanged(this ILogger logger, int id, MonitoringMode mode);
     }
 }

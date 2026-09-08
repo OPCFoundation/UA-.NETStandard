@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -40,6 +41,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using UaLens.Storage;
 using UaLens.ViewModels;
 using UaLens.Views;
 using ClassicMonitoredItem = Opc.Ua.Client.MonitoredItem;
@@ -59,8 +61,14 @@ internal sealed partial class EventSourceVm : ObservableObject
 {
     public NodeId NodeId { get; }
     public string Name { get; }
-    public uint ClientHandle { get; }
-    internal ClassicMonitoredItem MonitoredItem { get; }
+
+    /// <summary>
+    /// The live monitored item bound to the current subscription generation, or
+    /// null while the tab is offline or between reconnects. The source's NodeId
+    /// and name are the persistent configuration; the item is (re)created on each
+    /// install so a reconnect never leaves a stale, dead handle behind.
+    /// </summary>
+    internal ClassicMonitoredItem? MonitoredItem { get; set; }
 
     [ObservableProperty]
     private string m_state = "pending";
@@ -72,12 +80,10 @@ internal sealed partial class EventSourceVm : ObservableObject
     /// </summary>
     internal string? CreationFailure { get; set; }
 
-    public EventSourceVm(NodeId nodeId, string name, ClassicMonitoredItem item)
+    public EventSourceVm(NodeId nodeId, string name)
     {
         NodeId = nodeId;
         Name = name;
-        ClientHandle = item.ClientHandle;
-        MonitoredItem = item;
     }
 
     /// <summary>
@@ -94,7 +100,13 @@ internal sealed partial class EventSourceVm : ObservableObject
             State = fail;
             return;
         }
-        var st = MonitoredItem.Status;
+        ClassicMonitoredItem? item = MonitoredItem;
+        if (item is null)
+        {
+            State = "○ offline";
+            return;
+        }
+        var st = item.Status;
         if (st.Error is { } err && ServiceResult.IsBad(err))
         {
             State = $"BAD: {err.StatusCode}";
@@ -110,38 +122,45 @@ internal sealed partial class EventSourceVm : ObservableObject
 }
 
 /// <summary>
-/// View model for an Event View tab.  Owns a per-tab event subscription
-/// (a raw <see cref="ClassicSubscription"/> on the managed session) and
-/// a parallel <see cref="ISubscriptionAdapter"/> created via
-/// <c>ConnectionService.CreateAdapter</c> — the adapter is the
-/// project-standard handoff for engine accounting + lifetime parity
-/// with Subscription tabs, while the raw subscription is what surfaces
-/// the actual <see cref="EventFieldList"/> via FastEventCallback (the
-/// adapter contract only delivers per-message counters, not the
-/// underlying event fields).
+/// View model for an Event View tab. Owns a per-tab event subscription — a classic
+/// <see cref="ClassicSubscription"/> on the managed session — whose
+/// <c>FastEventCallback</c> surfaces the underlying <see cref="EventFieldList"/> data.
+/// The subscription is installed, rebound and released through the awaited connection
+/// lifecycle so a reconnect never leaves a stale handle, duplicate reader, or hidden
+/// failure behind. Pausing the display never stops collection or server publishing.
 /// </summary>
-internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
+internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWorkspaceState
 {
-    /// <summary>Per-kind auto-numbering counter for the default tab title.</summary>
-    private static readonly Dictionary<PluginKind, int> s_perKindCounter = new();
+    private static int s_number;
 
     private const int MaxLogEntries = 2000;
 
     private readonly PluginHost m_host;
     private readonly ILogger m_log;
-    private readonly Dictionary<uint, EventSourceVm> m_byHandle = new();
-    private readonly SemaphoreSlim m_lock = new(1, 1);
-    // CA2213: m_subscription IS disposed in DisposeAsync below, but the
-    // analyzer can't see the lifecycle through Interlocked.Exchange.
+
+    /// <summary>
+    /// Serializes every subscription mutation — install, rebind, release, add, remove
+    /// and filter changes — so the awaited connection lifecycle and UI commands never
+    /// interleave into duplicate readers or a half-installed subscription.
+    /// </summary>
+    private readonly SemaphoreSlim m_gate = new(1, 1);
+
+    /// <summary>UI-thread-only. Events collected while the display is paused.</summary>
+    private readonly List<EventLogEntry> m_pausedBuffer = [];
+
+    // CA2213: m_subscription is disposed via ReleaseSubscriptionAsync (from
+    // DisposeCoreAsync), but the analyzer can't see the lifetime through the gate.
 #pragma warning disable CA2213
     private ClassicSubscription? m_subscription;
-    private readonly TaskCompletionSource<bool> m_subscriptionReady = new();
 #pragma warning restore CA2213
     private SimpleAttributeOperand[] m_selectClauses;
     private string[] m_selectPaths;
     private ContentFilter? m_whereClause;
     private long m_eventCount;
     private long m_droppedCount;
+    private long m_installedGeneration = -1;
+    private bool m_closed;
+    private Task? m_disposal;
     private EventViewView? m_view;
 
     [ObservableProperty]
@@ -154,6 +173,10 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
     private bool m_isPaused;
 
     [ObservableProperty]
+    private bool m_isOffline = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FilterSummary))]
     private EventFilterConfig m_filter = new(
         SeverityThreshold: 0,
         Fields:
@@ -165,6 +188,29 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
             "Message",
             "Severity"
         ]);
+
+    /// <summary>
+    /// One-line summary of the active event filter shown next to the Filter… button so
+    /// the current selection is visible without opening the detailed editor.
+    /// </summary>
+    public string FilterSummary
+    {
+        get
+        {
+            EventFilterConfig filter = Filter;
+            string type = filter.EventTypeNodeId is { IsNull: false } typeId
+                ? typeId.ToString() ?? "BaseEventType"
+                : "BaseEventType";
+            int where = filter.WhereClause is { } clause ? clause.Elements.Count : 0;
+            return string.Format(CultureInfo.InvariantCulture,
+                "Severity ≥ {0} · {1} field{2} · {3}{4}",
+                filter.SeverityThreshold,
+                filter.Fields.Count,
+                filter.Fields.Count == 1 ? string.Empty : "s",
+                type,
+                where > 0 ? $" · where ({where})" : " · no where clause");
+        }
+    }
 
     [ObservableProperty]
     private EventLogEntry? m_selectedEntry;
@@ -183,27 +229,16 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
 
     public EventViewPlugin(PluginHost host)
     {
-        m_host = host;
+        m_host = host ?? throw new ArgumentNullException(nameof(host));
         m_log = host.Log;
-        int n;
-        lock (s_perKindCounter)
-        {
-            s_perKindCounter.TryGetValue(PluginKind.EventView, out int prev);
-            n = prev + 1;
-            s_perKindCounter[PluginKind.EventView] = n;
-        }
-        m_title = $"Event View {n}";
+        m_title = string.Create(CultureInfo.InvariantCulture, $"Event View {Interlocked.Increment(ref s_number)}");
 
         (m_selectClauses, m_selectPaths) = BuildSelectClauses(m_filter);
 
-        if (m_host.Connection.Session is { } session)
-        {
-            _ = InitializeSubscriptionAsync(session);
-        }
-        else
-        {
-            m_log.LogWarning("Event View opened without an active session — no subscription will be created.");
-        }
+        // The per-tab subscription is installed through the awaited connection
+        // lifecycle (OnConnectionStateChangedAsync) or on first AddSource — never a
+        // fire-and-forget constructor, which hid failures and raced with disposal.
+        RefreshStatus();
     }
 
     // ----- IPlugin members -----
@@ -219,25 +254,26 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
     public void OnDeactivated() { }
 
     /// <summary>
-    /// On connect, if the tab was opened while disconnected and never
-    /// got its event subscription created, kick off the deferred
-    /// initialisation now so subsequent <c>AddSource</c> calls don't
-    /// stall on <see cref="m_subscriptionReady"/>.
+    /// Awaited connection lifecycle. Installs the per-tab subscription against a new
+    /// session generation, leaves an existing subscription untouched across a
+    /// transport-only reconnect (same generation), and releases every owned handle
+    /// when the primary session is gone. The old session stays alive until this
+    /// returns, so the release deletes the subscription rather than orphaning it.
     /// </summary>
-    /// <remarks>
-    /// Mid-session reconnect (subscription survives is null but
-    /// <see cref="m_subscriptionReady"/> has already completed) is a
-    /// pre-existing limitation tracked separately — re-binding to a
-    /// fresh session requires resetting the TaskCompletionSource which
-    /// would be a larger refactor.
-    /// </remarks>
-    public void OnConnectionStateChanged()
+    public async Task OnConnectionStateChangedAsync(CancellationToken cancellationToken)
     {
-        if (m_host.Connection.Session is { } session
-            && m_subscription is null
-            && !m_subscriptionReady.Task.IsCompleted)
+        await m_gate.WaitAsync(cancellationToken).ConfigureAwait(true);
+        try
         {
-            _ = InitializeSubscriptionAsync(session);
+            if (m_closed)
+            {
+                return;
+            }
+            await SynchronizeSubscriptionAsync(cancellationToken).ConfigureAwait(true);
+        }
+        finally
+        {
+            m_gate.Release();
         }
     }
 
@@ -249,7 +285,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
         var clear = new MenuItem { Header = "_Clear Log" };
         var pause = new MenuItem
         {
-            Header = "_Pause Stream",
+            Header = "_Pause Display",
             ToggleType = MenuItemToggleType.CheckBox,
             IsChecked = IsPaused
         };
@@ -267,27 +303,21 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
         return [addSrc, removeSrc, editFilter, clear, pause];
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync() => new(m_disposal ??= DisposeCoreAsync());
+
+    private async Task DisposeCoreAsync()
     {
-        // Signal any pending SeedSourceAsync awaiters that the tab is
-        // gone before they get to AddSourceCoreAsync.  Without this,
-        // a Show-Events context-menu invocation immediately followed
-        // by tab-close would leave the seeding task hung forever.
-        m_subscriptionReady.TrySetResult(false);
-        ClassicSubscription? sub = Interlocked.Exchange(ref m_subscription, null);
-        if (sub is not null)
+        await m_gate.WaitAsync().ConfigureAwait(true);
+        try
         {
-            try
-            {
-                await sub.DeleteAsync(silent: true, CancellationToken.None).ConfigureAwait(false);
-                sub.Dispose();
-            }
-            catch (Exception ex)
-            {
-                m_log.LogDebug(ex, "Event View subscription dispose threw — ignored.");
-            }
+            m_closed = true;
+            await ReleaseSubscriptionAsync().ConfigureAwait(true);
         }
-        m_lock.Dispose();
+        finally
+        {
+            m_gate.Release();
+            m_gate.Dispose();
+        }
     }
 
     // ----- Commands -----
@@ -305,25 +335,17 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
     {
         if (m_host.Connection.Session is not { } session)
         {
-            m_log.LogInformation("Event View AddSource: not connected.");
+            m_log.AddSourceNotConnected();
             return;
         }
 
-        // Wait for the per-tab subscription to finish CreateAsync.  Without
-        // this, a quick click on "+ Add Source" right after opening a tab
-        // silently drops the request because m_subscription is still null
-        // and AddSourceCoreAsync bails out.
-        bool ready = await m_subscriptionReady.Task.ConfigureAwait(true);
-        if (!ready)
-        {
-            m_log.LogWarning("Event View AddSource: subscription failed to initialise.");
-            return;
-        }
+        // The per-tab subscription is created on demand under the gate by
+        // AddSourceCoreAsync, so no readiness wait is needed here.
 
         // If the user already has a valid event-emitting Object/View
         // selected in the address-space tree, accept it directly without
         // popping a picker.
-        NodeViewModel? node = m_host.Main.SelectedNode;
+        NodeViewModel? node = m_host.Workspace.SelectedNode;
         bool valid = node is not null
             && node.NodeClass is NodeClass.Object or NodeClass.View;
         if (valid)
@@ -373,31 +395,28 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
         {
             return;
         }
-        await m_lock.WaitAsync().ConfigureAwait(true);
+        await m_gate.WaitAsync().ConfigureAwait(true);
         try
         {
             ClassicSubscription? sub = m_subscription;
-            if (sub is null)
+            ClassicMonitoredItem? item = source.MonitoredItem;
+            if (sub is not null && item is not null)
             {
-                return;
+                sub.RemoveItem(item);
+                await sub.ApplyChangesAsync(CancellationToken.None).ConfigureAwait(true);
             }
-            sub.RemoveItem(source.MonitoredItem);
-            await sub.ApplyChangesAsync(CancellationToken.None).ConfigureAwait(true);
-            m_byHandle.Remove(source.ClientHandle);
-            Dispatcher.UIThread.Post(() =>
-            {
-                EventSources.Remove(source);
-                RefreshStatus();
-            });
-            m_log.LogInformation("Event View removed source {Name} ({Node}).", source.Name, source.NodeId);
+            source.MonitoredItem = null;
+            EventSources.Remove(source);
+            RefreshStatus();
+            m_log.SourceRemoved(source.Name, source.NodeId);
         }
         catch (Exception ex)
         {
-            m_log.LogError(ex, "Event View RemoveSource failed for {Node}.", source.NodeId);
+            m_log.RemoveSourceFailed(ex, source.NodeId);
         }
         finally
         {
-            m_lock.Release();
+            m_gate.Release();
         }
     }
 
@@ -456,7 +475,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
     {
         if (m_host.Connection.Session is not { } session)
         {
-            m_log.LogInformation("Event View Trigger: not connected.");
+            m_log.TriggerNotConnected();
             return;
         }
 
@@ -510,10 +529,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
         }
         else
         {
-            m_log.LogWarning(
-                "Event View Trigger: picked node {Node} of class {NodeClass} " +
-                "cannot be invoked directly (only Method/Variable are actionable).",
-                item.NodeId, item.NodeClass);
+            m_log.TriggerNotActionable(item.NodeId, item.NodeClass);
         }
     }
 
@@ -549,104 +565,195 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
     // ----- Wiring helpers -----
 
     /// <summary>
-    /// Builds the per-tab classic <see cref="ClassicSubscription"/> with
-    /// the fixed Event View defaults (1 s publish / KA=10 / life=1000).
+    /// Reconciles the subscription with the current connection, assuming the gate is
+    /// held. A missing session releases the subscription; a new session generation
+    /// reinstalls it; the same generation leaves the transport-reconnected
+    /// subscription in place so its monitored items are not needlessly recreated.
     /// </summary>
-    private async Task InitializeSubscriptionAsync(ManagedSession session)
+    private async Task SynchronizeSubscriptionAsync(CancellationToken cancellationToken)
     {
-        try
+        if (m_host.Connection.Session is not { } session)
         {
-            var sub = new ClassicSubscription(session.MessageContext.Telemetry, new ClassicSubscriptionOptions
-            {
-                DisplayName = $"UaLens.EventView/{Title}",
-                PublishingInterval = 1000,
-                KeepAliveCount = 10,
-                LifetimeCount = 1000,
-                MaxNotificationsPerPublish = 0,
-                Priority = 0,
-                PublishingEnabled = true,
-                MinLifetimeInterval = 60_000
-            })
-            {
-                FastEventCallback = OnFastEvent,
-                FastKeepAliveCallback = OnFastKeepAlive
-            };
+            await ReleaseSubscriptionAsync().ConfigureAwait(true);
+            RefreshStatus();
+            return;
+        }
+        long generation = m_host.Connection.Snapshot.Generation;
+        if (m_subscription is not null && m_installedGeneration == generation)
+        {
+            RefreshStatus();
+            return;
+        }
+        await InstallSubscriptionAsync(session, generation, cancellationToken).ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Ensures a subscription exists for the current session generation, assuming the
+    /// gate is held. Returns null when the tab is offline.
+    /// </summary>
+    private async Task<ClassicSubscription?> EnsureSubscriptionAsync(CancellationToken cancellationToken)
+    {
+        if (m_closed || m_host.Connection.Session is not { } session)
+        {
+            return null;
+        }
+        long generation = m_host.Connection.Snapshot.Generation;
+        if (m_subscription is not null && m_installedGeneration == generation)
+        {
+            return m_subscription;
+        }
+        await InstallSubscriptionAsync(session, generation, cancellationToken).ConfigureAwait(true);
+        return m_subscription;
+    }
+
+    /// <summary>
+    /// Builds the per-tab classic <see cref="ClassicSubscription"/> with the fixed
+    /// Event View defaults (1 s publish / KA=10 / life=1000), replacing any dead
+    /// subscription from a previous generation and re-binding every configured source
+    /// to a fresh monitored item. Assumes the gate is held. The subscription is only
+    /// published as installed once creation and binding both succeed; a failure is
+    /// cleaned up and propagated so the connection lifecycle can report it.
+    /// </summary>
+    private async Task InstallSubscriptionAsync(
+        ManagedSession session, long generation, CancellationToken cancellationToken)
+    {
+        await ReleaseSubscriptionAsync().ConfigureAwait(true);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var sub = new ClassicSubscription(session.MessageContext.Telemetry, new ClassicSubscriptionOptions
+        {
+            DisplayName = $"UaLens.EventView/{Title}",
+            PublishingInterval = 1000,
+            KeepAliveCount = 10,
+            LifetimeCount = 1000,
+            MaxNotificationsPerPublish = 0,
+            Priority = 0,
+            PublishingEnabled = true,
+            MinLifetimeInterval = 60_000
+        })
+        {
+            FastEventCallback = OnFastEvent,
+            FastKeepAliveCallback = OnFastKeepAlive
+        };
+        var creation = new UaLens.Subscriptions.ClassicSubscriptionLease(session, sub);
+        await using (creation.ConfigureAwait(false))
+        {
             if (!session.AddSubscription(sub))
             {
-                m_log.LogWarning("Event View: AddSubscription returned false.");
-                sub.Dispose();
-                return;
+                throw new InvalidOperationException("The session rejected the Event View subscription.");
             }
-            await sub.CreateAsync(CancellationToken.None).ConfigureAwait(true);
-            m_subscription = sub;
-            m_subscriptionReady.TrySetResult(true);
-            m_log.LogInformation(
-                "Event View subscription created (tab {Title}, id={Id}, " +
-                "publishingInterval={Pi}, publishingEnabled={Pub}).",
-                Title, sub.Id, sub.CurrentPublishingInterval, sub.PublishingEnabled);
-            Dispatcher.UIThread.Post(RefreshSubscriptionStatus);
-        }
-        catch (Exception ex)
-        {
-            m_subscriptionReady.TrySetResult(false);
-            m_log.LogError(ex, "Event View subscription creation failed (tab {Title}).", Title);
+            await sub.CreateAsync(cancellationToken).ConfigureAwait(true);
+            m_log.SubscriptionCreated(Title, sub.Id, sub.CurrentPublishingInterval, sub.PublishingEnabled);
+            await RebindSourcesAsync(sub, cancellationToken).ConfigureAwait(true);
+            m_subscription = creation.Transfer();
+            m_installedGeneration = generation;
+            RefreshStatus();
         }
     }
 
     /// <summary>
-    /// Seeds the tab with an initial event source.  Used by the
-    /// address-space "Show Events…" context-menu entry which creates
-    /// a fresh EventView tab and immediately registers the right-clicked
-    /// node as the source.  Awaits subscription initialisation so the
-    /// AddSource call always finds a live subscription.
+    /// Re-creates a fresh monitored item for every configured source on a newly
+    /// installed subscription. Assumes the gate is held.
     /// </summary>
-    public async Task SeedSourceAsync(NodeId nodeId, string displayName)
+    private async Task RebindSourcesAsync(ClassicSubscription sub, CancellationToken cancellationToken)
     {
-        bool ready = await m_subscriptionReady.Task.ConfigureAwait(true);
-        if (!ready)
+        if (EventSources.Count == 0)
         {
             return;
         }
-        await AddSourceCoreAsync(nodeId, displayName).ConfigureAwait(true);
+        ITelemetryContext telemetry = SessionTelemetry();
+        foreach (EventSourceVm source in EventSources)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ClassicMonitoredItem item = CreateMonitoredItem(telemetry, source.NodeId, source.Name);
+            source.MonitoredItem = item;
+            source.CreationFailure = null;
+            sub.AddItem(item);
+        }
+        await sub.ApplyChangesAsync(cancellationToken).ConfigureAwait(true);
+        foreach (EventSourceVm source in EventSources)
+        {
+            source.RefreshState();
+        }
     }
+
+    /// <summary>
+    /// Deletes the current subscription and clears every source's live handle,
+    /// assuming the gate is held. The configured sources themselves are retained so a
+    /// later reconnect can re-bind them. Safe to call when nothing is installed.
+    /// </summary>
+    private async Task ReleaseSubscriptionAsync()
+    {
+        ClassicSubscription? sub = m_subscription;
+        m_subscription = null;
+        m_installedGeneration = -1;
+        foreach (EventSourceVm source in EventSources)
+        {
+            source.MonitoredItem = null;
+            source.RefreshState();
+        }
+        if (sub is null)
+        {
+            return;
+        }
+        try
+        {
+            if (sub.Session is { } owner)
+            {
+                await owner.RemoveSubscriptionsAsync([sub], CancellationToken.None).ConfigureAwait(true);
+            }
+        }
+        finally
+        {
+            sub.Dispose();
+        }
+    }
+
+    private ClassicMonitoredItem CreateMonitoredItem(
+        ITelemetryContext telemetry, NodeId nodeId, string displayName)
+        => new(telemetry, new ClassicMonitoredItemOptions
+        {
+            DisplayName = $"event:{displayName}",
+            StartNodeId = nodeId,
+            AttributeId = Attributes.EventNotifier,
+            MonitoringMode = MonitoringMode.Reporting,
+            SamplingInterval = 0,
+            QueueSize = 100,
+            DiscardOldest = true,
+            Filter = BuildEventFilter(m_selectClauses, m_whereClause)
+        });
+
+    /// <summary>
+    /// Seeds the tab with an initial event source. Used by the address-space "Show
+    /// Events…" flow which opens a fresh Event View tab and registers the
+    /// right-clicked node. The subscription is created on demand under the gate.
+    /// </summary>
+    public Task SeedSourceAsync(NodeId nodeId, string displayName)
+        => AddSourceCoreAsync(nodeId, displayName);
 
     private async Task AddSourceCoreAsync(NodeId nodeId, string displayName)
     {
-        await m_lock.WaitAsync().ConfigureAwait(true);
+        await m_gate.WaitAsync().ConfigureAwait(true);
         try
         {
-            ClassicSubscription? sub = m_subscription;
+            ClassicSubscription? sub = await EnsureSubscriptionAsync(CancellationToken.None).ConfigureAwait(true);
             if (sub is null)
             {
-                m_log.LogWarning("Event View AddSource: subscription not yet created.");
+                m_log.AddSourceNoSubscription();
                 return;
             }
             ITelemetryContext telemetry = SessionTelemetry();
-            var mi = new ClassicMonitoredItem(telemetry, new ClassicMonitoredItemOptions
-            {
-                DisplayName = $"event:{displayName}",
-                StartNodeId = nodeId,
-                AttributeId = Attributes.EventNotifier,
-                MonitoringMode = MonitoringMode.Reporting,
-                SamplingInterval = 0,
-                QueueSize = 100,
-                DiscardOldest = true,
-                Filter = BuildEventFilter(m_selectClauses, m_whereClause)
-            });
+            ClassicMonitoredItem mi = CreateMonitoredItem(telemetry, nodeId, displayName);
 
-            // Register the source in the UI list BEFORE the network round-trip
-            // so the user gets immediate feedback that the click was accepted
-            // — and so a server-side failure (filter rejection, bad NodeId)
-            // doesn't silently leave the Event sources panel empty. We're on
-            // the UI thread here (every await uses ConfigureAwait(true)), so
+            // Register the source in the UI list BEFORE the network round-trip so the
+            // user gets immediate feedback that the click was accepted, and a
+            // server-side failure (filter rejection, bad NodeId) doesn't silently
+            // leave the panel empty. Gate-held work runs on the UI thread, so
             // mutating EventSources directly is safe.
-            var source = new EventSourceVm(nodeId, displayName, mi);
-            m_byHandle[mi.ClientHandle] = source;
+            var source = new EventSourceVm(nodeId, displayName) { MonitoredItem = mi };
             EventSources.Add(source);
             RefreshStatus();
-            m_log.LogInformation(
-                "Event View added source {Name} ({Node}) ch={Handle}.",
-                displayName, nodeId, mi.ClientHandle);
+            m_log.SourceAdded(displayName, nodeId, mi.ClientHandle);
 
             sub.AddItem(mi);
             try
@@ -655,47 +762,38 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
             }
             catch (Exception applyEx)
             {
-                m_log.LogError(applyEx,
-                    "Event View source {Name} ({Node}) ApplyChanges failed; " +
-                    "source remains in the list but won't deliver events.",
-                    displayName, nodeId);
-                // Make the failure visible in the source list so the user
-                // can see WHY no events flow and choose to Remove the row.
-                // Sticky so it survives the next publish/keep-alive refresh.
+                m_log.SourceApplyFailed(applyEx, displayName, nodeId);
+                // Make the failure visible in the source list so the user can see WHY
+                // no events flow and choose to Remove the row. Sticky so it survives
+                // the next publish/keep-alive refresh.
                 source.CreationFailure = $"FAILED: {applyEx.Message}";
+                source.RefreshState();
                 RefreshStatus();
                 return;
             }
 
-            // Surface the server's filter feedback so users see why no
-            // events flow when the filter is rejected (e.g. unknown field
-            // path against the chosen EventType).
+            // Surface the server's filter feedback so users see why no events flow
+            // when the filter is rejected (e.g. unknown field path against the type).
             ServiceResult? createError = mi.Status.Error;
             if (createError is not null && ServiceResult.IsBad(createError))
             {
-                m_log.LogWarning(
-                    "Event View source {Name} create returned bad status: {Status}",
-                    displayName, createError);
+                m_log.SourceBadStatus(displayName, createError);
             }
             else
             {
-                m_log.LogInformation(
-                    "Event View source {Name} ({Node}) accepted by server " +
-                    "(ch={Handle}, miId={MiId}, filter={Filter}).",
-                    displayName, nodeId, mi.ClientHandle, mi.Status.Id,
+                m_log.SourceAccepted(displayName, nodeId, mi.ClientHandle, mi.Status.Id,
                     mi.Status.FilterResult is null ? "(no diagnostics)" : "with diagnostics");
             }
-            // Update the source row + toolbar indicator now that the server
-            // round-trip has populated mi.Status.
+            source.RefreshState();
             RefreshStatus();
         }
         catch (Exception ex)
         {
-            m_log.LogError(ex, "Event View AddSource failed for {Node}.", nodeId);
+            m_log.AddSourceFailed(ex, nodeId);
         }
         finally
         {
-            m_lock.Release();
+            m_gate.Release();
         }
     }
 
@@ -707,12 +805,12 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
     private async Task ApplyFilterAsync(EventFilterConfig newFilter)
     {
         (SimpleAttributeOperand[] clauses, string[] paths) = BuildSelectClauses(newFilter);
-        m_selectClauses = clauses;
-        m_selectPaths = paths;
-        m_whereClause = newFilter.WhereClause;
-        await m_lock.WaitAsync().ConfigureAwait(true);
+        await m_gate.WaitAsync().ConfigureAwait(true);
         try
         {
+            m_selectClauses = clauses;
+            m_selectPaths = paths;
+            m_whereClause = newFilter.WhereClause;
             ClassicSubscription? sub = m_subscription;
             if (sub is null)
             {
@@ -720,20 +818,22 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
             }
             foreach (EventSourceVm src in EventSources)
             {
-                src.MonitoredItem.Filter = BuildEventFilter(clauses, m_whereClause);
+                if (src.MonitoredItem is { } item)
+                {
+                    item.Filter = BuildEventFilter(clauses, m_whereClause);
+                }
             }
             await sub.ApplyChangesAsync(CancellationToken.None).ConfigureAwait(true);
-            m_log.LogInformation("Event View filter applied: severity≥{Sev}, {N} fields, where={W}.",
-                newFilter.SeverityThreshold, newFilter.Fields.Count,
+            m_log.FilterApplied(newFilter.SeverityThreshold, newFilter.Fields.Count,
                 m_whereClause is null ? 0 : m_whereClause.Elements.Count);
         }
         catch (Exception ex)
         {
-            m_log.LogError(ex, "Event View ApplyFilter failed.");
+            m_log.FilterApplyFailed(ex);
         }
         finally
         {
-            m_lock.Release();
+            m_gate.Release();
         }
     }
 
@@ -748,10 +848,6 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
         EventNotificationList notification, ArrayOf<string> stringTable)
     {
         if (notification?.Events is null)
-        {
-            return;
-        }
-        if (IsPaused)
         {
             return;
         }
@@ -779,20 +875,50 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
         {
             return;
         }
+        // Collection and the server's publishing keep running while the display is
+        // paused, so count every event here — the received counter proves data still
+        // flows. The UI post then decides whether to show or buffer the batch.
         Interlocked.Add(ref m_eventCount, batch.Count);
         Dispatcher.UIThread.Post(() =>
         {
-            foreach (EventLogEntry e in batch)
+            if (IsPaused)
             {
-                Events.Insert(0, e);
+                foreach (EventLogEntry e in batch)
+                {
+                    m_pausedBuffer.Insert(0, e);
+                }
+                TrimPausedBuffer();
             }
-            while (Events.Count > MaxLogEntries)
+            else
             {
-                Events.RemoveAt(Events.Count - 1);
-                Interlocked.Increment(ref m_droppedCount);
+                foreach (EventLogEntry e in batch)
+                {
+                    Events.Insert(0, e);
+                }
+                TrimEvents();
             }
             RefreshStatus();
         });
+    }
+
+    /// <summary>UI-thread-only. Bounds the visible log, counting overflow as dropped.</summary>
+    private void TrimEvents()
+    {
+        while (Events.Count > MaxLogEntries)
+        {
+            Events.RemoveAt(Events.Count - 1);
+            Interlocked.Increment(ref m_droppedCount);
+        }
+    }
+
+    /// <summary>UI-thread-only. Bounds the paused backlog, counting overflow as dropped.</summary>
+    private void TrimPausedBuffer()
+    {
+        while (m_pausedBuffer.Count > MaxLogEntries)
+        {
+            m_pausedBuffer.RemoveAt(m_pausedBuffer.Count - 1);
+            Interlocked.Increment(ref m_droppedCount);
+        }
     }
 
     /// <summary>
@@ -968,6 +1094,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
 
     private void RefreshStatus()
     {
+        IsOffline = m_host.Connection.CurrentSession is null;
         long received = Interlocked.Read(ref m_eventCount);
         long dropped = Interlocked.Read(ref m_droppedCount);
         string suffix;
@@ -983,12 +1110,15 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
         {
             suffix = string.Empty;
         }
+        string paused = IsPaused
+            ? string.Format(CultureInfo.InvariantCulture, " · display paused ({0} buffered)", m_pausedBuffer.Count)
+            : string.Empty;
         Status = string.Format(CultureInfo.InvariantCulture,
             "● {0} source{1} · {2} event{3}{4}{5}{6}",
             EventSources.Count, EventSources.Count == 1 ? string.Empty : "s",
             received, received == 1 ? string.Empty : "s",
             dropped > 0 ? $" · {dropped} dropped" : string.Empty,
-            IsPaused ? " · paused" : string.Empty,
+            paused,
             suffix);
 
         RefreshSubscriptionStatus();
@@ -1041,12 +1171,29 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
                 created,
                 total,
                 badSuffix,
-                sub.PublishingEnabled ? "publishing" : "paused")
+                sub.PublishingEnabled ? "server publishing" : "server publishing off")
             : string.Format(CultureInfo.InvariantCulture,
                 "◑ Subscription: pending · MI {0} queued", total);
     }
 
-    partial void OnIsPausedChanged(bool value) => RefreshStatus();
+    /// <summary>
+    /// Display pause toggled. Collection and the server's publishing continue; on
+    /// resume the bounded backlog collected while paused is flushed into the visible
+    /// log, newest first.
+    /// </summary>
+    partial void OnIsPausedChanged(bool value)
+    {
+        if (!value && m_pausedBuffer.Count > 0)
+        {
+            for (int i = m_pausedBuffer.Count - 1; i >= 0; i--)
+            {
+                Events.Insert(0, m_pausedBuffer[i]);
+            }
+            m_pausedBuffer.Clear();
+            TrimEvents();
+        }
+        RefreshStatus();
+    }
 
     private Window? TopLevelWindow()
     {
@@ -1056,4 +1203,142 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
         }
         return TopLevel.GetTopLevel(m_view) as Window;
     }
+
+    public JsonElement CaptureState()
+    {
+        var sources = new List<EventSourceSelection>(EventSources.Count);
+        foreach (EventSourceVm source in EventSources)
+        {
+            sources.Add(new EventSourceSelection(source.NodeId, source.Name));
+        }
+        var snapshot = new EventViewStateSnapshot(Title, Filter, IsPaused, [.. sources]);
+        return EventViewStateCodec.Capture(snapshot, MessageContext());
+    }
+
+    public async Task RestoreStateAsync(JsonElement state, CancellationToken cancellationToken = default)
+    {
+        // Validate before touching any state so an invalid snapshot is reported
+        // without partially overwriting the current configuration.
+        EventViewStateSnapshot snapshot = EventViewStateCodec.Restore(state, MessageContext());
+        await m_gate.WaitAsync(cancellationToken).ConfigureAwait(true);
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Title = snapshot.Title;
+            Filter = snapshot.Filter;
+            (m_selectClauses, m_selectPaths) = BuildSelectClauses(snapshot.Filter);
+            m_whereClause = snapshot.Filter.WhereClause;
+            IsPaused = snapshot.DisplayPaused;
+            // Restore configuration only. Live monitored items are (re)created against
+            // the session by the connection lifecycle, never during restore.
+            EventSources.Clear();
+            foreach (EventSourceSelection selection in snapshot.Sources)
+            {
+                EventSources.Add(new EventSourceVm(selection.NodeId, selection.Name));
+            }
+            RefreshStatus();
+        }
+        finally
+        {
+            m_gate.Release();
+        }
+    }
+
+    private IServiceMessageContext MessageContext()
+    {
+        if (m_host.Connection.Session is { } session)
+        {
+            return session.MessageContext;
+        }
+        return new ServiceMessageContext(m_host.Telemetry);
+    }
+}
+
+/// <summary>
+/// Source-generated log messages for the Event View document. Event ids are offset
+/// from <see cref="UaLensEventIds.EventViewPluginBase"/>.
+/// </summary>
+internal static partial class EventViewPluginLog
+{
+    [LoggerMessage(EventId = UaLensEventIds.EventViewPluginBase + 0, Level = LogLevel.Information,
+        Message = "Event View AddSource: not connected.")]
+    public static partial void AddSourceNotConnected(this ILogger logger);
+
+    [LoggerMessage(EventId = UaLensEventIds.EventViewPluginBase + 1, Level = LogLevel.Warning,
+        Message = "Event View AddSource: could not create a subscription (not connected).")]
+    public static partial void AddSourceNoSubscription(this ILogger logger);
+
+    [LoggerMessage(EventId = UaLensEventIds.EventViewPluginBase + 2, Level = LogLevel.Warning,
+        Message = "Event View: AddSubscription returned false.")]
+    public static partial void SubscriptionAddRejected(this ILogger logger);
+
+    [LoggerMessage(EventId = UaLensEventIds.EventViewPluginBase + 3, Level = LogLevel.Information,
+        Message = "Event View subscription created (tab {Title}, id={SubscriptionId}, " +
+            "publishingInterval={PublishingInterval}, publishingEnabled={PublishingEnabled}).")]
+    public static partial void SubscriptionCreated(
+        this ILogger logger,
+        string title,
+        uint subscriptionId,
+        double publishingInterval,
+        bool publishingEnabled);
+
+    [LoggerMessage(EventId = UaLensEventIds.EventViewPluginBase + 4, Level = LogLevel.Debug,
+        Message = "Event View subscription dispose threw — ignored.")]
+    public static partial void SubscriptionDisposeIgnored(this ILogger logger, Exception exception);
+
+    [LoggerMessage(EventId = UaLensEventIds.EventViewPluginBase + 5, Level = LogLevel.Information,
+        Message = "Event View added source {Name} ({Node}) ch={Handle}.")]
+    public static partial void SourceAdded(this ILogger logger, string name, NodeId node, uint handle);
+
+    [LoggerMessage(EventId = UaLensEventIds.EventViewPluginBase + 6, Level = LogLevel.Error,
+        Message = "Event View source {Name} ({Node}) ApplyChanges failed; the source remains " +
+            "listed but won't deliver events.")]
+    public static partial void SourceApplyFailed(
+        this ILogger logger, Exception exception, string name, NodeId node);
+
+    [LoggerMessage(EventId = UaLensEventIds.EventViewPluginBase + 7, Level = LogLevel.Warning,
+        Message = "Event View source {Name} create returned bad status: {Status}")]
+    public static partial void SourceBadStatus(this ILogger logger, string name, ServiceResult status);
+
+    [LoggerMessage(EventId = UaLensEventIds.EventViewPluginBase + 8, Level = LogLevel.Information,
+        Message = "Event View source {Name} ({Node}) accepted by server " +
+            "(ch={Handle}, miId={MonitoredItemId}, filter={Filter}).")]
+    public static partial void SourceAccepted(
+        this ILogger logger,
+        string name,
+        NodeId node,
+        uint handle,
+        uint monitoredItemId,
+        string filter);
+
+    [LoggerMessage(EventId = UaLensEventIds.EventViewPluginBase + 9, Level = LogLevel.Error,
+        Message = "Event View AddSource failed for {Node}.")]
+    public static partial void AddSourceFailed(this ILogger logger, Exception exception, NodeId node);
+
+    [LoggerMessage(EventId = UaLensEventIds.EventViewPluginBase + 10, Level = LogLevel.Information,
+        Message = "Event View removed source {Name} ({Node}).")]
+    public static partial void SourceRemoved(this ILogger logger, string name, NodeId node);
+
+    [LoggerMessage(EventId = UaLensEventIds.EventViewPluginBase + 11, Level = LogLevel.Error,
+        Message = "Event View RemoveSource failed for {Node}.")]
+    public static partial void RemoveSourceFailed(this ILogger logger, Exception exception, NodeId node);
+
+    [LoggerMessage(EventId = UaLensEventIds.EventViewPluginBase + 12, Level = LogLevel.Information,
+        Message = "Event View filter applied: severity≥{Severity}, {FieldCount} fields, " +
+            "where={WhereElementCount}.")]
+    public static partial void FilterApplied(
+        this ILogger logger, ushort severity, int fieldCount, int whereElementCount);
+
+    [LoggerMessage(EventId = UaLensEventIds.EventViewPluginBase + 13, Level = LogLevel.Error,
+        Message = "Event View ApplyFilter failed.")]
+    public static partial void FilterApplyFailed(this ILogger logger, Exception exception);
+
+    [LoggerMessage(EventId = UaLensEventIds.EventViewPluginBase + 14, Level = LogLevel.Information,
+        Message = "Event View Trigger: not connected.")]
+    public static partial void TriggerNotConnected(this ILogger logger);
+
+    [LoggerMessage(EventId = UaLensEventIds.EventViewPluginBase + 15, Level = LogLevel.Warning,
+        Message = "Event View Trigger: picked node {Node} of class {NodeClass} cannot be invoked " +
+            "directly (only Method/Variable are actionable).")]
+    public static partial void TriggerNotActionable(this ILogger logger, NodeId node, NodeClass nodeClass);
 }

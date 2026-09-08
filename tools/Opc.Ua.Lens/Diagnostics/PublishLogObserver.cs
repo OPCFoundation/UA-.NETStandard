@@ -29,8 +29,12 @@
 
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using Avalonia.Threading;
+using Opc.Ua.Client.Subscriptions;
 
 namespace UaLens.Diagnostics;
 
@@ -68,6 +72,8 @@ internal sealed record PublishLogEntry(
     int NotifCount,
     PublishLogKind Kind)
 {
+    public long ClientSubscriptionId { get; init; }
+
     /// <summary>Local wall-clock time the publish callback was entered.</summary>
     public string TimeText
         => ReceivedAtLocal.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
@@ -77,7 +83,9 @@ internal sealed record PublishLogEntry(
         => PublishTimeUtc.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture);
 
     public string SubscriptionText
-        => SubscriptionId.ToString(CultureInfo.InvariantCulture);
+        => SubscriptionId != 0
+            ? SubscriptionId.ToString(CultureInfo.InvariantCulture)
+            : $"client:{ClientSubscriptionId.ToString(CultureInfo.InvariantCulture)}";
 
     public string SequenceText
         => SequenceNumber.ToString(CultureInfo.InvariantCulture);
@@ -106,11 +114,35 @@ internal sealed record PublishLogEntry(
 /// </remarks>
 internal sealed class PublishLogObserver
 {
+    public PublishLogObserver(Action<Action>? schedule = null)
+    {
+        m_schedule = schedule ?? ScheduleOnDesktop;
+    }
+
     /// <summary>Maximum number of rows retained.  Older rows are dropped FIFO.</summary>
     public const int MaxEntries = 500;
 
     /// <summary>Live, observable collection bound by the diagnostics view.</summary>
     public ObservableCollection<PublishLogEntry> Entries { get; } = new();
+
+    public long DroppedDisplayEntries => Interlocked.Read(ref m_dropped);
+
+    public void RecordClient(
+        ISubscription subscription,
+        uint serverId,
+        uint sequenceNumber,
+        DateTime publishTimeUtc,
+        int notificationCount,
+        PublishLogKind kind)
+    {
+        ArgumentNullException.ThrowIfNull(subscription);
+        ClientIdentity identity = m_identities.GetValue(
+            subscription, _ => new ClientIdentity(Interlocked.Increment(ref m_nextIdentity)));
+        Enqueue(new PublishLogEntry(DateTime.Now, serverId, sequenceNumber, publishTimeUtc, notificationCount, kind)
+        {
+            ClientSubscriptionId = identity.Id
+        });
+    }
 
     /// <summary>
     /// Records one publish callback.  Safe to invoke from any thread —
@@ -131,7 +163,7 @@ internal sealed class PublishLogObserver
             publishTimeUtc,
             notifCount,
             kind);
-        Dispatcher.UIThread.Post(() => AddOrMerge(entry));
+        Enqueue(entry);
     }
 
     /// <summary>
@@ -141,6 +173,10 @@ internal sealed class PublishLogObserver
     /// </summary>
     public void Clear()
     {
+        lock (m_gate)
+        {
+            m_pending.Clear();
+        }
         if (Dispatcher.UIThread.CheckAccess())
         {
             Entries.Clear();
@@ -158,6 +194,7 @@ internal sealed class PublishLogObserver
             int lastIndex = Entries.Count - 1;
             PublishLogEntry last = Entries[lastIndex];
             if (last.SubscriptionId == entry.SubscriptionId
+                && last.ClientSubscriptionId == entry.ClientSubscriptionId
                 && last.SequenceNumber == entry.SequenceNumber
                 && last.Kind != PublishLogKind.KeepAlive
                 && entry.Kind != PublishLogKind.KeepAlive)
@@ -179,6 +216,51 @@ internal sealed class PublishLogObserver
         }
     }
 
+    private void Enqueue(PublishLogEntry entry)
+    {
+        bool schedule = false;
+        lock (m_gate)
+        {
+            if (m_pending.Count == MaxEntries)
+            {
+                m_pending.Dequeue();
+                Interlocked.Increment(ref m_dropped);
+            }
+            m_pending.Enqueue(entry);
+            if (!m_scheduled)
+            {
+                m_scheduled = true;
+                schedule = true;
+            }
+        }
+        if (schedule)
+        {
+            m_schedule(Drain);
+        }
+    }
+
+    private void Drain()
+    {
+        for (int count = 0; count < 64; count++)
+        {
+            PublishLogEntry entry;
+            lock (m_gate)
+            {
+                if (!m_pending.TryDequeue(out PublishLogEntry? pending))
+                {
+                    m_scheduled = false;
+                    return;
+                }
+                entry = pending;
+            }
+            AddOrMerge(entry);
+        }
+        m_schedule(Drain);
+    }
+
+    private static void ScheduleOnDesktop(Action callback)
+        => Dispatcher.UIThread.Post(callback, DispatcherPriority.Background);
+
     private static PublishLogKind MergeKind(PublishLogKind a, PublishLogKind b)
     {
         if (a == b)
@@ -196,4 +278,14 @@ internal sealed class PublishLogObserver
         }
         return b;
     }
+
+    private sealed record ClientIdentity(long Id);
+
+    private readonly System.Threading.Lock m_gate = new();
+    private readonly Action<Action> m_schedule;
+    private readonly Queue<PublishLogEntry> m_pending = new();
+    private readonly ConditionalWeakTable<ISubscription, ClientIdentity> m_identities = new();
+    private long m_nextIdentity;
+    private long m_dropped;
+    private bool m_scheduled;
 }

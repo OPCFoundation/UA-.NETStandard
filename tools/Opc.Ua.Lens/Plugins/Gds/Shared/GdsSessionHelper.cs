@@ -140,7 +140,7 @@ internal static class GdsSessionHelper
         }
         catch (Exception ex)
         {
-            log.LogDebug(ex, "{Context}: disconnect threw (suppressed).", contextDescription);
+            log.GdsSessionDisconnectSuppressed(ex, contextDescription);
         }
 
         try
@@ -149,7 +149,24 @@ internal static class GdsSessionHelper
         }
         catch (Exception ex)
         {
-            log.LogDebug(ex, "{Context}: dispose threw (suppressed).", contextDescription);
+            log.GdsSessionDisposeSuppressed(ex, contextDescription);
         }
     }
+}
+
+/// <summary>
+/// Source-generated logging for <see cref="GdsSessionHelper"/>.
+/// Event ids are offset from <see cref="UaLensEventIds.GdsSessionBase"/>.
+/// </summary>
+internal static partial class GdsSessionHelperLog
+{
+    [LoggerMessage(EventId = UaLensEventIds.GdsSessionBase + 0, Level = LogLevel.Debug,
+        Message = "{Context}: disconnect threw (suppressed).")]
+    public static partial void GdsSessionDisconnectSuppressed(
+        this ILogger logger, Exception exception, string context);
+
+    [LoggerMessage(EventId = UaLensEventIds.GdsSessionBase + 1, Level = LogLevel.Debug,
+        Message = "{Context}: dispose threw (suppressed).")]
+    public static partial void GdsSessionDisposeSuppressed(
+        this ILogger logger, Exception exception, string context);
 }

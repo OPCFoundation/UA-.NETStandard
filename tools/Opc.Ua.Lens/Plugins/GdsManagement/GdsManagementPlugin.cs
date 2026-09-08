@@ -108,7 +108,7 @@ internal sealed partial class GdsCertGroupVm : ObservableObject
 /// </summary>
 internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
 {
-    private static readonly Dictionary<PluginKind, int> s_perKindCounter = new();
+    private static int s_nextNumber;
 
     private readonly PluginHost m_host;
     private readonly ILogger m_log;
@@ -187,15 +187,9 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
     {
         m_host = host ?? throw new ArgumentNullException(nameof(host));
         m_log = host.Log;
-        int n;
-        lock (s_perKindCounter)
-        {
-            s_perKindCounter.TryGetValue(PluginKind.GdsManagement, out int prev);
-            n = prev + 1;
-            s_perKindCounter[PluginKind.GdsManagement] = n;
-        }
+        int n = Interlocked.Increment(ref s_nextNumber);
         m_title = $"GDS Management {n}";
-        m_endpointUrl = host.Main.EndpointUrl ?? string.Empty;
+        m_endpointUrl = host.Workspace.EndpointUrl;
     }
 
     /// <summary>
@@ -279,7 +273,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             }
             catch (Exception ex)
             {
-                m_log.LogWarning(ex, "GdsManagement tab {Title}: client dispose failed.", Title);
+                m_log.GdsMgmtClientDisposeFailed(ex, Title);
             }
             m_client = null;
         }
@@ -303,7 +297,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         catch (Exception ex)
         {
             SetResult($"Connect failed: {ex.Message}");
-            m_log.LogError(ex, "GdsManagement tab {Title}: UseDifferentEndpoint failed.", Title);
+            m_log.GdsMgmtUseDifferentEndpointFailed(ex, Title);
         }
         finally
         {
@@ -328,7 +322,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
 
         string seed = !string.IsNullOrWhiteSpace(EndpointUrl)
             ? EndpointUrl
-            : (m_host.Main.EndpointUrl ?? string.Empty);
+            : m_host.Workspace.EndpointUrl;
         if (string.IsNullOrWhiteSpace(seed))
         {
             SetResult("Enter a GDS endpoint URL first.");
@@ -340,7 +334,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         try
         {
             pick = await UaLens.Connection.EndpointCredentialsPicker
-                .PromptAsync(owner, m_host.Main.Telemetry, seed, ct).ConfigureAwait(true);
+                .PromptAsync(owner, m_host.Telemetry, seed, ct).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -371,7 +365,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             catch (Exception ex)
             {
                 SetResult($"UpdateSession failed: {ex.Message} — reconnecting fresh.");
-                m_log.LogWarning(ex, "GdsManagement tab {Title}: UpdateSession failed; reconnecting.", Title);
+                m_log.GdsMgmtUpdateSessionFailed(ex, Title);
                 // fall through to fresh-connect path
             }
         }
@@ -381,7 +375,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         ConnectionStatus = "● Connecting…";
         try
         {
-            ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync().ConfigureAwait(true);
+            ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync(ct).ConfigureAwait(true);
             var client = new GlobalDiscoveryServerClient(cfg, pick.Identity);
             var configured = new ConfiguredEndpoint(
                 null, pick.Endpoint, EndpointConfiguration.Create(cfg));
@@ -391,8 +385,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             EndpointUrl = pick.Endpoint.EndpointUrl ?? EndpointUrl;
             SetSecondaryConnected(true);
             ConnectionStatus = "● Connected";
-            m_log.LogInformation(
-                "GdsManagement tab {Title}: connected to {Endpoint}", Title, pick.Endpoint.EndpointUrl);
+            m_log.GdsMgmtConnected(Title, pick.Endpoint.EndpointUrl);
             await RefreshAsync().ConfigureAwait(true);
             return true;
         }
@@ -401,7 +394,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             SetSecondaryConnected(false);
             ConnectionStatus = "● Disconnected";
             SetResult($"Connect failed: {ex.Message}");
-            m_log.LogError(ex, "GdsManagement tab {Title}: connect failed.", Title);
+            m_log.GdsMgmtConnectFailed(ex, Title);
             await SafeDisposeClientAsync().ConfigureAwait(true);
             m_boundEndpoint = null;
             return false;
@@ -454,7 +447,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         ConnectionStatus = "● Connecting (piggyback)…";
         try
         {
-            ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync().ConfigureAwait(true);
+            ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync(ct).ConfigureAwait(true);
 #pragma warning disable CA2000
             IUserIdentity identity = new UserIdentity(new AnonymousIdentityToken());
 #pragma warning restore CA2000
@@ -467,15 +460,13 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             EndpointUrl = desc.EndpointUrl ?? EndpointUrl;
             SetSecondaryConnected(true);
             ConnectionStatus = "● Connected (piggyback)";
-            m_log.LogInformation(
-                "GdsManagement tab {Title}: piggy-backed on outer session at {Endpoint}.",
-                Title, desc.EndpointUrl);
+            m_log.GdsMgmtPiggybacked(Title, desc.EndpointUrl);
             return true;
         }
         catch (Exception ex)
         {
             SetResult($"Piggyback failed: {ex.Message}");
-            m_log.LogWarning(ex, "GdsManagement tab {Title}: piggyback to outer failed.", Title);
+            m_log.GdsMgmtPiggybackFailed(ex, Title);
             await SafeDisposeClientAsync().ConfigureAwait(true);
             m_boundEndpoint = null;
             ConnectionStatus = "● Disconnected";
@@ -549,12 +540,12 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             await ResolveAllRecordsAsync().ConfigureAwait(true);
             ApplyFilter();
             SetResult($"Refreshed: {AllApps.Count} applications.");
-            m_log.LogInformation("GdsManagement tab {Title}: refresh ok ({Count} apps).", Title, AllApps.Count);
+            m_log.GdsMgmtRefreshOk(Title, AllApps.Count);
         }
         catch (Exception ex)
         {
             SetResult($"Refresh failed: {ex.Message}");
-            m_log.LogError(ex, "GdsManagement tab {Title}: refresh failed.", Title);
+            m_log.GdsMgmtRefreshFailed(ex, Title);
         }
         finally
         {
@@ -581,8 +572,8 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         try
         {
             var dlg = new RegisterApplicationDialog(
-                m_host.Main.Telemetry,
-                m_host.Main.CurrentRegisteredApp);
+                m_host.Telemetry,
+                m_host.Workspace.CurrentRegisteredApp);
             context = await dlg.ShowDialog<RegisteredApplicationContext?>(owner).ConfigureAwait(true);
         }
         catch (Exception ex)
@@ -607,15 +598,14 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             NodeId id = await client.RegisterApplicationAsync(
                 record, CancellationToken.None).ConfigureAwait(true);
             SetResult($"Registered {record.ApplicationUri} → {id}.");
-            m_log.LogInformation("GdsManagement tab {Title}: registered {Uri} → {Id}.",
-                Title, record.ApplicationUri, id);
-            m_host.Main.CurrentRegisteredApp = context with { ApplicationId = id };
+            m_log.GdsMgmtRegistered(Title, record.ApplicationUri, id);
+            m_host.Workspace.CurrentRegisteredApp = context with { ApplicationId = id };
             await RefreshAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {
             SetResult($"Register failed: {ex.Message}");
-            m_log.LogError(ex, "GdsManagement tab {Title}: register failed.", Title);
+            m_log.GdsMgmtRegisterFailed(ex, Title);
         }
         finally
         {
@@ -678,6 +668,22 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             SetResult("Selected application has no resolved NodeId — refresh first.");
             return;
         }
+        Window? owner = GetOwnerWindow();
+        if (owner is not null)
+        {
+            bool confirmed = await ConfirmDangerousAsync(owner,
+                "Unregister application",
+                string.Format(CultureInfo.InvariantCulture,
+                    "Unregister application '{0}' from this Global Discovery Server?\n\n"
+                    + "The GDS removes the application record and its issued-certificate history. "
+                    + "This cannot be undone from here.", sel.ApplicationName),
+                "Unregister").ConfigureAwait(true);
+            if (!confirmed)
+            {
+                SetResult("Unregister cancelled.");
+                return;
+            }
+        }
         IsBusy = true;
         try
         {
@@ -689,13 +695,13 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             await client.UnregisterApplicationAsync(
                 sel.ApplicationId, CancellationToken.None).ConfigureAwait(true);
             SetResult($"Unregistered {sel.ApplicationName}.");
-            m_log.LogInformation("GdsManagement tab {Title}: unregistered {Id}.", Title, sel.ApplicationId);
+            m_log.GdsMgmtUnregistered(Title, sel.ApplicationId);
             await RefreshAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {
             SetResult($"Unregister failed: {ex.Message}");
-            m_log.LogError(ex, "GdsManagement tab {Title}: unregister failed.", Title);
+            m_log.GdsMgmtUnregisterFailed(ex, Title);
         }
         finally
         {
@@ -771,7 +777,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             {
                 groupId = groups[0];
             }
-            RegisteredApplicationContext? ctx = m_host.Main.CurrentRegisteredApp;
+            RegisteredApplicationContext? ctx = m_host.Workspace.CurrentRegisteredApp;
             string subject = !string.IsNullOrWhiteSpace(ctx?.CertificateSubjectName)
                 ? ctx!.CertificateSubjectName!
                 : "CN=" + sel.ApplicationName;
@@ -798,10 +804,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
                 SetResult(
                     $"No registered application context — issued {label} for {sel.ApplicationName}: {summary} " +
                     $"(+{issuerCount} issuer cert(s)) but cannot deliver. Register the app first.");
-                m_log.LogInformation(
-                    "GdsManagement tab {Title}: issued {Label} for {App} (request {Req}). " +
-                    "No CurrentRegisteredApp context — delivery skipped.",
-                    Title, label, sel.ApplicationName, requestId);
+                m_log.GdsMgmtIssuedNoContext(Title, label, sel.ApplicationName, requestId);
                 return;
             }
 
@@ -817,14 +820,12 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             SetResult(
                 $"Issued {label} for {sel.ApplicationName}: {summary} (+{issuerCount} issuer cert(s)). " +
                 deliveryDetail);
-            m_log.LogInformation(
-                "GdsManagement tab {Title}: issued {Label} for {App} (request {Req}); delivery: {Detail}.",
-                Title, label, sel.ApplicationName, requestId, deliveryDetail);
+            m_log.GdsMgmtIssued(Title, label, sel.ApplicationName, requestId, deliveryDetail);
         }
         catch (Exception ex)
         {
             SetResult($"Issue cert failed: {ex.Message}");
-            m_log.LogError(ex, "GdsManagement tab {Title}: issue cert failed.", Title);
+            m_log.GdsMgmtIssueCertFailed(ex, Title);
         }
         finally
         {
@@ -860,7 +861,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         catch (Exception ex)
         {
             SetResult($"View cert groups failed: {ex.Message}");
-            m_log.LogError(ex, "GdsManagement tab {Title}: view cert groups failed.", Title);
+            m_log.GdsMgmtViewCertGroupsFailed(ex, Title);
         }
         finally
         {
@@ -885,7 +886,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             return;
         }
 
-        RegisteredApplicationContext? ctx = m_host.Main.CurrentRegisteredApp;
+        RegisteredApplicationContext? ctx = m_host.Workspace.CurrentRegisteredApp;
         if (ctx is null)
         {
             SetResult("Pull trust list: register an application first.");
@@ -914,14 +915,12 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             string detail = await WriteTrustListToLocalStoresAsync(
                 ctx, list, CancellationToken.None).ConfigureAwait(true);
             SetResult($"Trust list pulled for {ctx.ApplicationName}: {detail}");
-            m_log.LogInformation(
-                "GdsManagement tab {Title}: pulled trust list for {App}; {Detail}.",
-                Title, ctx.ApplicationName, detail);
+            m_log.GdsMgmtPulledTrustList(Title, ctx.ApplicationName, detail);
         }
         catch (Exception ex)
         {
             SetResult($"Pull trust list failed: {ex.Message}");
-            m_log.LogError(ex, "GdsManagement tab {Title}: pull trust list (local) failed.", Title);
+            m_log.GdsMgmtPullTrustListLocalFailed(ex, Title);
         }
         finally
         {
@@ -947,7 +946,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             return;
         }
 
-        RegisteredApplicationContext? ctx = m_host.Main.CurrentRegisteredApp;
+        RegisteredApplicationContext? ctx = m_host.Workspace.CurrentRegisteredApp;
         if (ctx is null)
         {
             SetResult("Push trust list: register an application first.");
@@ -976,14 +975,12 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             string detail = await PushTrustListToServerAsync(
                 ctx, list, CancellationToken.None).ConfigureAwait(true);
             SetResult($"Trust list pushed for {ctx.ApplicationName}: {detail}");
-            m_log.LogInformation(
-                "GdsManagement tab {Title}: pushed trust list for {App}; {Detail}.",
-                Title, ctx.ApplicationName, detail);
+            m_log.GdsMgmtPushedTrustList(Title, ctx.ApplicationName, detail);
         }
         catch (Exception ex)
         {
             SetResult($"Push trust list failed: {ex.Message}");
-            m_log.LogError(ex, "GdsManagement tab {Title}: pull trust list (push) failed.", Title);
+            m_log.GdsMgmtPullTrustListPushFailed(ex, Title);
         }
         finally
         {
@@ -1058,9 +1055,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             }
             catch (Exception ex)
             {
-                m_log.LogDebug(ex,
-                    "GdsManagement tab {Title}: FindApplication failed for {Uri}.",
-                    Title, app.ApplicationUri);
+                m_log.GdsMgmtFindApplicationFailed(ex, Title, app.ApplicationUri);
             }
         }
     }
@@ -1137,8 +1132,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             }
             catch (Exception ex)
             {
-                m_log.LogDebug(ex, "GdsManagement tab {Title}: trust-list read failed for group {Group}.",
-                    Title, gid);
+                m_log.GdsMgmtTrustListReadFailed(ex, Title, gid);
             }
             CertGroups.Add(group);
         }
@@ -1321,8 +1315,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             }
             catch (Exception ex)
             {
-                m_log.LogWarning(ex,
-                    "GdsManagement tab {Title}: write to cert store {Path} failed.", Title, storePath);
+                m_log.GdsMgmtWriteCertStoreFailed(ex, Title, storePath);
                 actions.Add($"store!{ex.GetType().Name}");
             }
         }
@@ -1336,8 +1329,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             }
             catch (Exception ex)
             {
-                m_log.LogWarning(ex,
-                    "GdsManagement tab {Title}: write public-key file {Path} failed.", Title, publicKeyPath);
+                m_log.GdsMgmtWritePublicKeyFailed(ex, Title, publicKeyPath);
                 actions.Add($"pub!{ex.GetType().Name}");
             }
         }
@@ -1351,8 +1343,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             }
             catch (Exception ex)
             {
-                m_log.LogWarning(ex,
-                    "GdsManagement tab {Title}: write private-key file {Path} failed.", Title, privateKeyPath);
+                m_log.GdsMgmtWritePrivateKeyFailed(ex, Title, privateKeyPath);
                 actions.Add($"priv!{ex.GetType().Name}");
             }
         }
@@ -1366,8 +1357,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             }
             catch (Exception ex)
             {
-                m_log.LogWarning(ex,
-                    "GdsManagement tab {Title}: write to issuer store {Path} failed.", Title, issuerStorePath);
+                m_log.GdsMgmtWriteIssuerStoreFailed(ex, Title, issuerStorePath);
                 actions.Add($"issuers!{ex.GetType().Name}");
             }
         }
@@ -1408,7 +1398,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             }
             var storeId = new CertificateStoreIdentifier(
                 storePath, noPrivateKeys: !hasPrivateKey);
-            using ICertificateStore store = storeId.OpenStore(m_host.Main.Telemetry);
+            using ICertificateStore store = storeId.OpenStore(m_host.Telemetry);
             await store.AddAsync(certificate, password: null, ct).ConfigureAwait(true);
         }
         finally
@@ -1429,7 +1419,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         CancellationToken ct)
     {
         var storeId = new CertificateStoreIdentifier(storePath, noPrivateKeys: true);
-        using ICertificateStore store = storeId.OpenStore(m_host.Main.Telemetry);
+        using ICertificateStore store = storeId.OpenStore(m_host.Telemetry);
         for (int i = 0; i < issuers.Count; i++)
         {
             ReadOnlyMemory<byte> raw = issuers[i].Memory;
@@ -1445,9 +1435,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             }
             catch (Exception ex)
             {
-                m_log.LogDebug(ex,
-                    "GdsManagement tab {Title}: skipping malformed issuer cert at index {Index}.",
-                    Title, i);
+                m_log.GdsMgmtSkipMalformedIssuerCert(ex, Title, i);
             }
             finally
             {
@@ -1483,7 +1471,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         if (!string.IsNullOrEmpty(ctx.TrustListStorePath) && (wantTrustedCerts || wantTrustedCrls))
         {
             var storeId = new CertificateStoreIdentifier(ctx.TrustListStorePath!, noPrivateKeys: true);
-            using ICertificateStore store = storeId.OpenStore(m_host.Main.Telemetry);
+            using ICertificateStore store = storeId.OpenStore(m_host.Telemetry);
             if (wantTrustedCerts && list?.TrustedCertificates is { } trustedCerts)
             {
                 int added = await AddCertsAsync(store, trustedCerts, "trusted", ct).ConfigureAwait(true);
@@ -1499,7 +1487,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         if (!string.IsNullOrEmpty(ctx.IssuerListStorePath) && (wantIssuerCerts || wantIssuerCrls))
         {
             var storeId = new CertificateStoreIdentifier(ctx.IssuerListStorePath!, noPrivateKeys: true);
-            using ICertificateStore store = storeId.OpenStore(m_host.Main.Telemetry);
+            using ICertificateStore store = storeId.OpenStore(m_host.Telemetry);
             if (wantIssuerCerts && list?.IssuerCertificates is { } issuerCerts)
             {
                 int added = await AddCertsAsync(store, issuerCerts, "issuer", ct).ConfigureAwait(true);
@@ -1551,9 +1539,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             }
             catch (Exception ex)
             {
-                m_log.LogDebug(ex,
-                    "GdsManagement tab {Title}: skipping malformed {Bucket} cert at index {Index}.",
-                    Title, bucket, i);
+                m_log.GdsMgmtSkipMalformedCert(ex, Title, bucket, i);
             }
             finally
             {
@@ -1594,9 +1580,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             }
             catch (Exception ex)
             {
-                m_log.LogDebug(ex,
-                    "GdsManagement tab {Title}: skipping malformed {Bucket} CRL at index {Index}.",
-                    Title, bucket, i);
+                m_log.GdsMgmtSkipMalformedCrl(ex, Title, bucket, i);
             }
         }
         return added;
@@ -1620,7 +1604,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             return "ServerPush delivery skipped: no PushEndpoint on registered application context.";
         }
 
-        ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync().ConfigureAwait(true);
+        ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync(ct).ConfigureAwait(true);
 #pragma warning disable CA2000 // ownership transferred to ServerPushConfigurationClient via AdminCredentials
         IUserIdentity identity = new UserIdentity(new AnonymousIdentityToken());
 #pragma warning restore CA2000
@@ -1652,9 +1636,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
                     // ApplyChanges typically tears down the channel as
                     // the server restarts itself with the new trust list;
                     // treat those tear-down codes as a success.
-                    m_log.LogDebug(sre,
-                        "GdsManagement tab {Title}: push ApplyChanges tore down the channel as expected.",
-                        Title);
+                    m_log.GdsMgmtPushApplyChangesToreDownChannel(sre, Title);
                 }
                 return $"ServerPush to {pushEndpoint.EndpointUrl}: UpdateTrustList + ApplyChanges OK.";
             }
@@ -1670,8 +1652,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
                 }
                 catch (Exception ex)
                 {
-                    m_log.LogWarning(ex,
-                        "GdsManagement tab {Title}: dispose of ephemeral push client failed.", Title);
+                    m_log.GdsMgmtEphemeralPushClientDisposeFailed(ex, Title);
                 }
             }
         }
@@ -1699,7 +1680,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             return "ServerPush delivery skipped: no PushEndpoint on registered application context.";
         }
 
-        ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync().ConfigureAwait(true);
+        ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync(ct).ConfigureAwait(true);
 #pragma warning disable CA2000 // ownership transferred to ServerPushConfigurationClient via AdminCredentials
         IUserIdentity identity = new UserIdentity(new AnonymousIdentityToken());
 #pragma warning restore CA2000
@@ -1739,9 +1720,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
                     // ApplyChanges typically tears down the channel as
                     // the server restarts itself with the new cert; treat
                     // those tear-down codes as a success.
-                    m_log.LogDebug(sre,
-                        "GdsManagement tab {Title}: push ApplyChanges tore down the channel as expected.",
-                        Title);
+                    m_log.GdsMgmtPushApplyChangesToreDownChannel(sre, Title);
                 }
                 return $"ServerPush delivery to {pushEndpoint.EndpointUrl}: UpdateCertificate + ApplyChanges OK.";
             }
@@ -1757,8 +1736,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
                 }
                 catch (Exception ex)
                 {
-                    m_log.LogWarning(ex,
-                        "GdsManagement tab {Title}: dispose of ephemeral push client failed.", Title);
+                    m_log.GdsMgmtEphemeralPushClientDisposeFailed(ex, Title);
                 }
             }
         }
@@ -1840,6 +1818,70 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             return desktop.MainWindow;
         }
         return null;
+    }
+
+    /// <summary>
+    /// Shows a scoped confirmation for a destructive GDS operation. The message
+    /// names the exact target and consequence; the default button is the safe
+    /// Cancel. Returns true only when the user explicitly confirms.
+    /// </summary>
+    private static async Task<bool> ConfirmDangerousAsync(
+        Window owner, string title, string message, string confirmText)
+    {
+        var confirm = new Button
+        {
+            Content = confirmText,
+            Width = 120
+        };
+        var cancel = new Button
+        {
+            Content = "Cancel",
+            IsCancel = true,
+            IsDefault = true,
+            Width = 110,
+            Margin = new Avalonia.Thickness(8, 0, 0, 0)
+        };
+        var buttons = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+            Margin = new Avalonia.Thickness(0, 12, 0, 0),
+            Children = { confirm, cancel }
+        };
+        var body = new TextBlock
+        {
+            Text = message,
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap
+        };
+        var panel = new DockPanel
+        {
+            Margin = new Avalonia.Thickness(16),
+            LastChildFill = true
+        };
+        DockPanel.SetDock(buttons, Dock.Bottom);
+        panel.Children.Add(buttons);
+        panel.Children.Add(body);
+
+        var window = new Window
+        {
+            Title = title,
+            Width = 480,
+            Height = 240,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = panel
+        };
+        if (Avalonia.Application.Current?.FindResource("AppBg") is Avalonia.Media.IBrush bg)
+        {
+            window.Background = bg;
+        }
+        if (Avalonia.Application.Current?.FindResource("TextPrimary") is Avalonia.Media.IBrush fg)
+        {
+            window.Foreground = fg;
+        }
+        confirm.Click += (_, _) => window.Close(true);
+        cancel.Click += (_, _) => window.Close(false);
+        object? result = await window.ShowDialog<object?>(owner).ConfigureAwait(true);
+        return result is bool b && b;
     }
 
     private void SetResult(string text)

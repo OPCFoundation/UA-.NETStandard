@@ -29,6 +29,7 @@ Here is a list of available documentation for different topics:
 * Pluggable [Identity Providers](IdentityProviders.md) — interfaces (`IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`) plus the OPC 10000-6 §6.5.2.2 `IssuerEndpointUrl` JSON parser for OAuth2 / OIDC / Entra / JWT flows.
 * Support for [ECC Certificates](EccProfiles.md).
 * Working with [ComplexTypes](ComplexTypes.md) - Custom structures and enumerations.
+* [UaLens desktop engineering workspace](UaLens.md) - Connection, exploration, monitoring, history, events, administration, saved workspaces, and prioritized stack-showcase opportunities.
 * Client-based [NodeSet Export](NodeSetExport.md) - Export server address space to NodeSet2 XML.
 * Source generated [DataTypes] - How to annotate POCO classes and let the source generator generate the `IEncodeable` implementation.
 * Runtime [Schema Generation](SchemaGeneration.md) - Produce XSD, OPC Binary (BSD) and JSON Schema (Part 6 Annex C, compact + verbose) for generated encodeable types and dynamically added complex types via the injectable `ISchemaProvider`; schemas are built as object models in code (trimmable, NativeAOT compatible).

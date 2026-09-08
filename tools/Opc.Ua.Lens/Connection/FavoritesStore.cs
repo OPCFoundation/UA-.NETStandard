@@ -32,174 +32,158 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using UaLens.Storage;
 
-namespace UaLens.Connection;
-
-/// <summary>
-/// Sibling helper to <see cref="SessionFile"/> that persists the user's
-/// list of saved endpoint URLs (the "Custom Discovery favourites" shown
-/// under the GDS Discovery tree).  Mirrors
-/// <c>Samples/ClientControls.Net4/Endpoints/ConfiguredServerListDlg.cs</c>.
-/// </summary>
-/// <remarks>
-/// <para>
-/// <see cref="SessionFile"/> models a self-contained, per-document
-/// snapshot driven by explicit File → Save Session / Load Session paths
-/// chosen by the user, so it would be wrong to lump global, app-wide
-/// favourites into it.  Instead this class writes a separate
-/// <c>favorites.json</c> in a stable per-user location
-/// (<see cref="Environment.SpecialFolder.LocalApplicationData"/> +
-/// <c>UaLens</c>) and is intentionally defensive — any I/O or parse
-/// failure is logged and surfaces as an empty list so the GDS Discovery
-/// plug-in can still come up cleanly.
-/// </para>
-/// <para>
-/// The file is intended for single-user, single-process access.  No
-/// cross-process locking is performed; concurrent saves from multiple
-/// UaLens instances would race and the last writer wins.  Schema
-/// versioning is captured via the <see cref="FavoritesDocument.Version"/>
-/// field on the document so future migrations can branch on it without
-/// breaking existing files.
-/// </para>
-/// </remarks>
-internal static class FavoritesStore
+namespace UaLens.Connection
 {
-    /// <summary>Current schema version stamped into <c>favorites.json</c>.</summary>
-    public const string CurrentVersion = "1";
-
-    /// <summary>Folder name under <c>%LocalAppData%</c> that hosts UaLens state.</summary>
-    private const string AppFolderName = "UaLens";
-
-    /// <summary>File name of the favourites store.</summary>
-    private const string FileName = "favorites.json";
-
-    private static readonly JsonSerializerOptions s_json = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
-
     /// <summary>
-    /// Returns the absolute path to the favourites JSON file.  Always
-    /// resolves the same path for the current user; the parent
-    /// directory is created on save when needed.
+    /// Sibling helper to <see cref="SessionFile"/> that persists the user's
+    /// list of saved endpoint URLs (the "Custom Discovery favourites" shown
+    /// under the GDS Discovery tree).  Mirrors
+    /// <c>Samples/ClientControls.Net4/Endpoints/ConfiguredServerListDlg.cs</c>.
     /// </summary>
-    public static string FilePath
+    /// <remarks>
+    /// <para>
+    /// <see cref="SessionFile"/> models a self-contained, per-document
+    /// snapshot driven by explicit File → Save Session / Load Session paths
+    /// chosen by the user, so it would be wrong to lump global, app-wide
+    /// favourites into it.  Instead this class writes a separate
+    /// <c>favorites.json</c> in a stable per-user location
+    /// (<see cref="Environment.SpecialFolder.LocalApplicationData"/> +
+    /// <c>UaLens</c>). Missing files represent an empty list; malformed or
+    /// inaccessible files are reported to the caller and never overwritten on load.
+    /// </para>
+    /// <para>
+    /// The file is intended for single-user, single-process access.  No
+    /// cross-process locking is performed; concurrent saves from multiple
+    /// UaLens instances would race and the last writer wins.  Schema
+    /// versioning is captured via the <see cref="FavoritesDocument.Version"/>
+    /// field on the document so future migrations can branch on it without
+    /// breaking existing files.
+    /// </para>
+    /// </remarks>
+    internal static class FavoritesStore
     {
-        get
-        {
-            string baseDir = Environment.GetFolderPath(
-                Environment.SpecialFolder.LocalApplicationData);
-            return Path.Combine(baseDir, AppFolderName, FileName);
-        }
-    }
+        /// <summary>
+        /// Current schema version stamped into <c>favorites.json</c>.
+        /// </summary>
+        public const string CurrentVersion = "1";
 
-    /// <summary>
-    /// Loads the favourite endpoint URLs.  Missing / unreadable /
-    /// malformed files are treated as "no favourites yet" and never
-    /// throw — instead they are logged at Debug.  Duplicate entries are
-    /// dropped (case-insensitive) and empty strings filtered out.
-    /// </summary>
-    public static async Task<List<string>> LoadAsync(ILogger? log = null)
-    {
-        string path = FilePath;
-        if (!File.Exists(path))
+        /// <summary>
+        /// Folder name under <c>%LocalAppData%</c> that hosts UaLens state.
+        /// </summary>
+        private const string AppFolderName = "UaLens";
+
+        /// <summary>
+        /// File name of the favourites store.
+        /// </summary>
+        private const string FileName = "favorites.json";
+
+        /// <summary>
+        /// Returns the absolute path to the favourites JSON file.  Always
+        /// resolves the same path for the current user; the parent
+        /// directory is created on save when needed.
+        /// </summary>
+        public static string FilePath
         {
-            return new List<string>();
+            get
+            {
+                string baseDir = Environment.GetFolderPath(
+                    Environment.SpecialFolder.LocalApplicationData);
+                return Path.Combine(baseDir, AppFolderName, FileName);
+            }
         }
-        try
+
+        /// <summary>
+        /// Loads favorite endpoints without hiding malformed data or access failures.
+        /// Equivalent URLs are deduplicated while preserving case-sensitive endpoint paths.
+        /// </summary>
+        /// <exception cref="JsonException"></exception>
+        public static async Task<List<string>> LoadAsync(
+            ILogger? log = null,
+            string? path = null,
+            CancellationToken cancellationToken = default)
         {
-            FavoritesDocument? doc;
-            FileStream fs = File.OpenRead(path);
-            await using (fs.ConfigureAwait(false))
+            _ = log;
+            path ??= FilePath;
+            FavoritesDocument doc;
+            try
             {
-                doc = await JsonSerializer
-                    .DeserializeAsync<FavoritesDocument>(fs, s_json)
-                    .ConfigureAwait(false);
+                doc = await JsonFileStore.ReadAsync(
+                    path, FavoritesJsonContext.Default.FavoritesDocument, cancellationToken).ConfigureAwait(false);
             }
-            if (doc?.FavouriteEndpoints is not { } urls)
+            catch (FileNotFoundException)
             {
-                return new List<string>();
+                return [];
             }
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var result = new List<string>(urls.Count);
-            foreach (string u in urls)
+            catch (DirectoryNotFoundException)
             {
-                if (!string.IsNullOrWhiteSpace(u) && seen.Add(u))
+                return [];
+            }
+            if (doc.Version != CurrentVersion || doc.FavouriteEndpoints is null)
+            {
+                throw new JsonException("The favorites document has an unsupported version or missing endpoint list.");
+            }
+            return Normalize(doc.FavouriteEndpoints);
+        }
+
+        /// <summary>
+        /// Persists the supplied list of favourite endpoint URLs.  Creates
+        /// the parent directory if it does not exist.  Writes atomically by
+        /// emitting to a sibling <c>.tmp</c> file and then replacing the
+        /// target.
+        /// </summary>
+        public static Task SaveAsync(
+            IEnumerable<string> urls,
+            ILogger? log = null,
+            string? path = null,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(urls);
+            _ = log;
+            return JsonFileStore.WriteAsync(path ?? FilePath, new FavoritesDocument
+            {
+                FavouriteEndpoints = Normalize(urls)
+            }, FavoritesJsonContext.Default.FavoritesDocument, cancellationToken);
+        }
+
+        private static List<string> Normalize(IEnumerable<string> urls)
+        {
+            var result = new List<string>();
+            foreach (string value in urls)
+            {
+                string url = value?.Trim() ?? string.Empty;
+                if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? parsed) ||
+                    string.IsNullOrEmpty(parsed.Host) ||
+                    !string.IsNullOrEmpty(parsed.UserInfo) ||
+                    !string.IsNullOrEmpty(parsed.Fragment))
                 {
-                    result.Add(u);
+                    throw new JsonException("Favorites require absolute endpoint URLs without embedded credentials.");
+                }
+                if (!result.Exists(existing => ConnectionProfile.EndpointUrlsMatch(existing, url)))
+                {
+                    result.Add(url);
                 }
             }
             return result;
         }
-        catch (Exception ex) when (ex is IOException
-            or UnauthorizedAccessException
-            or JsonException
-            or NotSupportedException)
+
+        /// <summary>
+        /// JSON-serializable shape for <c>favorites.json</c>.  Versioned so
+        /// that future schema additions can be migrated without breaking
+        /// previously-saved files.
+        /// </summary>
+        internal sealed class FavoritesDocument
         {
-            log?.LogDebug(ex, "FavoritesStore: load failed for {Path}.", path);
-            return new List<string>();
+            public string Version { get; set; } = CurrentVersion;
+            public List<string> FavouriteEndpoints { get; set; } = [];
         }
     }
 
-    /// <summary>
-    /// Persists the supplied list of favourite endpoint URLs.  Creates
-    /// the parent directory if it does not exist.  Writes atomically by
-    /// emitting to a sibling <c>.tmp</c> file and then replacing the
-    /// target.
-    /// </summary>
-    public static async Task SaveAsync(IEnumerable<string> urls, ILogger? log = null)
-    {
-        ArgumentNullException.ThrowIfNull(urls);
-        string path = FilePath;
-        try
-        {
-            string? dir = Path.GetDirectoryName(path);
-            if (!string.IsNullOrEmpty(dir))
-            {
-                Directory.CreateDirectory(dir);
-            }
-            var doc = new FavoritesDocument
-            {
-                Version = CurrentVersion,
-                FavouriteEndpoints = new List<string>(urls)
-            };
-            string tmp = path + ".tmp";
-            FileStream fs = File.Create(tmp);
-            await using (fs.ConfigureAwait(false))
-            {
-                await JsonSerializer.SerializeAsync(fs, doc, s_json)
-                    .ConfigureAwait(false);
-            }
-            // Replace existing file atomically where possible.
-            if (File.Exists(path))
-            {
-                File.Replace(tmp, path, destinationBackupFileName: null);
-            }
-            else
-            {
-                File.Move(tmp, path);
-            }
-        }
-        catch (Exception ex) when (ex is IOException
-            or UnauthorizedAccessException
-            or NotSupportedException)
-        {
-            log?.LogDebug(ex, "FavoritesStore: save failed for {Path}.", path);
-        }
-    }
-
-    /// <summary>
-    /// JSON-serializable shape for <c>favorites.json</c>.  Versioned so
-    /// that future schema additions can be migrated without breaking
-    /// previously-saved files.
-    /// </summary>
-    internal sealed class FavoritesDocument
-    {
-        public string Version { get; set; } = CurrentVersion;
-        public List<string> FavouriteEndpoints { get; set; } = new();
-    }
+    [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
+    [JsonSerializable(typeof(FavoritesStore.FavoritesDocument))]
+    internal sealed partial class FavoritesJsonContext : JsonSerializerContext;
 }

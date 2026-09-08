@@ -129,10 +129,19 @@ internal sealed partial class EndpointPickerDialog : Window
     {
         foreach (EndpointDescription ep in endpoints)
         {
+            UserTokenPolicy? anonymous = null;
+            foreach (UserTokenPolicy policy in ep.UserIdentityTokens)
+            {
+                if (policy.TokenType == UserTokenType.Anonymous)
+                {
+                    anonymous = policy;
+                    break;
+                }
+            }
             var rootNode = new PickerNode
             {
                 Endpoint = ep,
-                TokenPolicy = null,
+                TokenPolicy = anonymous,
                 Display = string.Format(System.Globalization.CultureInfo.InvariantCulture,
                     "{0,-26}  {1,-18}  ({2}, level {3})  {4}",
                     ShortPolicyName(ep.SecurityPolicyUri ?? string.Empty),

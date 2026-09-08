@@ -20,13 +20,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app-icon.ico</ApplicationIcon>
     <UseAvalonia>true</UseAvalonia>
-    <!-- CA1873: upstream's repo-wide source-generated-logging migration
-         (#3908) enabled this analyzer, which flags UaLens's direct
-         ILogger.Log* call sites (expensive interpolated/ToString args).
-         Suppressed for now; TODO: migrate UaLens logging to
-         source-generated [LoggerMessage] partials and remove CA1873. -->
-    <NoWarn>$(NoWarn);CS0618;EXTOBS0001;CA1812;CA1873</NoWarn>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CS0618;EXTOBS0001;CA1812</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
@@ -38,16 +32,9 @@
          introduces a CS86xx becomes a build break instead of a silent
          warning. -->
     <WarningsAsErrors>$(WarningsAsErrors);nullable</WarningsAsErrors>
-    <!-- Ship the net10.0 build as a `dotnet tool` (global tool).
-         net8.0 / net9.0 still compile as normal Avalonia executables
-         but are not packed as tools.  IsPackable + the tool-specific
-         properties are intentionally gated to net10.0 only because
-         PackAsTool / ToolCommandName / PackageType cannot be set on
-         net8 / net9 (no Avalonia AOT, different runtime).  Consequence:
-         `dotnet pack` from this project needs an explicit
-         `-f net10.0` (or `-p:TargetFramework=net10.0`) — without it
-         pack tries to bundle per-TFM nupkgs and fails because the net8
-         / net9 outputs aren't built. -->
+    <!-- The tool package uses net10.0; net8/net9 remain desktop build targets.
+         Select CustomTestTarget=net10.0 for restore/build/pack so stale framework
+         dependency groups cannot leak into the tool package. -->
     <IsPackable>true</IsPackable>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>ualens</ToolCommandName>
@@ -80,16 +67,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Lens.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Gds.Client.Common\Opc.Ua.Gds.Client.Common.csproj" />
   </ItemGroup>
-
-  <!--
-    All Wave 1 / Wave 3a tab apps (Subscription, EventView, Historian,
-    Performance, GdsPush) have landed and are compiled in.  Add a
-    <Compile Remove ... /> block here when a new wave's files temporarily
-    don't build against the active SDK snapshot.
-  -->
 </Project>

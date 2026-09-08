@@ -1,24 +1,50 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
 <!-- Dark Navy theme — the original UaLens palette (Tailwind Slate). -->
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <!-- Background tiers (darkest → lightest) -->
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    x:Class="UaLens.Themes.DarkNavyTheme">
   <SolidColorBrush x:Key="PanelBg"             Color="#0B1220" />
   <SolidColorBrush x:Key="AppBg"               Color="#0F172A" />
   <SolidColorBrush x:Key="SurfaceBg"           Color="#121A2C" />
   <SolidColorBrush x:Key="ToolbarBg"           Color="#334155" />
   <SolidColorBrush x:Key="HighlightBg"         Color="#0E2A47" />
 
-  <!-- Borders / separators -->
   <SolidColorBrush x:Key="PanelBorder"         Color="#1E293B" />
   <SolidColorBrush x:Key="SeparatorBrush"      Color="#1E293B" />
 
-  <!-- Text tiers (dimmest → brightest) -->
   <SolidColorBrush x:Key="TextDim"             Color="#64748B" />
   <SolidColorBrush x:Key="TextSecondary"       Color="#94A3B8" />
   <SolidColorBrush x:Key="TextSecondaryAlt"    Color="#CBD5E1" />
   <SolidColorBrush x:Key="TextPrimary"         Color="#E2E8F0" />
+  <SolidColorBrush x:Key="TextOnAccent"        Color="#0B1220" />
 
-  <!-- Accent colors -->
   <SolidColorBrush x:Key="AccentBlue"          Color="#0EA5E9" />
   <SolidColorBrush x:Key="AccentCyan"          Color="#06B6D4" />
   <SolidColorBrush x:Key="AccentGreen"         Color="#22C55E" />

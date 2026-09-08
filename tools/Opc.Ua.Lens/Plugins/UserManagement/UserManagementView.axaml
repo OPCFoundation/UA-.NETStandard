@@ -90,11 +90,11 @@
         <Button Classes="tonal" Content="✎ Modify…" Margin="0,0,4,0"
                 Command="{CompiledBinding ModifyUserCommand}"
                 CommandParameter="{CompiledBinding SelectedUser}" />
-        <Button Classes="tonal" Content="🗑 Remove" Margin="0,0,4,0"
+        <Button Classes="tonal" Content="Remove" Margin="0,0,4,0"
                 Command="{CompiledBinding RemoveUserCommand}"
                 CommandParameter="{CompiledBinding SelectedUser}" />
         <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="4,6" />
-        <Button Classes="tonal" Content="🔑 Change password…" Margin="0,0,4,0"
+        <Button Classes="tonal" Content="Change password…" Margin="0,0,4,0"
                 Command="{CompiledBinding ChangePasswordCommand}"
                 ToolTip.Tip="Change the password of the currently-authenticated session user." />
       </WrapPanel>

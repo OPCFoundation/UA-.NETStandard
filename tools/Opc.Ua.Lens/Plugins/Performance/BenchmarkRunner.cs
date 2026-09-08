@@ -72,7 +72,7 @@ internal enum ValueGenerator
 internal sealed record BenchmarkTarget(
     BenchmarkMode Mode,
     NodeId NodeId,
-    NodeId? ObjectId,
+    NodeId ObjectId,
     BuiltInType BuiltInType,
     int ValueRank,
     Argument[]? InputArguments,
@@ -323,7 +323,7 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
             }
             else
             {
-                NodeId objectId = m_target.ObjectId ?? NodeId.Null;
+                NodeId objectId = m_target.ObjectId;
                 Argument[] sig = m_target.InputArguments ?? Array.Empty<Argument>();
                 var args = new Variant[sig.Length];
                 for (int i = 0; i < sig.Length; i++)

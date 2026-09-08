@@ -63,7 +63,7 @@ namespace UaLens.Plugins.UserManagement;
 /// </remarks>
 internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
 {
-    private static readonly Dictionary<PluginKind, int> s_perKindCounter = new();
+    private static int s_nextNumber;
 
     private readonly PluginHost m_host;
     private readonly ILogger m_log;
@@ -91,24 +91,12 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
     {
         m_host = host ?? throw new ArgumentNullException(nameof(host));
         m_log = host.Log;
-        int n;
-        lock (s_perKindCounter)
-        {
-            s_perKindCounter.TryGetValue(PluginKind.UserManagement, out int prev);
-            n = prev + 1;
-            s_perKindCounter[PluginKind.UserManagement] = n;
-        }
+        int n = Interlocked.Increment(ref s_nextNumber);
         m_title = string.Create(CultureInfo.InvariantCulture, $"User Management {n}");
 
-        // If a session is already live at construction time, kick off
-        // an initial refresh so the user lands on a populated grid.
-        // Subsequent connect / disconnect transitions are fanned out
-        // through the central IPlugin.OnConnectionStateChanged hook.
-        if (m_host.Connection.Session is not null)
-        {
-            _ = Dispatcher.UIThread.InvokeAsync(async () =>
-                await RefreshAsync().ConfigureAwait(true));
-        }
+        // Session-dependent initialization runs in OnConnectionStateChangedAsync,
+        // which the workspace delivers on open and on every connection transition.
+        // The document owns no fire-and-forget work in its constructor.
     }
 
     // ----- IPlugin -----
@@ -148,13 +136,13 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
     }
 
     /// <summary>
-    /// Refresh the grid whenever the host's connection state flips —
-    /// invoked on the UI thread by the central
-    /// <see cref="MainViewModel"/> fan-out, so no additional dispatch
-    /// is required here.
+    /// Refreshes the grid whenever the host's connection state changes. The
+    /// workspace awaits this on open and on every transition, and cancels it on
+    /// disconnect or close, so no fire-and-forget dispatch is required here.
     /// </summary>
-    public void OnConnectionStateChanged()
+    public async Task OnConnectionStateChangedAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (m_host.Connection.Session is null)
         {
             Users.Clear();
@@ -163,7 +151,7 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
             Status = "● Not connected";
             return;
         }
-        _ = RefreshAsync();
+        await RefreshCoreAsync(cancellationToken).ConfigureAwait(true);
     }
 
     // ----- Commands -----
@@ -174,7 +162,9 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
     /// <see cref="PasswordRestrictionsText"/>.
     /// </summary>
     [RelayCommand]
-    public async Task RefreshAsync()
+    public Task RefreshAsync() => RefreshCoreAsync(CancellationToken.None);
+
+    private async Task RefreshCoreAsync(CancellationToken cancellationToken)
     {
         UserManagementClient? client = TryCreateClient();
         if (client is null)
@@ -185,20 +175,20 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
         try
         {
             IReadOnlyList<UserManagementUser> users = await client
-                .ListUsersAsync(CancellationToken.None)
+                .ListUsersAsync(cancellationToken)
                 .ConfigureAwait(false);
 
             LocalizedText? restrictions = null;
             try
             {
                 restrictions = await client
-                    .ReadPasswordRestrictionsAsync(CancellationToken.None)
+                    .ReadPasswordRestrictionsAsync(cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 // Optional property — not fatal.
-                m_log.LogDebug(ex, "User Management tab {Title}: ReadPasswordRestrictions skipped.", Title);
+                m_log.UserReadPasswordRestrictionsSkipped(ex, Title);
             }
 
             string restrictionsText = restrictions.HasValue && !restrictions.Value.IsNullOrEmpty
@@ -219,7 +209,7 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "User Management tab {Title}: Refresh failed.", Title);
+            m_log.UserRefreshFailed(ex, Title);
             Dispatcher.UIThread.Post(() =>
             {
                 Status = $"● Refresh failed: {ex.Message}";
@@ -254,14 +244,13 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
             await client.AddUserAsync(
                 r.UserName, r.Password, r.Config, r.Description,
                 CancellationToken.None).ConfigureAwait(false);
-            m_log.LogInformation("User Management tab {Title}: AddUser({User}) succeeded.",
-                Title, r.UserName);
+            m_log.UserAddSucceeded(Title, r.UserName);
             await RefreshAsync().ConfigureAwait(true);
             Status = $"● Added user '{r.UserName}'.";
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "User Management tab {Title}: AddUser failed.", Title);
+            m_log.UserAddFailed(ex, Title);
             Status = $"● Add user failed: {ex.Message}";
         }
     }
@@ -302,14 +291,13 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
                 userConfiguration: r.Config,
                 description: r.Description,
                 CancellationToken.None).ConfigureAwait(false);
-            m_log.LogInformation("User Management tab {Title}: ModifyUser({User}) succeeded.",
-                Title, target.UserName);
+            m_log.UserModifySucceeded(Title, target.UserName);
             await RefreshAsync().ConfigureAwait(true);
             Status = $"● Modified user '{target.UserName}'.";
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "User Management tab {Title}: ModifyUser failed.", Title);
+            m_log.UserModifyFailed(ex, Title);
             Status = $"● Modify user failed: {ex.Message}";
         }
     }
@@ -351,14 +339,13 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
         {
             await client.RemoveUserAsync(target.UserName, CancellationToken.None)
                 .ConfigureAwait(false);
-            m_log.LogInformation("User Management tab {Title}: RemoveUser({User}) succeeded.",
-                Title, target.UserName);
+            m_log.UserRemoveSucceeded(Title, target.UserName);
             await RefreshAsync().ConfigureAwait(true);
             Status = $"● Removed user '{target.UserName}'.";
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "User Management tab {Title}: RemoveUser failed.", Title);
+            m_log.UserRemoveFailed(ex, Title);
             Status = $"● Remove user failed: {ex.Message}";
         }
     }
@@ -392,12 +379,12 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
         {
             await client.ChangePasswordAsync(r.OldPassword, r.NewPassword,
                 CancellationToken.None).ConfigureAwait(false);
-            m_log.LogInformation("User Management tab {Title}: ChangePassword succeeded.", Title);
+            m_log.UserChangePasswordSucceeded(Title);
             Status = "● Password changed for current session user.";
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "User Management tab {Title}: ChangePassword failed.", Title);
+            m_log.UserChangePasswordFailed(ex, Title);
             Status = $"● Change password failed: {ex.Message}";
         }
     }
@@ -423,7 +410,7 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "User Management tab {Title}: client construction failed.", Title);
+            m_log.UserClientConstructionFailed(ex, Title);
             Status = $"● Client construction failed: {ex.Message}";
             return null;
         }

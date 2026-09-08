@@ -27,25 +27,46 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Microsoft.Extensions.Logging;
+using Opc.Ua;
 using Opc.Ua.Client;
 using UaLens.Connection;
+using UaLens.Diagnostics;
+using UaLens.Workspace;
 
 namespace UaLens.ViewModels;
 
 /// <summary>
-/// Lightweight bundle of shared services passed to each
-/// <see cref="IPlugin"/> factory.  Keeps the per-kind
-/// view-model surface clean by avoiding a transitive dependency on the
-/// full <see cref="MainViewModel"/>.  The values reflect the host
-/// state AT FACTORY TIME; for properties that may change over a
-/// session's lifetime (e.g. <see cref="ConnectionService.Session"/>
-/// when the user reconnects), each tab should re-read via the
-/// <see cref="Main"/> view model.
+/// Live context passed to tool factories. Session and resource monitoring are
+/// resolved on every access; neither a captured session nor the entire shell is exposed.
 /// </summary>
-internal sealed record PluginHost(
-    MainViewModel Main,
-    ISession? Session,
-    ConnectionService Connection,
-    BrowserViewModel Browser,
-    ILogger Log);
+internal sealed class PluginHost
+{
+    public PluginHost(
+        IPluginWorkspace workspace,
+        ConnectionService connection,
+        BrowserViewModel browser,
+        ITelemetryContext telemetry)
+    {
+        Workspace = workspace ?? throw new ArgumentNullException(nameof(workspace));
+        Connection = connection ?? throw new ArgumentNullException(nameof(connection));
+        Browser = browser ?? throw new ArgumentNullException(nameof(browser));
+        Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+        Log = telemetry.CreateLogger("Documents");
+    }
+
+    public IPluginWorkspace Workspace { get; }
+
+    public ISession? Session => Connection.CurrentSession;
+
+    public ConnectionService Connection { get; }
+
+    public BrowserViewModel Browser { get; }
+
+    public ITelemetryContext Telemetry { get; }
+
+    public ILogger Log { get; }
+
+    public ResourceMonitorHost? ResourceMonitor => Workspace.ResourceMonitor;
+}

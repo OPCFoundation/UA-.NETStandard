@@ -27,11 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using UaLens.Workspace;
 
 namespace UaLens.ViewModels;
 
@@ -58,21 +59,15 @@ internal enum PluginKind
 }
 
 /// <summary>
-/// Common contract for everything that can be hosted as a tab in the
-/// main window's tab strip.  Each tab owns its own <see cref="View"/>
-/// (the body) and optionally a <see cref="HeaderToolbar"/> (a strip of
-/// controls rendered above the chart panel), surfaces a single
-/// <see cref="Status"/> line for the bottom of the window, and may
-/// contribute top-level menus that are dynamically injected whenever
-/// at least one tab of that kind is open.
+/// Desktop presentation of a workspace document. The workspace exclusively owns
+/// lifecycle, cancellation, selection and disposal; a window only presents it.
 /// </summary>
-internal interface IPlugin : INotifyPropertyChanged, IAsyncDisposable
+internal interface IPlugin : IWorkspaceDocument, INotifyPropertyChanged
 {
-    /// <summary>The tab's kind, drives menu grouping + factory dispatch.</summary>
+    /// <summary>
+    /// The document kind, used for catalog metadata and factory dispatch.
+    /// </summary>
     PluginKind Kind { get; }
-
-    /// <summary>Editable tab header text.  Setting raises PropertyChanged.</summary>
-    string Title { get; set; }
 
     /// <summary>
     /// True while the user is editing this tab's title inline.  Drives a
@@ -81,22 +76,21 @@ internal interface IPlugin : INotifyPropertyChanged, IAsyncDisposable
     bool IsRenaming { get; set; }
 
     /// <summary>
-    /// The main body view for this tab, hosted in the right pane.  Return
-    /// <c>null</c> to fall back to the shared Subscription chart panel
-    /// (currently the only kind that does this — non-Subscription kinds
-    /// must return a non-null view).
+    /// The document-owned body, including the normal subscription document view.
+    /// A nonvisual adapter may return null; the shell must not supply a shared
+    /// subscription renderer or become a notification-stream owner.
     /// </summary>
     Control? View { get; }
 
     /// <summary>
-    /// Optional per-app toolbar rendered above the body and the tab strip
-    /// (e.g. for Subscription this hosts the View combo, ± scale, and
-    /// Add/Remove/Settings buttons).  Returns null when this kind reuses
-    /// the shared Subscription toolbar or has no toolbar.
+    /// Optional document actions rendered above the body. Returns null when
+    /// actions are embedded in the document view or no separate toolbar is needed.
     /// </summary>
     Control? HeaderToolbar { get; }
 
-    /// <summary>Single-line status text for the bottom of the right pane.</summary>
+    /// <summary>
+    /// Single-line status text for the bottom of the document.
+    /// </summary>
     string Status { get; }
 
     /// <summary>
@@ -106,37 +100,24 @@ internal interface IPlugin : INotifyPropertyChanged, IAsyncDisposable
     bool SupportsDuplicate { get; }
 
     /// <summary>
-    /// Top-level menu items this app contributes when at least one tab
-    /// of its kind is active.  Called once when the FIRST tab of the
-    /// kind appears; the resulting MenuItems are inserted into the main
-    /// menu and removed when the LAST tab of the kind closes.  Actions
-    /// inside the menu target the currently-selected tab of the same
-    /// kind (or grey out when the active selected tab is a different
-    /// kind).
+    /// Transitional adapter for existing tool menus. New shared actions belong in
+    /// the command registry rather than another permanent tool-command framework.
     /// </summary>
     IReadOnlyList<MenuItem> ContributeMenuItems();
 
-    /// <summary>Called when this tab becomes the active selection.</summary>
-    void OnActivated();
-
-    /// <summary>Called when this tab is no longer the active selection.</summary>
-    void OnDeactivated();
-
     /// <summary>
-    /// Called by the host on the UI thread whenever the underlying
-    /// <see cref="UaLens.Connection.ConnectionService"/> reports a
-    /// connect / disconnect / reconnect transition.  Default
-    /// implementation is a no-op — override only if the plug-in caches
-    /// session-dependent state that must be refreshed on connect or
-    /// cleared on disconnect, or has <c>[RelayCommand]</c> predicates
-    /// that key off <c>m_host.Connection.Session</c> and therefore need
-    /// their <c>NotifyCanExecuteChanged()</c> called.
+    /// Transitional synchronous notification for tools whose connection hook only
+    /// refreshes local state. Tools doing asynchronous work implement
+    /// <see cref="IWorkspaceDocument.OnConnectionStateChangedAsync"/> instead.
     /// </summary>
-    /// <remarks>
-    /// The host snapshots <c>Tabs</c> before iterating and swallows any
-    /// exception thrown by an individual plug-in, so an override may
-    /// freely mutate <c>Tabs</c> (e.g. close itself) or throw without
-    /// affecting siblings.
-    /// </remarks>
-    void OnConnectionStateChanged() { }
+    void OnConnectionStateChanged()
+    {
+    }
+
+    Task IWorkspaceDocument.OnConnectionStateChangedAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        OnConnectionStateChanged();
+        return Task.CompletedTask;
+    }
 }

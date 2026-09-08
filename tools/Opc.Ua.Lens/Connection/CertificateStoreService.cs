@@ -129,13 +129,12 @@ internal sealed class CertificateStoreService
         {
             using Opc.Ua.Security.Certificates.Certificate wrapper = Opc.Ua.Security.Certificates.Certificate.From(cert);
             await store.AddAsync(wrapper, password: null, ct).ConfigureAwait(false);
-            m_log.LogInformation("Added certificate {Thumbprint} ({Subject}) to {Kind}.",
-                cert.Thumbprint, cert.Subject, kind);
+            CertificateStoreServiceLog.CertificateAdded(m_log, cert.Thumbprint, cert.Subject, kind);
             return true;
         }
         catch (Exception ex)
         {
-            m_log.LogError(ex, "Failed to add certificate to {Kind}.", kind);
+            CertificateStoreServiceLog.CertificateAddFailed(m_log, ex, kind);
             return false;
         }
         finally
@@ -192,7 +191,7 @@ internal sealed class CertificateStoreService
             trusted.Dispose();
         }
         bool ok = await DeleteAsync(CertStoreKind.Rejected, thumbprint, ct).ConfigureAwait(false);
-        m_log.LogInformation("Trusted rejected certificate {Thumbprint} (delete from rejected: {Ok}).", thumbprint, ok);
+        CertificateStoreServiceLog.RejectedCertificateTrusted(m_log, thumbprint, ok);
         return true;
     }
 
@@ -212,7 +211,7 @@ internal sealed class CertificateStoreService
                 deleted++;
             }
         }
-        m_log.LogInformation("DeleteExpired({Kind}): deleted {Count} of {Total} certificates.", kind, deleted, all.Count);
+        CertificateStoreServiceLog.ExpiredCertificatesDeleted(m_log, kind, deleted, all.Count);
         return deleted;
     }
 

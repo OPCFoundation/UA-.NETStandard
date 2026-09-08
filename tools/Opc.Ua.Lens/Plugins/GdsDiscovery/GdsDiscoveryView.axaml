@@ -78,14 +78,14 @@
         </StackPanel>
         <Button Classes="tonal" Content="Add Custom…" Margin="0,0,4,0"
                 Command="{CompiledBinding AddCustomEndpointCommand}" />
-        <Button Classes="tonal" Content="★ Favourite" Margin="0,0,4,0"
+        <Button Classes="tonal" Content="Favourite" Margin="0,0,4,0"
                 ToolTip.Tip="Save the selected endpoint as a favourite"
                 Command="{CompiledBinding AddCurrentToFavouritesCommand}" />
-        <Button Classes="tonal" Content="✕ Unfavourite" Margin="0,0,4,0"
-                ToolTip.Tip="Remove the selected ⭐ favourite under Custom Discovery"
+        <Button Classes="tonal" Content="Unfavourite" Margin="0,0,4,0"
+                ToolTip.Tip="Remove the selected favourite under Custom Discovery"
                 Command="{CompiledBinding RemoveFromFavouritesCommand}" />
         <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="4,6" />
-        <Button Classes="tonal" Content="↻ Refresh" Margin="0,0,4,0"
+        <Button Classes="tonal" Content="Refresh" Margin="0,0,4,0"
                 Command="{CompiledBinding RefreshSelectedRootCommand}" />
         <Button Classes="tonal" Content="Filter…" Margin="0,0,4,0"
                 Command="{CompiledBinding EditFilterCommand}" />

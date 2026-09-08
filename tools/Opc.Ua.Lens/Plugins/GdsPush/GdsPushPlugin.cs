@@ -94,7 +94,7 @@ internal sealed partial class GdsCertItem : ObservableObject
 /// </summary>
 internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
 {
-    private static readonly Dictionary<PluginKind, int> s_perKindCounter = new();
+    private static int s_nextNumber;
 
     private readonly PluginHost m_host;
     private readonly ILogger m_log;
@@ -116,7 +116,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     /// Push session's bound endpoint when connected; otherwise mirrors
     /// the main Connection pane's <see cref="MainViewModel.EndpointUrl"/>.</summary>
     public string EndpointUrl => m_boundEndpoint?.EndpointUrl
-                                 ?? (m_host.Main.EndpointUrl ?? string.Empty);
+                                 ?? m_host.Workspace.EndpointUrl;
 
     private EndpointDescription? m_boundEndpoint;
 
@@ -235,26 +235,14 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     {
         m_host = host ?? throw new ArgumentNullException(nameof(host));
         m_log = host.Log;
-        int n;
-        lock (s_perKindCounter)
-        {
-            s_perKindCounter.TryGetValue(PluginKind.GdsPush, out int prev);
-            n = prev + 1;
-            s_perKindCounter[PluginKind.GdsPush] = n;
-        }
+        int n = Interlocked.Increment(ref s_nextNumber);
         m_title = $"GDS Push {n}";
         // Idle until a (secondary or piggy-backed) Push session comes up;
         // ServerStatus polling is gated on that via UpdateStatusPolling.
         m_statusTimer = new Timer(OnStatusTimerTick, null, Timeout.Infinite, Timeout.Infinite);
         // Track changes to the main Connection pane's endpoint URL so our
         // read-only display + Connect button always use the latest value.
-        m_host.Main.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(MainViewModel.EndpointUrl))
-            {
-                OnPropertyChanged(nameof(EndpointUrl));
-            }
-        };
+        m_host.Workspace.PropertyChanged += OnWorkspacePropertyChanged;
     }
 
     /// <summary>
@@ -269,6 +257,14 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         OnPropertyChanged(nameof(HasSecondarySession));
         OnPropertyChanged(nameof(ConnectButtonText));
         UpdateStatus();
+    }
+
+    private void OnWorkspacePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(UaLens.Workspace.IPluginWorkspace.EndpointUrl))
+        {
+            OnPropertyChanged(nameof(EndpointUrl));
+        }
     }
 
     private bool OuterIsSuitable() => GdsSessionHelper.IsOuterSuitable(m_host.Connection.Session);
@@ -327,6 +323,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
 
     public async ValueTask DisposeAsync()
     {
+        m_host.Workspace.PropertyChanged -= OnWorkspacePropertyChanged;
         try
         {
             m_busyCts?.Cancel();
@@ -345,7 +342,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogDebug(ex, "GdsPush tab {Title}: status timer dispose threw (suppressed).", Title);
+            m_log.GdsPushStatusTimerDisposeThrew(ex, Title);
         }
         if (m_client is not null)
         {
@@ -355,7 +352,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             }
             catch (Exception ex)
             {
-                m_log.LogWarning(ex, "GdsPush tab {Title}: client dispose failed.", Title);
+                m_log.GdsPushClientDisposeFailed(ex, Title);
             }
             m_client = null;
         }
@@ -381,7 +378,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         catch (Exception ex)
         {
             SetResult($"Connect failed: {ex.Message}");
-            m_log.LogError(ex, "GdsPush tab {Title}: UseDifferentEndpoint failed.", Title);
+            m_log.GdsPushUseDifferentEndpointFailed(ex, Title);
         }
         finally
         {
@@ -410,7 +407,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
 
         string seed = !string.IsNullOrWhiteSpace(EndpointUrl)
             ? EndpointUrl
-            : (m_host.Main.EndpointUrl ?? string.Empty);
+            : m_host.Workspace.EndpointUrl;
         if (string.IsNullOrWhiteSpace(seed))
         {
             SetResult("Enter an endpoint URL in the Connection pane first.");
@@ -422,7 +419,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         try
         {
             pick = await UaLens.Connection.EndpointCredentialsPicker
-                .PromptAsync(owner, m_host.Main.Telemetry, seed, ct).ConfigureAwait(true);
+                .PromptAsync(owner, m_host.Telemetry, seed, ct).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -455,7 +452,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             catch (Exception ex)
             {
                 SetResult($"UpdateSession failed: {ex.Message} — reconnecting fresh.");
-                m_log.LogWarning(ex, "GdsPush tab {Title}: UpdateSession failed; falling back to reconnect.", Title);
+                m_log.GdsPushUpdateSessionFailed(ex, Title);
                 // fall through to fresh-connect path
             }
         }
@@ -465,7 +462,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         ConnectionStatus = "● Connecting…";
         try
         {
-            ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync().ConfigureAwait(true);
+            ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync(ct).ConfigureAwait(true);
             var client = new ServerPushConfigurationClient(cfg);
             client.AdminCredentialsRequired += OnAdminCredentialsRequired;
             client.KeepAlive += OnKeepAlive;
@@ -480,8 +477,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             ConnectionStatus = "● Connected";
             await PopulateServerInfoAsync(ct).ConfigureAwait(true);
             await RefreshAsync().ConfigureAwait(true);
-            m_log.LogInformation(
-                "GdsPush tab {Title}: connected to {Endpoint}", Title, pick.Endpoint.EndpointUrl);
+            m_log.GdsPushConnected(Title, pick.Endpoint.EndpointUrl);
             return true;
         }
         catch (Exception ex)
@@ -489,7 +485,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             SetSecondaryConnected(false);
             ConnectionStatus = "● Disconnected";
             SetResult($"Connect failed: {ex.Message}");
-            m_log.LogError(ex, "GdsPush tab {Title}: connect failed.", Title);
+            m_log.GdsPushConnectFailed(ex, Title);
             await SafeDisposeClientAsync().ConfigureAwait(true);
             m_boundEndpoint = null;
             OnPropertyChanged(nameof(EndpointUrl));
@@ -551,7 +547,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         ConnectionStatus = "● Connecting (piggyback)…";
         try
         {
-            ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync().ConfigureAwait(true);
+            ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync(ct).ConfigureAwait(true);
 #pragma warning disable CA2000
             IUserIdentity identity = new UserIdentity(new AnonymousIdentityToken());
 #pragma warning restore CA2000
@@ -568,15 +564,13 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             SetSecondaryConnected(true);
             ConnectionStatus = "● Connected (piggyback)";
             await PopulateServerInfoAsync(ct).ConfigureAwait(true);
-            m_log.LogInformation(
-                "GdsPush tab {Title}: piggy-backed on outer session at {Endpoint}.",
-                Title, desc.EndpointUrl);
+            m_log.GdsPushPiggybacked(Title, desc.EndpointUrl);
             return true;
         }
         catch (Exception ex)
         {
             SetResult($"Piggyback failed: {ex.Message}");
-            m_log.LogWarning(ex, "GdsPush tab {Title}: piggyback to outer failed.", Title);
+            m_log.GdsPushPiggybackFailed(ex, Title);
             await SafeDisposeClientAsync().ConfigureAwait(true);
             m_boundEndpoint = null;
             OnPropertyChanged(nameof(EndpointUrl));
@@ -644,12 +638,12 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
                 CancellationToken.None).ConfigureAwait(true);
             PopulateTrustList(list, rejected, masks);
             SetResult($"Refreshed ({masks}): {Trusted.Count} trusted · {Issuers.Count} issuers · {Rejected.Count} rejected.");
-            m_log.LogInformation("GdsPush tab {Title}: refresh ok (masks={Masks}).", Title, masks);
+            m_log.GdsPushRefreshOk(Title, masks);
         }
         catch (Exception ex)
         {
             SetResult($"Refresh failed: {ex.Message}");
-            m_log.LogError(ex, "GdsPush tab {Title}: refresh failed.", Title);
+            m_log.GdsPushRefreshFailed(ex, Title);
         }
         finally
         {
@@ -689,12 +683,12 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
                 Rejected.Add(ToItem(cert.AsX509Certificate2()));
             }
             SetResult($"Rejected list refreshed: {Rejected.Count} cert(s).");
-            m_log.LogInformation("GdsPush tab {Title}: rejected list refresh ok ({Count}).", Title, Rejected.Count);
+            m_log.GdsPushRejectedRefreshOk(Title, Rejected.Count);
         }
         catch (Exception ex)
         {
             SetResult($"Refresh rejected list failed: {ex.Message}");
-            m_log.LogError(ex, "GdsPush tab {Title}: refresh rejected list failed.", Title);
+            m_log.GdsPushRejectedRefreshFailed(ex, Title);
         }
         finally
         {
@@ -752,7 +746,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         catch (Exception ex)
         {
             SetResult($"Add Cert failed: {ex.Message}");
-            m_log.LogError(ex, "GdsPush tab {Title}: add cert failed.", Title);
+            m_log.GdsPushAddCertFailed(ex, Title);
         }
         finally
         {
@@ -799,7 +793,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         catch (Exception ex)
         {
             SetResult($"Remove Cert failed: {ex.Message}");
-            m_log.LogError(ex, "GdsPush tab {Title}: remove cert failed.", Title);
+            m_log.GdsPushRemoveCertFailed(ex, Title);
         }
         finally
         {
@@ -866,7 +860,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         catch (Exception ex)
         {
             SetResult($"Request New Cert failed: {ex.Message}");
-            m_log.LogError(ex, "GdsPush tab {Title}: request new cert failed.", Title);
+            m_log.GdsPushRequestNewCertFailed(ex, Title);
         }
         finally
         {
@@ -882,6 +876,23 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             return;
         }
 
+        Window? owner = GetOwnerWindow();
+        if (owner is not null)
+        {
+            bool confirmed = await ConfirmDangerousAsync(owner,
+                "Apply certificate changes",
+                "ApplyChanges activates the certificate and trust-list changes that were pushed to "
+                + "the server.\n\nThe server usually closes this session while it reloads its "
+                + "configuration, so this GDS Push session is expected to disconnect and may need to "
+                + "be re-established afterwards.\n\nApply the pending changes now?",
+                "Apply changes").ConfigureAwait(true);
+            if (!confirmed)
+            {
+                SetResult("ApplyChanges cancelled.");
+                return;
+            }
+        }
+
         IsBusy = true;
         try
         {
@@ -891,13 +902,13 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
                 return;
             }
             await client.ApplyChangesAsync(CancellationToken.None).ConfigureAwait(true);
-            SetResult("ApplyChanges invoked — server may drop session.");
-            m_log.LogInformation("GdsPush tab {Title}: ApplyChanges called.", Title);
+            SetResult("ApplyChanges invoked — the server may drop this session while it reloads.");
+            m_log.GdsPushApplyChangesCalled(Title);
         }
         catch (Exception ex)
         {
             SetResult($"ApplyChanges failed: {ex.Message}");
-            m_log.LogError(ex, "GdsPush tab {Title}: ApplyChanges failed.", Title);
+            m_log.GdsPushApplyChangesFailed(ex, Title);
         }
         finally
         {
@@ -948,7 +959,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "GdsPush tab {Title}: server info populate failed.", Title);
+            m_log.GdsPushServerInfoPopulateFailed(ex, Title);
         }
         await Task.CompletedTask.ConfigureAwait(false);
     }
@@ -1090,7 +1101,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             }
             catch (Exception ex)
             {
-                m_log.LogWarning(ex, "GdsPush tab {Title}: credentials prompt failed.", Title);
+                m_log.GdsPushCredentialsPromptFailed(ex, Title);
                 tcs.SetResult(null);
             }
         });
@@ -1127,6 +1138,70 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             return desktop.MainWindow;
         }
         return null;
+    }
+
+    /// <summary>
+    /// Shows a scoped confirmation for a destructive or session-affecting GDS
+    /// operation. The message names the exact consequence; the default button is
+    /// the safe Cancel. Returns true only when the user explicitly confirms.
+    /// </summary>
+    private static async Task<bool> ConfirmDangerousAsync(
+        Window owner, string title, string message, string confirmText)
+    {
+        var confirm = new Button
+        {
+            Content = confirmText,
+            Width = 130
+        };
+        var cancel = new Button
+        {
+            Content = "Cancel",
+            IsCancel = true,
+            IsDefault = true,
+            Width = 110,
+            Margin = new Avalonia.Thickness(8, 0, 0, 0)
+        };
+        var buttons = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+            Margin = new Avalonia.Thickness(0, 12, 0, 0),
+            Children = { confirm, cancel }
+        };
+        var body = new TextBlock
+        {
+            Text = message,
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap
+        };
+        var panel = new DockPanel
+        {
+            Margin = new Avalonia.Thickness(16),
+            LastChildFill = true
+        };
+        DockPanel.SetDock(buttons, Dock.Bottom);
+        panel.Children.Add(buttons);
+        panel.Children.Add(body);
+
+        var window = new Window
+        {
+            Title = title,
+            Width = 480,
+            Height = 260,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = panel
+        };
+        if (Avalonia.Application.Current?.FindResource("AppBg") is Avalonia.Media.IBrush bg)
+        {
+            window.Background = bg;
+        }
+        if (Avalonia.Application.Current?.FindResource("TextPrimary") is Avalonia.Media.IBrush fg)
+        {
+            window.Foreground = fg;
+        }
+        confirm.Click += (_, _) => window.Close(true);
+        cancel.Click += (_, _) => window.Close(false);
+        object? result = await window.ShowDialog<object?>(owner).ConfigureAwait(true);
+        return result is bool b && b;
     }
 
     private void SetResult(string text)
@@ -1206,7 +1281,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             // Sessions can be torn down between ticks (ApplyChanges, keep-alive
             // failure, server reboot).  Surface as Debug only — the next tick
             // will silently no-op until UpdateStatusPolling reactivates us.
-            m_log.LogDebug(ex, "GdsPush tab {Title}: server-status poll skipped.", Title);
+            m_log.GdsPushServerStatusPollSkipped(ex, Title);
         }
         finally
         {
@@ -1239,9 +1314,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         DataValue dv = resp.Results[0];
         if (StatusCode.IsBad(dv.StatusCode))
         {
-            m_log.LogDebug(
-                "GdsPush tab {Title}: server-status read returned status {Status}.",
-                Title, dv.StatusCode);
+            m_log.GdsPushServerStatusBad(Title, dv.StatusCode);
             return;
         }
 #pragma warning disable CS8600 // status may be null when TryGetValue returns false; we check below.

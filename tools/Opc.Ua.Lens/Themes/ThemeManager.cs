@@ -28,150 +28,162 @@
  * ======================================================================*/
 
 using System;
-using System.IO;
-using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using Avalonia.Styling;
 
-namespace UaLens.Themes;
-
-/// <summary>
-/// Available theme presets.
-/// </summary>
-internal enum ThemePreset
+namespace UaLens.Themes
 {
-    DarkNavy,
-    DarkStandard,
-    Light
-}
-
-/// <summary>
-/// Manages runtime theme switching by swapping the
-/// <see cref="Avalonia.Controls.ResourceDictionary"/> that defines the
-/// semantic brush keys and toggling
-/// <see cref="Application.RequestedThemeVariant"/> between
-/// <see cref="ThemeVariant.Dark"/> and <see cref="ThemeVariant.Light"/>
-/// so FluentTheme control chrome follows suit.
-/// </summary>
-internal static class ThemeManager
-{
-    private static readonly string s_settingsPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "UaLens", "theme.json");
-
-    /// <summary>Current active preset.</summary>
-    public static ThemePreset Current { get; private set; } = ThemePreset.DarkNavy;
-
     /// <summary>
-    /// Raised after the theme is switched so the UI can refresh
-    /// anything that reads theme colors imperatively (e.g.
-    /// ScottPlot palettes).
+    /// Available theme presets.
     /// </summary>
-    public static event Action? ThemeChanged;
-
-    /// <summary>
-    /// Loads the persisted theme preference (if any) and applies it.
-    /// Call once during startup, after <c>App.InitializeComponent()</c>.
-    /// </summary>
-    public static void Initialize()
+    internal enum ThemePreset
     {
-        ThemePreset preset = LoadPreference();
-        Apply(preset);
+        DarkNavy,
+        DarkStandard,
+        Light,
+        System
     }
 
     /// <summary>
-    /// Switch to the given preset at runtime.
+    /// Manages runtime theme switching by swapping the
+    /// <see cref="ResourceDictionary"/> that defines the
+    /// semantic brush keys and toggling
+    /// <see cref="Application.RequestedThemeVariant"/> between
+    /// <see cref="ThemeVariant.Dark"/> and <see cref="ThemeVariant.Light"/>
+    /// so FluentTheme control chrome follows suit.
     /// </summary>
-    public static void SetTheme(ThemePreset preset)
+    internal static class ThemeManager
     {
-        if (preset == Current)
+        /// <summary>
+        /// Current explicit preference. System remains selected when the OS changes appearance.
+        /// </summary>
+        public static ThemePreset Current { get; private set; } = ThemePreset.System;
+
+        /// <summary>
+        /// Raised after the theme is switched so the UI can refresh
+        /// anything that reads theme colors imperatively (e.g.
+        /// ScottPlot palettes).
+        /// </summary>
+        public static event Action? ThemeChanged;
+
+        public static Color GetColor(string key, Color headlessDefault)
         {
-            return;
-        }
-        Apply(preset);
-        SavePreference(preset);
-    }
-
-    private static void Apply(ThemePreset preset)
-    {
-        if (Application.Current is not { } app)
-        {
-            return;
-        }
-
-        // Load the new resource dictionary.
-        string uri = preset switch
-        {
-            ThemePreset.DarkStandard => "avares://UaLens/Themes/DarkStandard.axaml",
-            ThemePreset.Light => "avares://UaLens/Themes/Light.axaml",
-            _ => "avares://UaLens/Themes/DarkNavy.axaml"
-        };
-        var dict = (ResourceDictionary)AvaloniaXamlLoader.Load(new Uri(uri));
-
-        // Remove any previously-loaded theme dictionary (the first
-        // MergedDictionary entry after the FluentTheme styles is ours).
-        var merged = app.Resources.MergedDictionaries;
-        if (merged.Count > 0 && merged[0] is ResourceDictionary prev
-            && prev != dict)
-        {
-            merged.RemoveAt(0);
-        }
-        if (merged.Count == 0 || merged[0] != dict)
-        {
-            merged.Insert(0, dict);
-        }
-
-        // Toggle the Avalonia theme variant so FluentTheme control
-        // chrome (buttons, text boxes, scroll bars, …) follows suit.
-        app.RequestedThemeVariant = preset == ThemePreset.Light
-            ? ThemeVariant.Light
-            : ThemeVariant.Dark;
-
-        Current = preset;
-        ThemeChanged?.Invoke();
-    }
-
-    // ----- Persistence -----
-
-    private static ThemePreset LoadPreference()
-    {
-        try
-        {
-            if (File.Exists(s_settingsPath))
+            if (Application.Current is not { } app)
             {
-                string json = File.ReadAllText(s_settingsPath);
-                using var doc = JsonDocument.Parse(json);
-                if (doc.RootElement.TryGetProperty("theme", out JsonElement el)
-                    && Enum.TryParse<ThemePreset>(el.GetString(), ignoreCase: true, out ThemePreset p))
+                return headlessDefault;
+            }
+            if (app.TryGetResource(key, app.ActualThemeVariant, out object? resource) &&
+                resource is ISolidColorBrush brush)
+            {
+                return brush.Color;
+            }
+            throw new InvalidOperationException($"The appearance does not define the '{key}' color.");
+        }
+
+        /// <summary>
+        /// Applies the system appearance immediately, before asynchronous preference loading.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        public static void Initialize()
+        {
+            if (Application.Current is not { } app)
+            {
+                throw new InvalidOperationException("Avalonia must be initialized before applying an appearance.");
+            }
+            app.ActualThemeVariantChanged -= OnActualThemeChanged;
+            app.ActualThemeVariantChanged += OnActualThemeChanged;
+            Apply(ThemePreset.System);
+        }
+
+        /// <summary>
+        /// Loads preferences without blocking the desktop thread.
+        /// </summary>
+        public static async Task LoadPreferenceAsync(
+            AppearancePreferences preferences,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(preferences);
+            ThemePreset preset = await preferences.LoadAsync(cancellationToken).ConfigureAwait(true);
+            Apply(preset);
+        }
+
+        /// <summary>
+        /// Persists an explicit choice before applying it. Save failures leave the existing appearance intact.
+        /// </summary>
+        public static async Task SetThemeAsync(
+            ThemePreset preset,
+            AppearancePreferences preferences,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(preferences);
+            await s_changeGate.WaitAsync(cancellationToken).ConfigureAwait(true);
+            try
+            {
+                await preferences.SaveAsync(preset, cancellationToken).ConfigureAwait(true);
+                Apply(preset);
+            }
+            finally
+            {
+                s_changeGate.Release();
+            }
+        }
+
+        private static void Apply(ThemePreset preset)
+        {
+            if (Application.Current is not { } app)
+            {
+                throw new InvalidOperationException("Avalonia must be initialized before applying an appearance.");
+            }
+            if (!Enum.IsDefined(preset))
+            {
+                throw new ArgumentOutOfRangeException(nameof(preset));
+            }
+            s_applying = true;
+            try
+            {
+                Current = preset;
+                app.RequestedThemeVariant = preset switch
                 {
-                    return p;
-                }
+                    ThemePreset.System => ThemeVariant.Default,
+                    ThemePreset.Light => ThemeVariant.Light,
+                    _ => ThemeVariant.Dark
+                };
+                ApplyResources(app);
             }
-        }
-        catch
-        {
-            // Corrupted or inaccessible — fall back to default.
-        }
-        return ThemePreset.DarkNavy;
-    }
-
-    private static void SavePreference(ThemePreset preset)
-    {
-        try
-        {
-            string? dir = Path.GetDirectoryName(s_settingsPath);
-            if (dir is not null)
+            finally
             {
-                Directory.CreateDirectory(dir);
+                s_applying = false;
             }
-            string json = JsonSerializer.Serialize(new { theme = preset.ToString() });
-            File.WriteAllText(s_settingsPath, json);
         }
-        catch
+
+        private static void OnActualThemeChanged(object? sender, EventArgs args)
         {
-            // Best-effort; non-fatal.
+            if (!s_applying && Current == ThemePreset.System && sender is Application app)
+            {
+                ApplyResources(app);
+            }
         }
+
+        private static void ApplyResources(Application app)
+        {
+            ResourceDictionary resources = Current == ThemePreset.DarkNavy
+                ? new DarkNavyTheme()
+                : app.ActualThemeVariant == ThemeVariant.Light ? new LightTheme() : new DarkStandardTheme();
+            if (s_resources is not null)
+            {
+                app.Resources.MergedDictionaries.Remove(s_resources);
+            }
+            app.Resources.MergedDictionaries.Add(resources);
+            s_resources = resources;
+            ThemeChanged?.Invoke();
+        }
+
+        private static readonly SemaphoreSlim s_changeGate = new(1, 1);
+        private static ResourceDictionary? s_resources;
+        private static bool s_applying;
     }
 }

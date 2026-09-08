@@ -76,7 +76,7 @@
         <Button Classes="tonal" Content="↻ Refresh" Margin="0,0,4,0"
                 Command="{CompiledBinding RefreshCommand}" />
         <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="4,6" />
-        <Button Classes="tonal" Content="📄 Show details…" Margin="0,0,4,0"
+        <Button Classes="tonal" Content="Show details…" Margin="0,0,4,0"
                 Command="{CompiledBinding ViewDetailsCommand}"
                 ToolTip.Tip="Show details of the selected certificate (Enter)" />
         <Button Classes="tonal" Content="⬇ Import…" Margin="0,0,4,0"
@@ -86,7 +86,7 @@
                 Command="{CompiledBinding ExportCommand}"
                 ToolTip.Tip="Export the selected certificate to disk" />
         <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="4,6" />
-        <Button Classes="tonal" Content="🛡 Open trust dialog…" Margin="0,0,4,0"
+        <Button Classes="tonal" Content="Open trust dialog…" Margin="0,0,4,0"
                 Command="{CompiledBinding OpenTrustDialogCommand}" />
       </WrapPanel>
     </Border>
@@ -178,19 +178,19 @@
                    DoubleTapped="OnCertRowDoubleTapped">
             <ListBox.ContextMenu>
               <ContextMenu>
-                <MenuItem Header="📄 Show _details…"
+                <MenuItem Header="Show _details…"
                           Command="{CompiledBinding ViewDetailsCommand}" />
                 <Separator />
-                <MenuItem Header="🛡 Trust → _Peer"
+                <MenuItem Header="Trust → _Peer"
                           Command="{CompiledBinding TrustToPeerCommand}" />
-                <MenuItem Header="🛡 Trust → _Issuer"
+                <MenuItem Header="Trust → _Issuer"
                           Command="{CompiledBinding TrustToIssuerCommand}" />
-                <MenuItem Header="🚫 Re_ject"
+                <MenuItem Header="Re_ject"
                           Command="{CompiledBinding RejectCommand}" />
                 <Separator />
                 <MenuItem Header="⬆ _Export…"
                           Command="{CompiledBinding ExportCommand}" />
-                <MenuItem Header="🗑 De_lete"
+                <MenuItem Header="De_lete"
                           Command="{CompiledBinding DeleteCommand}" />
               </ContextMenu>
             </ListBox.ContextMenu>

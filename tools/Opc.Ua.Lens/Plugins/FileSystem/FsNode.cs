@@ -78,7 +78,7 @@ internal sealed partial class FsNode : ObservableObject
     /// <summary>True for directories and FileSystem roots; false for plain files.</summary>
     public bool IsDirectory { get; }
 
-    /// <summary>Glyph used in the tree / details rows (📁 / 📄 / …).</summary>
+    /// <summary>Glyph used in the tree / details rows (root / dir / file / …).</summary>
     public string Glyph
     {
         get
@@ -89,9 +89,9 @@ internal sealed partial class FsNode : ObservableObject
             }
             if (IsRoot)
             {
-                return "💾";
+                return "root";
             }
-            return IsDirectory ? "📁" : "📄";
+            return IsDirectory ? "dir" : "file";
         }
     }
 
@@ -266,7 +266,10 @@ internal sealed partial class FsNode : ObservableObject
         }
         catch (Exception ex)
         {
-            m_log?.LogWarning(ex, "FileSystem: enumerate '{Path}' failed.", FullPath);
+            if (m_log is { } log)
+            {
+                log.FsNodeEnumerateFailed(ex, FullPath);
+            }
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 Children.Clear();
@@ -305,7 +308,10 @@ internal sealed partial class FsNode : ObservableObject
             }
             catch (Exception ex)
             {
-                m_log?.LogDebug(ex, "FileSystem: refresh '{Path}' failed.", FullPath);
+                if (m_log is { } log)
+                {
+                    log.FsNodeRefreshFailed(ex, FullPath);
+                }
             }
         }
     }

@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Configuration;
@@ -39,11 +41,33 @@ namespace UaLens.Connection;
 /// </summary>
 internal static class AppConfig
 {
-    public static async Task<ApplicationConfiguration> BuildAsync(ITelemetryContext telemetry)
+    public static Task<ApplicationConfiguration> BuildAsync(ITelemetryContext telemetry)
     {
-        // CA2000: ApplicationInstance is a transient fluent-builder facade;
-        // the produced ApplicationConfiguration is the only thing the caller
-        // needs.  No long-lived resources on the instance itself.
+        return BuildAsync(telemetry, CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Creates an independent configuration/manager. The recipient must await
+    /// disposal of its certificate manager after all sessions have closed.
+    /// </summary>
+    public static Task<ApplicationConfiguration> BuildAsync(ITelemetryContext telemetry, CancellationToken ct)
+    {
+        return BuildAsync(telemetry, pkiRoot: null, ct);
+    }
+
+    /// <summary>
+    /// Creates a private manager over the specified PKI root. Probes can use
+    /// task-owned stores without changing application-wide certificate paths.
+    /// </summary>
+    public static async Task<ApplicationConfiguration> BuildAsync(
+        ITelemetryContext telemetry,
+        string? pkiRoot,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(telemetry);
+        // The builder facade's only owned resource is the returned certificate
+        // manager, whose ownership transfers to the configuration recipient.
+        // TODO: use a stack configuration lease when the builder exposes one.
 #pragma warning disable CA2000
         var instance = new ApplicationInstance(telemetry)
         {
@@ -52,20 +76,32 @@ internal static class AppConfig
         };
 #pragma warning restore CA2000
 
-        ApplicationConfiguration cfg = await instance
-            .Build("urn:localhost:UA:UaLens", "urn:opcfoundation.org:UaLens")
-            .AsClient()
-            .AddSecurityConfiguration("CN=UaLens")
-            .CreateAsync()
-            .ConfigureAwait(false);
-
-        // Dev-default trust: auto-accept untrusted peer certificates.  Replaces
-        // the legacy `CertificateValidator.CertificateValidation += e => e.Accept = true`
-        // hook (gone in the upstream cert-manager refactor).
-        if (cfg.SecurityConfiguration is { } sec)
+        try
         {
-            sec.AutoAcceptUntrustedCertificates = true;
+            ApplicationConfiguration cfg = await instance
+                .Build("urn:localhost:UA:UaLens", "urn:opcfoundation.org:UaLens")
+                .AsClient()
+                .AddSecurityConfiguration("CN=UaLens", pkiRoot: pkiRoot)
+                .SetAutoAcceptUntrustedCertificates(false)
+                .SetUseValidatedCertificates(false)
+                .CreateAsync(ct)
+                .ConfigureAwait(false);
+            bool haveCertificate = await instance
+                .CheckApplicationInstanceCertificatesAsync(silent: true, ct: ct)
+                .ConfigureAwait(false);
+            if (!haveCertificate)
+            {
+                throw new InvalidOperationException("The UaLens application certificate could not be initialized.");
+            }
+            return cfg;
         }
-        return cfg;
+        catch
+        {
+            if (instance.ApplicationConfiguration?.CertificateManager is IAsyncDisposable manager)
+            {
+                await manager.DisposeAsync().ConfigureAwait(false);
+            }
+            throw;
+        }
     }
 }

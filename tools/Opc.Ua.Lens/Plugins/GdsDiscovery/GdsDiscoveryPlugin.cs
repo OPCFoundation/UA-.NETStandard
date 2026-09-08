@@ -81,7 +81,7 @@ internal sealed partial class DiscoveryNode : ObservableObject
 
     /// <summary>
     /// True when this node was seeded from the persisted favourites
-    /// list (rendered under the Custom Discovery root with the ⭐
+    /// list (rendered under the Custom Discovery root with the favourite
     /// glyph).  Used to gate the "Remove from favourites" command.
     /// </summary>
     public bool IsFavorite { get; init; }
@@ -175,6 +175,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
     private GlobalDiscoveryServerClient? m_gds;
 #pragma warning restore CA2213
     private QueryServersFilter m_gdsFilter = new();
+    private bool m_favoritesLoaded;
 
     [ObservableProperty]
     private string m_title;
@@ -203,12 +204,32 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         m_log = host.Log;
         m_title = $"GDS Discovery {Interlocked.Increment(ref s_nextNumber)}";
 
-        Roots.Add(MakeRoot(DiscoveryRootKind.LocalMachine, "Local Machine", "💻"));
-        Roots.Add(MakeRoot(DiscoveryRootKind.LocalNetwork, "Local Network", "🌐"));
-        Roots.Add(MakeRoot(DiscoveryRootKind.GlobalDiscovery, "Global Discovery", "🛰"));
-        Roots.Add(MakeRoot(DiscoveryRootKind.CustomDiscovery, "Custom Discovery", "📂"));
+        Roots.Add(MakeRoot(DiscoveryRootKind.LocalMachine, "Local Machine", DiscoveryGlyphs.LocalMachine));
+        Roots.Add(MakeRoot(DiscoveryRootKind.LocalNetwork, "Local Network", DiscoveryGlyphs.LocalNetwork));
+        Roots.Add(MakeRoot(DiscoveryRootKind.GlobalDiscovery, "Global Discovery", DiscoveryGlyphs.GlobalDiscovery));
+        Roots.Add(MakeRoot(DiscoveryRootKind.CustomDiscovery, "Custom Discovery", DiscoveryGlyphs.CustomDiscovery));
 
-        _ = LoadFavoritesAtStartupAsync();
+        // Favourites and restored custom URLs load in OnConnectionStateChangedAsync,
+        // which the workspace delivers on open (even while disconnected). Discovery is
+        // a local, connection-independent tool; the constructor owns no async work.
+    }
+
+    /// <summary>
+    /// Loads favourites and any restored custom URLs the first time the workspace
+    /// delivers a connection state. Discovery works disconnected and does not depend
+    /// on the primary session, so this runs on open regardless of connection state
+    /// and later transitions are no-ops for the tree.
+    /// </summary>
+    public async Task OnConnectionStateChangedAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (m_favoritesLoaded)
+        {
+            return;
+        }
+        m_favoritesLoaded = true;
+        ApplyRestoredCustomUrls();
+        await LoadFavoritesAtStartupAsync(cancellationToken).ConfigureAwait(true);
     }
 
     public PluginKind Kind => PluginKind.GdsDiscovery;
@@ -226,9 +247,9 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         filter.Click += async (_, _) => await EditFilterAsync().ConfigureAwait(true);
         var connect = new MenuItem { Header = "_Connect to selection…" };
         connect.Click += (_, _) => ConnectSelectedToConnectionPane();
-        var addFav = new MenuItem { Header = "★ _Add to favourites" };
+        var addFav = new MenuItem { Header = "_Add to favourites" };
         addFav.Click += async (_, _) => await AddCurrentToFavouritesAsync().ConfigureAwait(true);
-        var removeFav = new MenuItem { Header = "✕ Re_move from favourites" };
+        var removeFav = new MenuItem { Header = "Re_move from favourites" };
         removeFav.Click += async (_, _) => await RemoveFromFavouritesAsync().ConfigureAwait(true);
         var openPush = new MenuItem { Header = "Open as _Push…" };
         openPush.Click += async (_, _) => await OpenAsPluginAsync(PluginKind.GdsPush).ConfigureAwait(true);
@@ -247,7 +268,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
             }
             catch (Exception ex)
             {
-                m_log.LogDebug(ex, "GdsDiscovery: LDS dispose threw.");
+                m_log.DiscoveryLdsDisposeThrew(ex);
             }
             m_lds = null;
         }
@@ -257,7 +278,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogDebug(ex, "GdsDiscovery: GDS dispose threw.");
+            m_log.DiscoveryGdsDisposeThrew(ex);
         }
         m_gds = null;
     }
@@ -334,7 +355,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         var node = new DiscoveryNode
         {
             Display = url,
-            Glyph = "🔗",
+            Glyph = DiscoveryGlyphs.CustomUrl,
             Endpoint = new EndpointDescription(url)
         };
         custom.Children.Add(node);
@@ -345,7 +366,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
     /// <summary>
     /// Saves the currently-selected endpoint URL into the persistent
     /// favourites list and re-seeds it under the Custom Discovery root
-    /// with a ⭐ marker.  Mirrors the "Add" button on the legacy
+    /// with a favourite marker.  Mirrors the "Add" button on the legacy
     /// <c>ConfiguredServerListDlg</c>.
     /// </summary>
     [RelayCommand]
@@ -369,7 +390,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         m_favorites.Add(url);
         SeedFavoritesIntoCustomRoot();
         await FavoritesStore.SaveAsync(m_favorites, m_log).ConfigureAwait(true);
-        Status = $"● ★ Added {url} to favourites.";
+        Status = $"● Added {url} to favourites.";
     }
 
     /// <summary>
@@ -383,7 +404,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         DiscoveryNode? node = SelectedNode;
         if (node is null || !node.IsFavorite)
         {
-            Status = "● Select a ⭐ favourite under Custom Discovery first.";
+            Status = "● Select a saved favourite under Custom Discovery first.";
             return;
         }
         string url = node.EndpointUrl;
@@ -403,7 +424,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         }
         SeedFavoritesIntoCustomRoot();
         await FavoritesStore.SaveAsync(m_favorites, m_log).ConfigureAwait(true);
-        Status = $"● ✕ Removed {url} from favourites.";
+        Status = $"● Removed {url} from favourites.";
     }
 
     /// <summary>
@@ -420,7 +441,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
             Status = "● Pick a server or endpoint first.";
             return;
         }
-        m_host.Main.EndpointUrl = url;
+        m_host.Workspace.EndpointUrl = url;
         Status = $"● {url} → Connection pane.";
     }
 
@@ -442,8 +463,8 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         }
         // Seed the picked URL on the main pane so the target plug-in's
         // bring-up dialog defaults to it.
-        m_host.Main.EndpointUrl = ep.EndpointUrl ?? string.Empty;
-        await m_host.Main.AddPluginAsync(kind, seedDiscoveryEndpoint: ep).ConfigureAwait(true);
+        m_host.Workspace.EndpointUrl = ep.EndpointUrl ?? string.Empty;
+        await m_host.Workspace.OpenToolAsync(kind, discoveryEndpoint: ep).ConfigureAwait(true);
     }
 
     // ----- Internals -----
@@ -491,7 +512,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "GdsDiscovery: loading {Root} failed.", root.Display);
+            m_log.DiscoveryLoadRootFailed(ex, root.Display);
             Status = $"● {root.Display}: {ex.Message}";
         }
     }
@@ -508,7 +529,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
             loaded.Add(new DiscoveryNode
             {
                 Display = SafeName(app),
-                Glyph = "🖥",
+                Glyph = DiscoveryGlyphs.Server,
                 Application = app
             });
         }
@@ -527,7 +548,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
             loaded.Add(new DiscoveryNode
             {
                 Display = string.IsNullOrEmpty(s.ServerName) ? (s.DiscoveryUrl ?? "?") : s.ServerName!,
-                Glyph = "🛰",
+                Glyph = DiscoveryGlyphs.Server,
                 ServerOnNetwork = s
             });
         }
@@ -560,7 +581,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         var folder = new DiscoveryNode
         {
             Display = "mDNS hosts (this machine)",
-            Glyph = "📡",
+            Glyph = DiscoveryGlyphs.MdnsFolder,
             IsExpanded = false
         };
         folder.Children.Add(new DiscoveryNode
@@ -568,7 +589,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
             Display = "Cross-host mDNS discovery would require an additional library "
                 + "(e.g. Makaretu.Mdns) which UaLens does not currently reference. "
                 + "Listing local network interfaces instead.",
-            Glyph = "ℹ"
+            Glyph = DiscoveryGlyphs.Info
         });
         List<DiscoveryNode> rows;
         try
@@ -577,11 +598,11 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogDebug(ex, "GdsDiscovery: enumerating network interfaces failed.");
+            m_log.DiscoveryEnumerateInterfacesFailed(ex);
             folder.Children.Add(new DiscoveryNode
             {
                 Display = $"(enumeration failed: {ex.Message})",
-                Glyph = "—"
+                Glyph = DiscoveryGlyphs.None
             });
             return folder;
         }
@@ -590,7 +611,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
             folder.Children.Add(new DiscoveryNode
             {
                 Display = "(no operational network interfaces)",
-                Glyph = "—"
+                Glyph = DiscoveryGlyphs.None
             });
             return folder;
         }
@@ -663,7 +684,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
                 list.Add(new DiscoveryNode
                 {
                     Display = label,
-                    Glyph = "🖧"
+                    Glyph = DiscoveryGlyphs.Interface
                 });
             }
         }
@@ -711,7 +732,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
             loaded.Add(new DiscoveryNode
             {
                 Display = string.IsNullOrEmpty(s.ServerName) ? (s.DiscoveryUrl ?? "?") : s.ServerName!,
-                Glyph = "🛰",
+                Glyph = DiscoveryGlyphs.Server,
                 ServerOnNetwork = s
             });
         }
@@ -757,7 +778,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogDebug(ex, "GdsDiscovery: GetEndpoints({Url}) failed.", node.EndpointUrl);
+            m_log.DiscoveryGetEndpointsFailed(ex, node.EndpointUrl);
             Status = $"● GetEndpoints({node.EndpointUrl}) failed: {ex.Message}";
         }
     }
@@ -813,16 +834,17 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
     }
 
     /// <summary>
-    /// One-shot startup hook: pulls the saved favourites list from
-    /// <see cref="FavoritesStore"/> on a background thread and re-seeds
-    /// the Custom Discovery root.  Defensive: a corrupt or absent
-    /// favourites file is logged but never crashes the plug-in.
+    /// Loads the saved favourites list from <see cref="FavoritesStore"/> and
+    /// re-seeds the Custom Discovery root. This is the explicit UI boundary for the
+    /// favourites store: a missing file is an empty list, but a malformed,
+    /// inaccessible or unsupported-version file surfaces as a visible error on the
+    /// status line without overwriting the original file.
     /// </summary>
-    private async Task LoadFavoritesAtStartupAsync()
+    private async Task LoadFavoritesAtStartupAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            List<string> loaded = await FavoritesStore.LoadAsync(m_log)
+            List<string> loaded = await FavoritesStore.LoadAsync(m_log, cancellationToken: cancellationToken)
                 .ConfigureAwait(true);
             m_favorites.Clear();
             m_favorites.AddRange(loaded);
@@ -833,13 +855,14 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         }
         catch (Exception ex)
         {
-            m_log.LogDebug(ex, "GdsDiscovery: loading favourites failed; starting empty.");
+            m_log.DiscoveryFavoritesLoadFailed(ex);
+            Status = $"● Favourites could not be read: {ex.Message}";
         }
     }
 
     /// <summary>
     /// Re-projects <see cref="m_favorites"/> into the Custom Discovery
-    /// root: drops any previously-seeded ⭐ nodes, preserves manually
+    /// root: drops any previously-seeded favourite nodes, preserves manually
     /// added "Add Custom…" entries, and rebuilds in list order.  Runs
     /// on the UI thread.
     /// </summary>
@@ -875,7 +898,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
             var node = new DiscoveryNode
             {
                 Display = url,
-                Glyph = "⭐",
+                Glyph = DiscoveryGlyphs.Favorite,
                 IsFavorite = true,
                 Endpoint = new EndpointDescription(url)
             };

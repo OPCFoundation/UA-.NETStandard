@@ -35,6 +35,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
@@ -44,6 +46,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using UaLens.Storage;
 using UaLens.ViewModels;
 using UaLens.Views;
 
@@ -69,7 +72,7 @@ internal enum DurationUnit
 /// <see cref="IPlugin"/> so it slots into the workbench tab
 /// strip exactly like every other tab kind.
 /// </summary>
-internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
+internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWorkspaceState
 {
     private static int s_nextNumber;
 
@@ -105,8 +108,6 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
 
     [ObservableProperty]
     private string m_status = "● Idle";
-
-    // ---- Workload config ----
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RunCommand))]
@@ -164,8 +165,6 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
     [NotifyCanExecuteChangedFor(nameof(RunCommand))]
     [NotifyCanExecuteChangedFor(nameof(StopCommand))]
     private bool isRunning;
-
-    // ---- Aggregated stats ----
 
     [ObservableProperty]
     private string m_totalOpsText = "0";
@@ -249,8 +248,6 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
         m_title = $"Performance {n}";
     }
 
-    // ---- IPlugin members ----
-
     public PluginKind Kind => PluginKind.Performance;
 
     Control? IPlugin.View => m_view ??= new PerformanceView { DataContext = this };
@@ -285,7 +282,7 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
     /// <summary>
     /// Re-evaluate Run / Stop CanExecute when the host connects or
     /// disconnects — <see cref="CanRun"/> pivots on
-    /// <c>m_host.Main.Connection.Session</c>.
+    /// <c>m_host.Connection.Session</c>.
     /// </summary>
     public void OnConnectionStateChanged()
     {
@@ -303,13 +300,11 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
             }
             catch (Exception ex)
             {
-                m_log.LogWarning(ex, "Performance tab {Title} stop failed during dispose.", Title);
+                PerformancePluginLog.StopFailed(m_log, Title, ex);
             }
         }
         m_aggregationTimer?.Stop();
     }
-
-    // ---- Bindings-only derived properties ----
 
     /// <summary>Human-readable description of the configured Target (or "(no Target)").</summary>
     public string TargetDescription => Target is null
@@ -358,8 +353,6 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
         }
     }
 
-    // ---- Commands ----
-
     /// <summary>
     /// Opens a modal <see cref="PerformanceSettingsDialog"/> hosting the
     /// workload editor (rate / unbounded burst / duration / value
@@ -384,7 +377,7 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
     [RelayCommand]
     private async Task PickTargetAsync()
     {
-        if (m_host.Main.Connection.Session is not { } session)
+        if (m_host.Connection.Session is not { } session)
         {
             Status = "● Not connected — connect first.";
             return;
@@ -402,7 +395,7 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
         // Call → Method), run BrowsePickerDialog first so the user can
         // pick one without un-hiding the tree.
         NodeViewModel? hint = null;
-        NodeViewModel? sel = m_host.Main.SelectedNode;
+        NodeViewModel? sel = m_host.Workspace.SelectedNode;
         bool selValid = sel is not null
             && (Mode == BenchmarkMode.Write
                 ? sel.NodeClass == NodeClass.Variable
@@ -430,14 +423,14 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
             // Build a synthetic NodeViewModel hint that
             // PerformanceTargetDialog can read.
             hint = new NodeViewModel(
-                m_host.Main.Browser,
+                m_host.Browser,
                 NodeId.Null,
                 pickedId.Value,
                 picker.PickedDisplay,
                 picker.PickedNodeClass);
         }
 
-        var dialog = new PerformanceTargetDialog(m_host.Main, session, hint);
+        var dialog = new PerformanceTargetDialog(m_host.Workspace, session, hint);
         BenchmarkTarget? result = owner is null
             ? await dialog.ShowDialog<BenchmarkTarget?>(new Window()).ConfigureAwait(true)
             : await dialog.ShowDialog<BenchmarkTarget?>(owner).ConfigureAwait(true);
@@ -453,12 +446,12 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
     private bool CanRun() =>
         !IsRunning
         && Target is not null
-        && m_host.Main.Connection.Session is not null;
+        && m_host.Connection.Session is not null;
 
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task RunAsync()
     {
-        if (m_host.Main.Connection.Session is not { } session || Target is null)
+        if (m_host.Connection.Session is not { } session || Target is null)
         {
             return;
         }
@@ -492,9 +485,8 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
             DispatcherPriority.Background,
             (_, _) => OnAggregationTick());
         m_aggregationTimer.Start();
-        m_log.LogInformation(
-            "Performance run started — mode={Mode} rate={Rate} burst={Burst} duration={Duration}s Target={Target}",
-            Mode, TargetRate, UnboundedBurst, DurationSeconds, Target.DisplayName);
+        PerformancePluginLog.RunStarted(
+            m_log, Mode, TargetRate, UnboundedBurst, DurationSeconds, Target.DisplayName);
 
         await Task.CompletedTask.ConfigureAwait(true);
     }
@@ -605,7 +597,7 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
         catch (Exception ex)
         {
             Status = $"● Export failed: {ex.Message}";
-            m_log.LogWarning(ex, "Performance stats export failed.");
+            PerformancePluginLog.ExportFailed(m_log, ex);
         }
     }
 
@@ -662,7 +654,7 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
         catch (Exception ex)
         {
             Status = $"● Save failed: {ex.Message}";
-            m_log.LogWarning(ex, "Performance run history save failed.");
+            PerformancePluginLog.SaveFailed(m_log, ex);
         }
     }
 
@@ -739,7 +731,7 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
         catch (Exception ex)
         {
             Status = $"● Load failed: {ex.Message}";
-            m_log.LogWarning(ex, "Performance run history load failed.");
+            PerformancePluginLog.LoadFailed(m_log, ex);
             return;
         }
 
@@ -857,8 +849,6 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
         return null;
     }
 
-    // ---- Runner callbacks ----
-
     private void HandleSample(BenchmarkSample sample)
     {
         m_histogram.Record(sample.LatencyMs);
@@ -884,9 +874,12 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
             }
             RefreshHighlights();
             Status = error is null ? "● Run complete" : $"● Run failed: {error}";
-            m_log.LogInformation("Performance run finished — total={Total} errors={Errors}",
-                System.Threading.Interlocked.Read(ref m_totalOps),
-                System.Threading.Interlocked.Read(ref m_errorOps));
+            if (m_log.IsEnabled(LogLevel.Information))
+            {
+                long total = System.Threading.Interlocked.Read(ref m_totalOps);
+                long errors = System.Threading.Interlocked.Read(ref m_errorOps);
+                PerformancePluginLog.RunFinished(m_log, total, errors);
+            }
         });
     }
 
@@ -964,4 +957,95 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
         OnPropertyChanged(nameof(TargetDescription));
         OnPropertyChanged(nameof(TargetNodeIdText));
     }
+
+    public JsonElement CaptureState()
+    {
+        PerformanceStateDto dto = PerformanceState.CreateDto(
+            Mode, TargetRate, UnboundedBurst, DurationSeconds, DurationUnit, Generator, CompareLast3, Target);
+        return JsonSerializer.SerializeToElement(dto, PerformanceStateJsonContext.Default.PerformanceStateDto);
+    }
+
+    public Task RestoreStateAsync(JsonElement state, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        PerformanceStateDto? dto;
+        try
+        {
+            dto = state.Deserialize(PerformanceStateJsonContext.Default.PerformanceStateDto);
+        }
+        catch (JsonException ex)
+        {
+            PerformancePluginLog.RestoreFailed(m_log, ex);
+            throw;
+        }
+        if (dto is null)
+        {
+            throw new JsonException("Performance configuration cannot be null.");
+        }
+        PerformanceRestoredState restored = PerformanceState.Validate(dto);
+        ApplyRestoredState(restored);
+        return Task.CompletedTask;
+    }
+
+    private void ApplyRestoredState(PerformanceRestoredState restored)
+    {
+        // Restore prepares the workload but never starts a run.
+        Mode = restored.Mode;
+        TargetRate = restored.TargetRate;
+        UnboundedBurst = restored.UnboundedBurst;
+        DurationSeconds = restored.DurationValue;
+        DurationUnit = restored.DurationUnit;
+        Generator = restored.Generator;
+        CompareLast3 = restored.CompareLast3;
+        Target = restored.Target;
+        Status = Target is null
+            ? "● Configuration restored — pick a target to run."
+            : $"● Configuration restored: {Target.DisplayName}";
+    }
+}
+
+internal static partial class PerformancePluginLog
+{
+    [LoggerMessage(
+        EventId = UaLensEventIds.PerformanceRunStarted,
+        Level = LogLevel.Information,
+        Message = "Performance run started — mode={Mode} rate={Rate} burst={Burst} duration={DurationSeconds}s target={Target}.")]
+    public static partial void RunStarted(
+        ILogger logger, BenchmarkMode mode, double rate, bool burst, int durationSeconds, string target);
+
+    [LoggerMessage(
+        EventId = UaLensEventIds.PerformanceRunFinished,
+        Level = LogLevel.Information,
+        Message = "Performance run finished — total={Total} errors={Errors}.")]
+    public static partial void RunFinished(ILogger logger, long total, long errors);
+
+    [LoggerMessage(
+        EventId = UaLensEventIds.PerformanceStopFailed,
+        Level = LogLevel.Warning,
+        Message = "Performance tab {Title} stop failed during dispose.")]
+    public static partial void StopFailed(ILogger logger, string title, Exception exception);
+
+    [LoggerMessage(
+        EventId = UaLensEventIds.PerformanceExportFailed,
+        Level = LogLevel.Warning,
+        Message = "Performance stats export failed.")]
+    public static partial void ExportFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(
+        EventId = UaLensEventIds.PerformanceSaveFailed,
+        Level = LogLevel.Warning,
+        Message = "Performance run history save failed.")]
+    public static partial void SaveFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(
+        EventId = UaLensEventIds.PerformanceLoadFailed,
+        Level = LogLevel.Warning,
+        Message = "Performance run history load failed.")]
+    public static partial void LoadFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(
+        EventId = UaLensEventIds.PerformanceRestoreFailed,
+        Level = LogLevel.Warning,
+        Message = "Performance could not restore its saved configuration.")]
+    public static partial void RestoreFailed(ILogger logger, Exception exception);
 }

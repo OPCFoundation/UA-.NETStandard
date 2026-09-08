@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -28,154 +28,111 @@
  * ======================================================================*/
 
 using System;
-using System.Linq;
+using System.Globalization;
 using System.Threading.Tasks;
 using Avalonia;
-using Avalonia.Controls.ApplicationLifetimes;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace UaLens;
 
 internal static class Program
 {
     [STAThread]
-    public static int Main(string[] args)
+    public static async Task<int> Main(string[] args)
     {
-        if (args.Any(a => string.Equals(a, "--smoke", StringComparison.OrdinalIgnoreCase)))
+        ArgumentNullException.ThrowIfNull(args);
+        string endpoint = Option(args, "--endpoint")
+            ?? "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
+        if (Has(args, "--smoke"))
         {
-            int idx = Array.FindIndex(args, a => string.Equals(a, "--endpoint", StringComparison.OrdinalIgnoreCase));
-            string endpoint = idx >= 0 && idx + 1 < args.Length
-                ? args[idx + 1]
-                : "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
-            return SmokeTest.RunAsync(endpoint).GetAwaiter().GetResult();
+            return await SmokeTest.RunAsync(endpoint).ConfigureAwait(false);
         }
-
-        if (args.Any(a => string.Equals(a, "--testtree", StringComparison.OrdinalIgnoreCase)))
+        if (Has(args, "--testtree"))
         {
-            int idx = Array.FindIndex(args, a => string.Equals(a, "--endpoint", StringComparison.OrdinalIgnoreCase));
-            string endpoint = idx >= 0 && idx + 1 < args.Length
-                ? args[idx + 1]
-                : "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
-            return TreeNavTest.RunAsync(endpoint).GetAwaiter().GetResult();
+            return await TreeNavTest.RunAsync(endpoint).ConfigureAwait(false);
         }
-
-        if (args.Any(a => string.Equals(a, "--probe-ka", StringComparison.OrdinalIgnoreCase)))
+        if (Has(args, "--probe-ka"))
         {
-            int idx = Array.FindIndex(args, a => string.Equals(a, "--endpoint", StringComparison.OrdinalIgnoreCase));
-            string endpoint = idx >= 0 && idx + 1 < args.Length
-                ? args[idx + 1]
-                : "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
-            int wIdx = Array.FindIndex(args, a => string.Equals(a, "--wait", StringComparison.OrdinalIgnoreCase));
-            int wait = wIdx >= 0 && wIdx + 1 < args.Length && int.TryParse(args[wIdx + 1], out int w) ? w : 12;
-            return KeepAliveProbe.RunAsync(endpoint, wait).GetAwaiter().GetResult();
+            int wait = int.TryParse(
+                Option(args, "--wait"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int seconds)
+                ? seconds
+                : 12;
+            return await KeepAliveProbe.RunAsync(endpoint, wait).ConfigureAwait(false);
         }
-
-        if (args.Any(a => string.Equals(a, "--probe-workers", StringComparison.OrdinalIgnoreCase)))
+        if (Has(args, "--probe-workers"))
         {
-            int idx = Array.FindIndex(args, a => string.Equals(a, "--endpoint", StringComparison.OrdinalIgnoreCase));
-            string endpoint = idx >= 0 && idx + 1 < args.Length
-                ? args[idx + 1]
-                : "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
-            return WorkerCountProbe.RunAsync(endpoint).GetAwaiter().GetResult();
+            return await WorkerCountProbe.RunAsync(endpoint).ConfigureAwait(false);
         }
-
-        if (args.Any(a => string.Equals(a, "--probe-attrs", StringComparison.OrdinalIgnoreCase)))
+        if (Has(args, "--probe-attrs"))
         {
-            int idx = Array.FindIndex(args, a => string.Equals(a, "--endpoint", StringComparison.OrdinalIgnoreCase));
-            string endpoint = idx >= 0 && idx + 1 < args.Length
-                ? args[idx + 1]
-                : "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
-            return AttributesProbe.RunAsync(endpoint).GetAwaiter().GetResult();
+            return await AttributesProbe.RunAsync(endpoint).ConfigureAwait(false);
         }
-
-        if (args.Any(a => string.Equals(a, "--probe-dots", StringComparison.OrdinalIgnoreCase)))
+        if (Has(args, "--probe-dots"))
         {
-            int idx = Array.FindIndex(args, a => string.Equals(a, "--endpoint", StringComparison.OrdinalIgnoreCase));
-            string endpoint = idx >= 0 && idx + 1 < args.Length
-                ? args[idx + 1]
-                : "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
-            return DotsProbe.RunAsync(endpoint).GetAwaiter().GetResult();
+            return await DotsProbe.RunAsync(endpoint).ConfigureAwait(false);
         }
-
-        if (args.Any(a => string.Equals(a, "--probe-lines", StringComparison.OrdinalIgnoreCase)))
+        if (Has(args, "--probe-lines"))
         {
-            int idx = Array.FindIndex(args, a => string.Equals(a, "--endpoint", StringComparison.OrdinalIgnoreCase));
-            string endpoint = idx >= 0 && idx + 1 < args.Length
-                ? args[idx + 1]
-                : "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
-            return LinesProbe.RunAsync(endpoint).GetAwaiter().GetResult();
+            return await LinesProbe.RunAsync(endpoint).ConfigureAwait(false);
         }
-
-        if (args.Any(a => string.Equals(a, "--probe-variant", StringComparison.OrdinalIgnoreCase)))
+        if (Has(args, "--probe-variant"))
         {
             return VariantProbe.Run();
         }
-
-        if (args.Any(a => string.Equals(a, "--probe-scottplot", StringComparison.OrdinalIgnoreCase)))
+        if (Has(args, "--probe-scottplot"))
         {
             return ScottPlotProbe.Run();
         }
-
-        if (args.Any(a => string.Equals(a, "--probe-cert-trust", StringComparison.OrdinalIgnoreCase)))
+        if (Has(args, "--probe-cert-trust"))
         {
-            return CertTrustProbe.RunAsync().GetAwaiter().GetResult();
+            return await CertTrustProbe.RunAsync().ConfigureAwait(false);
         }
-
-        if (args.Any(a => string.Equals(a, "--probe-channel-drop", StringComparison.OrdinalIgnoreCase)))
+        if (Has(args, "--probe-channel-drop"))
         {
             return ChannelDropProbe.Run();
         }
-
-        if (args.Any(a => string.Equals(a, "--probe-adapter-race", StringComparison.OrdinalIgnoreCase)))
+        if (Has(args, "--probe-adapter-race"))
         {
-            int idx = Array.FindIndex(args, a => string.Equals(a, "--endpoint", StringComparison.OrdinalIgnoreCase));
-            string endpoint = idx >= 0 && idx + 1 < args.Length
-                ? args[idx + 1]
-                : "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
-            return AdapterRaceProbe.RunAsync(endpoint).GetAwaiter().GetResult();
+            return await AdapterRaceProbe.RunAsync(endpoint).ConfigureAwait(false);
+        }
+        if (Has(args, "--probe-rates"))
+        {
+            return await RatesProbe.RunAsync(endpoint).ConfigureAwait(false);
+        }
+        if (Has(args, "--probe-events"))
+        {
+            return await EventsProbe.RunAsync(endpoint).ConfigureAwait(false);
         }
 
-        if (args.Any(a => string.Equals(a, "--probe-rates", StringComparison.OrdinalIgnoreCase)))
-        {
-            int idx = Array.FindIndex(args, a => string.Equals(a, "--endpoint", StringComparison.OrdinalIgnoreCase));
-            string endpoint = idx >= 0 && idx + 1 < args.Length
-                ? args[idx + 1]
-                : "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
-            return RatesProbe.RunAsync(endpoint).GetAwaiter().GetResult();
-        }
-
-        if (args.Any(a => string.Equals(a, "--probe-events", StringComparison.OrdinalIgnoreCase)))
-        {
-            int idx = Array.FindIndex(args, a => string.Equals(a, "--endpoint", StringComparison.OrdinalIgnoreCase));
-            string endpoint = idx >= 0 && idx + 1 < args.Length
-                ? args[idx + 1]
-                : "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
-            return EventsProbe.RunAsync(endpoint).GetAwaiter().GetResult();
-        }
-
-        // Start the resource-monitor host before Avalonia so the
-        // CPU / memory pane has data on first paint.  Disposed as the
-        // process exits — Avalonia's StartWithClassicDesktopLifetime returns
-        // synchronously after the main window closes.  CA2000: the host is
-        // disposed in the finally block below; the analyzer can't see the
-        // GetResult-vs-finally lifetime.
-#pragma warning disable CA2000
-        var resourceHost = UaLens.Diagnostics.ResourceMonitorHost
-            .StartAsync().GetAwaiter().GetResult();
-#pragma warning restore CA2000
-        UaLens.Views.MainWindow.PendingResourceMonitor = resourceHost;
+        ServiceProvider services = new ServiceCollection().AddUaLens().BuildServiceProvider();
         try
         {
-            return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            // No await is reached on this branch until Avalonia has finished. The
+            // desktop therefore stays on the process's original STA thread.
+            return BuildAvaloniaApp(services).StartWithClassicDesktopLifetime(args);
         }
         finally
         {
-            resourceHost.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            await services.DisposeAsync().ConfigureAwait(false);
         }
     }
 
-    public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure<App>()
-                     .UsePlatformDetect()
-                     .WithInterFont()
-                     .LogToTrace();
+    public static AppBuilder BuildAvaloniaApp(IServiceProvider services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        return AppBuilder.Configure(() => new App(services))
+            .UsePlatformDetect()
+            .WithInterFont()
+            .LogToTrace();
+    }
+
+    private static bool Has(string[] args, string flag)
+        => Array.Exists(args, argument => string.Equals(argument, flag, StringComparison.OrdinalIgnoreCase));
+
+    private static string? Option(string[] args, string name)
+    {
+        int index = Array.FindIndex(
+            args, argument => string.Equals(argument, name, StringComparison.OrdinalIgnoreCase));
+        return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
+    }
 }

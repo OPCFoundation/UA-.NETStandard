@@ -84,6 +84,11 @@
             <TextBlock Classes="statDim"
                        TextTrimming="CharacterEllipsis"
                        Text="{CompiledBinding TargetDescription}" />
+            <TextBlock Classes="caption"
+                       IsVisible="{CompiledBinding IsOffline}"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextDim}"
+                       Text="Offline: the target, range and read options are retained; connect the primary server to read or update history. Cached results stay visible." />
           </StackPanel>
           <Button Grid.Column="1" Classes="tonal" Content="Pick Variable…"
                   Command="{CompiledBinding PickVariableCommand}"
@@ -98,9 +103,12 @@
         </Grid>
       </Border>
 
-      <!-- Row 1: read-mode tabs -->
-      <TabControl Grid.Row="1" Margin="0,8,0,0" Background="{DynamicResource PanelBg}"
-                  SelectedIndex="{CompiledBinding SelectedReadModeIndex, Mode=TwoWay}">
+      <!-- Row 1: read mode and options — collapsed by default so a raw read over the
+           selected range is one click; processed / at-time / modified live here. -->
+      <Expander Grid.Row="1" Margin="0,8,0,0" IsExpanded="False"
+                Header="Read mode and options (raw / processed / at-time, bounds, values per node)">
+        <TabControl Background="{DynamicResource PanelBg}"
+                    SelectedIndex="{CompiledBinding SelectedReadModeIndex, Mode=TwoWay}">
         <TabItem Header="Raw / Modified">
           <WrapPanel Margin="10" Orientation="Horizontal">
             <CheckBox Content="Return bounds"
@@ -192,7 +200,8 @@
             </Border>
           </Grid>
         </TabItem>
-      </TabControl>
+        </TabControl>
+      </Expander>
 
       <!-- Row 2: action buttons (WrapPanel: wrap on narrow windows). -->
       <WrapPanel Classes="toolbar" Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0" ItemHeight="32">

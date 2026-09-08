@@ -384,7 +384,7 @@
         <Button Classes="tonal" Content="− Remove Cert" Margin="4,0"
                 IsEnabled="{CompiledBinding !IsBusy}"
                 Command="{CompiledBinding RemoveCertificateCommand}" />
-        <Button Classes="tonal" Content="🔑 Request New Cert…" Margin="4,0"
+        <Button Classes="tonal" Content="Request New Cert…" Margin="4,0"
                 IsEnabled="{CompiledBinding !IsBusy}"
                 Command="{CompiledBinding RequestNewCertificateCommand}" />
         <Button Classes="primary" Content="✓ Apply Changes" Margin="4,0"

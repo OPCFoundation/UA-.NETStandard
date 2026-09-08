@@ -300,7 +300,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "Browse failed for {NodeId}", node.NodeId);
+            BrowserViewModelLog.BrowseFailed(m_log, ex, node.NodeId);
             // Make sure the placeholder doesn't linger if browse failed.
             await PostToUiAsync(() =>
             {
@@ -469,7 +469,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            m_log.LogDebug(ex, "GetChildVariablesAsync failed for {NodeId}", parent);
+            BrowserViewModelLog.ChildVariablesFailed(m_log, ex, parent);
             return Array.Empty<(NodeId, string)>();
         }
     }
@@ -523,7 +523,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
             }
             catch (Exception ex)
             {
-                m_log.LogDebug(ex, "Parse RelativePath '{Path}' failed.", raw);
+                BrowserViewModelLog.RelativePathFailed(m_log, ex, raw);
                 rows.Add((raw, StatusCodes.BadSyntaxError, Array.Empty<NodeId>()));
             }
         }
@@ -561,7 +561,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            m_log.LogWarning(ex, "TranslateBrowsePathsToNodeIds failed.");
+            BrowserViewModelLog.TranslateFailed(m_log, ex);
             for (int j = 0; j < live.Count; j++)
             {
                 int idx = live[j].Index;
@@ -626,7 +626,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            m_log.LogDebug(ex, "EventNotifier read failed for {NodeId}", nodeId);
+            BrowserViewModelLog.EventNotifierFailed(m_log, ex, nodeId);
         }
         return null;
     }

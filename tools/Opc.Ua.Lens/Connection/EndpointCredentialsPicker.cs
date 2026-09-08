@@ -83,9 +83,24 @@ internal static class EndpointCredentialsPicker
         var discovery = new DiscoveryService(telemetry);
         ArrayOf<EndpointDescription> endpoints =
             await discovery.DiscoverAsync(defaultEndpointUrl, ct).ConfigureAwait(true);
+        return await PromptAsync(owner, endpoints, ct).ConfigureAwait(true);
+    }
 
+    /// <summary>
+    /// Prompts over already discovered endpoints. Hosts can discover with their
+    /// own configuration/PKI, and dialog-result handling can be tested without
+    /// network access or default user certificate stores.
+    /// </summary>
+    public static async Task<Result?> PromptAsync(
+        Window owner,
+        ArrayOf<EndpointDescription> endpoints,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+        ct.ThrowIfCancellationRequested();
         var picker = new EndpointPickerDialog(endpoints);
         var pick = await picker.ShowDialog<(EndpointDescription, UserTokenPolicy?)?>(owner).ConfigureAwait(true);
+        ct.ThrowIfCancellationRequested();
         if (pick is null || pick.Value.Item1 is null)
         {
             return null;
@@ -93,28 +108,54 @@ internal static class EndpointCredentialsPicker
         EndpointDescription endpoint = pick.Value.Item1;
         UserTokenPolicy? policy = pick.Value.Item2;
 
-        // Build identity:
-        //   - UserName policy → CredentialsDialog → UserIdentity(user, password).
-        //   - Anything else (endpoint root, explicit Anonymous, etc.) → AnonymousIdentityToken.
-        // CA2000: ownership of the IUserIdentity transfers to the caller.
-#pragma warning disable CA2000
+        if (policy is null)
+        {
+            foreach (UserTokenPolicy offered in endpoint.UserIdentityTokens)
+            {
+                if (offered.TokenType == UserTokenType.Anonymous)
+                {
+                    policy = offered;
+                    break;
+                }
+            }
+            if (policy is null)
+            {
+                throw new InvalidOperationException(
+                    "The endpoint does not offer Anonymous access. Select an identity policy explicitly.");
+            }
+        }
+
         IUserIdentity identity;
         if (policy is { TokenType: UserTokenType.UserName })
         {
             var creds = new CredentialsDialog();
             var pair = await creds.ShowDialog<(string, string)?>(owner).ConfigureAwait(true);
+            ct.ThrowIfCancellationRequested();
             if (pair is null)
             {
                 return null;
             }
             (string user, string pass) = pair.Value;
-            identity = new UserIdentity(user, Encoding.UTF8.GetBytes(pass));
+            byte[] password = Encoding.UTF8.GetBytes(pass);
+            try
+            {
+                identity = new UserIdentity(user, password.AsSpan()) { PolicyId = policy.PolicyId! };
+            }
+            finally
+            {
+                Array.Clear(password);
+            }
+        }
+        else if (policy.TokenType == UserTokenType.Anonymous)
+        {
+            identity = new UserIdentity(new AnonymousIdentityToken()) { PolicyId = policy.PolicyId! };
         }
         else
         {
-            identity = new UserIdentity(new AnonymousIdentityToken());
+            throw new NotSupportedException(
+                "This picker supports Anonymous and UserName identities. " +
+                "Use an identity provider for this token type.");
         }
-#pragma warning restore CA2000
 
         return new Result(endpoint, identity, policy);
     }
@@ -122,8 +163,7 @@ internal static class EndpointCredentialsPicker
     /// <summary>
     /// Endpoint-equality used by the GDS plugins to decide whether to
     /// reuse the existing secondary session via <c>UpdateSessionAsync</c>
-    /// or tear it down and reconnect.  Compares URL (case-insensitive,
-    /// trimmed), SecurityMode and SecurityPolicyUri.
+    /// or tear it down and reconnect. URL paths remain case-sensitive.
     /// </summary>
     public static bool EndpointsMatch(EndpointDescription? a, EndpointDescription? b)
     {
@@ -131,10 +171,7 @@ internal static class EndpointCredentialsPicker
         {
             return false;
         }
-        return string.Equals(
-                   (a.EndpointUrl ?? string.Empty).Trim(),
-                   (b.EndpointUrl ?? string.Empty).Trim(),
-                   StringComparison.OrdinalIgnoreCase)
+        return ConnectionProfile.EndpointUrlsMatch(a.EndpointUrl, b.EndpointUrl)
                && a.SecurityMode == b.SecurityMode
                && string.Equals(
                    a.SecurityPolicyUri ?? string.Empty,
