@@ -149,7 +149,9 @@ namespace Opc.Ua.Redundancy.Server
             bool supportsPartitionMarker = m_partitionId != null &&
                 m_store is INodeStatePartitionStore;
             bool partitionInitialized = await IsPartitionInitializedAsync(ct).ConfigureAwait(false);
-            bool authoritative = !supportsPartitionMarker || partitionInitialized;
+            bool authoritativeReads = m_store is not INodeStateStoreReadConsistency readConsistency ||
+                readConsistency.HasAuthoritativeReads;
+            bool authoritative = authoritativeReads && (!supportsPartitionMarker || partitionInitialized);
             ulong fallbackDeltaSequence = 0;
             bool sawStoredState = false;
 
@@ -157,7 +159,7 @@ namespace Opc.Ua.Redundancy.Server
             // log of changes after it, instead of streaming and applying every
             // node one at a time. Falls back to the streamed path below when the
             // store has no snapshot capability or none has been published yet.
-            if (m_store is INodeStateSnapshotStore snapshotStore)
+            if (SupportsSnapshots && m_store is INodeStateSnapshotStore snapshotStore)
             {
                 NodeStateSnapshot? snapshot = await snapshotStore
                     .TryReadSnapshotAsync(ct)
@@ -178,7 +180,7 @@ namespace Opc.Ua.Redundancy.Server
                         {
                             await RemoveMissingLocalRootsAsync(hydratedRoots, ct).ConfigureAwait(false);
                         }
-                        else if (IsWriter)
+                        else if (IsWriter && authoritativeReads)
                         {
                             await SeedLocalNodesAsync(ct).ConfigureAwait(false);
                         }
@@ -206,16 +208,16 @@ namespace Opc.Ua.Redundancy.Server
                         continue;
                     }
                     sawStoredState = true;
-                    hydratedRootIds.Add(stored.NodeId);
-                    if (sequence >= NextApplicable(m_nodeSequence, stored.NodeId))
+                    if (IsTopologyApplicable(stored.NodeId, sequence))
                     {
                         await TryApplyUpsertAsync(
                             stored.NodeId,
                             stored.Payload,
                             sequence,
                             ct).ConfigureAwait(false);
-                        m_nodeSequence[stored.NodeId] = sequence;
+                        RecordTopology(stored.NodeId, sequence, exists: true);
                     }
+                    UpdateHydratedRootIds(hydratedRootIds, stored.NodeId);
                 }
             }
             else
@@ -227,12 +229,13 @@ namespace Opc.Ua.Redundancy.Server
                         continue;
                     }
                     sawStoredState = true;
-                    hydratedRootIds.Add(stored.NodeId);
                     await TryApplyUpsertAsync(
                         stored.NodeId,
                         stored.Payload,
                         0,
                         ct).ConfigureAwait(false);
+                    RecordTopology(stored.NodeId, 0, exists: true);
+                    UpdateHydratedRootIds(hydratedRootIds, stored.NodeId);
                 }
             }
 
@@ -243,22 +246,12 @@ namespace Opc.Ua.Redundancy.Server
                     .ConfigureAwait(false))
                 {
                     sawStoredState = true;
-                    if (m_ownsNode(change.NodeId))
-                    {
-                        if (change.Kind == NodeStateChangeKind.Upsert)
-                        {
-                            hydratedRootIds.Add(change.NodeId);
-                        }
-                        else if (authoritative &&
-                            change.Kind == NodeStateChangeKind.Delete)
-                        {
-                            hydratedRootIds.Remove(change.NodeId);
-                        }
-                    }
                     if (authoritative ||
+                        !authoritativeReads ||
                         change.Kind != NodeStateChangeKind.Delete)
                     {
                         await ApplyInboundAsync(change, ct).ConfigureAwait(false);
+                        UpdateHydratedRootIds(hydratedRootIds, change.NodeId);
                     }
                 }
             }
@@ -268,6 +261,14 @@ namespace Opc.Ua.Redundancy.Server
                 sawStoredState = await stateProbe
                     .HasStoredStateAsync(m_ownsNode, ct)
                     .ConfigureAwait(false);
+            }
+
+            if (!authoritativeReads)
+            {
+                // An eventual replica view can supply updates, but absence is not proof of deletion or a new store.
+                await ApplyStoredValuesAsync(ct).ConfigureAwait(false);
+                m_logger?.DistributedAddressSpaceEventualHydration();
+                return;
             }
 
             if (authoritative &&
@@ -304,10 +305,9 @@ namespace Opc.Ua.Redundancy.Server
                 {
                     ObserveStoreSequence(sequence);
                     if (m_ownsNode(nodeId) &&
-                        sequence >= NextApplicable(m_valueSequence, nodeId))
+                        IsValueApplicable(nodeId, sequence))
                     {
-                        ApplyValue(nodeId, value);
-                        m_valueSequence[nodeId] = sequence;
+                        ApplyValueChange(nodeId, value, sequence);
                     }
                 }
             }
@@ -346,7 +346,6 @@ namespace Opc.Ua.Redundancy.Server
                 }
                 if (entry.Kind == NodeStateChangeKind.Upsert && entry.Node != null)
                 {
-                    rootNodeIds.Add(entry.NodeId);
                     stagedNodes.Add((
                         entry.NodeId,
                         DecodeStoredNode(entry.NodeId, entry.Node.Payload),
@@ -362,7 +361,7 @@ namespace Opc.Ua.Redundancy.Server
             var appliedNodeSequences = new List<(NodeId NodeId, ulong Sequence)>();
             foreach ((NodeId nodeId, NodeState source, ulong sequence) in stagedNodes)
             {
-                if (sequence >= NextApplicable(m_nodeSequence, nodeId))
+                if (IsTopologyApplicable(nodeId, sequence))
                 {
                     nodes.Add(await PrepareUpsertAsync(
                         nodeId,
@@ -378,22 +377,26 @@ namespace Opc.Ua.Redundancy.Server
             }
             foreach ((NodeId nodeId, ulong sequence) in appliedNodeSequences)
             {
-                m_nodeSequence[nodeId] = sequence;
+                RecordTopology(nodeId, sequence, exists: true);
+            }
+            foreach ((NodeId nodeId, _, _) in stagedNodes)
+            {
+                UpdateHydratedRootIds(rootNodeIds, nodeId);
             }
             foreach (NodeState node in nodes)
             {
                 if (m_addressSpace.TryGetNode(node.NodeId, out NodeState? liveNode))
                 {
                     AttachStateChangedTree(liveNode);
+                    ApplyPendingValues(liveNode);
                 }
             }
 
             foreach ((NodeId nodeId, ulong sequence, DataValue value) in values)
             {
-                if (sequence >= NextApplicable(m_valueSequence, nodeId))
+                if (IsValueApplicable(nodeId, sequence))
                 {
-                    ApplyValue(nodeId, value);
-                    m_valueSequence[nodeId] = sequence;
+                    ApplyValueChange(nodeId, value, sequence);
                 }
             }
 
@@ -404,22 +407,11 @@ namespace Opc.Ua.Redundancy.Server
                 .ReadDeltaLogAsync(snapshot.Sequence, ct)
                 .ConfigureAwait(false))
             {
-                if (m_ownsNode(change.NodeId))
-                {
-                    if (change.Kind == NodeStateChangeKind.Upsert)
-                    {
-                        rootNodeIds.Add(change.NodeId);
-                    }
-                    else if (authoritative &&
-                        change.Kind == NodeStateChangeKind.Delete)
-                    {
-                        rootNodeIds.Remove(change.NodeId);
-                    }
-                }
                 if (authoritative ||
                     change.Kind != NodeStateChangeKind.Delete)
                 {
                     await ApplyInboundAsync(change, ct).ConfigureAwait(false);
+                    UpdateHydratedRootIds(rootNodeIds, change.NodeId);
                 }
             }
             return rootNodeIds;
@@ -445,7 +437,7 @@ namespace Opc.Ua.Redundancy.Server
 
             // Publish an initial snapshot so a standby that joins next hydrates
             // from it (and the seed's delta-log entries are trimmed).
-            if (m_store is INodeStateSnapshotStore seedSnapshotStore)
+            if (SupportsSnapshots && m_store is INodeStateSnapshotStore seedSnapshotStore)
             {
                 await seedSnapshotStore.WriteSnapshotAsync(ct).ConfigureAwait(false);
             }
@@ -532,18 +524,38 @@ namespace Opc.Ua.Redundancy.Server
             m_outbound?.Writer.TryComplete();
             StopInbound();
 
-            await AwaitQuietlyAsync(m_outboundTask).ConfigureAwait(false);
-            await AwaitQuietlyAsync(m_inboundCleanupTask).ConfigureAwait(false);
-            await AwaitQuietlyAsync(m_snapshotTask).ConfigureAwait(false);
-
-            m_addressSpace.NodeAdded -= m_onNodeAdded;
-            m_addressSpace.NodeRemoved -= m_onNodeRemoved;
-            if (m_election != null && m_onLeadershipChanged != null)
+            try
             {
-                m_election.LeadershipChanged -= m_onLeadershipChanged;
+                Task outbound = AwaitQuietlyAsync(m_outboundTask);
+                await Task.WhenAll(
+                    outbound,
+                    AwaitQuietlyAsync(m_inboundCleanupTask),
+                    AwaitFinalSnapshotAsync(outbound)).ConfigureAwait(false);
             }
-            DetachAll();
-            m_cts.Dispose();
+            finally
+            {
+                m_addressSpace.NodeAdded -= m_onNodeAdded;
+                m_addressSpace.NodeRemoved -= m_onNodeRemoved;
+                if (m_election != null && m_onLeadershipChanged != null)
+                {
+                    m_election.LeadershipChanged -= m_onLeadershipChanged;
+                }
+                DetachAll();
+                m_cts.Dispose();
+            }
+        }
+
+        private async Task AwaitFinalSnapshotAsync(Task outbound)
+        {
+            try
+            {
+                await outbound.ConfigureAwait(false);
+            }
+            finally
+            {
+                // The producer may assign its final snapshot task while it is shutting down.
+                await AwaitQuietlyAsync(m_snapshotTask).ConfigureAwait(false);
+            }
         }
 
         private void OnLocalNodeAdded(NodeState node)
@@ -554,6 +566,10 @@ namespace Opc.Ua.Redundancy.Server
             }
             ValidateOwnedTree(node);
             AttachStateChangedTree(node);
+            if (!IsApplyingInbound)
+            {
+                ApplyPendingValues(node);
+            }
             if (IsApplyingInbound || !IsWriter)
             {
                 return;
@@ -570,6 +586,11 @@ namespace Opc.Ua.Redundancy.Server
             {
                 return;
             }
+            if (m_addressSpace.TryGetNode(nodeId, out NodeState? replacement))
+            {
+                AttachStateChangedTree(replacement);
+                return;
+            }
             DetachStateChanged(nodeId);
             if (IsApplyingInbound || !IsWriter)
             {
@@ -583,6 +604,15 @@ namespace Opc.Ua.Redundancy.Server
             if (!m_ownsNode(node.NodeId) || IsApplyingInbound)
             {
                 return;
+            }
+            lock (m_lock)
+            {
+                if (m_disposed ||
+                    !m_attached.TryGetValue(node.NodeId, out TrackedNode? tracked) ||
+                    !ReferenceEquals(tracked.Node, node))
+                {
+                    return;
+                }
             }
             ValidateOwnedTree(node);
             // Deletes are driven by ILocalAddressSpace.NodeRemoved.
@@ -732,7 +762,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private void MaybeTriggerSnapshotPublish()
         {
-            if (m_store is not INodeStateSnapshotStore snapshotStore)
+            if (!SupportsSnapshots || m_store is not INodeStateSnapshotStore snapshotStore)
             {
                 return;
             }
@@ -856,7 +886,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 case NodeStateChangeKind.Upsert:
                     if (change.Node != null &&
-                        change.Sequence >= NextApplicable(m_nodeSequence, change.NodeId))
+                        IsTopologyApplicable(change.NodeId, change.Sequence))
                     {
                         await TryApplyUpsertAsync(
                             change.NodeId,
@@ -864,12 +894,12 @@ namespace Opc.Ua.Redundancy.Server
                             change.Sequence,
                             cancellationToken)
                             .ConfigureAwait(false);
-                        m_nodeSequence[change.NodeId] = change.Sequence;
+                        RecordTopology(change.NodeId, change.Sequence, exists: true);
                     }
                     break;
                 case NodeStateChangeKind.Delete:
                     if (change.Sequence > 0 &&
-                        change.Sequence < NextApplicable(m_nodeSequence, change.NodeId))
+                        !IsTopologyApplicable(change.NodeId, change.Sequence))
                     {
                         break;
                     }
@@ -879,33 +909,68 @@ namespace Opc.Ua.Redundancy.Server
                             .RemoveNodeAsync(change.NodeId, cancellationToken)
                             .ConfigureAwait(false);
                     }
-                    if (change.Sequence > 0)
+                    RecordTopology(change.NodeId, change.Sequence, exists: false);
+                    lock (m_lock)
                     {
-                        m_nodeSequence[change.NodeId] = change.Sequence;
-                        if (change.Sequence >= NextApplicable(m_valueSequence, change.NodeId))
+                        if (change.Sequence > 0 && IsValueApplicable(change.NodeId, change.Sequence))
                         {
                             m_valueSequence[change.NodeId] = change.Sequence;
+                        }
+                        if (m_pendingValues.TryGetValue(change.NodeId, out PendingValue pending) &&
+                            pending.Sequence <= change.Sequence)
+                        {
+                            m_pendingValues.Remove(change.NodeId);
                         }
                     }
                     break;
                 case NodeStateChangeKind.Value:
-                    if (change.Sequence >= NextApplicable(m_valueSequence, change.NodeId))
+                    if (IsValueApplicable(change.NodeId, change.Sequence))
                     {
-                        ApplyValue(change.NodeId, change.Value);
-                        m_valueSequence[change.NodeId] = change.Sequence;
+                        ApplyValueChange(change.NodeId, change.Value, change.Sequence);
                     }
                     break;
             }
         }
 
-        private static ulong NextApplicable(NodeIdDictionary<ulong> applied, NodeId nodeId)
+        private bool IsTopologyApplicable(NodeId nodeId, ulong sequence)
         {
-            // Returns the smallest sequence that may still be applied for this
-            // key: one past the last applied sequence, or 0 when nothing has been
-            // applied yet (so the first change — and the unsequenced streamed
-            // fallback — always applies, while a replayed or duplicate change at
-            // or below the last applied sequence is skipped).
-            return applied.TryGetValue(nodeId, out ulong last) ? last + 1 : 0;
+            return !m_topologyState.TryGetValue(nodeId, out TopologyState state) || sequence > state.Sequence;
+        }
+
+        private bool IsValueApplicable(NodeId nodeId, ulong sequence)
+        {
+            return !m_valueSequence.TryGetValue(nodeId, out ulong last) || sequence > last;
+        }
+
+        private void RecordTopology(NodeId nodeId, ulong sequence, bool exists)
+        {
+            ulong deletedThrough = 0;
+            if (m_topologyState.TryGetValue(nodeId, out TopologyState previous))
+            {
+                sequence = Math.Max(sequence, previous.Sequence);
+                deletedThrough = previous.DeletedThrough;
+            }
+            if (!exists)
+            {
+                deletedThrough = Math.Max(deletedThrough, sequence);
+            }
+            m_topologyState[nodeId] = new TopologyState(sequence, exists, deletedThrough);
+        }
+
+        private void UpdateHydratedRootIds(HashSet<NodeId> rootIds, NodeId nodeId)
+        {
+            if (!m_ownsNode(nodeId) || !m_topologyState.TryGetValue(nodeId, out TopologyState state))
+            {
+                return;
+            }
+            if (state.Exists)
+            {
+                rootIds.Add(nodeId);
+            }
+            else
+            {
+                rootIds.Remove(nodeId);
+            }
         }
 
         private bool IsApplyingInbound => m_inboundApplyDepth.Value > 0;
@@ -933,6 +998,7 @@ namespace Opc.Ua.Redundancy.Server
                     .AddOrUpdateNodeAsync(node, cancellationToken)
                     .ConfigureAwait(false);
             }
+            ApplyPendingValues(node);
         }
 
         private ValueTask<NodeState> PrepareUpsertAsync(
@@ -1067,8 +1133,7 @@ namespace Opc.Ua.Redundancy.Server
             HashSet<NodeId> hydratedRootIds,
             CancellationToken cancellationToken)
         {
-            var localNodes = new List<NodeState>(m_addressSpace.Nodes);
-            foreach (NodeState localNode in localNodes)
+            foreach (NodeState localNode in new List<NodeState>(m_addressSpace.Nodes))
             {
                 if (m_ownsNode(localNode.NodeId) &&
                     !hydratedRootIds.Contains(localNode.NodeId))
@@ -1079,6 +1144,7 @@ namespace Opc.Ua.Redundancy.Server
                             .RemoveNodeAsync(localNode.NodeId, cancellationToken)
                             .ConfigureAwait(false);
                     }
+                    RecordTopology(localNode.NodeId, 0, exists: false);
                 }
             }
         }
@@ -1144,7 +1210,62 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
-        private void ApplyValue(NodeId nodeId, DataValue value)
+        private void ApplyValueChange(NodeId nodeId, in DataValue value, ulong sequence)
+        {
+            lock (m_lock)
+            {
+                if (m_disposed ||
+                    !IsValueApplicable(nodeId, sequence) ||
+                    (m_pendingValues.TryGetValue(nodeId, out PendingValue pending) && pending.Sequence > sequence))
+                {
+                    return;
+                }
+                if (ApplyValue(nodeId, value))
+                {
+                    m_valueSequence[nodeId] = sequence;
+                    m_pendingValues.Remove(nodeId);
+                }
+                else
+                {
+                    m_pendingValues[nodeId] = new PendingValue(sequence, value.Copy());
+                }
+            }
+        }
+
+        private void ApplyPendingValues(NodeState node, ulong deletedThrough = 0)
+        {
+            if (m_topologyState.TryGetValue(node.NodeId, out TopologyState topology))
+            {
+                deletedThrough = Math.Max(deletedThrough, topology.DeletedThrough);
+            }
+            lock (m_lock)
+            {
+                // A parent tombstone also ends its descendants' previous incarnation.
+                if (deletedThrough > 0 && IsValueApplicable(node.NodeId, deletedThrough))
+                {
+                    m_valueSequence[node.NodeId] = deletedThrough;
+                }
+                if (m_pendingValues.TryGetValue(node.NodeId, out PendingValue pending))
+                {
+                    if (pending.Sequence <= deletedThrough && deletedThrough > 0)
+                    {
+                        m_pendingValues.Remove(node.NodeId);
+                    }
+                    else if (IsValueApplicable(node.NodeId, pending.Sequence))
+                    {
+                        ApplyValueChange(node.NodeId, pending.Value, pending.Sequence);
+                    }
+                }
+            }
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(m_addressSpace.Context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                ApplyPendingValues(child, deletedThrough);
+            }
+        }
+
+        private bool ApplyValue(NodeId nodeId, in DataValue value)
         {
             if (m_addressSpace.TryGetNode(nodeId, out NodeState? node) && node is BaseVariableState variable)
             {
@@ -1153,59 +1274,118 @@ namespace Opc.Ua.Redundancy.Server
                 variable.StatusCode = value.StatusCode;
                 variable.Timestamp = value.SourceTimestamp;
                 variable.ClearChangeMasks(m_addressSpace.Context, false);
+                return true;
             }
-        }
-
-        private void AttachStateChanged(NodeState node)
-        {
-            lock (m_lock)
-            {
-                if (m_attached.TryGetValue(node.NodeId, out NodeState? existing))
-                {
-                    if (ReferenceEquals(existing, node))
-                    {
-                        return;
-                    }
-
-                    existing.StateChanged -= m_onChanged;
-                }
-
-                m_attached[node.NodeId] = node;
-                node.StateChanged += m_onChanged;
-            }
+            return false;
         }
 
         private void AttachStateChangedTree(NodeState node)
         {
+            var current = new Dictionary<NodeId, TrackedNode>();
+            NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? NodeId.Null;
+            CollectAttachments(node, parentId, current);
+            lock (m_lock)
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
+
+                foreach (NodeId previousId in GetTrackedSubtree(node.NodeId))
+                {
+                    if (!current.ContainsKey(previousId))
+                    {
+                        DetachTrackedNode(previousId);
+                    }
+                }
+
+                foreach (KeyValuePair<NodeId, TrackedNode> entry in current)
+                {
+                    bool sameInstance = false;
+                    if (m_attached.TryGetValue(entry.Key, out TrackedNode? existing))
+                    {
+                        sameInstance = ReferenceEquals(existing.Node, entry.Value.Node);
+                        if (!sameInstance)
+                        {
+                            existing.Node.StateChanged -= m_onChanged;
+                        }
+                        if (m_attached.TryGetValue(existing.ParentId, out TrackedNode? previousParent))
+                        {
+                            previousParent.Children.Remove(entry.Key);
+                        }
+                    }
+                    m_attached[entry.Key] = entry.Value;
+                    if (!sameInstance)
+                    {
+                        entry.Value.Node.StateChanged += m_onChanged;
+                    }
+                }
+                foreach (KeyValuePair<NodeId, TrackedNode> entry in current)
+                {
+                    if (m_attached.TryGetValue(entry.Value.ParentId, out TrackedNode? parent))
+                    {
+                        parent.Children.Add(entry.Key);
+                    }
+                }
+            }
+        }
+
+        private void CollectAttachments(NodeState node, NodeId parentId, Dictionary<NodeId, TrackedNode> attachments)
+        {
             if (!node.NodeId.IsNull && m_ownsNode(node.NodeId))
             {
-                AttachStateChanged(node);
+                attachments.Add(node.NodeId, new TrackedNode(node, parentId));
+                parentId = node.NodeId;
             }
             var children = new List<BaseInstanceState>();
             node.GetChildren(m_addressSpace.Context, children);
             foreach (BaseInstanceState child in children)
             {
-                AttachStateChangedTree(child);
+                CollectAttachments(child, parentId, attachments);
             }
         }
 
         private void DetachStateChanged(NodeId nodeId)
         {
-            NodeState? node = null;
             lock (m_lock)
             {
-                if (m_attached.TryRemove(nodeId, out node))
+                // NodeRemoved is raised after the real node manager has cleared the runtime child links.
+                foreach (NodeId trackedId in GetTrackedSubtree(nodeId))
                 {
-                    node.StateChanged -= m_onChanged;
+                    DetachTrackedNode(trackedId);
                 }
             }
-            if (node != null)
+        }
+
+        private List<NodeId> GetTrackedSubtree(NodeId nodeId)
+        {
+            var result = new List<NodeId>();
+            var pending = new Stack<NodeId>();
+            var visited = new HashSet<NodeId>();
+            pending.Push(nodeId);
+            while (pending.Count > 0)
             {
-                var children = new List<BaseInstanceState>();
-                node.GetChildren(m_addressSpace.Context, children);
-                foreach (BaseInstanceState child in children)
+                NodeId current = pending.Pop();
+                if (visited.Add(current) && m_attached.TryGetValue(current, out TrackedNode? tracked))
                 {
-                    DetachStateChanged(child.NodeId);
+                    result.Add(current);
+                    foreach (NodeId childId in tracked.Children)
+                    {
+                        pending.Push(childId);
+                    }
+                }
+            }
+            return result;
+        }
+
+        private void DetachTrackedNode(NodeId nodeId)
+        {
+            if (m_attached.TryRemove(nodeId, out TrackedNode? tracked))
+            {
+                tracked.Node.StateChanged -= m_onChanged;
+                if (m_attached.TryGetValue(tracked.ParentId, out TrackedNode? parent))
+                {
+                    parent.Children.Remove(nodeId);
                 }
             }
         }
@@ -1214,11 +1394,12 @@ namespace Opc.Ua.Redundancy.Server
         {
             lock (m_lock)
             {
-                foreach (NodeState node in m_attached.Values)
+                foreach (TrackedNode tracked in m_attached.Values)
                 {
-                    node.StateChanged -= m_onChanged;
+                    tracked.Node.StateChanged -= m_onChanged;
                 }
                 m_attached.Clear();
+                m_pendingValues.Clear();
             }
         }
 
@@ -1306,6 +1487,28 @@ namespace Opc.Ua.Redundancy.Server
             {
                 // expected on shutdown
             }
+        }
+
+        private bool SupportsSnapshots =>
+            m_store is not INodeStateStoreReadConsistency consistency || consistency.SupportsSnapshots;
+
+        private readonly record struct TopologyState(ulong Sequence, bool Exists, ulong DeletedThrough);
+
+        private readonly record struct PendingValue(ulong Sequence, DataValue Value);
+
+        private sealed class TrackedNode
+        {
+            public TrackedNode(NodeState node, NodeId parentId)
+            {
+                Node = node;
+                ParentId = parentId;
+            }
+
+            public NodeState Node { get; }
+
+            public NodeId ParentId { get; }
+
+            public HashSet<NodeId> Children { get; } = [];
         }
 
         private enum OutboundOpKind
@@ -1409,9 +1612,10 @@ namespace Opc.Ua.Redundancy.Server
         private readonly Action<bool>? m_onLeadershipChanged;
         private readonly CancellationTokenSource m_cts = new();
         private readonly Lock m_lock = new();
-        private readonly NodeIdDictionary<NodeState> m_attached = [];
-        private readonly NodeIdDictionary<ulong> m_nodeSequence = [];
+        private readonly NodeIdDictionary<TrackedNode> m_attached = [];
+        private readonly NodeIdDictionary<TopologyState> m_topologyState = [];
         private readonly NodeIdDictionary<ulong> m_valueSequence = [];
+        private readonly NodeIdDictionary<PendingValue> m_pendingValues = [];
         private readonly Queue<NodeStateChange> m_bufferedInbound = new();
         private readonly AsyncLocal<int> m_inboundApplyDepth = new();
         private Channel<OutboundOp>? m_outbound;
@@ -1436,6 +1640,9 @@ namespace Opc.Ua.Redundancy.Server
     /// </summary>
     internal static partial class AddressSpaceSynchronizerLog
     {
+        /// <summary>
+        /// Reports a failed outbound state publication.
+        /// </summary>
         [LoggerMessage(EventId = RedundancyServerEventIds.AddressSpaceSynchronizer + 0, Level = LogLevel.Error,
             Message = "Distributed address-space outbound write failed for {NodeId}.")]
         public static partial void DistributedAddressSpaceOutboundWriteFailed(
@@ -1443,18 +1650,31 @@ namespace Opc.Ua.Redundancy.Server
             Exception exception,
             NodeId nodeId);
 
+        /// <summary>
+        /// Reports failure to publish a validated snapshot.
+        /// </summary>
         [LoggerMessage(EventId = RedundancyServerEventIds.AddressSpaceSynchronizer + 1, Level = LogLevel.Error,
             Message = "Distributed address-space snapshot publish failed.")]
         public static partial void DistributedAddressSpaceSnapshotPublishFailed(
             this ILogger logger,
             Exception exception);
 
+        /// <summary>
+        /// Reports failure to apply an incoming node change.
+        /// </summary>
         [LoggerMessage(EventId = RedundancyServerEventIds.AddressSpaceSynchronizer + 2, Level = LogLevel.Error,
             Message = "Distributed address-space inbound apply failed for {NodeId}.")]
         public static partial void DistributedAddressSpaceInboundApplyFailed(
             this ILogger logger,
             Exception exception,
             NodeId nodeId);
-    }
 
+        /// <summary>
+        /// Reports the non-destructive hydration semantics of an eventually consistent state view.
+        /// </summary>
+        [LoggerMessage(EventId = RedundancyServerEventIds.AddressSpaceSynchronizer + 3, Level = LogLevel.Information,
+            Message = "Distributed address-space hydration used an eventual view; " +
+                "absence-based cleanup, initial seeding, and snapshot compaction are unavailable.")]
+        public static partial void DistributedAddressSpaceEventualHydration(this ILogger logger);
+    }
 }

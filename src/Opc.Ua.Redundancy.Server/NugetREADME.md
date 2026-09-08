@@ -19,7 +19,7 @@ services.AddOpcUa()
     .AddServer(...)
     .UseDistributedAddressSpace(distributed =>
     {
-        distributed.UseSharedKeyValueStore(new InMemorySharedKeyValueStore());
+        distributed.KeyValueStoreFactory = _ => new InMemorySharedKeyValueStore();
     })
     .UseDistributedSessions();
 ```
@@ -27,6 +27,19 @@ services.AddOpcUa()
 The single-instance defaults remain in effect until a shared store is supplied, so the same server binary runs stand-alone or as part of a replica set.
 
 Distributed address-space replication follows each node manager's declared non-standard `NamespaceUris`; namespace-zero infrastructure remains local to each replica. Node managers that use a custom ownership partition and return `null` for `NamespaceUris` must implement `ILocalAddressSpaceOwnership` with a stable `PartitionId` and an `OwnsNode(NodeId)` predicate.
+
+Active/passive writers require linearizable shared sequence coordination. Compose
+`UseRedundancyConsistency(...)` before `UseDistributedAddressSpace(...)`, or use
+an explicitly configured `HybridSharedKeyValueStore` for direct construction.
+Bare CRDT writers and process-local coordinators paired with replicated payloads
+fail before mutation.
+
+Authoritative bootstrap and compacted snapshots require strongly consistent
+state reads. CRDT payloads use non-destructive hydration and retained deltas:
+missing rows do not imply deletion or an empty store. Corrupt records cannot
+justify cleanup, and unfinished publication reservations prevent snapshot/log
+compaction until reconciled. See the High Availability guide for these
+consistency and recovery requirements.
 
 ## Target frameworks
 

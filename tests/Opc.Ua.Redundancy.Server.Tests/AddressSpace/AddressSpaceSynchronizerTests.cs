@@ -40,6 +40,9 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Crdt;
+using Crdt.Transport;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
@@ -57,7 +60,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
     public class AddressSpaceSynchronizerTests
     {
         private const ushort NamespaceIndex = 1;
-        private IServiceMessageContext m_messageContext = null!;
+        private ServiceMessageContext m_messageContext = null!;
         private SystemContext m_systemContext = null!;
 
         [OneTimeSetUp]
@@ -192,12 +195,23 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Is.Null);
         }
 
-        [Test]
-        public async Task MalformedStoredRecordDoesNotDeleteLocalRootAsync()
+        /// <summary>
+        /// Verifies that corruption cannot remove a local root even when another stored record is valid.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MalformedStoredRecordDoesNotDeleteLocalRootAsync(bool includeValidRecord)
         {
             using var kv = new InMemorySharedKeyValueStore();
             using var store = new InMemoryNodeStateStore(kv, m_messageContext);
             var nodeId = new NodeId("invalid", NamespaceIndex);
+            if (includeValidRecord)
+            {
+                BaseDataVariableState valid = NewVariable("valid", 1.0);
+                await store.UpsertNodeAsync(new StoredNode(
+                    valid.NodeId,
+                    NodeStateSerializer.Serialize(m_systemContext, valid))).ConfigureAwait(false);
+            }
             await kv.SetAsync(
                 "n/" + nodeId,
                 ByteString.From(new byte[] { 1, 2, 3 })).ConfigureAwait(false);
@@ -309,7 +323,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await AwaitWithTimeoutAsync(initialValueApplied).ConfigureAwait(false);
 
             Assert.That(readerSpace.TryGetNode(root.NodeId, out NodeState? mirroredRoot), Is.True);
-            BaseVariableState? mirroredChild = mirroredRoot!
+            var mirroredChild = mirroredRoot!
                 .FindChild(m_systemContext, child.BrowseName) as BaseVariableState;
             Assert.That(mirroredChild, Is.Not.Null);
             Assert.That(mirroredChild!.Timestamp, Is.EqualTo(initialTimestamp));
@@ -437,8 +451,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             };
             root.AddChild(new BaseObjectState(root)
             {
-                NodeId = new NodeId("foreign", (ushort)(NamespaceIndex + 1)),
-                BrowseName = new QualifiedName("Foreign", (ushort)(NamespaceIndex + 1)),
+                NodeId = new NodeId("foreign", NamespaceIndex + 1),
+                BrowseName = new QualifiedName("Foreign", NamespaceIndex + 1),
                 DisplayName = new LocalizedText("Foreign")
             });
             await writerSpace.AddOrUpdateNodeAsync(root).ConfigureAwait(false);
@@ -470,8 +484,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             };
             invalidRoot.AddChild(new BaseObjectState(invalidRoot)
             {
-                NodeId = new NodeId("foreign", (ushort)(NamespaceIndex + 1)),
-                BrowseName = new QualifiedName("Foreign", (ushort)(NamespaceIndex + 1)),
+                NodeId = new NodeId("foreign", NamespaceIndex + 1),
+                BrowseName = new QualifiedName("Foreign", NamespaceIndex + 1),
                 DisplayName = new LocalizedText("Foreign")
             });
             await store.UpsertNodeAsync(
@@ -513,8 +527,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var recordNodeId = new NodeId("owned", NamespaceIndex);
             var payloadRoot = new BaseObjectState(null)
             {
-                NodeId = new NodeId("foreign-root", (ushort)(NamespaceIndex + 1)),
-                BrowseName = new QualifiedName("ForeignRoot", (ushort)(NamespaceIndex + 1)),
+                NodeId = new NodeId("foreign-root", NamespaceIndex + 1),
+                BrowseName = new QualifiedName("ForeignRoot", NamespaceIndex + 1),
                 DisplayName = new LocalizedText("Remote")
             };
             await store.UpsertNodeAsync(
@@ -570,6 +584,83 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 ((BaseDataVariableState)node!).Value,
                 Is.EqualTo(new Variant(99.0)),
                 "reader applied the post-snapshot delta-log value on top of the snapshot");
+        }
+
+        /// <summary>
+        /// Verifies that a stale replayed deletion cannot prune a newer root already present in hydration.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StaleDeletionCannotPruneRecreatedRootDuringHydrationAsync(bool useSnapshot)
+        {
+            BaseDataVariableState recreated = NewVariable("recreated", 3.0);
+            var store = new OverlappingHydrationStore(
+                new StoredNode(recreated.NodeId, NodeStateSerializer.Serialize(m_systemContext, recreated)),
+                useSnapshot);
+            var local = new DictionaryAddressSpace(m_systemContext);
+            await using var synchronizer = new AddressSpaceSynchronizer(store, local, () => false);
+            synchronizer.StartBeforeHydration();
+
+            await synchronizer.SeedOrHydrateAsync().ConfigureAwait(false);
+
+            Assert.That(local.TryGetNode(recreated.NodeId, out NodeState? hydrated), Is.True,
+                "Deletion 2 must not remove the root hydrated at sequence 3.");
+            Assert.That(((BaseDataVariableState)hydrated!).Value, Is.EqualTo(new Variant(3.0)));
+
+            Task<bool> duplicateApplied = WaitForInboundAsync(synchronizer, change => change.Sequence == 3);
+            store.PublishRecreation();
+            await synchronizer.CompleteHydrationAsync().ConfigureAwait(false);
+            await AwaitWithTimeoutAsync(duplicateApplied).ConfigureAwait(false);
+            await synchronizer.SeedOrHydrateAsync().ConfigureAwait(false);
+
+            Assert.That(local.TryGetNode(recreated.NodeId, out NodeState? repeated), Is.True,
+                "Already-applied snapshot entries must still represent the root on repeated hydration.");
+            Assert.That(repeated, Is.SameAs(hydrated));
+        }
+
+        /// <summary>
+        /// Applies CRDT updates and tombstones without deriving deletion or initial seeding from missing rows.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HybridHydrationPreservesUnobservedLocalRootsAndAppliesTombstonesAsync(
+            bool routeNodeRecordsStrong)
+        {
+            await using var network = new InMemoryNetwork();
+            await using var bulk = new ReplicatedSharedKeyValueStore(
+                ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
+            await using var coordinator = new RaftSharedKeyValueStore(
+                DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
+            ArrayOf<string> prefixes = routeNodeRecordsStrong
+                ? ["election/", "n/", "v/", "dlog/"]
+                : default;
+            await using var hybrid = new HybridSharedKeyValueStore(bulk, coordinator, prefixes);
+            using var store = new InMemoryNodeStateStore(hybrid, m_messageContext);
+            BaseDataVariableState remote = NewVariable("remote", 2.0);
+            BaseDataVariableState deleted = NewVariable("deleted", 3.0);
+            await store.UpsertNodeAsync(new StoredNode(
+                remote.NodeId, NodeStateSerializer.Serialize(m_systemContext, remote))).ConfigureAwait(false);
+            await store.UpsertNodeAsync(new StoredNode(
+                deleted.NodeId, NodeStateSerializer.Serialize(m_systemContext, deleted))).ConfigureAwait(false);
+            await store.DeleteNodeAsync(deleted.NodeId).ConfigureAwait(false);
+            var local = new DictionaryAddressSpace(m_systemContext);
+            BaseDataVariableState unobserved = NewVariable("unobserved", 1.0);
+            await local.AddOrUpdateNodeAsync(unobserved).ConfigureAwait(false);
+            await local.AddOrUpdateNodeAsync(deleted).ConfigureAwait(false);
+            await using var synchronizer = new AddressSpaceSynchronizer(store, local, () => true);
+            synchronizer.StartBeforeHydration();
+
+            await synchronizer.SeedOrHydrateAsync().ConfigureAwait(false);
+            await synchronizer.CompleteHydrationAsync().ConfigureAwait(false);
+
+            Assert.That(local.TryGetNode(unobserved.NodeId, out NodeState? retained), Is.True);
+            Assert.That(retained, Is.SameAs(unobserved));
+            Assert.That(local.TryGetNode(remote.NodeId, out _), Is.True);
+            Assert.That(local.TryGetNode(deleted.NodeId, out _), Is.False);
+            Assert.That(await store.TryGetNodeAsync(unobserved.NodeId).ConfigureAwait(false), Is.Null,
+                "Missing CRDT rows must not be treated as evidence of an empty store to reseed.");
+            (bool snapshotPublished, _) = await bulk.TryGetAsync("snapmeta/manifest").ConfigureAwait(false);
+            Assert.That(snapshotPublished, Is.False);
         }
 
         [Test]
@@ -754,7 +845,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }
 
             var readerSpace = new RecordingAddressSpace(m_systemContext);
-            var rootHandle = new object();
+            object rootHandle = new();
             var localRoot = new ConcreteObjectState
             {
                 NodeId = nodeId,
@@ -781,7 +872,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     m_systemContext,
                     null,
                     assignInstanceNodeIds: false);
-            var outputArgumentsHandle = new object();
+            object outputArgumentsHandle = new();
             localOutputArguments.Handle = outputArgumentsHandle;
             localRoot.AddChild(localMethod);
             var removedChild = new BaseObjectState(localRoot)
@@ -795,7 +886,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             localRoot.AddReference(ReferenceTypeIds.Organizes, false, removedTarget);
             await readerSpace.AddOrUpdateNodeAsync(localRoot).ConfigureAwait(false);
             BaseDataVariableState localVariable = NewVariable("Callback", 1.0);
-            var variableHandle = new object();
+            object variableHandle = new();
             localVariable.Handle = variableHandle;
             DateTime variableTimestamp = DateTime.UtcNow.AddMinutes(-1);
             localVariable.Timestamp = variableTimestamp;
@@ -991,6 +1082,150 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(space.TryGetNode(nodeId, out _), Is.False);
         }
 
+        /// <summary>
+        /// Retains newer pending values without carrying pre-deletion values into a recreated subtree.
+        /// </summary>
+        [TestCase(false, false, 11UL)]
+        [TestCase(true, false, 11UL)]
+        [TestCase(true, true, 11UL)]
+        [TestCase(true, true, 14UL)]
+        public async Task PendingValuesRespectTopologyIncarnationsAsync(
+            bool nested,
+            bool deleteParent,
+            ulong valueSequence)
+        {
+            var store = new ScriptedNodeStateStore();
+            var local = new RecordingAddressSpace(m_systemContext);
+            await using var synchronizer = new AddressSpaceSynchronizer(store, local, () => false);
+            synchronizer.Start();
+            BaseObjectState? parent = nested
+                ? new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("parent", NamespaceIndex),
+                    BrowseName = new QualifiedName("Parent", NamespaceIndex)
+                }
+                : null;
+            var variable = new BaseDataVariableState(parent)
+            {
+                NodeId = new NodeId("late-value", NamespaceIndex),
+                BrowseName = new QualifiedName("LateValue", NamespaceIndex),
+                Value = new Variant(1.0)
+            };
+            NodeState root = variable;
+            if (parent != null)
+            {
+                parent.AddChild(variable);
+                root = parent;
+            }
+            var value = new DataValue(new Variant(42.0), StatusCodes.Good, DateTimeUtc.Now);
+            Task<bool> valueReceived = WaitForInboundAsync(synchronizer, change => change.Kind == NodeStateChangeKind.Value);
+            store.Publish(new NodeStateChange
+            {
+                Kind = NodeStateChangeKind.Value,
+                NodeId = variable.NodeId,
+                Value = value,
+                Sequence = valueSequence
+            });
+            await AwaitWithTimeoutAsync(valueReceived).ConfigureAwait(false);
+            Assert.That(local.TryGetNode(variable.NodeId, out _), Is.False);
+            if (deleteParent)
+            {
+                Task<bool> deleted = WaitForInboundAsync(synchronizer, change => change.Kind == NodeStateChangeKind.Delete);
+                store.Publish(new NodeStateChange
+                {
+                    Kind = NodeStateChangeKind.Delete,
+                    NodeId = root.NodeId,
+                    Sequence = 12
+                });
+                await AwaitWithTimeoutAsync(deleted).ConfigureAwait(false);
+            }
+            Task<bool> topologyReceived = WaitForInboundAsync(
+                synchronizer, change => change.Kind == NodeStateChangeKind.Upsert);
+            store.Publish(new NodeStateChange
+            {
+                Kind = NodeStateChangeKind.Upsert,
+                NodeId = root.NodeId,
+                Node = new StoredNode(root.NodeId, NodeStateSerializer.Serialize(m_systemContext, root)),
+                Sequence = deleteParent ? 13UL : 10UL
+            });
+            await AwaitWithTimeoutAsync(topologyReceived).ConfigureAwait(false);
+
+            Assert.That(local.TryGetNode(variable.NodeId, out NodeState? created), Is.True);
+            bool retainValue = !deleteParent || valueSequence > 12;
+            Assert.That(((BaseVariableState)created!).Value,
+                Is.EqualTo(retainValue ? value.WrappedValue : new Variant(1.0)));
+            if (retainValue)
+            {
+                Assert.That(((BaseVariableState)created).Timestamp, Is.EqualTo(value.SourceTimestamp));
+            }
+            else
+            {
+                Task<bool> staleReplay = WaitForInboundAsync(
+                    synchronizer, change => change.Kind == NodeStateChangeKind.Value);
+                store.Publish(new NodeStateChange
+                {
+                    Kind = NodeStateChangeKind.Value,
+                    NodeId = variable.NodeId,
+                    Value = value,
+                    Sequence = valueSequence
+                });
+                await AwaitWithTimeoutAsync(staleReplay).ConfigureAwait(false);
+                Assert.That(((BaseVariableState)created).Value, Is.EqualTo(new Variant(1.0)));
+            }
+        }
+
+        /// <summary>
+        /// Rejects stale topology and values after the largest sequence without wrapping the sequence guard.
+        /// </summary>
+        [Test]
+        public async Task MaximumAppliedSequenceDoesNotWrapReplayGuardAsync()
+        {
+            var store = new ScriptedNodeStateStore();
+            var local = new DictionaryAddressSpace(m_systemContext);
+            await using var synchronizer = new AddressSpaceSynchronizer(store, local, () => false);
+            synchronizer.Start();
+            BaseDataVariableState node = NewVariable("maximum", 1.0);
+            NodeStateChange[] changes =
+            [
+                new NodeStateChange
+                {
+                    Kind = NodeStateChangeKind.Upsert,
+                    NodeId = node.NodeId,
+                    Node = new StoredNode(node.NodeId, NodeStateSerializer.Serialize(m_systemContext, node)),
+                    Sequence = ulong.MaxValue
+                },
+                new NodeStateChange
+                {
+                    Kind = NodeStateChangeKind.Value,
+                    NodeId = node.NodeId,
+                    Value = new DataValue(new Variant(2.0)),
+                    Sequence = ulong.MaxValue
+                },
+                new NodeStateChange
+                {
+                    Kind = NodeStateChangeKind.Value,
+                    NodeId = node.NodeId,
+                    Value = new DataValue(new Variant(9.0)),
+                    Sequence = 1
+                },
+                new NodeStateChange
+                {
+                    Kind = NodeStateChangeKind.Delete,
+                    NodeId = node.NodeId,
+                    Sequence = 1
+                }
+            ];
+            foreach (NodeStateChange change in changes)
+            {
+                Task<bool> observed = WaitForInboundAsync(synchronizer, current => ReferenceEquals(current, change));
+                store.Publish(change);
+                await AwaitWithTimeoutAsync(observed).ConfigureAwait(false);
+            }
+
+            Assert.That(local.TryGetNode(node.NodeId, out NodeState? retained), Is.True);
+            Assert.That(((BaseDataVariableState)retained!).Value, Is.EqualTo(new Variant(2.0)));
+        }
+
         [Test]
         public async Task LeadershipPromotionSwitchesReaderToWriterAsync()
         {
@@ -1125,6 +1360,130 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 "changing a removed node must not reinsert it into the store");
         }
 
+        /// <summary>
+        /// Verifies descendant handlers are removed even when the real node manager clears the tree first.
+        /// </summary>
+        [Test]
+        public async Task RemovingRealNodeManagerSubtreeDetachesDescendantHandlersAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var server = new Mock<IServerInternal>();
+            server.Setup(value => value.Telemetry).Returns(telemetry);
+            server.Setup(value => value.NamespaceUris).Returns(m_systemContext.NamespaceUris);
+            server.Setup(value => value.ServerUris).Returns(m_systemContext.ServerUris);
+            server.Setup(value => value.Factory).Returns(m_messageContext.Factory);
+            server.Setup(value => value.TypeTree).Returns(new TypeTable(m_systemContext.NamespaceUris));
+            var master = new Mock<IMasterNodeManager>();
+            master.Setup(value => value.NodeManagers).Returns([]);
+            master.Setup(value => value.ConfigurationNodeManager).Returns(Mock.Of<IConfigurationNodeManager>());
+            server.Setup(value => value.NodeManager).Returns(master.Object);
+            server.Setup(value => value.DefaultSystemContext).Returns(new ServerSystemContext(server.Object));
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            server.Setup(value => value.MonitoredItemQueueFactory).Returns(queueFactory);
+            using var manager = new LifecycleNodeManager(server.Object);
+            ILocalAddressSpace local = ((ILocalAddressSpaceSource)manager).CreateLocalAddressSpace();
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            await using var synchronizer = new AddressSpaceSynchronizer(store, local, () => true);
+            await synchronizer.SeedOrHydrateAsync().ConfigureAwait(false);
+            synchronizer.Start();
+            var root = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("root", NamespaceIndex),
+                BrowseName = new QualifiedName("Root", NamespaceIndex),
+                DisplayName = new LocalizedText("Root")
+            };
+            var child = new BaseDataVariableState(root)
+            {
+                NodeId = new NodeId("child", NamespaceIndex),
+                BrowseName = new QualifiedName("Child", NamespaceIndex),
+                DisplayName = new LocalizedText("Child"),
+                DataType = DataTypeIds.Double,
+                ValueRank = ValueRanks.Scalar,
+                Value = new Variant(1.0)
+            };
+            root.AddChild(child);
+            await local.AddOrUpdateNodeAsync(root).ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                async () => await store.TryGetNodeAsync(root.NodeId).ConfigureAwait(false) != null,
+                "the root is published before removal").ConfigureAwait(false);
+            Assert.That(synchronizer.TrackedNodeCount, Is.EqualTo(2));
+
+            Assert.That(await local.RemoveNodeAsync(root.NodeId).ConfigureAwait(false), Is.True);
+
+            Assert.That(synchronizer.TrackedNodeCount, Is.Zero,
+                "Removal must use tracked membership after the node manager has cleared parent/child links.");
+            child.DisplayName = new LocalizedText("Deleted child must not be republished");
+            child.ClearChangeMasks(local.Context, false);
+            BaseDataVariableState barrier = NewVariable("barrier", 2.0);
+            await local.AddOrUpdateNodeAsync(barrier).ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                async () => await store.TryGetNodeAsync(barrier.NodeId).ConfigureAwait(false) != null,
+                "a subsequent write drains after any stale child callback").ConfigureAwait(false);
+
+            Assert.That(await store.TryGetNodeAsync(root.NodeId).ConfigureAwait(false), Is.Null);
+            Assert.That(await store.TryGetNodeAsync(child.NodeId).ConfigureAwait(false), Is.Null);
+        }
+
+        /// <summary>
+        /// Detaches replaced instances without detaching or duplicating the current subtree's subscriptions.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReplacedSubtreeIgnoresOldDescendantCallbacksAsync(bool reuseChildId)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(kv, m_messageContext);
+            var local = new DictionaryAddressSpace(m_systemContext);
+            await using var synchronizer = new AddressSpaceSynchronizer(store, local, () => true);
+            synchronizer.Start();
+            var root = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("root", NamespaceIndex),
+                BrowseName = new QualifiedName("Root", NamespaceIndex)
+            };
+            var oldChild = new BaseDataVariableState(root)
+            {
+                NodeId = new NodeId("old-child", NamespaceIndex),
+                BrowseName = new QualifiedName("Child", NamespaceIndex),
+                Value = new Variant(1.0)
+            };
+            root.AddChild(oldChild);
+            await local.AddOrUpdateNodeAsync(root).ConfigureAwait(false);
+            var replacement = new BaseObjectState(null)
+            {
+                NodeId = root.NodeId,
+                BrowseName = root.BrowseName
+            };
+            var newChild = new BaseDataVariableState(replacement)
+            {
+                NodeId = reuseChildId ? oldChild.NodeId : new NodeId("new-child", NamespaceIndex),
+                BrowseName = oldChild.BrowseName,
+                Value = new Variant(2.0)
+            };
+            replacement.AddChild(newChild);
+            await local.AddOrUpdateNodeAsync(replacement).ConfigureAwait(false);
+            await local.AddOrUpdateNodeAsync(replacement).ConfigureAwait(false);
+
+            Assert.That(synchronizer.TrackedNodeCount, Is.EqualTo(2));
+            oldChild.DisplayName = new LocalizedText("Stale");
+            oldChild.ClearChangeMasks(m_systemContext, false);
+            newChild.Value = new Variant(3.0);
+            newChild.ClearChangeMasks(m_systemContext, false);
+            await AssertEventuallyAsync(
+                async () =>
+                {
+                    (bool found, DataValue value) = await store.TryReadValueAsync(newChild.NodeId).ConfigureAwait(false);
+                    return found && value.WrappedValue == new Variant(3.0);
+                },
+                "the replacement child keeps its live callback").ConfigureAwait(false);
+
+            Assert.That(await store.TryGetNodeAsync(oldChild.NodeId).ConfigureAwait(false), Is.Null,
+                "a stale descendant must not be republished as a standalone root");
+            await local.RemoveNodeAsync(replacement.NodeId).ConfigureAwait(false);
+            Assert.That(synchronizer.TrackedNodeCount, Is.Zero);
+        }
+
         [Test]
         public async Task WriterPropagatesReferenceAddAndRemoveToReaderAsync()
         {
@@ -1245,6 +1604,53 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Throws.Nothing).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Waits for snapshot cleanup started reentrantly by the last outbound publication during disposal.
+        /// </summary>
+        [Test]
+        public async Task DisposalAwaitsSnapshotStartedByOutboundWorkerAsync()
+        {
+            var store = new Mock<INodeStateStore>();
+            Mock<INodeStateSnapshotStore> snapshots = store.As<INodeStateSnapshotStore>();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var finished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var local = new DictionaryAddressSpace(m_systemContext);
+            await using var synchronizer = new AddressSpaceSynchronizer(store.Object, local, () => true);
+            Task? disposal = null;
+            snapshots.Setup(value => value.WriteSnapshotAsync(It.IsAny<CancellationToken>()))
+                .Returns(async (CancellationToken _) =>
+                {
+                    disposal = synchronizer.DisposeAsync().AsTask();
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    finished.TrySetResult(true);
+                });
+            synchronizer.Start();
+            BaseDataVariableState node = NewVariable("snapshot", 0.0);
+            await local.AddOrUpdateNodeAsync(node).ConfigureAwait(false);
+            for (int value = 1; value <= 1024; value++)
+            {
+                node.Value = new Variant((double)value);
+                node.ClearChangeMasks(m_systemContext, false);
+            }
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(disposal, Is.Not.Null);
+            try
+            {
+                await Assert.ThatAsync(
+                    () => disposal!.WaitAsync(TimeSpan.FromMilliseconds(200)),
+                    Throws.TypeOf<TimeoutException>()).ConfigureAwait(false);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await finished.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                await disposal!.ConfigureAwait(false);
+            }
+            Assert.That(synchronizer.TrackedNodeCount, Is.Zero);
+        }
+
         private static BaseDataVariableState NewVariable(string id, double value)
         {
             return new BaseDataVariableState(null)
@@ -1268,6 +1674,17 @@ namespace Opc.Ua.Server.Tests.Redundancy
             ref DateTimeUtc timestamp)
         {
             return ServiceResult.Good;
+        }
+
+        private sealed class LifecycleNodeManager : AsyncCustomNodeManager
+        {
+            public LifecycleNodeManager(IServerInternal server)
+                : base(server, new ApplicationConfiguration
+                {
+                    ServerConfiguration = new ServerConfiguration()
+                }, "urn:test:sync")
+            {
+            }
         }
 
         private sealed class ConcreteObjectState : BaseObjectState
@@ -1373,6 +1790,137 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             private readonly DictionaryAddressSpace m_inner;
             private readonly NodeIdDictionary<NodeState> m_descendants = [];
+        }
+
+        private sealed class OverlappingHydrationStore : INodeStateStore, INodeStateSnapshotStore, ISequencedNodeStateStore
+        {
+            public OverlappingHydrationStore(IStoredNode recreated, bool useSnapshot)
+            {
+                m_recreated = recreated;
+                m_useSnapshot = useSnapshot;
+            }
+
+            public ulong CurrentSequence { get; private set; }
+
+            public void ObserveSequence(ulong sequence)
+            {
+                CurrentSequence = Math.Max(CurrentSequence, sequence);
+            }
+
+            public void PublishRecreation()
+            {
+                m_changes.Writer.TryWrite(new NodeStateChange
+                {
+                    Kind = NodeStateChangeKind.Upsert,
+                    NodeId = m_recreated.NodeId,
+                    Node = m_recreated,
+                    Sequence = 3
+                });
+            }
+
+            public ValueTask UpsertNodeAsync(IStoredNode node, CancellationToken ct = default)
+            {
+                return default;
+            }
+
+            public ValueTask<bool> DeleteNodeAsync(NodeId nodeId, CancellationToken ct = default)
+            {
+                return new ValueTask<bool>(false);
+            }
+
+            public ValueTask<IStoredNode?> TryGetNodeAsync(NodeId nodeId, CancellationToken ct = default)
+            {
+                return new ValueTask<IStoredNode?>(m_recreated);
+            }
+
+            public async IAsyncEnumerable<IStoredNode> EnumerateAsync(
+                [EnumeratorCancellation] CancellationToken ct = default)
+            {
+                await Task.CompletedTask.ConfigureAwait(false);
+                yield return m_recreated;
+            }
+
+            public async IAsyncEnumerable<(IStoredNode Node, ulong Sequence)> EnumerateNodesWithSequenceAsync(
+                [EnumeratorCancellation] CancellationToken ct = default)
+            {
+                await Task.CompletedTask.ConfigureAwait(false);
+                yield return (m_recreated, 3);
+            }
+
+            public ValueTask WriteValueAsync(NodeId nodeId, in DataValue value, CancellationToken ct = default)
+            {
+                return default;
+            }
+
+            public ValueTask<(bool Found, DataValue Value)> TryReadValueAsync(
+                NodeId nodeId,
+                CancellationToken ct = default)
+            {
+                return new ValueTask<(bool, DataValue)>((false, DataValue.Null));
+            }
+
+            public async IAsyncEnumerable<(NodeId NodeId, DataValue Value)> EnumerateValuesAsync(
+                [EnumeratorCancellation] CancellationToken ct = default)
+            {
+                await Task.CompletedTask.ConfigureAwait(false);
+                yield break;
+            }
+
+            public async IAsyncEnumerable<(NodeId NodeId, DataValue Value, ulong Sequence)> EnumerateValuesWithSequenceAsync(
+                [EnumeratorCancellation] CancellationToken ct = default)
+            {
+                await Task.CompletedTask.ConfigureAwait(false);
+                yield break;
+            }
+
+            public IAsyncEnumerable<NodeStateChange> SubscribeChangesAsync(CancellationToken ct = default)
+            {
+                return m_changes.Reader.ReadAllAsync(ct);
+            }
+
+            public ValueTask WriteSnapshotAsync(CancellationToken ct = default)
+            {
+                return default;
+            }
+
+            public ValueTask<NodeStateSnapshot?> TryReadSnapshotAsync(CancellationToken ct = default)
+            {
+                return new ValueTask<NodeStateSnapshot?>(
+                    m_useSnapshot ? new NodeStateSnapshot(1, ReadSnapshotEntriesAsync(ct)) : null);
+            }
+
+            public async IAsyncEnumerable<NodeStateChange> ReadDeltaLogAsync(
+                ulong fromSequenceExclusive,
+                [EnumeratorCancellation] CancellationToken ct = default)
+            {
+                await Task.CompletedTask.ConfigureAwait(false);
+                if (fromSequenceExclusive < 2)
+                {
+                    yield return new NodeStateChange
+                    {
+                        Kind = NodeStateChangeKind.Delete,
+                        NodeId = m_recreated.NodeId,
+                        Sequence = 2
+                    };
+                }
+            }
+
+            private async IAsyncEnumerable<NodeStateChange> ReadSnapshotEntriesAsync(
+                [EnumeratorCancellation] CancellationToken ct)
+            {
+                await Task.CompletedTask.ConfigureAwait(false);
+                yield return new NodeStateChange
+                {
+                    Kind = NodeStateChangeKind.Upsert,
+                    NodeId = m_recreated.NodeId,
+                    Node = m_recreated,
+                    Sequence = 3
+                };
+            }
+
+            private readonly IStoredNode m_recreated;
+            private readonly bool m_useSnapshot;
+            private readonly Channel<NodeStateChange> m_changes = Channel.CreateUnbounded<NodeStateChange>();
         }
 
         private sealed class ScriptedNodeStateStore : INodeStateStore

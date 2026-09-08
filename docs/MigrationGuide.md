@@ -541,6 +541,22 @@ Deriving from `SessionManager` requires no change beyond renaming any
 `Shutdown` override: `ShutdownAsync` is `virtual` and the base
 implementation already awaits the monitor loop.
 
+## Configuring distributed address-space storage
+
+Direct `InMemoryNodeStateStore` writers require their backend to implement
+`ISharedKeyValueStoreConsistency` and provide linearizable operations for
+`election/addressspace-sequence`. A bare CRDT store is not a valid writer
+backend. Compose it with the shared Raft coordinator using
+`HybridSharedKeyValueStore`, or use the fluent consistency registration before
+`UseDistributedAddressSpace`.
+
+Use strong state storage for authoritative bootstrap and compacted snapshots.
+CRDT payload storage retains merge-only hydration and delta replay without
+absence-based cleanup or snapshot compaction. These are configuration
+requirements of the distributed-state extension, not a 1.5 persisted-format
+migration guarantee. See
+[address-space consistency](HighAvailability.md#activepassive-address-space-consistency).
+
 ## Migrating SamplingGroupManager create/modify overrides
 
 The public virtual `SamplingGroupManager.CreateMonitoredItem` and
