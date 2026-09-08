@@ -214,9 +214,8 @@ namespace Opc.Ua.Server.Fluent
         /// </param>
         /// <returns>
         /// A configured <see cref="NodeManagerBuilder"/> ready to
-        /// receive <c>Configure(builder)</c> wiring; the fluent
-        /// extensions <see cref="FluentNodeManagerBuilderExtensions.Configure(NodeManagerBuilder, System.Action{INodeManagerBuilder})"/>
-        /// and <see cref="NodeManagerBuilder.SealAsync"/> chain off it.
+        /// receive <c>Configure(builder)</c> wiring and, once the wiring
+        /// is done, <see cref="NodeManagerBuilder.SealAsync"/>.
         /// </returns>
         public NodeManagerBuilder CreateFluentBuilder(ushort defaultNamespaceIndex)
         {
