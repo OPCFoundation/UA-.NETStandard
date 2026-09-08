@@ -86,7 +86,7 @@ The `NodeState` class provides several `Initialize` overloads for different scen
 
 | Method | Purpose |
 |--------|---------|
-| `Initialize(ITelemetryContext)` | Sets up telemetry/logging. Called by all other overloads. |
+| `Initialize(ITelemetryContext)` | Sets up telemetry/logging on initialization paths that invoke it; not every derived create initializer does. |
 | `Initialize(ISystemContext)` | Initializes with default values. Called when creating new nodes. |
 | `Initialize(ISystemContext, NodeState)` | Copies attributes from a source node (for deserialization). |
 | `Initialize(ISystemContext, string)` | Initializes from XML or binary encoded string. |
