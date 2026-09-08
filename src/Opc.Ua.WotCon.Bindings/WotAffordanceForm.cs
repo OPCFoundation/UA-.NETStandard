@@ -356,7 +356,8 @@ namespace Opc.Ua.WotCon.Bindings
                 return true;
             }
             if (!Uri.TryCreate(baseUri, UriKind.Absolute, out Uri? documentBase) ||
-                !Uri.TryCreate(documentBase, Href, out Uri? target))
+                !Uri.TryCreate(Href, UriKind.RelativeOrAbsolute, out Uri? href) ||
+                !Uri.TryCreate(documentBase, href, out Uri? target))
             {
                 diagnostic = WotBindingDiagnostic.Error(
                     WotBindingDiagnosticCode.InvalidHref,
