@@ -27,61 +27,46 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading;
-using System.Threading.Tasks;
-using Opc.Ua.Di.Server;
-using Opc.Ua.Server.Fluent;
+using System;
 
-namespace Opc.Ua.Robotics.Server
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Build context shared by Robotics hosting configurators.
+    /// Reports that a NodeManager factory returned an instance that is already registered.
     /// </summary>
-    public interface IRoboticsBuildContext
+    /// <remarks>
+    /// Allows callers of <see cref="INodeManagerLifecycle"/> to distinguish duplicate
+    /// registration attempts from other <see cref="InvalidOperationException"/> failures.
+    /// </remarks>
+    public sealed class NodeManagerAlreadyRegisteredException : InvalidOperationException
     {
         /// <summary>
-        /// Gets the active DI node manager.
+        /// Initializes the exception with the default duplicate-registration message.
         /// </summary>
-        DiNodeManager Manager { get; }
+        public NodeManagerAlreadyRegisteredException()
+            : base("The NodeManager is already registered.")
+        {
+        }
 
         /// <summary>
-        /// Gets the active system context.
+        /// Initializes the exception with a custom message.
         /// </summary>
-        ISystemContext Context { get; }
+        /// <param name="message">The error message.</param>
+        public NodeManagerAlreadyRegisteredException(string message)
+            : base(message)
+        {
+        }
 
         /// <summary>
-        /// Gets the single fluent node-manager builder owned by this context.
+        /// Initializes the exception with a custom message and inner exception.
         /// </summary>
-        INodeManagerBuilder Nodes { get; }
-
-        /// <summary>
-        /// Gets the application-owned instance namespace index.
-        /// </summary>
-        ushort InstanceNamespaceIndex { get; }
-
-        /// <summary>
-        /// Gets the DI DeviceSet node.
-        /// </summary>
-        NodeState DeviceSet { get; }
-
-        /// <summary>
-        /// Gets the hosting cancellation token.
-        /// </summary>
-        CancellationToken CancellationToken { get; }
-
-        /// <summary>
-        /// Resolves a required application service.
-        /// </summary>
-        /// <typeparam name="T">
-        /// The required service contract.
-        /// </typeparam>
-        T GetRequiredService<T>() where T : notnull;
-
-        /// <summary>
-        /// Seals the builder, completes the registrations that could not
-        /// finish synchronously and starts configured simulations.
-        /// </summary>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        ValueTask SealAsync(CancellationToken cancellationToken = default);
+        /// <param name="message">The error message.</param>
+        /// <param name="innerException">The exception that caused this error.</param>
+        public NodeManagerAlreadyRegisteredException(
+            string message,
+            Exception innerException)
+            : base(message, innerException)
+        {
+        }
     }
 }

@@ -61,7 +61,11 @@ namespace Opc.Ua.SourceGeneration
                 /// <remarks>
                 /// Implement <c>partial void Configure(INodeManagerBuilder builder)</c>
                 /// in a sibling partial to wire per-node callbacks using the
-                /// fluent API in <c>Opc.Ua.Server.Fluent</c>.
+                /// fluent API in <c>Opc.Ua.Server.Fluent</c>. Wiring that has to
+                /// await — materialising instances, reading a store — goes into
+                /// an override of
+                /// <c>ConfigureAsync(INodeManagerBuilder, CancellationToken)</c>,
+                /// which runs first so <c>Configure</c> sees the nodes it created.
                 /// </remarks>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
                 public partial class {{Tokens.NodeManagerClassName}} :
@@ -115,6 +119,9 @@ namespace Opc.Ua.SourceGeneration
                     /// <summary>
                     /// User extensibility hook. Implement in a sibling
                     /// <c>partial</c> to wire callbacks via the fluent builder.
+                    /// Override
+                    /// <c>FluentNodeManagerBase.ConfigureAsync</c> instead when
+                    /// the wiring has to await.
                     /// </summary>
                     partial void Configure(global::Opc.Ua.Server.Fluent.INodeManagerBuilder builder);
 
@@ -184,12 +191,6 @@ namespace Opc.Ua.SourceGeneration
                     {
                         await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
-                        // The one asynchronous seam between the address space
-                        // existing and the wiring being applied: Configure is a
-                        // partial void and cannot await, so a manager that has
-                        // setup to do before its wiring resolves does it here.
-                        await OnAddressSpaceReadyAsync(cancellationToken).ConfigureAwait(false);
-
                         ushort __nsIndex = Server.NamespaceUris.GetIndexOrAppend({{Tokens.NamespaceUri}});
 
                         __m_builder = new global::Opc.Ua.Server.Fluent.NodeManagerBuilder(
@@ -205,6 +206,11 @@ namespace Opc.Ua.SourceGeneration
                         // to the builder so Publish(...) extensions can resolve
                         // it before the user's Configure partial(s) run.
                         AttachToBuilder(__m_builder);
+
+                        // The awaitable wiring seam. Runs before the synchronous
+                        // Configure partial(s) so instances it materialises are in
+                        // the address space by the time they wire callbacks.
+                        await ConfigureAsync(__m_builder, cancellationToken).ConfigureAwait(false);
 
                         Configure(__m_builder);
                         Configure(new {{Tokens.NodeManagerClassName}}TypedBuilder(__m_builder));
@@ -222,10 +228,12 @@ namespace Opc.Ua.SourceGeneration
 
                         // Seals the builder, replays NotifyNodeAdded for every
                         // predefined node so per-node lifecycle hooks fire
-                        // deterministically, and only then starts the
-                        // simulations, so no simulated value change can
-                        // precede the OnNodeAdded handler of its own node.
-                        SealConfiguration(__m_builder);
+                        // deterministically, and only then completes the
+                        // registrations Configure could not await (root
+                        // notifiers) and starts the simulations, so no
+                        // simulated value change can precede the OnNodeAdded
+                        // handler of its own node.
+                        await SealConfigurationAsync(__m_builder, cancellationToken).ConfigureAwait(false);
                     }
 
                     /// <inheritdoc/>

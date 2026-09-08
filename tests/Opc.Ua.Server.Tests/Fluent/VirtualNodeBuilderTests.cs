@@ -116,7 +116,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     browser.Add(ReferenceTypeIds.HasComponent, false, childId);
                     return browser;
                 });
-            manager.Builder.Seal();
+            await manager.Builder.SealAsync();
 
             var cache = new Dictionary<NodeId, NodeState>();
             (NodeHandle? handle, NodeState? node) = await manager
@@ -174,7 +174,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                             BrowseName = new QualifiedName("Cached", id.NamespaceIndex)
                         });
                 });
-            manager.Builder.Seal();
+            await manager.Builder.SealAsync();
 
             var cache = new Dictionary<NodeId, NodeState>();
             (_, NodeState? first) = await manager.ResolveAsync(requestedId, cache)
@@ -204,7 +204,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     resolverCalls++;
                     return new ValueTask<NodeState?>((NodeState?)null);
                 });
-            manager.Builder.Seal();
+            await manager.Builder.SealAsync();
 
             var cache = new Dictionary<NodeId, NodeState>();
             (_, NodeState? first) = await manager.ResolveAsync(requestedId, cache)
@@ -221,7 +221,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void OverlappingVirtualFamiliesAreRejected()
+        public async Task OverlappingVirtualFamiliesAreRejectedAsync()
         {
             using var manager = new TestVirtualManager();
             NodeId requestedId = manager.VirtualId("Overlap");
@@ -234,7 +234,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 id => id == requestedId,
                 static (context, id, cancellationToken) =>
                     new ValueTask<NodeState?>((NodeState?)null));
-            manager.Builder.Seal();
+            await manager.Builder.SealAsync();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.GetManagerHandleAsync(requestedId).ConfigureAwait(false))!;
@@ -245,7 +245,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void ConflictingMaterializedNodeIdIsRejected()
+        public async Task ConflictingMaterializedNodeIdIsRejectedAsync()
         {
             using var manager = new TestVirtualManager();
             NodeId requestedId = manager.VirtualId("Requested");
@@ -258,7 +258,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                         {
                             NodeId = manager.VirtualId("Different")
                         }));
-            manager.Builder.Seal();
+            await manager.Builder.SealAsync();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager
@@ -269,7 +269,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void ResolverCancellationIsPropagated()
+        public async Task ResolverCancellationIsPropagatedAsync()
         {
             using var manager = new TestVirtualManager();
             NodeId requestedId = manager.VirtualId("Cancelled");
@@ -279,7 +279,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 static (context, id, cancellationToken) =>
                     new ValueTask<NodeState?>(
                         Task.FromCanceled<NodeState?>(cancellationToken)));
-            manager.Builder.Seal();
+            await manager.Builder.SealAsync();
 
             using var cts = new CancellationTokenSource();
             cts.Cancel();
@@ -330,7 +330,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     result.StatusCode = StatusCodes.Good;
                     return ServiceResult.Good;
                 });
-            manager.Builder.Seal();
+            await manager.Builder.SealAsync();
 
             var nodeToRead = new HistoryReadValueId
             {
@@ -413,7 +413,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                         samples[source.NodeId] = count + 1;
                         return new ValueTask<int>(count + 1);
                     });
-            manager.Builder.Seal();
+            await manager.Builder.SealAsync();
 
             var firstCache = new Dictionary<NodeId, NodeState>();
             (NodeHandle? firstHandle, _) = await manager.ResolveAsync(
@@ -469,7 +469,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                             NodeId = id,
                             BrowseName = new QualifiedName("FirstBuilder")
                         }));
-            manager.Builder.Seal();
+            await manager.Builder.SealAsync();
 
             NodeManagerBuilder secondBuilder = manager.CreateAdditionalBuilder();
             secondBuilder.ResolveNodes(
@@ -481,7 +481,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                             NodeId = id,
                             BrowseName = new QualifiedName("SecondBuilder")
                         }));
-            secondBuilder.Seal();
+            await secondBuilder.SealAsync();
 
             (_, NodeState? first) = await manager.ResolveAsync(
                 firstId,

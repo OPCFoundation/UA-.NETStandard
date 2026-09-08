@@ -58,7 +58,7 @@ namespace Opc.Ua.Server.Fluent
     /// NodeManagerBuilder builder = CreateFluentBuilder(namespaceIndex);
     /// builder.Node(service)
     ///        .OnReadRolePermissions(AddSelfAdminRole);
-    /// builder.Seal();
+    /// await builder.SealAsync(cancellationToken);
     /// </code>
     /// </example>
     /// </remarks>

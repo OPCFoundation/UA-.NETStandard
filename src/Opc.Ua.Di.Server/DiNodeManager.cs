@@ -103,9 +103,10 @@ namespace Opc.Ua.Di.Server
         /// Initialises a new <see cref="DiNodeManager"/> with an
         /// optional post-setup runner. The runner is invoked
         /// automatically at the end of
-        /// <see cref="CreateAddressSpaceAsync"/> (after
-        /// <see cref="OnAddressSpaceReadyAsync"/> returns), for both
-        /// the base <see cref="DiNodeManager"/> and every subclass.
+        /// <see cref="CreateAddressSpaceAsync"/> (after the fluent
+        /// configuration pass has wired and registered everything, and
+        /// before the builder is sealed), for both the base
+        /// <see cref="DiNodeManager"/> and every subclass.
         /// </summary>
         public DiNodeManager(
             IServerInternal server,
@@ -168,8 +169,8 @@ namespace Opc.Ua.Di.Server
         /// Optional post-setup runner injected through the
         /// Device Integration (DI) hosting pipeline. The base class
         /// auto-invokes it from <see cref="CreateAddressSpaceAsync"/>
-        /// after <see cref="OnAddressSpaceReadyAsync"/> returns, so
-        /// subclasses do not need to (and should not) invoke it
+        /// after the fluent configuration pass has wired and registered
+        /// everything, so subclasses do not need to (and should not) invoke it
         /// manually. Read-only on subclasses; exposed mostly for
         /// diagnostic / test inspection.
         /// </summary>
@@ -304,9 +305,12 @@ namespace Opc.Ua.Di.Server
         ///     predefined nodes and wires the type tree.
         ///   </description></item>
         ///   <item><description>
-        ///     <see cref="OnAddressSpaceReadyAsync"/> runs (subclasses
-        ///     override this to materialise additional instances and
-        ///     drive the fluent <c>INodeManagerBuilder</c>).
+        ///     The manager's fluent builder is created and attached, then
+        ///     <see cref="FluentNodeManagerBase.ConfigureAsync"/> runs
+        ///     (subclasses override it to materialise additional instances
+        ///     and drive the fluent <c>INodeManagerBuilder</c>), the nodes
+        ///     it staged are registered and the reverse-reference pass
+        ///     reruns.
         ///   </description></item>
         ///   <item><description>
         ///     The DI hosting <see cref="PostSetupRunner"/>, if any, is
@@ -314,10 +318,16 @@ namespace Opc.Ua.Di.Server
         ///     <c>ConfigureDevicesFor&lt;TNodeManager&gt;</c> see the
         ///     fully wired manager.
         ///   </description></item>
+        ///   <item><description>
+        ///     The builder is sealed, which starts the manager's fluent
+        ///     registries. This happens last so post-setup configurators
+        ///     can still register simulation loops and event sources.
+        ///   </description></item>
         /// </list>
-        /// Subclasses should override <see cref="OnAddressSpaceReadyAsync"/>
-        /// rather than <c>CreateAddressSpaceAsync</c> so the post-setup
-        /// runner fires automatically.
+        /// Subclasses should override
+        /// <see cref="FluentNodeManagerBase.ConfigureAsync"/> rather than
+        /// <c>CreateAddressSpaceAsync</c> so the builder is sealed and the
+        /// post-setup runner fires automatically.
         /// </summary>
         public override async ValueTask CreateAddressSpaceAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
@@ -326,34 +336,33 @@ namespace Opc.Ua.Di.Server
             await base.CreateAddressSpaceAsync(
                 externalReferences, cancellationToken).ConfigureAwait(false);
 
-            await OnAddressSpaceReadyAsync(cancellationToken).ConfigureAwait(false);
+            NodeManagerBuilder builder = CreateFluentBuilder(InstanceNamespaceIndex);
+
+            await ConfigureAsync(builder, cancellationToken).ConfigureAwait(false);
+
+            // Register nodes the subclass staged through the builder's Add*
+            // methods before the reverse-reference pass runs, so their
+            // references to externally owned nodes are mirrored too.
+            await RegisterAuthoredNodesAsync(builder, cancellationToken)
+                .ConfigureAwait(false);
+            await CompleteConfigureAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
 
             if (PostSetupRunner != null)
             {
                 await PostSetupRunner.RunAsync(this, cancellationToken)
                     .ConfigureAwait(false);
             }
-        }
 
-        /// <summary>
-        /// Extension point invoked after
-        /// <see cref="AsyncCustomNodeManager.CreateAddressSpaceAsync"/>
-        /// has populated <c>PredefinedNodes</c> but before the
-        /// <see cref="PostSetupRunner"/> fires. Subclasses materialise
-        /// additional instances (e.g. companion-spec device factories)
-        /// and drive the fluent <c>INodeManagerBuilder</c> from here.
-        /// </summary>
-        /// <remarks>
-        /// Declared by <see cref="FluentNodeManagerBase"/>, which every
-        /// fluent manager shares; this override exists only to document
-        /// where DI calls it from. The default implementation is a no-op,
-        /// so implementers do not need to invoke
-        /// <c>base.OnAddressSpaceReadyAsync</c>.
-        /// </remarks>
-        protected override ValueTask OnAddressSpaceReadyAsync(
-            CancellationToken cancellationToken)
-        {
-            return default;
+            // Sealed last, after the post-setup configurators have had their
+            // turn. The fluent registries (simulations, event sources) are
+            // owned by the manager rather than by a single builder, and
+            // sealing starts them — so sealing before the configurators run
+            // would lock them out of registering simulation loops of their
+            // own. Configurators that build their own context seal it
+            // themselves; this second seal is then a no-op for the shared
+            // registries and only closes this builder.
+            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

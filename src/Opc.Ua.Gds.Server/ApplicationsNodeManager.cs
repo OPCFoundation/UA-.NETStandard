@@ -55,7 +55,7 @@ namespace Opc.Ua.Gds.Server
     /// types; this assembly only binds a manager to it. What is written by
     /// hand is the behaviour, and it arrives in two passes: the I/O of
     /// starting the certificate authorities in
-    /// <see cref="OnAddressSpaceReadyAsync"/>, then everything that touches
+    /// <see cref="ConfigureAsync"/>, then everything that touches
     /// the address space in <see cref="OnConfigure"/> — which is where the
     /// nodes those authorities are addressed by are resolved or created.
     /// </para>
@@ -75,7 +75,7 @@ namespace Opc.Ua.Gds.Server
     /// the <c>Configure</c> pass through the builder's node-creation
     /// surface. A host that adds further services later wires each through
     /// <see cref="ConfigureAuthorizationService"/> or
-    /// <see cref="ConfigureKeyCredentialService(KeyCredentialServiceState)"/>;
+    /// <see cref="ConfigureKeyCredentialServiceAsync"/>;
     /// that is a direct call rather than an
     /// <c>AddBehaviourToPredefinedNodeAsync</c> override, because the
     /// fluent lifecycle hooks are keyed by NodeId and cannot name a node
@@ -604,7 +604,10 @@ namespace Opc.Ua.Gds.Server
         /// <see cref="OnConfigure"/>.
         /// </summary>
         /// <param name="service">The service object to wire.</param>
-        protected void ConfigureKeyCredentialService(KeyCredentialServiceState service)
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected async ValueTask ConfigureKeyCredentialServiceAsync(
+            KeyCredentialServiceState service,
+            CancellationToken cancellationToken = default)
         {
             if (service == null)
             {
@@ -613,7 +616,7 @@ namespace Opc.Ua.Gds.Server
 
             NodeManagerBuilder builder = CreateFluentBuilder(GdsNamespaceIndex);
             ConfigureKeyCredentialService(builder, service);
-            builder.Seal();
+            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
         }
 
         private void ConfigureKeyCredentialService(
@@ -928,12 +931,15 @@ namespace Opc.Ua.Gds.Server
         /// stores and CA certificates are real I/O.
         /// </summary>
         /// <remarks>
-        /// Nothing that touches the address space belongs here. The groups
-        /// this pass brings up are bound to their nodes by <c>Configure</c>,
-        /// which runs next and is where the node ids they key off are
-        /// decided.
+        /// Nothing that touches the address space belongs here, so the
+        /// builder goes unused. The groups this pass brings up are bound to
+        /// their nodes by <c>Configure</c>, which runs next and is where the
+        /// node ids they key off are decided.
         /// </remarks>
-        protected override async ValueTask OnAddressSpaceReadyAsync(
+        /// <param name="builder">The active fluent builder, unused here.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected override async ValueTask ConfigureAsync(
+            INodeManagerBuilder builder,
             CancellationToken cancellationToken)
         {
             m_certTypeMap = new Dictionary<NodeId, string>

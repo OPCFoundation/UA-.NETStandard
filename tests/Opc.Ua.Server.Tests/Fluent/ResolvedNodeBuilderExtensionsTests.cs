@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
@@ -104,11 +105,11 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void WorksAfterTheBuilderIsSealed()
+        public async Task WorksAfterTheBuilderIsSealedAsync()
         {
             NodeManagerBuilder b = CreateEmptyBuilder();
             MethodState method = CreateMethod();
-            b.Seal();
+            await b.SealAsync().ConfigureAwait(false);
 
             // Sealing fails further lookups against the predefined-node
             // graph, but a node handed in directly was never part of it.

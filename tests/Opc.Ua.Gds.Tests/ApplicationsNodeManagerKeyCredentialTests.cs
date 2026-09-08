@@ -491,7 +491,7 @@ namespace Opc.Ua.Gds.Tests
                 // A host adds its own service objects to the model's empty
                 // KeyCredentialManagement folder and wires each one, the
                 // same call the GDS makes for the nodes it owns.
-                ConfigureKeyCredentialService(service);
+                await ConfigureKeyCredentialServiceAsync(service).ConfigureAwait(false);
                 await AddPredefinedNodeAsync(SystemContext, service).ConfigureAwait(false);
                 return service;
             }
