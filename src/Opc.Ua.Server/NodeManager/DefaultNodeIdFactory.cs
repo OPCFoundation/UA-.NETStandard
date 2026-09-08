@@ -486,13 +486,20 @@ namespace Opc.Ua.Server
                     Utils.IncrementIdentifier(ref m_allocation.LastUsedId),
                     DefaultNamespaceIndex);
 
-                // Under Numeric the counter mints into the same space the
-                // hash does - the counter base is a 32 bit value like any
-                // other - so a counter identifier can land on one already
-                // derived from a browse path. The counter is the side with
-                // freedom to move, so it steps over the clash instead of
-                // reporting it.
-                if (!DetectsCollisions ||
+                // The counter mints into the same numeric space a hash does -
+                // the counter base is a 32 bit value like any other - so a
+                // counter identifier can land on one already derived from a
+                // browse path, in this factory or in another view of it that
+                // mints into this namespace in a different mode. The counter
+                // is the side with freedom to move, so it steps over the
+                // clash instead of reporting it.
+                //
+                // This follows the requested policy rather than
+                // DetectsCollisions, which a Counter-mode view reports as
+                // false: the reservation is not about whether *this* mode can
+                // collide with itself, but about keeping its identifiers out
+                // of the way of the modes that can.
+                if (!m_detectCollisionsRequested ||
                     m_allocation.MintedIdentifiers.TryAdd(nodeId, kCounterWitness))
                 {
                     return nodeId;

@@ -169,8 +169,12 @@ Three consequences worth knowing:
   exactly the collision this catches. It costs roughly 50 bytes per
   distinct path minted.
 - It covers what the factory mints, not identifiers a caller assigned
-  itself. `String` and `Counter` cannot collide, so they keep no record
-  and pay nothing.
+  itself. `String` cannot collide and keeps no record. `Counter` cannot
+  collide with itself either, but it mints into the same numeric space a
+  hash does, so when checking is asked for it reserves what it hands out —
+  otherwise a namespace minting in both modes could issue one identifier
+  twice. It steps over a taken value rather than reporting it, because the
+  counter is the side free to move.
 
 `Counter` is for nodes whose browse paths repeat over time — per-session
 diagnostics objects, inference jobs, rediscovered assets. Its counter

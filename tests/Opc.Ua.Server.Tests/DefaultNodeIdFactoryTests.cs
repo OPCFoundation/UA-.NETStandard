@@ -565,6 +565,61 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void CounterAllocationStaysOutOfTheWayOfHashedIdentifiers()
+        {
+            var registered = new DefaultNodeIdFactory(
+                NodeIdAssignmentMode.Numeric,
+                detectCollisions: true);
+
+            // one namespace minting in both modes: a NodeManager that selects
+            // Counter shares the namespace's allocation state with one that
+            // did not, and both hand out numeric identifiers.
+            DefaultNodeIdFactory hashed = registered
+                .WithDefaultNamespaceIndex(kNamespaceIndex);
+            DefaultNodeIdFactory sequential = hashed
+                .WithMode(NodeIdAssignmentMode.Counter);
+
+            var parent = new NodeId("Root", kNamespaceIndex);
+            var taken = new HashSet<NodeId>();
+
+            for (int ii = 0; ii < 200; ii++)
+            {
+                NodeId fromPath = hashed.New(
+                    m_context,
+                    CreateChild(parent, "Node" + ii.ToString(CultureInfo.InvariantCulture)));
+                Assert.That(taken.Add(fromPath), Is.True, "hashed identifier reissued");
+
+                // Counter reports DetectsCollisions false - it cannot collide
+                // with itself - but it still has to avoid what the hashing
+                // side already reserved, or registration would replace a node.
+                //
+                // Note this loop only catches a regression if a hash happens
+                // to land on a counter value, which is rare over so few draws:
+                // it documents the property rather than policing it. What
+                // makes the guarantee hold is that the reservation is
+                // unconditional on the requested policy, which the assertion
+                // below pins - a Counter view reserves despite reporting that
+                // it does not detect collisions.
+                Assert.That(
+                    taken.Add(sequential.NextCounterNodeId()),
+                    Is.True,
+                    "counter identifier collided with a hashed one");
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(sequential.DetectsCollisions, Is.False);
+                Assert.That(sequential.Mode, Is.EqualTo(NodeIdAssignmentMode.Counter));
+
+                // the policy that drives the reservation came from the
+                // registered factory and survived the mode switch.
+                Assert.That(
+                    sequential.WithMode(NodeIdAssignmentMode.Numeric).DetectsCollisions,
+                    Is.True);
+            });
+        }
+
+        [Test]
         public void TheCollisionPolicySurvivesAModeThatCannotCollide()
         {
             var factory = new DefaultNodeIdFactory(

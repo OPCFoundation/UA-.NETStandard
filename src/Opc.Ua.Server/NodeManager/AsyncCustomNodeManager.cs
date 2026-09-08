@@ -2130,10 +2130,14 @@ namespace Opc.Ua.Server
             BaseInstanceState instance,
             NodeId parentNodeId)
         {
+            // the factory's namespace rather than this NodeManager's first
+            // one: a manager whose instance namespace is not its first rebases
+            // the factory onto it, and minting into the manager's first would
+            // put runtime instances in the model namespace instead.
             return m_nodeIdFactory.CreateChildNodeId(
                 parentNodeId,
                 instance.BrowseName,
-                DefaultNamespaceIndex,
+                m_nodeIdFactory.DefaultNamespaceIndex,
                 context.NamespaceUris);
         }
 
