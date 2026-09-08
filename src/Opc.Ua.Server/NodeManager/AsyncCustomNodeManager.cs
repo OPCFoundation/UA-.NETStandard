@@ -3298,9 +3298,11 @@ namespace Opc.Ua.Server
                 // apply filters to references.
                 var cache = new Dictionary<NodeId, NodeState>();
 
-                for (IReference? reference = browser.Next();
+                // Iterate through the async seam so a browser that fetches its references
+                // from I/O awaits that work instead of blocking this request worker.
+                for (IReference? reference = await browser.NextAsync(cancellationToken).ConfigureAwait(false);
                     reference != null;
-                    reference = browser.Next())
+                    reference = await browser.NextAsync(cancellationToken).ConfigureAwait(false))
                 {
                     // validate Browse permission
                     ServiceResult serviceResult = await ValidateRolePermissionsAsync(
@@ -3562,9 +3564,9 @@ namespace Opc.Ua.Server
             // check the browse names.
             try
             {
-                for (IReference? reference = browser.Next();
+                for (IReference? reference = await browser.NextAsync(cancellationToken).ConfigureAwait(false);
                     reference != null;
-                    reference = browser.Next())
+                    reference = await browser.NextAsync(cancellationToken).ConfigureAwait(false))
                 {
                     // ignore unknown external references.
                     if (reference.TargetId.IsAbsolute)

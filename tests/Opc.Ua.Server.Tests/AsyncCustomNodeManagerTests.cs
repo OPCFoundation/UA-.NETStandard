@@ -1651,6 +1651,250 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Issue #4415: the async node manager iterates a browser through
+        /// <see cref="INodeBrowser.NextAsync"/>, so a browser whose references
+        /// come from I/O can await that work. The browser here refuses the
+        /// synchronous <see cref="INodeBrowser.Next"/> outright, and the
+        /// continuation point round trip proves the push-back still works on the
+        /// async path.
+        /// </summary>
+        [Test]
+        public async Task BrowseAsync_IteratesBrowserThroughNextAsyncAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(
+                manager is TestableAsyncCustomNodeManager,
+                "Only the async node manager can drive INodeBrowser.NextAsync");
+
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            NodeState[] children = await AddAsyncBrowseTargetsAsync(manager, context, nsIdx).ConfigureAwait(false);
+            AsyncOnlyBrowser browser = null;
+            NodeState parent = await AddAsyncBrowseParentAsync(
+                manager,
+                context,
+                nsIdx,
+                children,
+                created => browser = created).ConfigureAwait(false);
+
+            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            var continuationPoint = new ContinuationPoint
+            {
+                NodeToBrowse = handle,
+                Manager = manager,
+                View = new ViewDescription(),
+                BrowseDirection = BrowseDirection.Forward,
+                IncludeSubtypes = true,
+                ResultMask = BrowseResultMask.All,
+                MaxResultsToReturn = 1
+            };
+
+            var references = new List<ReferenceDescription>();
+            var operationContext = new OperationContext(
+                new RequestHeader(), null, RequestType.Browse, RequestLifetime.None);
+
+            ContinuationPoint firstResult = await manager.BrowseAsync(
+                operationContext,
+                continuationPoint,
+                references).ConfigureAwait(false);
+
+            Assert.That(firstResult, Is.Not.Null, "second reference must be parked in a continuation point");
+            Assert.That(references, Has.Count.EqualTo(1));
+
+            // BrowseNext hands the node manager a fresh result list per call.
+            var moreReferences = new List<ReferenceDescription>();
+            ContinuationPoint secondResult = await manager.BrowseAsync(
+                operationContext,
+                firstResult,
+                moreReferences).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(secondResult, Is.Null);
+                Assert.That(references.Concat(moreReferences).Select(r => r.NodeId), Is.EqualTo(
+                    children.Select(c => new ExpandedNodeId(c.NodeId))));
+                Assert.That(browser, Is.Not.Null);
+                Assert.That(browser.NextCalls, Is.Zero, "the async manager must not fall back to Next()");
+                Assert.That(browser.NextAsyncCalls, Is.GreaterThanOrEqualTo(3));
+            });
+        }
+
+        /// <summary>
+        /// Issue #4415: translate-path resolution iterates the browser through
+        /// <see cref="INodeBrowser.NextAsync"/> as well.
+        /// </summary>
+        [Test]
+        public async Task TranslateBrowsePathAsync_IteratesBrowserThroughNextAsyncAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(
+                manager is TestableAsyncCustomNodeManager,
+                "Only the async node manager can drive INodeBrowser.NextAsync");
+
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            NodeState[] children = await AddAsyncBrowseTargetsAsync(manager, context, nsIdx).ConfigureAwait(false);
+            AsyncOnlyBrowser browser = null;
+            NodeState parent = await AddAsyncBrowseParentAsync(
+                manager,
+                context,
+                nsIdx,
+                children,
+                created => browser = created).ConfigureAwait(false);
+
+            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            var targetIds = new List<ExpandedNodeId>();
+            var unresolved = new List<NodeId>();
+            var relativePath = new RelativePathElement
+            {
+                IncludeSubtypes = true,
+                IsInverse = false,
+                TargetName = children[1].BrowseName
+            };
+
+            await manager.TranslateBrowsePathAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.TranslateBrowsePathsToNodeIds, RequestLifetime.None),
+                handle,
+                relativePath,
+                targetIds,
+                unresolved).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(targetIds, Is.EqualTo(new[] { new ExpandedNodeId(children[1].NodeId) }));
+                Assert.That(unresolved, Is.Empty);
+                Assert.That(browser, Is.Not.Null);
+                Assert.That(browser.NextCalls, Is.Zero, "the async manager must not fall back to Next()");
+                Assert.That(browser.NextAsyncCalls, Is.GreaterThanOrEqualTo(3));
+            });
+        }
+
+        private static async Task<NodeState[]> AddAsyncBrowseTargetsAsync(
+            ITestNodeManager manager,
+            ServerSystemContext context,
+            ushort nsIdx)
+        {
+            var children = new NodeState[2];
+            for (int i = 0; i < children.Length; i++)
+            {
+                var child = new BaseObjectState(null);
+                child.CreateAsPredefinedNode(context);
+                child.NodeId = new NodeId("AsyncBrowseChild" + i, nsIdx);
+                child.BrowseName = new QualifiedName("AsyncBrowseChild" + i, nsIdx);
+                await manager.AddNodeAsync(context, default, child).ConfigureAwait(false);
+                children[i] = child;
+            }
+            return children;
+        }
+
+        private static async Task<NodeState> AddAsyncBrowseParentAsync(
+            ITestNodeManager manager,
+            ServerSystemContext context,
+            ushort nsIdx,
+            NodeState[] children,
+            Action<AsyncOnlyBrowser> onCreated)
+        {
+            var parent = new BaseObjectState(null);
+            parent.CreateAsPredefinedNode(context);
+            parent.NodeId = new NodeId("AsyncBrowseParent", nsIdx);
+            parent.BrowseName = new QualifiedName("AsyncBrowseParent", nsIdx);
+            parent.OnCreateBrowser = (
+                browserContext,
+                node,
+                view,
+                referenceType,
+                includeSubtypes,
+                browseDirection,
+                browseName,
+                additionalReferences,
+                internalOnly) =>
+            {
+                var browser = new AsyncOnlyBrowser(
+                    browserContext,
+                    view,
+                    referenceType,
+                    includeSubtypes,
+                    browseDirection,
+                    browseName,
+                    additionalReferences,
+                    internalOnly,
+                    children);
+                onCreated(browser);
+                return browser;
+            };
+            await manager.AddNodeAsync(context, default, parent).ConfigureAwait(false);
+            return parent;
+        }
+
+        /// <summary>
+        /// A browser that produces its references only through
+        /// <see cref="NodeBrowser.NextAsync"/>, after a genuine asynchronous hop,
+        /// the way an aggregating browser that queries another server would. The
+        /// synchronous <see cref="NodeBrowser.Next"/> throws so a caller that still
+        /// drives it is caught by the test.
+        /// </summary>
+        private sealed class AsyncOnlyBrowser : NodeBrowser
+        {
+            private readonly Queue<IReference> m_pending;
+            private IReference m_pushBack;
+
+            public AsyncOnlyBrowser(
+                ISystemContext context,
+                ViewDescription view,
+                NodeId referenceType,
+                bool includeSubtypes,
+                BrowseDirection browseDirection,
+                QualifiedName browseName,
+                IEnumerable<IReference> additionalReferences,
+                bool internalOnly,
+                IEnumerable<NodeState> targets)
+                : base(context, view, referenceType, includeSubtypes, browseDirection,
+                    browseName, additionalReferences, internalOnly)
+            {
+                m_pending = new Queue<IReference>();
+                foreach (NodeState target in targets)
+                {
+                    m_pending.Enqueue(new NodeStateReference(
+                        ReferenceTypeIds.Organizes, false, target.NodeId));
+                }
+            }
+
+            public int NextCalls { get; private set; }
+
+            public int NextAsyncCalls { get; private set; }
+
+            public override IReference Next()
+            {
+                NextCalls++;
+                throw new InvalidOperationException(
+                    "This browser fetches its references asynchronously; iterate it through NextAsync.");
+            }
+
+            public override async ValueTask<IReference> NextAsync(
+                CancellationToken cancellationToken = default)
+            {
+                NextAsyncCalls++;
+                await Task.Yield();
+
+                if (m_pushBack != null)
+                {
+                    IReference reference = m_pushBack;
+                    m_pushBack = null;
+                    return reference;
+                }
+
+                return m_pending.Count > 0 ? m_pending.Dequeue() : null;
+            }
+
+            public override void Push(IReference reference)
+            {
+                m_pushBack = reference;
+            }
+        }
+
+        /// <summary>
         /// Regression for issue #4061: when a node that has been cached (e.g.
         /// because it was subscribed/registered) is deleted at runtime, it must
         /// no longer be resolvable through the component cache, otherwise a
