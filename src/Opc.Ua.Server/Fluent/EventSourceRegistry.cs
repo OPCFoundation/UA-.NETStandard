@@ -163,11 +163,19 @@ namespace Opc.Ua.Server.Fluent
         /// <see cref="EventPublishOptions.RegisterAsRootNotifier"/>.
         /// </summary>
         /// <remarks>
+        /// <para>
         /// Awaited by <see cref="NodeManagerBuilder.SealAsync"/> once the
         /// <c>Configure</c> pass returns. A source whose root-notifier
         /// registration fails is rolled out of the registry before the
         /// failure surfaces, so a half-registered source never survives a
         /// failed seal.
+        /// </para>
+        /// <para>
+        /// Cancellation is not such a failure: it propagates as
+        /// <see cref="OperationCanceledException"/> and leaves the
+        /// still-unregistered notifiers staged, so a later seal can complete
+        /// them.
+        /// </para>
         /// </remarks>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <exception cref="ServiceResultException">
@@ -187,14 +195,25 @@ namespace Opc.Ua.Server.Fluent
                 m_pendingRootNotifiers.Clear();
             }
 
-            foreach (BaseObjectState notifier in pending)
+            for (int ii = 0; ii < pending.Length; ii++)
             {
+                BaseObjectState notifier = pending[ii];
                 try
                 {
                     await m_owner.AddRootNotifierFromFluentAsync(
                         notifier,
                         cancellationToken).ConfigureAwait(false);
                     m_logger?.PublishRegisteredBrowseIdNodeIdAsA(notifier.BrowseName, notifier.NodeId);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    // A cancelled seal aborts the drain, it does not fail it:
+                    // the source stays registered and everything still
+                    // unregistered goes back on the queue, so cancellation
+                    // surfaces as cancellation and a later seal can finish
+                    // the job.
+                    RestagePendingRootNotifiers(pending, ii);
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -208,6 +227,29 @@ namespace Opc.Ua.Server.Fluent
                         "Publish: failed to add '{0}' (id '{1}') as a root notifier.",
                         notifier.BrowseName,
                         notifier.NodeId);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Puts the notifiers from <paramref name="startIndex"/> onwards back
+        /// at the front of the pending queue, keeping their registration order
+        /// ahead of anything staged while the drain was running.
+        /// </summary>
+        private void RestagePendingRootNotifiers(
+            BaseObjectState[] pending,
+            int startIndex)
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                return;
+            }
+
+            lock (m_pendingRootNotifiersLock)
+            {
+                for (int ii = pending.Length - 1; ii >= startIndex; ii--)
+                {
+                    m_pendingRootNotifiers.Insert(0, pending[ii]);
                 }
             }
         }

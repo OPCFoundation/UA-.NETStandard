@@ -657,6 +657,34 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public async Task Publish_RegisterAsRootNotifier_CancelledDrainStaysStagedAsync()
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = MakeNotifier(manager, "RootCancelled");
+
+            manager.EventSources.Register(
+                notifier,
+                (_, _, ct) => EmptyStream(ct),
+                new EventPublishOptions { RegisterAsRootNotifier = true });
+
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            // Cancelling the seal is not a configuration error, so it must not
+            // be wrapped as one.
+            Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await manager.EventSources
+                    .CompleteRegistrationsAsync(cts.Token).ConfigureAwait(false));
+            Assert.That(manager.RootNotifiers, Does.Not.ContainKey(notifier.NodeId));
+
+            // The registration stayed staged, so a later seal still completes it.
+            await manager.EventSources.CompleteRegistrationsAsync()
+                .ConfigureAwait(false);
+
+            Assert.That(manager.RootNotifiers, Contains.Key(notifier.NodeId));
+        }
+
+        [Test]
         public async Task Publish_RegisterAsRootNotifier_IsDrainedOnlyOnceAsync()
         {
             using TestablePublishManager manager = CreateManager();
@@ -1188,6 +1216,20 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
 
             public new NodeIdDictionary<NodeState> RootNotifiers => base.RootNotifiers;
+
+            /// <summary>
+            /// Honours the cancellation token before the base implementation
+            /// registers anything, so a test can drive the cancelled path of
+            /// <c>EventSourceRegistry.CompleteRegistrationsAsync</c>
+            /// deterministically rather than racing the framework.
+            /// </summary>
+            protected override ValueTask AddRootNotifierAsync(
+                NodeState notifier,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return base.AddRootNotifierAsync(notifier, cancellationToken);
+            }
 
             public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
 
