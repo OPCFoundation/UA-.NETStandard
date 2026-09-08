@@ -40,7 +40,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.WotCon.Bindings.Http
 {
     /// <summary>
-    /// A live HTTP binding channel. It executes read (GET), write (PUT/method),
+    /// A live HTTP binding channel. It executes read (GET/method), write (PUT/method),
     /// action (POST/method), observe and event operations with bounded timeouts
     /// and payload sizes, cooperative cancellation, HTTP-to-<see cref="StatusCode"/>
     /// mapping and credential-provider-driven authentication.
@@ -72,7 +72,7 @@ namespace Opc.Ua.WotCon.Bindings.Http
         public async ValueTask<WotReadResult> ReadAsync(CancellationToken cancellationToken = default)
         {
             (StatusCode status, byte[] body, string? error) =
-                await SendAsync(HttpMethod.Get, null, cancellationToken).ConfigureAwait(false);
+                await SendAsync(ResolveMethod("GET"), null, cancellationToken).ConfigureAwait(false);
             if (!StatusCode.IsGood(status))
             {
                 return new WotReadResult(status, DataValue.FromStatusCode(status), error);

@@ -86,6 +86,50 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
+        public async Task HttpChannelReadUsesTheCompiledMethod()
+        {
+            string? receivedMethod = null;
+            using var server = new TestHttpServer((method, _, _) =>
+            {
+                receivedMethod = method;
+                return method == "POST"
+                    ? new TestHttpResponse(200, "application/json", Encoding.UTF8.GetBytes("\"ready\""))
+                    : new TestHttpResponse(405, "text/plain", []);
+            });
+            string td = $$"""
+                {
+                  "@context": [
+                    "https://www.w3.org/2022/wot/td/v1.1",
+                    { "htv": "http://www.w3.org/2011/http#" }
+                  ],
+                  "title": "Post-backed read",
+                  "properties": {
+                    "state": {
+                      "type": "string",
+                      "forms": [{
+                        "href": "{{server.BaseUrl}}/read",
+                        "contentType": "application/json",
+                        "op": "readproperty",
+                        "htv:methodName": "POST"
+                      }]
+                    }
+                  }
+                }
+                """;
+            WotProtocolBinderRegistry registry = Registry();
+            WotCompiledForm read = Plan(registry, td).CompiledForms.Single(
+                form => form.Operation == WoTBindingCapabilityEnum.ReadProperty);
+
+            await using IWotBindingChannel channel = await registry.OpenChannelAsync(read).ConfigureAwait(false);
+            WotReadResult result = await channel.ReadAsync().ConfigureAwait(false);
+
+            Assert.That(receivedMethod, Is.EqualTo("POST"));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.Value.WrappedValue.TryGetValue(out string? value), Is.True);
+            Assert.That(value, Is.EqualTo("ready"));
+        }
+
+        [Test]
         public async Task HttpChannelReadNon2xxStatusReturnsMappedStatusCode()
         {
             using var server = new TestHttpServer((_, _, _) =>
