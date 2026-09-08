@@ -27,32 +27,23 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace Opc.Ua.Server.Hosting
+namespace Opc.Ua.Server.AliasNames
 {
     /// <summary>
-    /// A task run by the hosted server immediately after the server has
-    /// started, with access to the live <see cref="IServerContext"/>. Every
-    /// implementation registered in DI is invoked once. This is the seam
-    /// features use to wire runtime behavior that needs the fully-initialized
-    /// server (a bound address space, the populated message context, the
-    /// <c>ServerObject</c>) without subclassing <see cref="StandardServer"/>.
+    /// Configures the standard server's OPC UA Part 17 alias-name address space.
     /// </summary>
-    /// <remarks>
-    /// A task that needs a particular subsystem takes it as a constructor
-    /// dependency, which is how every implementation in this repository already
-    /// obtains what it needs. The context carries only what is genuinely ambient.
-    /// </remarks>
-    public interface IServerStartupTask
+    public sealed class AliasNameServerOptions
     {
         /// <summary>
-        /// Invoked once after the server has started.
-        /// A failure aborts the hosted server's startup and triggers cleanup.
+        /// Whether the configuration node manager creates browsable alias and category
+        /// nodes from the server's registered alias stores. Defaults to <see langword="false"/>,
+        /// leaving aliases available through the standard query methods only.
         /// </summary>
-        /// <param name="server">The live server context.</param>
-        /// <param name="cancellationToken">Cancellation token.</param>
-        ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default);
+        /// <remarks>
+        /// Stores and aliases must be registered before address-space creation. Materialized
+        /// nodes are a startup snapshot; later store mutations update query results but do
+        /// not add or remove browsable nodes.
+        /// </remarks>
+        public bool MaterializeAliasNodes { get; set; }
     }
 }

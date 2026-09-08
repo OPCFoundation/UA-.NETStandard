@@ -255,10 +255,10 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         /// <summary>
-        /// Verifies that alias-name registration is applied when node managers have started.
+        /// Verifies that alias-name registration is applied before node managers start.
         /// </summary>
         [Test]
-        public void AddAliasNamesRegistersAtNodeManagerStarted()
+        public async Task AddAliasNamesRegistersBeforeNodeManagerStartupAsync()
         {
             Mock<IAliasNameStore> aliasStore = new(MockBehavior.Strict);
             aliasStore.SetupGet(s => s.RootCategories).Returns([]);
@@ -272,7 +272,8 @@ namespace Opc.Ua.Server.Tests.Hosting
                 .SetupGet(s => s.AliasNameStoreRegistry)
                 .Returns(aliasRegistry);
 
-            InvokeProtected(server, "OnNodeManagerStarted", serverInternal.Object);
+            await new OpcUaServerAliasNameStartupTask(sp)
+                .OnServerStartingAsync(serverInternal.Object).ConfigureAwait(false);
 
             Assert.That(aliasRegistry.Stores, Does.Contain(aliasStore.Object));
         }
@@ -357,10 +358,10 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         /// <summary>
-        /// Verifies that registered alias stores are copied into the server when node managers have started.
+        /// Verifies that registered alias stores are copied into the server before node managers start.
         /// </summary>
         [Test]
-        public void AddAliasNameStoreRegistryCopiesStoresAtNodeManagerStarted()
+        public async Task AddAliasNameStoreRegistryCopiesStoresBeforeNodeManagerStartupAsync()
         {
             Mock<IAliasNameStore> aliasStore = new(MockBehavior.Strict);
             aliasStore.SetupGet(s => s.RootCategories).Returns([]);
@@ -379,7 +380,8 @@ namespace Opc.Ua.Server.Tests.Hosting
                 .SetupGet(s => s.AliasNameStoreRegistry)
                 .Returns(targetRegistry);
 
-            InvokeProtected(server, "OnNodeManagerStarted", serverInternal.Object);
+            await new OpcUaServerAliasNameStartupTask(sp)
+                .OnServerStartingAsync(serverInternal.Object).ConfigureAwait(false);
 
             Assert.That(targetRegistry.Stores, Does.Contain(aliasStore.Object));
         }

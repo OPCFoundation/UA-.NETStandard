@@ -5,8 +5,8 @@
 The Reverse Connect option consists of the following elements:
 
 * Updated C# Stack that supports the *ReverseHello* message for Client and Server;
-* Updated server library which support to
-  * Create a *ReverseConnectServer* derived from a *StandardServer* class.
+* Updated server library which supports
+  * Server-initiated connections through *ReverseConnectServer*, used automatically by the regular dependency-injection server.
   * Extended configuration parameters to setup the client location and timeouts.
   * an API extension in the *ReverseConnectServer* to programmatically control client connections.
 * Updated client library which support to
@@ -72,6 +72,72 @@ Pass each returned `ITransportWaitingConnection` to the session factory for the 
 `StartServiceAsync` validates and prepares the complete listener set before it changes a running service. If activation fails after existing listeners have stopped, the manager recreates and reopens the previous configuration. Cancellation cleans partially initialized candidates and either preserves or restores the prior service. Use `await manager.StopServiceAsync(...)` for an explicit stop and `await manager.DisposeAsync()` (or `await using`) for teardown.
 
 The synchronous `StartService`, `RegisterWaitingConnection`, and `Dispose` APIs remain as obsolete compatibility wrappers. New code should use `StartServiceAsync`, `RegisterWaitingConnectionAsync`, and `DisposeAsync`; the compatibility wrappers may block a caller thread.
+
+## Server-side dependency injection
+
+The regular `AddServer(...)` host uses
+`DependencyInjectionStandardServer`, which derives from
+`ReverseConnectServer`. Configured outbound reverse connections start
+and stop with the hosted server. Existing DI hooks for node managers,
+session and subscription services, identity, and startup tasks coexist
+with reverse connect; an application does not need a server subclass.
+Queued callbacks from disposed or superseded retry timers are ignored,
+including during startup-failure cleanup.
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua.Server.Hosting;
+
+services.AddOpcUa()
+    .AddServer(options =>
+    {
+        options.ApplicationName = "PlantServer";
+        options.EndpointUrls.Add("opc.tcp://localhost:4840/PlantServer");
+    })
+    .AddReverseConnect(options =>
+    {
+        options.ConnectIntervalMs = 15000;
+        options.Clients.Add(new ServerReverseConnectClientOptions
+        {
+            EndpointUrl = "opc.tcp://client.example.com:65300",
+            Timeout = 30000,
+            MaxSessionCount = 1,
+            Enabled = true
+        });
+    });
+```
+
+`AddReverseConnect(...)` configures `OpcUaServerOptions.ReverseConnect`.
+The projection into `ServerConfiguration.ReverseConnect` is unchanged,
+and the same options can be bound from `OpcUa:Server:ReverseConnect`.
+
+When `ConfigurationFile` or `ConfigurationStream` supplies the
+application configuration, that document is authoritative. The
+`ReverseConnect` options and `AddReverseConnect(...)` shortcut do not
+overwrite it. Use `ConfigureLoadedConfiguration` to change loaded
+settings; this example retains the file's clients and changes only
+their retry interval:
+
+```csharp
+services.AddOpcUa().AddServer(options =>
+{
+    options.ConfigurationFile = "PlantServer.Config.xml";
+    options.ConfigureLoadedConfiguration = configuration =>
+    {
+        var reverseConnect = configuration.ServerConfiguration.ReverseConnect
+            ?? throw new InvalidOperationException(
+                "Configure reverse-connect clients in the XML file.");
+        reverseConnect.ConnectInterval = 20000;
+    };
+});
+```
+
+The ordinary `StandardServer` is unchanged. Applications constructing
+servers manually still choose `ReverseConnectServer` explicitly when
+they need server-initiated connections; setting reverse-connect
+configuration alone does not add that behavior to `StandardServer`.
+See [Dependency Injection](DependencyInjection.md#server-side-reverse-connect)
+for the complete options shape and other hosted-server customization.
 
 ## Dependency-injection lifecycle
 

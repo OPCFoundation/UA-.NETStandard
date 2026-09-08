@@ -38,7 +38,7 @@ namespace Opc.Ua.Server.Hosting
     /// <summary>
     /// <see cref="StandardServer"/> variant that resolves supported server hooks from dependency injection.
     /// </summary>
-    public class DependencyInjectionStandardServer : StandardServer
+    public class DependencyInjectionStandardServer : ReverseConnectServer
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="DependencyInjectionStandardServer"/> class.
@@ -55,6 +55,50 @@ namespace Opc.Ua.Server.Hosting
             m_services = services ?? throw new ArgumentNullException(nameof(services));
             SecurityPolicyRegistry = m_services.GetService<ISecurityPolicyRegistry>();
             OpcUaServerRegistrationStaging.Apply(this, m_services);
+        }
+
+        /// <inheritdoc/>
+        protected override ServerProperties LoadServerProperties()
+        {
+            ServerProperties? properties = m_services.GetService<ServerProperties>() ??
+                m_services.GetService<IOptions<ServerProperties>>()?.Value;
+            ApplicationConfiguration configuration = Configuration ??
+                throw new InvalidOperationException("The server configuration has not been assigned.");
+            return new ServerProperties
+            {
+                ProductName = string.IsNullOrEmpty(properties?.ProductName)
+                    ? configuration.ApplicationName ?? string.Empty : properties.ProductName,
+                ProductUri = string.IsNullOrEmpty(properties?.ProductUri)
+                    ? configuration.ProductUri ?? string.Empty : properties.ProductUri,
+                ManufacturerName = properties?.ManufacturerName ?? string.Empty,
+                SoftwareVersion = string.IsNullOrEmpty(properties?.SoftwareVersion)
+                    ? Utils.GetAssemblySoftwareVersion() : properties.SoftwareVersion,
+                BuildNumber = string.IsNullOrEmpty(properties?.BuildNumber)
+                    ? Utils.GetAssemblyBuildNumber() : properties.BuildNumber,
+                BuildDate = properties?.BuildDate ?? DateTime.MinValue
+            };
+        }
+
+        /// <inheritdoc/>
+        protected override ResourceManager CreateResourceManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            ResourceManager resources = base.CreateResourceManager(server, configuration);
+            try
+            {
+                foreach (OpcUaServerResourceRegistration registration in
+                    m_services.GetServices<OpcUaServerResourceRegistration>())
+                {
+                    registration.Apply(m_services, resources);
+                }
+                return resources;
+            }
+            catch
+            {
+                resources.Dispose();
+                throw;
+            }
         }
 
         /// <inheritdoc/>
@@ -157,11 +201,14 @@ namespace Opc.Ua.Server.Hosting
             // set on the options. A DI-registered provider takes precedence.
             ServerConfigurationOptions? serverConfigurationOptions =
                 ResolveServerConfigurationOptions(m_services);
+            AliasNameServerOptions? aliasNameOptions =
+                m_services.GetService<AliasNameServerOptions>() ??
+                m_services.GetService<IOptions<AliasNameServerOptions>>()?.Value;
 
             bool hasSurface = serverConfigurationOptions != null;
 
             return coordinator != null || pendingKeyStore != null || keyGenerator != null ||
-                    trustListEffectHandler != null || hasSurface
+                    trustListEffectHandler != null || hasSurface || aliasNameOptions != null
                 ? new MainNodeManagerFactory(
                     configuration,
                     server,
@@ -169,7 +216,8 @@ namespace Opc.Ua.Server.Hosting
                     pendingKeyStore,
                     keyGenerator,
                     trustListEffectHandler,
-                    serverConfigurationOptions)
+                    serverConfigurationOptions,
+                    aliasNameOptions)
                 : base.CreateMainNodeManagerFactory(server, configuration);
         }
 
@@ -228,35 +276,6 @@ namespace Opc.Ua.Server.Hosting
             options.ResetProvider ??= resetProvider;
             options.ConfigurationFileProvider ??= configurationFileProvider;
             return options;
-        }
-
-        /// <inheritdoc/>
-        protected override void OnNodeManagerStarted(IServerInternal server)
-        {
-            RegisterAliasNames(server);
-            base.OnNodeManagerStarted(server);
-        }
-
-        private void RegisterAliasNames(IServerInternal server)
-        {
-            if (server is not IAliasNameStoreRegistryProvider registryProvider)
-            {
-                return;
-            }
-
-            foreach (IAliasNameStoreRegistry registry in m_services.GetServices<IAliasNameStoreRegistry>())
-            {
-                foreach (IAliasNameStore store in registry.Stores)
-                {
-                    registryProvider.AliasNameStoreRegistry.Register(store);
-                }
-            }
-
-            foreach (OpcUaServerAliasNameStoreRegistration registration in
-                m_services.GetServices<OpcUaServerAliasNameStoreRegistration>())
-            {
-                registryProvider.AliasNameStoreRegistry.Register(registration.Store);
-            }
         }
 
         private readonly IServiceProvider m_services;

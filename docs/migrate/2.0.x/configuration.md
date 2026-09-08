@@ -1,6 +1,6 @@
 # Configuration and State Persistence
 
-> **When to read this:** Read this for `ApplicationConfiguration` changes, the removed Data-Contract serializer, Newtonsoft removal from `Opc.Ua.Core`, the new `ParseExtension` / `UpdateExtension` signature, and session / browser state persistence.
+> **When to read this:** Read this for `ApplicationConfiguration` changes, moving server customization to dependency injection, the removed Data-Contract serializer, Newtonsoft removal from `Opc.Ua.Core`, the new `ParseExtension` / `UpdateExtension` signature, and session / browser state persistence.
 
 ## Configuration
 
@@ -24,6 +24,106 @@ All configuration DTO classes (`ApplicationConfiguration`, `ServerConfiguration`
 - Add the `partial` keyword to any subclass of these configuration types.
 - Custom configuration extension types must implement `IEncodeable` (the `[DataType]` source generator handles this automatically for `partial` classes).
 - Code using reflection to inspect `[DataContract]`/`[DataMember]` attributes must switch to `[DataType]`/`[DataTypeField]`.
+
+### Moving server customization to dependency injection
+
+Applications migrating from 1.5.378 to 2.0 can replace routine server
+overrides with fluent registration on `IOpcUaServerBuilder`. These
+extensions are in `Microsoft.Extensions.DependencyInjection`; the
+standard hosted path does not require an application server subclass.
+
+| 1.5.378 integration pattern | 2.0 hosted replacement |
+|----------------------------|------------------------|
+| Override `LoadServerProperties` for product and build information | `ConfigureServerProperties(Action<Opc.Ua.ServerProperties>)`. |
+| Override `CreateResourceManager` to install translations | `ConfigureResources(Action<Opc.Ua.Server.ResourceManager>)`, or the overload also receiving `IServiceProvider`. |
+| Attach `SessionManager.ImpersonateUser` for authentication | Register an `IUserTokenAuthenticator` by type, instance, or a factory receiving `IServiceProvider` and `ICertificateValidatorEx?`. See [identity migration](identity.md#user-identity-providers). |
+| Override `OnServerStarted` for application initialization | `AddStartupTask<TTask>()` where `TTask : class, IServerStartupTask`, or `AddStartupTask(Func<IServiceProvider, IServerContext, CancellationToken, ValueTask>)`. |
+| Override `CreateMasterNodeManager` to assemble application factories | `AddNodeManager<TFactory>()`, the existing legacy `AddSyncNodeManager<TFactory>()`, instance overloads, or `AddNodeManagers(...)`. |
+| Select a custom reverse-connect server solely for outbound connections | The regular DI server already derives from `ReverseConnectServer`; use `AddReverseConnect(...)` or loaded `ServerConfiguration.ReverseConnect`. |
+
+An existing XML configuration remains the source of application identity
+and endpoint settings while runtime customization moves to the builder:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+
+services.AddOpcUa()
+    .AddServer("PlantServer.Config.xml")
+    .ConfigureServerProperties(properties =>
+    {
+        properties.ManufacturerName = "Example Automation";
+        properties.SoftwareVersion = "2.0.0";
+        properties.BuildNumber = "42";
+        properties.BuildDate = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc);
+    })
+    .AddNodeManagers((sp, configuration) =>
+    [
+        ActivatorUtilities.CreateInstance<PlantNodeManagerFactory>(sp, configuration)
+    ])
+    .ConfigureResources(resources =>
+        resources.Add("DeviceUnavailable", "en-US", "The device is unavailable."));
+```
+
+`PlantNodeManagerFactory` is an application-defined
+`IAsyncNodeManagerFactory` whose constructor accepts the effective
+`ApplicationConfiguration` and other DI dependencies. Generic factory
+registrations are resolved lazily after configuration is loaded.
+For configuration-dependent constructors, use the explicit
+`AddNodeManagers(Func<IServiceProvider, ApplicationConfiguration, ArrayOf<IAsyncNodeManagerFactory>>)`
+callback as above, not a global `ApplicationConfiguration` service.
+Its result can contain zero or many factories. Already-created async
+and legacy factories are accepted by `AddNodeManager(IAsyncNodeManagerFactory)`
+and `AddNodeManager(INodeManagerFactory)`.
+
+Observe the following precedence and lifecycle rules:
+
+- XML and stream configuration are authoritative. Configuration-building
+  options, including `AddReverseConnect(...)`, do not overwrite loaded
+  settings. Use `ConfigureLoadedConfiguration` or the optional
+  `AddServer(pathOrStream, callback)` callback for those overrides.
+  Runtime registrations such as authenticators, factories, startup
+  tasks, metadata, resources, and alias settings still apply.
+- A directly registered `Opc.Ua.ServerProperties` takes precedence over
+  `IOptions<Opc.Ua.ServerProperties>` configured by
+  `ConfigureServerProperties`. Unspecified `ProductName` and `ProductUri`
+  use the effective application's name and product URI.
+  `SoftwareVersion` and `BuildNumber` fall back to the existing **stack**
+  version helpers, not the publisher's version. Configure the publisher's
+  `ManufacturerName` and `BuildDate` explicitly.
+- Resource callbacks run after the default status text is loaded. The
+  server retains and owns its resource manager; there is no live
+  `Opc.Ua.Server.ResourceManager` service to inject.
+- Typed startup-task registration is idempotent; separate delegates are
+  distinct. Tasks run sequentially once after server startup, and failure
+  or cancellation aborts hosted startup and triggers cleanup.
+  Use existing typed lookups such as
+  `context.FindNodeManagers<IDiagnosticsNodeManager>().Single()` and
+  await `GetDefaultHistoryCapabilitiesAsync(...)`; no new
+  `IServerContext` members are required. Prefer the existing historian
+  capabilities rollup when it already describes the provider's support.
+- For Part 17 aliases, register stores before address-space startup with
+  `AddAliasNameStore(...)` or `AddAliasNameStoreRegistry(...)`.
+  `ConfigureAliasNames(Action<AliasNameServerOptions>)` opts the normal
+  `ConfigurationNodeManager` into materializing standard-category
+  aliases and optional capabilities. `AliasNameServerOptions` lives in
+  `Opc.Ua.Server.AliasNames` and defaults `MaterializeAliasNodes` to
+  `false`; the custom `AliasNameNodeManagerOptions` default remains
+  `true`. Browse nodes are a startup snapshot: later store mutations
+  change `FindAlias` and `LastChange`, not those nodes.
+
+These registrations are additive and introduce no new dependencies.
+Manual server construction remains supported, and ordinary
+`StandardServer` behavior is unchanged. If retaining a custom
+`AddServer<TServer>()`, DI-only metadata, resource, and alias settings
+require `DependencyInjectionStandardServer`; a non-DI custom server
+rejects them clearly rather than ignoring them. Existing session,
+subscription, and durable-subscription DI hooks coexist with the
+reverse-connect base.
+
+See [Dependency Injection](../../DependencyInjection.md#server-feature),
+[Alias Names](../../AliasNames.md), and
+[Reverse Connect](../../ReverseConnect.md#server-side-dependency-injection)
+for the complete current APIs and examples.
 
 ### TraceConfiguration apply APIs removed
 
