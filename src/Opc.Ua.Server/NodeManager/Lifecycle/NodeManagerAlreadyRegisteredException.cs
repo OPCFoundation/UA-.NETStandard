@@ -28,49 +28,45 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Identifies one generation of a live NodeManager registration.
+    /// Reports that a NodeManager factory returned an instance that is already registered.
     /// </summary>
-    public sealed class NodeManagerRegistration
+    /// <remarks>
+    /// Allows callers of <see cref="INodeManagerLifecycle"/> to distinguish duplicate
+    /// registration attempts from other <see cref="InvalidOperationException"/> failures.
+    /// </remarks>
+    public sealed class NodeManagerAlreadyRegisteredException : InvalidOperationException
     {
-        internal NodeManagerRegistration(
-            Guid id,
-            long generation,
-            IAsyncNodeManager nodeManager)
+        /// <summary>
+        /// Initializes the exception with the default duplicate-registration message.
+        /// </summary>
+        public NodeManagerAlreadyRegisteredException()
+            : base("The NodeManager is already registered.")
         {
-            Id = id;
-            Generation = generation;
-            NodeManager = nodeManager;
-            IEnumerable<string>? namespaceUris = nodeManager.NamespaceUris;
-            NamespaceUris = namespaceUris is null
-                ? default
-                : new ArrayOf<string>(namespaceUris.ToArray());
         }
 
         /// <summary>
-        /// Gets the stable identifier shared by all generations of this registration.
+        /// Initializes the exception with a custom message.
         /// </summary>
-        public Guid Id { get; }
+        /// <param name="message">The error message.</param>
+        public NodeManagerAlreadyRegisteredException(string message)
+            : base(message)
+        {
+        }
 
         /// <summary>
-        /// Gets the generation represented by this handle.
+        /// Initializes the exception with a custom message and inner exception.
         /// </summary>
-        public long Generation { get; }
-
-        /// <summary>
-        /// Gets the live NodeManager represented by this generation.
-        /// </summary>
-        public IAsyncNodeManager NodeManager { get; }
-
-        /// <summary>
-        /// Gets the namespaces owned by this generation. The array is null for
-        /// a NodeManager that uses custom routing instead of namespace ownership.
-        /// </summary>
-        public ArrayOf<string> NamespaceUris { get; }
+        /// <param name="message">The error message.</param>
+        /// <param name="innerException">The exception that caused this error.</param>
+        public NodeManagerAlreadyRegisteredException(
+            string message,
+            Exception innerException)
+            : base(message, innerException)
+        {
+        }
     }
 }

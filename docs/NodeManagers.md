@@ -378,7 +378,9 @@ set of models genuinely has to change without restarting the server.
 
 `AddNodeManager` and `AddRuntimeNodeSet` register a factory on `IOpcUaServerBuilder`. The factory is
 created before the server starts, and the server builds its address space from all registered
-factories while it starts.
+factories while it starts. Once startup succeeds, each application NodeManager appears as a
+[generation-1 entry](#registration-generations) in `INodeManagerLifecycle.Registrations`. The built-in diagnostics,
+configuration, and core NodeManagers are not exposed there.
 
 ```csharp
 services.AddOpcUa()
@@ -404,6 +406,20 @@ services.AddOpcUa()
             .Configure(node => node.UnderObjectsFolder());
     });
 ```
+
+### Registration generations
+
+A **generation** identifies one published NodeManager instance within a logical registration.
+`NodeManagerRegistration.Id` stays the same across reloads; `Generation` numbers the successive
+instances. Startup adoption and `AddAsync` both create the first instance with `Generation = 1`,
+hence **generation 1**. The first committed reload creates **generation 2**, the next creates
+**generation 3**, and so on. All [reload modes](#reload-modes) use this numbering; it is independent
+of the information model's version and namespace index.
+
+After a reload, use the newly returned registration handle for further lifecycle operations.
+The previous handle is stale even if a shadow reload keeps its old NodeManager alive for existing
+Clients. Adding a new registration starts at generation 1 with a new `Id`, rather than continuing
+the numbering of a removed registration.
 
 ### Runtime registration
 
@@ -433,8 +449,10 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 ```
 
 Each add returns an immutable `NodeManagerRegistration`. Reload returns the next generation and
-invalidates the previous handle. Only registrations created by the lifecycle provider can be
-reloaded or removed; startup, diagnostics, and core NodeManagers are protected.
+invalidates the previous handle. `Registrations` also contains application NodeManagers that were
+composed before startup, so a control-plane component can discover their generation-1 handles and
+remove them or, when the current manager implements `INodeManagerReloadParticipant`, reload them.
+Diagnostics, configuration, and core NodeManagers remain protected and absent from the collection.
 
 `INodeManagerLifecycle` is a host control-plane API. Do not invoke reload or removal from inside an
 OPC UA service or Method callback: teardown waits for the requests that already captured the retired
