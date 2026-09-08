@@ -129,7 +129,7 @@ namespace Opc.Ua.OpenUsd.Tests
             IDictionary<string, UsdValue> md = PrimOf(exported, "P").Metadata;
             Assert.That(md["order"].TryGetArray(out ArrayOf<UsdValue> values), Is.True);
             Assert.That(values.ToArray()!.Select(v => v.TryGetInteger(out long integer) ? integer : 0L).ToArray(),
-                Is.EqualTo(new[] { 3L, 1L, 2L }),
+                Is.EqualTo(s_longValues1),
                 "The array must round-trip element-wise, preserving order.");
         }
 
@@ -208,5 +208,7 @@ namespace Opc.Ua.OpenUsd.Tests
             Assert.Fail($"Metadata property {key} not found on {primPath}.");
             return null!;
         }
+
+        private static readonly long[] s_longValues1 = [3L, 1L, 2L];
     }
 }

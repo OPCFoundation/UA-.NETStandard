@@ -27,9 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CA1861: inline literal arrays here are one-shot test fixtures, not hot-path
-//   allocations, so hoisting them to static readonly fields adds no value. Suppressed file-level.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
 
 // CA2000: system-under-test disposables are created per test and released at teardown;
 //   there is no cross-test resource leak. Suppressed file-level for the suite.
@@ -181,7 +178,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var bulk = new InMemorySharedKeyValueStore();
             using var strong = new InMemorySharedKeyValueStore();
-            var prefixes = new ArrayOf<string>(new[] { "cas/" }.AsMemory());
+            var prefixes = new ArrayOf<string>(s_stringValues1.AsMemory());
             await using var hybrid = new HybridSharedKeyValueStore(bulk, strong, prefixes);
 
             await hybrid.SetAsync("cas/x", ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
@@ -192,5 +189,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(casInStrong, Is.True, "the custom prefix routes to the strong store");
             Assert.That(nonceInBulk, Is.True, "custom prefixes replace the defaults, so nonce/ is now a bulk key");
         }
+
+        private static readonly string[] s_stringValues1 = ["cas/"];
     }
 }

@@ -74,6 +74,6 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Client.Common\Opc.Ua.Gds.Client.Common.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Client\Opc.Ua.Gds.Client.csproj" />
   </ItemGroup>
 </Project>

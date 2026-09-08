@@ -2,6 +2,12 @@
 
 This guide explains how to load one or more NodeSet2 XML documents into the server's address space at startup without writing a source-generated or hand-coded NodeManager. You configure which files or streams to load; the server imports them in dependency order and registers the resulting nodes.
 
+Within each imported set, types are registered in inheritance order rather than
+XML record order. A derived type may precede its supertype in the document;
+an inheritance cycle is rejected before registration. Imported namespace-zero
+`InputArguments` and `OutputArguments` Properties populate their Method's typed
+signature, retaining the declared Property NodeIds, argument order, and values.
+
 ## When to use the runtime NodeSet path
 
 Use `AddRuntimeNodeSet` when:
@@ -196,6 +202,8 @@ When no `Configure` callback is registered, `DefaultNamespaceUri` has no effect 
 ## Dependency sorting
 
 The factory reads the `Models/Model/RequiredModel` entries from each parsed NodeSet document and performs a topological sort (Kahn's algorithm) before importing. Import order guarantees that a required model's nodes are in the address space before any document that depends on them imports its nodes.
+
+All documents of one manager are parsed into a single batch whose parent-child relationships are linked exactly once, after the last document has been parsed. A node may therefore declare a `ParentNodeId` that lives in another document of the group regardless of the order the two were parsed in; a duplicate NodeId across documents is rejected while parsing. A fluent `Configure` callback can add further documents to the manager with `builder.Import` — see [Importing a NodeSet2 overlay at runtime](NodeManagers.md#importing-a-nodeset2-overlay-at-runtime--builderimport).
 
 Dependencies on models **not included in the group** — for example the OPC UA base namespace or a third-party model hosted by a generated NodeManager — are silently allowed and treated as external. The server resolves cross-manager references through the normal `AddReverseReferencesAsync` mechanism.
 

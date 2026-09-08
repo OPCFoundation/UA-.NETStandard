@@ -26,8 +26,8 @@
     <Project Path="../src/Opc.Ua.Types/Opc.Ua.Types.csproj" />
     <Project Path="../src/Opc.Ua.Client/Opc.Ua.Client.csproj" />
     <Project Path="../src/Opc.Ua.Configuration/Opc.Ua.Configuration.csproj" />
-    <Project Path="../src/Opc.Ua.Gds.Client.Common/Opc.Ua.Gds.Client.Common.csproj" />
-    <Project Path="../src/Opc.Ua.Gds.Common/Opc.Ua.Gds.Common.csproj" />
+    <Project Path="../src/Opc.Ua.Gds/Opc.Ua.Gds.csproj" />
+    <Project Path="../src/Opc.Ua.Gds.Client/Opc.Ua.Gds.Client.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path="../.editorconfig" />

@@ -2014,7 +2014,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 root.References?.Any(r =>
                     !r.IsForward &&
                     string.Equals(r.ReferenceType, "HasComponent", StringComparison.Ordinal) &&
-                    string.Equals(r.Value, parentNodeId, StringComparison.Ordinal)) ?? false,
+                    string.Equals(
+                        r.Value, WotTestData.LocalNodeId(nodeSet, parentNodeId), StringComparison.Ordinal)) ?? false,
                 Is.True);
         }
 

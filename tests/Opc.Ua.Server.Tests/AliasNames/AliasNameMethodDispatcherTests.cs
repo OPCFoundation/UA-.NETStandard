@@ -32,11 +32,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.AliasNames;
 
-// Test fixtures construct short-lived literal arrays inline as method
-// arguments; the per-call allocation cost is irrelevant for tests and
-// keeping the data adjacent to the assertion improves readability.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
-
 namespace Opc.Ua.Server.Tests.AliasNames
 {
     /// <summary>
@@ -82,7 +77,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     .AddAliasesAsync(
                         registry,
                         s_categoryId,
-                        new string[] { "A" }.ToArrayOf(),
+                        s_stringValues1.ToArrayOf(),
                         new ExpandedNodeId[]
                         {
                             new("T1", 2),
@@ -115,7 +110,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     .AddAliasesAsync(
                         registry,
                         s_categoryId,
-                        new string[] { "A", "B" }.ToArrayOf(),
+                        s_stringValues2.ToArrayOf(),
                         new ExpandedNodeId[]
                         {
                             new("T1", 2),
@@ -174,7 +169,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     .DeleteAliasesAsync(
                         registry,
                         s_categoryId,
-                        new string[] { "A", "B" }.ToArrayOf(),
+                        s_stringValues2.ToArrayOf(),
                         new ExpandedNodeId[] { new("T1", 2) }.ToArrayOf(),
                         CancellationToken.None)
                     .ConfigureAwait(false);
@@ -316,5 +311,8 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     "Per-row store outcomes must be surfaced verbatim through ErrorCodes.");
             }
         }
+
+        private static readonly string[] s_stringValues1 = ["A"];
+        private static readonly string[] s_stringValues2 = ["A", "B"];
     }
 }

@@ -7,12 +7,17 @@
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
-  "@type": "uav:object",
+  "@type": [
+    "tm:ThingModel",
+    "uav:objectType"
+  ],
   "id": "urn:dev:opcua:pump-01-preserved",
   "title": "Pump 01 (explicit byte-exact NodeSet archive)",
-  "description": "An exceptional archival example that explicitly carries a byte-exact NodeSet2 baseline in a uav:nodeSet envelope. The semantic/readable vocabulary is primary, uav:nodes is an exceptional structured fallback, and this opaque envelope is emitted only when byte identity is requested or a future/unsupported construct cannot be represented structurally.",
-  "uav:browseName": "pump:Pump",
-  "uav:id": "nsu=http://example.com/demo/pump;s=Pump",
+  "uav:metadata": {
+    "pump:archivalNote": "An exceptional archival example that explicitly carries a byte-exact NodeSet2 baseline in a uav:nodeSet envelope. The semantic/readable vocabulary is primary, uav:nodes is an exceptional structured fallback, and this opaque envelope is emitted only when byte identity is requested or a future/unsupported construct cannot be represented structurally."
+  },
+  "uav:browseName": "pump:PumpType",
+  "uav:id": "nsu=http://example.com/demo/pump;i=1001",
   "uav:nodeSet": {
     "@type": "uav:nodeSet",
     "contentType": "application/opcua-nodeset+xml",
@@ -24,7 +29,7 @@
   "properties": {
     "pumpSpeed": {
       "@type": "uav:variable",
-      "title": "Pump Speed",
+      "title": "PumpSpeed",
       "uav:browseName": "pump:PumpSpeed",
       "uav:id": "nsu=http://example.com/demo/pump;i=6001",
       "type": "number",

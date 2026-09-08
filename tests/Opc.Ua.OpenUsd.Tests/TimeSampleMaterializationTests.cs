@@ -96,7 +96,7 @@ namespace Opc.Ua.OpenUsd.Tests
             Assert.That(ha.AttributePath, Is.EqualTo("/P.angle"));
             // Samples are ordered by ascending time code (USD composed sample order).
             Assert.That(
-                ha.Samples.Select(s => s.TimeCode), Is.EqualTo(new[] { 0.0, 24.0, 48.0 }));
+                ha.Samples.Select(s => s.TimeCode), Is.EqualTo(s_doubleValues1));
             Assert.That(
                 ha.Samples.Select(s => s.Value),
                 Is.EqualTo(new[] { UsdValue.From(0.0), UsdValue.From(90.0), UsdValue.From(180.0) }));
@@ -254,5 +254,7 @@ namespace Opc.Ua.OpenUsd.Tests
                 epochUtc == null ? null : new UsdMaterializationOptions { TimeCodeEpochUtc = epochUtc };
             return MaterializationHarness.Materialize(stage, options);
         }
+
+        private static readonly double[] s_doubleValues1 = [0.0, 24.0, 48.0];
     }
 }
