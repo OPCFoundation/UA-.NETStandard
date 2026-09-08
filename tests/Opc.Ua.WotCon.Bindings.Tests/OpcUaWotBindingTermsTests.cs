@@ -796,6 +796,24 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(selected!.EndpointUrl, Is.EqualTo("opc.tcp://named"));
         }
 
+        [TestCase("https://vendor.example/policy#Aes256_Sha256_RsaPss")]
+        [TestCase("https://vendor.example/Aes256_Sha256_RsaPss")]
+        [TestCase("Aes256_Sha256_RsaPss")]
+        public void APolicyNameSuffixDoesNotEstablishStandardPolicyIdentity(string policyUri)
+        {
+            EndpointDescription unknown = Endpoint(
+                "opc.tcp://unknown", MessageSecurityMode.SignAndEncrypt, policyUri, 255);
+            EndpointDescription known = Endpoint(
+                "opc.tcp://known", MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256, 1);
+            var floor = new WotSecurityFloor("SignAndEncrypt", "Basic256Sha256");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(OpcUaWotEndpointSelector.Satisfies(unknown, floor), Is.False);
+                Assert.That(OpcUaWotEndpointSelector.Select([unknown, known], null), Is.SameAs(known));
+            });
+        }
+
         [Test]
         public void ActivateFailsClosedWhenTheSelectedEndpointIsBelowTheFloor()
         {

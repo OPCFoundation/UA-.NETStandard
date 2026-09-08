@@ -118,26 +118,21 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
 
         /// <summary>
         /// Maps a security-policy URI onto the policy name WoT Binding
-        /// Section 5.7 uses, which is the last segment of the URI. A URI this
-        /// Binding does not name keeps its own last segment and therefore
-        /// ranks below every policy it names.
+        /// Section 5.7 uses. Only complete standard policy URIs have a
+        /// named rank; an unknown URI returns an empty name.
         /// </summary>
         /// <param name="securityPolicyUri">The endpoint's policy URI.</param>
         /// <returns>The policy name.</returns>
         public static string GetSecurityPolicyName(string? securityPolicyUri)
         {
-            if (string.IsNullOrEmpty(securityPolicyUri))
+            const string prefix = global::Opc.Ua.Namespaces.OpcUa + "SecurityPolicy#";
+            if (securityPolicyUri is null ||
+                !securityPolicyUri.StartsWith(prefix, StringComparison.Ordinal))
             {
                 return string.Empty;
             }
-            int separator = securityPolicyUri!.LastIndexOf('#');
-            if (separator < 0)
-            {
-                separator = securityPolicyUri.LastIndexOf('/');
-            }
-            return separator >= 0 && separator + 1 < securityPolicyUri.Length
-                ? securityPolicyUri.Substring(separator + 1)
-                : securityPolicyUri;
+            string name = securityPolicyUri.Substring(prefix.Length);
+            return WotBindingConformance.IsSecurityPolicy(name) ? name : string.Empty;
         }
 
         /// <summary>
