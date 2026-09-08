@@ -358,7 +358,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 IWotBindingChannel channel = await slot.GetAsync(cancellationToken).ConfigureAwait(false);
                 WotReadResult result = await channel.ReadAsync(cancellationToken).ConfigureAwait(false);
-                if (!result.Success)
+                if (StatusCode.IsBad(result.Status))
                 {
                     DateTimeUtc failedTimestamp = result.Value.SourceTimestamp != DateTimeUtc.MinValue
                         ? result.Value.SourceTimestamp
@@ -376,19 +376,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         failedTimestamp);
                 }
                 DataValue value = result.Value;
+                StatusCode status = SelectStatus(value.StatusCode, result.Status);
                 DateTimeUtc timestamp = value.SourceTimestamp != DateTimeUtc.MinValue
                     ? value.SourceTimestamp
                     : DateTimeUtc.Now;
                 if (node is BaseVariableState variable)
                 {
                     variable.Value = value.WrappedValue;
-                    variable.StatusCode = value.StatusCode;
+                    variable.StatusCode = status;
                     variable.Timestamp = timestamp;
                 }
                 return new AttributeReadResult(
                     ServiceResult.Good,
                     value.WrappedValue,
-                    value.StatusCode,
+                    status,
                     timestamp);
             };
         }
@@ -401,8 +402,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 WotWriteResult result = await channel
                     .WriteAsync(new DataValue(value), cancellationToken)
                     .ConfigureAwait(false);
-                return new AttributeWriteResult(
-                    result.Success ? ServiceResult.Good : new ServiceResult(result.Status));
+                return new AttributeWriteResult(new ServiceResult(result.Status));
             };
         }
 
@@ -438,7 +438,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
                 foreach ((WotFieldPathPlan _, WotReadResult result) in results)
                 {
-                    if (!result.Success)
+                    if (StatusCode.IsBad(result.Status))
                     {
                         DateTimeUtc failedTimestamp = result.Value.SourceTimestamp != DateTimeUtc.MinValue
                             ? result.Value.SourceTimestamp
@@ -495,23 +495,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 WotWriteResult[] results = await Task.WhenAll(tasks).ConfigureAwait(false);
 
+                StatusCode status = StatusCodes.Good;
                 foreach (WotWriteResult result in results)
                 {
-                    if (!result.Success)
-                    {
-                        return new AttributeWriteResult(new ServiceResult(result.Status));
-                    }
+                    status = SelectStatus(status, result.Status);
                 }
-                return new AttributeWriteResult(ServiceResult.Good);
+                return new AttributeWriteResult(new ServiceResult(status));
             };
         }
 
         /// <summary>
-        /// Aggregates the per-field metadata of an all-succeeded structured
-        /// read into a single status/timestamp pair for the composed value:
-        /// the first non-default Good status found across the fields (or
-        /// plain <see cref="StatusCodes.Good"/> if every field reported it),
-        /// and the oldest non-<see cref="DateTimeUtc.MinValue"/> source
+        /// Aggregates per-field metadata into the first non-default status
+        /// at the highest severity and the oldest
+        /// non-<see cref="DateTimeUtc.MinValue"/> source
         /// timestamp across the fields (or now, if none carried one).
         /// </summary>
         private static (StatusCode Status, DateTimeUtc Timestamp) AggregateFieldMetadata(
@@ -521,11 +517,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             DateTimeUtc oldest = DateTimeUtc.MinValue;
             foreach ((WotFieldPathPlan _, WotReadResult result) in results)
             {
-                StatusCode fieldStatus = result.Value.StatusCode;
-                if (status == StatusCodes.Good && fieldStatus != StatusCodes.Good)
-                {
-                    status = fieldStatus;
-                }
+                StatusCode fieldStatus = SelectStatus(result.Value.StatusCode, result.Status);
+                status = SelectStatus(status, fieldStatus);
 
                 DateTimeUtc fieldTimestamp = result.Value.SourceTimestamp;
                 if (fieldTimestamp != DateTimeUtc.MinValue &&
@@ -535,6 +528,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
             }
             return (status, oldest == DateTimeUtc.MinValue ? DateTimeUtc.Now : oldest);
+        }
+
+        private static StatusCode SelectStatus(StatusCode current, StatusCode candidate)
+        {
+            if (current.Code == StatusCodes.Good.Code ||
+                (StatusCode.IsBad(candidate) && StatusCode.IsNotBad(current)) ||
+                (StatusCode.IsUncertain(candidate) && StatusCode.IsGood(current)))
+            {
+                return candidate;
+            }
+            return current;
         }
 
         private static async Task<(WotFieldPathPlan Plan, WotReadResult Result)> ReadFieldAsync(

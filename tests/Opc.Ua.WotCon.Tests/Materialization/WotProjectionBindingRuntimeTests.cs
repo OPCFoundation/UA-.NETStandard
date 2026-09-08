@@ -46,8 +46,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [TestFixture]
     public sealed class WotProjectionBindingRuntimeTests
     {
-        [Test]
-        public async Task DirectReadReturnsChannelValuePreservingStatusAndTimestamp()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DirectReadReturnsChannelValuePreservingStatusAndTimestamp(bool uncertainResult)
         {
             var h = new WotProjectionBindingRuntimeTestHarness();
             WotCompiledForm readForm = WotProjectionBindingRuntimeTestHarness.Form(
@@ -56,7 +57,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var channel = new FakeWotBindingChannel(readForm);
             var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 0);
             channel.OnRead = _ => new ValueTask<WotReadResult>(new WotReadResult(
-                StatusCodes.Good,
+                uncertainResult ? StatusCodes.UncertainInitialValue : StatusCodes.Good,
                 new DataValue(new Variant(42), StatusCodes.UncertainInitialValue, timestamp)));
             h.ChannelFactory.SetChannel(readForm, channel);
 
@@ -78,30 +79,83 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(channel.DisposeCount, Is.EqualTo(1));
         }
 
-        [Test]
-        public async Task DirectWriteWritesThroughChannel()
+        [TestCaseSource(nameof(s_readQualityCases))]
+        public async Task ReadCombinesOperationAndValueQuality(
+            bool structured,
+            StatusCode operationStatus,
+            StatusCode valueStatus,
+            StatusCode expectedStatus)
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            WotTargetMappingDescriptor mapping = structured
+                ? new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "A")
+                : new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText);
+            WotCompiledForm readForm = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty, mapping);
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 0);
+            h.ChannelFactory.SetChannel(readForm, new FakeWotBindingChannel(readForm)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(operationStatus, new DataValue(new Variant(42), valueStatus, timestamp)))
+            });
+
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readForm)]).ConfigureAwait(false);
+            BaseDataVariableState variable = structured ? h.StructVar : h.ScalarVar;
+
+            (ServiceResult result, DataValue value) = await variable.ReadAttributeAsync(
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(expectedStatus.Code));
+            Assert.That(value.StatusCode.Code, Is.EqualTo(expectedStatus.Code));
+            Assert.That(value.SourceTimestamp, Is.EqualTo(timestamp));
+            if (StatusCode.IsBad(expectedStatus))
+            {
+                Assert.That(value.WrappedValue.IsNull, Is.True);
+            }
+            else if (structured)
+            {
+                Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject rootValue), Is.True);
+                Assert.That(rootValue.TryGetValue(out IEncodeable? rootEncodeable), Is.True);
+                Assert.That(rootEncodeable, Is.TypeOf<TestRootStructure>());
+                Assert.That(((TestRootStructure)rootEncodeable!).A, Is.EqualTo(42));
+            }
+            else
+            {
+                Assert.That(value.WrappedValue.TryGetValue(out int scalar), Is.True);
+                Assert.That(scalar, Is.EqualTo(42));
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DirectWriteWritesThroughChannel(bool clamped)
         {
             var h = new WotProjectionBindingRuntimeTestHarness();
             WotCompiledForm writeForm = WotProjectionBindingRuntimeTestHarness.Form(
                 WoTBindingCapabilityEnum.WriteProperty,
                 new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText));
             var channel = new FakeWotBindingChannel(writeForm);
+            StatusCode writeStatus = clamped ? StatusCodes.GoodClamped : StatusCodes.Good;
             DataValue? written = null;
             channel.OnWrite = (value, _) =>
             {
                 written = value;
-                return new ValueTask<WotWriteResult>(new WotWriteResult(StatusCodes.Good));
+                return new ValueTask<WotWriteResult>(new WotWriteResult(writeStatus));
             };
             h.ChannelFactory.SetChannel(writeForm, channel);
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
                 h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeForm)]).ConfigureAwait(false);
 
             ServiceResult result = await h.ScalarVar.WriteAttributeAsync(
                 h.Builder.Context, Attributes.Value, default, new DataValue(new Variant(7))).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(writeStatus));
             Assert.That(written, Is.Not.Null);
             Assert.That(written!.Value.WrappedValue.TryGetValue(out int w) && w == 7, Is.True);
         }
@@ -798,8 +852,61 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "The oldest non-MinValue field timestamp must be used, not the current time.");
         }
 
-        [Test]
-        public async Task StructuredPartialWriteFailureReturnsBadStatus()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StructuredReadKeepsUncertainFieldValuesAndSeverity(bool uncertainFirstField)
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            WotCompiledForm readA = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty,
+                new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "A"),
+                affordanceName: "readA");
+            WotCompiledForm readChildX = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty,
+                new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "Child/X"),
+                affordanceName: "readChildX");
+            StatusCode statusA = uncertainFirstField ? StatusCodes.UncertainInitialValue : StatusCodes.GoodClamped;
+            StatusCode statusX = uncertainFirstField ? StatusCodes.GoodClamped : StatusCodes.UncertainInitialValue;
+            var newerTimestamp = new DateTimeUtc(2026, 1, 2, 0, 0, 0);
+            var olderTimestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 0);
+            h.ChannelFactory.SetChannel(readA, new FakeWotBindingChannel(readA)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(statusA, new DataValue(new Variant(1), statusA, newerTimestamp)))
+            });
+            h.ChannelFactory.SetChannel(readChildX, new FakeWotBindingChannel(readChildX)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(statusX, new DataValue(new Variant(2), statusX, olderTimestamp)))
+            });
+
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readA, readChildX)]).ConfigureAwait(false);
+
+            (ServiceResult result, DataValue value) = await h.StructVar.ReadAttributeAsync(
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
+
+            Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject rootValue), Is.True);
+            Assert.That(rootValue.TryGetValue(out IEncodeable? rootEncodeable), Is.True);
+            Assert.That(rootEncodeable, Is.TypeOf<TestRootStructure>());
+            var root = (TestRootStructure)rootEncodeable!;
+            Assert.That(root.A, Is.EqualTo(1));
+            Assert.That(root.ChildValue.TryGetValue(out ExtensionObject childValue), Is.True);
+            Assert.That(childValue.TryGetValue(out IEncodeable? childEncodeable), Is.True);
+            Assert.That(childEncodeable, Is.TypeOf<TestChildStructure>());
+            Assert.That(((TestChildStructure)childEncodeable!).X, Is.EqualTo(2));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.UncertainInitialValue));
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.UncertainInitialValue));
+            Assert.That(value.SourceTimestamp, Is.EqualTo(olderTimestamp));
+        }
+
+        [TestCaseSource(nameof(s_structuredWriteStatusCases))]
+        public async Task StructuredWriteReturnsMostSevereFieldStatus(
+            StatusCode statusA,
+            StatusCode statusX,
+            StatusCode expectedStatus)
         {
             var h = new WotProjectionBindingRuntimeTestHarness();
             WotCompiledForm writeA = WotProjectionBindingRuntimeTestHarness.Form(
@@ -812,18 +919,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 affordanceName: "writeChildX");
             var channelA = new FakeWotBindingChannel(writeA)
             {
-                OnWrite = (_, _) => new ValueTask<WotWriteResult>(new WotWriteResult(StatusCodes.Good))
+                OnWrite = (_, _) => new ValueTask<WotWriteResult>(new WotWriteResult(statusA))
             };
             var channelChildX = new FakeWotBindingChannel(writeChildX)
             {
-                OnWrite = (_, _) =>
-                    new ValueTask<WotWriteResult>(new WotWriteResult(StatusCodes.BadNotConnected, "not connected"))
+                OnWrite = (_, _) => new ValueTask<WotWriteResult>(new WotWriteResult(statusX))
             };
             h.ChannelFactory.SetChannel(writeA, channelA);
             h.ChannelFactory.SetChannel(writeChildX, channelChildX);
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
                 h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeA, writeChildX)]).ConfigureAwait(false);
 
             var incomingChild = new TestChildStructure { X = 1 };
@@ -838,8 +944,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 default,
                 new DataValue(new Variant(new ExtensionObject(incoming)))).ConfigureAwait(false);
 
-            Assert.That(ServiceResult.IsBad(result), Is.True,
-                "A single failing field write must fail the whole structured write.");
+            Assert.That(result.StatusCode, Is.EqualTo(expectedStatus));
+            Assert.That(channelA.WriteCount, Is.EqualTo(1));
+            Assert.That(channelChildX.WriteCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -862,5 +969,31 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readA1, readA2)]).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
+
+        private static readonly TestCaseData[] s_readQualityCases =
+        [
+            new(false, StatusCodes.UncertainInitialValue, StatusCodes.Good, StatusCodes.UncertainInitialValue),
+            new(true, StatusCodes.UncertainInitialValue, StatusCodes.Good, StatusCodes.UncertainInitialValue),
+            new(false, StatusCodes.GoodClamped, StatusCodes.Good, StatusCodes.GoodClamped),
+            new(true, StatusCodes.GoodClamped, StatusCodes.Good, StatusCodes.GoodClamped),
+            new(false, StatusCodes.GoodClamped, StatusCodes.UncertainInitialValue, StatusCodes.UncertainInitialValue),
+            new(true, StatusCodes.GoodClamped, StatusCodes.UncertainInitialValue, StatusCodes.UncertainInitialValue),
+            new(false, StatusCodes.UncertainInitialValue, StatusCodes.BadNoData, StatusCodes.BadNoData),
+            new(true, StatusCodes.UncertainInitialValue, StatusCodes.BadNoData, StatusCodes.BadNoData),
+            new(false, StatusCodes.BadNotConnected, StatusCodes.Good, StatusCodes.BadNotConnected),
+            new(true, StatusCodes.BadNotConnected, StatusCodes.Good, StatusCodes.BadNotConnected)
+        ];
+
+        private static readonly TestCaseData[] s_structuredWriteStatusCases =
+        [
+            new(StatusCodes.Good, StatusCodes.Good, StatusCodes.Good),
+            new(StatusCodes.GoodClamped, StatusCodes.Good, StatusCodes.GoodClamped),
+            new(StatusCodes.Good, StatusCodes.GoodClamped, StatusCodes.GoodClamped),
+            new(StatusCodes.GoodClamped, StatusCodes.UncertainInitialValue, StatusCodes.UncertainInitialValue),
+            new(StatusCodes.UncertainInitialValue, StatusCodes.GoodClamped, StatusCodes.UncertainInitialValue),
+            new(StatusCodes.UncertainInitialValue, StatusCodes.BadNotConnected, StatusCodes.BadNotConnected),
+            new(StatusCodes.BadNotConnected, StatusCodes.UncertainInitialValue, StatusCodes.BadNotConnected),
+            new(StatusCodes.Good, StatusCodes.BadNotConnected, StatusCodes.BadNotConnected)
+        ];
     }
 }

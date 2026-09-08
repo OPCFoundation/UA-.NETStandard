@@ -728,6 +728,8 @@ Behaviours:
 
 The generic projection runtime is implemented in `Opc.Ua.WotCon.Server.Materialization`. It resolves affordance-level OPC 10101 target mappings against freshly imported runtime NodeSets, wires async read/write handlers, opens one lazy channel per compiled form per generation, lets local monitored items sample the same read handler, supports reflection-free structured field mapping, and disposes channels with their owning generation. Updates use shadow reload, so existing monitored items keep the retired generation alive until they drain while new reads and monitored items use the replacement generation.
 
+Direct and structured-field property reads retain values and source timestamps with Uncertain quality. The handlers combine the mapped operation status and DataValue quality without lowering severity; composed reads use the oldest field timestamp and the first non-default status at the highest severity. Property writes preserve successful subcodes such as `GoodClamped`, and a structured write reports a Bad field result even when an earlier field reported Uncertain.
+
 The default `NullWotBinderRegistry` remains the no-binding baseline. With it, affordance forms either **fail a strict closure** (`StrictBindings = true`) or **materialize as degraded nodes** (`BadConfigurationError`) when non-strict. Protocol support is opt-in: `AddWotProtocolBinders()` registers all eight planners, while `AddHttpWotBinding()`, `AddMqttWotBinding()`, `AddModbusWotBinding()`, and `AddOpcUaWotBinding()` add their concrete executors. The core server registers none of these by default; see [WoT protocol bindings](WotBindings.md).
 
 ### 11.5 Legacy 1.02 compatibility
