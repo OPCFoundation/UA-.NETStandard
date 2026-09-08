@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -235,12 +236,13 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         /// <summary>
         /// Test that parent-child references are correctly established after importing a NodeSet2.
         /// </summary>
-        [Test]
-        public void ParentChildReferencesTest()
+        [TestCase("HasComponent")]
+        [TestCase("Organizes")]
+        public void ParentChildReferencesTest(string objectReferenceType)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            const string importBuffer =
+            string importBuffer =
                 @"<?xml version='1.0' encoding='utf-8'?>
                 <UANodeSet xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'
                            xmlns:xsd='http://www.w3.org/2001/XMLSchema'
@@ -252,12 +254,15 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                   <Aliases>
                     <Alias Alias='HasComponent'>i=47</Alias>
                     <Alias Alias='HasProperty'>i=46</Alias>
+                    <Alias Alias='Organizes'>i=35</Alias>
                     <Alias Alias='HasTypeDefinition'>i=40</Alias>
                   </Aliases>
                   <UAObject NodeId='ns=1;i=1000' BrowseName='1:ParentObject'>
                     <DisplayName>ParentObject</DisplayName>
                     <References>
                       <Reference ReferenceType='HasTypeDefinition'>i=58</Reference>
+                      <Reference ReferenceType='HasProperty'>ns=1;i=1001</Reference>
+                      <Reference ReferenceType='HasComponent'>ns=1;i=1002</Reference>
                     </References>
                   </UAObject>
                   <UAVariable DataType='i=12' ParentNodeId='ns=1;i=1000' NodeId='ns=1;i=1001' BrowseName='1:ChildProperty' ValueRank='-1'>
@@ -276,6 +281,10 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                   </UAObject>
                 </UANodeSet>";
 
+            importBuffer = importBuffer.Replace(
+                "ReferenceType='HasComponent'",
+                $"ReferenceType='{objectReferenceType}'",
+                StringComparison.Ordinal);
             using var importStream = new MemoryStream(Encoding.UTF8.GetBytes(importBuffer));
             var importedNodeSet = Export.UANodeSet.Read(importStream);
 
@@ -327,6 +336,21 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             Assert.That(children, Has.Count.EqualTo(2), "ParentObject should have 2 children");
             Assert.That(children, Does.Contain(childProperty), "Children should contain ChildProperty");
             Assert.That(children, Does.Contain(childObject), "Children should contain ChildObject");
+            NodeId objectReferenceId = objectReferenceType == "Organizes"
+                ? ReferenceTypeIds.Organizes
+                : ReferenceTypeIds.HasComponent;
+            Assert.That(
+                BrowseReferenceTypes(localContext, childProperty, parentObject.NodeId),
+                Is.EquivalentTo(new[] { ReferenceTypeIds.HasProperty }));
+            Assert.That(
+                BrowseReferenceTypes(localContext, childObject, parentObject.NodeId),
+                Is.EquivalentTo(new[] { objectReferenceId }));
+            Assert.That(
+                BrowseReferenceTypes(localContext, parentObject, childProperty.NodeId),
+                Is.EquivalentTo(new[] { ReferenceTypeIds.HasProperty }));
+            Assert.That(
+                BrowseReferenceTypes(localContext, parentObject, childObject.NodeId),
+                Is.EquivalentTo(new[] { objectReferenceId }));
         }
 
         /// <summary>
@@ -459,6 +483,474 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         }
 
         /// <summary>
+        /// Imported Method argument Variables must be adopted through
+        /// <see cref="MethodState"/>'s declared children so Call validation
+        /// sees the authored argument definitions.
+        /// </summary>
+        [Test]
+        public void ImportBindsMethodArgumentProperties(
+            [Values(true, false)] bool includeParentHints,
+            [Values(true, false)] bool parentFirst,
+            [Values("Forward", "Inverse", "Both")] string referenceDirection,
+            [Values(true, false)] bool useNamespaceUriTargets)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            const string importBuffer =
+                @"<?xml version='1.0' encoding='utf-8'?>
+                <UANodeSet xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'
+                           xmlns:xsd='http://www.w3.org/2001/XMLSchema'
+                           xmlns:uax='http://opcfoundation.org/UA/2008/02/Types.xsd'
+                           xmlns='http://opcfoundation.org/UA/2011/03/UANodeSet.xsd'>
+                  <NamespaceUris>
+                    <Uri>urn:test:method-arguments</Uri>
+                  </NamespaceUris>
+                  <Aliases>
+                    <Alias Alias='Argument'>i=296</Alias>
+                    <Alias Alias='HasComponent'>i=47</Alias>
+                    <Alias Alias='HasProperty'>i=46</Alias>
+                    <Alias Alias='HasTypeDefinition'>i=40</Alias>
+                  </Aliases>
+                  <UAVariable NodeId='ns=1;i=1003' BrowseName='1:InputArguments'
+                              ParentNodeId='ns=1;i=1000' DataType='i=12'
+                              ValueRank='-1'>
+                    <DisplayName>Custom InputArguments</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasTypeDefinition'>i=68</Reference>
+                      <Reference ReferenceType='HasProperty' IsForward='false'>ns=1;i=1000</Reference>
+                    </References>
+                  </UAVariable>
+                  <UAVariable NodeId='ns=1;i=1001' BrowseName='InputArguments'
+                              ParentNodeId='ns=1;i=1000' DataType='Argument'
+                              ValueRank='1' ArrayDimensions='1'
+                              UserWriteMask='1' AccessRestrictions='1'
+                              DesignToolOnly='true'>
+                    <DisplayName>Imported inputs</DisplayName>
+                    <Description>Input metadata</Description>
+                    <Category>Method metadata</Category>
+                    <Documentation>https://example.org/input-arguments</Documentation>
+                    <References>
+                      <Reference ReferenceType='HasTypeDefinition'>i=68</Reference>
+                      <Reference ReferenceType='HasProperty' IsForward='false'>ns=1;i=1000</Reference>
+                    </References>
+                    <RolePermissions>
+                      <RolePermission Permissions='1'>i=15644</RolePermission>
+                    </RolePermissions>
+                    <Value>
+                      <uax:ListOfExtensionObject>
+                        <uax:ExtensionObject>
+                          <uax:TypeId>
+                            <uax:Identifier>i=297</uax:Identifier>
+                          </uax:TypeId>
+                          <uax:Body>
+                            <uax:Argument>
+                              <uax:Name>revision</uax:Name>
+                              <uax:DataType>
+                                <uax:Identifier>i=12</uax:Identifier>
+                              </uax:DataType>
+                              <uax:ValueRank>-1</uax:ValueRank>
+                              <uax:ArrayDimensions />
+                            </uax:Argument>
+                          </uax:Body>
+                        </uax:ExtensionObject>
+                      </uax:ListOfExtensionObject>
+                    </Value>
+                  </UAVariable>
+                  <UAVariable NodeId='ns=1;i=1002' BrowseName='OutputArguments'
+                              ParentNodeId='ns=1;i=1000' DataType='Argument'
+                              ValueRank='1' ArrayDimensions='1'>
+                    <DisplayName>Imported outputs</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasTypeDefinition'>i=68</Reference>
+                      <Reference ReferenceType='HasProperty' IsForward='false'>ns=1;i=1000</Reference>
+                    </References>
+                    <Value>
+                      <uax:ListOfExtensionObject>
+                        <uax:ExtensionObject>
+                          <uax:TypeId>
+                            <uax:Identifier>i=297</uax:Identifier>
+                          </uax:TypeId>
+                          <uax:Body>
+                            <uax:Argument>
+                              <uax:Name>accepted</uax:Name>
+                              <uax:DataType>
+                                <uax:Identifier>i=1</uax:Identifier>
+                              </uax:DataType>
+                              <uax:ValueRank>-1</uax:ValueRank>
+                              <uax:ArrayDimensions />
+                            </uax:Argument>
+                          </uax:Body>
+                        </uax:ExtensionObject>
+                      </uax:ListOfExtensionObject>
+                    </Value>
+                  </UAVariable>
+                  <UAMethod NodeId='ns=1;i=1000' BrowseName='1:Load'>
+                    <DisplayName>Load</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasProperty'>ns=1;i=1003</Reference>
+                      <Reference ReferenceType='HasProperty'>ns=1;i=1001</Reference>
+                      <Reference ReferenceType='HasProperty'>ns=1;i=1002</Reference>
+                    </References>
+                  </UAMethod>
+                </UANodeSet>";
+
+            string xml = useNamespaceUriTargets
+                ? importBuffer.Replace(">ns=1;", ">nsu=urn:test:method-arguments;", StringComparison.Ordinal)
+                : importBuffer;
+            using var importStream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+            Export.UANodeSet importedNodeSet = Export.UANodeSet.Read(importStream);
+
+            foreach (Export.UAVariable variable in importedNodeSet.Items.OfType<Export.UAVariable>())
+            {
+                if (variable.BrowseName != BrowseNames.InputArguments &&
+                    variable.BrowseName != BrowseNames.OutputArguments)
+                {
+                    continue;
+                }
+                if (!includeParentHints)
+                {
+                    variable.ParentNodeId = null;
+                }
+                if (referenceDirection == "Forward")
+                {
+                    variable.References = variable.References
+                        .Where(reference => reference.ReferenceType != "HasProperty")
+                        .ToArray();
+                }
+            }
+            if (referenceDirection == "Inverse")
+            {
+                Export.UAMethod methodNode = importedNodeSet.Items.OfType<Export.UAMethod>().Single();
+                methodNode.References = methodNode.References
+                    .Where(reference => reference.Value == "ns=1;i=1003")
+                    .ToArray();
+            }
+            if (parentFirst)
+            {
+                importedNodeSet.Items = importedNodeSet.Items
+                    .OrderBy(node => node is Export.UAMethod ? 0 : 1)
+                    .ToArray();
+            }
+
+            var importedNodeStates = new NodeStateCollection();
+            var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
+            localContext.NamespaceUris.Append("urn:test:preexisting");
+            foreach (string namespaceUri in importedNodeSet.NamespaceUris)
+            {
+                localContext.NamespaceUris.Append(namespaceUri);
+            }
+
+            localContext.ServerUris = new StringTable();
+            localContext.EncodeableFactory = EncodeableFactory.Create();
+
+            importedNodeSet.Import(localContext, importedNodeStates, linkParentChild: true);
+
+            MethodState method = importedNodeStates.OfType<MethodState>().Single();
+            ushort namespaceIndex = (ushort)localContext.NamespaceUris.GetIndex(
+                "urn:test:method-arguments");
+            var inputId = new NodeId(1001u, namespaceIndex);
+            var outputId = new NodeId(1002u, namespaceIndex);
+            var customInputId = new NodeId(1003u, namespaceIndex);
+            var children = new List<BaseInstanceState>();
+            method.GetChildren(localContext, children);
+
+            Assert.That(method.InputArguments, Is.Not.Null);
+            Assert.That(method.OutputArguments, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(method.InputArguments!.NodeId, Is.EqualTo(inputId));
+                Assert.That(method.OutputArguments!.NodeId, Is.EqualTo(outputId));
+                Assert.That(
+                    method.InputArguments.ReferenceTypeId,
+                    Is.EqualTo(ReferenceTypeIds.HasProperty));
+                Assert.That(method.InputArguments.DisplayName.Text, Is.EqualTo("Imported inputs"));
+                Assert.That(method.InputArguments.Description.Text, Is.EqualTo("Input metadata"));
+                Assert.That(
+                    method.InputArguments.UserWriteMask,
+                    Is.EqualTo(AttributeWriteMask.AccessLevel));
+                Assert.That(
+                    method.InputArguments.AccessRestrictions,
+                    Is.EqualTo(AccessRestrictionType.SigningRequired));
+                Assert.That(method.InputArguments.DesignToolOnly, Is.True);
+                Assert.That(
+                    method.InputArguments.NodeSetDocumentation,
+                    Is.EqualTo("https://example.org/input-arguments"));
+                Assert.That(
+                    method.InputArguments.Categories,
+                    Has.Count.EqualTo(1));
+                Assert.That(
+                    method.InputArguments.Categories,
+                    Has.Member("Method metadata"));
+                Assert.That(method.InputArguments.RolePermissions, Has.Count.EqualTo(1));
+                Assert.That(
+                    method.InputArguments.RolePermissions[0].RoleId,
+                    Is.EqualTo(ObjectIds.WellKnownRole_Anonymous));
+                Assert.That(
+                    method.InputArguments.RolePermissions[0].Permissions,
+                    Is.EqualTo((uint)PermissionType.Browse));
+                Assert.That(method.InputArguments.Value, Has.Count.EqualTo(1));
+                Assert.That(method.InputArguments.Value[0].Name, Is.EqualTo("revision"));
+                Assert.That(method.OutputArguments.Value, Has.Count.EqualTo(1));
+                Assert.That(method.OutputArguments.Value[0].Name, Is.EqualTo("accepted"));
+                Assert.That(
+                    importedNodeStates.Single(node => node.NodeId == inputId),
+                    Is.SameAs(method.InputArguments));
+                Assert.That(
+                    importedNodeStates.Single(node => node.NodeId == outputId),
+                    Is.SameAs(method.OutputArguments));
+                Assert.That(children, Has.Count.EqualTo(3));
+                Assert.That(children, Does.Contain(method.InputArguments));
+                Assert.That(children, Does.Contain(method.OutputArguments));
+                Assert.That(
+                    children.Single(child => child.NodeId == customInputId),
+                    Is.TypeOf<PropertyState>());
+            });
+
+            importedNodeSet.Items = [];
+            importedNodeSet.Import(localContext, importedNodeStates, linkParentChild: true);
+            children.Clear();
+            method.GetChildren(localContext, children);
+            Assert.That(children, Has.Count.EqualTo(3));
+            Assert.That(
+                importedNodeStates.Single(node => node.NodeId == inputId),
+                Is.SameAs(method.InputArguments));
+            Assert.That(
+                importedNodeStates.Single(node => node.NodeId == outputId),
+                Is.SameAs(method.OutputArguments));
+        }
+
+        /// <summary>
+        /// Linking must preserve the importer's previous behavior for unnamed
+        /// children and sibling BrowseName collisions.
+        /// </summary>
+        [Test]
+        public void ImportPreservesUnnamedAndDuplicateBrowseNameChildren()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            const string importBuffer =
+                @"<?xml version='1.0' encoding='utf-8'?>
+                <UANodeSet xmlns='http://opcfoundation.org/UA/2011/03/UANodeSet.xsd'>
+                  <NamespaceUris>
+                    <Uri>urn:test:duplicate-children</Uri>
+                  </NamespaceUris>
+                  <Aliases>
+                    <Alias Alias='HasComponent'>i=47</Alias>
+                    <Alias Alias='HasTypeDefinition'>i=40</Alias>
+                  </Aliases>
+                  <UAObject NodeId='ns=1;i=2000' BrowseName='1:Parent'>
+                    <DisplayName>Parent</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasTypeDefinition'>i=58</Reference>
+                    </References>
+                  </UAObject>
+                  <UAObject NodeId='ns=1;i=2001' BrowseName='1:Duplicate'
+                            ParentNodeId='ns=1;i=2000'>
+                    <DisplayName>First</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasComponent' IsForward='false'>ns=1;i=2000</Reference>
+                    </References>
+                  </UAObject>
+                  <UAObject NodeId='ns=1;i=2002' BrowseName='1:Duplicate'
+                            ParentNodeId='ns=1;i=2000'>
+                    <DisplayName>Second</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasComponent' IsForward='false'>ns=1;i=2000</Reference>
+                    </References>
+                  </UAObject>
+                  <UAObject NodeId='ns=1;i=2003' ParentNodeId='ns=1;i=2000'>
+                    <DisplayName>Unnamed</DisplayName>
+                    <References>
+                      <Reference ReferenceType='HasComponent' IsForward='false'>ns=1;i=2000</Reference>
+                    </References>
+                  </UAObject>
+                </UANodeSet>";
+
+            using var importStream = new MemoryStream(Encoding.UTF8.GetBytes(importBuffer));
+            Export.UANodeSet importedNodeSet = Export.UANodeSet.Read(importStream);
+            var importedNodeStates = new NodeStateCollection();
+            var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
+            foreach (string namespaceUri in importedNodeSet.NamespaceUris)
+            {
+                localContext.NamespaceUris.Append(namespaceUri);
+            }
+
+            importedNodeSet.Import(localContext, importedNodeStates, linkParentChild: true);
+
+            BaseObjectState parent = importedNodeStates
+                .OfType<BaseObjectState>()
+                .Single(node => node.BrowseName.Name == "Parent");
+            var children = new List<BaseInstanceState>();
+            parent.GetChildren(localContext, children);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(children, Has.Count.EqualTo(3));
+                Assert.That(
+                    children.Count(child => child.BrowseName.Name == "Duplicate"),
+                    Is.EqualTo(2));
+                Assert.That(
+                    children.Count(child => child.BrowseName.IsNull),
+                    Is.EqualTo(1));
+                Assert.That(
+                    importedNodeStates.Count(node =>
+                        node.NodeId.NamespaceIndex == parent.NodeId.NamespaceIndex),
+                    Is.EqualTo(4));
+            });
+        }
+
+        [Test]
+        public void ImportBindsMethodArgumentsAcrossAccumulatedImports(
+            [Values(true, false)] bool propertyFirst,
+            [Values(true, false)] bool includeParentHint)
+        {
+            Export.UANodeSet nodeSet = CreateMethodReferenceNodeSet();
+            Export.UANode[] items = nodeSet.Items;
+            Export.UAVariable property = items.OfType<Export.UAVariable>().Single();
+            property.ParentNodeId = includeParentHint ? "ns=1;i=1000" : null;
+            var context = new SystemContext(NUnitTelemetryContext.Create())
+            {
+                NamespaceUris = new NamespaceTable(),
+                EncodeableFactory = EncodeableFactory.Create()
+            };
+            var nodes = new NodeStateCollection();
+            nodeSet.Items = items.Where(node => (node is Export.UAVariable) == propertyFirst).ToArray();
+            nodeSet.Import(context, nodes, linkParentChild: true);
+            nodeSet.Items = items.Where(node => (node is Export.UAVariable) != propertyFirst).ToArray();
+            nodeSet.Import(context, nodes, linkParentChild: true);
+
+            MethodState method = nodes.OfType<MethodState>().Single(node => node.BrowseName.Name == "Load");
+            Assert.That(method.InputArguments, Is.Not.Null);
+            NodeState input = nodes.Single(node => node.BrowseName.Name == BrowseNames.InputArguments);
+            Assert.That(input, Is.SameAs(method.InputArguments));
+            Assert.That(method.InputArguments.Parent, Is.SameAs(method));
+            Assert.That(Export.UANodeSet.TryGetUnresolvedParentNodeId(input, out _), Is.False);
+
+            nodeSet.Items = [];
+            nodeSet.Import(context, nodes, linkParentChild: true);
+            var children = new List<BaseInstanceState>();
+            method.GetChildren(context, children);
+            Assert.That(children, Has.Count.EqualTo(1));
+            Assert.That(children[0], Is.SameAs(input));
+            Assert.That(nodes, Has.Count.EqualTo(3));
+        }
+
+        [TestCase("CustomName")]
+        [TestCase("DataType")]
+        [TestCase("TypeDefinition")]
+        [TestCase("Rank")]
+        [TestCase("ReferenceType")]
+        [TestCase("Ambiguous")]
+        [TestCase("AmbiguousWithHint")]
+        [TestCase("ConflictingHint")]
+        [TestCase("UnavailableHint")]
+        public void ImportPreservesInvalidMethodArgumentDeclarations(string scenario)
+        {
+            Export.UANodeSet nodeSet = CreateMethodReferenceNodeSet();
+            Export.UAVariable property = nodeSet.Items.OfType<Export.UAVariable>().Single();
+            switch (scenario)
+            {
+                case "CustomName":
+                    property.BrowseName = "1:InputArguments";
+                    break;
+                case "DataType":
+                    property.DataType = "i=12";
+                    break;
+                case "TypeDefinition":
+                    property.References[0].Value = "i=63";
+                    break;
+                case "Rank":
+                    property.ValueRank = -1;
+                    break;
+                case "ReferenceType":
+                    property.References[1].ReferenceType = "i=47";
+                    break;
+                case "Ambiguous":
+                case "AmbiguousWithHint":
+                    property.References =
+                    [
+                        .. property.References,
+                        new Export.Reference
+                        {
+                            ReferenceType = "i=46",
+                            IsForward = false,
+                            Value = "ns=1;i=1002"
+                        }
+                    ];
+                    if (scenario == "AmbiguousWithHint")
+                    {
+                        property.ParentNodeId = "ns=1;i=1000";
+                    }
+                    break;
+                case "ConflictingHint":
+                    property.ParentNodeId = "ns=1;i=1002";
+                    break;
+                case "UnavailableHint":
+                    property.ParentNodeId = "ns=1;i=1999";
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(scenario));
+            }
+
+            var context = new SystemContext(NUnitTelemetryContext.Create())
+            {
+                NamespaceUris = new NamespaceTable()
+            };
+            var nodes = new NodeStateCollection();
+            nodeSet.Import(context, nodes, linkParentChild: true);
+
+            Assert.That(nodes.OfType<MethodState>().Select(method => method.InputArguments), Is.All.Null);
+            BaseVariableState imported = nodes.OfType<BaseVariableState>().Single();
+            Assert.That(
+                imported.TypeDefinitionId,
+                Is.EqualTo(NodeId.Parse(property.References[0].Value)));
+            Assert.That(imported.DataType, Is.EqualTo(NodeId.Parse(property.DataType)));
+            Assert.That(imported.ValueRank, Is.EqualTo(property.ValueRank));
+            var references = new List<IReference>();
+            imported.GetReferences(context, references);
+            Assert.That(
+                references.Select(reference =>
+                    (reference.ReferenceTypeId, reference.IsInverse, reference.TargetId)),
+                Is.EquivalentTo(property.References
+                    .Where(reference => reference.ReferenceType != "i=40")
+                    .Select(reference =>
+                        (NodeId.Parse(reference.ReferenceType),
+                            !reference.IsForward,
+                            ExpandedNodeId.Parse(reference.Value)))));
+            Assert.That(nodes, Has.Count.EqualTo(3));
+            if (scenario == "UnavailableHint")
+            {
+                Assert.That(
+                    Export.UANodeSet.TryGetUnresolvedParentNodeId(
+                        nodes.OfType<BaseVariableState>().Single(),
+                        out NodeId unresolved),
+                    Is.True);
+                Assert.That(unresolved, Is.EqualTo(new NodeId(1999u, 1)));
+            }
+        }
+
+        [Test]
+        public void ImportDoesNotInferMethodArgumentsWhenLinkingIsDisabled(
+            [Values(true, false)] bool useNamespaceUriTargets)
+        {
+            Export.UANodeSet nodeSet = CreateMethodReferenceNodeSet();
+            if (useNamespaceUriTargets)
+            {
+                nodeSet.Items.OfType<Export.UAVariable>().Single().References[1].Value =
+                    "nsu=urn:test:method-reference-parent;i=1000";
+            }
+            var context = new SystemContext(NUnitTelemetryContext.Create())
+            {
+                NamespaceUris = new NamespaceTable()
+            };
+            var nodes = new NodeStateCollection();
+            nodeSet.Import(context, nodes);
+
+            Assert.That(nodes.OfType<MethodState>().Select(method => method.InputArguments), Is.All.Null);
+            Assert.That(nodes.OfType<BaseVariableState>().Single().Parent, Is.Null);
+        }
+
+        /// <summary>
         /// Test that parent-child references are NOT established by default (backward compatibility).
         /// </summary>
         [Test]
@@ -537,6 +1029,56 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             parentObject.GetChildren(localContext, children);
 
             Assert.That(children, Is.Empty, "ParentObject should have 0 children by default (backward compatibility)");
+        }
+
+        private static Export.UANodeSet CreateMethodReferenceNodeSet()
+        {
+            const string xml = """
+                <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                  <NamespaceUris><Uri>urn:test:method-reference-parent</Uri></NamespaceUris>
+                  <UAMethod NodeId="ns=1;i=1000" BrowseName="1:Load">
+                    <DisplayName>Load</DisplayName>
+                  </UAMethod>
+                  <UAMethod NodeId="ns=1;i=1002" BrowseName="1:Other">
+                    <DisplayName>Other</DisplayName>
+                  </UAMethod>
+                  <UAVariable NodeId="ns=1;i=1001" BrowseName="InputArguments" DataType="i=296" ValueRank="1">
+                    <DisplayName>InputArguments</DisplayName>
+                    <References>
+                      <Reference ReferenceType="i=40">i=68</Reference>
+                      <Reference ReferenceType="i=46" IsForward="false">ns=1;i=1000</Reference>
+                    </References>
+                  </UAVariable>
+                </UANodeSet>
+                """;
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+            return Export.UANodeSet.Read(stream);
+        }
+
+        private static List<NodeId> BrowseReferenceTypes(
+            ISystemContext context,
+            NodeState source,
+            NodeId targetId)
+        {
+            using INodeBrowser browser = source.CreateBrowser(
+                context,
+                null,
+                NodeId.Null,
+                false,
+                BrowseDirection.Both,
+                QualifiedName.Null,
+                null,
+                true);
+            var referenceTypes = new List<NodeId>();
+            IReference reference;
+            while ((reference = browser.Next()) is not null)
+            {
+                if (reference.TargetId == targetId)
+                {
+                    referenceTypes.Add(reference.ReferenceTypeId);
+                }
+            }
+            return referenceTypes;
         }
     }
 }

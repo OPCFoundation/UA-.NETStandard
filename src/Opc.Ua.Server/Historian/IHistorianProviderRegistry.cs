@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua.Server.Historian
 {
     /// <summary>
@@ -107,7 +105,7 @@ namespace Opc.Ua.Server.Historian
         /// capability roll-up to compute the server-wide
         /// <c>HistoryServerCapabilities</c> flags.
         /// </summary>
-        IReadOnlyCollection<IHistorianProvider> Providers { get; }
+        ArrayOf<IHistorianProvider> Providers { get; }
     }
 
     /// <summary>

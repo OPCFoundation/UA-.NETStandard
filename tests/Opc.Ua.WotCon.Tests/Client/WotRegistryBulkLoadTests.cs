@@ -295,9 +295,17 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(first.Uploaded[0].Created, Is.True);
             Assert.That(second.Uploaded[0].Created, Is.False);
             Assert.That(first.Uploaded[0].ResourceNodeId.IsNull, Is.False);
+            Assert.That(first.Uploaded[0].VersionId, Is.EqualTo("1"));
+            Assert.That(second.Uploaded[0].VersionId, Is.EqualTo("2"));
             Assert.That(
                 second.Uploaded[0].ResourceNodeId,
-                Is.EqualTo(first.Uploaded[0].ResourceNodeId));
+                Is.Not.EqualTo(first.Uploaded[0].ResourceNodeId));
+            Assert.That(
+                second.Uploaded[0].ResourceNodeId,
+                Is.EqualTo(new NodeId(
+                    "WoTRegistry/groups/thingdescriptions/resources/td1/versions/" +
+                    second.Uploaded[0].VersionId,
+                    mock.WotConNs)));
         }
 
         private static readonly string[] s_expectedOrder = ["tm1", "tm2", "td1", "td2"];

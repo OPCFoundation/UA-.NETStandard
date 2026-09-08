@@ -125,7 +125,8 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 .ConfigureAwait(false) ??
                 throw new TimeoutException(
                     $"Sample process '{Name}' did not emit a line containing '{substring}' within {timeout}. " +
-                    $"Process {(HasExited ? "has exited" : "is still running")}.");
+                    $"Process {(HasExited ? "has exited" : "is still running")}. " +
+                    $"Last output:{Environment.NewLine}{GetOutputTail(20)}");
         }
 
         /// <summary>
@@ -153,6 +154,22 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                             return m_lines[index];
                         }
                     }
+                }
+
+                if (HasExited)
+                {
+                    await Task.Delay(250, cancellationToken).ConfigureAwait(false);
+                    lock (m_lock)
+                    {
+                        for (; index < m_lines.Count; index++)
+                        {
+                            if (m_lines[index].Contains(substring, StringComparison.Ordinal))
+                            {
+                                return m_lines[index];
+                            }
+                        }
+                    }
+                    return null;
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
@@ -202,6 +219,27 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Returns the index of the last captured output line containing the given substring, or <c>-1</c>.
+        /// </summary>
+        /// <param name="substring">The substring to search for (ordinal, case-sensitive).</param>
+        /// <returns>The zero-based index of the last matching line, or <c>-1</c>.</returns>
+        public int LastLineIndexContaining(string substring)
+        {
+            lock (m_lock)
+            {
+                for (int index = m_lines.Count - 1; index >= 0; index--)
+                {
+                    if (m_lines[index].Contains(substring, StringComparison.Ordinal))
+                    {
+                        return index;
+                    }
+                }
+            }
+
+            return -1;
         }
 
         /// <summary>
@@ -262,16 +300,18 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         /// <returns><c>true</c> when the process exited before the timeout.</returns>
         public async Task<bool> WaitForExitAsync(TimeSpan timeout)
         {
-            using var cts = new CancellationTokenSource(timeout);
-            try
+            DateTime deadline = DateTime.UtcNow + timeout;
+            while (DateTime.UtcNow < deadline)
             {
-                await m_process.WaitForExitAsync(cts.Token).ConfigureAwait(false);
-                return true;
+                if (m_process.HasExited)
+                {
+                    return true;
+                }
+
+                await Task.Delay(50).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
-            {
-                return false;
-            }
+
+            return m_process.HasExited;
         }
 
         /// <summary>
@@ -315,6 +355,15 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             }
 
             TestContext.Progress.WriteLine($"[{Name}] {e.Data}");
+        }
+
+        private string GetOutputTail(int maximumLines)
+        {
+            lock (m_lock)
+            {
+                int start = Math.Max(0, m_lines.Count - maximumLines);
+                return string.Join(Environment.NewLine, m_lines.GetRange(start, m_lines.Count - start));
+            }
         }
 
         private static string LocateApplicationAssembly(string applicationDirectory, string assemblyName)

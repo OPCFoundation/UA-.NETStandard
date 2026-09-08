@@ -102,6 +102,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return item;
         }
 
+        /// <summary>
+        /// Verifies that sampling-group construction rejects a null server.
+        /// </summary>
         [Test]
         public void ConstructorWithNullServerThrows()
         {
@@ -113,6 +116,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that sampling-group construction rejects a null node manager.
+        /// </summary>
         [Test]
         public void ConstructorWithNullNodeManagerThrows()
         {
@@ -124,6 +130,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that sampling-group construction rejects null sampling rates.
+        /// </summary>
         [Test]
         public void ConstructorWithNullSamplingRatesThrows()
         {
@@ -136,6 +145,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that a sessionless sampling group requires an owner identity.
+        /// </summary>
         [Test]
         public void ConstructorSessionlessWithoutOwnerIdentityThrows()
         {
@@ -148,6 +160,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that a sampling group rejects items that do not monitor data changes.
+        /// </summary>
         [Test]
         public void StartMonitoringRejectsNonDataChangeItem()
         {
@@ -160,6 +175,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(added, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a sampling group rejects disabled monitored items.
+        /// </summary>
         [Test]
         public void StartMonitoringRejectsDisabledItem()
         {
@@ -172,6 +190,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(added, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a sampling group rejects items with a mismatched sampling interval.
+        /// </summary>
         [Test]
         public void StartMonitoringRejectsMismatchedSamplingInterval()
         {
@@ -184,6 +205,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(added, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a sampling group rejects items belonging to another session.
+        /// </summary>
         [Test]
         public void StartMonitoringRejectsMismatchedSession()
         {
@@ -200,6 +224,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(added, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a sampling group accepts a matching monitored item.
+        /// </summary>
         [Test]
         public void StartMonitoringAcceptsMatchingItem()
         {
@@ -215,6 +242,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             item.Verify(m => m.SetSamplingInterval(1000.0), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that a sessionless sampling group accepts an item with the matching owner identity.
+        /// </summary>
         [Test]
         public void StartMonitoringAcceptsMatchingItemSessionlessByOwnerIdentity()
         {
@@ -234,6 +264,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             item.Verify(m => m.SetSamplingInterval(1000.0), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that a sessionless sampling group rejects an item with a different owner identity.
+        /// </summary>
         [Test]
         public void StartMonitoringRejectsMismatchedOwnerIdentitySessionless()
         {
@@ -249,6 +282,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(added, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that stopping an unknown monitored item returns false.
+        /// </summary>
         [Test]
         public void StopMonitoringReturnsFalseForUnknownItem()
         {
@@ -259,6 +295,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(group.StopMonitoring(item.Object), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that stopping an item removes its pending addition to the sampling group.
+        /// </summary>
+        [Test]
+        public void StopMonitoringRemovesItemPendingAddition()
+        {
+            var identity = new Mock<IUserIdentity>();
+            using SamplingGroup group = CreateGroup(identity.Object);
+            Mock<ISampledDataChangeMonitoredItem> item = CreateItem();
+
+            Assert.That(
+                group.StartMonitoring(
+                    SessionlessContext(),
+                    item.Object,
+                    identity.Object),
+                Is.True);
+            Assert.That(group.StopMonitoring(item.Object), Is.True);
+            Assert.That(group.ApplyChanges(), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that modifying an unknown monitored item returns false.
+        /// </summary>
         [Test]
         public void ModifyMonitoringReturnsFalseForUnknownItem()
         {
@@ -269,6 +328,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(group.ModifyMonitoring(SessionlessContext(), item.Object), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that applying changes without monitored items reports an empty sampling group.
+        /// </summary>
         [Test]
         public void ApplyChangesWithoutItemsReportsGroupEmpty()
         {
@@ -278,6 +340,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(group.ApplyChanges(), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that shutting down a sampling group before it starts is safe.
+        /// </summary>
         [Test]
         public void ShutdownIsSafeWhenNotStarted()
         {

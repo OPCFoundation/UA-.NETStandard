@@ -105,6 +105,13 @@ namespace Opc.Ua.Server.Historian
                     config.NodeId = context.NodeIdFactory.New(context, config);
                     AssignInstanceNodeIds(context, context.NodeIdFactory, config);
                 }
+                else
+                {
+                    AssignGeneratedNodeIds(
+                        context,
+                        config,
+                        variable.NodeId.NamespaceIndex);
+                }
 
                 variable.AddReference(ReferenceTypeIds.HasHistoricalConfiguration, false, config.NodeId);
                 config.AddReference(ReferenceTypeIds.HasHistoricalConfiguration, true, variable.NodeId);
@@ -120,7 +127,16 @@ namespace Opc.Ua.Server.Historian
             HistoricalDataConfigurationState config,
             HistorianNodeCapabilities capabilities)
         {
-            config.Stepped?.Value = capabilities.Stepped;
+            if (config.Stepped == null || config.AggregateConfiguration == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "HistoricalDataConfigurationType is missing mandatory children.");
+            }
+            config.Stepped.Value = capabilities.Stepped;
+            bool hasExceptionConfiguration =
+                capabilities.ExceptionDeviation.HasValue ||
+                capabilities.ExceptionDeviationFormat.HasValue;
             config
                 .AddDefinition(context,
                     !string.IsNullOrEmpty(capabilities.Definition),
@@ -131,6 +147,12 @@ namespace Opc.Ua.Server.Historian
                 .AddMinTimeInterval(context,
                     capabilities.MinTimeInterval > 0,
                     c => c.Value = capabilities.MinTimeInterval)
+                .AddExceptionDeviation(context,
+                    hasExceptionConfiguration,
+                    c => c.Value = capabilities.ExceptionDeviation.GetValueOrDefault())
+                .AddExceptionDeviationFormat(context,
+                    hasExceptionConfiguration,
+                    c => c.Value = capabilities.ExceptionDeviationFormat.GetValueOrDefault())
                 .AddMaxTimeStoredValues(context,
                     capabilities.MaxTimeStoredValues > 0,
                     c => c.Value = capabilities.MaxTimeStoredValues)
@@ -143,13 +165,9 @@ namespace Opc.Ua.Server.Historian
                 .AddStartOfOnlineArchive(context,
                     capabilities.StartOfOnlineArchive != DateTimeUtc.MinValue,
                     c => c.Value = capabilities.StartOfOnlineArchive)
-                // ServerTimestampSupported: only materialise the slot when the
-                // capability is true; sync the value to a pre-existing slot
-                // afterwards so disabled capabilities also propagate (matches
-                // the v1 semantics).
                 .AddServerTimestampSupported(context,
-                    capabilities.ServerTimestampSupported,
-                    _ => { });
+                    true,
+                    c => c.Value = capabilities.ServerTimestampSupported);
             config.ServerTimestampSupported?.Value = capabilities.ServerTimestampSupported;
 
             // Populate the mandatory AggregateConfiguration child so a client
@@ -160,16 +178,13 @@ namespace Opc.Ua.Server.Historian
             // PercentDataBad) and inconsistent with the server's actual defaults,
             // so a client reproducing the server's results would diverge on
             // partial intervals (Part 11 §5.2.3 / Part 13 §4.2.1.2).
-            if (config.AggregateConfiguration != null)
-            {
-                AggregateConfiguration aggregateDefaults = capabilities.DefaultAggregateConfiguration;
-                config.AggregateConfiguration.PercentDataGood?.Value = aggregateDefaults.PercentDataGood;
-                config.AggregateConfiguration.PercentDataBad?.Value = aggregateDefaults.PercentDataBad;
-                config.AggregateConfiguration.TreatUncertainAsBad?.Value
-                    = aggregateDefaults.TreatUncertainAsBad;
-                config.AggregateConfiguration.UseSlopedExtrapolation?.Value
-                    = aggregateDefaults.UseSlopedExtrapolation;
-            }
+            AggregateConfiguration aggregateDefaults = capabilities.DefaultAggregateConfiguration;
+            config.AggregateConfiguration.PercentDataGood?.Value = aggregateDefaults.PercentDataGood;
+            config.AggregateConfiguration.PercentDataBad?.Value = aggregateDefaults.PercentDataBad;
+            config.AggregateConfiguration.TreatUncertainAsBad?.Value
+                = aggregateDefaults.TreatUncertainAsBad;
+            config.AggregateConfiguration.UseSlopedExtrapolation?.Value
+                = aggregateDefaults.UseSlopedExtrapolation;
         }
 
         private static HistoricalDataConfigurationState? FindExistingConfiguration(
@@ -192,6 +207,20 @@ namespace Opc.Ua.Server.Historian
             {
                 child.NodeId = nodeIdFactory.New(context, child);
                 AssignInstanceNodeIds(context, nodeIdFactory, child);
+            }
+        }
+
+        private static void AssignGeneratedNodeIds(
+            ISystemContext context,
+            NodeState node,
+            ushort namespaceIndex)
+        {
+            node.NodeId = new NodeId(Guid.NewGuid(), namespaceIndex);
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                AssignGeneratedNodeIds(context, child, namespaceIndex);
             }
         }
     }

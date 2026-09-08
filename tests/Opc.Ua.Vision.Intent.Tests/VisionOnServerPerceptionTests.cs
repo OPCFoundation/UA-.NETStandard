@@ -94,7 +94,7 @@ namespace Opc.Ua.Vision.Intent.Tests
                 Assert.That(detections, Has.Count.EqualTo(2),
                     "Both authored parts should be detected in the initial bin state.");
                 Assert.That(detections.Select(d => d.ClassLabel),
-                    Is.EquivalentTo(new[] { "TestCube", "TestCylinder" }));
+                    Is.EquivalentTo(s_stringValues1));
                 Assert.That(detections.All(d => d.Confidence >= 0.0 && d.Confidence <= 1.0), Is.True,
                     "All confidences must live in [0, 1].");
                 Assert.That(detections.All(d => d.HasBoundingBox2D), Is.True,
@@ -217,10 +217,13 @@ namespace Opc.Ua.Vision.Intent.Tests
                     map[key] = frame.NodeId;
                 }
             }
-            Assert.That(map.Keys, Is.EquivalentTo(new[] { "World", "Base", "Flange", "CameraEih" }));
+            Assert.That(map.Keys, Is.EquivalentTo(s_stringValues2));
             return map;
         }
 
         private VisionIntentServerFixture m_fixture = null!;
+
+        private static readonly string[] s_stringValues1 = ["TestCube", "TestCylinder"];
+        private static readonly string[] s_stringValues2 = ["World", "Base", "Flange", "CameraEih"];
     }
 }

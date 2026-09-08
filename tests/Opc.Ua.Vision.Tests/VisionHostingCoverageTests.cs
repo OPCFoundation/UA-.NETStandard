@@ -470,9 +470,11 @@ namespace Opc.Ua.Vision.Tests
             public CustomNodeManager2Stub(
                 IServerInternal server, ApplicationConfiguration configuration)
                 : base(server, configuration, server.Telemetry.CreateLogger<CustomNodeManager2Stub>(),
-                    new[] { "urn:test:stub" })
+                    s_stringValues1)
             {
             }
+
+            private static readonly string[] s_stringValues1 = ["urn:test:stub"];
         }
     }
 }

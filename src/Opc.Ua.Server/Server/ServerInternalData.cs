@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -66,6 +65,8 @@ namespace Opc.Ua.Server
         IServerInternal,
         AliasNames.IAliasNameStoreRegistryProvider,
         Historian.IHistorianRegistryProvider,
+        Historian.IHistorianBuilderRegistry,
+        IHistoryContinuationPointStoreProvider,
         ITransportListenerRegistryProvider,
         IServerEndpointRegistryProvider,
         IAsyncDisposable,
@@ -206,11 +207,32 @@ namespace Opc.Ua.Server
         /// This method performs the full managed-resource cleanup. <see cref="Dispose()"/> calls this method
         /// synchronously when callers use the synchronous disposal path.
         /// </remarks>
+        /// <exception cref="AggregateException"></exception>
         protected virtual async ValueTask DisposeAsyncCore()
         {
             if (Interlocked.Exchange(ref m_disposed, 1) != 0)
             {
                 return;
+            }
+
+            List<Exception>? historianDisposalErrors = null;
+            Historian.HistorianBuilder[] historianBuilders;
+            lock (m_historianBuildersLock)
+            {
+                historianBuilders = [.. m_historianBuilders];
+                m_historianBuilders.Clear();
+            }
+            foreach (Historian.HistorianBuilder builder in historianBuilders)
+            {
+                try
+                {
+                    await builder.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception exception)
+                {
+                    historianDisposalErrors ??= [];
+                    historianDisposalErrors.Add(exception);
+                }
             }
 
             m_roleStateBinding?.Dispose();
@@ -247,6 +269,29 @@ namespace Opc.Ua.Server
             MonitoredItemQueueFactory = null!;
             (AliasNameStoreRegistry as IDisposable)?.Dispose();
             (HistorianRegistry as IDisposable)?.Dispose();
+            if (historianDisposalErrors != null)
+            {
+                throw new AggregateException(
+                    "One or more historian pipelines failed during shutdown.",
+                    historianDisposalErrors);
+            }
+        }
+
+        void Historian.IHistorianBuilderRegistry.RegisterHistorianBuilder(
+            Historian.HistorianBuilder builder)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                throw new ObjectDisposedException(nameof(ServerInternalData));
+            }
+            lock (m_historianBuildersLock)
+            {
+                m_historianBuilders.Add(builder);
+            }
         }
 
         /// <summary>
@@ -484,6 +529,18 @@ namespace Opc.Ua.Server
         {
             ThrowIfBindPhaseComplete();
             SubscriptionStore = subscriptionStore;
+        }
+
+        /// <summary>
+        /// Sets the portable HistoryRead continuation store.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        [MemberNotNull(nameof(HistoryContinuationPointStore))]
+        public void SetHistoryContinuationPointStore(
+            IHistoryContinuationPointStore historyContinuationPointStore)
+        {
+            ThrowIfBindPhaseComplete();
+            HistoryContinuationPointStore = historyContinuationPointStore ?? throw new ArgumentNullException(nameof(historyContinuationPointStore));
         }
 
         /// <inheritdoc/>
@@ -724,6 +781,9 @@ namespace Opc.Ua.Server
         /// The store to persist and retrieve subscriptions
         /// </summary>
         public ISubscriptionStore SubscriptionStore { get; private set; } = null!;
+
+        /// <inheritdoc/>
+        public IHistoryContinuationPointStore? HistoryContinuationPointStore { get; private set; }
 
         /// <inheritdoc/>
         public ITelemetryContext Telemetry => MessageContext.Telemetry;
@@ -1261,7 +1321,7 @@ namespace Opc.Ua.Server
             var buildInfoVariable = new BuildInfoVariableValue(
                 buildInfoVariableState,
                 buildInfo,
-                null!);
+                null);
             serverStatus.BuildInfo = buildInfoVariable.Value;
 
             serverObject.ServerStatus!.MinimumSamplingInterval = 1000;
@@ -1499,6 +1559,8 @@ namespace Opc.Ua.Server
         private readonly ServerProperties m_serverDescription;
         private readonly ApplicationConfiguration m_configuration;
         private readonly List<Uri> m_endpointAddresses;
+        private readonly List<Historian.HistorianBuilder> m_historianBuilders = [];
+        private readonly Lock m_historianBuildersLock = new();
         private readonly Lock m_serviceLevelLock = new();
         private RoleStateBinding? m_roleStateBinding;
         private volatile IReadOnlyList<ITransportListener>? m_transportListeners;
