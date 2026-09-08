@@ -252,22 +252,8 @@ namespace UaLens.Views
             {
                 return;
             }
-            ScottPlot.Color background = PlotColor("SurfaceBg", Avalonia.Media.Colors.White);
-            ScottPlot.Color foreground = PlotColor("TextPrimary", Avalonia.Media.Colors.Black);
-            ScottPlot.Color border = PlotColor("PanelBorder", Avalonia.Media.Colors.Gray);
-            m_plot.Plot.FigureBackground.Color = background;
-            m_plot.Plot.DataBackground.Color = background;
-            m_plot.Plot.Axes.Color(foreground);
-            m_plot.Plot.Grid.MajorLineColor = border;
-            m_plot.Plot.Legend.BackgroundColor = background;
-            m_plot.Plot.Legend.FontColor = foreground;
+            Themes.ChartTheme.Apply(m_plot.Plot);
             m_plot.Refresh();
-        }
-
-        private static ScottPlot.Color PlotColor(string key, Avalonia.Media.Color fallback)
-        {
-            Avalonia.Media.Color color = Themes.ThemeManager.GetColor(key, fallback);
-            return new ScottPlot.Color(color.R, color.G, color.B, color.A);
         }
     }
 }

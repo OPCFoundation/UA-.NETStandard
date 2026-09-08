@@ -101,12 +101,24 @@ internal sealed partial class SubscriptionBenchView : UserControl
             OnTick);
         m_timer.Start();
         m_vm = DataContext as SubscriptionBenchPlugin;
+        UaLens.Themes.ThemeManager.ThemeChanged += ApplyPalette;
+        ApplyPalette();
     }
 
     protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
         m_timer?.Stop();
+        UaLens.Themes.ThemeManager.ThemeChanged -= ApplyPalette;
+    }
+
+    private void ApplyPalette()
+    {
+        if (m_chart is not null)
+        {
+            UaLens.Themes.ChartTheme.Apply(m_chart.Plot);
+            m_chart.Refresh();
+        }
     }
 
     private void ConfigureChart()

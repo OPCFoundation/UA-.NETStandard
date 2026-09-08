@@ -37,6 +37,22 @@ namespace UaLens.Tests.Themes
     [TestFixture]
     public sealed class ThemeDictionaryTests
     {
+        [Test]
+        public void ApplyingChartColorsKeepsDataAndZoom()
+        {
+            using var plot = new ScottPlot.Plot();
+            var line = plot.Add.Scatter(new double[] { 0, 1 }, new double[] { 2, 3 });
+            plot.Axes.SetLimits(0, 10, -1, 5);
+            ScottPlot.AxisLimits limits = plot.Axes.GetLimits();
+
+            ChartTheme.Apply(plot);
+
+            Assert.That(plot.GetPlottables(), Does.Contain(line));
+            Assert.That(plot.Axes.GetLimits(), Is.EqualTo(limits));
+            Assert.That(plot.DataBackground.Color, Is.EqualTo(ScottPlot.Colors.White));
+            Assert.That(plot.Legend.FontColor, Is.EqualTo(ScottPlot.Colors.Black));
+        }
+
         [TestCase("Light", "#fff3f4f6")]
         [TestCase("Dark", "#ff141619")]
         [TestCase("Navy", "#ff0f172a")]

@@ -49,8 +49,9 @@ The normal .NET tool package is a separate managed distribution. Restore its
 Release/net10 graph before packing, particularly after building another framework:
 
 ```powershell
-dotnet restore tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -p:CustomTestTarget=net10.0 -p:Configuration=Release
-dotnet pack tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -c Release -p:CustomTestTarget=net10.0 -p:TargetFramework=net10.0 -o artifacts\packages
+dotnet build tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -c Release -f net10.0 -p:CustomTestTarget=net10.0 -p:PublishAotEnabled=false
+dotnet restore tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -p:CustomTestTarget=net10.0 -p:Configuration=Release -p:PublishAotEnabled=false
+dotnet pack tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -c Release --no-build --no-restore -p:CustomTestTarget=net10.0 -p:TargetFramework=net10.0 -p:PublishAotEnabled=false -o artifacts\packages
 ```
 
 ## Development diagnostics

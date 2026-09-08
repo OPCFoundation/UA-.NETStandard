@@ -97,12 +97,24 @@ internal sealed partial class HistorianView : UserControl
     {
         base.OnAttachedToVisualTree(e);
         AttachVm(DataContext as HistorianPlugin);
+        UaLens.Themes.ThemeManager.ThemeChanged += ApplyPalette;
+        ApplyPalette();
     }
 
     protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {
         DetachVm();
+        UaLens.Themes.ThemeManager.ThemeChanged -= ApplyPalette;
         base.OnDetachedFromVisualTree(e);
+    }
+
+    private void ApplyPalette()
+    {
+        if (m_plot is not null)
+        {
+            UaLens.Themes.ChartTheme.Apply(m_plot.Plot);
+            m_plot.Refresh();
+        }
     }
 
     private void AttachVm(HistorianPlugin? vm)
