@@ -195,10 +195,6 @@ namespace Opc.Ua.WotCon.Client
                     }
                     byte[] copy = chunk.Span.ToArray();
                     buffer.Write(copy, 0, copy.Length);
-                    if (chunk.Span.Length < chunkSize)
-                    {
-                        break;
-                    }
                 }
                 return buffer.ToArray();
             }
@@ -314,11 +310,9 @@ namespace Opc.Ua.WotCon.Client
 
         /// <summary>
         /// Repeatedly invokes <paramref name="readChunk"/> until it
-        /// returns an empty chunk (end-of-file) or a partial chunk
-        /// shorter than <paramref name="chunkSize"/> (which signals the
-        /// last chunk for a chunk-aligned server protocol like
-        /// <c>FileType.Read</c>) and writes each chunk sequentially
-        /// into <paramref name="destination"/>.
+        /// returns an empty chunk (end-of-file) and writes each chunk
+        /// sequentially into <paramref name="destination"/>. A short
+        /// <c>FileType.Read</c> result does not imply end-of-file.
         /// </summary>
         internal static async ValueTask CopyChunksToStreamAsync(
             this Stream destination,
@@ -340,10 +334,6 @@ namespace Opc.Ua.WotCon.Client
                 byte[] copy = chunk.ToArray();
                 await destination.WriteAsync(copy, 0, copy.Length, ct).ConfigureAwait(false);
 #endif
-                if (chunk.Length < chunkSize)
-                {
-                    break;
-                }
             }
         }
     }
