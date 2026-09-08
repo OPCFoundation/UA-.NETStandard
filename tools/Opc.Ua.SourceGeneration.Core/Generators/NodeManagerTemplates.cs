@@ -78,9 +78,11 @@ namespace Opc.Ua.SourceGeneration
                     /// The namespace URIs this manager owns, in the order they
                     /// are reported to the master node manager. The first entry
                     /// becomes <c>NamespaceIndexes[0]</c> and therefore the
-                    /// manager's own <c>NamespaceIndex</c>, so the order is part
-                    /// of the NodeIds this manager mints. Pass a different array
-                    /// to the protected constructor to change it.
+                    /// manager's own <c>NamespaceIndex</c>: the namespace an
+                    /// unqualified browse path resolves in. Where runtime
+                    /// NodeIds are minted is the NodeId factory's to decide,
+                    /// not this order's. Pass a different array to the
+                    /// protected constructor to change the set or the order.
                     /// </summary>
                     public static string[] DefaultNamespaceUris()
                     {

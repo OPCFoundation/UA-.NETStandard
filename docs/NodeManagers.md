@@ -984,14 +984,19 @@ protected MyDeviceNodeManager(
 ```
 
 Chain to the protected one from a constructor of your own when the
-manager needs collaborators the generated signature does not carry, when
-it owns a different set of namespaces, or when it needs them in a
-different **order**. Order matters: the first entry becomes
-`NamespaceIndexes[0]` and therefore the manager's own `NamespaceIndex`,
-so it is baked into every NodeId the manager mints — changing it on a
-deployed server invalidates the ids its clients and databases already
-hold. `DefaultNamespaceUris()` returns the attribute's set, model
-namespace first.
+manager needs collaborators the generated signature does not carry, or
+when it owns a different set of namespaces. `DefaultNamespaceUris()`
+returns the attribute's set, model namespace first.
+
+The order decides which namespace becomes `NamespaceIndexes[0]` and
+therefore the manager's own `NamespaceIndex` — the one a browse path
+without an explicit `ns=` prefix resolves in, and the one
+`CreateFluentBuilder` defaults to. It does **not** decide where runtime
+NodeIds are minted: that is the NodeId factory's
+`DefaultNamespaceIndex`, so a manager whose instances belong in a
+namespace of its own points the factory at that namespace and leaves the
+order alone. See
+[Which namespace](NodeIdAssignment.md#which-namespace).
 
 ```csharp
 [NodeManager(
@@ -1007,10 +1012,15 @@ public partial class MyDeviceNodeManager
         IServerInternal server,
         ApplicationConfiguration configuration,
         IMyDatabase database)
-        // instance namespace first: NamespaceIndexes[0] mints record ids
-        : this(server, configuration, ["urn:my:instances", Namespaces.MyModel])
+        // null adopts DefaultNamespaceUris(): the model namespace first
+        : this(server, configuration, null)
     {
         m_database = database;
+
+        // the records this manager creates are its own instances, so they
+        // are minted next to the model rather than into it
+        NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(
+            (ushort)server.NamespaceUris.GetIndex("urn:my:instances"));
     }
 }
 ```

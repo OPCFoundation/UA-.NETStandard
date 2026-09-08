@@ -98,7 +98,10 @@ namespace Opc.Ua.Server.Fluent
         /// from your own constructor; passing <c>null</c> for its
         /// <c>namespaceUris</c> argument adopts
         /// <c>DefaultNamespaceUris()</c>, and passing an array of your own
-        /// replaces both the set and its order:
+        /// replaces both the set and its order. Which namespace runtime
+        /// NodeIds are minted in is chosen by assigning
+        /// <see cref="AsyncCustomNodeManager.NodeIdFactory"/>, not by
+        /// ordering the array:
         /// </para>
         /// <example>
         /// <code>
@@ -106,7 +109,7 @@ namespace Opc.Ua.Server.Fluent
         ///     IServerInternal server,
         ///     ApplicationConfiguration configuration,
         ///     IMyDatabase database)
-        ///     : this(server, configuration, [MyInstanceNamespace, Namespaces.MyModel])
+        ///     : this(server, configuration, namespaceUris: null)
         /// {
         ///     m_database = database;
         /// }
