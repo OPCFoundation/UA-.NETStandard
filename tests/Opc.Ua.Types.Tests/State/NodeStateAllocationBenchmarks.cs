@@ -76,18 +76,6 @@ namespace Opc.Ua.Types.Tests.State
             }
         }
 
-        // Pre-constructed node reused by the operation benchmarks.
-        private SystemContext m_context;
-        private BaseObjectState m_objectNode;
-        private BaseObjectState m_browseNode;
-        private BaseObjectState m_contendedBrowseNode;
-        private Barrier m_browseBarrier;
-        private AutoResetEvent[] m_browseStart;
-        private AutoResetEvent[] m_browseDone;
-        private Thread[] m_browseWorkers;
-        private Exception[] m_browseWorkerErrors;
-        private int m_stopBrowseWorkers;
-
         /// <summary>
         /// Creates the shared context and the pre-constructed benchmark nodes, then
         /// pre-warms every benchmark path.
@@ -117,6 +105,16 @@ namespace Opc.Ua.Types.Tests.State
                 BrowseName = new QualifiedName("BenchObject", 1),
                 DisplayName = new LocalizedText("BenchObject")
             };
+            m_eventTarget = new BaseObjectState(null);
+            m_syncEventNode = new BaseObjectState(null)
+            {
+                OnReportEvent = static (_, _, _) => { }
+            };
+            m_asyncEventNode = new BaseObjectState(null)
+            {
+                OnReportEventAsync = static (_, _, _, _) => default
+            };
+            m_eventSynchronizationContext = new SynchronizationContext();
 
             m_browseNode = new BaseObjectState(null)
             {
@@ -165,7 +163,10 @@ namespace Opc.Ua.Types.Tests.State
                 };
                 m_objectNode.SetAreEventsMonitored(m_context, true, false);
                 m_objectNode.SetAreEventsMonitored(m_context, false, false);
-                m_objectNode.ReportEvent(m_context, null!);
+                ReportEventNoNotifier();
+                ReportEventSyncSink();
+                ReportEventCompletedAsyncSink();
+                ReportEventAsyncSinkWithContext();
 
                 using INodeBrowser firstBrowser = CreateBrowser(new BaseObjectState(null));
                 using INodeBrowser warmBrowser = CreateBrowser(m_browseNode);
@@ -173,7 +174,9 @@ namespace Opc.Ua.Types.Tests.State
             }
         }
 
-        /// <summary>Releases the pre-constructed nodes.</summary>
+        /// <summary>
+        /// Releases the pre-constructed nodes.
+        /// </summary>
         [GlobalCleanup]
         [OneTimeTearDown]
         public void TearDown()
@@ -203,6 +206,10 @@ namespace Opc.Ua.Types.Tests.State
             }
 
             m_objectNode = null;
+            m_eventTarget = null;
+            m_syncEventNode = null;
+            m_asyncEventNode = null;
+            m_eventSynchronizationContext = null;
             m_browseNode = null;
             m_contendedBrowseNode = null;
             m_browseBarrier = null;
@@ -298,32 +305,65 @@ namespace Opc.Ua.Types.Tests.State
         /// <see cref="NodeState.OnReportEventAsync"/> handler, and no notifiers.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// Steady-state allocation: <b>48 B per call</b>.  Although the
-        /// synchronous-handler path (<see cref="NodeState.OnReportEvent"/>) and the
-        /// notifier-propagation path are both skipped (null fast-exits), the C# compiler
-        /// promotes the <c>context</c>, <c>e</c>, <c>onReportEventAsync</c> and
-        /// <c>this</c> locals into a display-class (closure) object for the
-        /// <c>Task.Run(() =&gt; …)</c> lambda that lives in the async-sink else-branch.
-        /// That display class is allocated on every entry to <see cref="NodeState.ReportEvent"/>
-        /// even when <c>OnReportEventAsync</c> is null and the lambda is never actually
-        /// invoked.  Display-class layout: 4 × 8-byte captured fields + 16-byte object
-        /// header = 48 B.
-        /// </para>
-        /// <para>
-        /// This is a genuine production allocation, not benchmark noise.  Eliminating it
-        /// requires restructuring the async-sink path to use a static lambda or a local
-        /// function that does not capture outer locals — a candidate optimization tracked
-        /// for Phase 2.
-        /// </para>
+        /// Uses the same pre-constructed, non-null event target as the sink benchmarks.
+        /// Measures dispatch only; node, payload, and callback creation are outside the measurement.
         /// </remarks>
         [Test]
         [Benchmark]
         public void ReportEventNoNotifier()
         {
-            // null! — the event argument is only forwarded to callbacks and notifiers,
-            // both of which are null here, so no null-dereference occurs.
-            m_objectNode.ReportEvent(m_context, null!);
+            m_objectNode.ReportEvent(m_context, m_eventTarget);
+        }
+
+        /// <summary>
+        /// Measures dispatch to a nonallocating synchronous sink without notifiers.
+        /// </summary>
+        [Test]
+        [Benchmark]
+        public void ReportEventSyncSink()
+        {
+            m_syncEventNode.ReportEvent(m_context, m_eventTarget);
+        }
+
+        /// <summary>
+        /// Measures inline dispatch to a synchronously completed asynchronous sink.
+        /// </summary>
+        /// <remarks>
+        /// Includes installing and restoring the ambient context to select the inline branch.
+        /// </remarks>
+        [Test]
+        [Benchmark]
+        public void ReportEventCompletedAsyncSink()
+        {
+            SynchronizationContext previous = SynchronizationContext.Current;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(null);
+                m_asyncEventNode.ReportEvent(m_context, m_eventTarget);
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(previous);
+            }
+        }
+
+        /// <summary>
+        /// Measures legacy dispatch to a completed asynchronous sink with an ambient context.
+        /// </summary>
+        [Test]
+        [Benchmark]
+        public void ReportEventAsyncSinkWithContext()
+        {
+            SynchronizationContext previous = SynchronizationContext.Current;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(m_eventSynchronizationContext);
+                m_asyncEventNode.ReportEvent(m_context, m_eventTarget);
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(previous);
+            }
         }
 
         /// <summary>
@@ -504,5 +544,20 @@ namespace Opc.Ua.Types.Tests.State
                 IsBackground = true
             };
         }
+
+        private SystemContext m_context;
+        private BaseObjectState m_objectNode;
+        private BaseObjectState m_eventTarget;
+        private BaseObjectState m_syncEventNode;
+        private BaseObjectState m_asyncEventNode;
+        private SynchronizationContext m_eventSynchronizationContext;
+        private BaseObjectState m_browseNode;
+        private BaseObjectState m_contendedBrowseNode;
+        private Barrier m_browseBarrier;
+        private AutoResetEvent[] m_browseStart;
+        private AutoResetEvent[] m_browseDone;
+        private Thread[] m_browseWorkers;
+        private Exception[] m_browseWorkerErrors;
+        private int m_stopBrowseWorkers;
     }
 }

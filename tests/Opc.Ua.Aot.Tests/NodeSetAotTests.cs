@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Text;
+using System.Xml;
 using Opc.Ua.Client;
 using Opc.Ua.Export;
 
@@ -478,6 +479,78 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(roundTripped.Aliases).IsNotNull();
             await Assert.That(roundTripped.Aliases.Length)
                 .IsEqualTo(nodeSet.Aliases.Length);
+        }
+
+        [Test]
+        public async Task NodeStateDesignMetadataPreservesEmptyValuesAndResetsAsync()
+        {
+            var node = new BaseObjectState(null)
+            {
+                Extensions = null,
+                Categories = null,
+                ReleaseStatus = default,
+                Specification = null,
+                NodeSetDocumentation = null,
+                DesignToolOnly = false
+            };
+            await AssertDefaultDesignMetadataAsync(node).ConfigureAwait(false);
+
+            node.Extensions = [];
+            node.Categories = [];
+            node.Specification = string.Empty;
+            node.NodeSetDocumentation = string.Empty;
+
+            await Assert.That(node.Extensions).IsNotNull();
+            await Assert.That(node.Extensions.Length).IsEqualTo(0);
+            await Assert.That(node.Categories).IsNotNull();
+            await Assert.That(node.Categories.Count).IsEqualTo(0);
+            await Assert.That(node.Specification).IsEqualTo(string.Empty);
+            await Assert.That(node.NodeSetDocumentation).IsEqualTo(string.Empty);
+
+            var extension = XmlElement.From(new XmlDocument().CreateElement("Metadata", "urn:opcua:aot"));
+            node.Extensions = [extension];
+            node.Categories = ["AotCategory"];
+            node.ReleaseStatus = ReleaseStatus.Draft;
+            node.Specification = "AotSpecification";
+            node.NodeSetDocumentation = "AotDocumentation";
+            node.DesignToolOnly = true;
+
+            await Assert.That(node.Extensions.Length).IsEqualTo(1);
+            await Assert.That(node.Extensions[0]).IsEqualTo(extension);
+            await Assert.That(node.Categories.Count).IsEqualTo(1);
+            await Assert.That(node.Categories[0]).IsEqualTo("AotCategory");
+            await Assert.That(node.ReleaseStatus).IsEqualTo(ReleaseStatus.Draft);
+            await Assert.That(node.Specification).IsEqualTo("AotSpecification");
+            await Assert.That(node.NodeSetDocumentation).IsEqualTo("AotDocumentation");
+            await Assert.That(node.DesignToolOnly).IsTrue();
+            await Assert.That(node.ChangeMasks).IsEqualTo(NodeStateChangeMasks.None);
+
+            var copy = (NodeState)node.Clone();
+            node.Extensions = null;
+            node.Categories = null;
+            node.ReleaseStatus = default;
+            node.Specification = null;
+            node.NodeSetDocumentation = null;
+            node.DesignToolOnly = false;
+            await AssertDefaultDesignMetadataAsync(node).ConfigureAwait(false);
+
+            await Assert.That(copy.Extensions[0]).IsEqualTo(extension);
+            await Assert.That(copy.Categories[0]).IsEqualTo("AotCategory");
+            await Assert.That(copy.ReleaseStatus).IsEqualTo(ReleaseStatus.Draft);
+            await Assert.That(copy.Specification).IsEqualTo("AotSpecification");
+            await Assert.That(copy.NodeSetDocumentation).IsEqualTo("AotDocumentation");
+            await Assert.That(copy.DesignToolOnly).IsTrue();
+        }
+
+        private static async Task AssertDefaultDesignMetadataAsync(NodeState node)
+        {
+            await Assert.That(node.Extensions).IsNull();
+            await Assert.That(node.Categories).IsNull();
+            await Assert.That(node.ReleaseStatus).IsEqualTo(ReleaseStatus.Released);
+            await Assert.That(node.Specification).IsNull();
+            await Assert.That(node.NodeSetDocumentation).IsNull();
+            await Assert.That(node.DesignToolOnly).IsFalse();
+            await Assert.That(node.ChangeMasks).IsEqualTo(NodeStateChangeMasks.None);
         }
     }
 }

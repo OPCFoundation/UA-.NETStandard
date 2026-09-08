@@ -126,5 +126,102 @@ namespace Opc.Ua.Aot.Tests
             await fixture.Session.RemoveSubscriptionAsync(subscription)
                 .ConfigureAwait(false);
         }
+
+        [Test]
+        [Arguments(false)]
+        [Arguments(true)]
+        public async Task ReportEventDispatchesSinksWithoutCapturingContextAsync(bool ambientContext)
+        {
+            var context = new SystemContext(fixture.Telemetry);
+            var node = new BaseObjectState(null);
+            var target = new BaseEventState(null);
+            var calls = new List<string>();
+            var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            bool argumentsMatch = true;
+            bool asyncContextCleared = true;
+            var expectedFailure = new InvalidOperationException("AOT event sink failure");
+            InvalidOperationException reportedFailure = null;
+
+            var dispatch = Task.Run(() =>
+            {
+                SynchronizationContext previous = SynchronizationContext.Current;
+                try
+                {
+                    SynchronizationContext.SetSynchronizationContext(
+                        ambientContext ? new SynchronizationContext() : null);
+
+                    node.ReportEvent(context, target);
+                    node.OnReportEvent = (c, n, e) =>
+                    {
+                        argumentsMatch &= ReferenceEquals(c, context) &&
+                            ReferenceEquals(n, node) &&
+                            ReferenceEquals(e, target);
+                        calls.Add("sync");
+                    };
+                    node.ReportEvent(context, target);
+
+                    node.OnReportEventAsync = (c, n, e, ct) =>
+                    {
+                        argumentsMatch &= ReferenceEquals(c, context) &&
+                            ReferenceEquals(n, node) &&
+                            ReferenceEquals(e, target) &&
+                            !ct.CanBeCanceled;
+                        asyncContextCleared &= SynchronizationContext.Current == null;
+                        calls.Add("completed");
+                        return ValueTask.CompletedTask;
+                    };
+                    node.ReportEvent(context, target);
+
+                    node.OnReportEventAsync = async (c, n, e, ct) =>
+                    {
+                        argumentsMatch &= ReferenceEquals(c, context) &&
+                            ReferenceEquals(n, node) &&
+                            ReferenceEquals(e, target) &&
+                            !ct.CanBeCanceled;
+                        asyncContextCleared &= SynchronizationContext.Current == null;
+                        calls.Add("async-start");
+                        started.TrySetResult();
+                        await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        calls.Add("async-end");
+                    };
+                    node.ReportEvent(context, target);
+                    calls.Add("returned");
+
+                    node.OnReportEvent = null;
+                    node.OnReportEventAsync = (_, _, _, _) => ValueTask.FromException(expectedFailure);
+                    try
+                    {
+                        node.ReportEvent(context, target);
+                    }
+                    catch (InvalidOperationException exception)
+                    {
+                        reportedFailure = exception;
+                    }
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(previous);
+                }
+            }, timeout.Token);
+
+            try
+            {
+                await started.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await Assert.That(dispatch.IsCompleted).IsFalse();
+            }
+            finally
+            {
+                release.TrySetResult();
+                await dispatch.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
+
+            await Assert.That(argumentsMatch).IsTrue();
+            await Assert.That(asyncContextCleared).IsTrue();
+            await Assert.That(reportedFailure).IsSameReferenceAs(expectedFailure);
+            await Assert.That(string.Join(",", calls))
+                .IsEqualTo("sync,sync,completed,sync,async-start,async-end,returned");
+        }
     }
 }

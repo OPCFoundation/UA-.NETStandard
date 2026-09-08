@@ -549,15 +549,23 @@ namespace Opc.Ua
         /// <value>The Permissions that apply to the node.</value>
         public ArrayOf<RolePermissionType> RolePermissions
         {
-            get => m_rolePermissions;
+            get
+            {
+                NodeStateSecurityData? data = Volatile.Read(ref m_securityData);
+                if (data is null)
+                {
+                    return default;
+                }
+                return data.RolePermissions;
+            }
             set
             {
-                if (m_rolePermissions != value)
+                if (RolePermissions != value)
                 {
                     m_changeMasks |= NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions;
                 }
 
-                m_rolePermissions = value;
+                SetRolePermissions(value);
             }
         }
 
@@ -567,15 +575,26 @@ namespace Opc.Ua
         /// <value>The Permissions that apply to the node for the current user.</value>
         public ArrayOf<RolePermissionType> UserRolePermissions
         {
-            get => m_userRolePermissions;
+            get
+            {
+                NodeStateSecurityData? data = Volatile.Read(ref m_securityData);
+                if (data is null)
+                {
+                    return default;
+                }
+                return data.UserRolePermissions;
+            }
             set
             {
-                if (m_userRolePermissions != value)
+                if (UserRolePermissions != value)
                 {
                     m_changeMasks |= NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions;
                 }
 
-                m_userRolePermissions = value;
+                NodeStateSecurityData? data = value.IsNull
+                    ? Volatile.Read(ref m_securityData)
+                    : GetOrCreateSecurityData();
+                data?.UserRolePermissions = value;
             }
         }
 
@@ -585,15 +604,15 @@ namespace Opc.Ua
         /// <value>The server specific access restrictions of the node.</value>
         public AccessRestrictionType? AccessRestrictions
         {
-            get => m_accessRestrictions;
+            get => Volatile.Read(ref m_securityData)?.AccessRestrictions;
             set
             {
-                if (m_accessRestrictions != value)
+                if (AccessRestrictions != value)
                 {
                     m_changeMasks |= NodeStateChangeMasks.NonValue;
                 }
 
-                m_accessRestrictions = value;
+                SetAccessRestrictions(value);
             }
         }
 
@@ -610,32 +629,122 @@ namespace Opc.Ua
         /// <value>
         /// The extensions.
         /// </value>
-        public XmlElement[]? Extensions { get; set; }
+        public XmlElement[]? Extensions
+        {
+            get => Volatile.Read(ref m_designMetadata)?.Extensions;
+            set
+            {
+                if (value is not null)
+                {
+                    GetOrCreateDesignMetadata().Extensions = value;
+                }
+                else
+                {
+                    NodeStateDesignMetadata? bag = Volatile.Read(ref m_designMetadata);
+                    bag?.Extensions = null;
+                }
+            }
+        }
 
         /// <summary>
         /// The categories assigned to the node.
         /// </summary>
-        public IList<string>? Categories { get; set; }
+        public IList<string>? Categories
+        {
+            get => Volatile.Read(ref m_designMetadata)?.Categories;
+            set
+            {
+                if (value is not null)
+                {
+                    GetOrCreateDesignMetadata().Categories = value;
+                }
+                else
+                {
+                    NodeStateDesignMetadata? bag = Volatile.Read(ref m_designMetadata);
+                    bag?.Categories = null;
+                }
+            }
+        }
 
         /// <summary>
         /// The release status for the node.
         /// </summary>
-        public Export.ReleaseStatus ReleaseStatus { get; set; }
+        public Export.ReleaseStatus ReleaseStatus
+        {
+            get => Volatile.Read(ref m_designMetadata)?.ReleaseStatus ?? default;
+            set
+            {
+                if (value != default)
+                {
+                    GetOrCreateDesignMetadata().ReleaseStatus = value;
+                }
+                else
+                {
+                    NodeStateDesignMetadata? bag = Volatile.Read(ref m_designMetadata);
+                    bag?.ReleaseStatus = default;
+                }
+            }
+        }
 
         /// <summary>
         /// The specification that defines the node.
         /// </summary>
-        public string? Specification { get; set; }
+        public string? Specification
+        {
+            get => Volatile.Read(ref m_designMetadata)?.Specification;
+            set
+            {
+                if (value is not null)
+                {
+                    GetOrCreateDesignMetadata().Specification = value;
+                }
+                else
+                {
+                    NodeStateDesignMetadata? bag = Volatile.Read(ref m_designMetadata);
+                    bag?.Specification = null;
+                }
+            }
+        }
 
         /// <summary>
         /// The documentation for the node that is saved in the NodeSet.
         /// </summary>
-        public string? NodeSetDocumentation { get; set; }
+        public string? NodeSetDocumentation
+        {
+            get => Volatile.Read(ref m_designMetadata)?.NodeSetDocumentation;
+            set
+            {
+                if (value is not null)
+                {
+                    GetOrCreateDesignMetadata().NodeSetDocumentation = value;
+                }
+                else
+                {
+                    NodeStateDesignMetadata? bag = Volatile.Read(ref m_designMetadata);
+                    bag?.NodeSetDocumentation = null;
+                }
+            }
+        }
 
         /// <summary>
-        /// The documentation for the node that is saved in the NodeSet.
+        /// Indicates this node is used only by a design tool and should not be published to clients.
         /// </summary>
-        public bool DesignToolOnly { get; set; }
+        public bool DesignToolOnly
+        {
+            get => Volatile.Read(ref m_designMetadata)?.DesignToolOnly ?? false;
+            set
+            {
+                if (value)
+                {
+                    GetOrCreateDesignMetadata().DesignToolOnly = true;
+                }
+                else
+                {
+                    NodeStateDesignMetadata? bag = Volatile.Read(ref m_designMetadata);
+                    bag?.DesignToolOnly = false;
+                }
+            }
+        }
 
         /// <summary>
         /// Exports a copy of the node to a node table.
@@ -2584,7 +2693,7 @@ namespace Opc.Ua
                     // A synchronization context is present (e.g. a UI / legacy ASP.NET thread):
                     // run the sink on the thread pool so a context-capturing continuation cannot
                     // deadlock the blocking wait below.
-                    Task.Run(() => onReportEventAsync(context, this, e, CancellationToken.None).AsTask())
+                    ScheduleReportEventAsync(onReportEventAsync, context, this, e)
                         .GetAwaiter().GetResult();
                 }
             }
@@ -4235,7 +4344,7 @@ namespace Opc.Ua
                     value = (uint)userWriteMask;
                     return result;
                 case Attributes.RolePermissions:
-                    ArrayOf<RolePermissionType> rolePermissions = m_rolePermissions;
+                    ArrayOf<RolePermissionType> rolePermissions = RolePermissions;
 
                     NodeAttributeEventHandler<ArrayOf<RolePermissionType>>? onReadRolePermissions =
                         OnReadRolePermissions;
@@ -4258,7 +4367,7 @@ namespace Opc.Ua
                     }
                     break;
                 case Attributes.UserRolePermissions:
-                    ArrayOf<RolePermissionType> userRolePermissions = m_userRolePermissions;
+                    ArrayOf<RolePermissionType> userRolePermissions = UserRolePermissions;
 
                     NodeAttributeEventHandler<ArrayOf<RolePermissionType>>? onReadUserRolePermissions =
                         OnReadUserRolePermissions;
@@ -4281,7 +4390,7 @@ namespace Opc.Ua
                     }
                     break;
                 case Attributes.AccessRestrictions:
-                    AccessRestrictionType? accessRestrictions = m_accessRestrictions;
+                    AccessRestrictionType? accessRestrictions = AccessRestrictions;
                     NodeAttributeEventHandler<AccessRestrictionType?>? onReadAccessRestrictions =
                         OnReadAccessRestrictions;
                     if (onReadAccessRestrictions != null)
@@ -4689,7 +4798,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_rolePermissions = rolePermissions;
+                        SetRolePermissions(rolePermissions);
                         m_changeMasks |= NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions;
                     }
 
@@ -4724,7 +4833,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_accessRestrictions = accessRestrictions;
+                        SetAccessRestrictions(accessRestrictions);
                     }
 
                     return result;
@@ -5699,6 +5808,16 @@ namespace Opc.Ua
             return null;
         }
 
+        private static Task ScheduleReportEventAsync(
+            NodeStateReportEventAsyncHandler onReportEventAsync,
+            ISystemContext context,
+            NodeState node,
+            IFilterTarget e)
+        {
+            // Keep the scheduling closure out of ReportEvent's no-sink and inline paths.
+            return Task.Run(() => onReportEventAsync(context, node, e, CancellationToken.None).AsTask());
+        }
+
         /// <summary>
         /// Gets the existing notifiers lock or publishes a fresh one using a
         /// Volatile.Read / Interlocked.CompareExchange pattern.
@@ -5744,6 +5863,52 @@ namespace Opc.Ua
             return Interlocked.CompareExchange(ref m_browseLock, candidate, null) ?? candidate;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private NodeStateDesignMetadata GetOrCreateDesignMetadata()
+        {
+            NodeStateDesignMetadata? existing = Volatile.Read(ref m_designMetadata);
+            if (existing is not null)
+            {
+                return existing;
+            }
+
+            NodeStateDesignMetadata candidate = new();
+            return Interlocked.CompareExchange(ref m_designMetadata, candidate, null) ?? candidate;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private NodeStateSecurityData GetOrCreateSecurityData()
+        {
+            NodeStateSecurityData? existing = Volatile.Read(ref m_securityData);
+            if (existing is not null)
+            {
+                return existing;
+            }
+
+            NodeStateSecurityData candidate = new();
+            return Interlocked.CompareExchange(ref m_securityData, candidate, null) ?? candidate;
+        }
+
+        /// <summary>
+        /// Storage-only writes preserve the attribute service's distinct change-mask behavior.
+        /// </summary>
+        /// <param name="value"></param>
+        private void SetRolePermissions(ArrayOf<RolePermissionType> value)
+        {
+            NodeStateSecurityData? data = value.IsNull
+                ? Volatile.Read(ref m_securityData)
+                : GetOrCreateSecurityData();
+            data?.RolePermissions = value;
+        }
+
+        private void SetAccessRestrictions(AccessRestrictionType? value)
+        {
+            NodeStateSecurityData? data = value.HasValue
+                ? GetOrCreateSecurityData()
+                : Volatile.Read(ref m_securityData);
+            data?.AccessRestrictions = value;
+        }
+
         /// <summary>
         /// Stores the notifier relationship to another node.
         /// </summary>
@@ -5785,12 +5950,31 @@ namespace Opc.Ua
         private LocalizedText m_description;
         private AttributeWriteMask m_writeMask;
         private AttributeWriteMask m_userWriteMask;
-        private ArrayOf<RolePermissionType> m_rolePermissions;
-        private ArrayOf<RolePermissionType> m_userRolePermissions;
-        private AccessRestrictionType? m_accessRestrictions;
+        private NodeStateSecurityData? m_securityData;
         private ReferenceDictionary<object?>? m_references;
         private int m_areEventsMonitored;
         private List<Notifier>? m_notifiers;
+        private NodeStateDesignMetadata? m_designMetadata;
+
+        /// <summary>
+        /// Published once and retained after resets so concurrent writers use the same storage.
+        /// </summary>
+        private sealed class NodeStateSecurityData
+        {
+            public ArrayOf<RolePermissionType> RolePermissions;
+            public ArrayOf<RolePermissionType> UserRolePermissions;
+            public AccessRestrictionType? AccessRestrictions;
+        }
+
+        private sealed class NodeStateDesignMetadata
+        {
+            public XmlElement[]? Extensions;
+            public IList<string>? Categories;
+            public Export.ReleaseStatus ReleaseStatus;
+            public string? Specification;
+            public string? NodeSetDocumentation;
+            public bool DesignToolOnly;
+        }
     }
 
     /// <summary>

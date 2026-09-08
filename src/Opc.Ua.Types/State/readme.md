@@ -119,6 +119,73 @@ sequenceDiagram
     NS->>NS: OnAfterDelete(context)
 ```
 
+### Memory Layout: Optional Metadata and Security
+
+Six design properties (`Extensions`, `Categories`, `ReleaseStatus`, `Specification`,
+`NodeSetDocumentation`, `DesignToolOnly`) share a private metadata bag. `RolePermissions`,
+`UserRolePermissions`, and `AccessRestrictions` share a separate private security bag.
+Absent bags return null/default values; default reads and default writes do not allocate
+a bag. Present-empty permission arrays remain distinct from absent arrays, and explicit
+`AccessRestrictionType.None` remains distinct from absent restrictions.
+
+Each bag is published using `Volatile.Read` and `Interlocked.CompareExchange`. Concurrent
+first writers to different members use the same canonical bag. A bag is never replaced or
+reclaimed: resetting its members retains it, avoiding races with other writers. Publication
+does not provide a transactional snapshot or add synchronization to attribute change masks.
+
+On .NET 10.0.11 x64, metadata storage reduces the unpopulated node allocation by **32 bytes**,
+and security storage by another **24 bytes**. Each allocated bag costs **56 bytes**, excluding
+payload objects and arrays. Metadata therefore has a 24-byte populated premium relative to
+inline metadata; security has a 32-byte populated premium relative to inline security.
+
+The inline baseline is commit `53418742a`, measured on the same runtime with both groups inline.
+
+| Optional bags ever allocated | `BaseObjectState` | `BaseDataVariableState` | Difference from inline baseline |
+|---|---:|---:|---:|
+| Neither | 632 B | 968 B | -56 B |
+| Metadata or security only | 688 B | 1024 B | 0 B |
+| Both | 744 B | 1080 B | +56 B |
+
+These warmed constructor/assignment allocations use identical cached payloads. Resetting
+members does not reduce the retained bag cost. Savings depend on the population's history
+of optional-property use; these figures do not establish real-world occupancy.
+
+Copies receive independent bags for copied values, with shallow array/list
+and permission-entry sharing. `CopyTo` does not copy
+`AccessRestrictions`, and the binary/XML `NodeState.Save` formats do not persist these
+optional properties. Property setters mark changed security values; successful
+`RolePermissions` attribute writes always set `NonValue | RolePermissions`, whereas
+`AccessRestrictions` attribute writes do not set change masks.
+
+`Description`, `Handle`, `SymbolicName`, and `IsPartOfTypeHierarchy` use inline storage.
+Callback fields also remain directly accessible public fields.
+
+### Explicit Reference Storage
+
+Explicit references use a lazily created `ReferenceDictionary<object?>`; fresh nodes
+have no reference table. Unfiltered enumeration follows insertion order, while
+filtered browsing follows the dictionary indexes' enumeration order. Bulk insertion
+ignores duplicates and preserves the first reference object; single insertion throws
+on duplicates. Binary updates merge and replace matching objects without moving their
+positions; XML updates clear and reload the table. Mutable external `IReference`
+objects retain their insertion-time dictionary indexes. Intrinsic references synthesized
+from children, parents, and type definitions are not duplicated in this storage.
+
+### Event Dispatch Allocations
+
+Synchronous `ReportEvent` creates its scheduling closure only when an asynchronous sink
+and an ambient `SynchronizationContext` require thread-pool dispatch. With no notifiers,
+the no-sink path, a nonallocating synchronous sink, and an inline-completed asynchronous
+sink without an ambient context each allocate **0 bytes per call** on .NET 10.0.11 x64
+using cached event payloads. Context-dispatched asynchronous sinks allocate scheduling
+state; notifier snapshots, suspended asynchronous work, and callbacks can also allocate.
+Skipping absent callbacks does not make every event-dispatch path allocation-free.
+
+The synchronous sink runs before the asynchronous sink is read and invoked. `ReportEvent`
+waits for asynchronous completion and propagates sink failures before taking a notifier
+snapshot. `ReportEventAsync` awaits asynchronous sinks and inverse-notifier forwarding.
+The scheduling-closure optimization reduces transient allocation, not retained node size.
+
 ## Usage Inside the Server
 
 The generated `Create<SymbolicId>` and `CreateInstanceOf<SymbolicId>`
