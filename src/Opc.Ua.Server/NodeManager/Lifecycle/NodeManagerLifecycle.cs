@@ -2332,23 +2332,60 @@ namespace Opc.Ua.Server
             Func<ValueTask>? afterCommit = null,
             Func<ValueTask>? rollbackCommit = null)
         {
-            await host.CommitAsync(
-                prepared,
-                async () =>
-                {
-                    if (beforeCommit is not null)
+            try
+            {
+                await host.CommitAsync(
+                    prepared,
+                    async () =>
                     {
-                        await beforeCommit().ConfigureAwait(false);
-                    }
-                    await ReconcileBindingsAsync(
-                        server,
-                        nodeManager,
-                        bindings,
-                        ct).ConfigureAwait(false);
-                },
-                afterCommit,
-                rollbackCommit,
-                ct).ConfigureAwait(false);
+                        if (server is INodeIdFactoryProvider { NodeIdFactory: INodeIdFactoryPolicy policy })
+                        {
+                            await policy.PrepareNodeManagerAsync(
+                                server, nodeManager, prepared.ReplacedNodeManager, ct).ConfigureAwait(false);
+                        }
+                        if (beforeCommit is not null)
+                        {
+                            await beforeCommit().ConfigureAwait(false);
+                        }
+                        await ReconcileBindingsAsync(
+                            server,
+                            nodeManager,
+                            bindings,
+                            ct).ConfigureAwait(false);
+                    },
+                    async () =>
+                    {
+                        await RebindIdentityAsync(server, ct).ConfigureAwait(false);
+                        if (afterCommit is not null)
+                        {
+                            await afterCommit().ConfigureAwait(false);
+                        }
+                    },
+                    rollbackCommit,
+                    ct).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                try
+                {
+                    await RebindIdentityAsync(server, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception recoveryException) when (recoveryException is not OutOfMemoryException)
+                {
+                    throw new AggregateException(
+                        "NodeManager publication and identity-binding recovery both failed.",
+                        exception,
+                        recoveryException);
+                }
+                throw;
+            }
+        }
+
+        private static ValueTask RebindIdentityAsync(IServerInternal server, CancellationToken cancellationToken)
+        {
+            return server is INodeIdFactoryProvider { NodeIdFactory: INodeIdFactoryPolicy policy }
+                ? policy.OnNodeManagersChangedAsync(server, cancellationToken)
+                : default;
         }
 
         private static async ValueTask<ServerBindings> BindToServerAsync(
@@ -2934,6 +2971,7 @@ namespace Opc.Ua.Server
             CancellationToken ct,
             ArrayOf<SemanticChangeStructureDataType> semanticChanges = default)
         {
+            await RebindIdentityAsync(server, ct).ConfigureAwait(false);
             await NotifyNamespaceTableChangedAsync(
                 server,
                 namespaceCountBefore,
@@ -2982,7 +3020,7 @@ namespace Opc.Ua.Server
                     false);
                 semanticChange.CreateOrReplaceChanges(
                     server.DefaultSystemContext,
-                    null!);
+                    null);
                 semanticChange.Changes!.Value = semanticChanges;
                 await server.ReportEventAsync(semanticChange, ct).ConfigureAwait(false);
             }
@@ -3185,7 +3223,6 @@ namespace Opc.Ua.Server
                 }
             }
 
-            Exception? unbindException = null;
             if (server is not null)
             {
                 try
@@ -3197,12 +3234,10 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
-                    unbindException = ex;
                     failures.Add(ex);
                 }
             }
 
-            Exception? rollbackException = null;
             try
             {
                 await host
@@ -3211,7 +3246,6 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                rollbackException = ex;
                 failures.Add(ex);
             }
 
@@ -3594,6 +3628,7 @@ namespace Opc.Ua.Server
         /// retirement instead invalidates owned monitored items before detachment; neither
         /// policy deletes the client's subscription.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private async ValueTask<bool> CleanupRetiredNodeManagerAsync(
             IServerInternal server,
             IDynamicNodeManagerHost host,
@@ -4175,8 +4210,10 @@ namespace Opc.Ua.Server
         private readonly Lock m_operationLifetimeLock = new();
         private readonly Dictionary<Guid, RegistrationState> m_registrations = [];
         private readonly List<RetiredNodeManager> m_retiredNodeManagers = [];
+
         private readonly BackgroundTaskScope m_backgroundWork =
             new(nameof(NodeManagerLifecycle), AmbientMessageContext.Telemetry);
+
         private TaskCompletionSource<bool>? m_operationsDrained;
         private int m_activeLifecycleOperations;
         private int m_activeShutdownMethods;
