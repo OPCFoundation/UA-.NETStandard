@@ -344,12 +344,50 @@ does so through the continuation point's `BrowserContext`, `CustomNodeManager2` 
 around the iteration. A derived browser must not add locking of its own; `NodeBrowser` no longer
 exposes one to inherit (see [migration](migrate/2.0.x/node-states.md)).
 
-Two rules follow for node types that customise browsing:
+An **`INodeBrowser` is iterated through `NextAsync`** by the async server paths. `Next()` and
+`NextAsync(CancellationToken)` drain the same sequence, and the default `NextAsync` simply wraps
+`Next()`, so a browser that only overrides `Next()` works unchanged. `AsyncCustomNodeManager`
+drives both `BrowseAsync` and `TranslateBrowsePathAsync` through `NextAsync`, which gives a
+browser whose references come from I/O — an aggregating server that browses another server, a
+device, a file system — a place to `await` instead of holding a request worker on a blocking
+call. Creation stays synchronous: `OnCreateBrowser` and `CreateBrowser` build the browser under
+the node's browse lock, so the fetch happens lazily on the first `NextAsync`, not in the
+constructor.
+
+```csharp
+public sealed class RemoteBrowser : NodeBrowser
+{
+    public override async ValueTask<IReference?> NextAsync(CancellationToken cancellationToken)
+    {
+        // In-memory references first, exactly as the base class hands them out.
+        IReference? reference = base.Next();
+        if (reference != null)
+        {
+            return reference;
+        }
+
+        m_remote ??= await m_session.BrowseAsync(..., cancellationToken).ConfigureAwait(false);
+        return m_remote.Count > 0 ? m_remote.Dequeue() : null;
+    }
+
+    // Synchronous consumers still exist (the nodeset exporter, CustomNodeManager2);
+    // bridge them rather than duplicating the fetch.
+    public override IReference? Next()
+    {
+        return NextAsync(CancellationToken.None).AsTask().GetAwaiter().GetResult();
+    }
+}
+```
+
+Three rules follow for node types that customise browsing:
 
 * An override of `PopulateBrowser` runs with the node's browse lock held. Keep it to in-memory
   work — the lock is held for its duration, so blocking on I/O there stalls every other browse of
   that node. A browser that has to reach an underlying system does that lazily in its own
-  `Next()`, outside every node lock, as `DirectoryBrowser` does for the file-system provider.
+  `NextAsync`, outside every node lock, as `DirectoryBrowser` does for the file-system provider.
+* A browser that overrides `NextAsync` also overrides `Next()`, because the base `Next()` only
+  sees the in-memory references. Bridging `Next()` to `NextAsync` is the usual shape; the async
+  server never calls it, so the blocking only ever happens on a synchronous caller's own thread.
 * An override of `CreateBrowser` that builds its own browser instead of delegating to
   `base.CreateBrowser` must fill it through `PopulateBrowserSynchronized`. Calling
   `PopulateBrowser` directly leaves construction unserialized against other browses of the same

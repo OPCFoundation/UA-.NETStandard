@@ -601,10 +601,73 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(GetTargetIds(browser), Is.Empty);
         }
 
+        [Test]
+        public async Task NextAsyncEnumeratesImmediateFilesAndDirectoriesAsync()
+        {
+            Directory.CreateDirectory(Path.Combine(m_root, "folder"));
+            File.WriteAllText(Path.Combine(m_root, "a.txt"), "content");
+            DirectoryObjectState state = CreateRootDirectory();
+
+            using INodeBrowser browser = state.CreateBrowser(
+                m_context, null, ReferenceTypeIds.HasComponent, true,
+                BrowseDirection.Forward, QualifiedName.Null, null, false);
+
+            List<ExpandedNodeId> targets = await GetTargetIdsAsync(browser).ConfigureAwait(false);
+
+            Assert.That(targets, Does.Contain(new ExpandedNodeId(
+                FileSystemNodeId.BuildDirectory("folder", m_manager.NamespaceIndex))));
+            Assert.That(targets, Does.Contain(new ExpandedNodeId(
+                FileSystemNodeId.BuildFile("a.txt", m_manager.NamespaceIndex))));
+        }
+
+        [Test]
+        public async Task NextAsyncReturnsNoChildrenWhenProviderEnumerationThrowsAsync()
+        {
+            UseProvider(new ThrowingEnumerateProvider());
+            DirectoryObjectState state = CreateRootDirectory();
+
+            using INodeBrowser browser = state.CreateBrowser(
+                m_context, null, ReferenceTypeIds.HasComponent, true,
+                BrowseDirection.Forward, QualifiedName.Null, null, false);
+
+            Assert.That(await GetTargetIdsAsync(browser).ConfigureAwait(false), Is.Empty);
+        }
+
+        [Test]
+        public void NextAsyncPropagatesCancellationOfTheProviderEnumeration()
+        {
+            UseProvider(new ThrowingEnumerateProvider());
+            DirectoryObjectState state = CreateRootDirectory();
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            using INodeBrowser browser = state.CreateBrowser(
+                m_context, null, ReferenceTypeIds.HasComponent, true,
+                BrowseDirection.Forward, QualifiedName.Null, null, false);
+
+            Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await browser.NextAsync(cts.Token).ConfigureAwait(false));
+        }
+
         private static List<ExpandedNodeId> GetTargetIds(INodeBrowser browser)
         {
             var targets = new List<ExpandedNodeId>();
             for (IReference? reference = browser.Next(); reference != null; reference = browser.Next())
+            {
+                if (!reference.IsInverse)
+                {
+                    targets.Add(reference.TargetId);
+                }
+            }
+            return targets;
+        }
+
+        private static async Task<List<ExpandedNodeId>> GetTargetIdsAsync(INodeBrowser browser)
+        {
+            var targets = new List<ExpandedNodeId>();
+            for (IReference? reference = await browser.NextAsync().ConfigureAwait(false);
+                reference != null;
+                reference = await browser.NextAsync().ConfigureAwait(false))
             {
                 if (!reference.IsInverse)
                 {
@@ -630,11 +693,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 [EnumeratorCancellation] CancellationToken ct)
             {
                 await Task.CompletedTask.ConfigureAwait(false);
-                if (!ct.IsCancellationRequested)
-                {
-                    throw new IOException("enumeration failed");
-                }
+                ct.ThrowIfCancellationRequested();
+                throw new IOException("enumeration failed");
+#pragma warning disable CS0162 // unreachable: the iterator must still be an iterator
                 yield break;
+#pragma warning restore CS0162
             }
 
             public ValueTask<Stream> OpenReadAsync(string path, CancellationToken ct)
