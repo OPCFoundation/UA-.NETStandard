@@ -64,8 +64,10 @@ namespace Opc.Ua.Di.Tests
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
             await m_manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
 
+            // the manager reports the identifiers it actually minted, so the
+            // test does not restate the factory's identifier format.
             m_pump = m_manager.FindPredefinedNode<PumpState>(
-                new NodeId("5001_Pump_1", m_manager.InstanceNamespaceIndex));
+                m_manager.PumpNodeIds[0]);
         }
 
         [OneTimeTearDown]

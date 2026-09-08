@@ -71,6 +71,17 @@ server.RegisterNodeManager(context =>
     new MyAsyncNodeManager(server, configuration));
 ```
 
+### Async browse iteration
+
+Every hook a custom node manager overrides is awaitable, and that includes browsing.
+`AsyncCustomNodeManager.BrowseAsync` and `TranslateBrowsePathAsync` iterate an
+`INodeBrowser` through `NextAsync(CancellationToken)` rather than `Next()`, so a browser that
+has to reach an underlying system — the aggregation case, where the references come from
+another server — awaits that fetch on the first `NextAsync` instead of holding a request
+worker on a blocking call. The default `NextAsync` wraps `Next()`, so the browsers the stack
+ships and every existing custom browser keep working untouched. See
+[NodeManagers.md](NodeManagers.md#threading-contract-for-nodes-and-browsers) for the browser contract.
+
 ### Locking strategy vs CustomNodeManager2
 
 `CustomNodeManager2` protects its entire address space with a **single coarse-grained monitor

@@ -112,6 +112,10 @@ namespace Opc.Ua.Server.AliasNames
                 m_localCategoryDispatcher,
                 AuthorizeMutation,
                 m_aliasLogger);
+
+            // counter identifiers: alias categories are rematerialized from
+            // the store as it changes, so browse names repeat over time.
+            NodeIdFactory = NodeIdFactory.WithMode(NodeIdAssignmentMode.Counter);
         }
 
         /// <summary>
@@ -123,20 +127,6 @@ namespace Opc.Ua.Server.AliasNames
         /// The tunables in use.
         /// </summary>
         public AliasNameNodeManagerOptions Options { get; }
-
-        /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            // Preserve any caller-assigned NodeId that already lives in our
-            // namespace; otherwise mint a sequential numeric id.
-            if (!node.NodeId.IsNull &&
-                node.NodeId.NamespaceIndex == NamespaceIndex)
-            {
-                return node.NodeId;
-            }
-            uint id = Utils.IncrementIdentifier(ref m_nextNodeId);
-            return new NodeId(id, NamespaceIndex);
-        }
 
         /// <inheritdoc/>
         public override async ValueTask CreateAddressSpaceAsync(
@@ -314,7 +304,6 @@ namespace Opc.Ua.Server.AliasNames
         /// </summary>
         private readonly AliasNameStoreRegistry m_localCategoryDispatcher;
         private bool m_registeredWithServer;
-        private uint m_nextNodeId;
         private readonly Lock m_lock = new();
     }
 

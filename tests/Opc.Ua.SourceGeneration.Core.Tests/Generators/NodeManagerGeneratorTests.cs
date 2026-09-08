@@ -220,15 +220,23 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(mgr, Does.Contain("global::Opc.Ua.Server.Fluent.NodeManagerBuilder"));
             Assert.That(mgr, Does.Contain("global::Opc.Ua.Server.Fluent.INodeManagerBuilder"));
 
-            // The Configure/RegisterAuthoredNodes/CompleteConfigure/
-            // SealConfiguration sequence inside CreateAddressSpace is part of
-            // the contract and is exercised by the hybrid integration test.
-            // CompleteConfigureAsync re-runs the reverse-reference pass so
-            // configure-created nodes publish references to nodes owned by
-            // other managers (issue #4329). SealConfiguration then seals,
-            // replays NotifyNodeAdded and starts the simulations, in that
-            // order, so the replay cannot author nodes and no simulated value
-            // change precedes the OnNodeAdded handler of its own node.
+            // The ConfigureAsync/Configure/RegisterAuthoredNodes/
+            // CompleteConfigure/SealConfiguration sequence inside
+            // CreateAddressSpace is part of the contract and is exercised by
+            // the hybrid integration test. ConfigureAsync is the awaitable
+            // wiring seam and runs first so the nodes it materialises exist
+            // before the synchronous Configure partial(s) wire callbacks
+            // against them. CompleteConfigureAsync re-runs the
+            // reverse-reference pass so configure-created nodes publish
+            // references to nodes owned by other managers (issue #4329).
+            // SealConfigurationAsync then seals, replays NotifyNodeAdded, and
+            // only then completes the registrations Configure could not await
+            // (root notifiers) and starts the simulations — so the replay
+            // cannot author nodes and no simulated value change precedes the
+            // OnNodeAdded handler of its own node.
+            int idxConfigureAsync = mgr.IndexOf(
+                "await ConfigureAsync(__m_builder, cancellationToken)",
+                StringComparison.Ordinal);
             int idxConfigure = mgr.IndexOf("Configure(__m_builder)", StringComparison.Ordinal);
             int idxRegister = mgr.IndexOf(
                 "await RegisterAuthoredNodesAsync(__m_builder, cancellationToken)",
@@ -236,18 +244,27 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             int idxComplete = mgr.IndexOf(
                 "await CompleteConfigureAsync(externalReferences, cancellationToken)",
                 StringComparison.Ordinal);
-            int idxSeal = mgr.IndexOf("SealConfiguration(__m_builder)", StringComparison.Ordinal);
-            Assert.That(idxConfigure, Is.GreaterThan(0), "Configure call must be emitted");
+            int idxSeal = mgr.IndexOf(
+                "await SealConfigurationAsync(__m_builder, cancellationToken)",
+                StringComparison.Ordinal);
+            Assert.That(idxConfigureAsync, Is.GreaterThan(0),
+                "ConfigureAsync call must be emitted");
+            Assert.That(idxConfigure, Is.GreaterThan(idxConfigureAsync),
+                "Configure must run after ConfigureAsync");
             Assert.That(idxRegister, Is.GreaterThan(idxConfigure),
                 "RegisterAuthoredNodesAsync must run after Configure");
             Assert.That(idxComplete, Is.GreaterThan(idxRegister),
                 "CompleteConfigureAsync must run after RegisterAuthoredNodesAsync");
             Assert.That(idxSeal, Is.GreaterThan(idxComplete),
-                "SealConfiguration must run after CompleteConfigureAsync");
+                "SealConfigurationAsync must run after CompleteConfigureAsync");
             Assert.That(
                 mgr,
                 Does.Not.Contain("__m_builder.Seal()"),
                 "The replay must not run after a Seal() that already started the simulations");
+            Assert.That(
+                mgr,
+                Does.Not.Contain("SealConfiguration(__m_builder)"),
+                "Sealing must go through the awaited SealConfigurationAsync path");
         }
 
         [Test]

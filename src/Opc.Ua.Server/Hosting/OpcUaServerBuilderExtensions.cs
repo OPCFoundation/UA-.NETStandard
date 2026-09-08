@@ -485,6 +485,91 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers the NodeId factory that every NodeManager the hosted
+        /// server owns mints runtime NodeIds with.
+        /// </summary>
+        /// <remarks>
+        /// Each NodeManager rebases the registered factory onto its own
+        /// namespace, so one registration serves the whole server. Without
+        /// this call NodeManagers default to
+        /// <see cref="NodeIdAssignmentMode.Numeric"/>.
+        /// </remarks>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="mode">The identifier type to mint.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder AddNodeIdFactory(
+            this IOpcUaServerBuilder builder,
+            NodeIdAssignmentMode mode)
+        {
+            return builder.AddNodeIdFactory(new DefaultNodeIdFactory(mode));
+        }
+
+        /// <summary>
+        /// Registers the NodeId factory that every NodeManager the hosted
+        /// server owns mints runtime NodeIds with.
+        /// </summary>
+        /// <remarks>
+        /// Each NodeManager rebases the registered factory onto its own
+        /// namespace, so one registration serves the whole server. The
+        /// factory is registered as <see cref="IRebasableNodeIdFactory"/>, so
+        /// a decorator around <see cref="DefaultNodeIdFactory"/> can be
+        /// registered in its place.
+        /// </remarks>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="nodeIdFactory">The factory to register.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> or
+        /// <paramref name="nodeIdFactory"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder AddNodeIdFactory(
+            this IOpcUaServerBuilder builder,
+            IRebasableNodeIdFactory nodeIdFactory)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (nodeIdFactory is null)
+            {
+                throw new ArgumentNullException(nameof(nodeIdFactory));
+            }
+
+            builder.Services.Replace(ServiceDescriptor.Singleton(nodeIdFactory));
+            return builder;
+        }
+
+        /// <summary>
+        /// Decides, for the whole hosted server, whether NodeManagers refuse
+        /// to mint a NodeId they already gave a different browse path.
+        /// </summary>
+        /// <remarks>
+        /// Without this call each factory keeps
+        /// <see cref="DefaultNodeIdFactory.DetectCollisionsByDefault"/>, which
+        /// is on in a debug build and off otherwise. Watching costs memory
+        /// that grows with the address space, which is why the decision is
+        /// server-wide rather than per NodeManager.
+        /// </remarks>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="detectCollisions">Whether to watch.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder DetectNodeIdCollisions(
+            this IOpcUaServerBuilder builder,
+            bool detectCollisions = true)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.Replace(
+                ServiceDescriptor.Singleton(new NodeIdCollisionDetection(detectCollisions)));
+            return builder;
+        }
+
+        /// <summary>
         /// Registers a role manager that is installed on the hosted server at startup.
         /// </summary>
         /// <param name="builder">The server builder.</param>

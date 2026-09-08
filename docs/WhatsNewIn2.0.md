@@ -520,6 +520,9 @@ coverage service; see
   server/client/network redundancy and the opt-in distributed HA building
   blocks; [Kubernetes High Availability Deployment](Kubernetes.md) — the
   Kubernetes deployment guide for the `Opc.Ua.Redundancy.Kubernetes` package.
+- [NodeId Assignment](NodeIdAssignment.md) — how runtime NodeIds are
+  minted: the factory contract, identifier formats, types vs instances,
+  the generated helpers, and per-NodeManager behaviour.
 - [Dependency Injection](DependencyInjection.md),
   [Native AOT](NativeAoT.md),
   [Diagnostics](Diagnostics.md),

@@ -74,7 +74,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var builder = new NodeManagerBuilder(
                 ctx,
-                nodeManager: Mock.Of<IAsyncNodeManager>(),
+                nodeManager: FluentTestNodeManager.Create(kNs),
                 defaultNamespaceIndex: kNs,
                 rootResolver: q => roots.TryGetValue(q, out NodeState? n) ? n! : null!,
                 nodeIdResolver: id => byId.TryGetValue(id, out NodeState? n) ? n! : null!,
@@ -97,7 +97,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(ib.Node.BrowseName, Is.EqualTo(new QualifiedName("Pump#2", kNs)));
             Assert.That(ib.Node.SymbolicName, Is.EqualTo("Pump#2"));
             Assert.That(ib.Node.Parent, Is.SameAs(root));
-            Assert.That(ib.Node.NodeId.IdentifierAsString, Is.EqualTo("Root_Pump#2"));
+            Assert.That(
+                ib.Node.NodeId.IdentifierAsString,
+                Does.Contain("Root").And.Contain("Pump#2"));
         }
 
         [Test]
@@ -433,7 +435,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var builder = new NodeManagerBuilder(
                 ctx,
-                nodeManager: Mock.Of<IAsyncNodeManager>(),
+                nodeManager: FluentTestNodeManager.Create(kNs),
                 defaultNamespaceIndex: kNs,
                 rootResolver: _ => null!,
                 nodeIdResolver: _ => null!,
@@ -550,7 +552,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             SystemContext ctx = CreateContext();
             var builder = new NodeManagerBuilder(
                 ctx,
-                nodeManager: Mock.Of<IAsyncNodeManager>(),
+                nodeManager: FluentTestNodeManager.Create(kNs),
                 defaultNamespaceIndex: kNs,
                 rootResolver: _ => null!,
                 nodeIdResolver: _ => null!,

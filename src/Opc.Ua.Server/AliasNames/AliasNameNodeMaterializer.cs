@@ -347,10 +347,11 @@ namespace Opc.Ua.Server.AliasNames
                 category.TypeDefinitionId = ObjectTypeIds.AliasNameCategoryType;
                 category.ReferenceTypeId = ReferenceTypeIds.Organizes;
 
-                // Mint ids for the mandatory children first — the host's
-                // id factory does not preserve a caller-assigned id — then
-                // pin the category to the descriptor's NodeId, which is
-                // the key the store and the registry dispatch on.
+                // Mint ids for the mandatory children first, then pin the
+                // category to the descriptor's NodeId, which is the key the
+                // store and the registry dispatch on. Assigning it before the
+                // children would derive their ids from it, so the order is
+                // deliberate rather than incidental.
                 category.AssignNodeIds(m_host.SystemContext, []);
                 category.NodeId = descriptor.NodeId;
             }
@@ -758,9 +759,20 @@ namespace Opc.Ua.Server.AliasNames
             AliasNameState aliasNode =
                 m_host.SystemContext.CreateInstanceOfAliasNameType();
 
-            aliasNode.NodeId = mintedId.IsNull
-                ? m_host.MintNodeId(aliasNode)
-                : mintedId;
+            if (mintedId.IsNull)
+            {
+                // The no-argument helper does no instance assignment, so the
+                // node still carries the standard AliasNameType NodeId. It has
+                // no parent either, and a factory keeps an identifier on a node
+                // that stands on its own - so without clearing it first the
+                // alias would advertise the type's own NodeId.
+                aliasNode.NodeId = NodeId.Null;
+                aliasNode.NodeId = m_host.MintNodeId(aliasNode);
+            }
+            else
+            {
+                aliasNode.NodeId = mintedId;
+            }
             aliasNode.BrowseName = RehomeServerDefinedName(aliasName);
             aliasNode.DisplayName = new LocalizedText(string.Empty, name);
             aliasNode.SymbolicName = name;

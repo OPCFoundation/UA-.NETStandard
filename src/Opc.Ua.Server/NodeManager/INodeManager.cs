@@ -828,7 +828,8 @@ namespace Opc.Ua.Server
         IDeleteMonitoredItemsAsyncNodeManager,
         IModifyMonitoredItemsAsyncNodeManager,
         ICreateMonitoredItemsAsyncNodeManager,
-        INodeManagementAsyncNodeManager
+        INodeManagementAsyncNodeManager,
+        INodeIdFactory
     {
         /// <summary>
         /// Resolves the effective <see cref="MethodState"/> for a call request.
@@ -837,6 +838,30 @@ namespace Opc.Ua.Server
             OperationContext context,
             CallMethodRequest methodToCall,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Registers a node, and everything below it, with the NodeManager so
+        /// it can be browsed and read.
+        /// </summary>
+        /// <remarks>
+        /// Synchronous because the fluent authoring surface builds a graph
+        /// inside a caller's <c>Configure</c> delegate, which has nowhere to
+        /// await. A NodeManager that cannot register synchronously - one
+        /// wrapping a purely synchronous <see cref="INodeManager"/> - is free
+        /// to make this a no-op.
+        /// </remarks>
+        /// <param name="node">The node to register.</param>
+        void AddNode(NodeState node);
+
+        /// <summary>
+        /// Registers a node as a root notifier, so events it reports reach
+        /// subscribers of the Server object.
+        /// </summary>
+        /// <remarks>
+        /// Synchronous for the same reason as <see cref="AddNode"/>.
+        /// </remarks>
+        /// <param name="notifier">The notifier to register.</param>
+        void AddRootNotifier(NodeState notifier);
 
         /// <summary>
         /// Returns the NamespaceUris for the Nodes belonging to the NodeManager.
