@@ -30,6 +30,16 @@
     <DebugType>none</DebugType>
     <DebuggerSupport>false</DebuggerSupport>
     <StackTraceSupport>false</StackTraceSupport>
+    <!-- Replaces framework exception message strings with resource keys.
+         The binary links most of the product, so those strings are a large
+         share of its read-only data and of the relocations the Apple linker
+         asserts on. No test here asserts framework exception text, and stack
+         traces are already off in this configuration, so the diagnostics
+         given up are ones this binary had already traded away. -->
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <!-- Drops the native symbol table from the published binary, which the
+         tests do not read. -->
+    <StripSymbols>true</StripSymbols>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="TUnit" />
