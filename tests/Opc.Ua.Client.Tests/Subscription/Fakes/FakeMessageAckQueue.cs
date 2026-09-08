@@ -83,21 +83,46 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// before it queues the acknowledgement for it, so a test that only
         /// waits for the dispatch races the enqueue that follows it.
         /// </summary>
+        /// <param name="count">
+        /// The number of queued acknowledgements to wait for.
+        /// </param>
+        /// <param name="timeoutMs">How long to wait before giving up.</param>
+        /// <exception cref="TimeoutException">
+        /// The acknowledgements did not arrive in time. Failing here rather
+        /// than returning quietly keeps the diagnosis at the right level: a
+        /// caller that went on to assert the count would only report the
+        /// mismatch, which cannot distinguish an acknowledgement that was
+        /// never queued from one that merely arrived late - and if that
+        /// assertion is ever loosened, a silent return would hide the race
+        /// this helper exists to close.
+        /// </exception>
         public async Task WaitForQueuedAckAsync(int count, int timeoutMs = 5000)
         {
             const int kPollIntervalMs = 10;
-            int elapsed = 0;
-            while (elapsed < timeoutMs)
+            TimeSpan timeout = TimeSpan.FromMilliseconds(timeoutMs);
+            long start = TimeProvider.System.GetTimestamp();
+            while (true)
             {
+                int queued;
                 lock (m_lock)
                 {
-                    if (QueuedAcks.Count >= count)
-                    {
-                        return;
-                    }
+                    queued = QueuedAcks.Count;
+                }
+                if (queued >= count)
+                {
+                    return;
+                }
+                // Measure against a monotonic clock rather than accumulating
+                // the poll interval: Task.Delay routinely overshoots, so
+                // counting the requested interval silently stretches the
+                // effective timeout well past what the caller asked for.
+                if (TimeProvider.System.GetElapsedTime(start) >= timeout)
+                {
+                    throw new TimeoutException(
+                        $"Expected at least {count} queued acknowledgement(s) within " +
+                        $"{timeout.TotalSeconds:0.##}s but only {queued} arrived.");
                 }
                 await Task.Delay(kPollIntervalMs).ConfigureAwait(false);
-                elapsed += kPollIntervalMs;
             }
         }
 
