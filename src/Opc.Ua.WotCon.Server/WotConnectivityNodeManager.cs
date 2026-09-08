@@ -269,8 +269,8 @@ namespace Opc.Ua.WotCon.Server
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
             // Reload any persisted assets so they survive restarts.
-            await foreach ((string name, ThingDescription td) in
-                m_registry.EnumeratePersistedAsync(cancellationToken).ConfigureAwait(false))
+            await foreach ((string name, ThingDescription td, ByteString content) in
+                m_registry.EnumeratePersistedDocumentsAsync(cancellationToken).ConfigureAwait(false))
             {
                 (ServiceResult create, NodeId assetId) = await m_registry
                     .CreateAssetAsync(name, cancellationToken).ConfigureAwait(false);
@@ -282,8 +282,13 @@ namespace Opc.Ua.WotCon.Server
                 AssetEntry? entry = m_registry.FindByNodeId(assetId);
                 if (entry != null)
                 {
-                    await m_registry.RebuildAsync(entry, td, persistOnSuccess: false, cancellationToken)
+                    ServiceResult restored = await m_registry
+                        .RebuildAsync(entry, td, persistOnSuccess: false, cancellationToken)
                         .ConfigureAwait(false);
+                    if (ServiceResult.IsGood(restored))
+                    {
+                        entry.FileManager?.UpdatePersistedContent(content.Span.ToArray());
+                    }
                 }
             }
         }

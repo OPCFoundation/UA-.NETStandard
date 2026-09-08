@@ -316,6 +316,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                     await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
                     return (rebuild, NodeId.Null);
                 }
+                entry.FileManager?.UpdatePersistedContent(
+                    JsonSerializer.SerializeToUtf8Bytes(td, ThingDescriptionJsonContext.Default.ThingDescription));
                 return (ServiceResult.Good, assetId);
             }
             catch (NotSupportedException ex)
@@ -1399,6 +1401,20 @@ namespace Opc.Ua.WotCon.Server.Assets
         public async IAsyncEnumerable<(string Name, ThingDescription Description)> EnumeratePersistedAsync(
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
         {
+            await foreach ((string name, ThingDescription description, _) in
+                EnumeratePersistedDocumentsAsync(ct).ConfigureAwait(false))
+            {
+                yield return (name, description);
+            }
+        }
+
+        /// <summary>
+        /// Loads persisted descriptions together with their authoritative document bytes.
+        /// </summary>
+        internal async IAsyncEnumerable<(string Name, ThingDescription Description, ByteString Content)>
+            EnumeratePersistedDocumentsAsync(
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+        {
             string? folder = m_options.ThingDescriptionStorageFolder;
             if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder))
             {
@@ -1454,13 +1470,43 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
 
                 ThingDescription? td;
+                byte[] content;
                 try
                 {
-                    using FileStream stream = File.OpenRead(file);
+                    using var stream = new FileStream(
+                        file,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.Read,
+                        bufferSize: 4096,
+                        options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+                    long length = stream.Length;
+                    long maximum = sizeLimit > 0 ? sizeLimit : int.MaxValue;
+                    if (length > maximum)
+                    {
+                        m_logger.SkippingPersistedTdTooLarge(file, length, maximum);
+                        continue;
+                    }
+                    content = new byte[checked((int)length)];
+                    int offset = 0;
+                    while (offset < content.Length)
+                    {
+#if NETSTANDARD2_1_OR_GREATER || NET
+                        int read = await stream.ReadAsync(content.AsMemory(offset), ct).ConfigureAwait(false);
+#else
+                        int read = await stream.ReadAsync(content, offset, content.Length - offset, ct)
+                            .ConfigureAwait(false);
+#endif
+                        if (read == 0)
+                        {
+                            throw new EndOfStreamException("The persisted Thing Description was truncated while reading.");
+                        }
+                        offset += read;
+                    }
+                    ct.ThrowIfCancellationRequested();
+                    using var documentStream = new MemoryStream(content, writable: false);
                     td = await JsonSerializer.DeserializeAsync(
-                        stream,
-                        jsonContext.ThingDescription,
-                        ct).ConfigureAwait(false);
+                        documentStream, jsonContext.ThingDescription, ct).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -1478,7 +1524,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
                 if (td != null)
                 {
-                    yield return (name, td);
+                    yield return (name, td, ByteString.From(content));
                 }
             }
         }

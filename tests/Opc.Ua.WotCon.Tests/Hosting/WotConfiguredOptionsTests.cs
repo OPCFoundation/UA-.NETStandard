@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -173,7 +174,63 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             Assert.That(names[0], Is.EqualTo("Shallow"));
         }
 
-        private static async Task WriteDescriptionAsync(string folder, string name, int depth = 0)
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RestoredAssetFileRetainsCanonicalDocumentBytes(bool includeByteOrderMark)
+        {
+            ByteString expected = default;
+            await using ConfiguredServer server = await ConfiguredServer.StartAsync(
+                useDependencyInjection: true,
+                _ => { },
+                async folder =>
+                {
+                    expected = await WriteDescriptionAsync(
+                        folder, "Restored", includeByteOrderMark: includeByteOrderMark).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+
+            var assets = new List<WotAssetEntry>();
+            await foreach (WotAssetEntry entry in server.Client.EnumerateAssetsAsync().ConfigureAwait(false))
+            {
+                assets.Add(entry);
+            }
+            Assert.That(assets, Has.Count.EqualTo(1));
+
+            WotAssetClient asset = await server.Client.OpenAssetAsync(assets[0].AssetId).ConfigureAwait(false);
+            byte[] actual = await asset.File.DownloadAllAsync().ConfigureAwait(false);
+
+            Assert.That(expected.IsEmpty, Is.False);
+            Assert.That(ByteString.From(actual), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public async Task DiscoveredAssetFileContainsTheGeneratedDescription()
+        {
+            await using ConfiguredServer server = await ConfiguredServer.StartAsync(
+                useDependencyInjection: true,
+                options => options.AssetEndpointPolicy.AllowedSchemes.Add("sim")).ConfigureAwait(false);
+
+            WotAssetClient asset = await server.Client.CreateAssetForEndpointAsync(
+                "Discovered",
+                SimulatedWotDiscoveryProvider.CannedEndpoint).ConfigureAwait(false);
+            byte[] actual = await asset.File.DownloadAllAsync().ConfigureAwait(false);
+
+            Assert.That(actual, Is.Not.Empty);
+            using JsonDocument document = JsonDocument.Parse(actual);
+            Assert.That(document.RootElement.GetProperty("name").GetString(), Is.EqualTo("Discovered"));
+            Assert.That(
+                document.RootElement.GetProperty("base").GetString(),
+                Is.EqualTo(SimulatedWotDiscoveryProvider.CannedEndpoint));
+            Assert.That(
+                document.RootElement.GetProperty("properties").GetProperty("Voltage")
+                    .GetProperty("type").GetString(),
+                Is.EqualTo("number"));
+        }
+
+        private static async Task<ByteString> WriteDescriptionAsync(
+            string folder,
+            string name,
+            int depth = 0,
+            bool includeByteOrderMark = false)
         {
             string value = "0";
             for (int i = 0; i < depth; i++)
@@ -200,6 +257,10 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                 }
                 """;
             byte[] bytes = Encoding.UTF8.GetBytes(json);
+            if (includeByteOrderMark)
+            {
+                bytes = [0xEF, 0xBB, 0xBF, .. bytes];
+            }
             using var stream = new FileStream(
                 Path.Combine(folder, name + ".jsonld"),
                 FileMode.CreateNew,
@@ -213,6 +274,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             await stream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);
 #endif
             await stream.FlushAsync().ConfigureAwait(false);
+            return ByteString.From(bytes);
         }
 
         private sealed class ConfiguredServer : IAsyncDisposable
