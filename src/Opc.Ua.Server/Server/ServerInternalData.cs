@@ -71,7 +71,8 @@ namespace Opc.Ua.Server
         IServerEndpointRegistryProvider,
         IAsyncDisposable,
         ITimeProviderProvider,
-        ISecurityPolicyRegistryProvider
+        ISecurityPolicyRegistryProvider,
+        INodeIdFactoryProvider
     {
         /// <summary>
         /// Initializes the datastore with the server configuration.
@@ -555,6 +556,41 @@ namespace Opc.Ua.Server
         {
             ThrowIfBindPhaseComplete();
             UserManagement = userManagement ?? throw new ArgumentNullException(nameof(userManagement));
+        }
+
+        /// <inheritdoc/>
+        public IRebasableNodeIdFactory? NodeIdFactory { get; private set; }
+
+        /// <summary>
+        /// Binds the factory that NodeManagers mint runtime NodeIds with.
+        /// </summary>
+        /// <remarks>
+        /// Bound before the NodeManagers are created, so that each one picks
+        /// the factory up in its constructor. Passing <c>null</c> leaves every
+        /// NodeManager on its own default.
+        /// </remarks>
+        /// <param name="nodeIdFactory">The factory, or <c>null</c>.</param>
+        public void SetNodeIdFactory(IRebasableNodeIdFactory? nodeIdFactory)
+        {
+            ThrowIfBindPhaseComplete();
+            NodeIdFactory = nodeIdFactory;
+        }
+
+        /// <inheritdoc/>
+        public bool? DetectNodeIdCollisions { get; private set; }
+
+        /// <summary>
+        /// Binds the server-wide answer to whether NodeManagers watch for
+        /// NodeId collisions.
+        /// </summary>
+        /// <param name="detectNodeIdCollisions">
+        /// Whether to watch, or <c>null</c> to leave each factory on its own
+        /// default.
+        /// </param>
+        public void SetNodeIdCollisionDetection(bool? detectNodeIdCollisions)
+        {
+            ThrowIfBindPhaseComplete();
+            DetectNodeIdCollisions = detectNodeIdCollisions;
         }
 
         /// <summary>

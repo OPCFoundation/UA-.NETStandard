@@ -67,8 +67,6 @@ namespace Quickstarts.ReferenceServer
                   server.Telemetry.CreateLogger<ReferenceNodeManager>(),
                   Namespaces.ReferenceServer)
         {
-            SystemContext.NodeIdFactory = this;
-
             // use suitable defaults if no configuration exists.
         }
 
@@ -112,23 +110,6 @@ namespace Quickstarts.ReferenceServer
             {
                 m_semaphore?.Dispose();
             }
-        }
-
-        /// <summary>
-        /// Creates the NodeId for the specified node.
-        /// </summary>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState instance &&
-                instance.Parent != null &&
-                instance.Parent.NodeId.TryGetValue(out string id))
-            {
-                return new NodeId(
-                    id + "_" + instance.SymbolicName,
-                    instance.Parent.NodeId.NamespaceIndex);
-            }
-
-            return node.NodeId;
         }
 
         /// <inheritdoc/>

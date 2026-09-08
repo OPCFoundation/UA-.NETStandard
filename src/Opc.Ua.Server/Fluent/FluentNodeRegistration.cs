@@ -33,14 +33,33 @@ namespace Opc.Ua.Server.Fluent
 {
     internal static class FluentNodeRegistration
     {
+        /// <summary>
+        /// Mints the NodeId for a node the fluent surface just created.
+        /// </summary>
+        /// <remarks>
+        /// Routed through the owning NodeManager so that a fluent graph
+        /// obeys the same <see cref="NodeIdAssignmentMode"/> as the rest of
+        /// the manager, instead of the ambiguous
+        /// <c>{parentIdentifier}_{browseName}</c> concatenation the fluent
+        /// builders used to each spell out for themselves. The node is
+        /// created here and there is nothing to preserve, so the NodeId is
+        /// cleared first to say so.
+        /// </remarks>
+        /// <param name="builder">The builder that owns the node.</param>
+        /// <param name="node">The freshly created node.</param>
+        internal static void AssignNodeId(
+            INodeManagerBuilder builder,
+            NodeState node)
+        {
+            node.NodeId = NodeId.Null;
+            node.NodeId = builder.NodeManager.New(builder.Context, node);
+        }
+
         internal static void RegisterCreatedNode(
             INodeManagerBuilder builder,
             NodeState node)
         {
-            if (builder.NodeManager is AsyncCustomNodeManager manager)
-            {
-                manager.AddPredefinedNodeSynchronously(node);
-            }
+            builder.NodeManager.AddNode(node);
         }
 
         /// <summary>
@@ -73,16 +92,22 @@ namespace Opc.Ua.Server.Fluent
             }
 
             BaseObjectState? rootNotifier = null;
-            if (firstSource != null &&
-                builder.NodeManager is AsyncCustomNodeManager manager)
+            if (firstSource != null)
             {
                 // Only claim ownership when this alarm actually inserted the
-                // registration. AddRootNotifierSynchronously is an upsert, so claiming
-                // it unconditionally would have teardown remove a pre-existing root
+                // registration. AddRootNotifier is an upsert, so claiming it
+                // unconditionally would have teardown remove a pre-existing root
                 // notifier — along with its event callback and HasNotifier reference.
-                bool alreadyRegistered = manager.IsRootNotifier(firstSource.NodeId);
-                manager.AddRootNotifierSynchronously(firstSource);
-                rootNotifier = alreadyRegistered ? null : firstSource;
+                //
+                // The probe needs the concrete manager. Where it is unavailable we
+                // claim nothing: leaving a registration behind is the lesser harm
+                // against tearing down one that was never ours.
+                bool owned =
+                    builder.NodeManager is AsyncCustomNodeManager manager &&
+                    !manager.IsRootNotifier(firstSource.NodeId);
+
+                builder.NodeManager.AddRootNotifier(firstSource);
+                rootNotifier = owned ? firstSource : null;
             }
 
             return new AlarmEventSourceRegistration(promoted, rootNotifier);

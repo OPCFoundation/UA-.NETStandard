@@ -120,6 +120,9 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <inheritdoc/>
+        public ushort DefaultNamespaceIndex => m_defaultNamespaceIndex;
+
+        /// <inheritdoc/>
         public ISystemContext Context { get; }
 
         /// <inheritdoc/>

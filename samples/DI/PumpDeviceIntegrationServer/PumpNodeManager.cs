@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -100,9 +101,6 @@ namespace Pumps
                   Opc.Ua.Machinery.Namespaces.Machinery,
                   Opc.Ua.OpenUsd.Namespaces.OpenUSD)
         {
-            // Base class constructor sets SystemContext.NodeIdFactory to
-            // itself; our New() override takes over.
-            SystemContext.NodeIdFactory = this;
             m_options = options?.Value ?? new PumpDeviceIntegrationOptions();
             if (m_options.PumpCount < 1 || m_options.PumpCount > 100)
             {
@@ -137,21 +135,6 @@ namespace Pumps
         }
 
         internal TimeSpan SimulationInterval => m_options.SimulationInterval;
-
-        /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState instance &&
-                instance.Parent != null)
-            {
-                string parentId = instance.Parent.NodeId.IdentifierAsString;
-                return new NodeId(
-                    $"{parentId}_{instance.SymbolicName}",
-                    InstanceNamespaceIndex);
-            }
-
-            return node.NodeId;
-        }
 
         /// <summary>
         /// Creates and registers a generated <see cref="PumpState"/>
@@ -307,10 +290,15 @@ namespace Pumps
                     "The DI DeviceSet is not available.");
             }
 
-            var pumpNodeId = new NodeId(
-                $"{deviceSet.NodeId.IdentifierAsString}_{pumpBrowseName.Name}",
-                InstanceNamespaceIndex);
-            if (PredefinedNodes.ContainsKey(pumpNodeId))
+            // The duplicate is looked up by browse name rather than by
+            // predicting the identifier the factory would mint. A prediction
+            // only holds while the factory derives identifiers from the browse
+            // path: under Counter mode minting one consumes a counter value
+            // and returns an identifier no node can already have, so the check
+            // would pass and let a second pump of the same name through.
+            var existingDevices = new List<BaseInstanceState>();
+            deviceSet.GetChildren(SystemContext, existingDevices);
+            if (existingDevices.Any(device => device.BrowseName == pumpBrowseName))
             {
                 m_logger.DeviceSetAlreadyContains(pumpBrowseName.Name);
                 throw ServiceResultException.Create(

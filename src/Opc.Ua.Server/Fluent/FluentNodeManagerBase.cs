@@ -441,9 +441,12 @@ namespace Opc.Ua.Server.Fluent
             await AddReverseReferencesAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
-            // Last: behaviors must see the fully indexed graph, which now includes
-            // whatever the Configure pass imported.
-            await ActivateNodeBehaviorsAsync(cancellationToken).ConfigureAwait(false);
+            // Behaviors are deliberately NOT activated here. Sealing is the single
+            // activation point, and it is the later of the two: a manager that replays
+            // NotifyNodeAdded does so between SealGraphAuthoring and CompleteSealAsync,
+            // so activating at completion time would start a simulation loop before the
+            // replay it is supposed to follow. Every caller of this method seals
+            // afterwards, so nothing is left unactivated by the omission.
         }
 
         /// <summary>

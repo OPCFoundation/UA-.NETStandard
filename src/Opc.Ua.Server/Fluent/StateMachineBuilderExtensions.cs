@@ -155,10 +155,7 @@ namespace Opc.Ua.Server.Fluent
             machine.BrowseName = browseName;
             machine.DisplayName = new LocalizedText(symbolicName);
 
-            string parentIdentifier = parent.Node.NodeId.IdentifierAsString;
-            machine.NodeId = new NodeId(
-                $"{parentIdentifier}_{symbolicName}",
-                parent.Node.NodeId.NamespaceIndex);
+            FluentNodeRegistration.AssignNodeId(parent.Builder, machine);
 
             machine.Create(
                 parent.Builder.Context,

@@ -284,7 +284,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 {
                     m_plainBuilder = new NodeManagerBuilder(
                         new SystemContext(telemetry: null!) { NamespaceUris = new NamespaceTable() },
-                        Mock.Of<IAsyncNodeManager>(),
+                        FluentTestNodeManager.Create(kNs),
                         defaultNamespaceIndex: kNs,
                         rootResolver: _ => null!,
                         nodeIdResolver: _ => null!,
