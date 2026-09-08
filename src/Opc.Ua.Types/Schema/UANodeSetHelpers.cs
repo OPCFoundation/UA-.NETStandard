@@ -481,10 +481,58 @@ namespace Opc.Ua.Export
         /// </param>
         public void Import(ISystemContext context, NodeStateCollection nodes, bool linkParentChild = false)
         {
-            for (int ii = 0; ii < Items!.Length; ii++)
+            ImportCore(context, nodes, stateFactory: null, linkParentChild, resolveNamespaceUri: linkParentChild);
+        }
+
+        /// <summary>
+        /// Imports the nodes of the set and lets the caller supply the concrete
+        /// state created for a resolved discriminator.
+        /// </summary>
+        /// <remarks>
+        /// Every attribute, value and reference of the document is still
+        /// applied by this class. The factory only decides which
+        /// <see cref="NodeState"/> subclass carries them, so a caller which
+        /// knows the model can import into generated states instead of the
+        /// generic <c>BaseObjectState</c>/<c>BaseDataVariableState</c> shapes.
+        /// Local namespace-URI reference targets are resolved while importing,
+        /// including when linking is deferred until the complete batch is available.
+        /// </remarks>
+        /// <param name="context">The context.</param>
+        /// <param name="nodes">The collection to add imported nodes to.</param>
+        /// <param name="stateFactory">
+        /// Creates an empty state for the node class and resolved discriminator,
+        /// or returns <c>null</c> to use the generic state. May be <c>null</c>.
+        /// </param>
+        /// <param name="linkParentChild">
+        /// If true, establishes parent-child relationships after importing.
+        /// Pass <c>false</c> to link a batch of documents once with
+        /// <see cref="LinkParentChildRelationships(ISystemContext, NodeStateCollection, NodeSetImportLinkOptions)"/>.
+        /// </param>
+        public void Import(
+            ISystemContext context,
+            NodeStateCollection nodes,
+            NodeSetImportStateFactory? stateFactory,
+            bool linkParentChild = false)
+        {
+            ImportCore(context, nodes, stateFactory, linkParentChild, resolveNamespaceUri: true);
+        }
+
+        private void ImportCore(
+            ISystemContext context,
+            NodeStateCollection nodes,
+            NodeSetImportStateFactory? stateFactory,
+            bool linkParentChild,
+            bool resolveNamespaceUri)
+        {
+            if (Items is null)
+            {
+                return;
+            }
+
+            for (int ii = 0; ii < Items.Length; ii++)
             {
                 UANode node = Items[ii];
-                NodeState importedNode = Import(context, node, linkParentChild);
+                NodeState importedNode = Import(context, node, stateFactory, resolveNamespaceUri);
                 nodes.Add(importedNode);
             }
 
@@ -512,6 +560,60 @@ namespace Opc.Ua.Export
             ISystemContext context,
             NodeStateCollection nodes)
         {
+            LinkParentChildRelationshipsCore(context, nodes, options: null);
+        }
+
+        /// <summary>
+        /// Links a batch of imported documents exactly once.
+        /// </summary>
+        /// <remarks>
+        /// A caller that imports several documents into one collection with
+        /// <c>linkParentChild: false</c> uses this to link the complete batch,
+        /// so a child may declare a parent which lives in another document of
+        /// the same batch or in <see cref="NodeSetImportLinkOptions.AvailableNodes"/>.
+        /// </remarks>
+        /// <param name="context">The import context.</param>
+        /// <param name="nodes">The collection of imported nodes.</param>
+        /// <param name="options">The batch linking options.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="context"/>, <paramref name="nodes"/> or
+        /// <paramref name="options"/> is <c>null</c>.
+        /// </exception>
+        public static void LinkParentChildRelationships(
+            ISystemContext context,
+            NodeStateCollection nodes,
+            NodeSetImportLinkOptions options)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (nodes is null)
+            {
+                throw new ArgumentNullException(nameof(nodes));
+            }
+            if (options is null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            LinkParentChildRelationshipsCore(context, nodes, options);
+        }
+
+        private static void LinkParentChildRelationshipsCore(
+            ISystemContext context,
+            NodeStateCollection nodes,
+            NodeSetImportLinkOptions? options)
+        {
+            // Create a dictionary for fast lookup of nodes by NodeId
+            var nodeTable = new Dictionary<NodeId, NodeState>();
+            if (options?.AvailableNodes is { } availableNodes)
+            {
+                foreach (KeyValuePair<NodeId, NodeState> entry in availableNodes)
+                {
+                    nodeTable[entry.Key] = entry.Value;
+                }
+            }
             var nodeIndexes = new Dictionary<NodeId, int>();
             for (int ii = 0; ii < nodes.Count; ii++)
             {
@@ -519,29 +621,49 @@ namespace Opc.Ua.Export
                 if (!node.NodeId.IsNull)
                 {
                     nodeIndexes[node.NodeId] = ii;
+                    nodeTable[node.NodeId] = node;
                 }
             }
 
-            Dictionary<int, HashSet<int>> argumentParents =
-                IndexMethodArgumentParents(context, nodes, nodeIndexes);
+            // The reference type of an imported child is only known from its
+            // own inverse reference, so a hierarchy declared by the document
+            // survives linking even when the type is not in the type table yet.
+            var referenceSuperTypes = new Dictionary<NodeId, NodeId>();
+            foreach (NodeState node in nodeTable.Values)
+            {
+                if (node is ReferenceTypeState referenceType &&
+                    !referenceType.NodeId.IsNull)
+                {
+                    referenceSuperTypes[referenceType.NodeId] = referenceType.SuperTypeId;
+                }
+            }
+
+            Dictionary<int, HashSet<NodeId>> argumentParents =
+                IndexMethodArgumentParents(context, nodeTable, nodeIndexes);
             var parentNodeIds = new NodeId[nodes.Count];
+            var clearHandles = new bool[nodes.Count];
             for (int ii = 0; ii < nodes.Count; ii++)
             {
                 if (nodes[ii] is not BaseInstanceState instance)
                 {
                     continue;
                 }
-                if (instance.Handle is NodeId parentNodeId)
+                if (TryGetImportedParent(
+                    instance,
+                    options?.ParentNodeIds,
+                    out NodeId parentNodeId,
+                    out bool clearHandle))
                 {
                     parentNodeIds[ii] = parentNodeId;
+                    clearHandles[ii] = clearHandle;
                 }
                 else if (instance.Parent is null &&
-                    argumentParents.TryGetValue(ii, out HashSet<int>? candidates) &&
+                    argumentParents.TryGetValue(ii, out HashSet<NodeId>? candidates) &&
                     candidates.Count == 1)
                 {
                     parentNodeIds[ii] = TryGetUnresolvedParentNodeId(instance, out NodeId unresolvedParent)
                         ? unresolvedParent
-                        : nodes[candidates.First()].NodeId;
+                        : candidates.First();
                 }
             }
 
@@ -575,9 +697,12 @@ namespace Opc.Ua.Export
                     LinkParentChildRelationship(
                         context,
                         nodes,
-                        nodeIndexes,
+                        nodeTable,
                         argumentParents,
+                        referenceSuperTypes,
+                        options,
                         parentNodeIds[index],
+                        clearHandles[index],
                         index);
                     linkStates[index] = ParentLinkState.Linked;
                 }
@@ -587,54 +712,51 @@ namespace Opc.Ua.Export
         private static void LinkParentChildRelationship(
             ISystemContext context,
             NodeStateCollection nodes,
-            Dictionary<NodeId, int> nodeIndexes,
-            Dictionary<int, HashSet<int>> argumentParents,
+            Dictionary<NodeId, NodeState> nodeTable,
+            Dictionary<int, HashSet<NodeId>> argumentParents,
+            Dictionary<NodeId, NodeId> referenceSuperTypes,
+            NodeSetImportLinkOptions? options,
             NodeId parentNodeId,
+            bool clearHandle,
             int index)
         {
             NodeState node = nodes[index];
             if (node is BaseInstanceState instance && !parentNodeId.IsNull)
             {
-                // The Handle is only a carrier for the authored parent between
-                // Import and this pass. A typed replacement copies it, so clear
-                // the carrier before asking the parent to adopt the child.
-                instance.Handle = null;
-
-                if (nodeIndexes.TryGetValue(parentNodeId, out int parentIndex))
+                if (clearHandle)
                 {
-                    NodeState parent = nodes[parentIndex];
+                    instance.Handle = null;
+                }
+
+                if (nodeTable.TryGetValue(parentNodeId, out NodeState? parent))
+                {
+                    if (options is not null && instance.ReferenceTypeId.IsNull)
+                    {
+                        instance.ReferenceTypeId = FindParentReferenceType(
+                            context,
+                            instance,
+                            parentNodeId,
+                            referenceSuperTypes);
+                    }
+                    instance.Parent = parent;
 
                     BaseInstanceState linkedChild = instance;
                     bool bindDeclaredChild =
                         parent is MethodState &&
-                        argumentParents.TryGetValue(index, out HashSet<int>? candidates) &&
+                        argumentParents.TryGetValue(index, out HashSet<NodeId>? candidates) &&
                         candidates.Count == 1 &&
-                        candidates.Contains(parentIndex);
+                        candidates.Contains(parentNodeId);
                     BaseInstanceState? existing =
                         bindDeclaredChild
                             ? parent.FindChild(context, instance.BrowseName)
                             : null;
-                    if (bindDeclaredChild &&
-                        parent is MethodState method &&
-                        instance is PropertyState<ArrayOf<Argument>> arguments)
+                    if (options?.UseTypedReplacement?.Invoke(parent, instance) == true)
                     {
-                        if (existing is not null && !ReferenceEquals(existing, arguments))
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadDecodingError,
-                                $"The Method has multiple {instance.BrowseName.Name}.");
-                        }
-
-                        arguments.Parent = parent;
-                        arguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
-                        if (instance.BrowseName.Name == BrowseNames.InputArguments)
-                        {
-                            method.InputArguments = arguments;
-                        }
-                        else
-                        {
-                            method.OutputArguments = arguments;
-                        }
+                        AttachTypedChild(context, nodes, parent, instance, options);
+                    }
+                    else if (bindDeclaredChild && TryAttachMethodArguments(parent, instance))
+                    {
+                        instance.ReferenceTypeId = ReferenceTypeIds.HasProperty;
                     }
                     else if (bindDeclaredChild && existing is null)
                     {
@@ -656,12 +778,15 @@ namespace Opc.Ua.Export
                         // Preserve the previous import behavior for unnamed
                         // children and duplicate BrowseNames. Replacing an
                         // existing sibling would otherwise make it unreachable.
-                        instance.Parent = parent;
                         parent.AddChild(instance);
                     }
                     s_unresolvedParents.Remove(instance);
-                    linkedChild.Handle = null;
+                    linkedChild.Handle = instance.Handle;
                     nodes[index] = linkedChild;
+                    if (!linkedChild.NodeId.IsNull)
+                    {
+                        nodeTable[linkedChild.NodeId] = linkedChild;
+                    }
                 }
                 else
                 {
@@ -693,16 +818,15 @@ namespace Opc.Ua.Export
             target.DesignToolOnly = source.DesignToolOnly;
         }
 
-        private static Dictionary<int, HashSet<int>> IndexMethodArgumentParents(
+        private static Dictionary<int, HashSet<NodeId>> IndexMethodArgumentParents(
             ISystemContext context,
-            NodeStateCollection nodes,
+            Dictionary<NodeId, NodeState> nodeTable,
             Dictionary<NodeId, int> nodeIndexes)
         {
-            var parents = new Dictionary<int, HashSet<int>>();
+            var parents = new Dictionary<int, HashSet<NodeId>>();
             var references = new List<IReference>();
-            for (int ii = 0; ii < nodes.Count; ii++)
+            foreach (NodeState node in nodeTable.Values)
             {
-                NodeState node = nodes[ii];
                 bool isMethod = node is MethodState;
                 if (!isMethod && !IsMethodArgumentProperty(node))
                 {
@@ -722,21 +846,25 @@ namespace Opc.Ua.Export
                         continue;
                     }
                     NodeId targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.NamespaceUris);
-                    if (!nodeIndexes.TryGetValue(targetId, out int targetIndex) ||
+                    if (!nodeTable.TryGetValue(targetId, out NodeState? target) ||
                         (isMethod
-                            ? !IsMethodArgumentProperty(nodes[targetIndex])
-                            : nodes[targetIndex] is not MethodState))
+                            ? !IsMethodArgumentProperty(target)
+                            : target is not MethodState))
                     {
                         continue;
                     }
 
-                    int childIndex = isMethod ? targetIndex : ii;
-                    int parentIndex = isMethod ? ii : targetIndex;
-                    if (!parents.TryGetValue(childIndex, out HashSet<int>? candidates))
+                    NodeState child = isMethod ? target : node;
+                    if (!nodeIndexes.TryGetValue(child.NodeId, out int childIndex))
+                    {
+                        continue;
+                    }
+                    NodeId parentNodeId = isMethod ? node.NodeId : target.NodeId;
+                    if (!parents.TryGetValue(childIndex, out HashSet<NodeId>? candidates))
                     {
                         parents.Add(childIndex, candidates = []);
                     }
-                    candidates.Add(parentIndex);
+                    candidates.Add(parentNodeId);
                 }
             }
             return parents;
@@ -763,6 +891,223 @@ namespace Opc.Ua.Export
             Unlinked,
             Linking,
             Linked
+        }
+
+        /// <summary>
+        /// Populates a Method's typed argument slots from the imported
+        /// namespace-zero Property which declares them.
+        /// </summary>
+        /// <returns>
+        /// <c>true</c> when the child was consumed by an argument slot.
+        /// </returns>
+        /// <exception cref="ServiceResultException">
+        /// The document declares the same argument Property twice.
+        /// </exception>
+        private static bool TryAttachMethodArguments(
+            NodeState parent,
+            BaseInstanceState instance)
+        {
+            if (parent is not MethodState method ||
+                instance is not PropertyState<ArrayOf<Argument>> arguments)
+            {
+                return false;
+            }
+
+            if (instance.BrowseName == QualifiedName.From(BrowseNames.InputArguments))
+            {
+                if (method.InputArguments is not null &&
+                    !ReferenceEquals(method.InputArguments, arguments))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError, "The Method has multiple InputArguments.");
+                }
+                method.InputArguments = arguments;
+                return true;
+            }
+            if (instance.BrowseName == QualifiedName.From(BrowseNames.OutputArguments))
+            {
+                if (method.OutputArguments is not null &&
+                    !ReferenceEquals(method.OutputArguments, arguments))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError, "The Method has multiple OutputArguments.");
+                }
+                method.OutputArguments = arguments;
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Attaches an imported child to a parent which declares typed,
+        /// explicitly defined children.
+        /// </summary>
+        private static void AttachTypedChild(
+            ISystemContext context,
+            NodeStateCollection nodes,
+            NodeState parent,
+            BaseInstanceState instance,
+            NodeSetImportLinkOptions options)
+        {
+            bool explicitSlotFound = false;
+            bool replaced = false;
+            bool attached = false;
+
+            BaseInstanceState? existingChild = parent.FindChild(context, instance.BrowseName);
+            if (existingChild is not null && ContainsReference(nodes, existingChild))
+            {
+                // The typed slot already holds an imported child from this
+                // batch. Preserve it and attach additional same-name children
+                // the ordinary way.
+                parent.AddChild(instance);
+                attached = true;
+            }
+            else
+            {
+                replaced = parent.TryReplaceExplicitlyDefinedChild(
+                    context,
+                    instance,
+                    out BaseInstanceState? replacedChild,
+                    out explicitSlotFound);
+                if (replaced)
+                {
+                    if (replacedChild is not null)
+                    {
+                        // An empty slot displaces nothing.
+                        options.OnTypedReplacement?.Invoke(replacedChild, instance);
+                    }
+                    attached = true;
+                }
+            }
+
+            if (!attached &&
+                !explicitSlotFound &&
+                parent.FindChild(context, instance.BrowseName) is null)
+            {
+                // An empty typed parent has no materialized placeholder yet,
+                // but its generated replacement hook can still adopt the
+                // imported child directly.
+                parent.ReplaceChild(context, instance);
+                replaced = true;
+            }
+            else if (!attached)
+            {
+                parent.AddChild(instance);
+            }
+
+            if (replaced &&
+                !ReferenceEquals(parent.FindChild(context, instance.BrowseName), instance))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "Typed parent '{0}' did not retain imported child '{1}'. " +
+                    "Register the concrete child import factory.",
+                    parent.NodeId,
+                    instance.NodeId);
+            }
+        }
+
+        private static bool ContainsReference(NodeStateCollection nodes, NodeState candidate)
+        {
+            for (int ii = 0; ii < nodes.Count; ii++)
+            {
+                if (ReferenceEquals(nodes[ii], candidate))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool TryGetImportedParent(
+            BaseInstanceState instance,
+            IReadOnlyDictionary<BaseInstanceState, NodeId>? parentNodeIds,
+            out NodeId parentNodeId,
+            out bool clearHandle)
+        {
+            if (parentNodeIds is not null)
+            {
+                clearHandle = false;
+                return parentNodeIds.TryGetValue(instance, out parentNodeId);
+            }
+            if (instance.Handle is NodeId handleParent)
+            {
+                parentNodeId = handleParent;
+                clearHandle = true;
+                return true;
+            }
+
+            parentNodeId = NodeId.Null;
+            clearHandle = false;
+            return false;
+        }
+
+        /// <summary>
+        /// Resolves the reference type a child uses towards its parent from the
+        /// inverse reference the document declared for it.
+        /// </summary>
+        private static NodeId FindParentReferenceType(
+            ISystemContext context,
+            BaseInstanceState instance,
+            NodeId parentNodeId,
+            IReadOnlyDictionary<NodeId, NodeId> referenceSuperTypes)
+        {
+            var references = new List<IReference>();
+            instance.GetReferences(context, references);
+            for (int ii = 0; ii < references.Count; ii++)
+            {
+                IReference reference = references[ii];
+                if (reference.IsInverse &&
+                    !reference.TargetId.IsAbsolute &&
+                    (NodeId)reference.TargetId == parentNodeId &&
+                    IsHierarchicalReference(
+                        context,
+                        reference.ReferenceTypeId,
+                        referenceSuperTypes))
+                {
+                    return reference.ReferenceTypeId;
+                }
+            }
+
+            return instance is PropertyState
+                ? ReferenceTypeIds.HasProperty
+                : ReferenceTypeIds.HasComponent;
+        }
+
+        private static bool IsHierarchicalReference(
+            ISystemContext context,
+            NodeId referenceTypeId,
+            IReadOnlyDictionary<NodeId, NodeId> referenceSuperTypes)
+        {
+            if (referenceTypeId == ReferenceTypeIds.HierarchicalReferences ||
+                context.TypeTable?.IsTypeOf(
+                    referenceTypeId,
+                    ReferenceTypeIds.HierarchicalReferences) == true)
+            {
+                return true;
+            }
+
+            // The document may define the reference type itself, in which case
+            // the server type table does not know it yet.
+            var visited = new HashSet<NodeId>();
+            NodeId current = referenceTypeId;
+            while (!current.IsNull && visited.Add(current))
+            {
+                if (!referenceSuperTypes.TryGetValue(current, out NodeId superType))
+                {
+                    return false;
+                }
+                current = superType;
+                if (current == ReferenceTypeIds.HierarchicalReferences ||
+                    context.TypeTable?.IsTypeOf(
+                        current,
+                        ReferenceTypeIds.HierarchicalReferences) == true)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -1226,7 +1571,11 @@ namespace Opc.Ua.Export
         /// Imports a node from the set.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private NodeState Import(ISystemContext context, UANode node, bool linkParentChild)
+        private NodeState Import(
+            ISystemContext context,
+            UANode node,
+            NodeSetImportStateFactory? stateFactory,
+            bool resolveNamespaceUri)
         {
             NodeState? importedNode = null;
 
@@ -1265,60 +1614,83 @@ namespace Opc.Ua.Export
                 nodeClass = NodeClass.View;
             }
 
+            // The discriminator a state factory selects on: the type definition
+            // of an instance, the method declaration of a method, and the node's
+            // own id for a declaration.
+            NodeId discriminatorId = nodeClass switch
+            {
+                NodeClass.Object or NodeClass.Variable =>
+                    ImportTypeDefinitionId(context, node, resolveNamespaceUri),
+                NodeClass.Method => ImportNodeId(
+                    ((UAMethod)node).MethodDeclarationId,
+                    context.NamespaceUris,
+                    true),
+                NodeClass.ObjectType or
+                NodeClass.VariableType or
+                NodeClass.DataType or
+                NodeClass.ReferenceType or
+                NodeClass.View => ImportNodeId(node.NodeId, context.NamespaceUris, false),
+                _ => NodeId.Null
+            };
+
+            importedNode = stateFactory?.Invoke(
+                nodeClass,
+                ImportNodeId(node.NodeId, context.NamespaceUris, false),
+                discriminatorId);
+
             switch (nodeClass)
             {
                 case NodeClass.Object:
                 {
                     var o = (UAObject)node;
-                    importedNode = new BaseObjectState(null)
+                    BaseObjectState value = importedNode switch
                     {
-                        EventNotifier = o.EventNotifier,
-                        DesignToolOnly = o.DesignToolOnly
+                        null => new BaseObjectState(null),
+                        BaseObjectState objectState => objectState,
+                        _ => throw CreateImportStateTypeMismatch(
+                            nodeClass,
+                            importedNode,
+                            typeof(BaseObjectState))
                     };
+
+                    value.EventNotifier = o.EventNotifier;
+                    value.DesignToolOnly = o.DesignToolOnly;
+                    importedNode = value;
                     break;
                 }
                 case NodeClass.Variable:
                 {
                     var o = (UAVariable)node;
 
-                    NodeId typeDefinitionId = default;
-
-                    if (node.References != null)
-                    {
-                        for (int ii = 0; ii < node.References.Length; ii++)
-                        {
-                            NodeId referenceTypeId = ImportNodeId(
-                                node.References[ii].ReferenceType,
-                                context.NamespaceUris,
-                                true);
-                            bool isInverse = !node.References[ii].IsForward;
-                            ExpandedNodeId targetId = ImportExpandedNodeId(
-                                node.References[ii].Value,
-                                context.NamespaceUris,
-                                context.ServerUris,
-                                resolveNamespaceUri: linkParentChild);
-
-                            if (referenceTypeId == ReferenceTypeIds.HasTypeDefinition && !isInverse)
-                            {
-                                typeDefinitionId = ExpandedNodeId.ToNodeId(
-                                    targetId,
-                                    context.NamespaceUris);
-                                break;
-                            }
-                        }
-                    }
-
                     BaseVariableState value;
                     NodeId dataType = ImportNodeId(o.DataType, context.NamespaceUris, true);
-                    if (typeDefinitionId == VariableTypeIds.PropertyType)
+                    if (importedNode is null)
                     {
-                        value = dataType == DataTypeIds.Argument && o.ValueRank == ValueRanks.OneDimension
-                            ? new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(null)
-                            : new PropertyState(null);
+                        if (discriminatorId == VariableTypeIds.PropertyType)
+                        {
+                            // A Method's argument Property is imported into the
+                            // typed state its Method declares it as.
+                            value = dataType == DataTypeIds.Argument &&
+                                o.ValueRank == ValueRanks.OneDimension
+                                ? new PropertyState<ArrayOf<Argument>>
+                                    .Implementation<StructureBuilder<Argument>>(null)
+                                : new PropertyState(null);
+                        }
+                        else
+                        {
+                            value = new BaseDataVariableState(null);
+                        }
+                    }
+                    else if (importedNode is BaseVariableState variableState)
+                    {
+                        value = variableState;
                     }
                     else
                     {
-                        value = new BaseDataVariableState(null);
+                        throw CreateImportStateTypeMismatch(
+                            nodeClass,
+                            importedNode,
+                            typeof(BaseVariableState));
                     }
 
                     value.DataType = dataType;
@@ -1345,44 +1717,76 @@ namespace Opc.Ua.Export
                 case NodeClass.Method:
                 {
                     var o = (UAMethod)node;
-                    importedNode = new MethodState(null)
+                    MethodState value = importedNode switch
                     {
-                        Executable = o.Executable,
-                        UserExecutable = o.Executable,
-                        MethodDeclarationId = ImportNodeId(
-                            o.MethodDeclarationId,
-                            context.NamespaceUris,
-                            true),
-                        DesignToolOnly = o.DesignToolOnly
+                        null => new MethodState(null),
+                        MethodState methodState => methodState,
+                        _ => throw CreateImportStateTypeMismatch(
+                            nodeClass,
+                            importedNode,
+                            typeof(MethodState))
                     };
+
+                    value.Executable = o.Executable;
+                    value.UserExecutable = o.UserExecutable;
+                    value.MethodDeclarationId = discriminatorId;
+                    value.DesignToolOnly = o.DesignToolOnly;
+                    importedNode = value;
                     break;
                 }
                 case NodeClass.View:
                 {
                     var o = (UAView)node;
-                    importedNode = new ViewState
+                    ViewState value = importedNode switch
                     {
-                        ContainsNoLoops = o.ContainsNoLoops,
-                        DesignToolOnly = o.DesignToolOnly
+                        null => new ViewState(),
+                        ViewState viewState => viewState,
+                        _ => throw CreateImportStateTypeMismatch(
+                            nodeClass,
+                            importedNode,
+                            typeof(ViewState))
                     };
+
+                    value.ContainsNoLoops = o.ContainsNoLoops;
+                    value.EventNotifier = o.EventNotifier;
+                    value.DesignToolOnly = o.DesignToolOnly;
+                    importedNode = value;
                     break;
                 }
                 case NodeClass.ObjectType:
                 {
                     var o = (UAObjectType)node;
-                    importedNode = new BaseObjectTypeState { IsAbstract = o.IsAbstract };
+                    BaseObjectTypeState value = importedNode switch
+                    {
+                        null => new BaseObjectTypeState(),
+                        BaseObjectTypeState objectTypeState => objectTypeState,
+                        _ => throw CreateImportStateTypeMismatch(
+                            nodeClass,
+                            importedNode,
+                            typeof(BaseObjectTypeState))
+                    };
+
+                    value.IsAbstract = o.IsAbstract;
+                    importedNode = value;
                     break;
                 }
                 case NodeClass.VariableType:
                 {
                     var o = (UAVariableType)node;
-                    BaseVariableTypeState value = new BaseDataVariableTypeState
+                    BaseVariableTypeState value = importedNode switch
                     {
-                        IsAbstract = o.IsAbstract,
-                        DataType = ImportNodeId(o.DataType, context.NamespaceUris, true),
-                        ValueRank = o.ValueRank,
-                        ArrayDimensions = ImportArrayDimensions(o.ArrayDimensions) ?? []
+                        null => new BaseDataVariableTypeState(),
+                        BaseVariableTypeState variableTypeState => variableTypeState,
+                        _ => throw CreateImportStateTypeMismatch(
+                            nodeClass,
+                            importedNode,
+                            typeof(BaseVariableTypeState))
                     };
+
+                    value.IsAbstract = o.IsAbstract;
+                    value.DataType = ImportNodeId(o.DataType, context.NamespaceUris, true);
+                    value.ValueRank = o.ValueRank;
+                    value.ArrayDimensions = ImportArrayDimensions(o.ArrayDimensions) ?? [];
 
                     if (o.Value != null)
                     {
@@ -1397,7 +1801,17 @@ namespace Opc.Ua.Export
                 case NodeClass.DataType:
                 {
                     var o = (UADataType)node;
-                    var value = new DataTypeState { IsAbstract = o.IsAbstract };
+                    DataTypeState value = importedNode switch
+                    {
+                        null => new DataTypeState(),
+                        DataTypeState dataTypeState => dataTypeState,
+                        _ => throw CreateImportStateTypeMismatch(
+                            nodeClass,
+                            importedNode,
+                            typeof(DataTypeState))
+                    };
+
+                    value.IsAbstract = o.IsAbstract;
                     Ua.DataTypeDefinition? dataTypeDefinition = Import(
                         o.Definition!,
                         context.NamespaceUris);
@@ -1409,12 +1823,20 @@ namespace Opc.Ua.Export
                 case NodeClass.ReferenceType:
                 {
                     var o = (UAReferenceType)node;
-                    importedNode = new ReferenceTypeState
+                    ReferenceTypeState value = importedNode switch
                     {
-                        IsAbstract = o.IsAbstract,
-                        InverseName = Import(o.InverseName),
-                        Symmetric = o.Symmetric
+                        null => new ReferenceTypeState(),
+                        ReferenceTypeState referenceTypeState => referenceTypeState,
+                        _ => throw CreateImportStateTypeMismatch(
+                            nodeClass,
+                            importedNode,
+                            typeof(ReferenceTypeState))
                     };
+
+                    value.IsAbstract = o.IsAbstract;
+                    value.InverseName = Import(o.InverseName);
+                    value.Symmetric = o.Symmetric;
+                    importedNode = value;
                     break;
                 }
                 case NodeClass.Unspecified:
@@ -1482,7 +1904,7 @@ namespace Opc.Ua.Export
                         node.References[ii].Value,
                         context.NamespaceUris,
                         context.ServerUris,
-                        resolveNamespaceUri: linkParentChild);
+                        resolveNamespaceUri);
 
                     if (importedNode is BaseInstanceState instance)
                     {
@@ -1524,6 +1946,51 @@ namespace Opc.Ua.Export
             }
 
             return importedNode;
+        }
+
+        /// <summary>
+        /// Reads the TypeDefinition a node declares through its references.
+        /// </summary>
+        private NodeId ImportTypeDefinitionId(ISystemContext context, UANode node, bool resolveNamespaceUri)
+        {
+            if (node.References is null)
+            {
+                return NodeId.Null;
+            }
+
+            for (int ii = 0; ii < node.References.Length; ii++)
+            {
+                NodeId referenceTypeId = ImportNodeId(
+                    node.References[ii].ReferenceType,
+                    context.NamespaceUris,
+                    true);
+                bool isInverse = !node.References[ii].IsForward;
+                ExpandedNodeId targetId = ImportExpandedNodeId(
+                    node.References[ii].Value,
+                    context.NamespaceUris,
+                    context.ServerUris,
+                    resolveNamespaceUri);
+
+                if (referenceTypeId == ReferenceTypeIds.HasTypeDefinition && !isInverse)
+                {
+                    return ExpandedNodeId.ToNodeId(targetId, context.NamespaceUris);
+                }
+            }
+
+            return NodeId.Null;
+        }
+
+        private static ServiceResultException CreateImportStateTypeMismatch(
+            NodeClass nodeClass,
+            NodeState state,
+            Type expectedType)
+        {
+            return ServiceResultException.Create(
+                StatusCodes.BadTypeMismatch,
+                "The import state factory returned '{0}' for {1}; expected a state assignable to '{2}'.",
+                state.GetType().FullName ?? state.GetType().Name,
+                nodeClass,
+                expectedType.FullName ?? expectedType.Name);
         }
 
         /// <summary>

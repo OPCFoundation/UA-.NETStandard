@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <AssemblyName>$(AssemblyPrefix).Gds.Client.Common</AssemblyName>
+    <AssemblyName>$(AssemblyPrefix).Gds.Client</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <PackageId>$(PackagePrefix).Opc.Ua.Gds.Client.Common</PackageId>
+    <PackageId>$(PackagePrefix).Opc.Ua.Gds.Client</PackageId>
     <RootNamespace>Opc.Ua.Gds.Client</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Description>OPC UA GDS Client Class Library</Description>
@@ -21,7 +21,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Gds.Common\Opc.Ua.Gds.Common.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Gds\Opc.Ua.Gds.csproj" />
     <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
       <OutputItemType>Analyzer</OutputItemType>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>

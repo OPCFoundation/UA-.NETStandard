@@ -564,18 +564,22 @@ namespace Opc.Ua
             BaseInstanceState? replacement,
             bool assignInstanceNodeIds = true)
         {
-            if (OutputArguments == null)
+            if (replacement is PropertyState<ArrayOf<Argument>> typedReplacement)
             {
-                if (replacement is not PropertyState<ArrayOf<Argument>> child)
+                // a replacement of the matching type is used directly,
+                // replacing any child that may already exist.
+                OutputArguments = typedReplacement;
+            }
+            else if (OutputArguments == null)
+            {
+                var child = PropertyState<ArrayOf<Argument>>
+                    .With<StructureBuilder<Argument>>(this);
+                child.SymbolicName = BrowseNames.OutputArguments;
+                child.BrowseName = QualifiedName.From(BrowseNames.OutputArguments);
+                child.DisplayName = LocalizedText.From(BrowseNames.OutputArguments);
+                if (replacement != null)
                 {
-                    child = PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(this);
-                    child.SymbolicName = BrowseNames.OutputArguments;
-                    child.BrowseName = QualifiedName.From(BrowseNames.OutputArguments);
-                    child.DisplayName = LocalizedText.From(BrowseNames.OutputArguments);
-                    if (replacement != null)
-                    {
-                        child.Create(context, replacement);
-                    }
+                    child.Create(context, replacement);
                 }
                 OutputArguments = child;
             }
@@ -603,18 +607,22 @@ namespace Opc.Ua
             BaseInstanceState? replacement,
             bool assignInstanceNodeIds = true)
         {
-            if (InputArguments == null)
+            if (replacement is PropertyState<ArrayOf<Argument>> typedReplacement)
             {
-                if (replacement is not PropertyState<ArrayOf<Argument>> child)
+                // a replacement of the matching type is used directly,
+                // replacing any child that may already exist.
+                InputArguments = typedReplacement;
+            }
+            else if (InputArguments == null)
+            {
+                var child = PropertyState<ArrayOf<Argument>>
+                    .With<StructureBuilder<Argument>>(this);
+                child.SymbolicName = BrowseNames.InputArguments;
+                child.BrowseName = QualifiedName.From(BrowseNames.InputArguments);
+                child.DisplayName = LocalizedText.From(BrowseNames.InputArguments);
+                if (replacement != null)
                 {
-                    child = PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(this);
-                    child.SymbolicName = BrowseNames.InputArguments;
-                    child.BrowseName = QualifiedName.From(BrowseNames.InputArguments);
-                    child.DisplayName = LocalizedText.From(BrowseNames.InputArguments);
-                    if (replacement != null)
-                    {
-                        child.Create(context, replacement);
-                    }
+                    child.Create(context, replacement);
                 }
                 InputArguments = child;
             }

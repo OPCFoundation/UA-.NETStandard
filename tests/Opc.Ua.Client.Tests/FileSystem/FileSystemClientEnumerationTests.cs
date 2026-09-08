@@ -27,10 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CA1861: Test assertions intentionally compare against literal
-// expected-value arrays. Lifting them to static readonly fields would
-// be noise for one-element vectors used by a handful of tests.
-#pragma warning disable CA1861
 
 using System.Collections.Generic;
 using System.Threading.Tasks;

@@ -5,7 +5,7 @@
     <AssemblyName>Opc.Ua.VisualInspection.Tests</AssemblyName>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014;CA1861;CA1859;NUnit2026;NUnit4002;NUnit2046;RCS1174</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014;CA1859;NUnit2026;NUnit4002;NUnit2046;RCS1174</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

@@ -53,8 +53,8 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Security.Pkcs11\Opc.Ua.Security.Pkcs11.csproj" />
     <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.Core\Opc.Ua.Mcp.Core.csproj" />
     <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Client.Common\Opc.Ua.Gds.Client.Common.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Client\Opc.Ua.Gds.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Server\Opc.Ua.Gds.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.ISA95\Opc.Ua.ISA95.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.ISA95.Client\Opc.Ua.ISA95.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.ISA95.Server\Opc.Ua.ISA95.Server.csproj" />

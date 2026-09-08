@@ -8,7 +8,7 @@
 
 ## GDS Client API modernization
 
-The `Opc.Ua.Gds.Client.Common` package has undergone a significant cleanup. Two breaking changes affect almost every consumer of the GDS / LDS / Server-Push client APIs.
+The `Opc.Ua.Gds.Client` package has undergone a significant cleanup. Two breaking changes affect almost every consumer of the GDS / LDS / Server-Push client APIs.
 
 ### `Task` → `ValueTask` on GDS client interfaces
 
@@ -57,7 +57,7 @@ await Task.WhenAll(asTask, otherTask);
 
 **Migration**:
 
-The `ServerCapability` identifiers are source-generated from `tools/Opc.Ua.SourceGeneration.Core/Design/ServerCapabilities.csv`; each capability emits a `public const string` field. The instance type carrying `Id` / `Description` is `ServerCapabilityInfo`, and the registry exposing `IEnumerable<ServerCapabilityInfo>` plus `Find(string?) : ServerCapabilityInfo?` is the static `ServerCapabilities` class in `Opc.Ua.Gds.Client.Common`.
+The `ServerCapability` identifiers are source-generated from `tools/Opc.Ua.SourceGeneration.Core/Design/ServerCapabilities.csv`; each capability emits a `public const string` field. The instance type carrying `Id` / `Description` is `ServerCapabilityInfo`, and the registry exposing `IEnumerable<ServerCapabilityInfo>` plus `Find(string?) : ServerCapabilityInfo?` is the static `ServerCapabilities` class in `Opc.Ua.Gds.Client`.
 
 ```csharp
 // Before

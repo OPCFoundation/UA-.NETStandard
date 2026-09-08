@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.XRegistry.Server
@@ -41,7 +43,7 @@ namespace Opc.Ua.XRegistry.Server
     /// pre-publishes that resource so a fresh server can resolve at least one content-addressed
     /// resource before any registration.
     /// </summary>
-    public class XRegistryFastPathNodeManager : CustomNodeManager2
+    public class XRegistryFastPathNodeManager : AsyncCustomNodeManager
     {
         /// <summary>
         /// Initializes the fast-path node manager for the registry namespace.
@@ -53,7 +55,11 @@ namespace Opc.Ua.XRegistry.Server
             IServerInternal server,
             ApplicationConfiguration configuration,
             XRegistryServerOptions options)
-            : base(server, configuration, (options ?? new XRegistryServerOptions()).RegistryNamespaceUri)
+            : base(
+                server,
+                configuration,
+                server.Telemetry.CreateLogger<XRegistryFastPathNodeManager>(),
+                (options ?? new XRegistryServerOptions()).RegistryNamespaceUri)
         {
             XRegistryServerOptions opts = options ?? new XRegistryServerOptions();
             m_namespaceUri = opts.RegistryNamespaceUri;
@@ -69,10 +75,15 @@ namespace Opc.Ua.XRegistry.Server
         /// assembly by the OPC UA model source generator, so no NodeSet2 XML is parsed at runtime.
         /// </summary>
         /// <param name="context">The system context.</param>
+        /// <param name="cancellationToken">Cancels model loading.</param>
         /// <returns>The predefined nodes of the xRegistry base model.</returns>
-        protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
+        protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
+            ISystemContext context,
+            CancellationToken cancellationToken = default)
         {
-            return new NodeStateCollection().AddOpcUaXRegistry(context);
+            cancellationToken.ThrowIfCancellationRequested();
+            return new ValueTask<NodeStateCollection>(
+                new NodeStateCollection().AddOpcUaXRegistry(context));
         }
 
         /// <summary>
@@ -81,14 +92,30 @@ namespace Opc.Ua.XRegistry.Server
         /// on the wire can reach the resource document in one Read.
         /// </summary>
         /// <param name="externalReferences">External reference sink (unused).</param>
+        /// <param name="cancellationToken">Cancels address-space creation.</param>
         /// <exception cref="InvalidOperationException">
         /// A seed resource is published but no <see cref="XRegistryServerOptions.ContentIdProvider"/>
         /// is configured.
         /// </exception>
-        public override void CreateAddressSpace(
-            IDictionary<NodeId, IList<IReference>> externalReferences)
+        public override ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
         {
-            base.CreateAddressSpace(externalReferences);
+            cancellationToken.ThrowIfCancellationRequested();
+            return XRegistryNodeManagerStartup.RunAsync(
+                externalReferences,
+                InitializeAddressSpaceAsync,
+                base.DeleteAddressSpaceAsync,
+                cancellationToken);
+        }
+
+        private async ValueTask InitializeAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
 
             if (!m_publishSeed || m_seedDocument.IsNull)
             {
@@ -112,7 +139,7 @@ namespace Opc.Ua.XRegistry.Server
                 DisplayName = new LocalizedText(m_seedBrowseName),
                 TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                DataType = Opc.Ua.DataTypeIds.ByteString,
+                DataType = Ua.DataTypeIds.ByteString,
                 ValueRank = ValueRanks.Scalar,
                 AccessLevel = AccessLevels.CurrentRead,
                 UserAccessLevel = AccessLevels.CurrentRead,
@@ -120,7 +147,8 @@ namespace Opc.Ua.XRegistry.Server
                 Value = new Variant(m_seedDocument)
             };
 
-            AddPredefinedNode(SystemContext, resource);
+            await AddPredefinedNodeAsync(SystemContext, resource, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         private readonly string m_namespaceUri;

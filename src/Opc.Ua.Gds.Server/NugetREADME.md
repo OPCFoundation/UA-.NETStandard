@@ -1,6 +1,6 @@
 # OPC UA .NET Standard — GDS server
 
-`OPCFoundation.NetStandard.Opc.Ua.Gds.Server.Common` is the
+`OPCFoundation.NetStandard.Opc.Ua.Gds.Server` is the
 server-side library for the OPC UA Global Discovery Server (GDS) —
 OPC 10000-12 (Part 12). It implements the GDS service-call surface
 on top of `Opc.Ua.Server`, with pluggable `ICertificateGroupProvider`
@@ -17,7 +17,7 @@ back-end behind the same `IApplicationsDatabase` surface.
 
 The package also provides the OPC 10000-21 registrar administration
 surface. Load the generated `Opc.Ua.Onboarding` nodes from
-`Opc.Ua.Gds.Common`, then bind `DeviceRegistrarAdminState` to an
+`Opc.Ua.Gds`, then bind `DeviceRegistrarAdminState` to an
 `ITicketStore` with `BindToTicketStore`. `MemoryTicketStore` is provided
 for samples and tests; production hosts should inject a persistent,
 concurrency-safe implementation.

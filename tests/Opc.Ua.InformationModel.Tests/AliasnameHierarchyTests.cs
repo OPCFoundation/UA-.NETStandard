@@ -34,11 +34,6 @@ using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 using static Opc.Ua.InformationModel.Tests.AliasNameTestHelpers;
 
-// Conformance tests use inline literal arrays as expected-value
-// assertions; the per-call allocation cost is irrelevant for tests
-// and keeping the literal adjacent to the assertion improves readability.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
-
 namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
@@ -145,7 +140,7 @@ namespace Opc.Ua.InformationModel.Tests
             string[] nestedNames =
                 [.. DecodeAliasResults(Session, nestedResult).Select(r => r.AliasName.Name)];
 
-            Assert.That(nestedNames, Is.EquivalentTo(new[] { "Pump1_Status", "Heater_Power" }),
+            Assert.That(nestedNames, Is.EquivalentTo(s_stringValues1),
                 "FindAlias on the nested category should return only its own aliases.");
 
             // Per Part 17 §6.3.2 the parent search covers the sub-tree too.
@@ -245,5 +240,7 @@ namespace Opc.Ua.InformationModel.Tests
                 Assert.That(record.ReferencedNodes, Is.Not.Empty);
             }
         }
+
+        private static readonly string[] s_stringValues1 = ["Pump1_Status", "Heater_Power"];
     }
 }
