@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
+using System.Threading;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Client;
@@ -36,6 +38,20 @@ using AggregationClient;
 try
 {
     HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+    string? timeoutText = builder.Configuration["timeoutSeconds"];
+    int timeoutSeconds = 480;
+    if (timeoutText is not null &&
+        (!int.TryParse(timeoutText, NumberStyles.Integer, CultureInfo.InvariantCulture, out timeoutSeconds) ||
+            timeoutSeconds is < 1 or > 3600))
+    {
+        throw new ArgumentException("timeoutSeconds must be an integer between 1 and 3600.");
+    }
+    string? exerciseText = builder.Configuration["exerciseControls"];
+    bool exerciseControls = false;
+    if (exerciseText is not null && !bool.TryParse(exerciseText, out exerciseControls))
+    {
+        throw new ArgumentException("exerciseControls must be true or false.");
+    }
     var options = new AggregationClientOptions
     {
         AggregationEndpoint = builder.Configuration["aggregationEndpoint"] ??
@@ -44,12 +60,17 @@ try
             "opc.tcp://localhost:62551/SourceA",
         SourceBEndpoint = builder.Configuration["sourceBEndpoint"] ??
             "opc.tcp://localhost:62552/SourceB",
+        ApplicationName = builder.Configuration["applicationName"] ??
+            "AggregationClient",
+        PkiRoot = builder.Configuration["pkiRoot"],
+        ExerciseControls = exerciseControls,
         DocumentsDirectory = builder.Configuration["documentsDirectory"] ??
             System.IO.Path.Combine(AppContext.BaseDirectory, "Documents")
     };
 
+    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
     AggregationClientResult result = await AggregationClientRunner
-        .RunAsync(options)
+        .RunAsync(options, timeout.Token)
         .ConfigureAwait(false);
 
     foreach (WotRegistryDocumentLoadOutcome upload in result.LoadResult.Uploaded)
@@ -75,17 +96,32 @@ try
         }
     }
 
-    Console.WriteLine("Materialized Pump browse:");
-    foreach (WotPumpBrowseNode node in result.BrowsedNodes)
+    int totalValues = 0;
+    foreach (WotPumpResult pump in result.Pumps)
     {
-        Console.WriteLine($"  {node.NodeId}: {node.DisplayName} ({node.NodeClass})");
+        Console.WriteLine($"Materialized {pump.Name} browse:");
+        foreach (WotPumpBrowseNode node in pump.BrowsedNodes)
+        {
+            Console.WriteLine($"  {node.NodeId}: {node.DisplayName} ({node.NodeClass})");
+        }
+        Console.WriteLine($"Materialized {pump.Name} values:");
+        foreach (WotPumpValueResult value in pump.Values)
+        {
+            Console.WriteLine($"  {pump.Name}.{value.Name}: {value.Value} [{value.StatusCode}]");
+            totalValues++;
+        }
     }
-
-    Console.WriteLine("Materialized Pump values:");
-    foreach (WotPumpValueResult value in result.Values)
+    Console.WriteLine(
+        $"WOT_AGGREGATION_DATA_OK documents={result.LoadResult.Uploaded.Count} " +
+        $"pumps={result.Pumps.Count} values={totalValues}");
+    foreach (WotPumpControlResult control in result.Controls)
     {
         Console.WriteLine(
-            $"  {value.Name}: {value.Value} [{value.StatusCode}]");
+            $"{control.PumpName}/{control.SourceName}: Start, Stop, Reset, Acknowledge and Confirm completed.");
+    }
+    if (result.Controls.Count == 4)
+    {
+        Console.WriteLine($"WOT_AGGREGATION_CONTROLS_OK sourcePumpPairs={result.Controls.Count}");
     }
 }
 catch (Exception ex)

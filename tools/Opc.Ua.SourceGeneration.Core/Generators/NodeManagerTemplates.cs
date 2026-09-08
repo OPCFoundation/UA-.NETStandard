@@ -55,10 +55,16 @@ namespace Opc.Ua.SourceGeneration
                 /// <remarks>
                 /// Implement <c>partial void Configure(INodeManagerBuilder builder)</c>
                 /// in a sibling partial to wire per-node callbacks using the
-                /// fluent API in <c>Opc.Ua.Server.Fluent</c>.
+                /// fluent API in <c>Opc.Ua.Server.Fluent</c>. Wiring that has to
+                /// await — materialising instances, reading a store — goes into
+                /// an override of
+                /// <c>ConfigureAsync(INodeManagerBuilder, CancellationToken)</c>,
+                /// which runs first so <c>Configure</c> sees the nodes it created.
                 /// </remarks>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
-                public partial class {{Tokens.NodeManagerClassName}} : global::Opc.Ua.Server.Fluent.FluentNodeManagerBase
+                public partial class {{Tokens.NodeManagerClassName}} :
+                    global::Opc.Ua.Server.Fluent.FluentNodeManagerBase,
+                    global::Opc.Ua.Server.Nodes.INodeSetImportFactoryProvider
                 {
                     private global::Opc.Ua.Server.Fluent.NodeManagerBuilder? __m_builder;
 
@@ -70,12 +76,14 @@ namespace Opc.Ua.SourceGeneration
                         global::Opc.Ua.ApplicationConfiguration configuration)
                         : base(server, configuration, {{Tokens.NamespaceUri}}{{Tokens.AdditionalNamespaceUris}})
                     {
-                        SystemContext.NodeIdFactory = this;
                     }
 
                     /// <summary>
                     /// User extensibility hook. Implement in a sibling
                     /// <c>partial</c> to wire callbacks via the fluent builder.
+                    /// Override
+                    /// <c>FluentNodeManagerBase.ConfigureAsync</c> instead when
+                    /// the wiring has to await.
                     /// </summary>
                     partial void Configure(global::Opc.Ua.Server.Fluent.INodeManagerBuilder builder);
 
@@ -87,13 +95,54 @@ namespace Opc.Ua.SourceGeneration
                     /// </summary>
                     partial void Configure(I{{Tokens.NodeManagerClassName}}Builder builder);
 
+                    /// <summary>
+                    /// Supplies the concrete states used when a NodeSet2
+                    /// document imported through
+                    /// <c>INodeManagerBuilder.Import</c> declares a node of
+                    /// this model.
+                    /// </summary>
+                    public global::Opc.Ua.ArrayOf<
+                        global::Opc.Ua.Server.Nodes.INodeSetImportFactory>
+                        GetNodeSetImportFactories()
+                    {
+                        var __factories = new global::System.Collections.Generic.List<
+                            global::Opc.Ua.Server.Nodes.INodeSetImportFactory>();
+                        global::Opc.Ua.ArrayOf<
+                            global::Opc.Ua.Server.Nodes.INodeSetImportFactory>
+                            __generatedFactories =
+                                global::{{Tokens.Prefix}}.
+                                    {{Tokens.NodeSetImportFactoryProviderClassName}}.Instance.
+                                    GetNodeSetImportFactories();
+                        for (int __index = 0;
+                            __index < __generatedFactories.Count;
+                            __index++)
+                        {
+                            __factories.Add(__generatedFactories[__index]);
+                        }
+                        AddNodeSetImportFactories(__factories);
+                        return new global::Opc.Ua.ArrayOf<
+                            global::Opc.Ua.Server.Nodes.INodeSetImportFactory>(
+                                __factories.ToArray());
+                    }
+
+                    /// <summary>
+                    /// Adds import factories supplied by dependency models or
+                    /// by the application. Implement in a sibling
+                    /// <c>partial</c>.
+                    /// </summary>
+                    partial void AddNodeSetImportFactories(
+                        global::System.Collections.Generic.List<
+                            global::Opc.Ua.Server.Nodes.INodeSetImportFactory> factories);
+
                     /// <inheritdoc/>
                     protected override global::System.Threading.Tasks.ValueTask<global::Opc.Ua.NodeStateCollection> LoadPredefinedNodesAsync(
                         global::Opc.Ua.ISystemContext context,
                         global::System.Threading.CancellationToken cancellationToken = default)
                     {
                         return new global::System.Threading.Tasks.ValueTask<global::Opc.Ua.NodeStateCollection>(
-                            new global::Opc.Ua.NodeStateCollection().Add{{Tokens.Namespace}}(context));
+                            global::{{Tokens.Prefix}}.{{Tokens.Namespace}}Extensions.Add{{Tokens.Namespace}}(
+                                new global::Opc.Ua.NodeStateCollection(),
+                                context));
                     }
 
                     /// <inheritdoc/>
@@ -120,20 +169,33 @@ namespace Opc.Ua.SourceGeneration
                         // it before the user's Configure partial(s) run.
                         AttachToBuilder(__m_builder);
 
+                        // The awaitable wiring seam. Runs before the synchronous
+                        // Configure partial(s) so instances it materialises are in
+                        // the address space by the time they wire callbacks.
+                        await ConfigureAsync(__m_builder, cancellationToken).ConfigureAwait(false);
+
                         Configure(__m_builder);
                         Configure(new {{Tokens.NodeManagerClassName}}TypedBuilder(__m_builder));
+
+                        // Register nodes created by the Configure partial(s)
+                        // through the builder's Add* methods before the
+                        // reverse-reference pass runs, so their references to
+                        // externally owned nodes are mirrored too.
+                        await RegisterAuthoredNodesAsync(__m_builder, cancellationToken).ConfigureAwait(false);
 
                         // Mirror references from configure-created nodes to
                         // nodes owned by other node managers (e.g. the Objects
                         // folder) into the externalReferences dictionary.
                         await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
-                        __m_builder.Seal();
-
-                        foreach (global::Opc.Ua.NodeState __node in PredefinedNodes.Values)
-                        {
-                            __m_builder.Dispatcher.NotifyNodeAdded(SystemContext, __node);
-                        }
+                        // Seals the builder, replays NotifyNodeAdded for every
+                        // predefined node so per-node lifecycle hooks fire
+                        // deterministically, and only then completes the
+                        // registrations Configure could not await (root
+                        // notifiers) and starts the simulations, so no
+                        // simulated value change can precede the OnNodeAdded
+                        // handler of its own node.
+                        await SealConfigurationAsync(__m_builder, cancellationToken).ConfigureAwait(false);
                     }
 
                     /// <inheritdoc/>
@@ -161,19 +223,6 @@ namespace Opc.Ua.SourceGeneration
                             __b.Dispatcher.NotifyNodeRemoved(context, node);
                         }
                         await base.RemovePredefinedNodeAsync(context, node, referencesToRemove, cancellationToken).ConfigureAwait(false);
-                    }
-
-                    /// <inheritdoc/>
-                    protected override void OnMonitoredItemCreated(
-                        global::Opc.Ua.Server.ServerSystemContext context,
-                        global::Opc.Ua.Server.NodeHandle handle,
-                        global::Opc.Ua.Server.ISampledDataChangeMonitoredItem monitoredItem)
-                    {
-                        base.OnMonitoredItemCreated(context, handle, monitoredItem);
-                        if (__m_builder is { } __b && handle?.Node is { } __node)
-                        {
-                            __b.Dispatcher.NotifyMonitoredItemCreated(context, __node, monitoredItem);
-                        }
                     }
 
                     private global::Opc.Ua.NodeState __FindRootByBrowseName(global::Opc.Ua.QualifiedName browseName)

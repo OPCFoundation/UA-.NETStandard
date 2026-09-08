@@ -162,9 +162,9 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Creates a new monitored item and calls StartMonitoring().
+        /// Creates a new monitored item with the server-revised filter and calls StartMonitoring().
         /// </summary>
-        public virtual ISampledDataChangeMonitoredItem CreateMonitoredItem(
+        internal ISampledDataChangeMonitoredItem CreateMonitoredItem(
             OperationContext context,
             uint subscriptionId,
             double publishingInterval,
@@ -172,10 +172,14 @@ namespace Opc.Ua.Server
             uint monitoredItemId,
             object managerHandle,
             MonitoredItemCreateRequest itemToCreate,
+            MonitoringFilter filterToUse,
             Range range,
             double minimumSamplingInterval,
             bool createDurable)
         {
+            _ = itemToCreate.RequestedParameters.Filter.TryGetValue(
+                out MonitoringFilter? originalFilter);
+
             // use publishing interval as sampling interval.
             double samplingInterval = itemToCreate.RequestedParameters.SamplingInterval;
 
@@ -197,10 +201,7 @@ namespace Opc.Ua.Server
                 m_maxQueueSize,
                 m_maxDurableQueueSize);
 
-            // get filter.
-            if (itemToCreate.RequestedParameters.Filter.TryGetValue(
-                out MonitoringFilter? filter) &&
-                filter is EventFilter)
+            if (originalFilter is EventFilter)
             {
                 // update limits for event filters.
                 if (revisedQueueSize == 0)
@@ -218,20 +219,19 @@ namespace Opc.Ua.Server
             }
 
             // create monitored item.
-            ISampledDataChangeMonitoredItem monitoredItem = CreateMonitoredItem(
+            var monitoredItem = new MonitoredItem(
                 m_server,
                 m_nodeManager,
                 managerHandle,
                 subscriptionId,
                 monitoredItemId,
-                context.Session,
                 itemToCreate.ItemToMonitor,
                 context.DiagnosticsMask,
                 timestampsToReturn,
                 itemToCreate.MonitoringMode,
                 itemToCreate.RequestedParameters.ClientHandle,
-                filter!,
-                filter!,
+                originalFilter,
+                filterToUse,
                 range,
                 samplingInterval,
                 revisedQueueSize,
@@ -244,71 +244,6 @@ namespace Opc.Ua.Server
 
             // return item.
             return monitoredItem;
-        }
-
-        /// <summary>
-        /// Creates a new monitored item.
-        /// </summary>
-        /// <param name="server">The server.</param>
-        /// <param name="nodeManager">The node manager.</param>
-        /// <param name="managerHandle">The manager handle.</param>
-        /// <param name="subscriptionId">The subscription id.</param>
-        /// <param name="id">The id.</param>
-        /// <param name="session">The session.</param>
-        /// <param name="itemToMonitor">The item to monitor.</param>
-        /// <param name="diagnosticsMasks">The diagnostics masks.</param>
-        /// <param name="timestampsToReturn">The timestamps to return.</param>
-        /// <param name="monitoringMode">The monitoring mode.</param>
-        /// <param name="clientHandle">The client handle.</param>
-        /// <param name="originalFilter">The original filter.</param>
-        /// <param name="filterToUse">The filter to use.</param>
-        /// <param name="range">The range.</param>
-        /// <param name="samplingInterval">The sampling interval.</param>
-        /// <param name="queueSize">Size of the queue.</param>
-        /// <param name="discardOldest">if set to <c>true</c> [discard oldest].</param>
-        /// <param name="minimumSamplingInterval">The minimum sampling interval.</param>
-        /// <param name="createDurable">True if a durable monitored item should be created.</param>
-        /// <returns>The monitored item.</returns>
-        protected virtual ISampledDataChangeMonitoredItem CreateMonitoredItem(
-            IServerInternal server,
-            IAsyncNodeManager nodeManager,
-            object managerHandle,
-            uint subscriptionId,
-            uint id,
-            ISession session,
-            ReadValueId itemToMonitor,
-            DiagnosticsMasks diagnosticsMasks,
-            TimestampsToReturn timestampsToReturn,
-            MonitoringMode monitoringMode,
-            uint clientHandle,
-            MonitoringFilter originalFilter,
-            MonitoringFilter filterToUse,
-            Range range,
-            double samplingInterval,
-            uint queueSize,
-            bool discardOldest,
-            double minimumSamplingInterval,
-            bool createDurable)
-        {
-            return new MonitoredItem(
-                server,
-                nodeManager,
-                managerHandle,
-                subscriptionId,
-                id,
-                itemToMonitor,
-                diagnosticsMasks,
-                timestampsToReturn,
-                monitoringMode,
-                clientHandle,
-                originalFilter,
-                filterToUse,
-                range,
-                samplingInterval,
-                queueSize,
-                discardOldest,
-                minimumSamplingInterval,
-                createDurable);
         }
 
         /// <summary>
@@ -337,15 +272,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Modifies a monitored item and calls ModifyMonitoring().
+        /// Modifies a monitored item with the server-revised filter and calls ModifyMonitoring().
         /// </summary>
-        public virtual ServiceResult? ModifyMonitoredItem(
+        internal ServiceResult? ModifyMonitoredItem(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             ISampledDataChangeMonitoredItem monitoredItem,
             MonitoredItemModifyRequest itemToModify,
+            MonitoringFilter filterToUse,
             Range range)
         {
+            _ = itemToModify.RequestedParameters.Filter.TryGetValue(
+                out MonitoringFilter? originalFilter);
+
             // use existing interval as sampling interval.
             double samplingInterval = itemToModify.RequestedParameters.SamplingInterval;
 
@@ -374,9 +313,7 @@ namespace Opc.Ua.Server
                 revisedQueueSize = monitoredItem.QueueSize;
             }
 
-            // get filter.
-            if (itemToModify.RequestedParameters.Filter.TryGetValue(out MonitoringFilter? filter) &&
-                filter is EventFilter)
+            if (originalFilter is EventFilter)
             {
                 // update limits for event filters.
                 samplingInterval = 0;
@@ -387,8 +324,8 @@ namespace Opc.Ua.Server
                 context.DiagnosticsMask,
                 timestampsToReturn,
                 itemToModify.RequestedParameters.ClientHandle,
-                filter!,
-                filter!,
+                originalFilter!,
+                filterToUse,
                 range,
                 samplingInterval,
                 revisedQueueSize,

@@ -312,7 +312,7 @@ namespace Opc.Ua.OpenUsd.Tests
             Assert.That(rel.BrowseName.Name, Is.EqualTo("material:binding"));
             Assert.That(
                 rel.TargetPaths!.Value.ToArray(),
-                Is.EqualTo(new[] { "/Plant/Pumps/P101/StatusLight/Mat" }));
+                Is.EqualTo(s_stringValues1));
 
             // A target inside the subtree also becomes a browsable UsdRelationshipTarget edge.
             NodeId mat = ms.Prim("/Plant/Pumps/P101/StatusLight/Mat").NodeId;
@@ -340,7 +340,7 @@ namespace Opc.Ua.OpenUsd.Tests
             // Ordered paths keep full fidelity, including the unresolvable one.
             Assert.That(
                 node.TargetPaths!.Value.ToArray(),
-                Is.EqualTo(new[] { "/A/B", "/Outside/Thing" }));
+                Is.EqualTo(s_stringValues2));
 
             NodeId inside = ms.Prim("/A/B").NodeId;
             Assert.That(HasReference(node, ms.Context, RelationshipTargetType(ms), inside), Is.True);
@@ -441,5 +441,8 @@ namespace Opc.Ua.OpenUsd.Tests
             }
             return count;
         }
+
+        private static readonly string[] s_stringValues1 = ["/Plant/Pumps/P101/StatusLight/Mat"];
+        private static readonly string[] s_stringValues2 = ["/A/B", "/Outside/Thing"];
     }
 }

@@ -612,7 +612,7 @@ $t = [IO.File]::ReadAllText('src\Opc.Ua.Server\Server\StandardServer.cs')
 'virtual/abstract declared: ' +
     ([regex]::Matches($t, '(?m)^        (?:public|protected)(?: internal)? (?:virtual|abstract)(?: async)? ')).Count
 $names = @()
-foreach ($f in 'src\Opc.Ua.Gds.Server.Common\GlobalDiscoverySampleServer.cs',
+foreach ($f in 'src\Opc.Ua.Gds.Server\GlobalDiscoverySampleServer.cs',
                'src\Opc.Ua.Server\Hosting\DependencyInjectionStandardServer.cs',
                'src\Opc.Ua.Server\Server\ReverseConnectServer.cs') {
     $c = [IO.File]::ReadAllText($f)

@@ -18,9 +18,9 @@ control.
 
 | NuGet Package | Contents |
 |---------------|----------|
-| `Opc.Ua.Gds.Common` | Part 12 and Part 21 model types, node states, identifiers, encodeable types |
-| `Opc.Ua.Gds.Server.Common` | Server-side node managers, providers, authorization, onboarding ticket-store binding |
-| `Opc.Ua.Gds.Client.Common` | Client proxies for GDS, push, KeyCredential, AuthorizationService, onboarding |
+| `Opc.Ua.Gds` | Part 12 and Part 21 model types, node states, identifiers, encodeable types |
+| `Opc.Ua.Gds.Server` | Server-side node managers, providers, authorization, onboarding ticket-store binding |
+| `Opc.Ua.Gds.Client` | Client proxies for GDS, push, KeyCredential, AuthorizationService, onboarding |
 
 ---
 
@@ -98,7 +98,7 @@ await pushClient.CreateSelfSignedCertificateAsync(
 
 ### OPC 10000-21 OnboardingClient
 
-`Opc.Ua.Gds.Common` ships the generated `Opc.Ua.Onboarding` model,
+`Opc.Ua.Gds` ships the generated `Opc.Ua.Onboarding` model,
 including the well-known `DeviceRegistrar` instance and the typed
 `DeviceRegistrarAdminTypeClient`. `OnboardingClient` is the DI-friendly
 facade for loading and removing encoded tickets:
@@ -553,7 +553,7 @@ Per-Method SecureChannel/Role enforcement (`Bad_SecurityModeInsufficient` for th
 | Requirement | Status | Source | Tests |
 |-------------|--------|--------|-------|
 | §7.10.2 transaction lifecycle: single owning Session; other Sessions get `Bad_TransactionPending`; ownership cleared atomically on apply | ✅ | `PushConfigurationTransactionCoordinator` | `PushConfigurationTransactionCoordinatorTests` (`StageStartsTransactionOwnedByStagingSession`, `StageFromAnotherSessionThrowsBadTransactionPending`, `ApplyChangesClearsOwnershipAtomicallySoANewSessionCanImmediatelyStageAsync`) |
-| §7.10.2 `SupportsTransactions = true` exposed | ✅ | `ConfigurationNodeManager.CreateServerConfiguration` | `ConfigurationNodeManagerPushTests.SupportsTransactionsIsExposedAndTrue` |
+| §7.10.2 `SupportsTransactions = true` exposed | ✅ | `ConfigurationNodeManager.CreateServerConfiguration` (the manager is split into `ConfigurationNodeManager.*.cs` concern files) | `ConfigurationNodeManagerPushTests.SupportsTransactionsIsExposedAndTrue` |
 | Staging blocked during an in-flight commit (`Bad_InvalidState` same-owner / `Bad_TransactionPending` other Session) | ✅ | coordinator commit guard | `PushConfigurationTransactionCoordinatorTests` (`StageFromOwningSessionDuringInFlightCommitReturnsBadInvalidStateThenSucceedsAsync`, `StagingFromAnotherSessionDuringAnInFlightCommit...`) |
 | §7.10.9 ordered commit, reverse-order rollback, `Bad_NothingToDo`, open-writer `Bad_InvalidState` | ✅ | coordinator prepare/commit/compensate | `PushConfigurationTransactionCoordinatorTests` (`ApplyChangesCommitsOperationsInRequestOrderAsync`, `ApplyChangesWithFailingCommitRollsBackEarlierOperationsInReverseOrderAsync`, `ApplyChangesWithNoActiveTransactionReturnsBadNothingToDoAsync`, `ApplyChangesWithOpenTrustListWriterReturnsBadInvalidStateWithoutClearingTransactionAsync`) |
 | §7.10.11 wrong-Session apply/cancel → `Bad_SessionIdInvalid`; Session-close cancels its transaction | ✅ | coordinator ownership checks | `PushConfigurationTransactionCoordinatorTests` (`ApplyChangesFromWrongSessionReturnsBadSessionIdInvalidAsync`, `CancelChangesFromWrongSessionReturnsBadSessionIdInvalid`, `CancelForSessionClose*`) |
@@ -602,7 +602,7 @@ Each `CertificateGroup` exposes the two optional standard alarm instances with *
 
 | Alarm | Status | Source | Tests |
 |-------|--------|--------|-------|
-| `CertificateExpirationAlarmType` (`CertificateExpired`) — active within `ExpirationLimit` / expired, Medium/High severity, `Retain`, Acknowledge, cleared after certificate replacement | ✅ | `CertificateGroupAlarmMonitor` + `ConfigurationNodeManager.EvaluateCertificateAlarms` / `StartAlarmMonitoring` | `CertificateAlarmMonitoringTests` (`CertificateExpiredActivatesWithMediumSeverity*`, `...HighSeverityWhenAlreadyExpired`, `...DeactivatesAfterCertificateReplacement`, `RepeatedEvaluationsDoNotEmitDuplicateTransitionEvents`, `AcknowledgedAlarmClearsRetainAfterDeactivation`, `ClientAcknowledgeMethodMarksAlarmAcknowledged`) |
+| `CertificateExpirationAlarmType` (`CertificateExpired`) — active within `ExpirationLimit` / expired, Medium/High severity, `Retain`, Acknowledge, cleared after certificate replacement | ✅ | `CertificateGroupAlarmMonitor` + `CertificateAlarmScheduler.UpdateAndEvaluate` / `StartAlarmMonitoring` | `CertificateAlarmMonitoringTests` (`CertificateExpiredActivatesWithMediumSeverity*`, `...HighSeverityWhenAlreadyExpired`, `...DeactivatesAfterCertificateReplacement`, `RepeatedEvaluationsDoNotEmitDuplicateTransitionEvents`, `AcknowledgedAlarmClearsRetainAfterDeactivation`, `ClientAcknowledgeMethodMarksAlarmAcknowledged`) |
 | `TrustListOutOfDateAlarmType` (`TrustListOutOfDate`) — active when `UpdateFrequency` elapses, disabled when non-positive | ✅ | same | `CertificateAlarmMonitoringTests` (`TrustListOutOfDateActivatesWhenStale`, `TrustListOutOfDateStaysInactiveWhenFresh`, `TrustListOutOfDateDisabledWhenUpdateFrequencyIsZero`) |
 
 ### TrustList-change effects on channels and Sessions (§7.10.9)

@@ -6519,6 +6519,20 @@ namespace Opc.Ua.Schema.Model
                 }
                 variable.ValueRank = (ValueRank)c.ValueRank;
                 variable.ValueRankSpecified = c.ValueRank != (int)ValueRank.Scalar;
+                variable.AccessLevel = (AccessLevel)c.AccessLevel;
+                variable.AccessLevelSpecified = c.AccessLevelSpecified;
+                variable.RawAccessLevel = c.RawAccessLevel;
+                variable.RawUserAccessLevel = c.RawUserAccessLevel;
+                variable.MinimumSamplingInterval = c.MinimumSamplingInterval;
+                variable.MinimumSamplingIntervalSpecified =
+                    c.MinimumSamplingIntervalSpecified;
+                variable.Historizing = c.Historizing;
+                variable.HistorizingSpecified = c.HistorizingSpecified;
+                if (c.DefaultValueXml != null)
+                {
+                    variable.DefaultValue = ParseDependencyDefaultValue(
+                        c.DefaultValueXml);
+                }
             }
             else if (instance is MethodDesign method)
             {
@@ -6600,6 +6614,20 @@ namespace Opc.Ua.Schema.Model
             // that iterate children for emission can short-circuit.
             instance.IsDeclaration = true;
             return instance;
+        }
+
+        private static System.Xml.XmlElement ParseDependencyDefaultValue(
+            string value)
+        {
+            using var textReader = new StringReader(value);
+            using XmlReader reader = XmlReader.Create(
+                textReader,
+                CoreUtils.DefaultXmlReaderSettings());
+            var document = new XmlDocument();
+            document.Load(reader);
+            return document.DocumentElement ??
+                throw new InvalidDataException(
+                    "Dependency default value XML has no document element.");
         }
 
         private static Parameter[] MaterialiseMethodArgs(

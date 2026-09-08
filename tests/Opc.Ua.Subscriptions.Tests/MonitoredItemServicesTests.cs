@@ -36,11 +36,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 
-// Conformance tests use inline literal arrays as expected-value
-// assertions; the per-call allocation cost is irrelevant for tests
-// and keeping the literal adjacent to the assertion improves readability.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
-
 namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
@@ -668,7 +663,7 @@ namespace Opc.Ua.Subscriptions.Tests
             DeleteMonitoredItemsResponse deleteResp = await Session.DeleteMonitoredItemsAsync(
                 null,
                 m_subscriptionId,
-                new uint[] { 999999u }.ToArrayOf(),
+                s_uintValues1.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(deleteResp.ResponseHeader.ServiceResult), Is.True);
@@ -1683,5 +1678,7 @@ queueSize: 2, discardOldest: false))
         }
 
         private uint m_subscriptionId;
+
+        private static readonly uint[] s_uintValues1 = [999999u];
     }
 }

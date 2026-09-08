@@ -52,6 +52,24 @@ namespace Opc.Ua.Wot
         public const string ThingModelType = "tm:ThingModel";
         public const string WotContext = "https://www.w3.org/2022/wot/td/v1.1";
 
+        /// <summary>
+        /// The published, version-pinned JSON-LD context of the WoT Binding.
+        /// </summary>
+        /// <remarks>
+        /// The Binding mints several of its terms as <em>short</em> members
+        /// under a type-scoped context - <c>displayName</c>, <c>unitId</c> and
+        /// <c>namespaceUri</c> inside <c>uav:engineeringUnits</c>, for example.
+        /// A short member is a term only while the context that defines it is
+        /// in scope, so a generated document that names the prefix but not the
+        /// context expands those members to nothing and silently loses them.
+        /// The version-pinned form is used rather than the unversioned alias
+        /// because a document states which revision it was written against, and
+        /// a context that moves under a document is a document whose meaning
+        /// changed without it being edited.
+        /// </remarks>
+        public const string BindingContext =
+            "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld";
+
         // Reference types (base namespace).
         public const string HasSubtype = "i=45";
         public const string HasProperty = "i=46";

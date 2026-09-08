@@ -192,7 +192,7 @@ namespace Opc.Ua.Robotics.Tests
                 {
                     FrameId = frameId,
                     Position = new[] { x, y, z }.ToArrayOf(),
-                    Orientation = new[] { 0.0, 0.0, 0.0, 1.0 }.ToArrayOf()
+                    Orientation = s_doubleValues1.ToArrayOf()
                 }
             };
         }
@@ -202,9 +202,12 @@ namespace Opc.Ua.Robotics.Tests
             return new VisionPose3DDataType
             {
                 FrameId = "world",
-                Position = new[] { 0.0, 0.0, 0.0 }.ToArrayOf(),
-                Orientation = new[] { 0.0, 0.0, 0.0, 1.0 }.ToArrayOf()
+                Position = s_doubleValues2.ToArrayOf(),
+                Orientation = s_doubleValues1.ToArrayOf()
             };
         }
+
+        private static readonly double[] s_doubleValues1 = [0.0, 0.0, 0.0, 1.0];
+        private static readonly double[] s_doubleValues2 = [0.0, 0.0, 0.0];
     }
 }

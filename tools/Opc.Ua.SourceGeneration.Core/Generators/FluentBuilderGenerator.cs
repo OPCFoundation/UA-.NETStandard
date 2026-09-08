@@ -647,6 +647,15 @@ namespace Opc.Ua.SourceGeneration
             EmitPassThroughProperty(writer, "global::Opc.Ua.ISystemContext", "Context");
             EmitPassThroughProperty(writer, "global::Opc.Ua.Server.IAsyncNodeManager", "NodeManager");
             EmitPassThroughProperty(writer, "global::Opc.Ua.Server.Fluent.IFluentDispatcher", "Dispatcher");
+            EmitPassThroughProperty(writer, "ushort", "DefaultNamespaceIndex");
+
+            writer.WriteLine();
+            writer.WriteLine("    /// <inheritdoc/>");
+            writer.WriteLine("    public void Import(");
+            writer.WriteLine("        global::Opc.Ua.Export.UANodeSet nodeSet,");
+            writer.WriteLine(
+                "        global::Opc.Ua.Server.Nodes.INodeSetImportFactoryProvider? factoryProvider = null)");
+            writer.WriteLine("        => __inner.Import(nodeSet, factoryProvider);");
 
             EmitPassThroughMethod(writer,
                 "global::Opc.Ua.Server.Fluent.INodeBuilder", "Node",
@@ -701,6 +710,57 @@ namespace Opc.Ua.SourceGeneration
                 "dataTypeId, browseName",
                 typeArg: "TValue", noConstraint: true);
 
+            // Node-creation pass-throughs.
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<TState>", "Add",
+                "TState node, global::Opc.Ua.NodeId parentId = default", "node, parentId");
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<TState>", "Add",
+                "global::System.Func<global::Opc.Ua.NodeState?, TState> factory," +
+                    " global::Opc.Ua.NodeId parentId = default",
+                "factory, parentId");
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<TState>", "AddRoot",
+                "TState node", "node");
+            EmitPassThroughMethod(writer,
+                "bool", "TryGetNode",
+                "global::Opc.Ua.NodeId nodeId, out global::Opc.Ua.NodeState? node",
+                "nodeId, out node");
+
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.FolderState>", "AddFolder",
+                "string browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId");
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.FolderState>", "AddFolder",
+                "global::Opc.Ua.QualifiedName browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId");
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.BaseObjectState>", "AddObject",
+                "string browseName, global::Opc.Ua.NodeId parentId = default," +
+                    " global::Opc.Ua.NodeId typeDefinitionId = default",
+                "browseName, parentId, typeDefinitionId");
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.BaseObjectState>", "AddObject",
+                "global::Opc.Ua.QualifiedName browseName, global::Opc.Ua.NodeId parentId = default," +
+                    " global::Opc.Ua.NodeId typeDefinitionId = default",
+                "browseName, parentId, typeDefinitionId");
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.IVariableBuilder<TValue>", "AddVariable",
+                "string browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId", typeArg: "TValue", noConstraint: true);
+            EmitPassThroughGenericMethod(writer,
+                "global::Opc.Ua.Server.Fluent.IVariableBuilder<TValue>", "AddVariable",
+                "global::Opc.Ua.QualifiedName browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId", typeArg: "TValue", noConstraint: true);
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.MethodState>", "AddMethod",
+                "string browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId");
+            EmitPassThroughMethod(writer,
+                "global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.MethodState>", "AddMethod",
+                "global::Opc.Ua.QualifiedName browseName, global::Opc.Ua.NodeId parentId = default",
+                "browseName, parentId");
             // Typed top-level accessors.
             foreach (InstanceDesign root in roots)
             {
@@ -1126,7 +1186,7 @@ namespace Opc.Ua.SourceGeneration
             System.Xml.XmlQualifiedName typeDef = child?.TypeDefinition;
             if (typeDef == null || string.IsNullOrEmpty(typeDef.Name))
             {
-                return ResolveStateClrType(child);
+                return ResolveFallbackStateClrType(child);
             }
             if (child.TypeDefinitionNode is ObjectTypeDesign objectType)
             {
@@ -1139,6 +1199,23 @@ namespace Opc.Ua.SourceGeneration
             return string.IsNullOrEmpty(prefix)
                 ? "global::Opc.Ua." + stateName
                 : "global::" + prefix + "." + stateName;
+        }
+
+        private static string ResolveFallbackStateClrType(NodeDesign node)
+        {
+            if (node is ObjectDesign)
+            {
+                return "global::Opc.Ua.BaseObjectState";
+            }
+            if (node is MethodDesign)
+            {
+                return "global::Opc.Ua.MethodState";
+            }
+            if (node is VariableDesign)
+            {
+                return "global::Opc.Ua.BaseDataVariableState";
+            }
+            return "global::Opc.Ua.NodeState";
         }
 
         /// <summary>
@@ -1837,22 +1914,11 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private string ResolveStateClrType(NodeDesign node)
         {
-            // For object instances, use BaseObjectState as the lowest common
-            // denominator. The user can call .Builder.As&lt;TConcrete&gt;() to
-            // narrow.
-            if (node is ObjectDesign)
+            if (node is ObjectDesign objectDesign)
             {
-                return "global::Opc.Ua.BaseObjectState";
+                return ResolveChildStateClr(objectDesign);
             }
-            if (node is MethodDesign)
-            {
-                return "global::Opc.Ua.MethodState";
-            }
-            if (node is VariableDesign)
-            {
-                return "global::Opc.Ua.BaseDataVariableState";
-            }
-            return "global::Opc.Ua.NodeState";
+            return ResolveFallbackStateClrType(node);
         }
 
         /// <summary>

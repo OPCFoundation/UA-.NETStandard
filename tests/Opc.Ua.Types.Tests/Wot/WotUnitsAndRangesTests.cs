@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -134,6 +135,33 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(measurement.GetProperty("minimum").GetDouble(), Is.EqualTo(-5d));
                 Assert.That(measurement.GetProperty("maximum").GetDouble(), Is.EqualTo(95d));
             });
+        }
+
+        [Test]
+        public void GeneratedFractionalRangesAndSamplingIntervalsCanBeCanonicalizedOnEveryFramework()
+        {
+            UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet();
+            UAVariable measurement = source.Items!.OfType<UAVariable>()
+                .Single(variable => variable.BrowseName!.EndsWith("Measurement", StringComparison.Ordinal));
+            measurement.MinimumSamplingInterval = 473.15;
+            foreach (UAVariable range in source.Items!.OfType<UAVariable>()
+                .Where(variable => variable.BrowseName is "EURange" or "InstrumentRange"))
+            {
+                System.Xml.XmlElement high = range.Value!.GetElementsByTagName("High", Namespaces.OpcUaXsd)
+                    .OfType<System.Xml.XmlElement>().Single();
+                high.InnerText = "473.15";
+            }
+
+            using WotDocument generated = WotNodeSetConverter.FromNodeSet(source);
+            using WotDocument canonical = WotDocument.Parse(generated.ToCanonicalUtf8());
+
+            Assert.That(canonical.Properties["Measurement"].GetProperty("maximum").GetRawText(),
+                Is.EqualTo("473.15"));
+            Assert.That(canonical.Properties["Measurement"].GetProperty("uav:instrumentRange")
+                .GetProperty("maximum").GetRawText(), Is.EqualTo("473.15"));
+            Assert.That(WotNodeSetConverter.ToNodeSet(canonical).Items!.OfType<UAVariable>()
+                .Single(variable => variable.NodeId == measurement.NodeId).MinimumSamplingInterval,
+                Is.EqualTo(473.15));
         }
 
         [Test]
@@ -567,13 +595,13 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void ThePublishedThingModelProjectsItsUnitPointerAndRanges()
+        public async Task ThePublishedThingModelProjectsItsUnitPointerAndRangesAsync()
         {
             using var document = WotDocument.Parse(
                 ReadExample("02-thing-model-pump.jsonld"));
 
             WotConversionResult<UANodeSet> result =
-                WotNodeSetConverter.ToNodeSetResult(document);
+                await WotSpecExampleResolver.ConvertAsync(document).ConfigureAwait(false);
 
             Assert.That(
                 result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error),
@@ -603,12 +631,23 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void ThePublishedThingModelImportsAsANodeSet()
+        public async Task ThePublishedThingModelImportsAsANodeSetAsync()
         {
             using var document = WotDocument.Parse(
                 ReadExample("02-thing-model-pump.jsonld"));
-            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(document);
 
+            // The example links its event affordances to the definitions
+            // example 27 declares, so converting it is converting a document
+            // set: the resolver is the set, and nothing is fetched.
+            WotConversionResult<UANodeSet> result =
+                await WotSpecExampleResolver.ConvertAsync(document).ConfigureAwait(false);
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error),
+                Is.Empty,
+                WotAnalogTestData.Describe(result.Diagnostics));
+
+            UANodeSet nodeSet = result.Value!;
             using var stream = new System.IO.MemoryStream();
             nodeSet.Write(stream);
             stream.Position = 0;

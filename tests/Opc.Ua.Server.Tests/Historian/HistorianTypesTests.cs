@@ -43,6 +43,9 @@ namespace Opc.Ua.Server.Tests.Historian
     [Parallelizable(ParallelScope.All)]
     public class HistorianTypesTests
     {
+        /// <summary>
+        /// Verifies that a default historian resume token is empty.
+        /// </summary>
         [Test]
         public void ResumeTokenDefaultIsEmpty()
         {
@@ -52,32 +55,42 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(token.State.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a historian resume token containing bytes is not empty.
+        /// </summary>
         [Test]
         public void ResumeTokenWithBytesIsNotEmpty()
         {
-            var token = new HistorianResumeToken(new byte[] { 0xCA, 0xFE });
+            var token = new HistorianResumeToken(
+                ByteString.From([0xCA, 0xFE]));
 
             Assert.That(token.IsEmpty, Is.False);
             Assert.That(token.State.Length, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that historian resume token equality compares byte content.
+        /// </summary>
         [Test]
-        public void ResumeTokenRecordEqualityComparesByState()
+        public void ResumeTokenEqualityComparesByteContent()
         {
             byte[] data = [1, 2, 3];
-            var a = new HistorianResumeToken(data.AsMemory());
-            var b = new HistorianResumeToken(data.AsMemory());
+            var a = new HistorianResumeToken(new ByteString(data.AsMemory()));
+            var b = new HistorianResumeToken(new ByteString(data.AsMemory()));
 
-            // record struct uses default memory equality (same underlying array + range)
             Assert.That(a, Is.EqualTo(b));
             Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()));
 
-            // a token from a different array (even with same content) is NOT equal
-            // because ReadOnlyMemory equality is referential
-            var c = new HistorianResumeToken(new byte[] { 1, 2, 3 });
-            Assert.That(a, Is.Not.EqualTo(c));
+            // ByteString equality is content-based across distinct buffers.
+            var c = new HistorianResumeToken(
+                ByteString.From([1, 2, 3]));
+            Assert.That(a, Is.EqualTo(c));
+            Assert.That(a.GetHashCode(), Is.EqualTo(c.GetHashCode()));
         }
 
+        /// <summary>
+        /// Verifies that an empty historian page is final and contains no values.
+        /// </summary>
         [Test]
         public void PageEmptyIsFinalWithNoValues()
         {
@@ -88,10 +101,14 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.NextToken.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a historian page with a next token is not final.
+        /// </summary>
         [Test]
         public void PageWithNextTokenIsNotFinal()
         {
-            var token = new HistorianResumeToken(new byte[] { 0x01 });
+            var token = new HistorianResumeToken(
+                ByteString.From([0x01]));
             var dv = new DataValue(new Variant(42), StatusCodes.Good, DateTime.UtcNow);
             var page = new HistorianPage<HistoricalDataValue>(
                 [new HistoricalDataValue(dv)],
@@ -102,6 +119,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.NextToken.IsEmpty, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that read-only historian capabilities contain no update flags.
+        /// </summary>
         [Test]
         public void NodeCapabilitiesReadOnlyHasNoUpdateFlags()
         {
@@ -114,6 +134,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(caps.SupportsAnyUpdate, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that read-write historian capabilities enable all update flags.
+        /// </summary>
         [Test]
         public void NodeCapabilitiesReadWriteHasAllUpdateFlags()
         {
@@ -129,6 +152,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(caps.SupportsAnyUpdate, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that any single update capability makes SupportsAnyUpdate true.
+        /// </summary>
         [Test]
         public void NodeCapabilitiesSupportsAnyUpdateIsTrueForSingleFlag()
         {

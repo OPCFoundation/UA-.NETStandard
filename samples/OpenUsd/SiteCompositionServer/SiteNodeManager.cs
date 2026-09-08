@@ -110,7 +110,6 @@ namespace SiteComposition
             IOptions<SiteCompositionOptions>? options = null)
             : base(server, configuration, Namespaces.Site, Opc.Ua.OpenUsd.Namespaces.OpenUSD)
         {
-            SystemContext.NodeIdFactory = this;
             m_options = options?.Value ?? new SiteCompositionOptions();
             m_log = server.Telemetry.CreateLogger<SiteNodeManager>();
         }
@@ -119,17 +118,6 @@ namespace SiteComposition
         /// Gets the namespace index this sample's instances live in.
         /// </summary>
         private ushort SiteNamespaceIndex => NamespaceIndexes[0];
-
-        /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)        {
-            if (node is BaseInstanceState { Parent: not null } instance)
-            {
-                return new NodeId(
-                    $"{instance.Parent.NodeId.IdentifierAsString}_{instance.SymbolicName}",
-                    SiteNamespaceIndex);
-            }
-            return node.NodeId;
-        }
 
         /// <inheritdoc/>
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
@@ -149,12 +137,18 @@ namespace SiteComposition
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
-            await MaterialiseSiteTopologyAsync(cancellationToken).ConfigureAwait(false);
+            NodeManagerBuilder builder = CreateFluentBuilder(SiteNamespaceIndex);
+            MaterialiseSiteTopology(builder);
             await MaterialiseOpenUsdFacilityAsync(cancellationToken).ConfigureAwait(false);
             await MaterialiseCrossServerCompositionAsync(cancellationToken).ConfigureAwait(false);
 
             LinkOpenUsdRootToServer(externalReferences);
-            LinkAreasToObjectsFolder(externalReferences);
+
+            // Registers the site subtree and mirrors its inverse Organizes
+            // reference to the Objects folder into externalReferences.
+            await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
+            await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
 
             m_log.SiteAddressSpaceReady(
                 m_options.PumpServerEndpointUrl ?? "(none)",
@@ -165,8 +159,8 @@ namespace SiteComposition
         /// Creates a small browsable site hierarchy, so the supervisory server is a
         /// real server rather than a bare stage host.
         /// </summary>
-        /// <param name="cancellationToken">Cancellation token.</param>
-        private async ValueTask MaterialiseSiteTopologyAsync(CancellationToken cancellationToken)
+        /// <param name="builder">The fluent builder staging the site subtree.</param>
+        private void MaterialiseSiteTopology(NodeManagerBuilder builder)
         {
             var areas = new FolderState(null)
             {
@@ -181,10 +175,9 @@ namespace SiteComposition
             AddArea(areas, "PumpHall", "Pump Hall", m_options.PumpServerEndpointUrl);
             AddArea(areas, "Powerhouse", "Powerhouse", m_options.GeneratorServerEndpointUrl);
 
-            SystemContext.AssignInstanceChildNodeIds(areas);
-            await AddPredefinedNodeAsync(SystemContext, areas, cancellationToken)
-                .ConfigureAwait(false);
-            m_areas = areas;
+            // Staging assigns the child NodeIds through this manager's own
+            // New(...) factory and organises the folder under Objects.
+            m_areas = builder.Add(areas).Node;
         }
 
         /// <summary>
@@ -407,25 +400,8 @@ namespace SiteComposition
                 ReferenceTypeIds.HasComponent, false, m_openUsdRoot.NodeId));
         }
 
-        /// <summary>
-        /// Organises the site folder under Objects so a client can browse to it.
-        /// </summary>
-        /// <param name="externalReferences">The shared reference dictionary.</param>
-        private void LinkAreasToObjectsFolder(IDictionary<NodeId, IList<IReference>> externalReferences)
-        {
-            if (m_areas == null)
-            {
-                return;
-            }
-            if (!externalReferences.TryGetValue(Opc.Ua.ObjectIds.ObjectsFolder, out IList<IReference>? refs))
-            {
-                refs = new List<IReference>();
-                externalReferences[Opc.Ua.ObjectIds.ObjectsFolder] = refs;
-            }
-            refs.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, m_areas.NodeId));
-            m_areas.AddReference(ReferenceTypeIds.Organizes, true, Opc.Ua.ObjectIds.ObjectsFolder);
-        }
     }
+
 
     /// <summary>
     /// Namespaces this sample owns.

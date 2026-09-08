@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
 using Opc.Ua.Schema.Json;
 
 namespace Opc.Ua.Schema.Tests
@@ -56,6 +58,21 @@ namespace Opc.Ua.Schema.Tests
         /// The namespace index used by referenced test data types from another namespace.
         /// </summary>
         public const ushort OtherNamespaceIndex = 2;
+
+        /// <summary>
+        /// NUnit test cases for every identifier kind, including values that are null only in namespace zero.
+        /// </summary>
+        public static IEnumerable<NodeId> TypeIdentifierCases { get; } =
+        [
+            new NodeId(0, TestNamespaceIndex),
+            new NodeId(7701, TestNamespaceIndex),
+            new NodeId(Guid.Empty, TestNamespaceIndex),
+            new NodeId(new Guid("16a25bfe-5586-481e-a64d-69ac02492028"), TestNamespaceIndex),
+            new NodeId(string.Empty, TestNamespaceIndex),
+            new NodeId("CustomType", TestNamespaceIndex),
+            new NodeId(ByteString.Empty, TestNamespaceIndex),
+            new NodeId(ByteString.From([1, 2, 3, 4]), TestNamespaceIndex)
+        ];
 
         /// <summary>
         /// Creates a schema provider populated with the supplied data types.

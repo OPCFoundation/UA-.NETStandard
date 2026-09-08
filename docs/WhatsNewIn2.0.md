@@ -151,13 +151,9 @@ server- and client-side implementations:
   suppression engine, rate metrics, a typed `AlarmClient`, the
   `AlarmEventFilterBuilder`, and `IAsyncEnumerable` alarm streaming. See
   [Alarms and Conditions](AlarmsAndConditions.md).
-- **Part 11 — Historical Access** + **Part 13 — Aggregates**: a provider
-  model with an in-memory historian and a `HistoryClient` for raw,
-  modified, at-time, processed, and annotation reads/updates. All 37
-  standard v1.05.07 aggregate functions, with native push-down where
-  available and a framework fallback otherwise. See
-  [Historical Access](HistoricalAccess.md) and
-  [Aggregates](Aggregates.md).
+- **Part 11 — Historical Access** + **Part 13 — Aggregates**:
+  provider-based [historical access](HistoricalAccess.md) with standard
+  [aggregates](Aggregates.md).
 - **Part 16 — State Machines**: a unified fluent
   [`StateMachineBuilder`](StateMachines.md) with both *definition*
   (`FluentFiniteStateMachineState`) and *lifecycle* (attach behaviour to
@@ -524,6 +520,9 @@ coverage service; see
   server/client/network redundancy and the opt-in distributed HA building
   blocks; [Kubernetes High Availability Deployment](Kubernetes.md) — the
   Kubernetes deployment guide for the `Opc.Ua.Redundancy.Kubernetes` package.
+- [NodeId Assignment](NodeIdAssignment.md) — how runtime NodeIds are
+  minted: the factory contract, identifier formats, types vs instances,
+  the generated helpers, and per-NodeManager behaviour.
 - [Dependency Injection](DependencyInjection.md),
   [Native AOT](NativeAoT.md),
   [Diagnostics](Diagnostics.md),

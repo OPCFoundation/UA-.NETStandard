@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -38,6 +37,9 @@ using Opc.Ua.Server.Historian.InMemory;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies time-window retention, sample caps, and retention updates after history mutations.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
@@ -48,6 +50,9 @@ namespace Opc.Ua.Server.Tests.Historian
         private static readonly DateTime BaseTime =
             new(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
+        /// <summary>
+        /// Verifies that default in-memory historian options retain one hour of raw data.
+        /// </summary>
         [Test]
         public void DefaultOptionsRetainOneHourOfRawData()
         {
@@ -56,6 +61,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(options.RawDataRetentionPeriod, Is.EqualTo(TimeSpan.FromHours(1)));
         }
 
+        /// <summary>
+        /// Verifies that a negative raw-data retention period is rejected.
+        /// </summary>
         [Test]
         public void NegativeRawDataRetentionPeriodIsRejected()
         {
@@ -69,6 +77,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentOutOfRangeException>());
         }
 
+        /// <summary>
+        /// Verifies that default retention evicts samples older than one hour.
+        /// </summary>
         [Test]
         public async Task DefaultRetentionEvictsSamplesOlderThanOneHourAsync()
         {
@@ -97,6 +108,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(BaseTime.AddMinutes(30)));
         }
 
+        /// <summary>
+        /// Verifies that a zero retention period preserves raw data without a time bound.
+        /// </summary>
         [Test]
         public async Task ZeroRetentionPeriodPreservesUnboundedRawDataAsync()
         {
@@ -120,6 +134,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.Values, Has.Count.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that both the retention period and sample-count cap constrain stored history.
+        /// </summary>
         [Test]
         public async Task RetentionPeriodAndSampleCapBothApplyAsync()
         {
@@ -152,6 +169,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(BaseTime.AddMinutes(60)));
         }
 
+        /// <summary>
+        /// Verifies that bulk insertion uses the newest timestamp to establish the retention window.
+        /// </summary>
         [Test]
         public async Task BulkInsertUsesNewestTimestampForRetentionAsync()
         {
@@ -162,15 +182,16 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId("retention.bulk", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
-            var batch = new Dictionary<NodeId, IList<DataValue>>
-            {
-                [nodeId] =
+            ArrayOf<HistorianDataBatch> batch =
+            [
+                new(
+                    nodeId,
                 [
                     MakeValue(BaseTime.AddMinutes(20), 3),
                     MakeValue(BaseTime, 1),
                     MakeValue(BaseTime.AddMinutes(10), 2)
-                ]
-            };
+                ])
+            ];
 
             await provider.InsertBatchAsync(
                 context,
@@ -186,6 +207,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(BaseTime.AddMinutes(10)));
         }
 
+        /// <summary>
+        /// Verifies that atomic insertion applies retention after the batch commits.
+        /// </summary>
         [Test]
         public async Task AtomicInsertEnforcesRetentionAfterCommitAsync()
         {
@@ -216,6 +240,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(BaseTime.AddSeconds(2)));
         }
 
+        /// <summary>
+        /// Verifies that an out-of-order sample older than the retained window is immediately evicted.
+        /// </summary>
         [Test]
         public async Task OutOfOrderInsertOlderThanWindowIsImmediatelyEvictedAsync()
         {
@@ -232,7 +259,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 nodeId,
                 [MakeValue(BaseTime.AddMinutes(20), 2)],
                 CancellationToken.None).ConfigureAwait(false);
-            IList<StatusCode> statuses = await provider.InsertAsync(
+            HistorianUpdateOutcome<DataValue> outcome = await provider.InsertAsync(
                 context,
                 nodeId,
                 [MakeValue(BaseTime.AddMinutes(5), 1)],
@@ -241,17 +268,20 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianPage<HistoricalDataValue> page =
                 await ReadAllAsync(provider, context, nodeId).ConfigureAwait(false);
 
-            Assert.That(statuses[0], Is.EqualTo(StatusCodes.GoodEntryInserted));
+            Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.GoodEntryInserted));
             Assert.That(page.Values, Has.Count.EqualTo(1));
             Assert.That(
                 page.Values[0].Value.SourceTimestamp.ToDateTime(),
                 Is.EqualTo(BaseTime.AddMinutes(20)));
         }
 
+        /// <summary>
+        /// Verifies that at-time deletion refreshes the latest timestamp used for retention.
+        /// </summary>
         [Test]
         public async Task DeleteAtTimeRefreshesLatestTimestampForRetentionAsync()
         {
-            using var provider = CreateTenMinuteProvider();
+            using InMemoryHistorianProvider provider = CreateTenMinuteProvider();
             var nodeId = new NodeId("retention.deleteattime", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -283,10 +313,13 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.EqualTo(BaseTime.AddMinutes(5)));
         }
 
+        /// <summary>
+        /// Verifies that raw-range deletion refreshes the latest timestamp used for retention.
+        /// </summary>
         [Test]
         public async Task DeleteRawRefreshesLatestTimestampForRetentionAsync()
         {
-            using var provider = CreateTenMinuteProvider();
+            using InMemoryHistorianProvider provider = CreateTenMinuteProvider();
             var nodeId = new NodeId("retention.deleteraw", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();

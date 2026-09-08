@@ -123,6 +123,32 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
+        public async Task ContentlessPlaceholderIsIgnoredUntilContentIsCommitted()
+        {
+            var events = new List<WotMaterializationEventArgs>();
+            m_coordinator.Event += (_, e) => events.Add(e);
+            await m_registry.GetOrCreateVersionAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "placeholder",
+                "v1",
+                WoTDocumentKindEnum.ThingDescription);
+
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Results, Is.Empty);
+                Assert.That(m_host.AddCount, Is.Zero);
+                Assert.That(events.Any(e => e.Kind is
+                    WotMaterializationEventKind.ValidationFailure or
+                    WotMaterializationEventKind.LoadFailure), Is.False);
+                Assert.That(m_registry.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions,
+                    "placeholder")!.LoadState, Is.EqualTo(WoTLoadStateEnum.Unloaded));
+            });
+        }
+
+        [Test]
         public async Task TdBeforeTmFailsThenSucceedsAfterTmRegistration()
         {
             await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", extendsHrefs: "urn:tm-a"));

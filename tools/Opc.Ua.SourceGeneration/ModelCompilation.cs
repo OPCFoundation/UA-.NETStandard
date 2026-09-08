@@ -142,6 +142,27 @@ namespace Opc.Ua.SourceGeneration
                     {
                         continue;
                     }
+                    if (!discovery.InvalidExpressions.IsDefaultOrEmpty)
+                    {
+                        string targetType = string.IsNullOrEmpty(
+                            discovery.Binding.TargetNamespace)
+                                ? discovery.Binding.TargetClassName
+                                : discovery.Binding.TargetNamespace +
+                                    "." +
+                                    discovery.Binding.TargetClassName;
+                        foreach (NodeManagerAttributeExpressionError error in
+                            discovery.InvalidExpressions)
+                        {
+                            m_context.ReportDiagnostic(
+                                Diagnostic.Create(
+                                    SourceGenerator.NodeManagerArgumentUnresolved,
+                                    error.Location,
+                                    error.ArgumentName,
+                                    error.Expression,
+                                    targetType));
+                        }
+                        continue;
+                    }
                     if (!discovery.IsPartial)
                     {
                         m_context.ReportDiagnostic(

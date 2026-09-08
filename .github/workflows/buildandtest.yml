@@ -163,7 +163,8 @@ jobs:
         if ($includeMac -and $relevantChanges) {
             $testOs += 'macOS-latest'
             $aotMatrix += @{ os = 'macos-15-intel'; rid = 'osx-x64'  }
-            $aotMatrix += @{ os = 'macos-latest'; rid = 'osx-arm64' }
+            # ARM64 NativeAOT hits Apple's "too many large addends" linker assertion.
+            # Re-enable macos-latest/osx-arm64 once dotnet/runtime#132171 ships; see #4443.
         }
         Write-Host "Event=$($env:EVENT_NAME); include_macos=$includeMac"
         Write-Host "test_os=$($testOs -join ', ')"
@@ -600,6 +601,12 @@ jobs:
 
     env:
       AOTPROJECT: './tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj'
+      # Companion NativeAOT test executable that hosts the distributed shared
+      # historian round-trip scenario. It is kept out of the monolithic
+      # Opc.Ua.Aot.Tests binary to bound the native linker's input. Every
+      # binary is published and run on every AOT platform.
+      AOTPROJECT_HISTORIAN: './tests/Opc.Ua.Aot.Tests.Historian/Opc.Ua.Aot.Tests.Historian.csproj'
+      AOTPROJECT_MCP: './tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj'
       DOTNET_VERSION: '10.0.x'
       CONFIGURATION: 'Release'
 
@@ -621,7 +628,25 @@ jobs:
       run: dotnet publish ${{ env.AOTPROJECT }} --configuration ${{ env.CONFIGURATION }}
 
     - name: Run NativeAOT Tests
-      run: ./tests/Opc.Ua.Aot.Tests/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests
+      run: >-
+        ./tests/Opc.Ua.Aot.Tests/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests
+        --results-directory ./TestResults/aot-main
+
+    - name: Publish NativeAOT (Historian)
+      run: dotnet publish ${{ env.AOTPROJECT_HISTORIAN }} --configuration ${{ env.CONFIGURATION }}
+
+    - name: Run NativeAOT Tests (Historian)
+      run: >-
+        ./tests/Opc.Ua.Aot.Tests.Historian/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests.Historian
+        --results-directory ./TestResults/aot-historian
+
+    - name: Publish NativeAOT (MCP)
+      run: dotnet publish ${{ env.AOTPROJECT_MCP }} --configuration ${{ env.CONFIGURATION }}
+
+    - name: Run NativeAOT Tests (MCP)
+      run: >-
+        ./tests/Opc.Ua.Aot.Tests.Mcp/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests.Mcp
+        --results-directory ./TestResults/aot-mcp
 
     - name: Upload test results
       uses: actions/upload-artifact@v7

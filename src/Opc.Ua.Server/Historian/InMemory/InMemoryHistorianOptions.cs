@@ -64,6 +64,6 @@ namespace Opc.Ua.Server.Historian.InMemory
         /// Default per-node capabilities advertised by the provider.
         /// </summary>
         public HistorianNodeCapabilities DefaultCapabilities { get; init; }
-            = HistorianNodeCapabilities.ReadWrite;
+            = HistorianNodeCapabilities.DataReadWrite;
     }
 }

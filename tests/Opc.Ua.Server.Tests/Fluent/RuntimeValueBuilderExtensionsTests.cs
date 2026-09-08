@@ -159,7 +159,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 .PollEvery(TimeSpan.FromMilliseconds(25), () => Volatile.Read(ref current));
 
             Func<int> notifications = CountValueChanges(h.Variable);
-            h.Builder.Seal();
+            await h.Builder.SealAsync();
 
             Volatile.Write(ref current, 2.0);
 
@@ -181,7 +181,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 .PollEvery(TimeSpan.FromMilliseconds(25), () => 5.0);
 
             Func<int> notifications = CountValueChanges(h.Variable);
-            h.Builder.Seal();
+            await h.Builder.SealAsync();
 
             // Let several ticks elapse; the constant getter must not raise
             // repeated value-change notifications.
@@ -255,7 +255,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     NamespaceUris = CreateNamespaceTable()
                 };
                 harness.BuildVariable();
-                harness.Builder = harness.CreateBuilder(ctx, Mock.Of<IAsyncNodeManager>());
+                harness.Builder = harness.CreateBuilder(ctx, FluentTestNodeManager.Create(kNs));
                 return harness;
             }
 

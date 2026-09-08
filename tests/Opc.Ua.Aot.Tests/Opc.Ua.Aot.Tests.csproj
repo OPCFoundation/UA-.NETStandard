@@ -35,6 +35,10 @@
     <PackageReference Include="TUnit" />
   </ItemGroup>
   <ItemGroup>
+    <!-- These unchanged tests run in the always-enabled MCP NativeAOT companion. -->
+    <Compile Remove="McpAotTests.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Core.Schema\Opc.Ua.Core.Schema.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
@@ -51,10 +55,9 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.Server\Opc.Ua.Redundancy.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.Kubernetes\Opc.Ua.Redundancy.Kubernetes.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Security.Pkcs11\Opc.Ua.Security.Pkcs11.csproj" />
-    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.Core\Opc.Ua.Mcp.Core.csproj" />
     <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Client.Common\Opc.Ua.Gds.Client.Common.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Client\Opc.Ua.Gds.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Server\Opc.Ua.Gds.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.ISA95\Opc.Ua.ISA95.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.ISA95.Client\Opc.Ua.ISA95.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.ISA95.Server\Opc.Ua.ISA95.Server.csproj" />

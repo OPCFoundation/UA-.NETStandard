@@ -315,7 +315,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             using WotDocument original = WotUnitsAndRangesTests.ParseThingModel(
                 "\"events\":{\"overTemp\":{\"@type\":\"uav:eventType\"," +
-                "\"uav:isEvent\":true,\"title\":\"Over Temperature\"," +
+                "\"title\":\"Over Temperature\"," +
                 "\"uav:browseName\":\"pump:OverTemperatureEventType\"," +
                 "\"data\":{\"type\":\"object\",\"properties\":{" +
                 "\"Temperature\":{\"type\":\"number\",\"title\":\"Temperature\"," +

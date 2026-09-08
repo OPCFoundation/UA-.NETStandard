@@ -51,7 +51,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task AnAssignedVersionSkipsOneTheCallerCreatedExplicitlyAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm, "schemas").ConfigureAwait(false);
 
             // Take "1" and "2" explicitly, then let the server assign.
@@ -71,7 +72,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task GetOrCreateWithAnEmptyVersionDoesNotReturnAnUnrelatedVersionAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm, "schemas").ConfigureAwait(false);
             await CreateAsync(nm, group, "r", "1").ConfigureAwait(false);
 
@@ -91,7 +93,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task VersionCountersAreScopedPerGroupAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId first = await CreateGroupAsync(nm, "a").ConfigureAwait(false);
             NodeId second = await CreateGroupAsync(nm, "b").ConfigureAwait(false);
 
@@ -111,7 +114,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task DeletingTheLastVersionResetsTheCounterAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm, "schemas").ConfigureAwait(false);
 
             CreateResourceMethodStateResult created =
@@ -130,7 +134,8 @@ namespace Opc.Ua.XRegistry.Tests
         [Test]
         public async Task AnExistingVersionKeepsTheCounterAdvancingAsync()
         {
-            using XRegistryRegistrationNodeManager nm = CreateAddressSpace();
+            using XRegistryRegistrationNodeManager nm = await CreateAddressSpaceAsync()
+                .ConfigureAwait(false);
             NodeId group = await CreateGroupAsync(nm, "schemas").ConfigureAwait(false);
 
             CreateResourceMethodStateResult first =
@@ -166,7 +171,7 @@ namespace Opc.Ua.XRegistry.Tests
             return result.GroupNodeId;
         }
 
-        private static XRegistryRegistrationNodeManager CreateAddressSpace()
+        private static async Task<XRegistryRegistrationNodeManager> CreateAddressSpaceAsync()
         {
             var options = new XRegistryServerOptions
             {
@@ -175,7 +180,9 @@ namespace Opc.Ua.XRegistry.Tests
             Mock<IServerInternal> server =
                 XRegistryServerTestHarness.CreateServer(options.RegistryNamespaceUri);
             var nm = new XRegistryRegistrationNodeManager(server.Object, null!, options);
-            nm.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await nm.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(),
+                CancellationToken.None).ConfigureAwait(false);
             return nm;
         }
     }

@@ -107,6 +107,82 @@ namespace Opc.Ua.Wot
             nodeSet.Extensions = extensions.Count == 0 ? null : [.. extensions];
         }
 
+        internal static void RemoveDocumentSetLinks(
+            UANodeSet nodeSet,
+            WotDocument document,
+            WotDocumentSet documents,
+            WotNodeSetConverterOptions options,
+            List<WotDiagnostic> diagnostics)
+        {
+            List<Entry> entries = ReadEntries(nodeSet, options, diagnostics);
+            var retained = new List<Entry>();
+            foreach (Entry entry in entries)
+            {
+                using JsonDocument value = JsonDocument.Parse(
+                    entry.Json, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
+                if (entry.Pointer == "/data" &&
+                    WotNodeSetConverter.IsGeneratedEventDefinitionData(
+                        document, nodeSet, value.RootElement, options.MaxJsonDepth))
+                {
+                    continue;
+                }
+                if (entry.Pointer.StartsWith("/events/", StringComparison.Ordinal) &&
+                    entry.Pointer.EndsWith("/tm:ref", StringComparison.Ordinal) &&
+                    value.RootElement.ValueKind == JsonValueKind.String &&
+                    documents.TryGetDocument(value.RootElement.GetString()!, out _))
+                {
+                    continue;
+                }
+                string? rel = entry.LinkRel ?? GetString(value.RootElement, "rel");
+                string? href = entry.LinkHref ?? GetString(value.RootElement, "href");
+                if (rel is WotNodeSetConverter.ComponentOfRel or WotNodeSetConverter.ComponentOfAliasRel &&
+                    href is not null && documents.TryGetDocument(href, out _) &&
+                    IsDocumentSetParentLink(value.RootElement))
+                {
+                    continue;
+                }
+                retained.Add(entry);
+            }
+            if (retained.Count == entries.Count)
+            {
+                return;
+            }
+            var extensions = new List<System.Xml.XmlElement>();
+            foreach (System.Xml.XmlElement extension in nodeSet.Extensions ?? [])
+            {
+                if (!IsResidue(extension))
+                {
+                    extensions.Add(extension);
+                }
+            }
+            if (retained.Count > 0)
+            {
+                extensions.Add(CreateExtension(retained));
+            }
+            nodeSet.Extensions = extensions.Count == 0 ? null : [.. extensions];
+        }
+
+        private static bool IsDocumentSetParentLink(JsonElement value)
+        {
+            if (value.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+            foreach (JsonProperty member in value.EnumerateObject())
+            {
+                if (member.Name is "rel" or "href")
+                {
+                    continue;
+                }
+                if (member.Name != "type" || member.Value.ValueKind != JsonValueKind.String ||
+                    member.Value.GetString() != "application/td+json")
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         public static byte[] Apply(
             byte[] generatedJson,
             UANodeSet nodeSet,
@@ -193,12 +269,40 @@ namespace Opc.Ua.Wot
 
             try
             {
-                return Encoding.UTF8.GetBytes(root.ToJsonString(
+                byte[] json = Encoding.UTF8.GetBytes(root.ToJsonString(
                     new JsonSerializerOptions
                     {
                         WriteIndented = true,
                         MaxDepth = options.MaxJsonDepth
                     }));
+                Entry? native = entries.Find(entry => entry.Pointer == "/uav:nodes");
+                if (native is null)
+                {
+                    return json;
+                }
+                using JsonDocument parsed = JsonDocument.Parse(
+                    json, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
+                using var output = new MemoryStream();
+                using (var writer = new Utf8JsonWriter(output))
+                {
+                    writer.WriteStartObject();
+                    foreach (JsonProperty property in parsed.RootElement.EnumerateObject())
+                    {
+                        if (property.NameEquals("uav:nodes") &&
+                            WotNativeProjection.HasUnsupportedProfile(property.Value))
+                        {
+                            writer.WritePropertyName(property.Name);
+                            // Entry parsing above already enforces the configured JSON depth.
+                            writer.WriteRawValue(native.Json, skipInputValidation: true);
+                        }
+                        else
+                        {
+                            property.WriteTo(writer);
+                        }
+                    }
+                    writer.WriteEndObject();
+                }
+                return output.ToArray();
             }
             catch (Exception ex) when (ex is JsonException or InvalidOperationException)
             {
@@ -239,12 +343,16 @@ namespace Opc.Ua.Wot
                     case "description":
                     case "uav:browseName":
                     case "uav:id":
-                    case "uav:isEvent":
                     case "uav:hasComponent":
                     case "uav:componentOf":
                     case "uav:nodeSet":
-                    case "uav:nodes":
                     case "uav:dataTypeDefinitions":
+                        break;
+                    case "uav:nodes":
+                        if (WotNativeProjection.HasUnsupportedProfile(property.Value))
+                        {
+                            entries.Add(new Entry { Pointer = pointer, Json = property.Value.GetRawText() });
+                        }
                         break;
                     case WotBindingConformance.BindingVersionTerm:
                         // Section 4.1 makes a generator state the revision it
@@ -293,6 +401,10 @@ namespace Opc.Ua.Wot
             string pointer,
             List<Entry> entries)
         {
+            if (CaptureBindingContext(context, pointer, entries))
+            {
+                return;
+            }
             if (context.ValueKind != JsonValueKind.Array)
             {
                 Add(entries, pointer, context);
@@ -302,35 +414,53 @@ namespace Opc.Ua.Wot
             foreach (JsonElement item in context.EnumerateArray())
             {
                 if (item.ValueKind == JsonValueKind.String &&
-                    string.Equals(
-                        item.GetString(),
-                        WotVocabulary.WotContext,
-                        StringComparison.Ordinal))
+                    (string.Equals(
+                            item.GetString(),
+                            WotVocabulary.WotContext,
+                            StringComparison.Ordinal) ||
+                        string.Equals(
+                            item.GetString(),
+                            WotVocabulary.BindingContext,
+                            StringComparison.Ordinal)))
+                {
+                    // Both context identities are re-derived by the forward
+                    // direction, which names them on every document it writes.
+                    continue;
+                }
+                if (CaptureBindingContext(item, pointer, entries))
                 {
                     continue;
                 }
                 if (item.ValueKind == JsonValueKind.Object &&
-                    item.TryGetProperty("uav", out JsonElement uav) &&
-                    uav.ValueKind == JsonValueKind.String &&
-                    string.Equals(
-                        uav.GetString(),
-                        WotVocabulary.VocabularyNamespace,
-                        StringComparison.Ordinal))
+                    WotNodeSetConverter.IsGeneratedLocalizedTextOverride(item))
                 {
-                    foreach (JsonProperty property in item.EnumerateObject())
-                    {
-                        if (!IsGeneratedContextBinding(property))
-                        {
-                            Add(
-                                entries,
-                                pointer + "/1/" + Escape(property.Name),
-                                property.Value);
-                        }
-                    }
+                    // The override is derived from the projected Nodes' own
+                    // LocalizedText - it is written exactly where some text
+                    // states no entry for the document's default locale - so
+                    // carrying it as residue as well would state it twice.
                     continue;
                 }
                 Add(entries, pointer + "/-", item);
             }
+        }
+
+        private static bool CaptureBindingContext(JsonElement context, string pointer, List<Entry> entries)
+        {
+            if (context.ValueKind != JsonValueKind.Object ||
+                !context.TryGetProperty("uav", out JsonElement uav) ||
+                uav.ValueKind != JsonValueKind.String ||
+                !string.Equals(uav.GetString(), WotVocabulary.VocabularyNamespace, StringComparison.Ordinal))
+            {
+                return false;
+            }
+            foreach (JsonProperty property in context.EnumerateObject())
+            {
+                if (!IsGeneratedContextBinding(property))
+                {
+                    Add(entries, pointer + "/1/" + Escape(property.Name), property.Value);
+                }
+            }
+            return true;
         }
 
         private static bool IsGeneratedContextBinding(JsonProperty property)
@@ -409,10 +539,16 @@ namespace Opc.Ua.Wot
                         case "description":
                         case "uav:browseName":
                         case "uav:id":
-                        case "uav:isEvent":
                         case "uav:modellingRule":
                         case "uav:mapToType":
                         case "uav:dataTypeDefinition":
+                            break;
+                        case "const":
+                        case "default":
+                            if (!isProperty || !WotNodeSetConverter.MapsVariableValue(affordance.Value))
+                            {
+                                Add(entries, affordancePointer + "/" + Escape(property.Name), property.Value);
+                            }
                             break;
                         case "type":
                         case "readOnly":
@@ -542,22 +678,6 @@ namespace Opc.Ua.Wot
                             // from that value.
                             if (!isProperty ||
                                 !WotNodeSetConverter.MapsEngineeringUnits(affordance.Value))
-                            {
-                                Add(
-                                    entries,
-                                    affordancePointer + "/" + Escape(property.Name),
-                                    property.Value);
-                            }
-                            break;
-                        case WotNodeSetConverter.SeverityTerm:
-                            // Section 6.6 maps a severity in range onto the
-                            // EventType's own Severity Property, so carrying it
-                            // here as well would state the same default twice.
-                            // One out of range is not mapped and is kept, so an
-                            // invalid document is reported without losing what
-                            // it said.
-                            if (!isEvent ||
-                                !WotNodeSetConverter.TryReadSeverity(affordance.Value, out _))
                             {
                                 Add(
                                     entries,

@@ -129,7 +129,7 @@ namespace Opc.Ua.OpenUsd.Tests
         public void NestedTupleArray_ParsesToListOfArray()
         {
             UsdValue value = UsdaReader.ParseValue("[(0, 0, 1)]");
-            UsdTestHelpers.AssertNestedIntegerItems(value, new[] { 0L, 0L, 1L });
+            UsdTestHelpers.AssertNestedIntegerItems(value, s_longValues1);
         }
 
         [Test]
@@ -180,5 +180,7 @@ namespace Opc.Ua.OpenUsd.Tests
             Assert.That(stripped, Does.Not.Contain("trailing comment"));
             Assert.That(stripped, Does.Contain("value # not a comment"));
         }
+
+        private static readonly long[] s_longValues1 = [0L, 0L, 1L];
     }
 }

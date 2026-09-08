@@ -80,25 +80,21 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
         /// <summary>
         /// The ordinal-sorted transport-index keys the <c>selectclauses</c>
-        /// affordance yields, and nothing else. Section 6.1 makes the explicit
-        /// clauses an <em>overlay</em> of the implicit <c>BaseEventType</c>
-        /// baseline: the three clauses that name a baseline field move it to
-        /// the end with the EventType and path they state, the empty path adds
-        /// the <c>ConditionId</c> selection, and the remaining mandatory fields
-        /// stay. The key is the joined browse path the selection carries, so
-        /// the NamespaceUri-qualified clause appears in full: its URI carries
-        /// '/' but the path has one element, not four.
+        /// affordance yields, and nothing else. The affordance links to no
+        /// EventType definition, so Section 6.1 makes the four clauses it
+        /// writes the <em>complete</em> selection: three named fields and the
+        /// empty path that selects <c>ConditionId</c>. The implicit
+        /// <c>BaseEventType</c> default is what an affordance that states no
+        /// selection at all falls back to, not a floor under an authored one.
+        /// The key is the joined browse path the selection carries, so the
+        /// NamespaceUri-qualified clause appears in full: its URI carries '/'
+        /// but the path has one element, not four.
         /// </summary>
         private static readonly string[] s_authoredSelectClauseFields =
         [
             "ConditionId",
-            "EventId",
-            "EventType",
             "Message",
-            "ReceiveTime",
             "SourceName",
-            "SourceNode",
-            "Time",
             "nsu=http://opcfoundation.org/UA/;Severity"
         ];
 
@@ -111,14 +107,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         private static readonly string[] s_authoredSelectClauseMembers =
         [
             "ConditionId",
-            "EventId",
-            "EventType",
             "Message",
-            "ReceiveTime",
             "Severity",
-            "SourceName",
-            "SourceNode",
-            "Time"
+            "SourceName"
         ];
 
         private ServerFixture<ReferenceServer> m_serverFixture = null!;
@@ -469,9 +460,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                     Assert.That(
                         notification!.EventFields.Keys.OrderBy(k => k, StringComparer.Ordinal),
                         Is.EqualTo(s_authoredSelectClauseFields),
-                        "The clauses overlay the implicit BaseEventType baseline: each names " +
-                        "a field the baseline already carries and moves it, and the empty " +
-                        "path adds the ConditionId member.");
+                        "The affordance links to no EventType definition, so the clauses it " +
+                        "writes are the complete selection: three named fields and the empty " +
+                        "path that selects the ConditionId member.");
                     Assert.That(
                         notification.Data.Members.Keys.OrderBy(k => k, StringComparer.Ordinal),
                         Is.EqualTo(s_authoredSelectClauseMembers),
@@ -544,7 +535,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 // selectclauses: the standardized uav:eventSelectClauses list, which
                 // overlays the implicit BaseEventType default and includes the empty-path
                 // ConditionId selection
-                "\"selectclauses\":{\"uav:isEvent\":true,\"uav:eventSelectClauses\":[" +
+                "\"selectclauses\":{\"uav:eventSelectClauses\":[" +
                 "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"Message\"}," +
                 "{\"tm:ref\":\"./base-event.tm.jsonld\"," +
                 "\"uav:browsePath\":\"nsu=http://opcfoundation.org/UA/;Severity\"}," +

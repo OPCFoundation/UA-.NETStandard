@@ -97,11 +97,7 @@ namespace Opc.Ua.OpenUsd.Tests
                 "Conn");
 
             UsdAttribute attr = AttributeNamed(stage, "/P", "inputs:surface");
-            Assert.That(attr.Connections, Is.EqualTo(new[]
-            {
-                "/P/A.outputs:surface",
-                "/P/B.outputs:surface",
-            }));
+            Assert.That(attr.Connections, Is.EqualTo(s_stringValues1));
         }
 
         [Test]
@@ -122,7 +118,7 @@ namespace Opc.Ua.OpenUsd.Tests
                 "Conn");
 
             UsdAttribute attr = AttributeNamed(stage, "/P", "inputs:surface");
-            Assert.That(attr.Connections, Is.EqualTo(new[] { "/P/A.outputs:surface" }));
+            Assert.That(attr.Connections, Is.EqualTo(s_stringValues2));
         }
 
         [Test]
@@ -141,11 +137,7 @@ namespace Opc.Ua.OpenUsd.Tests
             UsdStage reparsed = UsdaReader.Parse(UsdaWriter.Write(stage), stage.StageName);
 
             UsdAttribute reparsedAttr = AttributeNamed(reparsed, "/P", "inputs:surface");
-            Assert.That(reparsedAttr.Connections, Is.EqualTo(new[]
-            {
-                "/P/A.outputs:surface",
-                "/P/B.outputs:surface",
-            }));
+            Assert.That(reparsedAttr.Connections, Is.EqualTo(s_stringValues1));
         }
 
         [Test]
@@ -170,7 +162,7 @@ namespace Opc.Ua.OpenUsd.Tests
 
             UsdRelationship rel = UsdTestHelpers.RequireRelationship(
                 UsdTestHelpers.RequirePrim(stage, "/P"), "material:binding");
-            Assert.That(rel.Targets, Is.EqualTo(new[] { "/P/Mat" }));
+            Assert.That(rel.Targets, Is.EqualTo(s_stringValues3));
         }
 
         [Test]
@@ -182,7 +174,7 @@ namespace Opc.Ua.OpenUsd.Tests
 
             UsdRelationship rel = UsdTestHelpers.RequireRelationship(
                 UsdTestHelpers.RequirePrim(stage, "/P"), "material:binding");
-            Assert.That(rel.Targets, Is.EqualTo(new[] { "/P/MatA", "/P/MatB" }));
+            Assert.That(rel.Targets, Is.EqualTo(s_stringValues4));
         }
 
         [Test]
@@ -195,7 +187,7 @@ namespace Opc.Ua.OpenUsd.Tests
                 "Conn");
 
             UsdAttribute attr = AttributeNamed(stage, "/P", "inputs:surface");
-            Assert.That(attr.Connections, Is.EqualTo(new[] { "/P/A.outputs:surface" }));
+            Assert.That(attr.Connections, Is.EqualTo(s_stringValues2));
         }
 
         [Test]
@@ -206,11 +198,7 @@ namespace Opc.Ua.OpenUsd.Tests
                 "Conn");
 
             UsdAttribute attr = AttributeNamed(stage, "/P", "inputs:surface");
-            Assert.That(attr.Connections, Is.EqualTo(new[]
-            {
-                "/P/A.outputs:surface",
-                "/P/B.outputs:surface",
-            }));
+            Assert.That(attr.Connections, Is.EqualTo(s_stringValues1));
         }
 
         // ---- Task 1.2: asset arrays ---------------------------------------------------
@@ -260,7 +248,7 @@ namespace Opc.Ua.OpenUsd.Tests
             UsdAttribute reparsedAttr = AttributeNamed(reparsed, "/P", "inputs:files");
             Assert.That(reparsedAttr.Value.TryGetArray(out ArrayOf<UsdValue> paths), Is.True);
             Assert.That(paths.ToArray()!.Select(p => p.TryGetAssetPath(out string text) ? text : string.Empty).ToArray(),
-                Is.EqualTo(new[] { "./a.usda", "./b.usda" }));
+                Is.EqualTo(s_stringValues5));
         }
 
         [Test]
@@ -273,5 +261,11 @@ namespace Opc.Ua.OpenUsd.Tests
             UsdAttribute attr = AttributeNamed(stage, "/P", "inputs:file");
             UsdTestHelpers.AssertAssetPath(attr.Value, "./pump.usda");
         }
+
+        private static readonly string[] s_stringValues1 = ["/P/A.outputs:surface", "/P/B.outputs:surface"];
+        private static readonly string[] s_stringValues2 = ["/P/A.outputs:surface"];
+        private static readonly string[] s_stringValues3 = ["/P/Mat"];
+        private static readonly string[] s_stringValues4 = ["/P/MatA", "/P/MatB"];
+        private static readonly string[] s_stringValues5 = ["./a.usda", "./b.usda"];
     }
 }

@@ -118,17 +118,10 @@ namespace Opc.Ua.Server.Fluent
                     "Simulation interval must be positive.");
             }
 
-            if (builder is not NodeManagerBuilder concrete ||
-                concrete.Simulations == null)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    "Simulation requires the node manager to derive from " +
-                    "FluentNodeManagerBase. Manager type '{0}' does not opt in.",
-                    builder.NodeManager?.GetType().FullName ?? "(unknown)");
-            }
+            NodeManagerBuilder concrete =
+                FluentNodeManagerBase.ResolveAttachedBuilder(builder, "Simulation");
 
-            return concrete.Simulations.NewSimulation(interval);
+            return concrete.Simulations!.NewSimulation(interval);
         }
     }
 }

@@ -36,7 +36,7 @@ using Opc.Ua.WotCon.Bindings;
 namespace Opc.Ua.WotCon.Server.Materialization
 {
     /// <summary>
-    /// Builds the per-generation OPC UA target-mapping binding runtime for a
+    /// Builds the per-generation OPC UA projection binding runtime for a
     /// runtime NodeSet. Injected into <see cref="LifecycleWotProjectionHost"/>,
     /// which invokes it from <see cref="Ua.Server.RuntimeNodeSet.RuntimeNodeSetOptions.ConfigureAsync"/>
     /// once the generation's NodeSet2 content has been imported, so target
@@ -47,7 +47,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     public interface IWotProjectionBindingRuntimeFactory
     {
         /// <summary>
-        /// Wires the OPC UA target-mapping bindings declared by
+        /// Wires the property mappings and local method/event bindings declared by
         /// <paramref name="bindingPlans"/> onto the freshly imported predefined
         /// nodes exposed by <paramref name="builder"/>.
         /// </summary>
@@ -55,13 +55,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// The fluent builder for the node manager generation being activated.
         /// </param>
         /// <param name="bindingPlans">
-        /// The prepared binding plans for the projected closure. Forms without
-        /// a target mapping, and non-executable forms, are ignored.
+        /// The prepared binding plans for the projected closure. Unmapped
+        /// properties retain their existing behavior. A local Method or event
+        /// declaration must have a resolvable identity and an executable form.
         /// </param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>
-        /// The generation-owned binding runtime, or <c>null</c> when no target
-        /// mapping was wired (for example an empty <paramref name="bindingPlans"/>).
+        /// The generation-owned binding runtime, or <c>null</c> for an empty
+        /// <paramref name="bindingPlans"/> collection.
         /// </returns>
         /// <exception cref="ServiceResultException">
         /// A target mapping is missing, malformed, ambiguous, resolves to the

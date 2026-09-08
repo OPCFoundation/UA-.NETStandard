@@ -32,11 +32,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 
-// Conformance tests use inline literal arrays as expected-value
-// assertions; the per-call allocation cost is irrelevant for tests
-// and keeping the literal adjacent to the assertion improves readability.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
-
 namespace Opc.Ua.InformationModel.Tests
 {
     /// <summary>
@@ -65,7 +60,7 @@ namespace Opc.Ua.InformationModel.Tests
                         AttributeId = Attributes.Value,
                         IndexRange = "0",
                         Value = new DataValue(
-                            new Variant(new int[] { 999 }.ToArrayOf()))
+                            new Variant(s_intValues1.ToArrayOf()))
                     }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
@@ -91,7 +86,7 @@ namespace Opc.Ua.InformationModel.Tests
                         AttributeId = Attributes.Value,
                         IndexRange = "2",
                         Value = new DataValue(
-                            new Variant(new int[] { 888 }.ToArrayOf()))
+                            new Variant(s_intValues2.ToArrayOf()))
                     }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
@@ -118,7 +113,7 @@ namespace Opc.Ua.InformationModel.Tests
                         IndexRange = "1:3",
                         Value = new DataValue(
                             new Variant(
-                                new int[] { 100, 200, 300 }.ToArrayOf()))
+                                s_intValues3.ToArrayOf()))
                     }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
@@ -144,7 +139,7 @@ namespace Opc.Ua.InformationModel.Tests
                         AttributeId = Attributes.Value,
                         IndexRange = "0",
                         Value = new DataValue(
-                            new Variant(new int[] { 999 }.ToArrayOf()))
+                            new Variant(s_intValues1.ToArrayOf()))
                     }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
@@ -172,7 +167,7 @@ namespace Opc.Ua.InformationModel.Tests
                         AttributeId = Attributes.Value,
                         IndexRange = "0",
                         Value = new DataValue(
-                            new Variant(new int[] { 999 }.ToArrayOf()))
+                            new Variant(s_intValues1.ToArrayOf()))
                     }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
@@ -203,7 +198,7 @@ namespace Opc.Ua.InformationModel.Tests
                         AttributeId = Attributes.Value,
                         IndexRange = "0",
                         Value = new DataValue(
-                            new Variant(new int[] { 1 }.ToArrayOf()))
+                            new Variant(s_intValues4.ToArrayOf()))
                     }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
@@ -231,7 +226,7 @@ namespace Opc.Ua.InformationModel.Tests
                         AttributeId = Attributes.Value,
                         IndexRange = "999",
                         Value = new DataValue(
-                            new Variant(new int[] { 1 }.ToArrayOf()))
+                            new Variant(s_intValues4.ToArrayOf()))
                     }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
@@ -258,7 +253,7 @@ namespace Opc.Ua.InformationModel.Tests
                         AttributeId = Attributes.Value,
                         IndexRange = "abc",
                         Value = new DataValue(
-                            new Variant(new int[] { 1 }.ToArrayOf()))
+                            new Variant(s_intValues4.ToArrayOf()))
                     }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
@@ -285,7 +280,7 @@ namespace Opc.Ua.InformationModel.Tests
                         NodeId = nodeId,
                         AttributeId = Attributes.Value,
                         Value = new DataValue(new Variant(
-                            new string[] { "A", "B", "C" }.ToArrayOf()))
+                            s_stringValues1.ToArrayOf()))
                     }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
@@ -302,7 +297,7 @@ namespace Opc.Ua.InformationModel.Tests
                         AttributeId = Attributes.Value,
                         IndexRange = "0",
                         Value = new DataValue(new Variant(
-                            new string[] { "Z" }.ToArrayOf()))
+                            s_stringValues2.ToArrayOf()))
                     }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
@@ -325,7 +320,7 @@ namespace Opc.Ua.InformationModel.Tests
         {
             NodeId nodeId = ToNodeId(Constants.ScalarStaticArrayInt32);
 
-            ArrayOf<int> newArray = new int[] { 100, 200, 300 }.ToArrayOf();
+            ArrayOf<int> newArray = s_intValues3.ToArrayOf();
 
             WriteResponse writeResponse = await Session.WriteAsync(
                 null,
@@ -369,7 +364,7 @@ namespace Opc.Ua.InformationModel.Tests
                         IndexRange = "1:2",
                         Value = new DataValue(
                             new Variant(
-                                new int[] { 777, 888 }.ToArrayOf()))
+                                s_intValues5.ToArrayOf()))
                     }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
@@ -405,7 +400,7 @@ namespace Opc.Ua.InformationModel.Tests
                         NodeId = nodeId,
                         AttributeId = Attributes.Value,
                         Value = new DataValue(new Variant(
-                            new bool[] { false, true, false }.ToArrayOf()))
+                            s_booleanValues1.ToArrayOf()))
                     }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
@@ -422,7 +417,7 @@ namespace Opc.Ua.InformationModel.Tests
                         AttributeId = Attributes.Value,
                         IndexRange = "0",
                         Value = new DataValue(new Variant(
-                            new bool[] { true }.ToArrayOf()))
+                            s_booleanValues2.ToArrayOf()))
                     }
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
@@ -460,7 +455,7 @@ namespace Opc.Ua.InformationModel.Tests
                     NodeId = ToNodeId(Constants.ScalarStaticArrayInt32),
                     AttributeId = Attributes.Value,
                     IndexRange = "0",
-                    Value = new DataValue(new Variant(new int[] { 42 }))
+                    Value = new DataValue(new Variant(s_intValues6))
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -477,7 +472,7 @@ namespace Opc.Ua.InformationModel.Tests
                     NodeId = ToNodeId(Constants.ScalarStaticArrayInt32),
                     AttributeId = Attributes.Value,
                     IndexRange = "0",
-                    Value = new DataValue(new Variant(new int[] { 42 }))
+                    Value = new DataValue(new Variant(s_intValues6))
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -494,7 +489,7 @@ namespace Opc.Ua.InformationModel.Tests
                     NodeId = ToNodeId(Constants.ScalarStaticArrayInt32),
                     AttributeId = Attributes.Value,
                     IndexRange = "0",
-                    Value = new DataValue(new Variant(new int[] { 42 }))
+                    Value = new DataValue(new Variant(s_intValues6))
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -511,7 +506,7 @@ namespace Opc.Ua.InformationModel.Tests
                     NodeId = ToNodeId(Constants.ScalarStaticArrayInt32),
                     AttributeId = Attributes.Value,
                     IndexRange = "0",
-                    Value = new DataValue(new Variant(new int[] { 42 }))
+                    Value = new DataValue(new Variant(s_intValues6))
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -528,7 +523,7 @@ namespace Opc.Ua.InformationModel.Tests
                     NodeId = ToNodeId(Constants.ScalarStaticArrayInt32),
                     AttributeId = Attributes.Value,
                     IndexRange = "0",
-                    Value = new DataValue(new Variant(new int[] { 42 }))
+                    Value = new DataValue(new Variant(s_intValues6))
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -545,7 +540,7 @@ namespace Opc.Ua.InformationModel.Tests
                     NodeId = ToNodeId(Constants.ScalarStaticArrayInt32),
                     AttributeId = Attributes.Value,
                     IndexRange = "0",
-                    Value = new DataValue(new Variant(new int[] { 42 }))
+                    Value = new DataValue(new Variant(s_intValues6))
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -562,7 +557,7 @@ namespace Opc.Ua.InformationModel.Tests
                     NodeId = ToNodeId(Constants.ScalarStaticArrayInt32),
                     AttributeId = Attributes.Value,
                     IndexRange = "999999",
-                    Value = new DataValue(new Variant(new int[] { 99 }))
+                    Value = new DataValue(new Variant(s_intValues7))
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -580,7 +575,7 @@ namespace Opc.Ua.InformationModel.Tests
                     NodeId = ToNodeId(Constants.ScalarStaticArrayInt32),
                     AttributeId = Attributes.Value,
                     IndexRange = "999999",
-                    Value = new DataValue(new Variant(new int[] { 99 }))
+                    Value = new DataValue(new Variant(s_intValues7))
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -598,7 +593,7 @@ namespace Opc.Ua.InformationModel.Tests
                     NodeId = ToNodeId(Constants.ScalarStaticArrayInt32),
                     AttributeId = Attributes.Value,
                     IndexRange = "999999",
-                    Value = new DataValue(new Variant(new int[] { 99 }))
+                    Value = new DataValue(new Variant(s_intValues7))
                 }
             }.ToArrayOf();
             WriteResponse response = await Session.WriteAsync(null, wv, CancellationToken.None).ConfigureAwait(false);
@@ -655,5 +650,17 @@ namespace Opc.Ua.InformationModel.Tests
         }
 
         private static readonly int[] KnownArray = [10, 20, 30, 40, 50];
+
+        private static readonly int[] s_intValues1 = [999];
+        private static readonly int[] s_intValues2 = [888];
+        private static readonly int[] s_intValues3 = [100, 200, 300];
+        private static readonly int[] s_intValues4 = [1];
+        private static readonly string[] s_stringValues1 = ["A", "B", "C"];
+        private static readonly string[] s_stringValues2 = ["Z"];
+        private static readonly int[] s_intValues5 = [777, 888];
+        private static readonly bool[] s_booleanValues1 = [false, true, false];
+        private static readonly bool[] s_booleanValues2 = [true];
+        private static readonly int[] s_intValues6 = [42];
+        private static readonly int[] s_intValues7 = [99];
     }
 }

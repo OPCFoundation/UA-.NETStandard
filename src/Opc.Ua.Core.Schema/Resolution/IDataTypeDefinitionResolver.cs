@@ -42,7 +42,8 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Resolves the type description for the supplied data type id.
         /// </summary>
-        /// <param name="typeId">The data type id to resolve.</param>
+        /// <param name="typeId">The data type id to resolve, in namespace-index
+        /// or namespace-URI form.</param>
         /// <param name="description">The resolved type description.</param>
         /// <returns><c>true</c> when the type was resolved.</returns>
         bool TryResolve(

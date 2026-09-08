@@ -62,7 +62,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// whole run.
     /// </para>
     /// </remarks>
-    public sealed class SnapshotWotNodeResolver : IWotNodeResolver, IWotReferenceTypeResolver
+    public sealed class SnapshotWotNodeResolver
+        : IWotNodeResolver, IWotReferenceTypeResolver, IWotTypeDeclarationResolver
     {
         /// <summary>
         /// Initializes a resolver over the documents in a registry snapshot.
@@ -190,6 +191,26 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return new ValueTask<ArrayOf<WotResolvedReferenceType>>(matches);
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// A registry holds the Thing Models a document binds to, and a Thing
+        /// Model states its declarations as affordances and names what it
+        /// extends with <c>tm:extends</c>. Answering here rather than from the
+        /// AddressSpace is what keeps Section 5.1.5's precedence intact for the
+        /// declaration view as well as for name resolution: a set of documents
+        /// loaded together describes itself, and a companion model the Server
+        /// happens to hold cannot change what one of them declares.
+        /// </remarks>
+        public ValueTask<WotTypeDeclarationSet?> ResolveDeclarationsAsync(
+            string typeNodeId,
+            WotDeclarationScope scope,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return new ValueTask<WotTypeDeclarationSet?>(
+                Index().Declarations.Resolve(typeNodeId, scope));
+        }
+
         /// <summary>
         /// Builds the index on first use.
         /// </summary>
@@ -252,6 +273,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         using WotDocument document = WotDocument.Parse(
                             content.Span.ToArray(), m_options);
                         IndexReferenceType(document, built, relations);
+
+                        // A tm:extends href in a registry names the resource by
+                        // its own identifiers, so the declaration index is told
+                        // every name the reference can use.
+                        built.Declarations.Add(
+                            document,
+                            [resource.Xid, resource.ResourceId, version.DigestHex]);
                         if (!WotNodeSetConverter.TryDescribeProjectedType(
                             document,
                             out string namespaceUri,
@@ -408,6 +436,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             public Dictionary<string, ArrayOf<WotResolvedReferenceType>> ReferenceTypes { get; } =
                 new(StringComparer.Ordinal);
+
+            public WotDocumentDeclarationIndex Declarations { get; } = new();
         }
 
         private readonly WotRegistrySnapshot m_snapshot;

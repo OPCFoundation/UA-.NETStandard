@@ -291,6 +291,11 @@ namespace Opc.Ua.WotCon.Bindings
         public WotSecurityFloor? SecurityFloor { get; }
 
         /// <summary>
+        /// Gets the optional Section 13 occurrence-action argument policy.
+        /// </summary>
+        public WotConditionInvocation? ConditionInvocation { get; private init; }
+
+        /// <summary>
         /// Returns a copy of this entry with the supplied executability.
         /// </summary>
         public WotCompiledForm WithExecutable(bool isExecutable)
@@ -302,7 +307,10 @@ namespace Opc.Ua.WotCon.Bindings
             return new WotCompiledForm(
                 Binding, AffordanceKind, AffordanceName, JsonPointer, Operation, OpToken,
                 Endpoint, Addressing, OperationInfo, Payload, Security, isExecutable, TargetMapping,
-                EventSelection, SecurityFloor);
+                EventSelection, SecurityFloor)
+            {
+                ConditionInvocation = ConditionInvocation
+            };
         }
 
         /// <summary>
@@ -325,7 +333,28 @@ namespace Opc.Ua.WotCon.Bindings
             return new WotCompiledForm(
                 Binding, AffordanceKind, AffordanceName, JsonPointer, Operation, OpToken,
                 Endpoint, Addressing, OperationInfo, Payload, Security, IsExecutable, targetMapping,
-                EventSelection, SecurityFloor);
+                EventSelection, SecurityFloor)
+            {
+                ConditionInvocation = ConditionInvocation
+            };
+        }
+
+        /// <summary>
+        /// Returns a compiled form carrying the Condition invocation policy.
+        /// </summary>
+        public WotCompiledForm WithConditionInvocation(WotConditionInvocation? invocation)
+        {
+            if (ReferenceEquals(invocation, ConditionInvocation))
+            {
+                return this;
+            }
+            return new WotCompiledForm(
+                Binding, AffordanceKind, AffordanceName, JsonPointer, Operation, OpToken,
+                Endpoint, Addressing, OperationInfo, Payload, Security, IsExecutable, TargetMapping,
+                EventSelection, SecurityFloor)
+            {
+                ConditionInvocation = invocation
+            };
         }
     }
 

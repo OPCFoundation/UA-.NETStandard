@@ -107,12 +107,10 @@ namespace Opc.Ua.AI.Server
                 string jobId = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
 
                 job = new InferenceJobState(null);
-                job.Create(
-                    SystemContext,
-                    NodeId.Null,
+                SystemContext.CreateInstance(
+                    job,
                     new QualifiedName("Job_" + jobId, NamespaceIndex),
-                    new LocalizedText("Job " + jobId),
-                    true);
+                    new LocalizedText("Job " + jobId));
 
                 Child<PropertyState<string>>(job, BrowseNames.JobId).Value = jobId;
                 Child<PropertyState<NodeId>>(job, BrowseNames.Deployment).Value =

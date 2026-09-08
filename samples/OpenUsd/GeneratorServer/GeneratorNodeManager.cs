@@ -144,10 +144,6 @@ namespace Generators
                   Opc.Ua.Machinery.Namespaces.Machinery,
                   Opc.Ua.OpenUsd.Namespaces.OpenUSD)
         {
-            // The base constructor points SystemContext.NodeIdFactory at itself;
-            // the New() override below takes over so every instance child gets a
-            // NodeId derived from its parent rather than the type-level one.
-            SystemContext.NodeIdFactory = this;
             m_options = options?.Value ?? new GeneratorDeviceIntegrationOptions();
             if (m_options.GeneratorCount is < 1 or > 100)
             {
@@ -191,19 +187,6 @@ namespace Generators
         /// </summary>
         internal bool InjectFaults => m_options.InjectFaults;
 
-        /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState { Parent: not null } instance)
-            {
-                string parentId = instance.Parent.NodeId.IdentifierAsString;
-                return new NodeId(
-                    $"{parentId}_{instance.SymbolicName}",
-                    InstanceNamespaceIndex);
-            }
-            return node.NodeId;
-        }
-
         /// <summary>
         /// Creates and registers a generator set organised by the DI
         /// <c>DeviceSet</c>, wired into the running simulation.
@@ -219,7 +202,7 @@ namespace Generators
                 browseName,
                 m_generatorSets.Count + 1,
                 cancellationToken,
-                RegisterGeneratorSimulation);
+                RegisterGeneratorSimulationAsync);
         }
 
         /// <inheritdoc/>
@@ -241,7 +224,8 @@ namespace Generators
         }
 
         /// <inheritdoc/>
-        protected override async ValueTask OnAddressSpaceReadyAsync(
+        protected override async ValueTask ConfigureAsync(
+            INodeManagerBuilder builder,
             CancellationToken cancellationToken)
         {
             // Phase 1 (async): materialise the instances the fluent Configure pass
@@ -249,9 +233,8 @@ namespace Generators
             await ConfigureInstancesAsync(cancellationToken).ConfigureAwait(false);
 
             // Phase 2 (sync): wire the simulation, state machines and alarms.
-            CreateFluentBuilder(InstanceNamespaceIndex)
-                .Configure(Configure)
-                .Seal();
+            // The base DiNodeManager seals the builder once this returns.
+            Configure(builder);
 
             m_logger.GeneratorAddressSpaceReady(PredefinedNodes.Count, m_generatorSets.Count);
         }
@@ -292,7 +275,7 @@ namespace Generators
             QualifiedName browseName,
             int setNumber,
             CancellationToken cancellationToken,
-            Action<GeneratorSetState>? onRegistered = null)
+            Func<GeneratorSetState, CancellationToken, ValueTask>? onRegistered = null)
         {
             IDeviceBuilder<GeneratorSetState> builder = await CreateDeviceAsync(
                 browseName,
@@ -322,7 +305,10 @@ namespace Generators
             // browse but read BadNotReadable.
             WriteNameplate(builder, setNumber);
 
-            onRegistered?.Invoke(set);
+            if (onRegistered != null)
+            {
+                await onRegistered(set, cancellationToken).ConfigureAwait(false);
+            }
 
             // Variables hand-built onto the set (rather than materialised by the
             // generated factory) browse and read correctly, but a monitored item

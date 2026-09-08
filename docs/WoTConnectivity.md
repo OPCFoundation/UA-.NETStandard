@@ -137,7 +137,6 @@ occurrence.
 "events": {
   "Overheating": {
     "title": "Overheating",
-    "uav:severity": 700,          // optional; 1..1000, defaults to 500
     "data": {
       "type": "object",
       "properties": { "Temperature": { "type": "number" } }
@@ -164,10 +163,9 @@ public ValueTask SubscribeEventAsync(
 ```
 
 `message` and `severity` are optional: a null `message` publishes the
-event name and a null `severity` falls back to the affordance's
-`uav:severity`. An authored severity outside 1..1000 is invalid: the WoT Binding forbids
-silently clamping it, so the affordance carrying it is skipped and the rest of
-the asset is unaffected.
+event name and a null or out-of-range `severity` uses the server's medium
+fallback. Severity is occurrence data supplied by the provider; the Thing
+Description carries no default-severity metadata.
 
 Skipping is not the same as succeeding. Whenever an affordance is skipped — for
 an out-of-range severity, an invalid child name, or a duplicate name — applying
@@ -641,6 +639,21 @@ A decorator around `IWotRegistryStore` **must** forward `IWotRegistryResourceSto
 
 Resource bounds (`WotRegistryPersistenceBounds`) cap document size, versions per resource, resources per group, and group count.
 
+#### Deleting a document, and the documents that could not be read
+
+`DeleteResourceAsync` first walks the dependency graph, which means reading every stored document to find its outgoing references. A registry is a set of blobs, so some of those reads can fail: the blob is gone, or its bytes no longer match the digest the manifest recorded. An unreadable document is **recorded, not propagated** — `WotDependencyGraph.FindDependentsWithFaultsAsync` returns it in `WotDependentSet.Unreadable` and it contributes no edges. Letting the read failure out of the walk would make one corrupt blob anywhere in the registry wedge every policy, including `Force`, whose entire purpose is to remove a target when the tidy answer is unavailable.
+
+Each policy then states what it did about it, and `WotDeleteResult.Unreadable` names them:
+
+| Policy | Proven dependents | Documents that could not be read |
+| --- | --- | --- |
+| `Reject` | Refuses while any exists. | **Refuses.** The safety it asserts — that nothing is still using the document — was never established. |
+| `Retire` | Keeps the document stored and resolvable; only the projection comes down. | Nothing loses a reference, so they are not this policy's problem. |
+| `Cascade` | Unloads only the ones that lost a reference. | **Left alone** and reported. Unloading one would take a projection down on a guess. |
+| `Force` | Deletes the target and marks every dependent `Failed`. | Marked `Failed` too, with a diagnostic saying why: `Force` cannot claim they were unaffected, and its contract is to say what it broke. |
+
+The target's own blob is the one exception: it is being removed anyway, so its readability never blocks the delete under any policy.
+
 ### 11.3 Materialization coordinator
 
 `WotMaterializationCoordinator.RefreshAsync` drives projection:
@@ -803,12 +816,13 @@ not by copying the source document. The readable surface tracks the current
 
 * **Event affordances carry `uav:eventType`.** An OPC UA EventType (a
   `BaseEventType` subtype) projects to an event affordance annotated
-  `@type: uav:eventType` alongside `uav:isEvent: true`; a NodeSet whose
-  root is an EventType is annotated the same way. The two forms are the
-  `@type` annotation and the boolean anchor of the same fact, so a
-  document that pairs `@type: uav:eventType` with `uav:isEvent: false`
-  is rejected (`WotDiagnosticCode.EventAnnotationConflict`). Reverse
-  conversion recreates a `BaseEventType` subtype from either form.
+  `@type: uav:eventType`; a NodeSet whose root is an EventType is
+  annotated the same way. That annotation is the whole statement of
+  event identity — WoT Binding 1.1 defines no parallel boolean flag —
+  and reverse conversion recreates a `BaseEventType` subtype from it. A
+  legacy document that still carries `uav:isEvent` is consumed
+  permissively: the member survives as ordinary unknown residue and
+  changes nothing, while strict authoring reports it as an unknown term.
 
 * **Identity terms are portable ExpandedNodeIds.** Every persisted
   identity term — `uav:id`, each `uav:hasComponent` / `uav:componentOf`
@@ -917,13 +931,16 @@ adopted verbatim rather than maintained by hand.
 
 | Model | Version | PublicationDate |
 |---|---|---|
-| WoT Connectivity | `1.1` | 2026-08-05 |
+| WoT Connectivity | `1.1` | 2026-09-05 |
 | WoT Binding | `1.1` | 2026-07-29 |
-| xRegistry (`RequiredModel`) | `0.3.0` | 2026-07-31 |
+| xRegistry (`RequiredModel`) | `0.6.0` | 2026-09-05 |
 
-xRegistry contributes 66 nodes and two behavioural rules the registry honours: a
-reverse-authority construction algorithm for `GroupId` and `ResourceId`
-(§ 11.4), and `SignAndEncrypt` on every mutating operation.
+xRegistry contributes 117 nodes, including its native event hierarchy. The registry honours its
+reverse-authority construction algorithm for `GroupId` and `ResourceId` (§ 11.4),
+`SignAndEncrypt` on every mutating operation, and optional generic event semantics.
+
+Draft iterations are identified by the specification release label, for example
+`1.1-draft5`; they do not increment the information model version.
 
 ### 12.2 Conformance units and profiles
 
@@ -1135,17 +1152,20 @@ subscription on a View or group is not enough to receive events. Event delivery
 still depends on the Object that actually carries `GeneratesEvent` and on an
 event-producing runtime path behind that Object.
 
-Current sample limitation: the upstream cavitation signal is proven to raise the
-upstream alarm and leave it unacknowledged, but Pump1 carries no
-`GeneratesEvent` reference for its cavitation alarm and acknowledgement does not
-round-trip because the projected pump actions are Start, Stop and Reset rather
-than Condition Methods carrying `uav:conditionAction` / `uav:actsOn`. The Pump1
-`Supervision` and `Management` views therefore report organizing 0 of their
-selected members, naming each one, rather than reporting a success they did not
-achieve. The cause is that `SamplePump.td.json` carries a `uav:nodes` native
-projection: the converter restores the pump from it and returns before affordance
-synthesis, so its action and event affordances materialize nothing. See
-[the sample README](../samples/WotCon/README.md) for the measured breakdown.
+The aggregation sample declares both pumps, management Methods, and alarm
+EventTypes in its source NodeSet before generating the linked documents.
+Each pump carries `GeneratesEvent` references and is the notifier clients
+subscribe to. The generic runtime publishes selected upstream occurrences and
+routes the declared `uav:conditionAction` / `uav:actsOn` Methods back to their
+owning source. A local EventType is distinct from its mutable Condition instance
+and occurrence EventIds.
+
+The Supervision and Management projections organize existing signal Variables,
+Methods, and EventTypes; they do not create copies or overlay missing Nodes on
+an authoritative native partition. See [the sample README](../samples/WotCon/README.md)
+for the exact per-pump membership and supported alarm workflow, and
+[the binding runtime](WotBindings.md#projected-methods-events-and-conditions)
+for channel, subscription, and occurrence-route ownership.
 
 ### 12.5 Portable identifiers
 
@@ -1171,14 +1191,11 @@ The incorporated OPC 10100-1 v1.02 management and upload surface (NodeIds
 `1..172`) is superseded in capability by the registry but is **not** deprecated:
 serving a WoT asset that way is legitimate, and *WoT-Con Minimal* is built on it.
 
-It is also a **separate code path**. `AssetRegistry` reads a v1.02 asset document
-into the POCO shape OPC 10100-1 defines and is governed by that specification;
-`Opc.Ua.Wot.WotNodeSetConverter` implements the WoT Binding draft. The two share
-no vocabulary table, no diagnostics and no conformance mode, so what
-[WoT / NodeSet conversion](WoTNodeSetConversion.md) states about strict mode,
-residue preservation, localization or `uav:severity` describes the generic
-converter only. The legacy reader keeps the narrower term set v1.02 names, which
-is not a defect of the converter and is not fixed by changing it.
+It is also a **separate code path**. `AssetRegistry` reads an asset document
+into the POCO shape supported by this surface, while
+`Opc.Ua.Wot.WotNodeSetConverter` implements the complete WoT Binding draft.
+Unknown asset-document members are ignored and cannot affect the emitted
+AddressSpace.
 
 It carries its security obligation directly rather than by reference to the
 optional registry backing, so a server implementing only this surface still

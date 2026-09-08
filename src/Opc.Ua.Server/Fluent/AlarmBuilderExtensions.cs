@@ -217,10 +217,7 @@ namespace Opc.Ua.Server.Fluent
             alarm.BrowseName = browseName;
             alarm.DisplayName = new LocalizedText(symbolicName);
 
-            string parentIdentifier = parent.Node.NodeId.IdentifierAsString;
-            alarm.NodeId = new NodeId(
-                $"{parentIdentifier}_{symbolicName}",
-                parent.Node.NodeId.NamespaceIndex);
+            FluentNodeRegistration.AssignNodeId(parent.Builder, alarm);
 
             // Initialize standard alarm state surface so the alarm is
             // immediately addressable as a valid OPC UA condition.

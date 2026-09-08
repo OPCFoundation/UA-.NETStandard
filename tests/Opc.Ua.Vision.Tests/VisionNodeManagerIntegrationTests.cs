@@ -112,11 +112,13 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public async Task NewNodeIdSynthesisesGuidWhenNoParentAndNoExistingNodeId()
+        public async Task NewNodeIdFallsBackToASequentialIdWhenThereIsNoBrowsePath()
         {
             await using var fixture = new VisionServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
 
+            // no browse name, so there is no path for the deterministic
+            // factory to derive an identifier from.
             var orphan = new BaseObjectState(null)
             {
                 NodeId = NodeId.Null,
@@ -126,7 +128,10 @@ namespace Opc.Ua.Vision.Tests
             NodeId result = fixture.Manager.New(fixture.Manager.SystemContext, orphan);
 
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.IdType, Is.EqualTo(IdType.Guid));
+            Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
+            Assert.That(
+                result.NamespaceIndex,
+                Is.EqualTo(fixture.Manager.NodeIdFactory.DefaultNamespaceIndex));
         }
 
         [Test]
@@ -135,22 +140,47 @@ namespace Opc.Ua.Vision.Tests
             await using var fixture = new VisionServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
 
+            NodeId result = MintChild(fixture, "Parent", "Child");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
+                Assert.That(
+                    result.NamespaceIndex,
+                    Is.EqualTo(fixture.Manager.NodeIdFactory.DefaultNamespaceIndex));
+
+                // A numeric identifier cannot be read back for the path it
+                // came from, so this asserts the property the path gives
+                // rather than its spelling: both halves of the path move the
+                // result, and the same path gives the same result.
+                Assert.That(MintChild(fixture, "OtherParent", "Child"), Is.Not.EqualTo(result));
+                Assert.That(MintChild(fixture, "Parent", "OtherChild"), Is.Not.EqualTo(result));
+                Assert.That(MintChild(fixture, "Parent", "Child"), Is.EqualTo(result));
+            });
+        }
+
+        /// <summary>
+        /// Mints the NodeId the manager would give a child of the named
+        /// parent.
+        /// </summary>
+        private static NodeId MintChild(
+            VisionServerFixture fixture,
+            string parentName,
+            string browseName)
+        {
             var parent = new BaseObjectState(null)
             {
-                NodeId = new NodeId("Parent", fixture.Manager.NamespaceIndex),
-                SymbolicName = "Parent"
+                NodeId = new NodeId(parentName, fixture.Manager.NamespaceIndex),
+                SymbolicName = parentName
             };
             var child = new BaseObjectState(parent)
             {
                 NodeId = NodeId.Null,
-                SymbolicName = "Child"
+                SymbolicName = browseName,
+                BrowseName = new QualifiedName(browseName, fixture.Manager.NamespaceIndex)
             };
 
-            NodeId result = fixture.Manager.New(fixture.Manager.SystemContext, child);
-
-            Assert.That(result.IdType, Is.EqualTo(IdType.String));
-            Assert.That(result.IdentifierAsString, Does.Contain("Parent"));
-            Assert.That(result.IdentifierAsString, Does.Contain("Child"));
+            return fixture.Manager.New(fixture.Manager.SystemContext, child);
         }
 
         [Test]

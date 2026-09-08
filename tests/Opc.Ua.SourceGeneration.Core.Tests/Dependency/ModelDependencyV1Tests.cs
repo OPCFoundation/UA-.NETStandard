@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using NUnit.Framework;
+using Opc.Ua.Schema.Model;
 using Opc.Ua.SourceGeneration.Dependency;
 
 namespace Opc.Ua.SourceGeneration.Generator.Tests
@@ -42,7 +44,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class ModelSnapshotV1Tests
+    public class ModelDependencyV1Tests
     {
         [Test]
         public void WriteThenRead_RoundTripsExactly()
@@ -163,7 +165,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void Read_ReturnsNullForFutureVersion()
         {
-            // Header with version=2 (unknown) — reader should refuse.
             byte[] bogus = [0xAA, 0xC7, 0x02, 0x01];
             string payload = Convert.ToBase64String(bogus);
             var result = ModelDependencyV1.FromBase64Payload(payload);
@@ -278,6 +279,68 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(grp.BrowseName, Is.EqualTo("<GroupIdentifier>"));
             Assert.That(grp.ModellingRule, Is.EqualTo((byte)3));
             Assert.That(grp.TypeDefinitionNamespace, Is.EqualTo("http://opcfoundation.org/UA/DI/"));
+        }
+
+        [Test]
+        public void WriteThenRead_RoundTripsVariableMetadata()
+        {
+            const string defaultValue = """
+                <uax:ListOfString
+                    xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                    <uax:String>First</uax:String>
+                    <uax:String>Second</uax:String>
+                </uax:ListOfString>
+                """;
+            var dependency = new ModelDependencyV1
+            {
+                ModelUri = "http://example.org/UA/VariableMetadata/"
+            };
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "DeviceType",
+                SymbolicNamespace = dependency.ModelUri,
+                ClassName = "Device",
+                Kind = DependencyNodeKind.ObjectType,
+                Children =
+                [
+                    new DependencyChild
+                    {
+                        BrowseName = "Values",
+                        SymbolicName = "Values",
+                        InstanceKind = 2,
+                        AccessLevel = (byte)AccessLevel.ReadWrite,
+                        AccessLevelSpecified = true,
+                        RawAccessLevel = 5,
+                        RawUserAccessLevel = 1,
+                        MinimumSamplingInterval = 0,
+                        MinimumSamplingIntervalSpecified = true,
+                        Historizing = false,
+                        HistorizingSpecified = true,
+                        DefaultValueXml = defaultValue
+                    }
+                ]
+            });
+
+            ModelDependencyV1 decoded =
+                ModelDependencyV1.FromBase64Payload(
+                    dependency.ToBase64Payload());
+
+            Assert.That(decoded, Is.Not.Null);
+            DependencyChild child = decoded.Nodes.Single().Children.Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(child.AccessLevel, Is.EqualTo((byte)AccessLevel.ReadWrite));
+                Assert.That(child.AccessLevelSpecified, Is.True);
+                Assert.That(child.RawAccessLevel, Is.EqualTo(5u));
+                Assert.That(child.RawUserAccessLevel, Is.EqualTo(1u));
+                Assert.That(child.MinimumSamplingInterval, Is.Zero);
+                Assert.That(child.MinimumSamplingIntervalSpecified, Is.True);
+                Assert.That(child.Historizing, Is.False);
+                Assert.That(child.HistorizingSpecified, Is.True);
+                Assert.That(
+                    child.DefaultValueXml?.ReplaceLineEndings(),
+                    Is.EqualTo(defaultValue.ReplaceLineEndings()));
+            });
         }
 
         [Test]

@@ -542,6 +542,50 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(copy.DesignToolOnly).IsTrue();
         }
 
+        /// <summary>
+        /// Verifies that an import state factory produces typed states under
+        /// NativeAOT. The factory calls a concrete constructor, so no runtime
+        /// type lookup is involved.
+        /// </summary>
+        [Test]
+        public async Task ImportNodeSetWithTypedStateFactoryAsync()
+        {
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(SimpleNodeSetXml));
+            UANodeSet nodeSet = UANodeSet.Read(stream);
+
+            var context = new SystemContext(fixture.Telemetry)
+            {
+                NamespaceUris = new NamespaceTable()
+            };
+            foreach (string ns in nodeSet.NamespaceUris)
+            {
+                context.NamespaceUris.Append(ns);
+            }
+            NodeId typeDefinitionId = new(
+                1000u,
+                (ushort)context.NamespaceUris.GetIndex("http://opcfoundation.org/UA/AotTest"));
+
+            var nodes = new NodeStateCollection();
+            nodeSet.Import(
+                context,
+                nodes,
+                (nodeClass, nodeId, discriminatorId) =>
+                    nodeClass == NodeClass.Object && discriminatorId == typeDefinitionId
+                        ? new AotTypedObjectState(null)
+                        : null,
+                linkParentChild: true);
+
+            NodeState typedNode = nodes.Find(
+                node => node.BrowseName.Name == "TestObject");
+            NodeState untypedNode = nodes.Find(
+                node => node.BrowseName.Name == "TestVariable");
+
+            await Assert.That(typedNode).IsTypeOf<AotTypedObjectState>();
+            await Assert.That(((BaseObjectState)typedNode).TypeDefinitionId)
+                .IsEqualTo(typeDefinitionId);
+            await Assert.That(untypedNode).IsTypeOf<BaseDataVariableState>();
+        }
+
         private static async Task AssertDefaultDesignMetadataAsync(NodeState node)
         {
             await Assert.That(node.Extensions).IsNull();
@@ -551,6 +595,14 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(node.NodeSetDocumentation).IsNull();
             await Assert.That(node.DesignToolOnly).IsFalse();
             await Assert.That(node.ChangeMasks).IsEqualTo(NodeStateChangeMasks.None);
+        }
+
+        private sealed class AotTypedObjectState : BaseObjectState
+        {
+            public AotTypedObjectState(NodeState parent)
+                : base(parent)
+            {
+            }
         }
     }
 }

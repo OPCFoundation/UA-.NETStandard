@@ -260,6 +260,12 @@ namespace Opc.Ua.Wot
             }
             foreach (System.Xml.XmlNode node in value.ChildNodes)
             {
+                if (node.NodeType is System.Xml.XmlNodeType.Whitespace or
+                    System.Xml.XmlNodeType.SignificantWhitespace or
+                    System.Xml.XmlNodeType.Comment or System.Xml.XmlNodeType.ProcessingInstruction)
+                {
+                    continue;
+                }
                 if (node is not System.Xml.XmlElement extension ||
                     !string.Equals(
                         extension.LocalName, "ExtensionObject", StringComparison.Ordinal))
@@ -599,8 +605,8 @@ namespace Opc.Ua.Wot
                 }
             }
 
-            string nodeId = GenerateNodeId(
-                rootLocal + "/" + methodLocal + "/" + browseName);
+            string nodeId = GenerateBaseChildNodeId(
+                nodeSet, rootLocal, methodLocal, browseName);
             items.Add(new UAVariable
             {
                 NodeId = nodeId,
@@ -788,7 +794,7 @@ namespace Opc.Ua.Wot
                 name,
                 MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics),
                 GetElementInt32(schema, "uav:valueRank") ?? -1,
-                ReadArrayDimensions(schema),
+                ReadArrayDimensions(schema, name, diagnostics),
                 ReadDescription(schema, GetDeclaredLocale(document)));
         }
 
