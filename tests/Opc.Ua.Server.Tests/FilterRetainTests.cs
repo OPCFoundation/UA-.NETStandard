@@ -5,6 +5,7 @@
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -866,6 +867,35 @@ namespace Opc.Ua.Server.Tests
                 Attributes.Value,
                 default);
             Assert.That(unresolved.IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// Everything but the Retain clause is the wrapped target's business: type checks
+        /// pass straight through, and there is nothing to wrap without a target.
+        /// </summary>
+        [Test]
+        public void FilteredRetainTargetDelegatesTypeChecks()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IFilterContext filterContext = GetFilterContext(telemetry);
+
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: true,
+                filterRetainValue: true,
+                telemetry: telemetry);
+            InstanceStateSnapshot snapshot = CreateSnapshot(alarm, telemetry);
+            var wrapped = new FilteredRetainTarget(snapshot);
+
+            Assert.That(
+                wrapped.IsTypeOf(filterContext, ObjectTypeIds.ConditionType),
+                Is.EqualTo(snapshot.IsTypeOf(filterContext, ObjectTypeIds.ConditionType)));
+            Assert.That(
+                wrapped.IsTypeOf(filterContext, ObjectTypeIds.AuditEventType),
+                Is.EqualTo(snapshot.IsTypeOf(filterContext, ObjectTypeIds.AuditEventType)));
+            Assert.That(wrapped.IsTypeOf(filterContext, ObjectTypeIds.ConditionType), Is.True);
+            Assert.That(wrapped.IsTypeOf(filterContext, ObjectTypeIds.AuditEventType), Is.False);
+
+            Assert.Throws<ArgumentNullException>(() => new FilteredRetainTarget(null!));
         }
 
         private const int kRetainFieldIndex = 1;
