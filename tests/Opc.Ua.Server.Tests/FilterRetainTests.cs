@@ -298,14 +298,21 @@ namespace Opc.Ua.Server.Tests
             bool expected = true;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
-            // 2 Placed Out of Service
+            // 2 Placed Out of Service - the trailing event, "Retain sent" = False
             Debug.WriteLine("// 2 Placed Out of Service");
             alarm.OutOfServiceState.Value = OutOfService;
             if (!supportsFilteredRetain)
             {
                 expected = false;
             }
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
+            CanSendFilteredAlarm(
+                monitoredItem,
+                filterContext,
+                filter,
+                alarm,
+                expected,
+                telemetry,
+                expectedOverrideRetain: supportsFilteredRetain);
 
             // 3 Alarm Suppressed; No event since OutOfService
             Debug.WriteLine("// 3 Alarm Suppressed; No event since OutOfService");
@@ -336,7 +343,8 @@ namespace Opc.Ua.Server.Tests
             expected = true;
             CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
 
-            // 8 Alarm goes inactive
+            // 8 Alarm goes inactive - with the ActiveState clause this is the trailing
+            // event, "Retain sent" = False
             Debug.WriteLine("// 8 Alarm goes inactive");
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             alarm.Retain.Value = false;
@@ -344,7 +352,14 @@ namespace Opc.Ua.Server.Tests
             {
                 expected = false;
             }
-            CanSendFilteredAlarm(monitoredItem, filterContext, filter, alarm, expected, telemetry);
+            CanSendFilteredAlarm(
+                monitoredItem,
+                filterContext,
+                filter,
+                alarm,
+                expected,
+                telemetry,
+                expectedOverrideRetain: supportsFilteredRetain);
 
             // 9 Alarm Suppressed; No event since not active
             Debug.WriteLine("// 9 Alarm Suppressed; No event since not active");
@@ -719,13 +734,232 @@ namespace Opc.Ua.Server.Tests
                 Is.True);
         }
 
+        /// <summary>
+        /// Part 9, 5.5.2: the trailing event a condition produces on its way out of a
+        /// client's where clause carries a client specific Retain = false, whatever the
+        /// server retains - otherwise that client keeps an alarm it should drop. The
+        /// snapshot is shared by every item the condition is reported to, so an item whose
+        /// filter still passes has to keep reading the server's real value from it.
+        /// </summary>
+        [Test]
+        public void TrailingEventIsDeliveredWithRetainFalse()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: true,
+                filterRetainValue: true,
+                telemetry: telemetry);
+
+            SystemContext systemContext = GetSystemContext(telemetry);
+            IFilterContext filterContext = GetFilterContext(telemetry);
+
+            // one client only wants High alarms, the other wants every event.
+            EventFilter highOnly = GetRetainEventFilter(GetHighOnlyFilter(), telemetry);
+            EventFilter everything = GetRetainEventFilter(new ContentFilter(), telemetry);
+            using TestableMonitoredItem highOnlyItem = CreateMonitoredItem(highOnly, telemetry);
+            using TestableMonitoredItem everythingItem = CreateMonitoredItem(everything, telemetry);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
+
+            InstanceStateSnapshot inScope = CreateSnapshot(alarm, telemetry);
+            highOnlyItem.QueueEvent(inScope);
+            everythingItem.QueueEvent(inScope);
+
+            Assert.That(PublishRetain(highOnlyItem), Is.True, "in scope: the server's value");
+            Assert.That(PublishRetain(everythingItem), Is.True);
+
+            // the alarm leaves the High-only client's scope while the server still retains
+            // it - the shape of an alarm that was acknowledged but is not yet inactive.
+            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = true;
+
+            InstanceStateSnapshot outOfScope = CreateSnapshot(alarm, telemetry);
+            highOnlyItem.QueueEvent(outOfScope);
+            everythingItem.QueueEvent(outOfScope);
+
+            Assert.That(
+                PublishRetain(highOnlyItem),
+                Is.False,
+                "the trailing event carries the client specific Retain");
+            Assert.That(
+                PublishRetain(everythingItem),
+                Is.True,
+                "an item the condition still passes reads the server's value");
+            Assert.That(
+                ReadRetain(outOfScope, filterContext),
+                Is.True,
+                "the shared snapshot is untouched");
+        }
+
+        /// <summary>
+        /// The override belongs to the single transition out of scope. Once the condition
+        /// passes the where clause again the client is back to the server's value.
+        /// </summary>
+        [Test]
+        public void RetainOverrideAppliesToTheTrailingEventOnly()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: true,
+                filterRetainValue: true,
+                telemetry: telemetry);
+
+            SystemContext systemContext = GetSystemContext(telemetry);
+            EventFilter highOnly = GetRetainEventFilter(GetHighOnlyFilter(), telemetry);
+            using TestableMonitoredItem monitoredItem = CreateMonitoredItem(highOnly, telemetry);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
+            monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
+            Assert.That(PublishRetain(monitoredItem), Is.True);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            alarm.Retain.Value = true;
+            monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
+            Assert.That(PublishRetain(monitoredItem), Is.False, "trailing event");
+
+            // still out of scope and no longer tracked: nothing is delivered at all.
+            monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
+            Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            alarm.Retain.Value = true;
+            monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
+            Assert.That(PublishRetain(monitoredItem), Is.True, "back in scope: the server's value");
+        }
+
+        /// <summary>
+        /// A select clause the wrapper cannot resolve - here Retain asked for on a type the
+        /// condition is not - must stay null rather than be turned into a false.
+        /// </summary>
+        [Test]
+        public void RetainOverrideLeavesUnresolvedClausesAlone()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IFilterContext filterContext = GetFilterContext(telemetry);
+
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: true,
+                filterRetainValue: true,
+                telemetry: telemetry);
+            alarm.Retain.Value = true;
+
+            var wrapped = new FilteredRetainTarget(CreateSnapshot(alarm, telemetry));
+            ArrayOf<QualifiedName> retainPath = [QualifiedName.From(BrowseNames.Retain)];
+
+            Variant overridden = wrapped.GetAttributeValue(
+                filterContext,
+                ObjectTypeIds.ConditionType,
+                retainPath,
+                Attributes.Value,
+                default);
+            Assert.That(overridden.TryGetValue(out bool retain), Is.True);
+            Assert.That(retain, Is.False);
+
+            Variant unresolved = wrapped.GetAttributeValue(
+                filterContext,
+                ObjectTypeIds.AuditEventType,
+                retainPath,
+                Attributes.Value,
+                default);
+            Assert.That(unresolved.IsNull, Is.True);
+        }
+
+        private const int kRetainFieldIndex = 1;
+
+        /// <summary>
+        /// Select clauses with a known slot for Retain and no localized text, so the item
+        /// does not need a resource manager to build the field list.
+        /// </summary>
+        private EventFilter GetRetainEventFilter(
+            ContentFilter whereClause,
+            ITelemetryContext telemetry)
+        {
+            var filter = new EventFilter
+            {
+                SelectClauses =
+                [
+                    new SimpleAttributeOperand
+                    {
+                        AttributeId = Attributes.Value,
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [QualifiedName.From(BrowseNames.EventId)]
+                    },
+                    new SimpleAttributeOperand
+                    {
+                        AttributeId = Attributes.Value,
+                        TypeDefinitionId = ObjectTypeIds.ConditionType,
+                        BrowsePath = [QualifiedName.From(BrowseNames.Retain)]
+                    },
+                    new SimpleAttributeOperand
+                    {
+                        AttributeId = Attributes.NodeId,
+                        TypeDefinitionId = ObjectTypeIds.ConditionType
+                    }
+                ],
+                WhereClause = whereClause
+            };
+            _ = filter.Validate(GetFilterContext(telemetry));
+            return filter;
+        }
+
+        private InstanceStateSnapshot CreateSnapshot(
+            BaseObjectState alarm,
+            ITelemetryContext telemetry)
+        {
+            var snapshot = new InstanceStateSnapshot();
+            snapshot.Initialize(GetSystemContext(telemetry), alarm);
+            return snapshot;
+        }
+
+        /// <summary>
+        /// Publishes the single queued event and returns the Retain field it carries.
+        /// </summary>
+        private static bool PublishRetain(MonitoredItem monitoredItem)
+        {
+            var notifications = new Queue<EventFieldList>();
+            _ = monitoredItem.Publish(new OperationContext(monitoredItem), notifications, 10);
+
+            Assert.That(notifications, Has.Count.EqualTo(1));
+            EventFieldList fields = notifications.Dequeue();
+            Assert.That(
+                fields.EventFields[kRetainFieldIndex].TryGetValue(out bool retain),
+                Is.True,
+                "Retain is a selected field");
+            return retain;
+        }
+
+        private static bool ReadRetain(
+            InstanceStateSnapshot target,
+            IFilterContext filterContext)
+        {
+            Variant value = target.GetAttributeValue(
+                filterContext,
+                ObjectTypeIds.ConditionType,
+                [QualifiedName.From(BrowseNames.Retain)],
+                Attributes.Value,
+                default);
+            Assert.That(value.TryGetValue(out bool retain), Is.True);
+            return retain;
+        }
+
+        /// <summary>
+        /// Evaluates the alarm's current state against the item and asserts whether it is
+        /// sent. When <paramref name="expectedOverrideRetain"/> is given it also asserts
+        /// whether this is the trailing event that carries the client specific
+        /// Retain = false - the "Retain sent" column of Part 9 Table B.3.
+        /// </summary>
         private void CanSendFilteredAlarm(
             TestableMonitoredItem monitoredItem,
             IFilterContext context,
             EventFilter filter,
             BaseObjectState alarm,
             bool expected,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            bool? expectedOverrideRetain = null)
         {
             SystemContext systemContext = GetSystemContext(telemetry);
 
@@ -735,8 +969,20 @@ namespace Opc.Ua.Server.Tests
             Debug.WriteLine("Expecting " + expected.ToString());
 
             Assert.That(
-                monitoredItem.CanSendFilteredAlarmForTest(context, filter, eventSnapshot),
+                monitoredItem.CanSendFilteredAlarmForTest(
+                    context,
+                    filter,
+                    eventSnapshot,
+                    out bool overrideRetain),
                 Is.EqualTo(expected));
+
+            if (expectedOverrideRetain.HasValue)
+            {
+                Assert.That(
+                    overrideRetain,
+                    Is.EqualTo(expectedOverrideRetain.Value),
+                    "Retain sent");
+            }
         }
 
         private ExclusiveLevelAlarmState GetExclusiveLevelAlarm(
@@ -1084,7 +1330,16 @@ namespace Opc.Ua.Server.Tests
                 EventFilter filter,
                 IFilterTarget instance)
             {
-                return CanSendFilteredAlarm(context, filter, instance);
+                return CanSendFilteredAlarm(context, filter, instance, out _);
+            }
+
+            public bool CanSendFilteredAlarmForTest(
+                IFilterContext context,
+                EventFilter filter,
+                IFilterTarget instance,
+                out bool overrideRetain)
+            {
+                return CanSendFilteredAlarm(context, filter, instance, out overrideRetain);
             }
         }
     }
