@@ -53,11 +53,11 @@ namespace Opc.Ua.Gds.Server
     /// source-generated from the <c>[NodeManager]</c> attribute below. The
     /// design stays owned by <c>Opc.Ua.Gds</c>, which emits the model
     /// types; this assembly only binds a manager to it. What is written by
-    /// hand is the behaviour, and it arrives in two passes: the I/O of
-    /// starting the certificate authorities in
-    /// <see cref="ConfigureAsync"/>, then everything that touches
-    /// the address space in <see cref="OnConfigure"/> — which is where the
-    /// nodes those authorities are addressed by are resolved or created.
+    /// hand is the behaviour, and it all arrives in one pass:
+    /// <see cref="ConfigureAsync"/> starts the certificate authorities —
+    /// real I/O — and binds them, then wires everything else against the
+    /// loaded model. That hook can await and carries the builder, so the
+    /// I/O and the address-space work no longer need separate passes.
     /// </para>
     /// <para>
     /// The namespace order is deliberate and load-bearing:
@@ -209,20 +209,15 @@ namespace Opc.Ua.Gds.Server
         // CreateAddressSpaceAsync.
 
         /// <summary>
-        /// The generated manager's wiring hook. Kept to a single call so
-        /// the work itself stays overridable — a <c>partial</c> method is
-        /// private and cannot be.
-        /// </summary>
-        /// <param name="builder">The active fluent builder.</param>
-        partial void Configure(INodeManagerBuilder builder)
-        {
-            OnConfigure(builder);
-        }
-
-        /// <summary>
-        /// Binds the node manager's handlers to the loaded GDS model.
+        /// Brings the GDS up and binds its handlers to the loaded model.
         /// </summary>
         /// <remarks>
+        /// <para>
+        /// One pass. The certificate authorities are real I/O — opening
+        /// stores, creating CA certificates — and everything else resolves
+        /// against the address space, but both can live here because this
+        /// hook can await and carries the builder.
+        /// </para>
         /// <para>
         /// Every lookup resolves eagerly and throws
         /// <see cref="ServiceResultException"/> when it fails, so a model
@@ -231,23 +226,33 @@ namespace Opc.Ua.Gds.Server
         /// </para>
         /// <para>
         /// Subclasses that add their own wiring should override this and
-        /// call <c>base.OnConfigure(builder)</c> first; the builder is
-        /// sealed as soon as this method returns.
+        /// await <c>base.ConfigureAsync(builder, cancellationToken)</c>
+        /// first; the builder is sealed once the generated
+        /// <c>CreateAddressSpaceAsync</c> finishes.
         /// </para>
         /// </remarks>
         /// <param name="builder">The active fluent builder.</param>
-        protected virtual void OnConfigure(INodeManagerBuilder builder)
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected override async ValueTask ConfigureAsync(
+            INodeManagerBuilder builder,
+            CancellationToken cancellationToken)
         {
             if (builder == null)
             {
                 throw new ArgumentNullException(nameof(builder));
             }
 
+            m_certTypeMap = CreateCertificateTypeMap();
+            m_database.NamespaceIndex = NamespaceIndexes[0];
+            m_request.NamespaceIndex = NamespaceIndexes[0];
+
+            await InitializeCertificateGroupsAsync(builder).ConfigureAwait(false);
+
             INodeBuilder<CertificateDirectoryState> directory =
                 builder.Node<CertificateDirectoryState>(m_directoryId);
 
             ConfigureDirectoryServices(directory);
-            ConfigureCertificateGroups(builder, directory);
+            ConfigureCertificateGroups(directory);
 
             // Created and wired in one place: the builder's Add surface
             // stages the node, finalises its NodeIds before handing it back,
@@ -315,24 +320,15 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
-        /// Binds the configured certificate authorities to their nodes and
-        /// publishes the state of the three groups the model declares.
+        /// Publishes the state of the three certificate groups the model
+        /// declares. The groups are already bound to their nodes by
+        /// <see cref="InitializeCertificateGroupsAsync"/>, which is what
+        /// gives them the ids this pass looks them up by.
         /// </summary>
-        /// <param name="builder">The active fluent builder.</param>
         /// <param name="directory">The <c>Directory</c> object.</param>
         private void ConfigureCertificateGroups(
-            INodeManagerBuilder builder,
             INodeBuilder<CertificateDirectoryState> directory)
         {
-            // Bind before publishing: a group only learns the NodeId it is
-            // addressed by here, and the per-group publish below looks the
-            // groups up by exactly that id.
-            foreach (ICertificateGroup certificateGroup in m_ownedCertificateGroups)
-            {
-                SetCertificateGroupNodes(builder, certificateGroup);
-                m_certificateGroups[certificateGroup.Id] = certificateGroup;
-            }
-
             INodeBuilder<CertificateGroupFolderState> groups =
                 directory.Child<CertificateGroupFolderState>(
                     GdsName(BrowseNames.CertificateGroups));
@@ -601,7 +597,7 @@ namespace Opc.Ua.Gds.Server
         /// host (OPC 10000-12 §7.9). Unlike the <c>Directory</c>, these
         /// instances are not part of the companion model, so they are
         /// wired as they are registered rather than from
-        /// <see cref="OnConfigure"/>.
+        /// <see cref="ConfigureAsync"/>.
         /// </summary>
         /// <param name="service">The service object to wire.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
@@ -926,23 +922,12 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
-        /// Does the asynchronous part of startup, which is what this hook
-        /// exists for: bringing up the certificate authorities, whose
-        /// stores and CA certificates are real I/O.
+        /// The certificate types this GDS understands, by NodeId
+        /// (OPC 10000-12 V1.04).
         /// </summary>
-        /// <remarks>
-        /// Nothing that touches the address space belongs here, so the
-        /// builder goes unused. The groups this pass brings up are bound to
-        /// their nodes by <c>Configure</c>, which runs next and is where the
-        /// node ids they key off are decided.
-        /// </remarks>
-        /// <param name="builder">The active fluent builder, unused here.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        protected override async ValueTask ConfigureAsync(
-            INodeManagerBuilder builder,
-            CancellationToken cancellationToken)
+        private static Dictionary<NodeId, string> CreateCertificateTypeMap()
         {
-            m_certTypeMap = new Dictionary<NodeId, string>
+            return new Dictionary<NodeId, string>
             {
                 // list of supported cert type mappings (V1.04)
                 {
@@ -996,18 +981,33 @@ namespace Opc.Ua.Gds.Server
 #endif
                 }
             };
+        }
 
-            m_database.NamespaceIndex = NamespaceIndexes[0];
-            m_request.NamespaceIndex = NamespaceIndexes[0];
-
+        /// <summary>
+        /// Brings up every configured certificate authority and binds it to
+        /// its nodes, in one pass per group.
+        /// </summary>
+        /// <remarks>
+        /// Acquisition is I/O and binding is address-space work, but a group
+        /// only learns the NodeId it is addressed by when it is bound, so
+        /// doing both here is what lets <see cref="m_certificateGroups"/> be
+        /// keyed correctly before anything looks a group up.
+        /// </remarks>
+        /// <param name="builder">The active fluent builder.</param>
+        private async ValueTask InitializeCertificateGroupsAsync(INodeManagerBuilder builder)
+        {
             foreach (
                 CertificateGroupConfiguration certificateGroupConfiguration in m_globalDiscoveryServerConfiguration
                     .CertificateGroups.ToList())
             {
                 try
                 {
-                    await InitializeCertificateGroupAsync(certificateGroupConfiguration)
+                    ICertificateGroup certificateGroup = await InitializeCertificateGroupAsync(
+                            certificateGroupConfiguration)
                         .ConfigureAwait(false);
+
+                    SetCertificateGroupNodes(builder, certificateGroup);
+                    m_certificateGroups[certificateGroup.Id] = certificateGroup;
                 }
                 catch (Exception e)
                 {
