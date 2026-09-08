@@ -125,7 +125,7 @@ namespace Opc.Ua.ISA95.Server
             await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
             await CompleteConfigureAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
-            builder.Seal();
+            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
             await ConfigureCommonModelAsync(Root, cancellationToken).ConfigureAwait(false);
             await ConfigureCatalogChangesAsync(cancellationToken).ConfigureAwait(false);
             await RefreshJobOrderListsAsync(cancellationToken).ConfigureAwait(false);
@@ -1046,10 +1046,14 @@ namespace Opc.Ua.ISA95.Server
                     new EventPublishOptions { AlwaysOn = true });
 
             // This second builder is created after the manager's only
-            // CompleteConfigureAsync call, so it drains its own registrations —
-            // otherwise the event source's release would never be activated.
+            // CompleteConfigureAsync call, so it drains its own behavior
+            // registrations — otherwise the event source's release would never be
+            // activated.
             await ActivateNodeBehaviorsAsync(cancellationToken).ConfigureAwait(false);
-            builder.Seal();
+
+            // Sealing completes the root-notifier registration the Publish
+            // above staged, so the second builder pass has to be awaited.
+            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
         }
 
         private ValueTask ConfigureCatalogChangesAsync(

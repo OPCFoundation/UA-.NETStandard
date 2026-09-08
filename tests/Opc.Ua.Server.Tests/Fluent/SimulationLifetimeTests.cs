@@ -63,7 +63,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 .OnTick((_, _) => Interlocked.Increment(ref ticks));
 
             await manager.ActivateAsync().ConfigureAwait(false);
-            builder.Seal();
+            await builder.SealAsync().ConfigureAwait(false);
 
             Assert.That(ticks, Is.Zero, "no tick before the clock advances");
 
@@ -100,7 +100,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 });
 
             await manager.ActivateAsync().ConfigureAwait(false);
-            builder.Seal();
+            await builder.SealAsync().ConfigureAwait(false);
 
             clock.Advance(TimeSpan.FromSeconds(1));
             await entered.Task.ConfigureAwait(false);
@@ -119,7 +119,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void SynchronousDisposeDoesNotBlockOnARunningLoop()
+        public async Task SynchronousDisposeDoesNotBlockOnARunningLoopAsync()
         {
             var clock = new FakeTimeProvider();
             var manager = new ClockedManager(clock);
@@ -130,7 +130,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             builder.Simulation(TimeSpan.FromSeconds(1))
                 .OnTick(async (_, _, _) => await release.Task.ConfigureAwait(false));
 
-            builder.Seal();
+            await builder.SealAsync().ConfigureAwait(false);
             clock.Advance(TimeSpan.FromSeconds(1));
 
             // Dispose is signal-only: it must return promptly even though a handler is
@@ -145,7 +145,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void LateHandlerAfterStartIsRejected()
+        public async Task LateHandlerAfterStartIsRejectedAsync()
         {
             var clock = new FakeTimeProvider();
             using var manager = new ClockedManager(clock);
@@ -155,7 +155,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 .Simulation(TimeSpan.FromSeconds(1))
                 .OnTick((_, _) => { });
 
-            builder.Seal();
+            await builder.SealAsync().ConfigureAwait(false);
 
             // The running loop enumerates a snapshot, so a late handler would never be
             // invoked. Rejecting it beats silently dropping it.

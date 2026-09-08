@@ -821,9 +821,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 configure(builder);
 
                 // Same order the generated managers use: activate behaviors after
-                // Configure and before Seal.
+                // Configure and before sealing.
                 await ActivateNodeBehaviorsAsync().ConfigureAwait(false);
-                builder.Seal();
+                await builder.SealAsync().ConfigureAwait(false);
             }
 
             public ValueTask ReleaseAddressSpaceAsync()

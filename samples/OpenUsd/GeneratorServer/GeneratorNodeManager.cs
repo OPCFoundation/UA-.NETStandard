@@ -219,7 +219,7 @@ namespace Generators
                 browseName,
                 m_generatorSets.Count + 1,
                 cancellationToken,
-                RegisterGeneratorSimulation);
+                RegisterGeneratorSimulationAsync);
         }
 
         /// <inheritdoc/>
@@ -241,7 +241,8 @@ namespace Generators
         }
 
         /// <inheritdoc/>
-        protected override async ValueTask OnAddressSpaceReadyAsync(
+        protected override async ValueTask ConfigureAsync(
+            INodeManagerBuilder builder,
             CancellationToken cancellationToken)
         {
             // Phase 1 (async): materialise the instances the fluent Configure pass
@@ -249,9 +250,8 @@ namespace Generators
             await ConfigureInstancesAsync(cancellationToken).ConfigureAwait(false);
 
             // Phase 2 (sync): wire the simulation, state machines and alarms.
-            CreateFluentBuilder(InstanceNamespaceIndex)
-                .Configure(Configure)
-                .Seal();
+            // The base DiNodeManager seals the builder once this returns.
+            Configure(builder);
 
             m_logger.GeneratorAddressSpaceReady(PredefinedNodes.Count, m_generatorSets.Count);
         }
@@ -292,7 +292,7 @@ namespace Generators
             QualifiedName browseName,
             int setNumber,
             CancellationToken cancellationToken,
-            Action<GeneratorSetState>? onRegistered = null)
+            Func<GeneratorSetState, CancellationToken, ValueTask>? onRegistered = null)
         {
             IDeviceBuilder<GeneratorSetState> builder = await CreateDeviceAsync(
                 browseName,
@@ -322,7 +322,10 @@ namespace Generators
             // browse but read BadNotReadable.
             WriteNameplate(builder, setNumber);
 
-            onRegistered?.Invoke(set);
+            if (onRegistered != null)
+            {
+                await onRegistered(set, cancellationToken).ConfigureAwait(false);
+            }
 
             // Variables hand-built onto the set (rather than materialised by the
             // generated factory) browse and read correctly, but a monitored item

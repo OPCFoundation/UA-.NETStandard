@@ -180,7 +180,7 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// Registry that the fluent <c>Simulation</c> surface stores its
         /// registered periodic tick loops in. Started after
-        /// <c>Configure</c> completes (via <c>NodeManagerBuilder.Seal</c>)
+        /// <c>Configure</c> completes (via <c>NodeManagerBuilder.SealAsync</c>)
         /// and torn down on disposal.
         /// </summary>
         internal SimulationRegistry Simulations { get; }
@@ -197,11 +197,11 @@ namespace Opc.Ua.Server.Fluent
         /// to collapse the imperative
         /// <c>new NodeManagerBuilder(SystemContext, this, nsIndex, ...)</c>
         /// + <c>AttachToBuilder(builder)</c> + <c>Configure(builder)</c>
-        /// + <c>builder.Seal()</c> quadruple to a single fluent chain:
+        /// + <c>builder.SealAsync()</c> quadruple to a short pipeline:
         /// <code>
-        /// this.CreateFluentBuilder(nsIndex)
-        ///     .Configure(Configure)
-        ///     .Seal();
+        /// NodeManagerBuilder builder = CreateFluentBuilder(nsIndex);
+        /// Configure(builder);
+        /// await builder.SealAsync(cancellationToken);
         /// </code>
         /// The root/nodeId/typeId/dataTypeId lookups default to scanning the
         /// manager's <see cref="CustomNodeManager2.PredefinedNodes"/>
@@ -216,9 +216,8 @@ namespace Opc.Ua.Server.Fluent
         /// </param>
         /// <returns>
         /// A configured <see cref="NodeManagerBuilder"/> ready to
-        /// receive <c>Configure(builder)</c> wiring; the fluent
-        /// extensions <see cref="FluentNodeManagerBuilderExtensions.Configure(NodeManagerBuilder, System.Action{INodeManagerBuilder})"/>
-        /// and <see cref="NodeManagerBuilder.Seal"/> chain off it.
+        /// receive <c>Configure(builder)</c> wiring and, once the wiring
+        /// is done, <see cref="NodeManagerBuilder.SealAsync"/>.
         /// </returns>
         public NodeManagerBuilder CreateFluentBuilder(ushort defaultNamespaceIndex)
         {
@@ -361,6 +360,51 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Asynchronous counterpart of the <c>Configure(INodeManagerBuilder)</c>
+        /// hook, invoked once per manager activation with the same builder
+        /// immediately <em>before</em> the synchronous <c>Configure</c>
+        /// callbacks run.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This is the seam for wiring that has to await: materialising
+        /// instances from a store or a companion-spec factory, reading a
+        /// configuration source, or registering nodes whose creation is
+        /// asynchronous. Because it runs before the synchronous
+        /// <c>Configure</c> pass, nodes it creates are already in the
+        /// address space when <c>Configure</c> wires callbacks against
+        /// them, and everything it stages on the builder is picked up by
+        /// the <c>RegisterAuthoredNodes</c> / reverse-reference /
+        /// <see cref="NodeManagerBuilder.SealAsync"/> steps that follow.
+        /// </para>
+        /// <para>
+        /// The hook is a <c>virtual</c> method rather than a second
+        /// <c>partial</c> declaration because a <c>partial</c> method can be
+        /// either optional (<c>partial void</c>, no return value) or
+        /// awaitable (an extended partial method, which must be
+        /// implemented) — not both. Generated managers therefore keep
+        /// <c>partial void Configure(INodeManagerBuilder)</c> for
+        /// synchronous wiring and override this method for asynchronous
+        /// wiring; a manager can use either or both.
+        /// </para>
+        /// <para>
+        /// The default implementation does nothing. Overrides do not need
+        /// to invoke <c>base.ConfigureAsync</c>.
+        /// </para>
+        /// </remarks>
+        /// <param name="builder">
+        /// The fluent builder for this activation, already attached to the
+        /// manager's registries.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected virtual ValueTask ConfigureAsync(
+            INodeManagerBuilder builder,
+            CancellationToken cancellationToken)
+        {
+            return default;
+        }
+
+        /// <summary>
         /// Re-runs the reverse-reference collection pass after the user's
         /// <c>Configure</c> callbacks return so that nodes registered
         /// during <c>Configure</c> publish their references to nodes
@@ -374,7 +418,7 @@ namespace Opc.Ua.Server.Fluent
         /// <remarks>
         /// The source-generated <c>CreateAddressSpaceAsync</c> and the
         /// hosting <c>FluentNodeManager</c> invoke this once between the
-        /// <c>Configure</c> callbacks and <see cref="NodeManagerBuilder.Seal"/>;
+        /// <c>Configure</c> callbacks and <see cref="NodeManagerBuilder.SealAsync"/>;
         /// hand-written managers that drive
         /// <see cref="CreateFluentBuilder"/> themselves should do the
         /// same. Timing is safe because the master node manager
@@ -741,24 +785,28 @@ namespace Opc.Ua.Server.Fluent
 
         /// <summary>
         /// Seals the builder, replays <c>NotifyNodeAdded</c> for every node
-        /// this manager owns, and then starts the simulations the
-        /// <c>Configure</c> pass registered.
+        /// this manager owns, and then completes the registrations the
+        /// <c>Configure</c> pass could not finish synchronously and starts
+        /// the simulations it registered.
         /// </summary>
         /// <remarks>
         /// Call this once the address space is complete - after
         /// <see cref="RegisterAuthoredNodesAsync"/> and
         /// <see cref="CompleteConfigureAsync"/>. Both ends of the order
         /// matter: sealing first stops a lifecycle handler from authoring
-        /// nodes that nothing would register any more, and starting the
-        /// simulations last keeps a simulated value change from preceding the
+        /// nodes that nothing would register any more, and activating last
+        /// keeps a simulated value change from preceding the
         /// <c>OnNodeAdded</c> handler of its own node. The source-generated
         /// <c>CreateAddressSpaceAsync</c> emits this call for you.
         /// </remarks>
         /// <param name="builder">The builder the Configure pass used.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <exception cref="System.ArgumentNullException">
         /// <paramref name="builder"/> is <c>null</c>.
         /// </exception>
-        protected void SealConfiguration(NodeManagerBuilder builder)
+        protected ValueTask SealConfigurationAsync(
+            NodeManagerBuilder builder,
+            CancellationToken cancellationToken = default)
         {
             if (builder == null)
             {
@@ -772,7 +820,7 @@ namespace Opc.Ua.Server.Fluent
                 builder.Dispatcher.NotifyNodeAdded(SystemContext, entry.Value);
             }
 
-            builder.StartSimulations();
+            return builder.CompleteSealAsync(cancellationToken);
         }
 
         /// <inheritdoc/>

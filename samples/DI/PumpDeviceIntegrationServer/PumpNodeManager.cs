@@ -168,7 +168,7 @@ namespace Pumps
             return MaterialisePumpInstanceAsync(
                 pumpBrowseName,
                 cancellationToken,
-                RegisterPumpSimulation);
+                RegisterPumpSimulationAsync);
         }
 
         /// <inheritdoc/>
@@ -195,7 +195,8 @@ namespace Pumps
         }
 
         /// <inheritdoc/>
-        protected override async ValueTask OnAddressSpaceReadyAsync(
+        protected override async ValueTask ConfigureAsync(
+            INodeManagerBuilder builder,
             CancellationToken cancellationToken)
         {
             // Configuration phase 1 (async): materialise the
@@ -207,23 +208,21 @@ namespace Pumps
 
             // Configuration phase 2 (sync): wire fluent callbacks
             // against the predefined nodes.
-            CreateFluentBuilder(InstanceNamespaceIndex)
-                .Configure(Configure)
-                .Seal();
+            Configure(builder);
             PreservePumpHistoryReadAccessLevels();
 
             m_logger.PumpAddressSpaceReady(PredefinedNodes.Count);
 
-            // PostSetupRunner is invoked automatically by the base
-            // DiNodeManager.CreateAddressSpaceAsync after this method
+            // The builder is sealed and the PostSetupRunner invoked by the
+            // base DiNodeManager.CreateAddressSpaceAsync once this method
             // returns; no manual invocation needed here.
         }
 
         /// <summary>
         /// Materialises the predefined instances that the fluent
         /// <see cref="Configure"/> wiring expects to find. Runs as
-        /// the async phase of <see cref="OnAddressSpaceReadyAsync"/>
-        /// before the synchronous fluent builder pass.
+        /// the async phase of <see cref="ConfigureAsync"/> before the
+        /// synchronous fluent builder pass.
         /// </summary>
         /// <remarks>
         /// Cannot use
@@ -294,7 +293,7 @@ namespace Pumps
         private async ValueTask<PumpState> MaterialisePumpInstanceAsync(
             QualifiedName pumpBrowseName,
             CancellationToken cancellationToken,
-            Action<PumpState>? onRegistered = null)
+            Func<PumpState, CancellationToken, ValueTask>? onRegistered = null)
         {
             NodeState? deviceSet = PredefinedNodes.FindById(NodeId.Create(
                 Opc.Ua.Di.Objects.DeviceSet,
@@ -343,7 +342,10 @@ namespace Pumps
                 .ConfigureAwait(false);
             await AddRootNotifierAsync(pump, cancellationToken)
                 .ConfigureAwait(false);
-            onRegistered?.Invoke(pump);
+            if (onRegistered != null)
+            {
+                await onRegistered(pump, cancellationToken).ConfigureAwait(false);
+            }
 
             // Variables hand-built onto the pump (rather than materialised by the
             // generated factory) are reachable by browse and read, but a monitored
