@@ -289,6 +289,14 @@ else
             s.EnableFastReconnect = enableFastReconnect);
 }
 
+if (redundancyMode != RedundancySupport.None)
+{
+    ua.UseReplicaNodeIdentity(
+        builder.Configuration["HA_REPLICA_SET"] ?? "opcfoundation-ha-sample",
+        [HaSampleNodeManagerFactory.NamespaceUri],
+        writerAssignedIds: !activeActive);
+}
+
 if (enableDistributedHistorian)
 {
     ua.UseDistributedHistorian(options =>

@@ -277,7 +277,11 @@ namespace Opc.Ua.PubSub.Groups
                         runtime.SequenceNumber = eventWriter.SequenceNumber;
                         for (int occurrence = 0; occurrence < occurrences.Count; occurrence++)
                         {
-                            dataSetMessages.Add(occurrences[occurrence]);
+                            PubSubDataSetMessage occurrenceMessage = occurrences[occurrence];
+                            dataSetMessages.Add(BuildDataSetMessage(
+                                writer, occurrenceMessage.SequenceNumber, occurrenceMessage.Timestamp,
+                                occurrenceMessage.MetaDataVersion, occurrenceMessage.MessageType,
+                                occurrenceMessage.Fields));
                         }
                         continue;
                     }
@@ -583,31 +587,77 @@ namespace Opc.Ua.PubSub.Groups
             }
 
             uint sequenceNumber = ++runtime.SequenceNumber;
+            return BuildDataSetMessage(writer, sequenceNumber, now, snapshot.MetaDataVersion, messageType, fields);
+        }
 
+        private PubSubDataSetMessage BuildDataSetMessage(
+            DataSetWriter writer,
+            uint sequenceNumber,
+            DateTimeUtc timestamp,
+            ConfigurationVersionDataType version,
+            PubSubDataSetMessageType messageType,
+            ArrayOf<DataSetField> fields)
+        {
+            ExtensionObject settings = writer.Configuration.MessageSettings;
+            PubSubFieldEncoding fieldEncoding = (writer.FieldContentMask & DataSetFieldContentMask.RawData) != 0
+                ? PubSubFieldEncoding.RawData
+                : writer.FieldContentMask == DataSetFieldContentMask.None
+                    ? PubSubFieldEncoding.Variant
+                    : PubSubFieldEncoding.DataValue;
             if (string.Equals(GetEncodingProfile(), Profiles.PubSubMqttJsonTransport,
                 StringComparison.Ordinal))
             {
+                if (writer.FieldContentMask != DataSetFieldContentMask.None)
+                {
+                    DataSetField[]? encoded = null;
+                    for (int index = 0; index < fields.Count; index++)
+                    {
+                        if (fields[index].Encoding != fieldEncoding)
+                        {
+                            encoded ??= fields.ToArray() ?? [];
+                            encoded[index] = fields[index] with { Encoding = fieldEncoding };
+                        }
+                    }
+                    if (encoded is not null)
+                    {
+                        fields = new ArrayOf<DataSetField>(encoded);
+                    }
+                }
+                JsonDataSetMessageContentMask mask = s_jsonDataSetDefaults.ContentMask;
+                if (settings.TryGetValue(out JsonDataSetWriterMessageDataType? json) && json is not null)
+                {
+                    mask = (JsonDataSetMessageContentMask)json.DataSetMessageContentMask;
+                }
                 return new JsonDataSetMessageV2
                 {
+                    ContentMask = mask,
                     DataSetWriterId = writer.DataSetWriterId,
+                    DataSetWriterName = writer.Name,
+                    WriterGroupName = Name,
+                    PublisherId = PubSubAddressing.PublisherId,
                     SequenceNumber = sequenceNumber,
-                    Timestamp = now,
-                    MetaDataVersion = snapshot.MetaDataVersion,
+                    Timestamp = timestamp,
+                    MetaDataVersion = version,
                     MessageType = messageType,
                     Fields = fields,
                     FieldContentMask = writer.FieldContentMask
                 };
             }
 
+            settings.TryGetValue(out UadpDataSetWriterMessageDataType? uadp);
             return new UadpDataSetMessageV2
             {
+                ContentMask = uadp is null
+                    ? UadpDataSetMessageContentMask.None
+                    : (UadpDataSetMessageContentMask)uadp.DataSetMessageContentMask,
+                ConfiguredSize = uadp?.ConfiguredSize ?? 0,
                 DataSetWriterId = writer.DataSetWriterId,
                 SequenceNumber = sequenceNumber,
-                Timestamp = now,
-                MetaDataVersion = snapshot.MetaDataVersion,
+                Timestamp = timestamp,
+                MetaDataVersion = version,
                 MessageType = messageType,
                 Fields = fields,
-                FieldEncoding = PubSubFieldEncoding.Variant,
+                FieldEncoding = fieldEncoding,
                 FieldContentMask = writer.FieldContentMask
             };
         }
@@ -616,22 +666,62 @@ namespace Opc.Ua.PubSub.Groups
             List<PubSubDataSetMessage> dataSetMessages)
         {
             string profile = GetEncodingProfile();
+            ExtensionObject settings = Configuration.MessageSettings;
+            ushort sequenceNumber = unchecked((ushort)Interlocked.Increment(ref m_networkSequenceNumber));
             if (string.Equals(profile, Profiles.PubSubMqttJsonTransport, StringComparison.Ordinal))
             {
+                JsonNetworkMessageContentMask mask = s_jsonNetworkDefaults.ContentMask;
+                if (settings.TryGetValue(out JsonWriterGroupMessageDataType? json) && json is not null)
+                {
+                    mask = (JsonNetworkMessageContentMask)json.NetworkMessageContentMask;
+                }
                 return new JsonNetworkMessageV2
                 {
+                    ContentMask = mask,
                     WriterGroupId = WriterGroupId,
+                    WriterGroupName = Name,
                     DataSetMessages = dataSetMessages,
                     PublisherId = PubSubAddressing.PublisherId,
+                    DataSetClassId = GetDataSetClassId(
+                        (mask & JsonNetworkMessageContentMask.DataSetClassId) != 0),
                     SingleMessageMode = IsJsonSingleMessageMode() && dataSetMessages.Count == 1
                 };
             }
+            settings.TryGetValue(out UadpWriterGroupMessageDataType? uadp);
+            UadpNetworkMessageContentMask uadpMask = uadp is null
+                ? UadpNetworkMessageContentMask.None
+                : (UadpNetworkMessageContentMask)uadp.NetworkMessageContentMask;
             return new UadpNetworkMessageV2
             {
+                ContentMask = uadpMask,
                 WriterGroupId = WriterGroupId,
+                GroupVersion = uadp?.GroupVersion ?? 0,
+                SequenceNumber = sequenceNumber,
+                NetworkMessageNumber = sequenceNumber,
+                Timestamp = DateTimeUtc.From(m_timeProvider.GetUtcNow()),
+                DataSetClassId = GetDataSetClassId(
+                    (uadpMask & UadpNetworkMessageContentMask.DataSetClassId) != 0),
                 DataSetMessages = dataSetMessages,
                 PublisherId = PubSubAddressing.PublisherId
             };
+        }
+
+        private Uuid GetDataSetClassId(bool enabled)
+        {
+            if (!enabled || m_writers.Count == 0)
+            {
+                return Uuid.Empty;
+            }
+            Uuid classId = m_writers[0].PublishedDataSet.MetaData.DataSetClassId;
+            for (int index = 1; index < m_writers.Count; index++)
+            {
+                if (m_writers[index].PublishedDataSet.MetaData.DataSetClassId != classId)
+                {
+                    throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                        "A network message cannot carry different DataSetClassIds.");
+                }
+            }
+            return classId;
         }
 
         /// <summary>
@@ -697,32 +787,8 @@ namespace Opc.Ua.PubSub.Groups
                 ? runtime.LastSnapshot.MetaDataVersion
                 : new ConfigurationVersionDataType();
 
-            if (string.Equals(GetEncodingProfile(), Profiles.PubSubMqttJsonTransport,
-                StringComparison.Ordinal))
-            {
-                return new JsonDataSetMessageV2
-                {
-                    DataSetWriterId = writer.DataSetWriterId,
-                    SequenceNumber = sequenceNumber,
-                    Timestamp = now,
-                    MetaDataVersion = metaDataVersion,
-                    MessageType = PubSubDataSetMessageType.KeepAlive,
-                    Fields = [],
-                    FieldContentMask = writer.FieldContentMask
-                };
-            }
-
-            return new UadpDataSetMessageV2
-            {
-                DataSetWriterId = writer.DataSetWriterId,
-                SequenceNumber = sequenceNumber,
-                Timestamp = now,
-                MetaDataVersion = metaDataVersion,
-                MessageType = PubSubDataSetMessageType.KeepAlive,
-                Fields = [],
-                FieldEncoding = PubSubFieldEncoding.Variant,
-                FieldContentMask = writer.FieldContentMask
-            };
+            return BuildDataSetMessage(
+                writer, sequenceNumber, now, metaDataVersion, PubSubDataSetMessageType.KeepAlive, []);
         }
 
         private bool ShouldEmitKeepAlive()
@@ -799,6 +865,10 @@ namespace Opc.Ua.PubSub.Groups
             public uint CyclesSinceKeyFrame;
             public PublishedDataSetSnapshot? LastSnapshot;
         }
+
+        private int m_networkSequenceNumber;
+        private static readonly JsonDataSetMessageV2 s_jsonDataSetDefaults = new();
+        private static readonly JsonNetworkMessageV2 s_jsonNetworkDefaults = new();
 
         internal sealed class PublisherIdHolder
         {

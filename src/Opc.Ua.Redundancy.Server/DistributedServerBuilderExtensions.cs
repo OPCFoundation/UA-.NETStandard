@@ -84,6 +84,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <param name="configure">Optional distributed address-space options.</param>
         /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">Lease election was configured without a lease key.</exception>
         public static IOpcUaServerBuilder UseDistributedAddressSpace(
             this IOpcUaServerBuilder builder,
             Action<DistributedAddressSpaceOptions>? configure = null)
@@ -95,6 +96,16 @@ namespace Opc.Ua.Redundancy.Server
 
             var options = new DistributedAddressSpaceOptions();
             configure?.Invoke(options);
+            builder.Services.TryAddSingleton(options);
+            if (options.UseLeaderElection && string.IsNullOrWhiteSpace(options.LeaseKey))
+            {
+                throw new ArgumentException(
+                    "Lease-based address-space election requires a lease key.",
+                    nameof(configure));
+            }
+
+            builder.Services.AddSingleton<IStrongKeyspaceProvider>(
+                new AddressSpaceStrongKeyspaceProvider(options.UseLeaderElection ? options.LeaseKey : null));
 
             builder.Services.TryAddSingleton(sp =>
                 options.KeyValueStoreFactory?.Invoke(sp) ?? new InMemorySharedKeyValueStore());
@@ -138,8 +149,11 @@ namespace Opc.Ua.Redundancy.Server
                 new DistributedAddressSpaceStartupTask(
                     sp.GetRequiredService<ISharedKeyValueStore>(),
                     sp.GetRequiredService<ILeaderElection>(),
-                    RecordProtectionGuard.ResolveProtectorOrThrow(sp)));
+                    RecordProtectionGuard.ResolveProtectorOrThrow(sp),
+                    options.UseLeaderElection ? options.LeaseKey : null));
             builder.Services.AddSingleton<IServerStartupTask>(
+                sp => sp.GetRequiredService<DistributedAddressSpaceStartupTask>());
+            builder.Services.AddSingleton<IServerPreStartupTask>(
                 sp => sp.GetRequiredService<DistributedAddressSpaceStartupTask>());
 
             // Injectable read/write value cache over the distributed node-state
@@ -206,6 +220,32 @@ namespace Opc.Ua.Redundancy.Server
                     options));
 
             return builder;
+        }
+
+        /// <summary>
+        /// Keeps address-space sequencing and an explicitly configured lease on the
+        /// shared strong backend even when the hybrid prefix list is customized.
+        /// </summary>
+        private sealed class AddressSpaceStrongKeyspaceProvider : IStrongKeyspaceProvider
+        {
+            /// <summary>
+            /// Creates a provider for address-space coordination and optional lease election.
+            /// </summary>
+            /// <param name="leaseKey">The configured lease key, or null for another election provider.</param>
+            public AddressSpaceStrongKeyspaceProvider(string? leaseKey)
+            {
+                m_leaseKey = leaseKey;
+            }
+
+            /// <inheritdoc/>
+            public ArrayOf<string> GetStrongKeyPrefixes()
+            {
+                return m_leaseKey == null
+                    ? [InMemoryNodeStateStore.SequenceKey]
+                    : [InMemoryNodeStateStore.SequenceKey, m_leaseKey];
+            }
+
+            private readonly string? m_leaseKey;
         }
     }
 }

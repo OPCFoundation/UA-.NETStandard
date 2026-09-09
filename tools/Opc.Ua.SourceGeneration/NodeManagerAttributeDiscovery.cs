@@ -91,11 +91,12 @@ namespace Opc.Ua.SourceGeneration
                 nameof(NodeManagerAttributeBinding.AdditionalNamespaceUris));
             ImmutableArray<NodeManagerAttributeExpressionError> invalidExpressions =
                 GetInvalidExpressions(attr, context.SemanticModel, cancellationToken);
-            bool generateFactory = attr == null ||
-                !attr.NamedArguments
-                    .Any(p => p.Key == nameof(NodeManagerAttributeBinding.GenerateFactory) &&
-                        p.Value.Value is bool b &&
-                        !b);
+            bool generateFactory = IsNotDisabled(
+                attr,
+                nameof(NodeManagerAttributeBinding.GenerateFactory));
+            bool generateDefaultConstructor = IsNotDisabled(
+                attr,
+                nameof(NodeManagerAttributeBinding.GenerateDefaultConstructor));
 
             string targetNamespace = symbol.GetFullNamespace();
             string targetClassName = symbol.Name;
@@ -116,12 +117,25 @@ namespace Opc.Ua.SourceGeneration
                     NamespaceUri = namespaceUri,
                     Design = design,
                     GenerateFactory = generateFactory,
+                    GenerateDefaultConstructor = generateDefaultConstructor,
                     AdditionalNamespaceUris = additionalNamespaceUris
                 },
                 Location = location,
                 IsPartial = isPartial,
                 InvalidExpressions = invalidExpressions
             };
+        }
+
+        /// <summary>
+        /// Reads a boolean named argument that defaults to <c>true</c>:
+        /// the flag is off only when it is present and explicitly
+        /// <c>false</c>.
+        /// </summary>
+        private static bool IsNotDisabled(AttributeData attribute, string name)
+        {
+            return attribute == null ||
+                !attribute.NamedArguments
+                    .Any(p => p.Key == name && p.Value.Value is bool b && !b);
         }
 
         private static ImmutableArray<NodeManagerAttributeExpressionError> GetInvalidExpressions(

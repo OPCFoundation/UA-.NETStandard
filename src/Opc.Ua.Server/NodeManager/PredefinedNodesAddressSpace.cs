@@ -112,8 +112,22 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(node));
             }
 
-            await m_addAsync(node, cancellationToken).ConfigureAwait(false);
-            NodeAdded?.Invoke(node);
+            int depth = m_drivingOperation.Value;
+            m_drivingOperation.Value = depth + 1;
+            try
+            {
+                await m_addAsync(node, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_drivingOperation.Value = depth;
+            }
+            if (!m_predefinedNodes.TryGetValue(node.NodeId, out NodeState? activeNode))
+            {
+                throw new InvalidOperationException(
+                    $"The add pipeline completed without registering node '{node.NodeId}'.");
+            }
+            NodeAdded?.Invoke(activeNode);
         }
 
         /// <inheritdoc/>
@@ -129,14 +143,33 @@ namespace Opc.Ua.Server
             foreach (NodeState node in nodes)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await m_addAsync(node, cancellationToken).ConfigureAwait(false);
+                int depth = m_drivingOperation.Value;
+                m_drivingOperation.Value = depth + 1;
+                try
+                {
+                    await m_addAsync(node, cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    m_drivingOperation.Value = depth;
+                }
             }
         }
 
         /// <inheritdoc/>
         public async ValueTask<bool> RemoveNodeAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
-            bool removed = await m_removeAsync(nodeId, cancellationToken).ConfigureAwait(false);
+            int depth = m_drivingOperation.Value;
+            m_drivingOperation.Value = depth + 1;
+            bool removed;
+            try
+            {
+                removed = await m_removeAsync(nodeId, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_drivingOperation.Value = depth;
+            }
             if (removed)
             {
                 NodeRemoved?.Invoke(nodeId);
@@ -145,8 +178,25 @@ namespace Opc.Ua.Server
             return removed;
         }
 
+        internal void NotifyAdded(NodeState node)
+        {
+            if (m_drivingOperation.Value == 0)
+            {
+                NodeAdded?.Invoke(node);
+            }
+        }
+
+        internal void NotifyRemoved(NodeId nodeId)
+        {
+            if (m_drivingOperation.Value == 0)
+            {
+                NodeRemoved?.Invoke(nodeId);
+            }
+        }
+
         private readonly NodeIdDictionary<NodeState> m_predefinedNodes;
         private readonly Func<NodeState, CancellationToken, ValueTask> m_addAsync;
         private readonly Func<NodeId, CancellationToken, ValueTask<bool>> m_removeAsync;
+        private readonly AsyncLocal<int> m_drivingOperation = new();
     }
 }

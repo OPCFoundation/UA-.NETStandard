@@ -163,7 +163,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
             PubSubFieldEncoding encoding = JsonVariantEncoder.WrapsInVariantEnvelope(detectedMode)
                 ? PubSubFieldEncoding.Variant
                 : PubSubFieldEncoding.RawData;
-            if (!TryDecodeVariant(value, detectedMode, typeInfo, context, tolerant, out Variant variant))
+            Variant variant;
+            if (!TryDecodeVariant(value, detectedMode, typeInfo, context, tolerant, out variant))
             {
                 return null;
             }
@@ -280,33 +281,32 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return false;
             }
-            bool hasVariantMembers = false;
-            bool hasDataValueMembers = false;
+            bool hasTypeEnvelope = false;
+            bool hasDataValueMetadata = false;
             foreach (JsonProperty member in value.EnumerateObject())
             {
                 switch (member.Name)
                 {
                     case "Value":
-                        break;
+                        continue;
                     case "UaType":
                     case "Dimensions":
-                        hasVariantMembers = true;
-                        break;
+                        hasTypeEnvelope = true;
+                        continue;
                     case "Status":
                     case "StatusCode":
                     case "SourceTimestamp":
                     case "SourcePicoseconds":
                     case "ServerTimestamp":
                     case "ServerPicoseconds":
-                        hasDataValueMembers = true;
-                        break;
+                        hasDataValueMetadata = true;
+                        continue;
                     default:
                         return false;
                 }
             }
-            // A bare inline Variant is indistinguishable from a Good DataValue
-            // without timestamps. Preserve its existing Variant classification.
-            return !hasVariantMembers || hasDataValueMembers;
+            // Part 6 flattens typed DataValues; a plain typed Variant has no quality/timestamp members.
+            return hasDataValueMetadata || !hasTypeEnvelope;
         }
 
         /// <summary>

@@ -66,8 +66,13 @@ steps:
     --logger "trx;LogFileName=sample-ha-longhaul.trx"
     --logger "console;verbosity=detailed"
     --results-directory $(Agent.TempDirectory)/TestResults
-  displayName: 'Run long-haul HA soak (${{ parameters.durationMinutes }} min)'
-  timeoutInMinutes: 110
+  displayName: 'Run long-haul HA soak (${{ parameters.durationMinutes }} min/scenario)'
+  # durationMinutes is the soak length of *each* scenario and the fixture is
+  # [NonParallelizable], so the two soaks run back to back: the floor is
+  # 2 x duration plus each test's teardown head-room (5 and 10 minutes). At the
+  # default 60 minutes the old 110-minute budget was below that floor, so the
+  # weekly schedule always tripped this timeout.
+  timeoutInMinutes: 150
   env:
     SAMPLE_HA_DURATION_MINUTES: ${{ parameters.durationMinutes }}
 

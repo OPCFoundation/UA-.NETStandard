@@ -438,11 +438,8 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 m_accessTokenProvider = accessTokenProvider;
             }
 
-            public ArrayOf<string> NamespacesUris =>
-            [
-                "http://opcfoundation.org/UA/GDS/applications/",
-                Namespaces.OpcUaGds
-            ];
+            public ArrayOf<string> NamespacesUris
+                => new(ApplicationsNodeManager.DefaultNamespaceUris());
 
             public ValueTask<IAsyncNodeManager> CreateAsync(
                 IServerInternal server,

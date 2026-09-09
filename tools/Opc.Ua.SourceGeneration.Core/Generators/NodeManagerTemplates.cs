@@ -46,6 +46,12 @@ namespace Opc.Ua.SourceGeneration
             $$"""
             {{Tokens.CodeHeader}}
 
+            // The namespace-taking constructor is emitted for every manager,
+            // but the user's partial decides whether the class is sealed and
+            // the generator cannot see that. In a sealed manager the protected
+            // constructor is merely unreachable, not wrong.
+            #pragma warning disable CS0628 // New protected member in sealed type
+
             namespace {{Tokens.NamespacePrefix}}
             {
                 /// <summary>
@@ -69,12 +75,45 @@ namespace Opc.Ua.SourceGeneration
                     private global::Opc.Ua.Server.Fluent.NodeManagerBuilder? __m_builder;
 
                     /// <summary>
-                    /// Initializes a new <see cref="{{Tokens.NodeManagerClassName}}"/>.
+                    /// The namespace URIs this manager owns, in the order they
+                    /// are reported to the master node manager. The first entry
+                    /// becomes <c>NamespaceIndexes[0]</c> and therefore the
+                    /// manager's own <c>NamespaceIndex</c>: the namespace an
+                    /// unqualified browse path resolves in. Where runtime
+                    /// NodeIds are minted is the NodeId factory's to decide,
+                    /// not this order's. Pass a different array to the
+                    /// protected constructor to change the set or the order.
                     /// </summary>
-                    public {{Tokens.NodeManagerClassName}}(
+                    public static string[] DefaultNamespaceUris()
+                    {
+                        return new string[] { {{Tokens.NamespaceUri}}{{Tokens.AdditionalNamespaceUris}} };
+                    }
+
+                    {{Tokens.NodeManagerDefaultConstructor}}
+
+                    /// <summary>
+                    /// Initializes a new <see cref="{{Tokens.NodeManagerClassName}}"/>
+                    /// that owns <paramref name="namespaceUris"/>. Chain to this
+                    /// from a constructor of your own to take collaborators the
+                    /// generated signature does not carry, to change which
+                    /// namespaces the manager owns, or to change their order.
+                    /// </summary>
+                    /// <param name="server">The hosting server.</param>
+                    /// <param name="configuration">The application configuration.</param>
+                    /// <param name="namespaceUris">
+                    /// The namespace URIs to report, in order. <c>null</c> adopts
+                    /// <see cref="DefaultNamespaceUris"/>.
+                    /// </param>
+                    protected {{Tokens.NodeManagerClassName}}(
                         global::Opc.Ua.Server.IServerInternal server,
-                        global::Opc.Ua.ApplicationConfiguration configuration)
-                        : base(server, configuration, {{Tokens.NamespaceUri}}{{Tokens.AdditionalNamespaceUris}})
+                        global::Opc.Ua.ApplicationConfiguration configuration,
+                        string[]? namespaceUris)
+                        : base(
+                            server,
+                            configuration,
+                            global::Opc.Ua.TelemetryExtensions.CreateLogger<{{Tokens.NodeManagerClassName}}>(
+                                server.Telemetry),
+                            namespaceUris ?? DefaultNamespaceUris())
                     {
                     }
 
@@ -333,6 +372,28 @@ namespace Opc.Ua.SourceGeneration
                             __matches.ToArray());
                     }
                 }
+            }
+            """);
+
+        /// <summary>
+        /// The public <c>(server, configuration)</c> constructor. Emitted
+        /// unless the binding sets <c>GenerateDefaultConstructor=false</c>,
+        /// which managers do when they cannot be built from those two
+        /// arguments alone.
+        /// </summary>
+        public static readonly TemplateString DefaultConstructor = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// Initializes a new <see cref="{{Tokens.NodeManagerClassName}}"/>
+            /// owning <see cref="DefaultNamespaceUris"/>.
+            /// </summary>
+            /// <param name="server">The hosting server.</param>
+            /// <param name="configuration">The application configuration.</param>
+            public {{Tokens.NodeManagerClassName}}(
+                global::Opc.Ua.Server.IServerInternal server,
+                global::Opc.Ua.ApplicationConfiguration configuration)
+                : this(server, configuration, null)
+            {
             }
             """);
 

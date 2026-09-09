@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -46,9 +49,6 @@ namespace Opc.Ua.Types.Tests.State
     [Parallelizable]
     public class NodeStateChangeNotificationTests
     {
-        private ITelemetryContext m_telemetry;
-        private ServiceMessageContext m_messageContext;
-
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
@@ -59,7 +59,7 @@ namespace Opc.Ua.Types.Tests.State
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {
-            (m_messageContext as System.IDisposable)?.Dispose();
+            (m_messageContext as IDisposable)?.Dispose();
         }
 
         private SystemContext CreateSystemContext()
@@ -194,5 +194,422 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(asyncTarget, Is.SameAs(target));
         }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReportEventWithoutLocalSinksForwardsOnlyToInverseNotifierAsync(bool hasCallerContext)
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState node = CreateVariable();
+            var target = new BaseObjectState(null);
+            var inverse = new BaseObjectState(null);
+            var forward = new BaseObjectState(null);
+            int inverseCalls = 0;
+            int forwardCalls = 0;
+
+            await RunLegacyCallerAsync(() => node.ReportEvent(context, target), hasCallerContext)
+                .WaitAsync(s_timeout).ConfigureAwait(false);
+
+            inverse.OnReportEvent = (c, n, e) =>
+            {
+                Assert.That(c, Is.SameAs(context));
+                Assert.That(n, Is.SameAs(inverse));
+                Assert.That(e, Is.SameAs(target));
+                inverseCalls++;
+            };
+            forward.OnReportEvent = (c, n, e) => forwardCalls++;
+            node.AddNotifier(context, ReferenceTypeIds.HasEventSource, false, forward);
+            node.AddNotifier(context, ReferenceTypeIds.HasEventSource, true, null);
+            node.AddNotifier(context, ReferenceTypeIds.HasEventSource, true, inverse);
+
+            await RunLegacyCallerAsync(() => node.ReportEvent(context, target), hasCallerContext)
+                .WaitAsync(s_timeout).ConfigureAwait(false);
+
+            Assert.That(inverseCalls, Is.EqualTo(1));
+            Assert.That(forwardCalls, Is.Zero);
+            Assert.That(node.OnReportEvent, Is.Null);
+            Assert.That(node.OnReportEventAsync, Is.Null);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReportEventWithSyncSinkOnlyRunsOnCallerThreadAsync(bool hasCallerContext)
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState node = CreateVariable();
+            var target = new BaseObjectState(null);
+            int calls = 0;
+
+            await RunLegacyCallerAsync(() =>
+            {
+                int callerThread = Environment.CurrentManagedThreadId;
+                SynchronizationContext callerContext = SynchronizationContext.Current;
+                node.OnReportEvent = (c, n, e) =>
+                {
+                    Assert.That(c, Is.SameAs(context));
+                    Assert.That(n, Is.SameAs(node));
+                    Assert.That(e, Is.SameAs(target));
+                    Assert.That(Environment.CurrentManagedThreadId, Is.EqualTo(callerThread));
+                    Assert.That(SynchronizationContext.Current, Is.SameAs(callerContext));
+                    calls++;
+                };
+
+                node.ReportEvent(context, target);
+
+                Assert.That(calls, Is.EqualTo(1));
+            }, hasCallerContext).WaitAsync(s_timeout).ConfigureAwait(false);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReportEventCompletedAsyncSinkUsesExpectedThreadAndFinishesBeforeReturnAsync(
+            bool hasCallerContext)
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState node = CreateVariable();
+            var target = new BaseObjectState(null);
+            var calls = new List<string>();
+
+            await RunLegacyCallerAsync(() =>
+            {
+                int callerThread = Environment.CurrentManagedThreadId;
+                SynchronizationContext callerContext = SynchronizationContext.Current;
+                node.OnReportEvent = (c, n, e) =>
+                {
+                    Assert.That(c, Is.SameAs(context));
+                    Assert.That(n, Is.SameAs(node));
+                    Assert.That(e, Is.SameAs(target));
+                    Assert.That(Environment.CurrentManagedThreadId, Is.EqualTo(callerThread));
+                    Assert.That(SynchronizationContext.Current, Is.SameAs(callerContext));
+                    calls.Add("sync");
+                };
+                node.OnReportEventAsync = (c, n, e, ct) =>
+                {
+                    Assert.That(c, Is.SameAs(context));
+                    Assert.That(n, Is.SameAs(node));
+                    Assert.That(e, Is.SameAs(target));
+                    Assert.That(ct, Is.EqualTo(CancellationToken.None));
+                    Assert.That(SynchronizationContext.Current, Is.Null);
+                    Assert.That(Environment.CurrentManagedThreadId == callerThread, Is.EqualTo(!hasCallerContext));
+                    calls.Add("async");
+                    return default;
+                };
+
+                node.ReportEvent(context, target);
+                calls.Add("return");
+
+                string[] expectedCalls = ["sync", "async", "return"];
+                Assert.That(calls, Is.EqualTo(expectedCalls));
+            }, hasCallerContext).WaitAsync(s_timeout).ConfigureAwait(false);
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ReportEventReadsAsyncHandlerAfterSyncSinkAsync(bool hasCallerContext, bool removeHandler)
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState node = CreateVariable();
+            var target = new BaseObjectState(null);
+            var calls = new List<string>();
+            node.OnReportEventAsync = (c, n, e, ct) =>
+            {
+                calls.Add("original");
+                return default;
+            };
+            ValueTask Replacement(ISystemContext c, NodeState n, IFilterTarget e, CancellationToken ct)
+            {
+                Assert.That(c, Is.SameAs(context));
+                Assert.That(n, Is.SameAs(node));
+                Assert.That(e, Is.SameAs(target));
+                Assert.That(ct, Is.EqualTo(CancellationToken.None));
+                Assert.That(SynchronizationContext.Current, Is.Null);
+                calls.Add("replacement");
+                return default;
+            }
+            NodeStateReportEventAsyncHandler replacement = Replacement;
+            node.OnReportEvent = (c, n, e) =>
+            {
+                calls.Add("sync");
+                node.OnReportEventAsync = removeHandler ? null : replacement;
+            };
+
+            await RunLegacyCallerAsync(() => node.ReportEvent(context, target), hasCallerContext)
+                .WaitAsync(s_timeout).ConfigureAwait(false);
+
+            string[] expectedCalls = removeHandler ? ["sync"] : ["sync", "replacement"];
+            Assert.That(calls, Is.EqualTo(expectedCalls));
+            Assert.That(node.OnReportEventAsync, Is.SameAs(removeHandler ? null : replacement));
+        }
+
+        [TestCase(false, "Success")]
+        [TestCase(true, "Success")]
+        [TestCase(false, "Fault")]
+        [TestCase(true, "Fault")]
+        [TestCase(false, "Cancel")]
+        [TestCase(true, "Cancel")]
+        public async Task ReportEventWaitsForSuspendedSinkBeforeReturningOrForwardingAsync(
+            bool hasCallerContext,
+            string outcome)
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState node = CreateVariable();
+            var target = new BaseObjectState(null);
+            var inverse = new BaseObjectState(null);
+            var lateInverse = new BaseObjectState(null);
+            var calls = new List<string>();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Exception expectedException = outcome switch
+            {
+                "Fault" => new InvalidOperationException("Suspended sink failed."),
+                "Cancel" => new OperationCanceledException(new CancellationToken(canceled: true)),
+                _ => null
+            };
+            int callerThread = 0;
+            node.OnReportEvent = (c, n, e) => calls.Add("sync");
+            inverse.OnReportEvent = (c, n, e) =>
+            {
+                Assert.That(c, Is.SameAs(context));
+                Assert.That(n, Is.SameAs(inverse));
+                Assert.That(e, Is.SameAs(target));
+                calls.Add("inverse");
+            };
+            lateInverse.OnReportEvent = (c, n, e) =>
+            {
+                Assert.That(c, Is.SameAs(context));
+                Assert.That(n, Is.SameAs(lateInverse));
+                Assert.That(e, Is.SameAs(target));
+                calls.Add("late");
+            };
+            node.AddNotifier(context, ReferenceTypeIds.HasEventSource, true, inverse);
+            node.OnReportEventAsync = async (c, n, e, ct) =>
+            {
+                Assert.That(c, Is.SameAs(context));
+                Assert.That(n, Is.SameAs(node));
+                Assert.That(e, Is.SameAs(target));
+                Assert.That(ct, Is.EqualTo(CancellationToken.None));
+                Assert.That(SynchronizationContext.Current, Is.Null);
+                Assert.That(Environment.CurrentManagedThreadId == callerThread, Is.EqualTo(!hasCallerContext));
+                calls.Add("async-start");
+                entered.TrySetResult(true);
+
+                // Deliberately capture a context: legacy dispatch must have removed it before invoking the sink.
+                await release.Task.ConfigureAwait(true);
+
+                Assert.That(SynchronizationContext.Current, Is.Null);
+                calls.Add("async-end");
+                node.AddNotifier(context, ReferenceTypeIds.HasEventSource, true, lateInverse);
+                if (expectedException != null)
+                {
+                    throw expectedException;
+                }
+            };
+
+            Task caller = RunLegacyCallerAsync(() =>
+            {
+                callerThread = Environment.CurrentManagedThreadId;
+                if (expectedException == null)
+                {
+                    node.ReportEvent(context, target);
+                }
+                else
+                {
+                    Assert.That(() => node.ReportEvent(context, target), Throws.Exception.SameAs(expectedException));
+                }
+                calls.Add("return");
+            }, hasCallerContext);
+
+            try
+            {
+                await entered.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+
+                Assert.That(caller.IsCompleted, Is.False);
+                string[] beforeCompletion = ["sync", "async-start"];
+                Assert.That(calls, Is.EqualTo(beforeCompletion));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await caller.WaitAsync(s_timeout).ConfigureAwait(false);
+            }
+
+            string[] expectedCalls = expectedException == null
+                ? ["sync", "async-start", "async-end", "inverse", "late", "return"]
+                : ["sync", "async-start", "async-end", "return"];
+            Assert.That(calls, Is.EqualTo(expectedCalls));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReportEventSyncExceptionPreservesIdentityAndStopsDispatchAsync(bool hasCallerContext)
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState node = CreateVariable();
+            var target = new BaseObjectState(null);
+            var inverse = new BaseObjectState(null);
+            var expectedException = new InvalidOperationException("Sync sink failed.");
+            var calls = new List<string>();
+            node.OnReportEvent = (c, n, e) =>
+            {
+                Assert.That(c, Is.SameAs(context));
+                Assert.That(n, Is.SameAs(node));
+                Assert.That(e, Is.SameAs(target));
+                calls.Add("sync");
+                throw expectedException;
+            };
+            node.OnReportEventAsync = (c, n, e, ct) =>
+            {
+                calls.Add("async");
+                return default;
+            };
+            inverse.OnReportEvent = (c, n, e) => calls.Add("inverse");
+            node.AddNotifier(context, ReferenceTypeIds.HasEventSource, true, inverse);
+
+            await RunLegacyCallerAsync(
+                () => Assert.That(() => node.ReportEvent(context, target), Throws.Exception.SameAs(expectedException)),
+                hasCallerContext).WaitAsync(s_timeout).ConfigureAwait(false);
+
+            string[] expectedCalls = ["sync"];
+            Assert.That(calls, Is.EqualTo(expectedCalls));
+        }
+
+        [TestCase(false, "Throw")]
+        [TestCase(true, "Throw")]
+        [TestCase(false, "Fault")]
+        [TestCase(true, "Fault")]
+        [TestCase(false, "Cancel")]
+        [TestCase(true, "Cancel")]
+        public async Task ReportEventAsyncSinkImmediateFailureStopsForwardingAsync(
+            bool hasCallerContext,
+            string failure)
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState node = CreateVariable();
+            var target = new BaseObjectState(null);
+            var inverse = new BaseObjectState(null);
+            var expectedException = new InvalidOperationException("Async sink failed.");
+            var canceledToken = new CancellationToken(canceled: true);
+            var calls = new List<string>();
+            node.OnReportEvent = (c, n, e) => calls.Add("sync");
+            node.OnReportEventAsync = (c, n, e, ct) =>
+            {
+                Assert.That(c, Is.SameAs(context));
+                Assert.That(n, Is.SameAs(node));
+                Assert.That(e, Is.SameAs(target));
+                Assert.That(ct, Is.EqualTo(CancellationToken.None));
+                Assert.That(SynchronizationContext.Current, Is.Null);
+                calls.Add("async");
+                return failure switch
+                {
+                    "Throw" => throw expectedException,
+                    "Fault" => new ValueTask(Task.FromException(expectedException)),
+                    _ => new ValueTask(Task.FromCanceled(canceledToken))
+                };
+            };
+            inverse.OnReportEvent = (c, n, e) => calls.Add("inverse");
+            node.AddNotifier(context, ReferenceTypeIds.HasEventSource, true, inverse);
+
+            await RunLegacyCallerAsync(() =>
+            {
+                if (failure == "Cancel")
+                {
+                    Assert.That(
+                        () => node.ReportEvent(context, target),
+                        Throws.InstanceOf<OperationCanceledException>()
+                            .With.Property(nameof(OperationCanceledException.CancellationToken))
+                            .EqualTo(canceledToken));
+                }
+                else
+                {
+                    Assert.That(() => node.ReportEvent(context, target), Throws.Exception.SameAs(expectedException));
+                }
+            }, hasCallerContext).WaitAsync(s_timeout).ConfigureAwait(false);
+
+            string[] expectedCalls = ["sync", "async"];
+            Assert.That(calls, Is.EqualTo(expectedCalls));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReportEventNotifierMutationAffectsNextSnapshotOnlyAsync(bool hasCallerContext)
+        {
+            SystemContext context = CreateSystemContext();
+            BaseDataVariableState node = CreateVariable();
+            var target = new BaseObjectState(null);
+            var first = new BaseObjectState(null);
+            var second = new BaseObjectState(null);
+            var added = new BaseObjectState(null);
+            var calls = new List<string>();
+            node.OnReportEvent = (c, n, e) => calls.Add("sync");
+            node.OnReportEventAsync = (c, n, e, ct) =>
+            {
+                calls.Add("async");
+                return default;
+            };
+            first.OnReportEvent = (c, n, e) =>
+            {
+                Assert.That(c, Is.SameAs(context));
+                Assert.That(n, Is.SameAs(first));
+                Assert.That(e, Is.SameAs(target));
+                calls.Add("first");
+                node.RemoveNotifier(context, second, bidirectional: false);
+                node.AddNotifier(context, ReferenceTypeIds.HasEventSource, true, added);
+            };
+            second.OnReportEvent = (c, n, e) =>
+            {
+                Assert.That(c, Is.SameAs(context));
+                Assert.That(n, Is.SameAs(second));
+                Assert.That(e, Is.SameAs(target));
+                calls.Add("second");
+            };
+            added.OnReportEvent = (c, n, e) =>
+            {
+                Assert.That(c, Is.SameAs(context));
+                Assert.That(n, Is.SameAs(added));
+                Assert.That(e, Is.SameAs(target));
+                calls.Add("added");
+            };
+            node.AddNotifier(context, ReferenceTypeIds.HasEventSource, true, first);
+            node.AddNotifier(context, ReferenceTypeIds.HasEventSource, true, second);
+
+            await RunLegacyCallerAsync(() =>
+            {
+                node.ReportEvent(context, target);
+
+                string[] firstReport = ["sync", "async", "first", "second"];
+                Assert.That(calls, Is.EqualTo(firstReport));
+                calls.Clear();
+
+                node.ReportEvent(context, target);
+
+                string[] nextReport = ["sync", "async", "first", "added"];
+                Assert.That(calls, Is.EqualTo(nextReport));
+            }, hasCallerContext).WaitAsync(s_timeout).ConfigureAwait(false);
+        }
+
+        private static Task RunLegacyCallerAsync(Action report, bool hasCallerContext)
+        {
+            return Task.Factory.StartNew(() =>
+            {
+                SynchronizationContext originalContext = SynchronizationContext.Current;
+                SynchronizationContext callerContext = hasCallerContext ? new SynchronizationContext() : null;
+                try
+                {
+                    SynchronizationContext.SetSynchronizationContext(callerContext);
+                    report();
+                    Assert.That(SynchronizationContext.Current, Is.SameAs(callerContext));
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(originalContext);
+                }
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        }
+
+        private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
+        private ITelemetryContext m_telemetry;
+        private ServiceMessageContext m_messageContext;
     }
 }

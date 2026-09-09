@@ -301,6 +301,30 @@ namespace Opc.Ua.Gds.Tests
             return new NodeId(Guid.NewGuid(), m_registeredAppId.NamespaceIndex);
         }
 
+        /// <summary>
+        /// The manager owns two namespaces and mints application-record
+        /// ids in the first one. Which namespace each node lands in is
+        /// baked into every NodeId a client or a GDS database already
+        /// holds, and a reordering fails silently — ids simply stop
+        /// resolving against stored ones. Pin both ends here.
+        /// </summary>
+        [Test]
+        public void ApplicationAndModelNodesKeepTheirNamespaces()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    Session.NamespaceUris.GetString(m_registeredAppId.NamespaceIndex),
+                    Is.EqualTo("http://opcfoundation.org/UA/GDS/applications/"),
+                    "application records must stay in the application-record namespace");
+
+                Assert.That(
+                    Session.NamespaceUris.GetString(m_directoryNodeId.NamespaceIndex),
+                    Is.EqualTo("http://opcfoundation.org/UA/GDS/"),
+                    "companion-model nodes must stay in the GDS namespace");
+            });
+        }
+
         private async Task<CallMethodResult> CallDirectoryMethodAsync(
             NodeId methodId,
             Variant[] inputArguments,

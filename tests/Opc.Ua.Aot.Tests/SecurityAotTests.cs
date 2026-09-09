@@ -89,5 +89,79 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureAwait(false);
             session.Dispose();
         }
+
+        [Test]
+        public async Task NodeStateSecurityAttributesPreserveDefaultsAndResetsAsync()
+        {
+            var context = new SystemContext(fixture.Telemetry);
+            var node = new BaseObjectState(null)
+            {
+                RolePermissions = default,
+                UserRolePermissions = default,
+                AccessRestrictions = null
+            };
+
+            await Assert.That(node.RolePermissions.IsNull).IsTrue();
+            await Assert.That(node.UserRolePermissions.IsNull).IsTrue();
+            await Assert.That(node.AccessRestrictions).IsNull();
+            await Assert.That(node.ChangeMasks).IsEqualTo(NodeStateChangeMasks.None);
+
+            node.RolePermissions = [];
+            node.UserRolePermissions = [];
+            node.AccessRestrictions = AccessRestrictionType.None;
+
+            await Assert.That(node.RolePermissions.IsNull).IsFalse();
+            await Assert.That(node.RolePermissions.Count).IsEqualTo(0);
+            await Assert.That(node.UserRolePermissions.IsNull).IsFalse();
+            await Assert.That(node.UserRolePermissions.Count).IsEqualTo(0);
+            await Assert.That(node.AccessRestrictions.HasValue).IsTrue();
+            await Assert.That(node.AccessRestrictions.GetValueOrDefault()).IsEqualTo(AccessRestrictionType.None);
+
+            ArrayOf<RolePermissionType> permissions =
+            [
+                new RolePermissionType { RoleId = new NodeId(1), Permissions = (uint)PermissionType.Read }
+            ];
+            ArrayOf<RolePermissionType> userPermissions =
+            [
+                new RolePermissionType { RoleId = new NodeId(2), Permissions = (uint)PermissionType.Browse }
+            ];
+            node.RolePermissions = permissions;
+            node.UserRolePermissions = userPermissions;
+            node.AccessRestrictions = AccessRestrictionType.SigningRequired;
+
+            await Assert.That(node.RolePermissions == permissions).IsTrue();
+            await Assert.That(node.UserRolePermissions == userPermissions).IsTrue();
+            await Assert.That(node.AccessRestrictions.GetValueOrDefault())
+                .IsEqualTo(AccessRestrictionType.SigningRequired);
+            await Assert.That(node.ChangeMasks)
+                .IsEqualTo(NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions);
+
+            var copy = (NodeState)node.Clone();
+            await Assert.That(copy.RolePermissions == permissions).IsTrue();
+            await Assert.That(copy.UserRolePermissions == userPermissions).IsTrue();
+            // CopyTo intentionally does not copy AccessRestrictions.
+            await Assert.That(copy.AccessRestrictions).IsNull();
+
+            await node.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
+            node.AccessRestrictions = null;
+            await Assert.That(node.AccessRestrictions).IsNull();
+            await Assert.That(node.ChangeMasks).IsEqualTo(NodeStateChangeMasks.NonValue);
+
+            await node.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
+            node.RolePermissions = default;
+            node.UserRolePermissions = default;
+            await Assert.That(node.RolePermissions.IsNull).IsTrue();
+            await Assert.That(node.UserRolePermissions.IsNull).IsTrue();
+            await Assert.That(node.ChangeMasks)
+                .IsEqualTo(NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions);
+            await Assert.That(copy.RolePermissions == permissions).IsTrue();
+            await Assert.That(copy.UserRolePermissions == userPermissions).IsTrue();
+
+            await node.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
+            node.RolePermissions = default;
+            node.UserRolePermissions = default;
+            node.AccessRestrictions = null;
+            await Assert.That(node.ChangeMasks).IsEqualTo(NodeStateChangeMasks.None);
+        }
     }
 }
