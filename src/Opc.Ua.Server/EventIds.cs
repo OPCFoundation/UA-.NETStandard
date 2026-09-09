@@ -259,6 +259,11 @@ namespace Opc.Ua
         public const int RuntimeNodeSetNodeManager = 560;
 
         /// <summary>
+        /// Event identifier offset for fluent node manager messages.
+        /// </summary>
+        public const int FluentNodeManager = 590;
+
+        /// <summary>
         /// Event identifier offset for historian event capture messages.
         /// </summary>
         public const int HistorianEventCapture = 600;

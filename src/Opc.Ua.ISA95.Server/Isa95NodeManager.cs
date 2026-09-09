@@ -109,7 +109,7 @@ namespace Opc.Ua.ISA95.Server
                 .ConfigureAwait(false);
             await builder.SealAsync(cancellationToken).ConfigureAwait(false);
             await ConfigureCommonModelAsync(Root, cancellationToken).ConfigureAwait(false);
-            ConfigureCatalogChanges();
+            await ConfigureCatalogChangesAsync(cancellationToken).ConfigureAwait(false);
             await RefreshJobOrderListsAsync(cancellationToken).ConfigureAwait(false);
             await ConfigureStatusEventsAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -1012,11 +1012,12 @@ namespace Opc.Ua.ISA95.Server
                     StringComparison.Ordinal);
         }
 
-        private ValueTask ConfigureStatusEventsAsync(CancellationToken cancellationToken)
+        private async ValueTask ConfigureStatusEventsAsync(
+            CancellationToken cancellationToken)
         {
             if (m_v2ResponseProvider == null || m_providers.JobStatusSourceV2 == null)
             {
-                return default;
+                return;
             }
             NodeManagerBuilder builder = CreateFluentBuilder(InstanceNamespaceIndex);
             builder
@@ -1026,21 +1027,24 @@ namespace Opc.Ua.ISA95.Server
                     CreateStatusEventsAsync,
                     new EventPublishOptions { AlwaysOn = true });
 
-            // Sealing completes the root-notifier registration the Publish
-            // above staged, so the second builder pass has to be awaited.
-            return builder.SealAsync(cancellationToken);
+            // Sealing activates this pass's behaviors and completes the root-notifier
+            // registration the Publish above staged, so it has to be awaited.
+            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        private void ConfigureCatalogChanges()
+        private ValueTask ConfigureCatalogChangesAsync(
+            CancellationToken cancellationToken)
         {
+            _ = cancellationToken;
             if (m_providers.JobOrderCatalog == null ||
                 m_providers.JobOrderCatalogChangeSource == null)
             {
-                return;
+                return default;
             }
             m_catalogChangesTask = ProcessCatalogChangesAsync(
                 m_providers.JobOrderCatalogChangeSource,
                 m_catalogChangesCts.Token);
+            return default;
         }
 
         private void CancelCatalogChanges()
