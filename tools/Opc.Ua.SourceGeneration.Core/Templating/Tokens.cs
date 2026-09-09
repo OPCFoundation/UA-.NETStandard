@@ -141,6 +141,7 @@ namespace Opc.Ua.SourceGeneration
         public static string NamespacePrefix => nameof(NamespacePrefix);
         public static string NamespaceUri => nameof(NamespaceUri);
         public static string NodeManagerClassName => nameof(NodeManagerClassName);
+        public static string NodeManagerDefaultConstructor => nameof(NodeManagerDefaultConstructor);
         public static string NodeManagerFactoryClassName => nameof(NodeManagerFactoryClassName);
         public static string NodeSetImportFactoryProviderClassName =>
             nameof(NodeSetImportFactoryProviderClassName);

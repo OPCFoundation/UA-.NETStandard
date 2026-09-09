@@ -318,6 +318,10 @@ namespace Opc.Ua.Server.Tests.Fluent
                 var mockTelemetry = new Mock<ITelemetryContext>();
                 var mock = new Mock<IServerInternal>();
                 mock.SetupGet(m => m.NamespaceUris).Returns(ns);
+
+                // Sealing now activates behaviors, and the simulation lifetime is one,
+                // so the type table has to be real rather than absent.
+                mock.SetupGet(m => m.TypeTree).Returns(new TypeTable(ns));
                 mock.SetupGet(m => m.Telemetry).Returns(mockTelemetry.Object);
                 IServiceMessageContext msgCtx = ServiceMessageContext.Create(mockTelemetry.Object);
                 mock.SetupGet(m => m.MessageContext).Returns(msgCtx);

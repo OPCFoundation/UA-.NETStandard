@@ -204,6 +204,10 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     // predefined node so that OnNodeAdded handlers registered
                     // in Configure fire, and only then complete the staged
                     // registrations and start the simulations.
+                    //
+                    // Behavior registrations are already drained by the
+                    // CompleteConfigureAsync call above, so this path needs no
+                    // activation of its own.
                     await SealConfigurationAsync(builder, cancellationToken)
                         .ConfigureAwait(false);
                 }

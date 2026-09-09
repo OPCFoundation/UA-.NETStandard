@@ -128,15 +128,18 @@ namespace Opc.Ua.Server.Fluent
                         notifier.NodeId);
                 }
 
+                var entry = new SourceEntry(notifier, factory, options);
+
                 // Auto-promote EventNotifier so clients can subscribe to events on
                 // the node — Boiler-style models do not set this flag by default.
                 if ((notifier.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
                 {
                     notifier.EventNotifier |= EventNotifiers.SubscribeToEvents;
+                    entry.PromotedEventNotifier = true;
                     m_logger?.PublishPromotedEventNotifierOfBrowseIdNodeId(notifier.BrowseName, notifier.NodeId);
                 }
 
-                m_sources[notifier.NodeId] = new SourceEntry(notifier, factory, options);
+                m_sources[notifier.NodeId] = entry;
             }
 
             // Root-notifier registration has to await the manager's
@@ -203,6 +206,18 @@ namespace Opc.Ua.Server.Fluent
                     await m_owner.AddRootNotifierFromFluentAsync(
                         notifier,
                         cancellationToken).ConfigureAwait(false);
+
+                    // Record that this registration is the one that added the
+                    // notifier, so release removes only what it put there.
+                    lock (m_sourcesLock)
+                    {
+                        if (m_sources.TryGetValue(
+                            notifier.NodeId,
+                            out SourceEntry? registered))
+                        {
+                            registered.RegisteredRootNotifier = true;
+                        }
+                    }
                     m_logger?.PublishRegisteredBrowseIdNodeIdAsA(notifier.BrowseName, notifier.NodeId);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -217,10 +232,41 @@ namespace Opc.Ua.Server.Fluent
                 }
                 catch (Exception ex)
                 {
+                    // Undo the promotion before dropping the entry: removing the entry
+                    // discards the only record that we set the flag, so clearing it
+                    // afterwards would be impossible and the node would keep a
+                    // SubscribeToEvents bit this failed registration put there.
                     lock (m_sourcesLock)
                     {
+                        if (m_sources.TryGetValue(
+                                notifier.NodeId,
+                                out SourceEntry? failed) &&
+                            failed.PromotedEventNotifier)
+                        {
+                            notifier.EventNotifier = (byte)(notifier.EventNotifier &
+                                unchecked((byte)~EventNotifiers.SubscribeToEvents));
+                        }
                         m_sources.Remove(notifier.NodeId);
                     }
+
+                    // AddRootNotifierAsync can also have inserted the notifier before
+                    // failing in its later awaited work, so undo that too.
+                    try
+                    {
+                        await m_owner.RemoveRootNotifierFromFluentAsync(
+                                notifier,
+                                CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception cleanupEx) when (
+                        cleanupEx is not OutOfMemoryException)
+                    {
+                        m_logger?.PublishReleaseFailedForBrowseIdNodeId(
+                            notifier.BrowseName,
+                            notifier.NodeId,
+                            cleanupEx);
+                    }
+
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
                         ex,
@@ -846,6 +892,59 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <summary>
+        /// Undoes what registration did to the address space, then stops the loop.
+        /// </summary>
+        /// <remarks>
+        /// Registration has two effects on nodes that nothing used to reverse: it ORs
+        /// SubscribeToEvents into the notifier's EventNotifier, and it adds the node as
+        /// a root notifier. A manager that is torn down and rebuilt in one process
+        /// otherwise leaves both behind.
+        /// </remarks>
+        internal async ValueTask ReleaseAsync()
+        {
+            List<SourceEntry> snapshot;
+            lock (m_sourcesLock)
+            {
+                snapshot = [.. m_sources.Values];
+            }
+
+            for (int i = snapshot.Count - 1; i >= 0; i--)
+            {
+                SourceEntry entry = snapshot[i];
+
+                if (entry.RegisteredRootNotifier)
+                {
+                    entry.RegisteredRootNotifier = false;
+                    try
+                    {
+                        await m_owner
+                            .RemoveRootNotifierFromFluentAsync(
+                                entry.Notifier,
+                                CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        m_logger?.PublishReleaseFailedForBrowseIdNodeId(
+                            entry.Notifier.BrowseName,
+                            entry.Notifier.NodeId,
+                            ex);
+                    }
+                }
+
+                if (entry.PromotedEventNotifier)
+                {
+                    entry.PromotedEventNotifier = false;
+                    entry.Notifier.EventNotifier =
+                        (byte)(entry.Notifier.EventNotifier &
+                            unchecked((byte)~EventNotifiers.SubscribeToEvents));
+                }
+            }
+
+            Dispose();
+        }
+
         private sealed class SourceEntry
         {
             public SourceEntry(
@@ -861,6 +960,18 @@ namespace Opc.Ua.Server.Fluent
             public BaseObjectState Notifier { get; }
             public Func<NodeState, ISystemContext, CancellationToken, IAsyncEnumerable<BaseEventState>> Factory { get; }
             public EventPublishOptions Options { get; }
+
+            /// <summary>
+            /// Set when registration turned on SubscribeToEvents, so release can turn
+            /// it off again and leave the node as the model declared it.
+            /// </summary>
+            public bool PromotedEventNotifier { get; set; }
+
+            /// <summary>
+            /// Set when registration added the node as a root notifier, so release can
+            /// remove it again.
+            /// </summary>
+            public bool RegisteredRootNotifier { get; set; }
             public CancellationTokenSource? WorkerCts;
             public Task? WorkerTask;
             public TaskCompletionSource<bool> Ready =
@@ -886,6 +997,24 @@ namespace Opc.Ua.Server.Fluent
     /// <summary>
     /// Source-generated log messages for EventSourceRegistry.
     /// </summary>
+    /// <summary>
+    /// Releases the event sources when the owning node manager tears down.
+    /// </summary>
+    internal sealed class EventSourceLifetime : IAsyncDisposable
+    {
+        public EventSourceLifetime(EventSourceRegistry registry)
+        {
+            m_registry = registry;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return m_registry.ReleaseAsync();
+        }
+
+        private readonly EventSourceRegistry m_registry;
+    }
+
     internal static partial class EventSourceRegistryLog
     {
         [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 0, Level = LogLevel.Debug,
@@ -972,6 +1101,14 @@ namespace Opc.Ua.Server.Fluent
             Exception ex,
             QualifiedName browse,
             NodeId nodeId);
+
+        [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 11, Level = LogLevel.Warning,
+            Message = "Publish: failed to release '{Browse}' (id '{NodeId}').")]
+        public static partial void PublishReleaseFailedForBrowseIdNodeId(
+            this ILogger logger,
+            QualifiedName browse,
+            NodeId nodeId,
+            Exception ex);
     }
 
 }

@@ -454,5 +454,69 @@ namespace Opc.Ua.Server.TestFramework
 
             return 0;
         }
+
+        /// <summary>
+        /// Whether starting a server failed because the port it was asked to
+        /// bind is already taken, in which case picking another one and
+        /// retrying is worthwhile.
+        /// </summary>
+        /// <remarks>
+        /// The port handed out by <see cref="GetNextFreeIPPort"/> is only free
+        /// at the instant it is queried - the socket is closed again before the
+        /// server binds - so a parallel fixture or an unrelated process on the
+        /// agent can take it in between. How that surfaces depends on the
+        /// transport: the UA-TCP listener reports
+        /// <see cref="StatusCodes.BadNoCommunication"/>, while the HTTPS
+        /// listeners bind through Kestrel, which throws an
+        /// <see cref="System.IO.IOException"/> wrapping an
+        /// <c>AddressInUseException</c> and a
+        /// <see cref="SocketError.AddressAlreadyInUse"/>
+        /// <see cref="SocketException"/>. Only the former used to be retried,
+        /// so the https and opc.https fixtures failed their entire
+        /// OneTimeSetUp on a port collision.
+        /// </remarks>
+        /// <param name="exception">The exception the server start threw.</param>
+        public static bool IsPortUnavailable(Exception exception)
+        {
+            for (Exception current = exception; current != null; current = current.InnerException)
+            {
+                if (current is ServiceResultException sre &&
+                    sre.StatusCode == StatusCodes.BadNoCommunication)
+                {
+                    return true;
+                }
+
+                if (current is SocketException socket &&
+                    (socket.SocketErrorCode == SocketError.AddressAlreadyInUse ||
+                        socket.SocketErrorCode == SocketError.AccessDenied))
+                {
+                    return true;
+                }
+
+                // Kestrel reports the collision as
+                // Microsoft.AspNetCore.Connections.AddressInUseException. It
+                // normally carries the SocketException matched above as its
+                // inner exception, but match the type by name too so the
+                // detection does not depend on that - and so this file needs no
+                // reference to the ASP.NET Core connection abstractions.
+                if (current.GetType().Name == "AddressInUseException")
+                {
+                    return true;
+                }
+
+                if (current is AggregateException aggregate)
+                {
+                    foreach (Exception inner in aggregate.InnerExceptions)
+                    {
+                        if (IsPortUnavailable(inner))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
     }
 }
