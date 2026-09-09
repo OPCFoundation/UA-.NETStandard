@@ -215,10 +215,13 @@ namespace Opc.Ua.Fuzzing
             context ??= MessageContext;
             IEncodeable encodeable2 = DecodeJsonWithMetadata(serialized, encodeable, options, context);
             string serialized2 = EncodeJsonMessage(encodeable2, options, context);
-            IEncodeable encodeable3 = DecodeJsonWithMetadata(serialized2, encodeable, options, context);
+            // The artifact metadata has to come from the value that produced the payload being
+            // decoded. Generation one metadata goes stale as soon as generation one normalizes.
+            IEncodeable encodeable3 = DecodeJsonWithMetadata(serialized2, encodeable2, options, context);
 
             string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
-            if (!Utils.IsEqual(encodeable, encodeable2) &&
+            bool firstGenerationNormalized = !Utils.IsEqual(encodeable, encodeable2);
+            if (firstGenerationNormalized &&
                 !IsExpectedJsonSemanticLoss(encodeable, encodeable2, options, context))
             {
                 throw new InvalidOperationException(
@@ -227,7 +230,9 @@ namespace Opc.Ua.Fuzzing
 
             if (serialized2 == null || !serialized.SequenceEqual(serialized2))
             {
-                if (!IsExpectedJsonEncodingNormalization(serialized, serialized2, context))
+                if (!IsExpectedJsonEncodingNormalization(serialized, serialized2, context) &&
+                    !(firstGenerationNormalized &&
+                        IsStableFromSecondGeneration(serialized2, encodeable3, options, context)))
                 {
                     throw new InvalidOperationException(
                         Utils.Format("Idempotent JSON encoding failed. Type={0}.", encodeableTypeName));
@@ -343,6 +348,29 @@ namespace Opc.Ua.Fuzzing
             return !value.IsNull &&
                 ((value.SourceTimestamp == DateTimeUtc.MinValue && value.SourcePicoseconds != 0) ||
                     (value.ServerTimestamp == DateTimeUtc.MinValue && value.ServerPicoseconds != 0));
+        }
+
+        /// <summary>
+        /// A first generation encoding can legitimately normalize a value that the wire form
+        /// cannot represent distinctly, for example a bodyless ExtensionObject whose TypeId
+        /// resolves to a registered type. The byte level idempotence invariant then starts at
+        /// the second generation: re-encoding the value decoded from the second generation must
+        /// reproduce that generation byte for byte, so the encoding still reaches a fixed point
+        /// after a single normalizing pass instead of oscillating or growing without bound.
+        /// </summary>
+        private static bool IsStableFromSecondGeneration(
+            string serialized2,
+            IEncodeable encodeable3,
+            JsonEncoderOptions options,
+            IServiceMessageContext context)
+        {
+            if (serialized2 == null || encodeable3 == null)
+            {
+                return false;
+            }
+
+            string serialized3 = EncodeJsonMessage(encodeable3, options, context);
+            return StringComparer.Ordinal.Equals(serialized2, serialized3);
         }
 
         private static bool IsExpectedJsonSemanticLoss(
@@ -588,6 +616,11 @@ namespace Opc.Ua.Fuzzing
                 return AreJsonEquivalentExpandedNodeIds(left.TypeId, right.TypeId, context);
             }
 
+            if (IsBodylessExtensionObjectMaterialization(in left, in right, context))
+            {
+                return true;
+            }
+
             if (left.TryGetAsJson(out string leftJson) &&
                 right.TryGetAsJson(out string rightJson))
             {
@@ -606,6 +639,44 @@ namespace Opc.Ua.Fuzzing
             return left.TryGetValue(out IEncodeable leftEncodeable) &&
                 right.TryGetValue(out IEncodeable rightEncodeable) &&
                 IsJsonEquivalent(leftEncodeable, rightEncodeable, seen, options, context);
+        }
+
+        /// <summary>
+        /// The legacy inline JSON form writes an encodeable body directly into the
+        /// ExtensionObject envelope, so a bodyless ExtensionObject and a default constructed
+        /// instance of the same type serialize to the exact same JSON. Decoding therefore
+        /// materializes a default instance whenever the TypeId resolves to a registered type.
+        /// That is inherent to the encoding rather than a decoder defect - the decoder only
+        /// keeps the envelope bodyless when the type is unknown and no instance can be built.
+        /// Accept the materialization, but only when every member of the decoded instance is
+        /// still at its default; any populated member means information appeared from nowhere.
+        /// </summary>
+        private static bool IsBodylessExtensionObjectMaterialization(
+            in ExtensionObject left,
+            in ExtensionObject right,
+            IServiceMessageContext context)
+        {
+            if (left.Encoding != ExtensionObjectEncoding.None ||
+                left.TypeId.IsNull ||
+                left.TryGetValue(out IEncodeable _) ||
+                !right.TryGetValue(out IEncodeable decoded) ||
+                decoded == null ||
+                !AreJsonEquivalentExpandedNodeIds(left.TypeId, right.TypeId, context))
+            {
+                return false;
+            }
+
+            IEncodeable prototype;
+            try
+            {
+                prototype = Activator.CreateInstance(decoded.GetType()) as IEncodeable;
+            }
+            catch (MissingMethodException)
+            {
+                return false;
+            }
+
+            return prototype != null && Utils.IsEqual(prototype, decoded);
         }
 
         private static bool IsJsonEquivalentQualifiedName(QualifiedName left, QualifiedName right)

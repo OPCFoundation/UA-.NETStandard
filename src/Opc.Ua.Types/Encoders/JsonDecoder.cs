@@ -1955,6 +1955,11 @@ namespace Opc.Ua
                                             }
                                         }
                                     }
+                                    // A bodyless envelope is only preserved as a bodyless
+                                    // ExtensionObject when the type is unknown. For a registered
+                                    // type the inline body form makes a bodyless envelope
+                                    // indistinguishable from a default constructed instance, so
+                                    // the branch above materializes one; that is deliberate.
                                     if (!registeredType &&
                                         !artifactsSuppressed &&
                                         !typeId.IsNull &&

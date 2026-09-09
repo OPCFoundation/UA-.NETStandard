@@ -74,6 +74,107 @@ namespace Opc.Ua.Fuzzing
                 $"{name} failed binary-to-LegacyNonReversible JSON.");
         }
 
+        /// <summary>
+        /// The legacy inline JSON body form makes a bodyless ExtensionObject and a default
+        /// constructed instance of the same type serialize identically, so the decoder can only
+        /// keep the envelope bodyless when the TypeId does not resolve to a registered type.
+        /// Pin both halves of that deliberate asymmetry.
+        /// </summary>
+        [Test]
+        public void BodylessExtensionObjectDecodesByTypeRegistration()
+        {
+            ExpandedNodeId registeredId = new ObjectAttributes().BinaryEncodingId;
+            var unregisteredId = new ExpandedNodeId(new NodeId(9999, 1), Namespaces.OpcUa);
+
+            var message = new BrowseRequest
+            {
+                RequestHeader = new RequestHeader
+                {
+                    AdditionalHeader = new ExtensionObject(registeredId)
+                },
+                View = new ViewDescription(),
+                NodesToBrowse = ArrayOf<BrowseDescription>.Empty
+            };
+
+            string json = FuzzableCode.EncodeJsonMessage(
+                message,
+                FuzzableCode.LegacyReversibleOptions,
+                FuzzableCode.MessageContext);
+
+            var decoded = (BrowseRequest)FuzzableCode.FuzzJsonDecoderCore(json, true);
+            ExtensionObject decodedHeader = decoded.RequestHeader.AdditionalHeader;
+
+            Assert.That(
+                decodedHeader.TryGetValue(out IEncodeable materialized),
+                Is.True,
+                "A registered TypeId must materialize a default instance.");
+            Assert.That(materialized, Is.InstanceOf<ObjectAttributes>());
+            Assert.That(Utils.IsEqual(materialized, new ObjectAttributes()), Is.True);
+
+            var unregisteredMessage = new BrowseRequest
+            {
+                RequestHeader = new RequestHeader
+                {
+                    AdditionalHeader = new ExtensionObject(unregisteredId)
+                },
+                View = new ViewDescription(),
+                NodesToBrowse = ArrayOf<BrowseDescription>.Empty
+            };
+
+            string unregisteredJson = FuzzableCode.EncodeJsonMessage(
+                unregisteredMessage,
+                FuzzableCode.LegacyReversibleOptions,
+                FuzzableCode.MessageContext);
+
+            var unregisteredDecoded =
+                (BrowseRequest)FuzzableCode.FuzzJsonDecoderCore(unregisteredJson, true);
+            ExtensionObject unregisteredHeader = unregisteredDecoded.RequestHeader.AdditionalHeader;
+
+            Assert.That(
+                unregisteredHeader.Encoding,
+                Is.EqualTo(ExtensionObjectEncoding.None),
+                "An unregistered TypeId must stay bodyless.");
+            Assert.That(unregisteredHeader.TypeId.IsNull, Is.False);
+        }
+
+        /// <summary>
+        /// The tolerance for the materialization above must not swallow a real loss: an
+        /// ExtensionObject that carries a populated body has to survive the round-trip intact.
+        /// </summary>
+        [Test]
+        public void PopulatedExtensionObjectBodySurvivesLegacyReversibleRoundTrip()
+        {
+            var message = new BrowseRequest
+            {
+                RequestHeader = new RequestHeader
+                {
+                    AdditionalHeader = new ExtensionObject(new ObjectAttributes
+                    {
+                        SpecifiedAttributes = 7,
+                        WriteMask = 3,
+                        UserWriteMask = 1,
+                        EventNotifier = 5
+                    })
+                },
+                View = new ViewDescription(),
+                NodesToBrowse = ArrayOf<BrowseDescription>.Empty
+            };
+
+            string json = FuzzableCode.EncodeJsonMessage(
+                message,
+                FuzzableCode.LegacyReversibleOptions,
+                FuzzableCode.MessageContext);
+
+            var decoded = (BrowseRequest)FuzzableCode.FuzzJsonDecoderCore(json, true);
+
+            Assert.That(
+                decoded.RequestHeader.AdditionalHeader.TryGetValue(out IEncodeable body),
+                Is.True);
+            Assert.That(body, Is.InstanceOf<ObjectAttributes>());
+            Assert.That(((ObjectAttributes)body).EventNotifier, Is.EqualTo(5));
+            Assert.That(Utils.IsEqual(body, new ObjectAttributes()), Is.False);
+        }
+
         private static IEnumerable<TestCaseData> AwkwardJsonRoundTripCases()
         {
             yield return new TestCaseData(
@@ -238,6 +339,20 @@ namespace Opc.Ua.Fuzzing
                         })
                     ],
                     Topic = string.Empty
+                });
+            yield return new TestCaseData(
+                "BrowseRequestWithBodylessRegisteredTypeAdditionalHeader",
+                new BrowseRequest
+                {
+                    RequestHeader = new RequestHeader
+                    {
+                        RequestHandle = 42,
+                        AdditionalHeader = new ExtensionObject(
+                            new ObjectAttributes().BinaryEncodingId)
+                    },
+                    View = new ViewDescription(),
+                    RequestedMaxReferencesPerNode = ushort.MaxValue,
+                    NodesToBrowse = ArrayOf<BrowseDescription>.Empty
                 });
         }
 
