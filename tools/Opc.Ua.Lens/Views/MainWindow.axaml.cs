@@ -96,6 +96,7 @@ internal sealed partial class MainWindow : Window, IAsyncDisposable
                 return;
             }
             m_closing = true;
+            m_vm.ConnectionStatus = "Closing workspace and releasing connection resources…";
             try
             {
                 await DisposeAsync().ConfigureAwait(true);

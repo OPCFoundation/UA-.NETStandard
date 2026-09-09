@@ -1042,7 +1042,11 @@ namespace Opc.Ua.Client.Subscriptions
             await m_stateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
-                await DeleteAsync(default).ConfigureAwait(false);
+                // Local disposal must finish even when the server is unreachable.
+                // A failed remote delete is logged; the server retains its lifetime-based cleanup.
+                using CancellationTokenSource cleanup = TimeProvider.CreateCancellationTokenSource(
+                    TimeSpan.FromSeconds(5));
+                await DeleteAsync(cleanup.Token).ConfigureAwait(false);
             }
             finally
             {

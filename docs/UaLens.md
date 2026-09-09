@@ -56,6 +56,11 @@ Standard text-editing shortcuts retain their usual meaning. F2 renames a documen
 Ctrl+Tab and Ctrl+Shift+Tab cycle documents. The command registry is the source of
 truth for displayed shortcuts and their availability.
 
+Close and Quit await local cleanup, with bounded V2 server-side subscription
+deletion even when the server is unavailable. The status bar shows shutdown
+progress. A remote cleanup failure is logged rather than presented as confirmed
+deletion; server-side resources may remain until their lifetime expires.
+
 ## Connection and trust
 
 An untrusted server certificate is rejected unless the user makes an explicit
