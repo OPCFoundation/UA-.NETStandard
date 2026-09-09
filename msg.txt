@@ -1,30 +1,6 @@
-Fix JSON round-trip harness for bodyless ExtensionObjects of registered types
+Emit crash asset reproducers when a pipeline supplied corpus fails
 
-A post-merge campaign found LibfuzzBinaryJsonEncoderLegacyReversible failing on
-a BrowseRequest whose RequestHeader.AdditionalHeader is a bodyless
-ExtensionObject carrying a registered encoding TypeId.
-
-Root cause: the legacy inline JSON body form writes an encodeable directly into
-the ExtensionObject envelope, so a bodyless ExtensionObject and a default
-constructed instance of the same type serialize to identical JSON. Decoding
-therefore materializes a default instance whenever the TypeId is registered.
-
-A discriminator over all 993 registered encodeable types confirmed the decoder
-is right to materialize: 283 types collapse to a bare UaTypeId envelope in
-Compact and 70 in LegacyReversible, so preserving the envelope as bodyless would
-regress every one of them. The ambiguity is inherent to the encoding, not a
-decoder defect, so it is modelled as expected loss in the harness and the
-deliberate asymmetry is now documented in JsonDecoder.
-
-Harness changes:
-- Accept the materialization only when every member of the decoded instance is
-  still at its default; a populated member remains a failure.
-- Start the byte level idempotence invariant at the second generation when the
-  first generation legitimately normalized, so the encoding must still reach a
-  fixed point after a single pass.
-- Take artifact metadata from the value that produced the payload being decoded.
-  Generation one metadata went stale as soon as generation one normalized, which
-  broke RawData and LegacyNonReversible on the same input.
-
-Adds the reproducer as a crash asset plus regression tests pinning both halves
-of the decoder asymmetry and proving a populated body still survives intact.
+The Encoders fuzz crash corpus is delivered by the pipeline as a secure file,
+so a failure there cannot be reproduced or minimised locally. Emit the failing
+input inline as base64, bounded to 60 reproducers of at most 4 KiB each so a
+systemic failure cannot bury the log. A passing run emits nothing.

@@ -44,6 +44,9 @@ namespace Opc.Ua.Fuzzing
     [Category("Fuzzing")]
     public abstract class FuzzTargetTestsBase
     {
+        private const int kMaxEmittedReproducers = 60;
+        private const int kMaxEmittedReproducerBytes = 4096;
+
         public static readonly TestcaseAsset[] GoodTestcases =
         [
             .. AssetCollection<TestcaseAsset>.CreateFromFiles(
@@ -94,6 +97,7 @@ namespace Opc.Ua.Fuzzing
         public void FuzzCrashAssets(FuzzTargetFunction fuzzableCode)
         {
             var failures = new List<string>();
+            int reproducers = 0;
             foreach (TestcaseAsset messageEncoder in CrashAssets)
             {
                 try
@@ -106,6 +110,18 @@ namespace Opc.Ua.Fuzzing
                     failures.Add(
                         $"asset={messageEncoder} -> {ex.GetType().Name}: {ex.Message}");
                     TestContext.Error.WriteLine($"Failed: {messageEncoder}\n{ex}");
+
+                    // Crash corpora are frequently supplied by the pipeline rather than the
+                    // tree, so a failure there is otherwise impossible to reproduce locally.
+                    // Emit the reproducer inline, bounded so a systemic failure cannot bury
+                    // the log. A passing run emits nothing.
+                    if (reproducers++ < kMaxEmittedReproducers &&
+                        messageEncoder.Testcase.Length <= kMaxEmittedReproducerBytes)
+                    {
+                        TestContext.Error.WriteLine(
+                            $"REPRODUCER {messageEncoder} " +
+                            Convert.ToBase64String(messageEncoder.Testcase));
+                    }
                 }
             }
 
