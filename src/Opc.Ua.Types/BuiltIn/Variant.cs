@@ -2130,7 +2130,7 @@ namespace Opc.Ua
         {
             if (IsPackedNodeId)
             {
-                value = new NodeId(m_value, m_union.NodeId);
+                value = NodeId.SetRawState(m_value, m_union.NodeId);
                 return true;
             }
             return TryGetScalar(out value, BuiltInType.NodeId);

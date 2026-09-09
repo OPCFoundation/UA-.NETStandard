@@ -1297,6 +1297,7 @@ namespace Opc.Ua.Types.Tests.State
         /// consume thread-pool threads and does not starve other parallelisable tests.
         /// </summary>
         [Test]
+        [NonParallelizable]
         public void ConcurrentIncrementsAndDecrementsReturnToFalse()
         {
             const int k_threadCount = 32;
@@ -1389,6 +1390,7 @@ namespace Opc.Ua.Types.Tests.State
         /// <see cref="NodeState.AreEventsMonitored"/> true.
         /// </summary>
         [Test]
+        [NonParallelizable]
         public void ConcurrentExcessFalseCallsDoNotPoisonCounter()
         {
             const int k_threadCount = 32;

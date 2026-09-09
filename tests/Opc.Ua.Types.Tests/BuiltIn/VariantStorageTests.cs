@@ -300,7 +300,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             {
                 input.GetRawState(out object identifier, out NodeId.Inner inner);
                 inner.Reserved = 173;
-                var raw = new NodeId(identifier, inner);
+                NodeId raw = NodeId.SetRawState(identifier, inner);
                 NodeId extracted = new Variant(raw).GetNodeId();
                 extracted.GetRawState(out object restoredIdentifier, out NodeId.Inner restored);
                 Assert.That(restoredIdentifier, Is.SameAs(identifier));
