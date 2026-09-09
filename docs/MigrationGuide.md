@@ -319,6 +319,20 @@ for the before/after and
 [Custom node types and assignment control](NodeManagers.md#custom-node-types-and-assignment-control)
 for the runtime rules.
 
+## Adopting replica-consistent NodeIds
+
+When moving a custom 1.5.378 redundant deployment to the 2.0 shared address-space
+modules, configure [`UseReplicaNodeIdentity`](ReplicaNodeIdentity.md) with the same
+ordered model/instance namespace list on every replica. Namespace 1 remains local
+to each ApplicationUri; shared namespaces start at index 2. Do not assume that
+previously clock-seeded counters or namespace registration order form a portable
+identity contract. Preserve existing agreed IDs explicitly where compatible, or
+plan an offline namespace/identifier migration and client cutover.
+
+Unbound legacy shared state is not automatically adopted or renumbered. The
+identity module refuses unknown or conflicting stored contracts; see its
+new-store provisioning and migration limits before attaching an existing store.
+
 ## Removed members on ISession
 
 `ISession.SessionDiagnostics` is removed. It handed out the whole mutable
@@ -547,6 +561,22 @@ public ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
 Deriving from `SessionManager` requires no change beyond renaming any
 `Shutdown` override: `ShutdownAsync` is `virtual` and the base
 implementation already awaits the monitor loop.
+
+## Configuring distributed address-space storage
+
+Direct `InMemoryNodeStateStore` writers require their backend to implement
+`ISharedKeyValueStoreConsistency` and provide linearizable operations for
+`election/addressspace-sequence`. A bare CRDT store is not a valid writer
+backend. Compose it with the shared Raft coordinator using
+`HybridSharedKeyValueStore`, or use the fluent consistency registration before
+`UseDistributedAddressSpace`.
+
+Use strong state storage for authoritative bootstrap and compacted snapshots.
+CRDT payload storage retains merge-only hydration and delta replay without
+absence-based cleanup or snapshot compaction. These are configuration
+requirements of the distributed-state extension, not a 1.5 persisted-format
+migration guarantee. See
+[address-space consistency](HighAvailability.md#activepassive-address-space-consistency).
 
 ## Migrating SamplingGroupManager create/modify overrides
 

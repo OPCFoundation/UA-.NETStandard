@@ -53,7 +53,10 @@ namespace Opc.Ua.WotCon.Server
     /// <see cref="AssetRegistry"/> in a dedicated namespace
     /// (<see cref="WotConnectivityServerOptions.AssetNamespaceUri"/>).
     /// </remarks>
-    public sealed class WotConnectivityNodeManager : AsyncCustomNodeManager, INodeIdFactory
+    public sealed class WotConnectivityNodeManager :
+        AsyncCustomNodeManager,
+        INodeIdFactory,
+        ILocalAddressSpaceOwnership
     {
         /// <summary>
         /// Initialises a new <see cref="WotConnectivityNodeManager"/>.
@@ -71,14 +74,18 @@ namespace Opc.Ua.WotCon.Server
                   Namespaces.WotCon)
         {
             m_options = options;
-            AssetNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(options.AssetNamespaceUri);
-            WotConNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(Namespaces.WotCon);
+            AssetNamespaceIndex = WotConModelPartition.GetRequiredNamespaceIndex(
+                server.NamespaceUris, options.AssetNamespaceUri);
+            WotConNamespaceIndex = WotConModelPartition.GetRequiredNamespaceIndex(
+                server.NamespaceUris, Namespaces.WotCon);
 
             // counter identifiers: assets are (re)discovered at runtime and
             // reuse browse names across generations.
-            NodeIdFactory = NodeIdFactory
-                .WithMode(NodeIdAssignmentMode.Counter)
-                .WithDefaultNamespaceIndex(AssetNamespaceIndex);
+            NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(AssetNamespaceIndex);
+            if (NodeIdFactory is not INodeIdFactoryPolicy)
+            {
+                NodeIdFactory = NodeIdFactory.WithMode(NodeIdAssignmentMode.Counter);
+            }
             m_registry = new AssetRegistry(this, options, m_logger);
         }
 
@@ -91,6 +98,15 @@ namespace Opc.Ua.WotCon.Server
         /// The namespace index of the WoT Connectivity model.
         /// </summary>
         public ushort WotConNamespaceIndex { get; }
+
+        string ILocalAddressSpaceOwnership.PartitionId =>
+            $"{m_options.AssetNamespaceUri}|{Namespaces.WotCon}:legacy";
+
+        bool ILocalAddressSpaceOwnership.OwnsNode(NodeId nodeId)
+        {
+            return nodeId.NamespaceIndex == AssetNamespaceIndex ||
+                WotConModelPartition.IsLegacyNode(nodeId, WotConNamespaceIndex);
+        }
 
         /// <summary>
         /// Registers an EventType materialised for a WoT event affordance.

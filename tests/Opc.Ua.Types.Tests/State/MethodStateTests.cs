@@ -449,10 +449,10 @@ namespace Opc.Ua.Types.Tests.State
             var restored = new MethodState(null);
             restored.LoadAsBinary(m_context, stream);
 
-            // Binary format omits default-valued attributes; constructor defaults to true
-            // Verify the round-trip at least deserializes without error
             Assert.That(restored.BrowseName, Is.EqualTo(method.BrowseName));
             Assert.That(restored.DisplayName, Is.EqualTo(method.DisplayName));
+            Assert.That(restored.Executable, Is.False);
+            Assert.That(restored.UserExecutable, Is.False);
         }
 
         [Test]
