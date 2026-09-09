@@ -1,6 +1,0 @@
-Emit crash asset reproducers when a pipeline supplied corpus fails
-
-The Encoders fuzz crash corpus is delivered by the pipeline as a secure file,
-so a failure there cannot be reproduced or minimised locally. Emit the failing
-input inline as base64, bounded to 60 reproducers of at most 4 KiB each so a
-systemic failure cannot bury the log. A passing run emits nothing.
