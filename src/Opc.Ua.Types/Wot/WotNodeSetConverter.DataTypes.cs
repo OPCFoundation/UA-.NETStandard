@@ -787,7 +787,7 @@ namespace Opc.Ua.Wot
                 string encodingRoot =
                     DeriveDataTypeNodeId(document, name, nodeSet, diagnostics) ?? identity;
                 AppendEncodings(
-                    definition, encodingRoot, dataType.BrowseName!, references, items,
+                    definition, encodingRoot, identity, references, items,
                     nodeSet, diagnostics);
             }
             else if (isAbstract)
@@ -1371,23 +1371,22 @@ namespace Opc.Ua.Wot
         /// </remarks>
         private static void AppendEncodings(
             JsonElement definition,
-            string identity,
-            string browseName,
+            string encodingRoot,
+            string dataTypeId,
             List<Reference> references,
             List<UANode> items,
             UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics)
         {
             AppendEncoding(
-                definition, "uav:binaryEncodingId", identity + BinaryEncodingSuffix,
-                "Default Binary", identity, references, items, nodeSet, diagnostics);
+                definition, "uav:binaryEncodingId", encodingRoot + BinaryEncodingSuffix,
+                "Default Binary", dataTypeId, references, items, nodeSet, diagnostics);
             AppendEncoding(
-                definition, "uav:xmlEncodingId", identity + XmlEncodingSuffix,
-                "Default XML", identity, references, items, nodeSet, diagnostics);
+                definition, "uav:xmlEncodingId", encodingRoot + XmlEncodingSuffix,
+                "Default XML", dataTypeId, references, items, nodeSet, diagnostics);
             AppendEncoding(
-                definition, "uav:jsonEncodingId", identity + JsonEncodingSuffix,
-                "Default JSON", identity, references, items, nodeSet, diagnostics);
-            _ = browseName;
+                definition, "uav:jsonEncodingId", encodingRoot + JsonEncodingSuffix,
+                "Default JSON", dataTypeId, references, items, nodeSet, diagnostics);
         }
 
         private static void AppendEncoding(
@@ -1925,7 +1924,7 @@ namespace Opc.Ua.Wot
             }
             if (!isEnumeration)
             {
-                AppendEncodings(schema, identity, dataType.BrowseName!, references, items, nodeSet, diagnostics);
+                AppendEncodings(schema, identity, identity, references, items, nodeSet, diagnostics);
             }
             dataType.References = [.. references];
             items.Add(dataType);

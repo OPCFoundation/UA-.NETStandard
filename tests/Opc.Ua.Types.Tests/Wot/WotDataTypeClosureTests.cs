@@ -148,6 +148,47 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostic.Location?.NodeId == "ns=1;i=3000"), Is.True, Describe(result));
         }
 
+        [TestCase("nsu=urn:test:datatype-closure;i=3000")]
+        [TestCase("nsu=urn:test:datatype-closure;g=01234567-89ab-cdef-0123-456789abcdef")]
+        [TestCase("nsu=urn:test:datatype-closure;b=AQIDBA==")]
+        [TestCase("nsu=urn:test:datatype-closure;s=ActualReading")]
+        public void EncodingBacklinksNameTheActualDataTypeIdentity(string typeId)
+        {
+            JsonObject root = Document(Structure(typeId));
+            root.Remove("@context");
+            root["uav:browseName"] = "nsu=urn:test:datatype-closure;Root";
+            root["uav:dataTypeDefinitions"]![0]!["uav:dataTypeName"] = "nsu=urn:test:datatype-closure;Reading";
+            using WotDocument document = Parse(root);
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+            Assert.That(result.Success, Is.True, Describe(result));
+            UANodeSet source = result.Value!;
+            string actualId = WotTestData.LocalNodeId(source, typeId);
+            UADataType type = source.Items!.OfType<UADataType>().Single();
+            Assert.That(type.NodeId, Is.EqualTo(actualId));
+            UAObject[] encodings = source.Items!.OfType<UAObject>().ToArray();
+            Assert.That(encodings, Has.Length.EqualTo(3));
+            foreach (UAObject encoding in encodings)
+            {
+                Assert.That(encoding.NodeId, Is.EqualTo("ns=1;s=DataTypes/Reading/" + encoding.BrowseName));
+                Assert.That(encoding.References!.Single(reference =>
+                    reference.ReferenceType == "HasEncoding" && !reference.IsForward).Value, Is.EqualTo(actualId));
+                Assert.That(type.References!.Any(reference =>
+                    reference.ReferenceType == "HasEncoding" && reference.IsForward &&
+                    reference.Value == encoding.NodeId), Is.True);
+            }
+            Assert.That(source.Items!.Any(node => node.NodeId == "ns=1;s=DataTypes/Reading"), Is.False);
+            byte[] expected = WotTestData.Serialize(source);
+            using WotDocument archived = WotNodeSetConverter.FromNodeSet(
+                source,
+                options: new WotNodeSetConverterOptions { PreservationMode = WotNodeSetPreservationMode.Always });
+            WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ToNodeSetResult(archived);
+            Assert.That(restored.Success, Is.True, Describe(restored));
+            Assert.That(WotTestData.Serialize(restored.Value!), Is.EqualTo(expected),
+                "Before: " + string.Concat(source.Extensions?.Select(extension => extension.OuterXml) ?? []) +
+                "; after: " + string.Concat(restored.Value!.Extensions?.Select(extension => extension.OuterXml) ?? []));
+            Assert.That(WotTestData.Serialize(source), Is.EqualTo(expected));
+        }
+
         private static JsonObject Structure(string typeId)
         {
             return new JsonObject
