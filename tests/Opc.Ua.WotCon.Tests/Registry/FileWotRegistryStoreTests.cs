@@ -60,7 +60,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public void SetUp()
         {
             m_root = Path.Combine(
-                TestContext.CurrentContext.TestDirectory,
+                Path.GetTempPath(),
                 "wot-store-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(m_root);
         }
