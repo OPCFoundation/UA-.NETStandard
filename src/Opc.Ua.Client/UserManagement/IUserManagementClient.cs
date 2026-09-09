@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -64,7 +63,7 @@ namespace Opc.Ua.Client.UserManagement
         /// Reads the <c>Users</c> property and returns a snapshot of
         /// every user known to the server.
         /// </summary>
-        ValueTask<IReadOnlyList<UserManagementUser>> ListUsersAsync(
+        ValueTask<ArrayOf<UserManagementUser>> ListUsersAsync(
             CancellationToken cancellationToken = default);
 
         /// <summary>

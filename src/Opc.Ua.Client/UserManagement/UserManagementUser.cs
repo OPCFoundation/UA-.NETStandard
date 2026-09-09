@@ -56,7 +56,9 @@ namespace Opc.Ua.Client.UserManagement
             Description = description;
         }
 
-        /// <summary>The user's logon name.</summary>
+        /// <summary>
+        /// The user's logon name.
+        /// </summary>
         public string UserName { get; }
 
         /// <summary>
@@ -67,25 +69,37 @@ namespace Opc.Ua.Client.UserManagement
         /// </summary>
         public UserConfigurationMask UserConfiguration { get; }
 
-        /// <summary>Optional free-form description.</summary>
+        /// <summary>
+        /// Optional free-form description.
+        /// </summary>
         public string? Description { get; }
 
-        /// <summary>True if the <c>NoDelete</c> flag is set.</summary>
+        /// <summary>
+        /// True if the <c>NoDelete</c> flag is set.
+        /// </summary>
         public bool NoDelete
             => (UserConfiguration & UserConfigurationMask.NoDelete) != 0;
 
-        /// <summary>True if the <c>Disabled</c> flag is set (the user account is inactive).</summary>
+        /// <summary>
+        /// True if the <c>Disabled</c> flag is set (the user account is inactive).
+        /// </summary>
         public bool IsDisabled
             => (UserConfiguration & UserConfigurationMask.Disabled) != 0;
 
-        /// <summary>Inverse of <see cref="IsDisabled"/>.</summary>
+        /// <summary>
+        /// Inverse of <see cref="IsDisabled"/>.
+        /// </summary>
         public bool IsActive => !IsDisabled;
 
-        /// <summary>True if the <c>NoChangeByUser</c> flag is set (user cannot change own password).</summary>
+        /// <summary>
+        /// True if the <c>NoChangeByUser</c> flag is set (user cannot change own password).
+        /// </summary>
         public bool NoChangeByUser
             => (UserConfiguration & UserConfigurationMask.NoChangeByUser) != 0;
 
-        /// <summary>True if the <c>MustChangePassword</c> flag is set.</summary>
+        /// <summary>
+        /// True if the <c>MustChangePassword</c> flag is set.
+        /// </summary>
         public bool MustChangePassword
             => (UserConfiguration & UserConfigurationMask.MustChangePassword) != 0;
     }

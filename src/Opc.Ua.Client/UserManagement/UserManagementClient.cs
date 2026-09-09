@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using ISession = Opc.Ua.Client.ISession;
@@ -62,7 +61,9 @@ namespace Opc.Ua.Client.UserManagement
                 session.MessageContext.Telemetry);
         }
 
-        /// <summary>The session used for all service calls.</summary>
+        /// <summary>
+        /// The session used for all service calls.
+        /// </summary>
         public ISession Session { get; }
 
         /// <summary>
@@ -79,7 +80,7 @@ namespace Opc.Ua.Client.UserManagement
         public UserManagementTypeClient Proxy { get; }
 
         /// <inheritdoc/>
-        public async ValueTask<IReadOnlyList<UserManagementUser>> ListUsersAsync(
+        public async ValueTask<ArrayOf<UserManagementUser>> ListUsersAsync(
             CancellationToken cancellationToken = default)
         {
             // The Users property is a mandatory child of UserManagementType
@@ -112,22 +113,24 @@ namespace Opc.Ua.Client.UserManagement
                     $"Read of UserManagement.Users failed: {dv.StatusCode}");
             }
 
-            var users = new List<UserManagementUser>();
             if (dv.WrappedValue.TryGetStructure(out ArrayOf<UserManagementDataType> typed))
             {
+                var users = new UserManagementUser[typed.Count];
+                int count = 0;
                 foreach (UserManagementDataType raw in typed)
                 {
                     if (raw == null)
                     {
                         continue;
                     }
-                    users.Add(new UserManagementUser(
+                    users[count++] = new UserManagementUser(
                         raw.UserName ?? string.Empty,
                         (UserConfigurationMask)raw.UserConfiguration,
-                        string.IsNullOrEmpty(raw.Description) ? null : raw.Description));
+                        string.IsNullOrEmpty(raw.Description) ? null : raw.Description);
                 }
+                return ArrayOf.Wrapped(users).Slice(0, count);
             }
-            return users;
+            return ArrayOf<UserManagementUser>.Empty;
         }
 
         /// <inheritdoc/>
@@ -260,8 +263,6 @@ namespace Opc.Ua.Client.UserManagement
             }
             return null;
         }
-
-        // ----- helpers -----
 
         private async ValueTask<NodeId> ResolveChildAsync(
             NodeId parentId,
