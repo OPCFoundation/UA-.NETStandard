@@ -186,16 +186,8 @@ namespace Opc.Ua.Fuzzing
                 string executable = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet";
                 string arguments = $"\"{assembly}\" ";
 #endif
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = executable,
-                    Arguments = $"{arguments}--fuzz-replay {target.MethodInfo.Name} \"{file}\"",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                    WorkingDirectory = AppContext.BaseDirectory
-                };
+                ProcessStartInfo startInfo = CreateReplayStartInfo(
+                    $"{arguments}--fuzz-replay {target.MethodInfo.Name} \"{file}\"");
                 (int exitCode, bool timedOut, string standardOutput, string standardError) =
                     await FuzzProcessWatchdog.RunAsync(startInfo, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
                 Assert.That(timedOut, Is.False, $"Replay exceeded the process budget: {target.MethodInfo.Name}");
@@ -205,6 +197,47 @@ namespace Opc.Ua.Fuzzing
             {
                 File.Delete(file);
             }
+        }
+
+        private static ProcessStartInfo CreateReplayStartInfo(string arguments)
+        {
+#if NETFRAMEWORK
+            string executable = typeof(FuzzTargetTestsBase).Assembly.Location;
+#else
+            string executable = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet";
+#endif
+            return new ProcessStartInfo
+            {
+                FileName = executable,
+                Arguments = arguments,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+                WorkingDirectory = AppContext.BaseDirectory
+            };
+        }
+
+        [TestCase("MissingFuzzTarget \"no-such-input\"")]
+        [TestCase("OnlyOneArgument")]
+        public async Task MalformedReplayRequestFailsInsteadOfReportingSuccessAsync(string replayArguments)
+        {
+            // The timeout/slow regressions assert a zero exit, so a replay child that
+            // cannot run the requested input must fail rather than fall through to the
+            // benchmark host and report a pass for an input that was never replayed.
+#if NETFRAMEWORK
+            string prefix = string.Empty;
+#else
+            string prefix = $"\"{typeof(FuzzTargetTestsBase).Assembly.Location}\" ";
+#endif
+            ProcessStartInfo startInfo = CreateReplayStartInfo(
+                $"{prefix}--fuzz-replay {replayArguments}");
+
+            (int exitCode, bool timedOut, _, _) =
+                await FuzzProcessWatchdog.RunAsync(startInfo, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+            Assert.That(timedOut, Is.False);
+            Assert.That(exitCode, Is.Not.Zero);
         }
 
         private void FuzzTarget(FuzzTargetFunction fuzzableCode, byte[] blob)

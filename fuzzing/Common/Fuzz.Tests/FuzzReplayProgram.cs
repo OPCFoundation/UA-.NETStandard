@@ -39,14 +39,27 @@ namespace Opc.Ua.Fuzzing
     {
         public static int Main(string[] args)
         {
-            if (args.Length == 3 && args[0] == "--fuzz-replay")
+            if (args.Length != 0 && args[0] == "--fuzz-replay")
             {
-                Delegate target = FuzzMethods.FindFuzzMethod(Console.Error, args[1])
-                    ?? throw new ArgumentException("Unknown replay target.", nameof(args));
+                // A malformed replay request must fail loudly rather than fall through
+                // to the benchmark host: the watchdog regressions assert a zero exit, so
+                // exiting 0 here would report a pass for an input never replayed.
+                if (args.Length != 3)
+                {
+                    Console.Error.WriteLine("Usage: --fuzz-replay <target> <input-file>");
+                    return 2;
+                }
+                Delegate target = FuzzMethods.FindFuzzMethod(Console.Error, args[1]);
+                if (target == null)
+                {
+                    return 2;
+                }
                 FuzzMethods.Replay(target, File.ReadAllBytes(args[2]));
                 return 0;
             }
 
+            // The area test hosts link the BenchmarkDotNet entry point, whose Main
+            // returns void, so there is no exit code to propagate here.
             Program.Main(args);
             return 0;
         }
