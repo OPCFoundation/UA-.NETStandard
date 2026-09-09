@@ -270,24 +270,16 @@ namespace Opc.Ua.Client.Subscriptions
                 throw ServiceResultException.Create(StatusCodes.BadSubscriptionIdInvalid,
                     "Subscription has not been created.");
             }
-            ArrayOf<CallMethodRequest> methodsToCall =
-            [
+            var methodsToCall = new CallMethodRequest[]
+            {
                 new()
                 {
-                    ObjectId = ObjectTypeIds.ConditionType,
                     MethodId = MethodIds.ConditionType_ConditionRefresh,
-                    InputArguments = [Variant.From(Id)]
+                    InputArguments = [new Variant(Id)]
                 }
-            ];
-            CallResponse response = await m_context.MethodServiceSet.CallAsync(null, methodsToCall, ct)
-                .ConfigureAwait(false);
-            ClientBase.ValidateResponse(response.Results, methodsToCall);
-            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, methodsToCall);
-            if (StatusCode.IsBad(response.Results[0].StatusCode))
-            {
-                throw new ServiceResultException(ClientBase.GetResult(
-                    response.Results[0].StatusCode, 0, response.DiagnosticInfos, response.ResponseHeader));
-            }
+            };
+            await m_context.MethodServiceSet.CallAsync(null, methodsToCall,
+                ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -1042,11 +1034,7 @@ namespace Opc.Ua.Client.Subscriptions
             await m_stateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
-                // Local disposal must finish even when the server is unreachable.
-                // A failed remote delete is logged; the server retains its lifetime-based cleanup.
-                using CancellationTokenSource cleanup = TimeProvider.CreateCancellationTokenSource(
-                    TimeSpan.FromSeconds(5));
-                await DeleteAsync(cleanup.Token).ConfigureAwait(false);
+                await DeleteAsync(default).ConfigureAwait(false);
             }
             finally
             {

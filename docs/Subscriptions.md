@@ -681,13 +681,8 @@ The streaming subscription guarantees three invariants:
    exception, or explicit `await using`) removes that monitored item.
    The underlying subscription stays alive for other enumerators.
 3. **Disposal order.** Disposing the `StreamingSubscription` completes
-   all open channels and attempts to delete the underlying OPC UA subscription.
+   all open channels and deletes the underlying OPC UA subscription.
    Disposing the `ManagedSession` calls this for you.
-
-V2 subscription disposal gives each server-side delete a separate five-second
-cancellation deadline. Local cleanup does not wait indefinitely for an unavailable
-server. A failed or timed-out delete is logged; it does not prove remote deletion,
-and the server may retain the subscription until its configured lifetime expires.
 
 Cancellation propagates the natural way: pass a `CancellationToken` to
 `SubscribeXxxAsync` *or* the outer `await foreach` (via

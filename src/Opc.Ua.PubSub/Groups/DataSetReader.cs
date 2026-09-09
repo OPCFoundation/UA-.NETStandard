@@ -163,7 +163,8 @@ namespace Opc.Ua.PubSub.Groups
             {
                 return false;
             }
-            if (!MatchesPublisher(networkMessage))
+            if (!ExpectedPublisherId.IsNull &&
+                !ExpectedPublisherId.Equals(networkMessage.PublisherId))
             {
                 return false;
             }
@@ -177,21 +178,6 @@ namespace Opc.Ua.PubSub.Groups
                 }
             }
             return true;
-        }
-
-        private bool MatchesPublisher(PubSubNetworkMessage networkMessage)
-        {
-            if (ExpectedPublisherId.IsNull || ExpectedPublisherId.Equals(networkMessage.PublisherId))
-            {
-                return true;
-            }
-            // JSON maps UInteger publisher IDs to decimal strings and does not preserve integer widths.
-            return networkMessage is Encoding.Json.JsonNetworkMessage &&
-                ExpectedPublisherId.Type is PublisherIdType.Byte or PublisherIdType.UInt16 or
-                    PublisherIdType.UInt32 or PublisherIdType.UInt64 &&
-                !networkMessage.PublisherId.IsNull &&
-                string.Equals(
-                    ExpectedPublisherId.ToString(), networkMessage.PublisherId.ToString(), StringComparison.Ordinal);
         }
 
         private static Uuid ExtractDataSetClassId(PubSubNetworkMessage networkMessage)
