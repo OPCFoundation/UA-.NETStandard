@@ -53,6 +53,17 @@ namespace Opc.Ua.Wot
         private const string BinaryEncodingSuffix = "/Default Binary";
         private const string XmlEncodingSuffix = "/Default XML";
         private const string JsonEncodingSuffix = "/Default JSON";
+        private const string DefaultEncodingsTerm = "uav:defaultEncodings";
+
+        [Flags]
+        private enum EncodingPresence
+        {
+            None = 0,
+            Binary = 1,
+            Xml = 2,
+            Json = 4,
+            All = Binary | Xml | Json
+        }
 
         /// <summary>
         /// Materializes every DataType definition the document carries.
@@ -320,36 +331,33 @@ namespace Opc.Ua.Wot
         /// address space then has the right shape and the wrong identities,
         /// which is worse than an obvious gap because everything still browses.
         /// </remarks>
-        private static void WriteEncodingIdentities(
+        private static EncodingPresence WriteEncodingIdentities(
             Utf8JsonWriter writer,
             UADataType dataType,
-            UANodeSet nodeSet)
+            UANodeSet nodeSet,
+            out bool complete)
         {
+            complete = true;
             if (nodeSet.Items is null || string.IsNullOrEmpty(dataType.NodeId))
             {
-                return;
+                return EncodingPresence.None;
             }
-            foreach (UANode node in nodeSet.Items)
+            var aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
+            WotReferenceTypeNames referenceTypes = WotReferenceTypeNames.Build(nodeSet);
+            Dictionary<string, UANode> nodes = BuildIndex(nodeSet);
+            EncodingPresence presence = EncodingPresence.None;
+            foreach (Reference reference in referenceTypes.GetReferences(dataType))
             {
-                if (node is not UAObject encoding ||
-                    encoding.References is null ||
-                    string.IsNullOrEmpty(encoding.NodeId))
+                if (!reference.IsForward ||
+                    ResolveArchivedAlias(reference.ReferenceType, aliases) != "i=38" ||
+                    reference.Value is null)
                 {
                     continue;
                 }
-                bool belongsHere = false;
-                foreach (Reference reference in encoding.References)
+                if (!nodes.TryGetValue(ResolveArchivedAlias(reference.Value, aliases), out UANode? node) ||
+                    node is not UAObject encoding || string.IsNullOrEmpty(encoding.NodeId))
                 {
-                    if (string.Equals(
-                            reference.ReferenceType, "HasEncoding", StringComparison.Ordinal) &&
-                        string.Equals(reference.Value, dataType.NodeId, StringComparison.Ordinal))
-                    {
-                        belongsHere = true;
-                        break;
-                    }
-                }
-                if (!belongsHere)
-                {
+                    complete = false;
                     continue;
                 }
                 string? term = EncodingTermFor(encoding.BrowseName);
@@ -361,57 +369,38 @@ namespace Opc.Ua.Wot
                 if (!string.IsNullOrEmpty(portable))
                 {
                     writer.WriteString(term, portable);
+                    presence |= PresenceForEncodingTerm(term);
                 }
             }
+            return presence;
         }
 
         private static string? EncodingTermFor(string? browseName)
         {
-            string local = LocalName(browseName) ?? string.Empty;
-            return local switch
+            if (IsBaseNamespaceBrowseName(browseName, "Default Binary"))
             {
-                "Default Binary" => "uav:binaryEncodingId",
-                "Default XML" => "uav:xmlEncodingId",
-                "Default JSON" => "uav:jsonEncodingId",
-                _ => null
-            };
+                return "uav:binaryEncodingId";
+            }
+            if (IsBaseNamespaceBrowseName(browseName, "Default XML"))
+            {
+                return "uav:xmlEncodingId";
+            }
+            if (IsBaseNamespaceBrowseName(browseName, "Default JSON"))
+            {
+                return "uav:jsonEncodingId";
+            }
+            return null;
         }
 
-        private static bool HasEncoding(UADataType dataType, UANodeSet nodeSet)
+        private static EncodingPresence PresenceForEncodingTerm(string term)
         {
-            if (dataType.References is not null)
+            return term switch
             {
-                foreach (Reference reference in dataType.References)
-                {
-                    if (string.Equals(
-                            reference.ReferenceType, "HasEncoding", StringComparison.Ordinal) &&
-                        reference.IsForward)
-                    {
-                        return true;
-                    }
-                }
-            }
-            if (nodeSet.Items is null || string.IsNullOrEmpty(dataType.NodeId))
-            {
-                return false;
-            }
-            foreach (UANode node in nodeSet.Items)
-            {
-                if (node is not UAObject encoding || encoding.References is null)
-                {
-                    continue;
-                }
-                foreach (Reference reference in encoding.References)
-                {
-                    if (string.Equals(
-                            reference.ReferenceType, "HasEncoding", StringComparison.Ordinal) &&
-                        string.Equals(reference.Value, dataType.NodeId, StringComparison.Ordinal))
-                    {
-                        return true;
-                    }
-                }
-            }
-            return false;
+                "uav:binaryEncodingId" or "uav:defaultEncodingId" => EncodingPresence.Binary,
+                "uav:xmlEncodingId" => EncodingPresence.Xml,
+                "uav:jsonEncodingId" => EncodingPresence.Json,
+                _ => EncodingPresence.None
+            };
         }
 
         private static bool IsEncodingSuppressed(JsonElement definition)
@@ -456,13 +445,19 @@ namespace Opc.Ua.Wot
             var claimed = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (KeyValuePair<string, JsonElement> entry in complete)
             {
-                if (!identities.ContainsKey(entry.Key) ||
-                    GetElementBool(entry.Value, "uav:isAbstract") ||
-                    IsEncodingSuppressed(entry.Value))
+                if (!identities.ContainsKey(entry.Key))
                 {
                     continue;
                 }
                 string name = GetElementString(entry.Value, "uav:dataTypeName") ?? entry.Key;
+                string kind = GetElementString(entry.Value, "@type") ?? "uav:StructureDefinition";
+                EncodingPresence presence = ReadEncodingPresence(
+                    entry.Value, name, GetElementBool(entry.Value, "uav:isAbstract"),
+                    kind, !IsEncodingSuppressed(entry.Value), diagnostics);
+                if (presence == EncodingPresence.None)
+                {
+                    continue;
+                }
                 string? encodingRoot = DeriveDataTypeNodeId(document, name, nodeSet, diagnostics);
                 if (encodingRoot is null)
                 {
@@ -471,8 +466,17 @@ namespace Opc.Ua.Wot
                 (string binary, string xml, string json) = ResolveEncodingIdentities(
                     entry.Value, encodingRoot, nodeSet, diagnostics);
 
-                foreach (string encoding in new[] { binary, xml, json })
+                foreach ((EncodingPresence flag, string encoding) in new[]
                 {
+                    (EncodingPresence.Binary, binary),
+                    (EncodingPresence.Xml, xml),
+                    (EncodingPresence.Json, json)
+                })
+                {
+                    if ((presence & flag) == 0)
+                    {
+                        continue;
+                    }
                     if (claimed.TryGetValue(encoding, out string? owner))
                     {
                         diagnostics.Add(new WotDiagnostic(
@@ -773,7 +777,9 @@ namespace Opc.Ua.Wot
             // silently ignored exactly where it is meaningless.
             bool declared = ExposesDefaultEncoding(
                 definition, name, isAbstract, kind, diagnostics);
-            bool exposesEncodings = declared &&
+            EncodingPresence presence = ReadEncodingPresence(
+                definition, name, isAbstract, kind, declared, diagnostics);
+            bool exposesEncodings = presence != EncodingPresence.None &&
                 dataType.Definition is not null &&
                 !isAbstract &&
                 !IsEnumerationKind(kind);
@@ -788,13 +794,13 @@ namespace Opc.Ua.Wot
                     DeriveDataTypeNodeId(document, name, nodeSet, diagnostics) ?? identity;
                 AppendEncodings(
                     definition, encodingRoot, identity, references, items,
-                    nodeSet, diagnostics);
+                    nodeSet, diagnostics, presence);
             }
             else if (isAbstract)
             {
                 RejectEncodingIdsOnAbstractType(definition, diagnostics, name);
             }
-            else if (!declared && dataType.Definition is not null && !IsEnumerationKind(kind))
+            if (!declared && !isAbstract && dataType.Definition is not null && !IsEnumerationKind(kind))
             {
                 // A concrete Structure or Union that states it has no default
                 // encoding is reachable only from inside another Structure: it
@@ -813,15 +819,13 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Decides whether a definition exposes the three default encodings.
+        /// Reads whether a definition has a non-null Binary default encoding.
         /// </summary>
         /// <remarks>
-        /// §6.11.7 defaults <c>uav:hasDefaultEncoding</c> to true for a
-        /// non-abstract Structure or Union. A concrete type used only inside
-        /// other Structures, never directly in an ExtensionObject, may set it
-        /// false: it is never encoded on its own, so generating encodings for
-        /// it would advertise Objects nothing can reach. Only a kind that can
-        /// carry the term may state it at all.
+        /// The legacy flag defaults to true for a concrete Structure or Union.
+        /// False forbids Binary but does not discard explicitly supplied XML or
+        /// JSON identities. The separate presence policy determines which
+        /// encoding Objects are materialized.
         /// </remarks>
         private static bool ExposesDefaultEncoding(
             JsonElement definition,
@@ -848,6 +852,97 @@ namespace Opc.Ua.Wot
                 return false;
             }
             return declared.ValueKind != JsonValueKind.False;
+        }
+
+        private static EncodingPresence ReadEncodingPresence(
+            JsonElement definition,
+            string name,
+            bool isAbstract,
+            string kind,
+            bool hasDefault,
+            List<WotDiagnostic> diagnostics)
+        {
+            bool exact = definition.TryGetProperty(DefaultEncodingsTerm, out JsonElement declared);
+            bool structure = !IsEnumerationKind(kind) && kind != "uav:SimpleDataType";
+            if (!structure)
+            {
+                if (exact)
+                {
+                    Report("Only a Structure or Union can declare an encoding presence set.");
+                }
+                foreach (string term in s_encodingTerms)
+                {
+                    if (definition.TryGetProperty(term, out _))
+                    {
+                        Report($"Only a Structure or Union can declare the encoding identity {term}.");
+                    }
+                }
+                return EncodingPresence.None;
+            }
+            EncodingPresence presence = !isAbstract && hasDefault ? EncodingPresence.All : EncodingPresence.None;
+            if (exact)
+            {
+                presence = EncodingPresence.None;
+                if (declared.ValueKind != JsonValueKind.Array)
+                {
+                    Report("The encoding presence must be an array of Binary, XML and JSON names.");
+                    return EncodingPresence.None;
+                }
+                foreach (JsonElement item in declared.EnumerateArray())
+                {
+                    EncodingPresence flag = item.ValueKind == JsonValueKind.String
+                        ? item.GetString() switch
+                        {
+                            "Binary" => EncodingPresence.Binary,
+                            "XML" => EncodingPresence.Xml,
+                            "JSON" => EncodingPresence.Json,
+                            _ => EncodingPresence.None
+                        }
+                        : EncodingPresence.None;
+                    if (flag == EncodingPresence.None || (presence & flag) != 0)
+                    {
+                        Report("The encoding presence set contains an unknown or duplicate name.");
+                        return EncodingPresence.None;
+                    }
+                    presence |= flag;
+                }
+                if (isAbstract
+                    ? presence != EncodingPresence.None
+                    : ((presence & EncodingPresence.Binary) != 0) != hasDefault)
+                {
+                    Report("Binary presence must agree with the permitted DefaultEncodingId state.");
+                    return EncodingPresence.None;
+                }
+            }
+            else if (!isAbstract && !hasDefault)
+            {
+                if (definition.TryGetProperty("uav:xmlEncodingId", out _))
+                {
+                    presence |= EncodingPresence.Xml;
+                }
+                if (definition.TryGetProperty("uav:jsonEncodingId", out _))
+                {
+                    presence |= EncodingPresence.Json;
+                }
+            }
+            foreach (string term in s_encodingTerms)
+            {
+                if (definition.TryGetProperty(term, out _) &&
+                    (presence & PresenceForEncodingTerm(term)) == 0 && !isAbstract)
+                {
+                    Report($"The identity in {term} selects an encoding omitted by the presence policy.");
+                }
+            }
+            return presence;
+
+            void Report(string message)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    $"The DataType '{name}': {message}",
+                    new WotLocation(reference: name)));
+            }
         }
 
         private static bool IsEnumerationKind(string kind)
@@ -1376,13 +1471,23 @@ namespace Opc.Ua.Wot
             List<Reference> references,
             List<UANode> items,
             UANodeSet nodeSet,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            EncodingPresence presence = EncodingPresence.All)
         {
             (string binary, string xml, string json) = ResolveEncodingIdentities(
                 definition, encodingRoot, nodeSet, diagnostics);
-            AppendEncoding(binary, "Default Binary", dataTypeId, references, items);
-            AppendEncoding(xml, "Default XML", dataTypeId, references, items);
-            AppendEncoding(json, "Default JSON", dataTypeId, references, items);
+            if ((presence & EncodingPresence.Binary) != 0)
+            {
+                AppendEncoding(binary, "Default Binary", dataTypeId, references, items);
+            }
+            if ((presence & EncodingPresence.Xml) != 0)
+            {
+                AppendEncoding(xml, "Default XML", dataTypeId, references, items);
+            }
+            if ((presence & EncodingPresence.Json) != 0)
+            {
+                AppendEncoding(json, "Default JSON", dataTypeId, references, items);
+            }
         }
 
         private static (string Binary, string Xml, string Json) ResolveEncodingIdentities(
@@ -1610,14 +1715,32 @@ namespace Opc.Ua.Wot
             {
                 writer.WriteBoolean("uav:isAbstract", true);
             }
-            else if (definition is not null && !isEnumeration && !HasEncoding(dataType, nodeSet))
+            EncodingPresence presence = WriteEncodingIdentities(writer, dataType, nodeSet, out bool completeEncodings);
+            if (!dataType.IsAbstract && definition is not null && !isEnumeration && completeEncodings)
             {
-                // §6.11.7: a concrete Structure reached only through other
-                // Structures has no encodings. Saying so is the only way the
-                // way back does not generate the three it never had.
-                writer.WriteBoolean("uav:hasDefaultEncoding", false);
+                if ((presence & EncodingPresence.Binary) == 0)
+                {
+                    writer.WriteBoolean("uav:hasDefaultEncoding", false);
+                }
+                if (presence != EncodingPresence.All)
+                {
+                    writer.WritePropertyName(DefaultEncodingsTerm);
+                    writer.WriteStartArray();
+                    if ((presence & EncodingPresence.Binary) != 0)
+                    {
+                        writer.WriteStringValue("Binary");
+                    }
+                    if ((presence & EncodingPresence.Xml) != 0)
+                    {
+                        writer.WriteStringValue("XML");
+                    }
+                    if ((presence & EncodingPresence.Json) != 0)
+                    {
+                        writer.WriteStringValue("JSON");
+                    }
+                    writer.WriteEndArray();
+                }
             }
-            WriteEncodingIdentities(writer, dataType, nodeSet);
             WriteBaseDataType(writer, dataType, nodeSet);
             WriteLocalizedTitle(writer, dataType.DisplayName, defaultLocale);
             WriteLocalizedDescription(writer, dataType.Description, defaultLocale);
