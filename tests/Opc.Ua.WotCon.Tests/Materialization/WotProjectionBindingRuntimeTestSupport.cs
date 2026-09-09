@@ -644,7 +644,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WoTBindingCapabilityEnum operation,
             WotTargetMappingDescriptor mapping,
             bool executable = true,
-            string affordanceName = "value")
+            string affordanceName = "value",
+            int formIndex = 0)
         {
             string opToken = operation switch
             {
@@ -658,7 +659,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 new WotBindingIdentity("test", "1.0", "urn:test"),
                 WotAffordanceKind.Property,
                 affordanceName,
-                "/properties/" + affordanceName + "/forms/0",
+                "/properties/" + affordanceName + "/forms/" +
+                    formIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 operation,
                 opToken,
                 new WotEndpointDescriptor("test", null, -1, "test://x"),

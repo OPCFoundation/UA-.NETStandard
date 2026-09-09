@@ -646,6 +646,105 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(h.ChannelFactory.OpenCount, Is.Zero);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PropertyReadAlternativesSelectOneExecutableSource(bool structured)
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            WotTargetMappingDescriptor mapping = structured
+                ? new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "A")
+                : new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText);
+            WotCompiledForm unavailable = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty, mapping, executable: false);
+            WotCompiledForm first = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty, mapping, formIndex: 1);
+            WotCompiledForm second = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty, mapping, formIndex: 2);
+            var selected = new FakeWotBindingChannel(first)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(StatusCodes.Good, new DataValue(new Variant(42))))
+            };
+            var alternative = new FakeWotBindingChannel(second)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(StatusCodes.Good, new DataValue(new Variant(99))))
+            };
+            h.ChannelFactory.SetChannel(first, selected);
+            h.ChannelFactory.SetChannel(second, alternative);
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(unavailable, first, second)])
+                .ConfigureAwait(false);
+            BaseDataVariableState variable = structured ? h.StructVar : h.ScalarVar;
+
+            (ServiceResult result, DataValue value) = await variable.ReadAttributeAsync(
+                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            if (structured)
+            {
+                Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject extension), Is.True);
+                Assert.That(extension.TryGetValue(out IEncodeable? encodeable), Is.True);
+                Assert.That(encodeable, Is.TypeOf<TestRootStructure>());
+                Assert.That(((TestRootStructure)encodeable!).A, Is.EqualTo(42));
+            }
+            else
+            {
+                Assert.That(value.WrappedValue.TryGetValue(out int scalar), Is.True);
+                Assert.That(scalar, Is.EqualTo(42));
+            }
+            Assert.That(selected.ReadCount, Is.EqualTo(1));
+            Assert.That(alternative.ReadCount, Is.Zero);
+            Assert.That(h.ChannelFactory.OpenCount, Is.EqualTo(1));
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task PropertyWriteAlternativesNeverFanOutOrRetryAnotherSource(bool structured, bool failed)
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            WotTargetMappingDescriptor mapping = structured
+                ? new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "A")
+                : new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText);
+            WotCompiledForm first = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.WriteProperty, mapping);
+            WotCompiledForm second = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.WriteProperty, mapping, formIndex: 1);
+            Variant received = Variant.Null;
+            StatusCode expected = failed ? StatusCodes.BadNotWritable : StatusCodes.GoodClamped;
+            var selected = new FakeWotBindingChannel(first)
+            {
+                OnWrite = (value, _) =>
+                {
+                    received = value.WrappedValue;
+                    return new ValueTask<WotWriteResult>(new WotWriteResult(expected));
+                }
+            };
+            var alternative = new FakeWotBindingChannel(second);
+            h.ChannelFactory.SetChannel(first, selected);
+            h.ChannelFactory.SetChannel(second, alternative);
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(first, second)]).ConfigureAwait(false);
+            BaseDataVariableState variable = structured ? h.StructVar : h.ScalarVar;
+            Variant written = structured
+                ? new Variant(new ExtensionObject(new TestRootStructure { A = 17 }))
+                : new Variant(17);
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                h.Builder.Context, Attributes.Value, default, new DataValue(written)).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(expected));
+            Assert.That(received.TryGetValue(out int value), Is.True);
+            Assert.That(value, Is.EqualTo(17));
+            Assert.That(selected.WriteCount, Is.EqualTo(1));
+            Assert.That(alternative.WriteCount, Is.Zero);
+            Assert.That(h.ChannelFactory.OpenCount, Is.EqualTo(1));
+        }
+
         [Test]
         public async Task NonExecutableFormsAreIgnored()
         {

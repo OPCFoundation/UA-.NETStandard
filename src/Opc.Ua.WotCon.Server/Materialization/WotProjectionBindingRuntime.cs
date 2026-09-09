@@ -88,6 +88,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     continue;
                 }
+                var selected = new HashSet<(WotAffordanceKind Kind, string Name, string Pointer,
+                    WoTBindingCapabilityEnum Operation)>();
                 foreach (WotCompiledForm form in plan.CompiledForms)
                 {
                     if (form is null || form.TargetMapping.IsEmpty || !form.IsExecutable)
@@ -108,6 +110,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             form.OpToken);
                     }
 
+                    int formSegment = form.JsonPointer.LastIndexOf("/forms/", StringComparison.Ordinal);
+                    string pointer = formSegment < 0 ? form.JsonPointer : form.JsonPointer.Substring(0, formSegment);
+                    if (!selected.Add((form.AffordanceKind, form.AffordanceName, pointer, form.Operation)))
+                    {
+                        continue;
+                    }
                     BaseVariableState variable = m_resolver.Resolve(m_builder, form.TargetMapping);
                     if (!groups.TryGetValue(variable.NodeId, out VariableGroup? group))
                     {
