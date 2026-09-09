@@ -108,10 +108,9 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// A member that authors the projection root's own identity is the root
-        /// rather than a member of it, so it populates nothing: rewriting it
-        /// against a declaration would apply a member's declaration to the
-        /// object that carries the members.
+        /// A member cannot claim the projection root's identity. The merge
+        /// must not populate that member, and conversion must reject the
+        /// conflicting graph rather than return a partial model.
         /// </summary>
         [Test]
         public async Task AMemberClaimingTheRootsIdentityPopulatesNothingAsync()
@@ -120,7 +119,14 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"Speed\":{\"type\":\"number\",\"uav:id\":\"" + RootNodeId + "\"}",
                 Declaration("Speed", WotDeclarationKind.Variable)).ConfigureAwait(false);
 
-            Succeeded(result);
+            Assert.That(result.HasErrors, Is.True);
+            Assert.That(result.Success, Is.False);
+            WotDiagnostic collision = result.Diagnostics.Single(diagnostic =>
+                diagnostic.Severity == WotDiagnosticSeverity.Error);
+            Assert.That(collision.Code, Is.EqualTo(WotDiagnosticCode.ValidationError));
+            Assert.That(collision.Location?.NodeId, Is.EqualTo("ns=1;i=5001"));
+            Assert.That(collision.Message, Does.Contain("'1:Tank'").And.Contain("'1:Speed'"));
+            Assert.That(result.Value, Is.Null, "An identity-conflicting graph is not a usable partial model.");
 
             Assert.That(
                 result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.DeclarationPopulated),

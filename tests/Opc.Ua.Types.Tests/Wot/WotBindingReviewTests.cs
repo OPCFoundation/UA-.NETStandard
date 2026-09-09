@@ -33,6 +33,9 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -388,22 +391,32 @@ namespace Opc.Ua.Types.Tests.Wot
         public void HasComponentSubtypeEmitsDiscoveryAndReferenceTypeRelation()
         {
             using WotDocument document = WotNodeSetConverter.FromNodeSet(CreateOrderedComponentNodeSet());
-
-            string[] children = document.RootElement.GetProperty("uav:hasComponent")
-                .EnumerateArray().Select(e => e.GetString()!).ToArray();
-            Assert.That(children, Is.EquivalentTo(s_orderedStageIds));
-
             JsonElement links = document.RootElement.GetProperty("links");
-            Assert.That(links.GetArrayLength(), Is.EqualTo(2));
-            foreach (JsonElement link in links.EnumerateArray())
+            Assert.That(links.GetArrayLength(), Is.EqualTo(3));
+            JsonElement supertype = links.EnumerateArray().Single(link =>
+                link.GetProperty("rel").GetString() == "ua:HasSupertype");
+            Assert.That(supertype.GetProperty("href").GetString(), Is.EqualTo("i=58"));
+            Assert.That(supertype.GetProperty("uav:refId").GetString(), Is.EqualTo("i=45"));
+            JsonElement[] components = links.EnumerateArray().Where(link =>
+                link.GetProperty("rel").GetString() == "ua:HasOrderedComponent").ToArray();
+            Assert.That(components, Has.Length.EqualTo(2));
+            Assert.That(components.Select(link => link.GetProperty("uav:declaration")
+                .GetProperty("uav:id").GetString()), Is.EqualTo(s_orderedStageIds));
+            JsonElement namespaces = document.RootElement.GetProperty("@context").EnumerateArray().Single(context =>
+                context.ValueKind == JsonValueKind.Object && context.TryGetProperty("ns1", out _));
+            Assert.That(namespaces.GetProperty("ns1").GetString(), Is.EqualTo("urn:demo:pump"));
+            for (int index = 0; index < components.Length; index++)
             {
-                Assert.That(
-                    link.GetProperty("rel").GetString(),
-                    Is.EqualTo("ua:HasOrderedComponent"));
+                JsonElement link = components[index];
+                JsonElement declaration = link.GetProperty("uav:declaration");
+                Assert.That(link.GetProperty("href").GetString(), Is.EqualTo("i=58"));
                 Assert.That(link.GetProperty("uav:refId").GetString(), Is.EqualTo("i=49"));
-                Assert.That(link.GetProperty("href").GetString(), Does.StartWith("nsu=urn:demo:pump;"));
-                Assert.That(link.GetProperty("uav:refName").GetString(), Does.StartWith("Stage_"));
+                Assert.That(link.TryGetProperty("uav:refName", out _), Is.False);
+                Assert.That(declaration.GetProperty("uav:browseName").GetString(),
+                    Is.EqualTo(index == 0 ? "ns1:Stage_1" : "ns1:Stage_2"));
             }
+            Assert.That(document.RootElement.TryGetProperty("uav:hasComponent", out _), Is.False,
+                "SP01 declares the two distinct Objects through their typed component-template links.");
         }
 
         [Test]
@@ -605,6 +618,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "{" + Context +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"PumpType\",\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;PumpType\"," +
+                "\"uav:id\":\"nsu=urn:opcua:wot:synthesized;i=1001\"," +
+                "\"properties\":{\"Status\":{\"uav:id\":\"nsu=urn:opcua:wot:synthesized;i=2001\"," +
+                "\"type\":\"boolean\"}}," +
                 "\"links\":[{\"rel\":\"https://schema.org/about\"," +
                 "\"href\":\"https://example.com/about\"}]}";
 
@@ -614,10 +630,31 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(result.HasErrors, Is.False);
             using WotDocument restored = WotNodeSetConverter.FromNodeSet(result.Value!);
-            JsonElement link = restored.RootElement.GetProperty("links")[0];
-            Assert.That(
-                link.GetProperty("rel").GetString(),
-                Is.EqualTo("https://schema.org/about"));
+            Assert.That(restored.RootElement.GetProperty("uav:id").GetString(),
+                Is.EqualTo("nsu=urn:opcua:wot:synthesized;i=1001"));
+            JsonElement[] links = restored.Links.ToArray();
+            Assert.That(links, Has.Length.EqualTo(2));
+            JsonElement external = links.Single(link => link.GetProperty("rel").GetString() ==
+                "https://schema.org/about");
+            Assert.That(external.GetProperty("href").GetString(), Is.EqualTo("https://example.com/about"));
+            JsonElement supertype = links.Single(link => link.GetProperty("rel").GetString() == "ua:HasSupertype");
+            Assert.That(supertype.GetProperty("href").GetString(), Is.EqualTo("i=58"));
+            Assert.That(supertype.GetProperty("uav:refId").GetString(), Is.EqualTo("i=45"));
+            if (restored.Properties["Status"].TryGetProperty("links", out JsonElement propertyLinks))
+            {
+                Assert.That(propertyLinks.EnumerateArray().Any(link =>
+                    link.GetProperty("rel").GetString() == "https://schema.org/about"), Is.False);
+            }
+            UANodeSet readable = WotNodeSetConverter.ToNodeSet(Encoding.UTF8.GetBytes(BuildReadableOnly(restored)));
+            UAObjectType root = readable.Items!.OfType<UAObjectType>().Single();
+            Assert.That(root.NodeId, Is.EqualTo("ns=1;i=1001"));
+            Assert.That(root.References!.Single(reference =>
+                reference.ReferenceType is "HasSubtype" or "i=45" && !reference.IsForward).Value, Is.EqualTo("i=58"));
+            Assert.That(readable.Items!.OfType<UAVariable>().Single().ParentNodeId, Is.EqualTo(root.NodeId));
+            using WotDocument repeated = WotNodeSetConverter.FromNodeSet(readable);
+            Assert.That(repeated.Links, Has.Count.EqualTo(2));
+            Assert.That(repeated.Links.Single(link => link.GetProperty("rel").GetString() ==
+                "https://schema.org/about").GetProperty("href").GetString(), Is.EqualTo("https://example.com/about"));
         }
 
         [Test]
@@ -641,20 +678,157 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void HasComponentSubtypeRoundTripsExactlyThroughReadableMapping()
         {
-            using WotDocument document = WotNodeSetConverter.FromNodeSet(CreateOrderedComponentNodeSet());
+            UANodeSet source = CreateOrderedComponentNodeSet();
+            byte[] original = WotTestData.Serialize(source);
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
 
-            // Rebuild a native (envelope-free) Thing Model from the emitted
-            // readable surface and confirm the ordered components survive.
             string readable = BuildReadableOnly(document);
             UANodeSet restored = WotNodeSetConverter.ToNodeSet(Encoding.UTF8.GetBytes(readable));
 
+            Assert.That(restored.NamespaceUris, Is.EqualTo(s_orderedNamespaceUris));
+            Assert.That(restored.Items!.Select(node => node.NodeId),
+                Is.EquivalentTo(s_orderedNodeIds));
             UAObjectType root = restored.Items!.OfType<UAObjectType>().Single();
-            int ordered = root.References!.Count(r => r.ReferenceType == "i=49" && r.IsForward);
-            Assert.That(ordered, Is.EqualTo(2));
+            Assert.That(root.NodeId, Is.EqualTo("ns=1;i=1001"));
+            Assert.That(root.References!.Select(reference =>
+                (reference.ReferenceType, reference.IsForward, reference.Value)), Is.EquivalentTo(new[]
+                {
+                    ("HasSubtype", false, "i=58"),
+                    ("i=49", true, "ns=1;i=2001"),
+                    ("i=49", true, "ns=1;i=2002")
+                }));
             Assert.That(
                 root.References!.Any(r => r.ReferenceType == "HasComponent" && r.IsForward),
                 Is.False,
                 "A pinned ordered component must not degrade to plain HasComponent.");
+            UAObject[] stages = restored.Items!.OfType<UAObject>().ToArray();
+            Assert.That(stages.Select(stage => (stage.NodeId, stage.BrowseName)), Is.EquivalentTo(new[]
+            {
+                ("ns=1;i=2001", "1:Stage_1"),
+                ("ns=1;i=2002", "1:Stage_2")
+            }));
+            foreach (UAObject stage in stages)
+            {
+                Assert.That(stage.ParentNodeId, Is.EqualTo(root.NodeId));
+                Assert.That(stage.References!.Select(reference =>
+                    (reference.ReferenceType, reference.IsForward, reference.Value)), Is.EquivalentTo(new[]
+                    {
+                        ("HasTypeDefinition", true, "i=58"),
+                        ("i=49", false, "ns=1;i=1001")
+                    }));
+            }
+            Assert.That(WotTestData.Serialize(source), Is.EqualTo(original));
+        }
+
+        [TestCase("i=58", false)]
+        [TestCase("i=58", true)]
+        [TestCase("nsu=http://opcfoundation.org/UA/;i=58", false)]
+        [TestCase("nsu=http://opcfoundation.org/UA/;i=58", true)]
+        public async Task BaseObjectTypeTemplateUsesKnownCoreFactsAsync(string typeId, bool asynchronous)
+        {
+            using WotDocument document = ComponentTemplate(typeId);
+            WotConversionResult<UANodeSet> result = asynchronous
+                ? await WotNodeSetConverter.ToNodeSetResultAsync(document).ConfigureAwait(false)
+                : WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            Assert.That(result.Value!.Items!.Select(node => node.NodeId),
+                Is.EquivalentTo(s_coreTemplateNodeIds));
+            UAObject declaration = result.Value.Items!.OfType<UAObject>().Single();
+            Assert.That(declaration.NodeId, Is.EqualTo("ns=1;i=2001"));
+            Assert.That(declaration.BrowseName, Is.EqualTo("1:Stage"));
+            Assert.That(declaration.ParentNodeId, Is.EqualTo("ns=1;i=1001"));
+            Assert.That(declaration.References!.Select(reference =>
+                (reference.ReferenceType, reference.IsForward, reference.Value)), Is.EquivalentTo(new[]
+                {
+                    ("HasTypeDefinition", true, "i=58"),
+                    ("i=49", false, "ns=1;i=1001")
+                }));
+            Assert.That(result.Value.Items!.OfType<UAObjectType>().Single().References!.Select(reference =>
+                (reference.ReferenceType, reference.IsForward, reference.Value)), Is.EquivalentTo(new[]
+                {
+                    ("HasSubtype", false, "i=58"),
+                    ("i=49", true, "ns=1;i=2001")
+                }));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SessionLocalCoreTemplateRetainsPortabilityDiagnosticAsync(bool asynchronous)
+        {
+            using WotDocument document = ComponentTemplate("ns=0;i=58");
+            WotConversionResult<UANodeSet> result = asynchronous
+                ? await WotNodeSetConverter.ToNodeSetResultAsync(document).ConfigureAwait(false)
+                : WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.NonPortableIdentity &&
+                diagnostic.Severity == WotDiagnosticSeverity.Error &&
+                diagnostic.Location?.Reference == "ns=0;i=58"), Is.True);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.UnresolvedTypeBinding), Is.False);
+        }
+
+        [TestCase("i=11")]
+        [TestCase("i=47")]
+        [TestCase("i=999999")]
+        [TestCase("s=58")]
+        [TestCase("nsu=urn:foreign;i=58")]
+        public async Task UnknownComponentTemplatesDoNotAcquireCoreTypeFactsAsync(string typeId)
+        {
+            using WotDocument document = ComponentTemplate(typeId);
+            WotConversionResult<UANodeSet> synchronous = WotNodeSetConverter.ToNodeSetResult(document);
+            WotConversionResult<UANodeSet> asynchronous =
+                await WotNodeSetConverter.ToNodeSetResultAsync(document).ConfigureAwait(false);
+
+            foreach (WotConversionResult<UANodeSet> result in new[] { synchronous, asynchronous })
+            {
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Diagnostics.Any(diagnostic =>
+                    diagnostic.Code == WotDiagnosticCode.UnresolvedTypeBinding &&
+                    diagnostic.Severity == WotDiagnosticSeverity.Error &&
+                    diagnostic.Location?.Reference == typeId), Is.True);
+                Assert.That(result.Value?.Items?.OfType<UAInstance>(), Is.Null.Or.Empty);
+            }
+        }
+
+        [TestCase("i=58", WotExpectedNodeClass.Any)]
+        [TestCase("i=58", WotExpectedNodeClass.ReferenceType)]
+        [TestCase("i=58", WotExpectedNodeClass.DataType)]
+        [TestCase("nsu=urn:foreign;i=58", WotExpectedNodeClass.ObjectType)]
+        public async Task CoreTemplateFactsDoNotOverrideConflictingResolvedNodesAsync(
+            string resolvedId,
+            WotExpectedNodeClass nodeClass)
+        {
+            using WotDocument document = ComponentTemplate("i=58");
+            var resolver = new Mock<IWotNodeResolver>();
+            resolver.Setup(value => value.ResolveByNodeIdAsync("i=58", It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<WotResolvedNode?>(new WotResolvedNode(resolvedId, nodeClass)));
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+                document, null, null, null, resolver.Object).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.InvalidTypeBinding &&
+                diagnostic.Severity == WotDiagnosticSeverity.Error &&
+                diagnostic.Location?.Reference == "i=58"), Is.True);
+            Assert.That(result.Value?.Items?.OfType<UAInstance>(), Is.Null.Or.Empty);
+            resolver.Verify(value => value.ResolveByNodeIdAsync("i=58", It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        private static WotDocument ComponentTemplate(string typeId)
+        {
+            return WotDocument.Parse(Encoding.UTF8.GetBytes(
+                "{" + Context +
+                "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
+                "\"uav:id\":\"nsu=urn:demo:pump;i=1001\"," +
+                "\"uav:browseName\":\"nsu=urn:demo:pump;PumpType\"," +
+                "\"links\":[{\"rel\":\"ua:HasOrderedComponent\",\"uav:refId\":\"i=49\"," +
+                "\"href\":\"" + typeId + "\",\"uav:declaration\":{" +
+                "\"uav:id\":\"nsu=urn:demo:pump;i=2001\"," +
+                "\"uav:browseName\":\"nsu=urn:demo:pump;Stage\"}}]}"));
         }
 
         private static string BuildReadableOnly(WotDocument document)
@@ -763,5 +937,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 ]
             };
         }
+
+        private static readonly string[] s_orderedNamespaceUris = ["urn:demo:pump"];
+        private static readonly string[] s_orderedNodeIds = ["ns=1;i=1001", "ns=1;i=2001", "ns=1;i=2002"];
+        private static readonly string[] s_coreTemplateNodeIds = ["ns=1;i=1001", "ns=1;i=2001"];
     }
 }

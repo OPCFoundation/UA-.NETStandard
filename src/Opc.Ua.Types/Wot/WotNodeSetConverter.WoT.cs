@@ -1671,6 +1671,7 @@ namespace Opc.Ua.Wot
             // Sections 6.4 and 6.4.1 relate two affordances - the annotated one
             // and the sibling that carries its unit - so the analog Properties
             // are materialized once every affordance has become a Variable.
+            CompleteAffordanceOwnership(nodeSet, items, referenceTypeCatalog);
             SynthesizeAnalogFacets(
                 document, nodeSet, rootLocal, rootNodeId, propertyNodeIds,
                 items, rootReferences, diagnostics);
@@ -1740,21 +1741,28 @@ namespace Opc.Ua.Wot
             SynthesizeInferredDataTypes(
                 document, dataTypes, nodeSet, items, nestedOnly, options, diagnostics);
             ValidateNestedOnlySelection(nestedOnly, items, diagnostics);
-            ValidateSynthesizedIdentities(items, diagnostics);
+            bool validIdentities = ValidateSynthesizedIdentities(items, diagnostics);
             ValidateDataTypeClosureOwnership(document, nodeSet, items, dataTypes, diagnostics);
+            if (!validIdentities)
+            {
+                return null;
+            }
             nodeSet.Items = [.. items];
+            CompleteAffordanceOwnership(nodeSet, items, referenceTypeCatalog);
             return nodeSet;
         }
 
-        private static void ValidateSynthesizedIdentities(
+        private static bool ValidateSynthesizedIdentities(
             List<UANode> items,
             List<WotDiagnostic> diagnostics)
         {
+            bool valid = true;
             var owners = new Dictionary<NodeId, UANode>();
             foreach (UANode node in items)
             {
                 if (!NodeId.TryParse(node.NodeId ?? string.Empty, out NodeId identity) || identity.IsNull)
                 {
+                    valid = false;
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
                         WotDiagnosticCode.ValidationError,
@@ -1764,6 +1772,7 @@ namespace Opc.Ua.Wot
                 }
                 if (owners.TryGetValue(identity, out UANode? owner))
                 {
+                    valid = false;
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
                         WotDiagnosticCode.ValidationError,
@@ -1776,6 +1785,7 @@ namespace Opc.Ua.Wot
                     owners.Add(identity, node);
                 }
             }
+            return valid;
         }
 
         private static void SynthesizeProperty(
@@ -1848,11 +1858,12 @@ namespace Opc.Ua.Wot
             // else, so an affordance that binds itself to PropertyType - which
             // is what EngineeringUnits, EURange and every other Property does -
             // is held that way rather than as a component.
-            string ownership = ReadAffordanceOwnership(
-                document, schema, owner, nodeSet, diagnostics, referenceTypeCatalog) ??
-                (string.Equals(typeDefinition, WotVocabulary.PropertyType, StringComparison.Ordinal)
+            List<Reference> ownership = ReadAffordanceOwnership(
+                document, schema, owner, nodeSet, diagnostics,
+                string.Equals(typeDefinition, WotVocabulary.PropertyType, StringComparison.Ordinal)
                     ? "HasProperty"
-                    : "HasComponent");
+                    : "HasComponent",
+                referenceTypeCatalog);
             var references = new List<Reference>
             {
                 new Reference
@@ -1860,14 +1871,9 @@ namespace Opc.Ua.Wot
                     ReferenceType = "HasTypeDefinition",
                     IsForward = true,
                     Value = typeDefinition ?? WotVocabulary.BaseDataVariableType
-                },
-                new Reference
-                {
-                    ReferenceType = ownership,
-                    IsForward = false,
-                    Value = owner
                 }
             };
+            references.AddRange(ownership);
             AddModellingRule(schema, references);
             variable.ParentNodeId = owner;
             variable.References = [.. references];
@@ -1880,16 +1886,15 @@ namespace Opc.Ua.Wot
             propertyNodeIds[key] = nodeId;
             if (string.Equals(owner, rootNodeId, StringComparison.Ordinal))
             {
-                rootReferences.Add(new Reference
+                foreach (Reference reference in ownership)
                 {
-                    ReferenceType = ownership,
-                    IsForward = true,
-                    Value = nodeId
-                });
-            }
-            else
-            {
-                AddOwnedComponent(items, owner, nodeId, ownership);
+                    rootReferences.Add(new Reference
+                    {
+                        ReferenceType = reference.ReferenceType,
+                        IsForward = true,
+                        Value = nodeId
+                    });
+                }
             }
             _ = isThingModel;
         }
@@ -1947,49 +1952,56 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Adds the forward component reference from the owning Variable, so the
-        /// child hangs where the document says rather than being orphaned.
+        /// Completes forward ownership edges before analog facets reuse their
+        /// Properties and again when later-declared Method owners are available.
         /// </summary>
-        private static void AddOwnedComponent(
+        private static void CompleteAffordanceOwnership(
+            UANodeSet nodeSet,
             List<UANode> items,
-            string owner,
-            string nodeId,
-            string referenceType = "HasComponent")
+            WotReferenceTypeCatalog? referenceTypeCatalog)
         {
+            Dictionary<string, UANode> index = BuildIndex(items);
+            INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
             foreach (UANode node in items)
             {
-                if (!string.Equals(node.NodeId, owner, StringComparison.Ordinal))
+                foreach (Reference reference in node.References ?? [])
                 {
-                    continue;
-                }
-                var references = new List<Reference>(node.References ?? [])
-                {
-                    new Reference
+                    if (reference.IsForward || reference.ReferenceType is null || reference.Value is null ||
+                        (!IsComponentReference(reference.ReferenceType) &&
+                            !IsHasComponentReference(reference.ReferenceType, nodeSet, referenceTypeCatalog)) ||
+                        !index.TryGetValue(reference.Value, out UANode? owner))
                     {
-                        ReferenceType = referenceType,
-                        IsForward = true,
-                        Value = nodeId
+                        continue;
                     }
-                };
-                node.References = [.. references];
-                return;
+                    var references = new List<Reference>(owner.References ?? []);
+                    if (references.Exists(existing => existing.IsForward && existing.Value == node.NodeId &&
+                        ResolveArchivedAlias(existing.ReferenceType, aliases) ==
+                            ResolveArchivedAlias(reference.ReferenceType, aliases)))
+                    {
+                        continue;
+                    }
+                    references.Add(new Reference
+                    {
+                        ReferenceType = reference.ReferenceType,
+                        IsForward = true,
+                        Value = node.NodeId
+                    });
+                    owner.References = [.. references];
+                }
             }
         }
 
-        private static string? ReadAffordanceOwnership(
+        private static List<Reference> ReadAffordanceOwnership(
             WotDocument document,
             JsonElement affordance,
             string owner,
             UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics,
+            string defaultReferenceType,
             WotReferenceTypeCatalog? referenceTypeCatalog = null)
         {
-            if (!affordance.TryGetProperty("links", out JsonElement links) ||
-                links.ValueKind != JsonValueKind.Array)
-            {
-                return null;
-            }
-            foreach (JsonElement link in links.EnumerateArray())
+            var references = new List<Reference>();
+            foreach (JsonElement link in WotDocument.ReadArray(affordance, "links"))
             {
                 string? rel = GetElementString(link, "rel");
                 string? href = GetElementString(link, "href");
@@ -2017,11 +2029,29 @@ namespace Opc.Ua.Wot
                 {
                     continue;
                 }
-                return WotVocabulary.TryGetReferenceTypeBrowseName(referenceType, out string name)
+                referenceType = WotVocabulary.TryGetReferenceTypeBrowseName(referenceType, out string name)
                     ? name
                     : referenceType;
+                if (!references.Exists(reference => reference.ReferenceType == referenceType))
+                {
+                    references.Add(new Reference
+                    {
+                        ReferenceType = referenceType,
+                        IsForward = false,
+                        Value = owner
+                    });
+                }
             }
-            return null;
+            if (references.Count == 0)
+            {
+                references.Add(new Reference
+                {
+                    ReferenceType = defaultReferenceType,
+                    IsForward = false,
+                    Value = owner
+                });
+            }
+            return references;
         }
 
         /// <summary>
@@ -2286,17 +2316,9 @@ namespace Opc.Ua.Wot
                 attached.Add(nodeId);
             }
 
-            string ownership = ReadAffordanceOwnership(
-                document, action, owner, nodeSet, diagnostics, referenceTypeCatalog) ?? "HasComponent";
-            var references = new List<Reference>
-            {
-                new Reference
-                {
-                    ReferenceType = ownership,
-                    IsForward = false,
-                    Value = owner
-                }
-            };
+            List<Reference> ownership = ReadAffordanceOwnership(
+                document, action, owner, nodeSet, diagnostics, "HasComponent", referenceTypeCatalog);
+            var references = new List<Reference>(ownership);
             AddModellingRule(action, references);
             items.Add(method);
 
@@ -2311,12 +2333,15 @@ namespace Opc.Ua.Wot
 
             if (string.Equals(owner, rootNodeId, StringComparison.Ordinal))
             {
-                rootReferences.Add(new Reference
+                foreach (Reference reference in ownership)
                 {
-                    ReferenceType = ownership,
-                    IsForward = true,
-                    Value = nodeId
-                });
+                    rootReferences.Add(new Reference
+                    {
+                        ReferenceType = reference.ReferenceType,
+                        IsForward = true,
+                        Value = nodeId
+                    });
+                }
             }
         }
 
@@ -2544,6 +2569,10 @@ namespace Opc.Ua.Wot
                     "uav:declaration requires a forward component-template link on an ObjectType or VariableType.",
                     location));
                 return;
+            }
+            if (type is null && NormalizeExpandedNodeId(link.Reference) == WotVocabulary.BaseObjectType)
+            {
+                type = new WotResolvedNode(WotVocabulary.BaseObjectType, WotExpectedNodeClass.ObjectType);
             }
             if (type is null)
             {

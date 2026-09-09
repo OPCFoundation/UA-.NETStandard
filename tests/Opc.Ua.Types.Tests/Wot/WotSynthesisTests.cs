@@ -707,33 +707,61 @@ namespace Opc.Ua.Types.Tests.Wot
                 ]
             };
 
+            byte[] original = WotTestData.Serialize(nodeSet);
             using WotDocument document = WotNodeSetConverter.FromNodeSet(nodeSet);
 
-            Assert.That(document.Properties, Has.Count.EqualTo(2));
+            Assert.That(document.Properties.Keys, Is.EquivalentTo(s_nestedVariableNames));
 
-            // The child names the Variable it belongs to, not the Thing.
+            JsonElement rangeProperty = document.Properties["EURange"];
+            Assert.That(rangeProperty.GetProperty("uav:id").GetString(),
+                Is.EqualTo("nsu=http://example.com/demo/pump;i=102"));
             Assert.That(
-                document.Properties["EURange"].GetProperty("uav:componentOf")[0].GetString(),
-                Is.EqualTo("nsu=http://example.com/demo/pump;i=101"));
+                rangeProperty.GetProperty("uav:componentOf").EnumerateArray().Select(value => value.GetString()),
+                Is.EqualTo(s_nestedVariableOwners));
+            Assert.That(rangeProperty.GetProperty("links").EnumerateArray().Select(link =>
+                (link.GetProperty("rel").GetString(), link.GetProperty("uav:refId").GetString(),
+                    link.GetProperty("href").GetString())), Is.EquivalentTo(new[]
+                {
+                    ("ua:ComponentOf", "i=47", "nsu=http://example.com/demo/pump;i=101"),
+                    ("ua:PropertyOf", "i=46", "nsu=http://example.com/demo/pump;i=101")
+                }));
 
-            // Read it back through the readable mapping. With the projection
-            // present the way back prefers it, and the readable terms would
-            // never be exercised at all.
-            UANodeSet back = WotNodeSetConverter.ToNodeSet(StripProjection(document));
+            using WotDocument readable = StripProjection(document);
+            UANodeSet back = WotNodeSetConverter.ToNodeSet(readable);
+            Assert.That(back.Items!.Select(node => node.NodeId),
+                Is.EquivalentTo(s_nestedVariableNodeIds));
             UAVariable range = back.Items!.OfType<UAVariable>()
-                .Single(v => v.BrowseName!.EndsWith(":EURange", StringComparison.Ordinal));
+                .Single(variable => variable.NodeId == "ns=1;i=102");
             UAVariable flow = back.Items!.OfType<UAVariable>()
-                .Single(v => v.BrowseName!.EndsWith(":Flow", StringComparison.Ordinal));
+                .Single(variable => variable.NodeId == "ns=1;i=101");
 
-            Assert.That(
-                range.References!.Any(r => r.ReferenceType == "HasComponent" &&
-                    !r.IsForward && r.Value == flow.NodeId),
-                Is.True,
+            Assert.That(range.BrowseName, Is.EqualTo("1:EURange"));
+            Assert.That(range.ParentNodeId, Is.EqualTo(flow.NodeId),
                 "The child belongs to the Variable that held it, not to the Thing.");
-            Assert.That(
-                flow.References!.Any(r => r.ReferenceType == "HasComponent" &&
-                    r.IsForward && r.Value == range.NodeId),
-                Is.True);
+            Assert.That(range.References!.Select(reference =>
+                (reference.ReferenceType, reference.IsForward, reference.Value)), Is.EquivalentTo(new[]
+                {
+                    ("HasTypeDefinition", true, "i=63"),
+                    ("HasComponent", false, "ns=1;i=101"),
+                    ("HasProperty", false, "ns=1;i=101")
+                }));
+            Assert.That(flow.BrowseName, Is.EqualTo("1:Flow"));
+            Assert.That(flow.ParentNodeId, Is.EqualTo("ns=1;i=100"));
+            Assert.That(flow.References!.Select(reference =>
+                (reference.ReferenceType, reference.IsForward, reference.Value)), Is.EquivalentTo(new[]
+                {
+                    ("HasTypeDefinition", true, "i=63"),
+                    ("HasComponent", false, "ns=1;i=100"),
+                    ("HasComponent", true, "ns=1;i=102"),
+                    ("HasProperty", true, "ns=1;i=102")
+                }));
+            Assert.That(back.Items!.OfType<UAObjectType>().Single().References!.Select(reference =>
+                (reference.ReferenceType, reference.IsForward, reference.Value)), Is.EquivalentTo(new[]
+                {
+                    ("HasSubtype", false, "i=58"),
+                    ("HasComponent", true, "ns=1;i=101")
+                }));
+            Assert.That(WotTestData.Serialize(nodeSet), Is.EqualTo(original));
         }
 
         private static WotDocument StripProjection(WotDocument document)
@@ -803,21 +831,61 @@ namespace Opc.Ua.Types.Tests.Wot
                 ]
             };
 
+            byte[] original = WotTestData.Serialize(nodeSet);
             using WotDocument document = WotNodeSetConverter.FromNodeSet(nodeSet);
 
-            Assert.That(document.Actions, Has.Count.EqualTo(1));
-            Assert.That(document.Properties, Has.Count.EqualTo(1));
+            Assert.That(document.Actions.Keys, Is.EqualTo(s_methodNames));
+            Assert.That(document.Properties.Keys, Is.EqualTo(s_methodArgumentNames));
+            JsonElement argumentProperty = document.Properties["InputArguments"];
+            Assert.That(argumentProperty.GetProperty("uav:id").GetString(),
+                Is.EqualTo("nsu=http://example.com/demo/pump;i=111"));
             Assert.That(
-                document.Properties["InputArguments"].GetProperty("uav:componentOf")[0].GetString(),
-                Is.EqualTo("nsu=http://example.com/demo/pump;i=110"));
+                argumentProperty.GetProperty("uav:componentOf").EnumerateArray().Select(value => value.GetString()),
+                Is.EqualTo(s_methodArgumentOwners));
+            Assert.That(argumentProperty.GetProperty("links").EnumerateArray().Select(link =>
+                (link.GetProperty("rel").GetString(), link.GetProperty("uav:refId").GetString(),
+                    link.GetProperty("href").GetString())), Is.EquivalentTo(new[]
+                {
+                    ("ua:ComponentOf", "i=47", "nsu=http://example.com/demo/pump;i=110"),
+                    ("ua:PropertyOf", "i=46", "nsu=http://example.com/demo/pump;i=110")
+                }));
 
-            UANodeSet back = WotNodeSetConverter.ToNodeSet(StripProjection(document));
+            using WotDocument readable = StripProjection(document);
+            UANodeSet back = WotNodeSetConverter.ToNodeSet(readable);
+            Assert.That(back.Items!.Select(node => node.NodeId),
+                Is.EquivalentTo(s_methodOwnedNodeIds));
             UAVariable arguments = back.Items!.OfType<UAVariable>().Single();
-            Assert.That(
-                arguments.References!.Any(r => r.ReferenceType == "HasComponent" &&
-                    !r.IsForward && r.Value == "ns=1;i=110"),
-                Is.True,
+            UAMethod method = back.Items!.OfType<UAMethod>().Single();
+            Assert.That(arguments.NodeId, Is.EqualTo("ns=1;i=111"));
+            Assert.That(arguments.BrowseName, Is.EqualTo("1:InputArguments"));
+            Assert.That(arguments.ParentNodeId, Is.EqualTo(method.NodeId),
                 "The arguments belong to the Method, not to the Thing.");
+            Assert.That(arguments.References!.Select(reference =>
+                (reference.ReferenceType, reference.IsForward, reference.Value)), Is.EquivalentTo(new[]
+                {
+                    ("HasTypeDefinition", true, "i=63"),
+                    ("HasComponent", false, "ns=1;i=110"),
+                    ("HasProperty", false, "ns=1;i=110")
+                }));
+            Assert.That(method.NodeId, Is.EqualTo("ns=1;i=110"));
+            Assert.That(method.BrowseName, Is.EqualTo("1:Start"));
+            Assert.That(method.ParentNodeId, Is.EqualTo("ns=1;i=100"));
+            Assert.That(method.References!.Select(reference =>
+                (reference.ReferenceType, reference.IsForward, reference.Value)), Is.EquivalentTo(new[]
+                {
+                    ("HasComponent", false, "ns=1;i=100"),
+                    ("HasComponent", true, "ns=1;i=111"),
+                    ("HasProperty", true, "ns=1;i=111")
+                }));
+            Assert.That(back.Items!.OfType<UAObjectType>().Single().References!.Select(reference =>
+                (reference.ReferenceType, reference.IsForward, reference.Value)), Is.EquivalentTo(new[]
+                {
+                    ("HasSubtype", false, "i=58"),
+                    ("HasComponent", true, "ns=1;i=110")
+                }));
+            using WotDocument repeated = WotNodeSetConverter.FromNodeSet(back);
+            Assert.That(repeated.Properties.Keys, Is.EqualTo(s_methodArgumentNames));
+            Assert.That(WotTestData.Serialize(nodeSet), Is.EqualTo(original));
         }
 
         private static UAVariable NestingVariable(
@@ -989,5 +1057,13 @@ namespace Opc.Ua.Types.Tests.Wot
         /// One Property per document, once for each of the three types.
         /// </summary>
         private static readonly int[] s_onePropertyPerDocument = [1, 1, 1];
+
+        private static readonly string[] s_nestedVariableNames = ["Flow", "EURange"];
+        private static readonly string[] s_nestedVariableOwners = ["nsu=http://example.com/demo/pump;i=101"];
+        private static readonly string[] s_nestedVariableNodeIds = ["ns=1;i=100", "ns=1;i=101", "ns=1;i=102"];
+        private static readonly string[] s_methodNames = ["Start"];
+        private static readonly string[] s_methodArgumentNames = ["InputArguments"];
+        private static readonly string[] s_methodArgumentOwners = ["nsu=http://example.com/demo/pump;i=110"];
+        private static readonly string[] s_methodOwnedNodeIds = ["ns=1;i=100", "ns=1;i=110", "ns=1;i=111"];
     }
 }

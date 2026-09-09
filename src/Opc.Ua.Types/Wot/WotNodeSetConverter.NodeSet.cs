@@ -906,7 +906,8 @@ namespace Opc.Ua.Wot
             // are collected here and stated as properties of the same Thing,
             // each naming the Node it belongs to (§9.1's `uav:componentOf`).
             CollectOwnedVariables(
-                actions, properties, index, nestedParents, namespaceUris, representedArguments, referenceTypeNames);
+                actions, properties, index, nestedParents, namespaceUris, representedArguments,
+                affordanceIds, referenceTypeNames);
             CollectNestedVariables(properties, index, nestedParents, namespaceUris, referenceTypeNames);
 
             WriteComponentArray(writer, "uav:hasComponent", componentChildren);
@@ -1167,12 +1168,23 @@ namespace Opc.Ua.Wot
             var links = new List<TypedComponentLink>();
             ArrayOf<Reference> references = referenceTypeNames?.GetReferences(node) ??
                 new ArrayOf<Reference>(node.References ?? []);
+            int ownershipCount = 0;
+            foreach (Reference reference in references)
+            {
+                if (!reference.IsForward &&
+                    (referenceTypeNames?.IsOwnershipReference(reference.ReferenceType) ??
+                        IsComponentReference(reference.ReferenceType)))
+                {
+                    ownershipCount++;
+                }
+            }
             foreach (Reference reference in references)
             {
                 string type = ResolveArchivedAlias(reference.ReferenceType, aliases);
                 if (reference.IsForward ||
                     !(referenceTypeNames?.IsOwnershipReference(type) ?? IsComponentReference(type)) ||
-                    (type == WotVocabulary.HasComponent && typeDefinition != WotVocabulary.PropertyType) ||
+                    (type == WotVocabulary.HasComponent && typeDefinition != WotVocabulary.PropertyType &&
+                        ownershipCount == 1) ||
                     referenceTypeNames is null ||
                     !referenceTypeNames.TryGetRelation(
                         reference.ReferenceType, isForward: false, out string rel, out string refId) ||
@@ -1309,6 +1321,7 @@ namespace Opc.Ua.Wot
             Dictionary<string, string> nestedParents,
             string[]? namespaceUris,
             HashSet<string> representedArguments,
+            HashSet<string> affordanceIds,
             WotReferenceTypeNames? referenceTypeNames = null)
         {
             foreach (UAMethod method in actions)
@@ -1329,7 +1342,8 @@ namespace Opc.Ua.Wot
                         !index.TryGetValue(reference.Value, out UANode? target) ||
                         target is not UAVariable argument ||
                         argument.NodeId is null ||
-                        representedArguments.Contains(argument.NodeId))
+                        representedArguments.Contains(argument.NodeId) ||
+                        !affordanceIds.Add(argument.NodeId))
                     {
                         continue;
                     }
@@ -1613,15 +1627,17 @@ namespace Opc.Ua.Wot
 
         private static Dictionary<string, UANode> BuildIndex(UANodeSet nodeSet)
         {
+            return BuildIndex(nodeSet.Items ?? []);
+        }
+
+        private static Dictionary<string, UANode> BuildIndex(IEnumerable<UANode> nodes)
+        {
             var index = new Dictionary<string, UANode>(StringComparer.Ordinal);
-            if (nodeSet.Items is not null)
+            foreach (UANode node in nodes)
             {
-                foreach (UANode node in nodeSet.Items)
+                if (!string.IsNullOrEmpty(node.NodeId))
                 {
-                    if (!string.IsNullOrEmpty(node.NodeId))
-                    {
-                        index[node.NodeId!] = node;
-                    }
+                    index[node.NodeId!] = node;
                 }
             }
             return index;
