@@ -1,6 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- Follow CustomTestTarget like the other modern-only fuzz test projects so the
+         CI leg's requested TFM always exists; RestrictForLegacyTfm then empties the
+         project on legacy legs. Pinning net10.0 here makes a `dotnet test` run that
+         requests net48 fail with NETSDK1005 before the shell can take effect. -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == '' AND ('$(CustomTestTarget)' == 'netstandard2.0' OR '$(CustomTestTarget)' == 'netstandard2.1')">net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <RootNamespace>Opc.Ua.OneFuzz.Validator.Tests</RootNamespace>
     <Nullable>enable</Nullable>
