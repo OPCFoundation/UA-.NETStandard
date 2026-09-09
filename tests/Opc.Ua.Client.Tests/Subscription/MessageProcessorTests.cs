@@ -75,6 +75,25 @@ namespace Opc.Ua.Client.Subscriptions
                 Is.EqualTo(new IMessageProcessor[] { sut }));
         }
 
+        /// <summary>
+        /// The ack-wait helper the tests below use must fail on its own
+        /// deadline rather than returning quietly. A silent return would push
+        /// the diagnosis down to whatever the caller asserts next - a bare
+        /// count mismatch that cannot tell an acknowledgement that was never
+        /// queued from one that merely arrived late - and would hide the race
+        /// entirely if that assertion were ever loosened.
+        /// </summary>
+        [Test]
+        public void WaitForQueuedAckAsyncShouldThrowWhenTheAckNeverArrives()
+        {
+            var queue = new FakeMessageAckQueue();
+
+            TimeoutException ex = Assert.ThrowsAsync<TimeoutException>(
+                async () => await queue.WaitForQueuedAckAsync(1, 200).ConfigureAwait(false));
+
+            Assert.That(ex.Message, Does.Contain("only 0 arrived"));
+        }
+
         [Test]
         public async Task OnPublishReceivedKeepAliveShouldDispatchKeepAliveAsync()
         {
@@ -124,6 +143,10 @@ namespace Opc.Ua.Client.Subscriptions
                 // Act
                 await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable).ConfigureAwait(false);
                 await sut.DataChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                // The processor dispatches the notification (which sets the
+                // event awaited above) and only then queues the acknowledgement,
+                // so asserting on QueuedAcks straight away races that last step.
+                await m_completion.WaitForQueuedAckAsync(1).ConfigureAwait(false);
 
                 // Assert
                 Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(availableSequenceNumbers));

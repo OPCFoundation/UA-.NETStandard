@@ -367,9 +367,8 @@ namespace Opc.Ua.Server.TestFramework
                 {
                     await InternalStartServerAsync(testPort).ConfigureAwait(false);
                 }
-                catch (ServiceResultException sre)
-                    when (serverStartRetries > 0 &&
-                        sre.StatusCode == StatusCodes.BadNoCommunication)
+                catch (Exception ex)
+                    when (serverStartRetries > 0 && ServerFixtureUtils.IsPortUnavailable(ex))
                 {
                     serverStartRetries--;
                     testPort = UnsecureRandom.Shared.Next(

@@ -729,15 +729,16 @@ namespace Opc.Ua.Client.Tests.Stack.Client
                 ch2.Dispose();
 
                 // ch.Dispose() is non-blocking (lease teardown runs on
-                // the threadpool); poll for the close metric before the
-                // hard assertion so the test does not race with the
-                // asynchronous teardown.
+                // the threadpool). The teardown emits the close counter
+                // *before* the active up/down counter, so waiting on the
+                // close measurement alone still races the active(-1) one
+                // that the assertions below require: poll for the last
+                // measurement the teardown produces instead.
                 await WaitForMeasurementAsync(
                     metrics,
-                    "opc.ua.channel.close",
-                    Tag("endpoint", endpointUrl),
-                    Tag("reverse", false),
-                    Tag("reason", "lease-released")).ConfigureAwait(false);
+                    "opc.ua.channel.active",
+                    -1,
+                    Tag("endpoint", endpointUrl)).ConfigureAwait(false);
 
                 Assert.That(metrics.HasMeasurement(
                     "opc.ua.channel.open",
@@ -1060,15 +1061,24 @@ namespace Opc.Ua.Client.Tests.Stack.Client
             }
         }
 
+        private static Task WaitForMeasurementAsync(
+            ChannelMetricListener metrics,
+            string instrumentName,
+            params KeyValuePair<string, object?>[] tags)
+        {
+            return WaitForMeasurementAsync(metrics, instrumentName, null, tags);
+        }
+
         private static async Task WaitForMeasurementAsync(
             ChannelMetricListener metrics,
             string instrumentName,
+            double? value,
             params KeyValuePair<string, object?>[] tags)
         {
             const int kMaxPollMs = 2000;
             const int kPollIntervalMs = 25;
             int elapsed = 0;
-            while (!metrics.HasMeasurement(instrumentName, tags) && elapsed < kMaxPollMs)
+            while (!metrics.HasMeasurement(instrumentName, value, tags) && elapsed < kMaxPollMs)
             {
                 await Task.Delay(kPollIntervalMs).ConfigureAwait(false);
                 elapsed += kPollIntervalMs;
