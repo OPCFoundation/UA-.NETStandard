@@ -31,7 +31,8 @@ param([Parameter(Mandatory)][string]$Scenario)
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 $root = Split-Path (Split-Path (Split-Path $PSScriptRoot))
-$fixture = Join-Path ([IO.Path]::GetTempPath()) "container-fixture-$([guid]::NewGuid().ToString('N'))"
+. (Join-Path $PSScriptRoot 'FixtureWorkspace.ps1')
+$fixture = Join-Path (Get-FixturePhysicalTempDirectory) "container-fixture-$([guid]::NewGuid().ToString('N'))"
 $null = New-Item -ItemType Directory -Path (Join-Path $fixture '.azurepipelines')
 
 function Write-Json($Value, [string]$Path) {

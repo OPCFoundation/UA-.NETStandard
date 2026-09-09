@@ -30,7 +30,8 @@
 param([Parameter(Mandatory)][string]$Scenario)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path (Split-Path $PSScriptRoot))
-$fixture = Join-Path ([IO.Path]::GetTempPath()) "nuget-pipeline-$([guid]::NewGuid().ToString('N'))"
+. (Join-Path $PSScriptRoot 'FixtureWorkspace.ps1')
+$fixture = Join-Path (Get-FixturePhysicalTempDirectory) "nuget-pipeline-$([guid]::NewGuid().ToString('N'))"
 $null = New-Item -ItemType Directory -Path (Join-Path $fixture '.azurepipelines')
 $packages = Join-Path $fixture 'packages'
 $null = New-Item -ItemType Directory -Path $packages

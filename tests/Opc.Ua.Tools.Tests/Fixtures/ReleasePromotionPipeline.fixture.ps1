@@ -30,7 +30,8 @@
 param([Parameter(Mandatory)][string]$Scenario)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path (Split-Path $PSScriptRoot))
-$fixture = Join-Path ([IO.Path]::GetTempPath()) "promotion-pipeline-$([guid]::NewGuid().ToString('N'))"
+. (Join-Path $PSScriptRoot 'FixtureWorkspace.ps1')
+$fixture = Join-Path (Get-FixturePhysicalTempDirectory) "promotion-pipeline-$([guid]::NewGuid().ToString('N'))"
 $null = New-Item -ItemType Directory -Path (Join-Path $fixture 'candidate')
 $null = New-Item -ItemType Directory -Path (Join-Path $fixture 'authority')
 try {
@@ -86,6 +87,26 @@ try {
                     throw 'Dormant promotion jobs must remain literally disabled.'
                 }
             }
+        }
+        'physical-temp-alias' {
+            $physicalRoot = Join-Path $fixture 'physical-temp'
+            $physicalChild = Join-Path $physicalRoot 'nested'
+            $null = New-Item -ItemType Directory -Path $physicalChild
+            $alias = Join-Path $fixture 'temp-alias'
+            $kind = if ($IsWindows) { 'Junction' } else { 'SymbolicLink' }
+            $null = New-Item -ItemType $kind -Path $alias -Target $physicalRoot
+            try {
+                $resolved = Get-FixturePhysicalTempDirectory (Join-Path $alias 'nested')
+                if ($resolved -cne [IO.Path]::GetFullPath($physicalChild)) {
+                    throw 'Fixture setup did not resolve the physical temporary-directory ancestor.'
+                }
+                . (Join-Path $root '.azurepipelines\nuget-evidence-functions.ps1')
+                $rejected = $false
+                try { $null = Resolve-NugetPath $alias 'nested/input.json' }
+                catch { $rejected = $true }
+                if (-not $rejected) { throw 'Production validation must still reject the aliased input root.' }
+            }
+            finally { Remove-Item -LiteralPath $alias -Force }
         }
         default { throw 'Unknown promotion pipeline fixture scenario.' }
     }

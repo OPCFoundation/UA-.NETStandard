@@ -30,7 +30,8 @@
 param()
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path (Split-Path $PSScriptRoot))
-$fixture = Join-Path ([IO.Path]::GetTempPath()) "promotion-transport-$([guid]::NewGuid().ToString('N'))"
+. (Join-Path $PSScriptRoot 'FixtureWorkspace.ps1')
+$fixture = Join-Path (Get-FixturePhysicalTempDirectory) "promotion-transport-$([guid]::NewGuid().ToString('N'))"
 $null = New-Item -ItemType Directory -Path $fixture
 try {
     $sources = @('EvidenceFiles.cs', 'PromotionContracts.cs', 'PromotionFileTransport.cs',

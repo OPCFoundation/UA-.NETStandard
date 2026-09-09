@@ -55,6 +55,7 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("ReleasePromotionPipeline.fixture.ps1", "candidate-trust")]
         [TestCase("ReleasePromotionPipeline.fixture.ps1", "missing-assessment")]
         [TestCase("ReleasePromotionPipeline.fixture.ps1", "dormant-policy")]
+        [TestCase("ReleasePromotionPipeline.fixture.ps1", "physical-temp-alias")]
         public async Task PromotionScriptsPreserveImmutableDeliveryAndDormantAuthorityAsync(
             string fixture, string scenario)
         {
