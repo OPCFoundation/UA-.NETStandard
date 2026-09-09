@@ -400,9 +400,19 @@ namespace Opc.Ua.Types.Tests.State
             m_browseWorkerErrors[1] = null;
             m_browseStart[0].Set();
             m_browseStart[1].Set();
-            m_browseBarrier.SignalAndWait();
-            m_browseDone[0].WaitOne();
-            m_browseDone[1].WaitOne();
+            if (!m_browseBarrier.SignalAndWait(k_browseOperationTimeoutMilliseconds))
+            {
+                throw new TimeoutException(
+                    "Browse benchmark workers did not reach the contention barrier.");
+            }
+            if (!m_browseDone[0].WaitOne(k_browseOperationTimeoutMilliseconds))
+            {
+                throw new TimeoutException("Browse benchmark worker 0 did not signal completion.");
+            }
+            if (!m_browseDone[1].WaitOne(k_browseOperationTimeoutMilliseconds))
+            {
+                throw new TimeoutException("Browse benchmark worker 1 did not signal completion.");
+            }
 
             Exception firstError = Volatile.Read(ref m_browseWorkerErrors[0]);
             Exception secondError = Volatile.Read(ref m_browseWorkerErrors[1]);
@@ -525,9 +535,13 @@ namespace Opc.Ua.Types.Tests.State
                         return;
                     }
 
-                    m_browseBarrier.SignalAndWait();
                     try
                     {
+                        if (!m_browseBarrier.SignalAndWait(k_browseOperationTimeoutMilliseconds))
+                        {
+                            throw new TimeoutException(
+                                $"Browse benchmark worker {index} did not reach the contention barrier.");
+                        }
                         BrowseOnce();
                     }
                     catch (Exception ex)
@@ -545,6 +559,7 @@ namespace Opc.Ua.Types.Tests.State
             };
         }
 
+        private const int k_browseOperationTimeoutMilliseconds = 10_000;
         private SystemContext m_context;
         private BaseObjectState m_objectNode;
         private BaseObjectState m_eventTarget;
