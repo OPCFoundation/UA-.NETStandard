@@ -238,6 +238,223 @@ namespace Opc.Ua.Server.Tests
         /// Verifies that predefined-node registration completes the node's creation lifecycle.
         /// </summary>
         [Test]
+        public void NodeIdFactoryDefaultsToTheDeterministicNumericForm()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    acnm.NodeIdFactory.Mode,
+                    Is.EqualTo(NodeIdAssignmentMode.Numeric));
+                Assert.That(
+                    acnm.NodeIdFactory.DefaultNamespaceIndex,
+                    Is.EqualTo(manager.NamespaceIndexes[0]));
+            });
+        }
+
+        [Test]
+        public void NodeIDFactoryMintsTheSameIdForTheSameBrowsePath()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            ServerSystemContext context = manager.SystemContext;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+
+            NodeId first = manager.New(context, CreateNamedChild(namespaceIndex));
+            NodeId second = manager.New(context, CreateNamedChild(namespaceIndex));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.IdType, Is.EqualTo(IdType.Numeric));
+                Assert.That(first.NamespaceIndex, Is.EqualTo(namespaceIndex));
+                Assert.That(second, Is.EqualTo(first));
+            });
+        }
+
+        [Test]
+        public void ReplacingTheNodeIdFactoryChangesTheMintedIdentifierType()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+
+            acnm.NodeIdFactory = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric);
+
+            NodeId nodeId = manager.New(manager.SystemContext, CreateNamedChild(namespaceIndex));
+
+            Assert.Multiple(() =>
+            {
+                // the manager keeps the assigner pointed at its own namespace.
+                Assert.That(
+                    acnm.NodeIdFactory.DefaultNamespaceIndex,
+                    Is.EqualTo(namespaceIndex));
+                Assert.That(nodeId.IdType, Is.EqualTo(IdType.Numeric));
+                Assert.That(nodeId.NamespaceIndex, Is.EqualTo(namespaceIndex));
+            });
+        }
+
+        [Test]
+        public void DisablingTheNodeIdFactoryRejectsNamedNodes()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+
+            acnm.NodeIdFactory = new DefaultNodeIdFactory(NodeIdAssignmentMode.None);
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(
+                () => manager.New(manager.SystemContext, CreateNamedChild(namespaceIndex)));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+        }
+
+        [Test]
+        public void TheNodeIdFactoryCannotBeCleared()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+
+            Assert.Throws<ArgumentNullException>(() => acnm.NodeIdFactory = null);
+        }
+
+        [Test]
+        public void ADecoratingNodeIdFactoryOverridesTheIdentifierForOneNode()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
+            var acnm = (TestableAsyncCustomNodeManager)manager;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+
+            var reserved = new NodeId("reserved", namespaceIndex);
+            acnm.NodeIdFactory = new ReservingNodeIdFactory(
+                acnm.NodeIdFactory,
+                "Child",
+                reserved);
+
+            NodeId claimed = manager.New(manager.SystemContext, CreateNamedChild(namespaceIndex));
+            BaseObjectState other = CreateNamedChild(namespaceIndex);
+            other.BrowseName = new QualifiedName("Other", namespaceIndex);
+            NodeId delegated = manager.New(manager.SystemContext, other);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(claimed, Is.EqualTo(reserved));
+
+                // everything the decorator does not claim still reaches the
+                // factory it wraps, which is what makes decorating cheaper
+                // than overriding New().
+                Assert.That(delegated, Is.Not.EqualTo(reserved));
+                Assert.That(delegated.IdType, Is.EqualTo(IdType.Numeric));
+                Assert.That(delegated.NamespaceIndex, Is.EqualTo(namespaceIndex));
+            });
+        }
+
+        /// <summary>
+        /// A NodeId factory that hands one browse name a fixed identifier and
+        /// delegates every other node to the factory it wraps.
+        /// </summary>
+        /// <remarks>
+        /// Stands in for the reason <see cref="IRebasableNodeIdFactory"/> is
+        /// an interface: a caller can put its own rule in front of
+        /// <see cref="DefaultNodeIdFactory"/> without subclassing it and
+        /// without overriding <c>New</c> on the NodeManager.
+        /// </remarks>
+        private sealed class ReservingNodeIdFactory : IRebasableNodeIdFactory
+        {
+            public ReservingNodeIdFactory(
+                IRebasableNodeIdFactory inner,
+                string browseName,
+                NodeId reserved)
+            {
+                m_inner = inner;
+                m_browseName = browseName;
+                m_reserved = reserved;
+            }
+
+            public NodeIdAssignmentMode Mode => m_inner.Mode;
+
+            public ushort DefaultNamespaceIndex => m_inner.DefaultNamespaceIndex;
+
+            public bool DetectsCollisions => m_inner.DetectsCollisions;
+
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                return node.BrowseName.Name == m_browseName
+                    ? m_reserved
+                    : m_inner.New(context, node);
+            }
+
+            public IRebasableNodeIdFactory WithDefaultNamespaceIndex(ushort defaultNamespaceIndex)
+            {
+                return new ReservingNodeIdFactory(
+                    m_inner.WithDefaultNamespaceIndex(defaultNamespaceIndex),
+                    m_browseName,
+                    m_reserved);
+            }
+
+            public IRebasableNodeIdFactory WithMode(NodeIdAssignmentMode mode)
+            {
+                return new ReservingNodeIdFactory(
+                    m_inner.WithMode(mode),
+                    m_browseName,
+                    m_reserved);
+            }
+
+            public IRebasableNodeIdFactory WithCollisionDetection(bool detectCollisions)
+            {
+                return new ReservingNodeIdFactory(
+                    m_inner.WithCollisionDetection(detectCollisions),
+                    m_browseName,
+                    m_reserved);
+            }
+
+            public NodeId NextCounterNodeId()
+            {
+                return m_inner.NextCounterNodeId();
+            }
+
+            public NodeId CreateChildNodeId(
+                NodeId parentNodeId,
+                QualifiedName browseName,
+                ushort namespaceIndex,
+                NamespaceTable namespaceUris)
+            {
+                return m_inner.CreateChildNodeId(
+                    parentNodeId,
+                    browseName,
+                    namespaceIndex,
+                    namespaceUris);
+            }
+
+            private readonly IRebasableNodeIdFactory m_inner;
+            private readonly string m_browseName;
+            private readonly NodeId m_reserved;
+        }
+
+        /// <summary>
+        /// Creates a named child of a named parent, the shape the deterministic
+        /// assigner derives an identifier from.
+        /// </summary>
+        private static BaseObjectState CreateNamedChild(ushort namespaceIndex)
+        {
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("Root", namespaceIndex)
+            };
+
+            return new BaseObjectState(parent)
+            {
+                BrowseName = new QualifiedName("Child", namespaceIndex)
+            };
+        }
+
+        [Test]
         public async Task AddPredefinedNodeCompletesCreateLifecycleAsync()
         {
             using ITestNodeManager manager = CreateManager();
@@ -1649,6 +1866,252 @@ namespace Opc.Ua.Server.Tests
             Assert.That(references[0].BrowseName, Is.EqualTo(child.BrowseName));
             Assert.That(references[0].NodeId, Is.EqualTo(new ExpandedNodeId(child.NodeId)));
         }
+
+        /// <summary>
+        /// Issue #4415: the async node manager iterates a browser through
+        /// <see cref="INodeBrowser.NextAsync"/>, so a browser whose references
+        /// come from I/O can await that work. The browser here refuses the
+        /// synchronous <see cref="INodeBrowser.Next"/> outright, and the
+        /// continuation point round trip proves the push-back still works on the
+        /// async path.
+        /// </summary>
+        [Test]
+        public async Task BrowseAsync_IteratesBrowserThroughNextAsyncAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(
+                manager is TestableAsyncCustomNodeManager,
+                "Only the async node manager can drive INodeBrowser.NextAsync");
+
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            NodeState[] children = await AddAsyncBrowseTargetsAsync(manager, context, nsIdx).ConfigureAwait(false);
+            AsyncOnlyBrowser browser = null;
+            NodeState parent = await AddAsyncBrowseParentAsync(
+                manager,
+                context,
+                nsIdx,
+                children,
+                created => browser = created).ConfigureAwait(false);
+
+            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            var continuationPoint = new ContinuationPoint
+            {
+                NodeToBrowse = handle,
+                Manager = manager,
+                View = new ViewDescription(),
+                BrowseDirection = BrowseDirection.Forward,
+                IncludeSubtypes = true,
+                ResultMask = BrowseResultMask.All,
+                MaxResultsToReturn = 1
+            };
+
+            var references = new List<ReferenceDescription>();
+            var operationContext = new OperationContext(
+                new RequestHeader(), null, RequestType.Browse, RequestLifetime.None);
+
+            ContinuationPoint firstResult = await manager.BrowseAsync(
+                operationContext,
+                continuationPoint,
+                references).ConfigureAwait(false);
+
+            Assert.That(firstResult, Is.Not.Null, "second reference must be parked in a continuation point");
+            Assert.That(references, Has.Count.EqualTo(1));
+
+            // BrowseNext hands the node manager a fresh result list per call.
+            var moreReferences = new List<ReferenceDescription>();
+            ContinuationPoint secondResult = await manager.BrowseAsync(
+                operationContext,
+                firstResult,
+                moreReferences).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(secondResult, Is.Null);
+                Assert.That(references.Concat(moreReferences).Select(r => r.NodeId), Is.EqualTo(
+                    children.Select(c => new ExpandedNodeId(c.NodeId))));
+                Assert.That(browser, Is.Not.Null);
+                Assert.That(browser.NextCalls, Is.Zero, "the async manager must not fall back to Next()");
+                Assert.That(browser.NextAsyncCalls, Is.GreaterThanOrEqualTo(3));
+            });
+        }
+
+        /// <summary>
+        /// Issue #4415: translate-path resolution iterates the browser through
+        /// <see cref="INodeBrowser.NextAsync"/> as well.
+        /// </summary>
+        [Test]
+        public async Task TranslateBrowsePathAsync_IteratesBrowserThroughNextAsyncAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(
+                manager is TestableAsyncCustomNodeManager,
+                "Only the async node manager can drive INodeBrowser.NextAsync");
+
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            NodeState[] children = await AddAsyncBrowseTargetsAsync(manager, context, nsIdx).ConfigureAwait(false);
+            AsyncOnlyBrowser browser = null;
+            NodeState parent = await AddAsyncBrowseParentAsync(
+                manager,
+                context,
+                nsIdx,
+                children,
+                created => browser = created).ConfigureAwait(false);
+
+            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            var targetIds = new List<ExpandedNodeId>();
+            var unresolved = new List<NodeId>();
+            var relativePath = new RelativePathElement
+            {
+                IncludeSubtypes = true,
+                IsInverse = false,
+                TargetName = children[1].BrowseName
+            };
+
+            await manager.TranslateBrowsePathAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.TranslateBrowsePathsToNodeIds, RequestLifetime.None),
+                handle,
+                relativePath,
+                targetIds,
+                unresolved).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(targetIds, Is.EqualTo(new[] { new ExpandedNodeId(children[1].NodeId) }));
+                Assert.That(unresolved, Is.Empty);
+                Assert.That(browser, Is.Not.Null);
+                Assert.That(browser.NextCalls, Is.Zero, "the async manager must not fall back to Next()");
+                Assert.That(browser.NextAsyncCalls, Is.GreaterThanOrEqualTo(3));
+            });
+        }
+
+        private static async Task<NodeState[]> AddAsyncBrowseTargetsAsync(
+            ITestNodeManager manager,
+            ServerSystemContext context,
+            ushort nsIdx)
+        {
+            var children = new NodeState[2];
+            for (int i = 0; i < children.Length; i++)
+            {
+                var child = new BaseObjectState(null);
+                child.CreateAsPredefinedNode(context);
+                child.NodeId = new NodeId("AsyncBrowseChild" + i, nsIdx);
+                child.BrowseName = new QualifiedName("AsyncBrowseChild" + i, nsIdx);
+                await manager.AddNodeAsync(context, default, child).ConfigureAwait(false);
+                children[i] = child;
+            }
+            return children;
+        }
+
+        private static async Task<NodeState> AddAsyncBrowseParentAsync(
+            ITestNodeManager manager,
+            ServerSystemContext context,
+            ushort nsIdx,
+            NodeState[] children,
+            Action<AsyncOnlyBrowser> onCreated)
+        {
+            var parent = new BaseObjectState(null);
+            parent.CreateAsPredefinedNode(context);
+            parent.NodeId = new NodeId("AsyncBrowseParent", nsIdx);
+            parent.BrowseName = new QualifiedName("AsyncBrowseParent", nsIdx);
+            parent.OnCreateBrowser = (
+                browserContext,
+                node,
+                view,
+                referenceType,
+                includeSubtypes,
+                browseDirection,
+                browseName,
+                additionalReferences,
+                internalOnly) =>
+            {
+                var browser = new AsyncOnlyBrowser(
+                    browserContext,
+                    view,
+                    referenceType,
+                    includeSubtypes,
+                    browseDirection,
+                    browseName,
+                    additionalReferences,
+                    internalOnly,
+                    children);
+                onCreated(browser);
+                return browser;
+            };
+            await manager.AddNodeAsync(context, default, parent).ConfigureAwait(false);
+            return parent;
+        }
+
+#nullable enable
+        /// <summary>
+        /// A browser that produces its references only through
+        /// <see cref="NodeBrowser.NextAsync"/>, after a genuine asynchronous hop,
+        /// the way an aggregating browser that queries another server would. The
+        /// synchronous <see cref="NodeBrowser.Next"/> throws so a caller that still
+        /// drives it is caught by the test.
+        /// </summary>
+        private sealed class AsyncOnlyBrowser : NodeBrowser
+        {
+            private readonly Queue<IReference> m_pending;
+            private IReference? m_pushBack;
+
+            public AsyncOnlyBrowser(
+                ISystemContext context,
+                ViewDescription? view,
+                NodeId referenceType,
+                bool includeSubtypes,
+                BrowseDirection browseDirection,
+                QualifiedName browseName,
+                IEnumerable<IReference>? additionalReferences,
+                bool internalOnly,
+                IEnumerable<NodeState> targets)
+                : base(context, view, referenceType, includeSubtypes, browseDirection,
+                    browseName, additionalReferences, internalOnly)
+            {
+                m_pending = new Queue<IReference>();
+                foreach (NodeState target in targets)
+                {
+                    m_pending.Enqueue(new NodeStateReference(
+                        ReferenceTypeIds.Organizes, false, target.NodeId));
+                }
+            }
+
+            public int NextCalls { get; private set; }
+
+            public int NextAsyncCalls { get; private set; }
+
+            public override IReference? Next()
+            {
+                NextCalls++;
+                throw new InvalidOperationException(
+                    "This browser fetches its references asynchronously; iterate it through NextAsync.");
+            }
+
+            public override async ValueTask<IReference?> NextAsync(
+                CancellationToken cancellationToken = default)
+            {
+                NextAsyncCalls++;
+                await Task.Yield();
+
+                if (m_pushBack != null)
+                {
+                    IReference reference = m_pushBack;
+                    m_pushBack = null;
+                    return reference;
+                }
+
+                return m_pending.Count > 0 ? m_pending.Dequeue() : null;
+            }
+
+            public override void Push(IReference reference)
+            {
+                m_pushBack = reference;
+            }
+        }
+#nullable restore
 
         /// <summary>
         /// Regression for issue #4061: when a node that has been cached (e.g.
@@ -9453,10 +9916,6 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         NodeState Find(NodeId nodeId);
         /// <summary>
-        /// Creates or resolves the identifier for a node in the selected manager's namespace.
-        /// </summary>
-        NodeId New(ISystemContext context, NodeState node);
-        /// <summary>
         /// Adds an instance under the specified parent and returns its node identifier.
         /// </summary>
         ValueTask<NodeId> AddNodeAsync(ServerSystemContext context, NodeId parentId, BaseInstanceState node, CancellationToken ct = default);
@@ -9891,6 +10350,22 @@ namespace Opc.Ua.Server.Tests
         public NodeState Find(NodeId nodeId)
         {
             return m_cnm2.Find(nodeId)!;
+        }
+
+        /// <summary>
+        /// Registers a node through the wrapped legacy node manager.
+        /// </summary>
+        public void AddNode(NodeState node)
+        {
+            m_cnm2.AddPredefinedNodePublic(m_cnm2.SystemContext, node);
+        }
+
+        /// <summary>
+        /// Registers a root notifier through the wrapped legacy node manager.
+        /// </summary>
+        public void AddRootNotifier(NodeState notifier)
+        {
+            m_cnm2.AddRootNotifierPublic(notifier);
         }
 
         /// <summary>

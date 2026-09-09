@@ -86,6 +86,17 @@ namespace Opc.Ua.Server.Fluent
         IAsyncNodeManager NodeManager { get; }
 
         /// <summary>
+        /// The namespace index a browse name given as a plain string is
+        /// qualified with.
+        /// </summary>
+        /// <remarks>
+        /// Exposed so that the child helpers qualify a string browse name the
+        /// same way <see cref="AddObject(string, NodeId, NodeId)"/> does,
+        /// rather than each inventing a namespace of its own.
+        /// </remarks>
+        ushort DefaultNamespaceIndex { get; }
+
+        /// <summary>
         /// Manager-level dispatch surface populated by the <c>On*</c>
         /// methods on the per-node builders. The owning node manager
         /// invokes this from its <c>HistoryRead</c>, <c>HistoryUpdate</c>,

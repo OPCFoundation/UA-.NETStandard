@@ -308,7 +308,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     await registration.ConfigureAsync(context).ConfigureAwait(false);
                 }
             }
-            context.Seal();
+            await context.SealAsync(postSetupContext.CancellationToken)
+                .ConfigureAwait(false);
         }
 
         private static void ClaimDiAddressSpace(IServiceCollection services)

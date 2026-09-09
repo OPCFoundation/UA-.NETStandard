@@ -27,8 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.FileSystem
 {
@@ -54,6 +56,39 @@ namespace Opc.Ua.Server.FileSystem
             m_stage = Stage.Begin;
         }
 
+        /// <summary>
+        /// Asynchronous iteration is the primary path: the server browse and
+        /// translate-path loops drive it, so the provider enumeration is awaited
+        /// rather than blocked on.
+        /// </summary>
+        public override async ValueTask<IReference?> NextAsync(
+            CancellationToken cancellationToken = default)
+        {
+            IReference? reference = base.Next();
+            if (reference != null)
+            {
+                return reference;
+            }
+
+            if (!NeedsProviderEntries())
+            {
+                return null;
+            }
+
+            if (m_stage == Stage.Begin)
+            {
+                m_pending = await LoadEntriesAsync(cancellationToken).ConfigureAwait(false);
+                m_stage = Stage.Children;
+            }
+
+            return NextPendingChild();
+        }
+
+        /// <summary>
+        /// Synchronous bridge for the consumers that still iterate with
+        /// <see cref="NodeBrowser.Next"/> (the nodeset exporter, the legacy
+        /// <c>CustomNodeManager2</c>). It blocks on the provider enumeration.
+        /// </summary>
         public override IReference? Next()
         {
             IReference? reference = base.Next();
@@ -62,24 +97,31 @@ namespace Opc.Ua.Server.FileSystem
                 return reference;
             }
 
-            if (InternalOnly)
-            {
-                return null;
-            }
-            if (!IsRequired(ReferenceTypeIds.HasComponent, false))
+            if (!NeedsProviderEntries())
             {
                 return null;
             }
 
             if (m_stage == Stage.Begin)
             {
-                m_pending = LoadEntries();
+                m_pending = LoadEntriesAsync(CancellationToken.None)
+                    .AsTask().GetAwaiter().GetResult();
                 m_stage = Stage.Children;
             }
 
+            return NextPendingChild();
+        }
+
+        private bool NeedsProviderEntries()
+        {
+            return !InternalOnly && IsRequired(ReferenceTypeIds.HasComponent, false);
+        }
+
+        private IReference? NextPendingChild()
+        {
             if (m_stage == Stage.Children)
             {
-                reference = NextChild();
+                IReference? reference = NextChild();
                 if (reference != null)
                 {
                     return reference;
@@ -90,25 +132,25 @@ namespace Opc.Ua.Server.FileSystem
             return null;
         }
 
-        private List<FileSystemEntry> LoadEntries()
+        private async ValueTask<List<FileSystemEntry>> LoadEntriesAsync(
+            CancellationToken cancellationToken)
         {
             var list = new List<FileSystemEntry>();
             try
             {
-                IAsyncEnumerator<FileSystemEntry> enumerator = m_host.Provider
-                    .EnumerateAsync(m_source.ProviderPath, CancellationToken.None)
-                    .GetAsyncEnumerator(CancellationToken.None);
-                try
+                await foreach (FileSystemEntry entry in m_host.Provider
+                    .EnumerateAsync(m_source.ProviderPath, cancellationToken)
+                    .WithCancellation(cancellationToken)
+                    .ConfigureAwait(false))
                 {
-                    while (enumerator.MoveNextAsync().AsTask().GetAwaiter().GetResult())
-                    {
-                        list.Add(enumerator.Current);
-                    }
+                    list.Add(entry);
                 }
-                finally
-                {
-                    enumerator.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // The caller cancelled the browse; surface it rather than
+                // answering with an empty directory.
+                throw;
             }
             catch
             {

@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -36,10 +38,19 @@ namespace Opc.Ua
     /// An interface to an object that browses the references of an node.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A browser is single-consumer: it is owned by whoever created it and must not be used
     /// from more than one thread at a time. A browser that outlives a single service call -
     /// one parked in a continuation point for <c>BrowseNext</c>, for example - is serialized
     /// by its owner, not by the browser itself.
+    /// </para>
+    /// <para>
+    /// <see cref="Next"/> and <see cref="NextAsync"/> drain the same sequence, and a caller
+    /// picks one of them for the lifetime of the browser rather than mixing the two. The
+    /// asynchronous server browse path iterates through <see cref="NextAsync"/>, so a browser
+    /// whose references come from I/O - another server, a device, a file system - does that
+    /// work there and never has to block a request worker on it.
+    /// </para>
     /// </remarks>
     public interface INodeBrowser : IDisposable
     {
@@ -47,6 +58,13 @@ namespace Opc.Ua
         /// Returns the next reference.
         /// </summary>
         IReference? Next();
+
+        /// <summary>
+        /// Returns the next reference, awaiting any I/O the browser needs to produce it.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels a pending fetch.</param>
+        /// <returns>The next reference, or <c>null</c> when the browser is exhausted.</returns>
+        ValueTask<IReference?> NextAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Pushes a previously returned reference back into the browser.
@@ -71,7 +89,18 @@ namespace Opc.Ua
     /// afterwards do not appear in it. It is not an atomic snapshot across the node's
     /// collections - see <see cref="NodeState.CreateBrowser"/> for what is and is not
     /// guaranteed. A derived browser that reaches an underlying system does so lazily in
-    /// <see cref="Next"/>, outside any node lock.
+    /// <see cref="NextAsync"/>, outside any node lock.
+    /// </para>
+    /// <para>
+    /// The two iteration members are one seam with two shapes. <see cref="Next"/> is the
+    /// synchronous, in-memory one; <see cref="NextAsync"/> defaults to wrapping it, so a
+    /// browser that only overrides <see cref="Next"/> is iterated correctly by both. A browser
+    /// whose references depend on I/O overrides <see cref="NextAsync"/> and does the fetch
+    /// there - the asynchronous server browse and translate paths iterate through it, so the
+    /// fetch is awaited rather than blocked on. Such a browser also overrides <see cref="Next"/>
+    /// for the remaining synchronous consumers (the nodeset exporter, the legacy
+    /// <c>CustomNodeManager2</c>), typically by bridging to <see cref="NextAsync"/>; the base
+    /// <see cref="Next"/> only ever sees the in-memory references.
     /// </para>
     /// </remarks>
     public class NodeBrowser : INodeBrowser
@@ -153,6 +182,22 @@ namespace Opc.Ua
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Returns the next reference, awaiting any I/O needed to produce it. Null if no
+        /// more references.
+        /// </summary>
+        /// <remarks>
+        /// The default implementation completes synchronously with the result of
+        /// <see cref="Next"/>, so an existing browser that only overrides <see cref="Next"/>
+        /// keeps working unchanged. A browser that has to reach an underlying system
+        /// overrides this member and awaits the fetch here, outside every node lock.
+        /// </remarks>
+        public virtual ValueTask<IReference?> NextAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<IReference?>(Next());
         }
 
         /// <summary>

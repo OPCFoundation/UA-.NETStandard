@@ -31,14 +31,33 @@ namespace Opc.Ua.Server.Fluent
 {
     internal static class FluentNodeRegistration
     {
+        /// <summary>
+        /// Mints the NodeId for a node the fluent surface just created.
+        /// </summary>
+        /// <remarks>
+        /// Routed through the owning NodeManager so that a fluent graph
+        /// obeys the same <see cref="NodeIdAssignmentMode"/> as the rest of
+        /// the manager, instead of the ambiguous
+        /// <c>{parentIdentifier}_{browseName}</c> concatenation the fluent
+        /// builders used to each spell out for themselves. The node is
+        /// created here and there is nothing to preserve, so the NodeId is
+        /// cleared first to say so.
+        /// </remarks>
+        /// <param name="builder">The builder that owns the node.</param>
+        /// <param name="node">The freshly created node.</param>
+        internal static void AssignNodeId(
+            INodeManagerBuilder builder,
+            NodeState node)
+        {
+            node.NodeId = NodeId.Null;
+            node.NodeId = builder.NodeManager.New(builder.Context, node);
+        }
+
         internal static void RegisterCreatedNode(
             INodeManagerBuilder builder,
             NodeState node)
         {
-            if (builder.NodeManager is AsyncCustomNodeManager manager)
-            {
-                manager.AddPredefinedNodeSynchronously(node);
-            }
+            builder.NodeManager.AddNode(node);
         }
 
         internal static void RegisterAlarmEventSource(
@@ -57,10 +76,9 @@ namespace Opc.Ua.Server.Fluent
                 current = current is BaseInstanceState instance ? instance.Parent : null;
             }
 
-            if (firstSource != null &&
-                builder.NodeManager is AsyncCustomNodeManager manager)
+            if (firstSource != null)
             {
-                manager.AddRootNotifierSynchronously(firstSource);
+                builder.NodeManager.AddRootNotifier(firstSource);
             }
         }
     }

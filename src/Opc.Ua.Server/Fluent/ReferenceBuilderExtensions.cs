@@ -224,6 +224,53 @@ namespace Opc.Ua.Server.Fluent
         /// <exception cref="ArgumentNullException"><paramref name="parent"/> is <c>null</c>.</exception>
         public static INodeBuilder<BaseObjectState> AddObject(
             this INodeBuilder parent,
+            string browseName,
+            NodeId typeDefinitionId = default)
+        {
+            if (parent == null)
+            {
+                throw new ArgumentNullException(nameof(parent));
+            }
+            if (string.IsNullOrEmpty(browseName))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameInvalid,
+                    "Browse name is null or empty.");
+            }
+
+            return parent.AddObject(
+                new QualifiedName(browseName, parent.Builder.DefaultNamespaceIndex),
+                typeDefinitionId);
+        }
+
+        /// <summary>
+        /// Creates a child object under the parent using an explicitly
+        /// namespaced browse name.
+        /// </summary>
+        /// <remarks>
+        /// Namespace 0 is the OPC UA namespace, which no NodeManager owns, so
+        /// a browse name there is refused rather than quietly authored into
+        /// someone else's namespace. Use the string overload for the
+        /// builder's own namespace.
+        /// </remarks>
+        /// <param name="parent">The parent to create the child under.</param>
+        /// <param name="browseName">
+        /// Browse name carrying a nonzero namespace index.
+        /// </param>
+        /// <param name="typeDefinitionId">
+        /// Type definition to apply; defaults to
+        /// <see cref="ObjectTypeIds.BaseObjectType"/>.
+        /// </param>
+        /// <returns>
+        /// A typed <see cref="INodeBuilder{BaseObjectState}"/> for the
+        /// newly created child.
+        /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="parent"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException">
+        /// The browse name is null, or is in namespace 0.
+        /// </exception>
+        public static INodeBuilder<BaseObjectState> AddObject(
+            this INodeBuilder parent,
             QualifiedName browseName,
             NodeId typeDefinitionId = default)
         {
@@ -231,9 +278,18 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(parent));
             }
-            if (browseName.IsNull)
+            if (browseName.IsNull || string.IsNullOrEmpty(browseName.Name))
             {
-                throw new ArgumentNullException(nameof(browseName));
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameInvalid,
+                    "Browse name is null or empty.");
+            }
+            if (browseName.NamespaceIndex == 0)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameInvalid,
+                    "A QualifiedName browse name must specify a nonzero namespace index. " +
+                    "Use the string overload for the manager's default namespace.");
             }
             NodeId typeDef = typeDefinitionId.IsNull ? ObjectTypeIds.BaseObjectType : typeDefinitionId;
 
@@ -247,13 +303,7 @@ namespace Opc.Ua.Server.Fluent
                 TypeDefinitionId = typeDef
             };
 
-            // Generate a NodeId that mirrors the parent's identifier scope.
-            // Pattern matches PumpDeviceIntegrationServer's NodeIdFactory:
-            // "{parentIdentifier}_{childBrowseName}" in the parent's namespace.
-            string parentIdentifier = parent.Node.NodeId.IdentifierAsString;
-            child.NodeId = new NodeId(
-                $"{parentIdentifier}_{symbolicName}",
-                parent.Node.NodeId.NamespaceIndex);
+            FluentNodeRegistration.AssignNodeId(parent.Builder, child);
 
             parent.Node.AddChild(child);
             FluentNodeRegistration.RegisterCreatedNode(parent.Builder, child);
