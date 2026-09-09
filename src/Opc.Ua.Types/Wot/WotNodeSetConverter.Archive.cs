@@ -159,6 +159,7 @@ namespace Opc.Ua.Wot
             INodeSetAliasResolver aliases,
             List<WotDiagnostic> diagnostics)
         {
+            WotReferenceTypeNames referenceTypes = WotReferenceTypeNames.Build(baseline);
             regenerated.TryGetProperty(collection, out JsonElement generatedMap);
             var generatedNodes = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             if (generatedMap.ValueKind == JsonValueKind.Object)
@@ -221,7 +222,7 @@ namespace Opc.Ua.Wot
                     }
                 }
                 else if (index.ContainsKey("owned:" + ResolveArchivedAlias(node.NodeId, aliases)) &&
-                    !HasArchivedReference(node, index, aliases, null, isForward: false, owner) &&
+                    !HasArchivedReference(node, index, aliases, null, isForward: false, owner, referenceTypes) &&
                     (node is not UAInstance owned || ResolveArchivedAlias(owned.ParentNodeId, aliases) != owner))
                 {
                     ReportArchiveConflict(pointer, "affordance owner", diagnostics);
@@ -251,11 +252,11 @@ namespace Opc.Ua.Wot
             }
             string? normalizedId = id is null
                 ? null
-                : NormalizeArchivedIdentity(document, id, identities, aliases, diagnostics);
+                : NormalizeArchivedIdentity(document, id, identities, aliases, diagnostics, authored);
             string? normalizedName = browseName is null
                 ? null
                 : NormalizeArchivedBrowseName(
-                    ToNodeSetQualifiedName(document, browseName, identities, diagnostics));
+                    ToNodeSetQualifiedName(document, browseName, identities, diagnostics, authored));
             string lookup = normalizedId is not null
                 ? "id:" + normalizedId
                 : normalizedName is not null ? "name:" + normalizedName : "key:" + key;
@@ -298,7 +299,7 @@ namespace Opc.Ua.Wot
             if (browseName is not null &&
                 !string.Equals(
                     NormalizeArchivedBrowseName(
-                        ToNodeSetQualifiedName(document, browseName, identities, diagnostics)),
+                        ToNodeSetQualifiedName(document, browseName, identities, diagnostics, authored)),
                     NormalizeArchivedBrowseName(node.BrowseName),
                     StringComparison.Ordinal))
             {
@@ -344,7 +345,7 @@ namespace Opc.Ua.Wot
                         if (dataType is not null &&
                             (member.Value.ValueKind != JsonValueKind.String || !string.Equals(
                                 NormalizeArchivedIdentity(
-                                    document, member.Value.GetString()!, identities, aliases, diagnostics),
+                                    document, member.Value.GetString()!, identities, aliases, diagnostics, authored),
                                 ResolveArchivedAlias(dataType, aliases),
                                 StringComparison.Ordinal)))
                         {
@@ -370,14 +371,14 @@ namespace Opc.Ua.Wot
                         }
                         break;
                     case "type":
-                        string? jsonType = node is UAVariable unit && IsUnitAffordance(unit)
-                            ? "string"
-                            : MapDataTypeToJson(ResolveArchivedAlias(dataType, aliases));
-                        if (jsonType is not null &&
-                            (member.Value.ValueKind != JsonValueKind.String || member.Value.GetString() != jsonType))
-                        {
-                            ReportArchiveConflict(location, "DataType", diagnostics);
-                        }
+                        CompareArchivedJsonType(
+                            member.Value,
+                            node is UAVariable unit && IsUnitAffordance(unit)
+                                ? WotVocabulary.String
+                                : ResolveArchivedAlias(dataType, aliases),
+                            valueRank ?? ScalarValueRank,
+                            location,
+                            diagnostics);
                         break;
                     case "uav:isAbstract":
                         if (node is UAType type &&
@@ -413,7 +414,7 @@ namespace Opc.Ua.Wot
                     case "uav:componentOf":
                         CompareArchivedComponents(
                             document, member.Value, member.Name == "uav:hasComponent",
-                            node, index, identities, aliases, location, diagnostics);
+                            node, baseline, index, identities, aliases, location, diagnostics, authored);
                         break;
                     case "const":
                     case "default":
@@ -463,6 +464,29 @@ namespace Opc.Ua.Wot
                             document, member.Value, regenerated, identities, aliases, location, diagnostics);
                         break;
                 }
+            }
+        }
+
+        private static void CompareArchivedJsonType(
+            JsonElement authored,
+            string? dataType,
+            int valueRank,
+            string pointer,
+            List<WotDiagnostic> diagnostics)
+        {
+            using var output = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(output))
+            {
+                writer.WriteStartObject();
+                WriteRankedJsonType(writer, dataType, valueRank);
+                writer.WriteEndObject();
+            }
+            using JsonDocument schema = JsonDocument.Parse(output.ToArray());
+            string? jsonType = GetElementString(schema.RootElement, "type") ?? MapDataTypeToJson(dataType);
+            if (jsonType is not null &&
+                (authored.ValueKind != JsonValueKind.String || authored.GetString() != jsonType))
+            {
+                ReportArchiveConflict(pointer, "DataType", diagnostics);
             }
         }
 
@@ -562,16 +586,19 @@ namespace Opc.Ua.Wot
             JsonElement targets,
             bool isForward,
             UANode node,
+            UANodeSet baseline,
             Dictionary<string, UANode?> nodes,
             UANodeSet identities,
             INodeSetAliasResolver aliases,
             string pointer,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            JsonElement carryingNode)
         {
             if (targets.ValueKind != JsonValueKind.Array)
             {
                 return;
             }
+            WotReferenceTypeNames referenceTypes = WotReferenceTypeNames.Build(baseline);
             int index = 0;
             foreach (JsonElement target in targets.EnumerateArray())
             {
@@ -579,7 +606,8 @@ namespace Opc.Ua.Wot
                     !HasArchivedReference(
                         node, nodes, aliases, null, isForward,
                         NormalizeArchivedIdentity(
-                            document, target.GetString()!, identities, aliases, diagnostics)))
+                            document, target.GetString()!, identities, aliases, diagnostics, carryingNode),
+                        referenceTypes))
                 {
                     ReportArchiveConflict(
                         pointer + "/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -627,12 +655,12 @@ namespace Opc.Ua.Wot
                 }
                 else
                 {
-                    WotReferenceTypeAnswer answer = ResolveReferenceTypeName(document, rel, null);
+                    WotReferenceTypeAnswer answer = ResolveReferenceTypeName(document, rel, null, link);
                     if (answer.Outcome == WotReferenceTypeOutcome.Unresolved &&
                         TrySplitCompactModelName(rel, out _, out _))
                     {
                         string name = NormalizeArchivedBrowseName(
-                            ToNodeSetQualifiedName(document, rel, identities, diagnostics))!;
+                            ToNodeSetQualifiedName(document, rel, identities, diagnostics, link))!;
                         var matches = new List<WotResolvedReferenceType>();
                         if (nodes.TryGetValue("forward:" + name, out UANode? forward) &&
                             forward?.NodeId is { } forwardId)
@@ -680,11 +708,11 @@ namespace Opc.Ua.Wot
                     : NormalizeArchivedIdentity(
                         document,
                         ToPortableNodeId(ResolveArchivedAlias(referenceType, aliases), baseline.NamespaceUris)!,
-                        identities, aliases, diagnostics);
+                        identities, aliases, diagnostics, link);
                 if (GetElementString(link, "uav:refId") is { } pinned)
                 {
                     string normalized = NormalizeArchivedIdentity(
-                        document, pinned, identities, aliases, diagnostics);
+                        document, pinned, identities, aliases, diagnostics, link);
                     if (normalizedReferenceType is not null && normalizedReferenceType != normalized)
                     {
                         ReportArchiveConflict(
@@ -694,16 +722,69 @@ namespace Opc.Ua.Wot
                     }
                     normalizedReferenceType = normalized;
                 }
-                if (!HasArchivedReference(
-                    node, nodes, aliases, normalizedReferenceType,
-                    isForward,
-                    NormalizeArchivedIdentity(document, href, identities, aliases, diagnostics)))
+                string location = pointer + "/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                string target = NormalizeArchivedIdentity(document, href, identities, aliases, diagnostics, link);
+                if (link.TryGetProperty("uav:declaration", out JsonElement declaration))
                 {
-                    ReportArchiveConflict(
-                        pointer + "/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                        "Reference", diagnostics);
+                    CompareArchivedComponentDeclaration(
+                        document, declaration, node, baseline, nodes, identities, aliases,
+                        normalizedReferenceType, isForward, target, location, diagnostics);
+                    continue;
+                }
+                if (!HasArchivedReference(
+                    node, nodes, aliases, normalizedReferenceType, isForward, target))
+                {
+                    ReportArchiveConflict(location, "Reference", diagnostics);
                 }
             }
+        }
+
+        private static void CompareArchivedComponentDeclaration(
+            WotDocument document,
+            JsonElement authored,
+            UANode owner,
+            UANodeSet baseline,
+            Dictionary<string, UANode?> nodes,
+            UANodeSet identities,
+            INodeSetAliasResolver aliases,
+            string? referenceType,
+            bool isForward,
+            string typeId,
+            string pointer,
+            List<WotDiagnostic> diagnostics)
+        {
+            WotReferenceTypeNames referenceTypes = WotReferenceTypeNames.Build(baseline);
+            if (owner is not (UAObjectType or UAVariableType) || !isForward || referenceType is null ||
+                !referenceTypes.IsOwnershipReference(referenceType) ||
+                authored.ValueKind != JsonValueKind.Object ||
+                string.IsNullOrEmpty(GetElementString(authored, "uav:browseName")))
+            {
+                ReportArchiveConflict(pointer, "component declaration", diagnostics);
+                return;
+            }
+            string declarationPointer = pointer + "/uav:declaration";
+            UANode? declaration = FindArchivedNode(
+                document, authored, null, nodes, identities, aliases, declarationPointer, diagnostics);
+            if (declaration is null)
+            {
+                return;
+            }
+            string declarationId = ResolveArchivedAlias(declaration.NodeId, aliases);
+            nodes.TryGetValue("id:" + typeId, out UANode? type);
+            if (declaration is not (UAObject or UAVariable) || declarationId == typeId ||
+                (declaration is UAObject &&
+                    (owner is not UAObjectType || !referenceTypes.IsHasComponentReference(referenceType))) ||
+                (type is not null &&
+                    (declaration is UAObject ? type is not UAObjectType : type is not UAVariableType)) ||
+                !HasArchivedReference(owner, nodes, aliases, referenceType, isForward: true, declarationId) ||
+                !HasArchivedReference(declaration, nodes, aliases, "i=40", isForward: true, typeId))
+            {
+                ReportArchiveConflict(pointer, "component declaration Reference", diagnostics);
+                return;
+            }
+            CompareArchivedNode(
+                document, authored, default, declaration, baseline, nodes, identities, aliases,
+                declarationPointer, isRoot: false, diagnostics);
         }
 
         private static bool HasArchivedReference(
@@ -712,7 +793,8 @@ namespace Opc.Ua.Wot
             INodeSetAliasResolver aliases,
             string? referenceType,
             bool isForward,
-            string target)
+            string target,
+            WotReferenceTypeNames? referenceTypes = null)
         {
             nodes.TryGetValue("id:" + target, out UANode? targetNode);
             return Matches(node, isForward, target) ||
@@ -724,7 +806,9 @@ namespace Opc.Ua.Wot
                 foreach (Reference reference in candidate.References ?? [])
                 {
                     string type = ResolveArchivedAlias(reference.ReferenceType, aliases);
-                    if ((referenceType is null ? IsComponentReference(type) : type == referenceType) &&
+                    if ((referenceType is null
+                            ? referenceTypes?.IsOwnershipReference(type) ?? IsComponentReference(type)
+                            : type == referenceType) &&
                         reference.IsForward == direction &&
                         string.Equals(
                             ResolveArchivedAlias(reference.Value, aliases),
@@ -743,16 +827,17 @@ namespace Opc.Ua.Wot
             string value,
             UANodeSet identities,
             INodeSetAliasResolver aliases,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            JsonElement carryingNode = default)
         {
             if (!LooksLikeNodeId(value) &&
                 TrySplitCompactModelName(value, out string prefix, out string name) &&
-                TryGetContextNamespace(document, prefix, out string uri) &&
+                TryGetContextNamespace(document, prefix, out string uri, carryingNode) &&
                 uri == WotVocabulary.OpcUaNamespace)
             {
                 value = name;
             }
-            return ResolveArchivedAlias(ToNodeSetNodeId(value, identities, diagnostics), aliases);
+            return ToNodeSetNodeId(ResolveArchivedAlias(value, aliases), identities, diagnostics);
         }
 
         private static string ResolveArchivedAlias(string? value, INodeSetAliasResolver aliases)
@@ -827,7 +912,7 @@ namespace Opc.Ua.Wot
                 string? id = GetElementString(definition, "uav:dataTypeId") ?? GetElementString(definition, "@id");
                 if (id is not null &&
                     (!expectedDefinitions.TryGetValue(
-                        NormalizeArchivedIdentity(document, id, identities, aliases, diagnostics),
+                        NormalizeArchivedIdentity(document, id, identities, aliases, diagnostics, definition),
                         out JsonElement expectedDefinition) ||
                     !IsArchivedJsonSubset(
                         definition, expectedDefinition, document, identities, aliases, diagnostics)))
@@ -888,7 +973,8 @@ namespace Opc.Ua.Wot
                             member.Name is "uav:dataTypeId" or "uav:fieldDataTypeId" or "uav:mapToType" or "uav:id")
                         {
                             if (NormalizeArchivedIdentity(
-                                    document, member.Value.GetString()!, identities!, aliases!, diagnostics!) !=
+                                    document, member.Value.GetString()!, identities!,
+                                    aliases!, diagnostics!, authored) !=
                                 NormalizeArchivedIdentity(
                                     document, value.GetString()!, identities!, aliases!, diagnostics!))
                             {
@@ -900,7 +986,7 @@ namespace Opc.Ua.Wot
                             member.Value.ValueKind == JsonValueKind.String && value.ValueKind == JsonValueKind.String)
                         {
                             if (NormalizeArchivedBrowseName(ToNodeSetQualifiedName(
-                                    document, member.Value.GetString()!, identities!, diagnostics!)) !=
+                                    document, member.Value.GetString()!, identities!, diagnostics!, authored)) !=
                                 NormalizeArchivedBrowseName(ToNodeSetQualifiedName(
                                     document, value.GetString()!, identities!, diagnostics!)))
                             {

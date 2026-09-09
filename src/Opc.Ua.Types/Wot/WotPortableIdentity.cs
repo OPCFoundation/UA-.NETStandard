@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 
 namespace Opc.Ua.Wot
 {
@@ -97,7 +98,7 @@ namespace Opc.Ua.Wot
                 throw new ArgumentNullException(nameof(namespaceUri));
             }
             return new StringBuilder("nsu=")
-                .Append(namespaceUri)
+                .Append(CoreUtils.EscapeUri(namespaceUri))
                 .Append(";s=")
                 .Append(GenerateBrowsePath(path))
                 .ToString();
@@ -193,7 +194,8 @@ namespace Opc.Ua.Wot
                 }
                 identifier = value.Substring(delimiter + 1);
             }
-            return HasIdentifierType(identifier);
+            return HasIdentifierType(identifier) &&
+                NodeId.TryParse(identifier, out NodeId parsed) && parsed.NamespaceIndex == 0;
         }
 
         /// <summary>
@@ -232,6 +234,40 @@ namespace Opc.Ua.Wot
                 }
             }
             return false;
+        }
+
+        internal static bool TryResolveQualifiedName(
+            string? value,
+            WotDocument document,
+            JsonElement carryingNode,
+            out WotBrowsePathElement qualifiedName)
+        {
+            qualifiedName = default;
+            if (!IsPortableQualifiedName(value))
+            {
+                return false;
+            }
+            if (value!.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                int delimiter = value.IndexOf(';', 4);
+                qualifiedName = new WotBrowsePathElement(
+                    CoreUtils.UnescapeUri(value.AsSpan(4, delimiter - 4)),
+                    value.Substring(delimiter + 1));
+                return true;
+            }
+            int colon = value.IndexOf(':', StringComparison.Ordinal);
+            if (colon < 0)
+            {
+                qualifiedName = new WotBrowsePathElement(WotVocabulary.OpcUaNamespace, value);
+                return true;
+            }
+            if (!document.TryGetContextPrefix(
+                value.Substring(0, colon), out string namespaceUri, carryingNode))
+            {
+                return false;
+            }
+            qualifiedName = new WotBrowsePathElement(namespaceUri, value.Substring(colon + 1));
+            return true;
         }
 
         /// <summary>
@@ -367,11 +403,62 @@ namespace Opc.Ua.Wot
         /// Splits a browse path into its elements, honouring the <c>&amp;</c>
         /// escape so an escaped separator inside a name does not split it.
         /// </summary>
+        /// <summary>
+        /// Allocates a projection name or qualified identity segment within its caller's scope.
+        /// </summary>
+        internal static string AllocateName(string? candidate, HashSet<string> used)
+        {
+            string name = string.IsNullOrEmpty(candidate) ? "member" : candidate!;
+            if (used.Add(name))
+            {
+                return name;
+            }
+            int suffix = 2;
+            string unique = name + "_" + suffix.ToString(CultureInfo.InvariantCulture);
+            while (!used.Add(unique))
+            {
+                suffix++;
+                unique = name + "_" + suffix.ToString(CultureInfo.InvariantCulture);
+            }
+            return unique;
+        }
+
+        /// <summary>
+        /// Gets the local authored BrowseName, falling back to the affordance key.
+        /// </summary>
+        internal static string AffordanceName(JsonElement affordance, string key)
+        {
+            return affordance.ValueKind == JsonValueKind.Object &&
+                affordance.TryGetProperty("uav:browseName", out JsonElement browseName) &&
+                browseName.ValueKind == JsonValueKind.String
+                ? LocalName(browseName.GetString()) ?? key
+                : key;
+        }
+
+        internal static string? LocalName(string? browseName)
+        {
+            if (string.IsNullOrEmpty(browseName))
+            {
+                return null;
+            }
+            if (browseName!.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                int delimiter = browseName.IndexOf(';', 4);
+                return delimiter >= 0 && delimiter + 1 < browseName.Length
+                    ? browseName.Substring(delimiter + 1)
+                    : null;
+            }
+            int colon = browseName.IndexOf(':', StringComparison.Ordinal);
+            return colon >= 0 && colon + 1 < browseName.Length
+                ? browseName.Substring(colon + 1)
+                : browseName;
+        }
+
         private static List<string> SplitPath(string path)
         {
             var elements = new List<string>();
             var current = new StringBuilder();
-            bool started = false;
+            bool started = path.Length != 0 && path[0] != '/';
             for (int ii = 0; ii < path.Length; ii++)
             {
                 char character = path[ii];

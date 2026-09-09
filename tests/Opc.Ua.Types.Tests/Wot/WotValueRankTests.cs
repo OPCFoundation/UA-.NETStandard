@@ -32,6 +32,7 @@
 using System;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -48,6 +49,139 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotValueRankTests
     {
+        [TestCase(1, "4")]
+        [TestCase(2, "2,3")]
+        [TestCase(3, "0,2,0")]
+        public void ArraysAndMatricesExportOrdinaryNestedArraySchemas(int rank, string dimensions)
+        {
+            UANodeSet source = CreateNodeSet(rank, dimensions);
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+            JsonElement schema = document.Properties["Samples"];
+            for (int dimension = 0; dimension < rank; dimension++)
+            {
+                Assert.That(schema.GetProperty("type").GetString(), Is.EqualTo("array"));
+                schema = schema.GetProperty("items");
+            }
+            Assert.That(schema.GetProperty("type").GetString(), Is.EqualTo("number"));
+
+            JsonObject readable = JsonNode.Parse(document.Utf8Json.Span)!.AsObject();
+            readable.Remove("uav:nodes");
+            readable.Remove("uav:nodeSet");
+            using WotDocument readableDocument = WotDocument.Parse(WotTestData.Utf8(readable.ToJsonString()));
+            WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ToNodeSetResult(readableDocument);
+
+            Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics.Select(d => d.Message)));
+            UAVariable variable = restored.Value!.Items!.OfType<UAVariable>().Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(variable.ValueRank, Is.EqualTo(rank));
+                Assert.That(variable.ArrayDimensions, Is.EqualTo(dimensions));
+                Assert.That(variable.DataType, Is.EqualTo("i=11"));
+            });
+        }
+
+        [TestCase(1, false, false)]
+        [TestCase(2, false, false)]
+        [TestCase(2, true, false)]
+        [TestCase(2, false, true)]
+        public void RankedItemConstraintsSurviveCanonicalProjection(int rank, bool nestedItems, bool archive)
+        {
+            const string itemJson =
+                """
+                {
+                  "type": "number",
+                  "uav:dataTypeName": "ua:Double",
+                  "uav:dataTypeId": "i=11",
+                  "minimum": -10.5,
+                  "exclusiveMaximum": 30,
+                  "multipleOf": 0.5,
+                  "enum": [1.5, 2],
+                  "title": "Calibrated sample",
+                  "vendor:annotation": { "scale": 100 }
+                }
+                """;
+            JsonObject root = RankedItemsDocument(rank, JsonNode.Parse(itemJson)!);
+            if (nestedItems)
+            {
+                root["properties"]!["Matrix"]!["items"] = new JsonObject
+                {
+                    ["type"] = "array",
+                    ["minItems"] = 3,
+                    ["maxItems"] = 3,
+                    ["items"] = JsonNode.Parse(itemJson)
+                };
+            }
+            using WotDocument authored = WotDocument.Parse(WotTestData.Utf8(root.ToJsonString()));
+            using JsonDocument expectedItems = JsonDocument.Parse(itemJson);
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(authored);
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+
+            for (int roundTrip = 0; roundTrip < 2; roundTrip++)
+            {
+                UAVariable variable = result.Value!.Items!.OfType<UAVariable>().Single();
+                Assert.That(variable.DataType, Is.EqualTo("i=11"));
+                Assert.That(variable.ValueRank, Is.EqualTo(rank));
+                Assert.That(variable.ArrayDimensions, Is.EqualTo(rank == 1 ? "3" : "2,3"));
+                byte[] beforeExport = WotTestData.Serialize(result.Value);
+                WotConversionResult<WotDocument> converted = WotNodeSetConverter.FromNodeSetResult(
+                    result.Value,
+                    options: new WotNodeSetConverterOptions
+                    {
+                        PreservationMode = archive
+                            ? WotNodeSetPreservationMode.Always
+                            : WotNodeSetPreservationMode.Never
+                    });
+                using WotDocument exported = converted.Value!;
+                Assert.That(converted.Success, Is.True, string.Join("; ", converted.Diagnostics));
+                Assert.That(WotTestData.Serialize(result.Value), Is.EqualTo(beforeExport));
+                JsonElement item = exported.Properties["Matrix"];
+                for (int dimension = 0; dimension < rank; dimension++)
+                {
+                    Assert.That(item.GetProperty("type").GetString(), Is.EqualTo("array"));
+                    item = item.GetProperty("items");
+                }
+                Assert.That(JsonElement.DeepEquals(item, expectedItems.RootElement), Is.True, item.GetRawText());
+                if (nestedItems)
+                {
+                    JsonElement innerArray = exported.Properties["Matrix"].GetProperty("items");
+                    Assert.That(innerArray.GetProperty("minItems").GetInt32(), Is.EqualTo(3));
+                    Assert.That(innerArray.GetProperty("maxItems").GetInt32(), Is.EqualTo(3));
+                }
+                JsonObject projected = JsonNode.Parse(exported.Utf8Json.Span)!.AsObject();
+                if (!archive)
+                {
+                    projected.Remove("uav:nodes");
+                    projected.Remove("uav:nodeSet");
+                }
+                else
+                {
+                    Assert.That(exported.TryGetEnvelope(out _), Is.True);
+                }
+                using WotDocument imported = WotDocument.Parse(WotTestData.Utf8(projected.ToJsonString()));
+                result = WotNodeSetConverter.ToNodeSetResult(imported);
+                Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            }
+        }
+
+        [TestCase("{\"type\":\"string\",\"minLength\":2}")]
+        [TestCase("false")]
+        public void ContradictoryOrOpaqueItemsAreNotDiscarded(string itemJson)
+        {
+            JsonObject root = RankedItemsDocument(2, JsonNode.Parse(itemJson)!);
+            using WotDocument authored = WotDocument.Parse(WotTestData.Utf8(root.ToJsonString()));
+            WotConversionResult<UANodeSet> imported = WotNodeSetConverter.ToNodeSetResult(authored);
+            Assert.That(imported.Success, Is.True, string.Join("; ", imported.Diagnostics));
+            byte[] beforeExport = WotTestData.Serialize(imported.Value!);
+
+            WotConversionResult<WotDocument> result = WotNodeSetConverter.FromNodeSetResult(imported.Value!);
+            using WotDocument exported = result.Value!;
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Code == WotDiagnosticCode.ResidueConflict),
+                Is.True, string.Join("; ", result.Diagnostics));
+            Assert.That(WotTestData.Serialize(imported.Value!), Is.EqualTo(beforeExport));
+        }
+
         [TestCase(-3, TestName = "ScalarOrOneDimension")]
         [TestCase(-2, TestName = "Any")]
         [TestCase(0, TestName = "OneOrMoreDimensions")]
@@ -402,6 +536,29 @@ namespace Opc.Ua.Types.Tests.Wot
                     Is.True,
                     "The scalar rank stays distinct from the array ranks.");
             });
+        }
+
+        private static JsonObject RankedItemsDocument(int rank, JsonNode items)
+        {
+            return new JsonObject
+            {
+                ["@type"] = new JsonArray("tm:ThingModel", "uav:objectType"),
+                ["uav:id"] = "nsu=urn:test:ranked-items;i=1",
+                ["uav:browseName"] = "nsu=urn:test:ranked-items;Root",
+                ["properties"] = new JsonObject
+                {
+                    ["Matrix"] = new JsonObject
+                    {
+                        ["uav:id"] = "nsu=urn:test:ranked-items;i=2",
+                        ["uav:browseName"] = "nsu=urn:test:ranked-items;Matrix",
+                        ["uav:mapToType"] = "i=11",
+                        ["type"] = "array",
+                        ["uav:valueRank"] = rank,
+                        ["uav:arrayDimensions"] = rank == 1 ? new JsonArray(3) : new JsonArray(2, 3),
+                        ["items"] = items
+                    }
+                }
+            };
         }
 
         private static UANodeSet CreateNodeSet(int valueRank, string? arrayDimensions)

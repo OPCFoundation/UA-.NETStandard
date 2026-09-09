@@ -1280,7 +1280,7 @@ namespace Opc.Ua.Wot
             string defaultLocale)
         {
             writer.WriteStartObject();
-            WriteArgumentJsonType(writer, field.DataType);
+            WriteRankedJsonType(writer, field.DataType, field.ValueRank);
             WriteLocalizedTitle(writer, field.DisplayName, defaultLocale);
             WriteLocalizedDescription(writer, field.Description, defaultLocale);
             WriteOptional(
@@ -1294,7 +1294,7 @@ namespace Opc.Ua.Wot
                 ToPortableDataTypeId(field.DataType, nodeSet));
             writer.WriteNumber("uav:valueRank", field.ValueRank);
             WriteFieldArrayDimensions(writer, field.ArrayDimensions);
-            WriteModellingRule(writer, field);
+            WriteModellingRule(writer, field, nodeSet);
             writer.WriteEndObject();
         }
 
@@ -1719,7 +1719,7 @@ namespace Opc.Ua.Wot
                 }
 
                 SynthesizeEventField(
-                    document, nodeSet, member.Value, local,
+                    document, nodeSet, eventAffordance, member.Value, local,
                     required.Contains(member.Name) || required.Contains(local),
                     eventNodeId, eventLocal, rootLocal, items, eventReferences, diagnostics);
             }
@@ -1737,6 +1737,7 @@ namespace Opc.Ua.Wot
         private static void SynthesizeEventField(
             WotDocument document,
             UANodeSet nodeSet,
+            JsonElement eventAffordance,
             JsonElement schema,
             string local,
             bool required,
@@ -1749,15 +1750,16 @@ namespace Opc.Ua.Wot
         {
             string? authoredNodeId = GetElementString(schema, "uav:id");
             string nodeId = authoredNodeId is null
-                ? GenerateNestedNodeId(nodeSet, rootLocal, eventLocal, local)
+                ? GenerateNestedNodeId(document, nodeSet, rootLocal, eventLocal, eventAffordance, local, schema)
                 : ToNodeSetNodeId(authoredNodeId, nodeSet, diagnostics);
             string? authoredBrowseName = GetElementString(schema, "uav:browseName");
             var field = new UAVariable
             {
                 NodeId = nodeId,
                 BrowseName = authoredBrowseName is null
-                    ? "1:" + local
-                    : ToNodeSetQualifiedName(document, authoredBrowseName, nodeSet, diagnostics),
+                    ? GetOrAppendNamespaceUri(nodeSet, GeneratedNamespaceUri(nodeSet))
+                        .ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + local
+                    : ToNodeSetQualifiedName(document, authoredBrowseName, nodeSet, diagnostics, schema),
                 DisplayName = ReadTitle(schema, GetDeclaredLocale(document), local),
                 ParentNodeId = eventNodeId,
                 DataType = MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics),
@@ -1836,6 +1838,7 @@ namespace Opc.Ua.Wot
         /// and is reported when it is created.
         /// </remarks>
         private static string EventNodeId(
+            WotDocument document,
             JsonElement eventAffordance,
             string key,
             string rootLocal,
@@ -1845,7 +1848,7 @@ namespace Opc.Ua.Wot
             string? authoredNodeId = GetElementString(eventAffordance, "uav:id");
             var ignored = new List<WotDiagnostic>();
             return authoredNodeId is null
-                ? GenerateMemberNodeId(nodeSet, rootLocal, local)
+                ? GenerateMemberNodeId(document, nodeSet, rootLocal, local, eventAffordance)
                 : ToNodeSetNodeId(authoredNodeId, nodeSet, ignored);
         }
 

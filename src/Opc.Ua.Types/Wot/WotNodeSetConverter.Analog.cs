@@ -809,7 +809,7 @@ namespace Opc.Ua.Wot
                 if (TryReadRangeMembers(affordance.Value, out WotRange euRange))
                 {
                     MaterializeRange(
-                        nodeSet, owner, EuRangeBrowseName, euRange, rootLocal, local,
+                        document, affordance.Value, nodeSet, owner, EuRangeBrowseName, euRange, rootLocal, local,
                         index, items, diagnostics);
                 }
                 if (affordance.Value.ValueKind == JsonValueKind.Object &&
@@ -818,7 +818,7 @@ namespace Opc.Ua.Wot
                     TryReadRangeMembers(declared, out WotRange instrumentRange))
                 {
                     MaterializeRange(
-                        nodeSet, owner, InstrumentRangeBrowseName, instrumentRange,
+                        document, affordance.Value, nodeSet, owner, InstrumentRangeBrowseName, instrumentRange,
                         rootLocal, local, index, items, diagnostics);
                 }
             }
@@ -957,6 +957,8 @@ namespace Opc.Ua.Wot
         /// of the Node an authored affordance already produced for it.
         /// </summary>
         private static void MaterializeRange(
+            WotDocument document,
+            JsonElement affordance,
             UANodeSet nodeSet,
             UAVariable owner,
             string browseName,
@@ -995,7 +997,7 @@ namespace Opc.Ua.Wot
             _ = diagnostics;
 
             string nodeId = GenerateBaseChildNodeId(
-                nodeSet, rootLocal, ownerLocal, browseName);
+                document, nodeSet, rootLocal, ownerLocal, affordance, browseName);
             items.Add(new UAVariable
             {
                 NodeId = nodeId,

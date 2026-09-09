@@ -204,7 +204,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void ToNodeSetAddsNonHierarchicalReferenceForUaLink()
+        public void ToNodeSetRetainsAbstractUaLinksAsMetadata()
         {
             byte[] json = ThingModelJson(
                 "\"links\":[{\"rel\":\"ua:NonHierarchicalReferences\",\"href\":\"i=47\"}]");
@@ -221,8 +221,11 @@ namespace Opc.Ua.Types.Tests.Wot
                     string.Equals(r.Value, "i=47", StringComparison.Ordinal));
             Assert.That(
                 hasNonHierarchical,
-                Is.True,
-                "A ua:NonHierarchicalReferences link should synthesize that reference (i=32).");
+                Is.False,
+                "An abstract ReferenceType cannot connect Nodes directly.");
+            using WotDocument restored = WotNodeSetConverter.FromNodeSet(result.Value);
+            Assert.That(restored.Links.Any(link =>
+                link.GetProperty("rel").GetString() == "ua:NonHierarchicalReferences"), Is.True);
         }
 
         [Test]
@@ -290,7 +293,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void ToNodeSetWarnsAboutNonNodeIdHrefWithoutResolver()
         {
             byte[] json = ThingModelJson(
-                "\"links\":[{\"rel\":\"ua:NonHierarchicalReferences\",\"href\":\"https://example.com/other-thing\"}]");
+                "\"links\":[{\"rel\":\"ua:Organizes\",\"href\":\"https://example.com/other-thing\"}]");
 
             using WotDocument document = WotDocument.Parse(json);
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
@@ -1912,10 +1915,12 @@ namespace Opc.Ua.Types.Tests.Wot
                 "A BrowseName with namespace index 0 should produce a bare 'Name' portable browse name.");
         }
 
-        [Test]
-        public async Task ComponentOfLinkToRegistryDocumentEmitsInverseHasComponent()
+        [TestCase("urn:parent")]
+        [TestCase("https://models.example/parent.json")]
+        [TestCase("../models/parent.json")]
+        public async Task ComponentOfLinkToRegistryDocumentEmitsInverseHasComponent(string parentReference)
         {
-            byte[] childJson = ThingDescriptionWithComponentOf("urn:parent");
+            byte[] childJson = ThingDescriptionWithComponentOf(parentReference);
             byte[] parentJson = WotTestData.Utf8(
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
@@ -1928,7 +1933,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     document,
                     thingResolver: new MapThingResolver(new Dictionary<string, byte[]>
                     {
-                        ["urn:parent"] = parentJson
+                        [parentReference] = parentJson
                     }));
 
             Assert.That(result.Success, Is.True);

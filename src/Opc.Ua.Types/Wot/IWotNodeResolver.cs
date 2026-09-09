@@ -75,7 +75,33 @@ namespace Opc.Ua.Wot
     /// The node's identity, as a portable ExpandedNodeId string.
     /// </param>
     /// <param name="NodeClass">The node's NodeClass.</param>
-    public readonly record struct WotResolvedNode(string NodeId, WotExpectedNodeClass NodeClass);
+    public readonly record struct WotResolvedNode(string NodeId, WotExpectedNodeClass NodeClass)
+    {
+        /// <summary>
+        /// Gets whether the resolved type is abstract.
+        /// </summary>
+        public bool IsAbstract { get; init; }
+
+        /// <summary>
+        /// Gets the portable identities of known supertypes, nearest first.
+        /// </summary>
+        public ArrayOf<string> SupertypeNodeIds { get; init; }
+
+        /// <summary>
+        /// Gets the portable DataType identity of a resolved VariableType, when available.
+        /// </summary>
+        public string? DataTypeNodeId { get; init; }
+
+        /// <summary>
+        /// Gets the ValueRank of a resolved VariableType, when available.
+        /// </summary>
+        public int? ValueRank { get; init; }
+
+        /// <summary>
+        /// Gets the ArrayDimensions of a resolved VariableType.
+        /// </summary>
+        public ArrayOf<uint> ArrayDimensions { get; init; }
+    }
 
     /// <summary>
     /// Resolves a name or an identifier a WoT document uses to the OPC UA Node

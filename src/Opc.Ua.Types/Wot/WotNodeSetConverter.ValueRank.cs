@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.IO;
 using System.Text.Json;
 
 namespace Opc.Ua.Wot
@@ -93,10 +94,107 @@ namespace Opc.Ua.Wot
             WriteFieldArrayDimensions(writer, arrayDimensions);
         }
 
+        private static void WriteRankedJsonType(Utf8JsonWriter writer, string? dataType, int valueRank)
+        {
+            if (valueRank is -3 or -2)
+            {
+                if (MapDataTypeToJson(dataType) is null)
+                {
+                    return;
+                }
+                writer.WritePropertyName("oneOf");
+                writer.WriteStartArray();
+                writer.WriteStartObject();
+                WriteArgumentJsonType(writer, dataType);
+                writer.WriteEndObject();
+                writer.WriteStartObject();
+                WriteArrayJsonType(writer, dataType, valueRank == -3 ? 1 : 0);
+                writer.WriteEndObject();
+                writer.WriteEndArray();
+            }
+            else if (valueRank >= 0)
+            {
+                WriteArrayJsonType(writer, dataType, valueRank);
+            }
+            else
+            {
+                WriteArgumentJsonType(writer, dataType);
+            }
+        }
+
+        private static void WriteArrayJsonType(Utf8JsonWriter writer, string? dataType, int dimensions)
+        {
+            if (dimensions == 0)
+            {
+                writer.WriteString("type", "array");
+                return;
+            }
+            for (int dimension = 0; dimension < dimensions; dimension++)
+            {
+                writer.WriteString("type", "array");
+                writer.WritePropertyName("items");
+                writer.WriteStartObject();
+            }
+            WriteArgumentJsonType(writer, dataType);
+            for (int dimension = 0; dimension < dimensions; dimension++)
+            {
+                writer.WriteEndObject();
+            }
+        }
+
+        internal static bool MapsRankedJsonType(JsonElement schema, string member)
+        {
+            if (!schema.TryGetProperty(member, out JsonElement actual))
+            {
+                return false;
+            }
+            int rank = ReadValueRank(schema);
+            if (rank > 0)
+            {
+                int dimensions = 0;
+                JsonElement nested = schema;
+                while (GetElementString(nested, "type") == "array" &&
+                    nested.TryGetProperty("items", out JsonElement items) &&
+                    items.ValueKind == JsonValueKind.Object)
+                {
+                    dimensions++;
+                    nested = items;
+                }
+                if (dimensions != rank)
+                {
+                    return false;
+                }
+            }
+            using JsonDocument? generated = CreateRankedJsonType(schema);
+            return generated is not null &&
+                generated.RootElement.TryGetProperty(member, out JsonElement expected) &&
+                JsonElement.DeepEquals(actual, expected);
+        }
+
+        /// <summary>
+        /// Regenerates the ranked JSON type only when the schema states its definitive DataType.
+        /// </summary>
+        internal static JsonDocument? CreateRankedJsonType(JsonElement schema)
+        {
+            string? dataType = GetElementString(schema, "uav:mapToType");
+            if (dataType is null)
+            {
+                return null;
+            }
+            using var output = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(output))
+            {
+                writer.WriteStartObject();
+                WriteRankedJsonType(writer, NormalizeExpandedNodeId(dataType), ReadValueRank(schema));
+                writer.WriteEndObject();
+            }
+            return JsonDocument.Parse(output.ToArray());
+        }
+
         /// <summary>
         /// Reads an affordance's authored ValueRank.
         /// </summary>
-        private static int ReadValueRank(JsonElement element)
+        internal static int ReadValueRank(JsonElement element)
         {
             return GetElementInt32(element, ValueRankTerm) ?? ScalarValueRank;
         }

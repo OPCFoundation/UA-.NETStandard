@@ -98,6 +98,10 @@ NodeSet2 projection. Rows marked **Fails** emit an error diagnostic and
 warnings or informational diagnostics are noted where the code emits
 them.
 
+The `ns=1` examples below assume a single synthesized model namespace. Actual
+indices come from the namespace table: an auxiliary context namespace does not
+become the owning model merely because it occurs first.
+
 | Missing WoT input | Behaviour | Materialized value |
 |---|---|---|
 | Convertible content: no `uav:nodeSet`, no `uav:nodes`, and neither a Thing Model nor a Thing Description kind | **Fails** | `NoConvertibleContent` error; no NodeSet is returned. |
@@ -117,7 +121,7 @@ them.
 | Property `description` | **Default** | No `Description` field is materialized for the variable. A `descriptions` map materializes one `LocalizedText` per locale. |
 | Property `uav:valueRank` (Sections 7, 9.1) | **Default** / **Fails** | Absent: `ValueRank` `-1` (Scalar), which is what a NodeSet omits. Present: the stated rank, so `-3`, `-2`, `-1`, `0` and a fixed positive rank stay distinct. Not an integer literal, or below `-3`: `InvalidValueRank` error. |
 | Property `uav:arrayDimensions` (Sections 7, 9.1) | **Default** / **Fails** | Absent: no `ArrayDimensions` attribute. Present: the ordered bounds, with `0` meaning a dimension whose length is not fixed. Not an array of non-negative integers, a length other than a fixed `uav:valueRank`, or any dimension against a rank that fixes none: `InvalidValueRank` error. |
-| Property type definition | **Default** | `HasTypeDefinition` to `BaseDataVariableType` (`i=63`). An affordance that binds itself to `PropertyType` (`i=68`) is held by `HasProperty` rather than `HasComponent`, which is the only ReferenceType OPC 10000-3 reaches a Property through. |
+| Property type definition | **Default** / **Bound** / **Fails** | Absent: `HasTypeDefinition` to `BaseDataVariableType` (`i=63`). An explicit binding retains the resolved VariableType. Known standard class facts or a positive resolver answer must establish VariableType; namespace zero alone and a resolver's `NodeClass.Any` are not class evidence. An affordance bound to `PropertyType` (`i=68`) is held by `HasProperty` rather than `HasComponent`. |
 | Action affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
 | Action affordance `uav:id` | **Default** | Deterministic NodeId by Annex G.1: `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<actionLocal>`. |
 | Action `title` | **Default** | No `DisplayName` field is materialized for the method. |
@@ -237,9 +241,9 @@ Node's absolute browse path in OPC 10000-4 Annex A.2 relative-path syntax: each
 element is preceded by `/`, an element of the base OPC UA namespace is written
 bare, any other element is `nsu=<percent-encoded NamespaceUri>;<name>`, and the
 Annex A.2 reserved characters `&/.<>:#!` are escaped with `&` inside a name. A
-NodeSet file carries the same identity in its NodeSet-local spelling,
-`ns=1;s=<P>`, because namespace index 1 is `U`; the reverse mapping renders it
-back as `nsu=U;s=P`.
+NodeSet file carries the same identity as `ns=<index-of-U>;s=<P>`; the reverse
+mapping renders it back as `nsu=U;s=P`. The owning model namespace and every
+path element's namespace are resolved independently.
 
 `WotPortableIdentity.GenerateNodeId` / `GenerateBrowsePath` is the single
 implementation, so a conversion and a published Annex G.1 vector measure the
@@ -253,6 +257,32 @@ identifier from a member named `B` of `Root/A`, and a base-namespace
 `InputArguments` has a different identity from a model member with the same
 name. A document-authored `uav:id` always wins over generation; author one when
 the identity must be fixed independently of its browse path.
+
+Compact names use their effective ordered context, including local and
+term-scoped bindings. A child prefix redefinition does not reinterpret its
+siblings. Generated identities, readable map keys, declaration views and residue
+selectors share the same qualified-name allocation, so collision suffixes do not
+detach annotations from their Nodes. Authored NodeIds and BrowseNames remain
+authoritative; duplicate authored identities are errors rather than requests to
+rename a Node.
+
+### Component-template declarations
+
+A component-template link's `href` identifies an ObjectType or VariableType.
+Its `uav:declaration` identifies the distinct Object or Variable declaration
+instantiated from that type. The declaration has its own BrowseName, optional
+NodeId and modelling rule; using one type twice creates two declarations, not
+two renamed copies of the type. A VariableType provider also supplies its
+DataType, ValueRank and ArrayDimensions through `WotResolvedNode`.
+
+Archival validation follows owner-to-declaration and declaration-to-TypeDefinition
+references, checking the declaration's qualified name and modelling rule. It does
+not demand an owner-to-type HasComponent reference or overlay readable assertions
+onto authoritative archived Nodes.
+
+Explicit `uav:declaration` handling is currently a converter extension to the
+advertised 1.1 vocabulary. The coordinated successor-vocabulary update is still
+required before claiming that annotation as part of strict advertised conformance.
 
 ### Preservation digests and the two things that can be measured
 
@@ -771,6 +801,11 @@ construction: a count that disagrees with a fixed rank, or any dimension against
 a rank that fixes none, is an `InvalidValueRank` error rather than a silently
 malformed Variable.
 
+Readable exports use ordinary array schemas for fixed array and matrix ranks,
+with nested `items` for additional dimensions and the scalar DataType mapping at
+the leaf. Archive consistency uses the same rank-aware shape while independently
+checking the authoritative DataType, ValueRank and dimension bounds.
+
 ## Method arguments (Section 9.1)
 
 A UA Method's `InputArguments` and `OutputArguments` are the WoT action's
@@ -795,11 +830,19 @@ projection.
 
 The readable mapping carries some References structurally — containment as
 affordances and `uav:hasComponent` / `uav:componentOf`, the type hierarchy as
-`tm:extends`, the type definition as a `ua:HasTypeDefinition` link, the
+a canonical `ua:HasSupertype` link with `uav:refId: "i=45"`, the type definition
+as a `ua:HasTypeDefinition` link, the
 modelling rule as `uav:modellingRule`, the event source as an event affordance
 and a DataType's encodings as `uav:defaultEncodingId`. Section 6.2 says a
 Reference is a single relation and a document shall not be read as declaring
 two, so none of those is written a second time.
+
+Forward and inverse storage of an edge describe the same graph. A Variable or
+Method reached through more than one ownership relationship is emitted once by
+NodeId; additional distinct relationships remain typed links. Equivalent hierarchy
+spellings share one link and its residue rather than duplicating it. External
+companion aliases remain resolvable after reference identities are normalized;
+an alias does not supply an InverseName that the source never declared.
 
 **NodeSet to WoT.** Every *other* Reference — a companion model's own
 ReferenceType, `ua:HasInterface`, `ua:Organizes` — is written as a typed link:

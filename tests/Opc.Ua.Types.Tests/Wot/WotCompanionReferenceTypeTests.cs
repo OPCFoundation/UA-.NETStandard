@@ -61,6 +61,84 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string PumpConnectedTo = "nsu=http://example.com/demo/pump;i=5002";
         private const string LinkTarget = "nsu=http://example.com/demo/pump;s=Blade_1";
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void AnAlternateUaPrefixRetainsItsTypedReference(bool localContext)
+        {
+            string linkContext = localContext
+                ? "\"@context\":{\"a\":{\"@id\":\"http://opcfoundation.org/UA/\",\"@prefix\":true}},"
+                : string.Empty;
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                $$"""
+                {
+                  "@context": { "a": "{{(localContext ? "urn:outer:" : WotVocabulary.OpcUaNamespace)}}" },
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "title": "Root",
+                  "uav:id": "nsu=urn:test:links;i=1",
+                  "links": [
+                    { {{linkContext}} "rel": "a:Organizes", "href": "i=85" }
+                  ]
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            Assert.That(result.Value!.Items![0].References!.Any(r =>
+                r.IsForward && r.ReferenceType == WotVocabulary.Organizes && r.Value == "i=85"), Is.True);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ComponentSubtypesUseTheirDeclaredAncestryAndAbstractnessAsync(bool isAbstract)
+        {
+            using WotDocument referenceType = WotDocument.Parse(WotTestData.Utf8(
+                $$"""
+                {
+                  "@type": ["tm:ThingModel", "uav:referenceType"],
+                  "uav:id": "nsu=urn:test:relations;i=5001",
+                  "uav:browseName": "nsu=urn:test:relations;Owns",
+                  "uav:inverseName": "OwnedBy",
+                  "uav:isAbstract": {{(isAbstract ? "true" : "false")}},
+                  "links": [{ "rel": "ua:HasSupertype", "href": "i=47" }]
+                }
+                """));
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                """
+                {
+                  "@context": { "r": "urn:test:relations" },
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "uav:id": "nsu=urn:test:graph;i=1",
+                  "uav:hasComponent": ["nsu=urn:test:graph;i=2"],
+                  "links": [{
+                    "rel": "r:Owns",
+                    "href": "nsu=urn:test:graph;i=2",
+                    "uav:refId": "nsu=urn:test:relations;i=5001"
+                  }]
+                }
+                """));
+            var resolver = new WotDocumentNodeResolver([referenceType]);
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+                document, null, null, null, resolver).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.EqualTo(!isAbstract),
+                string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            if (isAbstract)
+            {
+                Assert.That(result.Diagnostics.Any(d =>
+                    d.Severity == WotDiagnosticSeverity.Error &&
+                    d.Message.Contains("abstract", StringComparison.OrdinalIgnoreCase)), Is.True);
+            }
+            else
+            {
+                Reference edge = result.Value!.Items![0].References!.Single(r => r.Value == "ns=1;i=2");
+                Assert.That(edge.ReferenceType,
+                    Is.EqualTo(WotTestData.LocalNodeId(result.Value, "nsu=urn:test:relations;i=5001")));
+                Assert.That(edge.IsForward, Is.True);
+            }
+        }
+
         [Test]
         public async Task ACompanionBrowseNameRunsForwardAsync()
         {

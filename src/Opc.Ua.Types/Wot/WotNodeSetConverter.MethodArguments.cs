@@ -180,7 +180,8 @@ namespace Opc.Ua.Wot
         private static Dictionary<string, WotMethodArguments> CollectMethodArguments(
             List<UAMethod> actions,
             Dictionary<string, UANode> index,
-            HashSet<string> represented)
+            HashSet<string> represented,
+            WotReferenceTypeNames? referenceTypeNames = null)
         {
             var collected = new Dictionary<string, WotMethodArguments>(StringComparer.Ordinal);
             foreach (UAMethod method in actions)
@@ -190,9 +191,9 @@ namespace Opc.Ua.Wot
                     continue;
                 }
                 List<WotMethodArgument>? input = ReadArgumentVariable(
-                    method, index, InputArgumentsBrowseName, represented);
+                    method, index, InputArgumentsBrowseName, represented, referenceTypeNames);
                 List<WotMethodArgument>? output = ReadArgumentVariable(
-                    method, index, OutputArgumentsBrowseName, represented);
+                    method, index, OutputArgumentsBrowseName, represented, referenceTypeNames);
                 if (input is null && output is null)
                 {
                     continue;
@@ -210,9 +211,12 @@ namespace Opc.Ua.Wot
             UAMethod method,
             Dictionary<string, UANode> index,
             string browseName,
-            HashSet<string> represented)
+            HashSet<string> represented,
+            WotReferenceTypeNames? referenceTypeNames)
         {
-            foreach (Reference reference in method.References ?? [])
+            ArrayOf<Reference> references = referenceTypeNames?.GetReferences(method) ??
+                new ArrayOf<Reference>(method.References ?? []);
+            foreach (Reference reference in references)
             {
                 if (!reference.IsForward ||
                     reference.Value is null ||
@@ -467,7 +471,7 @@ namespace Opc.Ua.Wot
             string defaultLocale)
         {
             writer.WriteStartObject();
-            WriteArgumentJsonType(writer, argument.DataType);
+            WriteRankedJsonType(writer, argument.DataType, argument.ValueRank);
             WriteLocalizedDescription(writer, argument.Description, defaultLocale);
             WriteOptional(
                 writer,
@@ -606,7 +610,7 @@ namespace Opc.Ua.Wot
             }
 
             string nodeId = GenerateBaseChildNodeId(
-                nodeSet, rootLocal, methodLocal, browseName);
+                document, nodeSet, rootLocal, methodLocal, action, browseName);
             items.Add(new UAVariable
             {
                 NodeId = nodeId,

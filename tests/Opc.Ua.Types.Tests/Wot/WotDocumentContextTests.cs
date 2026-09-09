@@ -66,6 +66,101 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string DescriptionIri = "https://www.w3.org/2019/wot/td#description";
 
         [Test]
+        public void LaterContextBindingDeterminesTheRootBrowseNameNamespace()
+        {
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                """
+                {
+                  "@context": [
+                    "https://www.w3.org/2022/wot/td/v1.1",
+                    { "t": "urn:old:" },
+                    { "t": "urn:new:" }
+                  ],
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "title": "Root",
+                  "uav:id": "nsu=urn:context-model;i=1",
+                  "uav:browseName": "t:Root"
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            UANodeSet nodeSet = result.Value!;
+            QualifiedName browseName = QualifiedName.Parse(nodeSet.Items![0].BrowseName!);
+            Assert.That(nodeSet.NamespaceUris![browseName.NamespaceIndex - 1], Is.EqualTo("urn:new:"));
+        }
+
+        [Test]
+        public void AnObjectFormLocalPrefixChangesOnlyItsAffordanceNamespace()
+        {
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                """
+                {
+                  "@context": [
+                    "https://www.w3.org/2022/wot/td/v1.1",
+                    { "t": "urn:outer:" }
+                  ],
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "title": "Root",
+                  "uav:id": "nsu=urn:context-model;i=1",
+                  "uav:browseName": "t:Root",
+                  "properties": {
+                    "local": {
+                      "@context": { "t": { "@id": "urn:inner:", "@prefix": true } },
+                      "uav:browseName": "t:Local",
+                      "type": "string"
+                    },
+                    "sibling": { "uav:browseName": "t:Sibling", "type": "string" }
+                  }
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            UANodeSet nodeSet = result.Value!;
+            QualifiedName local = QualifiedName.Parse(nodeSet.Items!.OfType<UAVariable>()
+                .Single(v => v.BrowseName!.EndsWith(":Local", StringComparison.Ordinal)).BrowseName!);
+            QualifiedName sibling = QualifiedName.Parse(nodeSet.Items!.OfType<UAVariable>()
+                .Single(v => v.BrowseName!.EndsWith(":Sibling", StringComparison.Ordinal)).BrowseName!);
+            Assert.Multiple(() =>
+            {
+                Assert.That(nodeSet.NamespaceUris![local.NamespaceIndex - 1], Is.EqualTo("urn:inner:"));
+                Assert.That(nodeSet.NamespaceUris![sibling.NamespaceIndex - 1], Is.EqualTo("urn:outer:"));
+            });
+        }
+
+        [Test]
+        public void ContextDefinitionsAndOpaquePayloadsAreNotReadableNodeIdentities()
+        {
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                """
+                {
+                  "@context": [{
+                    "m": "urn:test:context",
+                    "demo": "urn:test:metadata:",
+                    "uav:id": "@id"
+                  }],
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "uav:id": "nsu=urn:test:context;i=1",
+                  "uav:browseName": "m:Root",
+                  "uav:metadata": {
+                    "demo:payload": { "uav:id": "ns=9;i=999", "uav:browseName": "9:NotANode" }
+                  }
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            Assert.That(result.Value!.Items![0].NodeId, Is.EqualTo("ns=1;i=1"));
+            using WotDocument restored = WotNodeSetConverter.FromNodeSet(result.Value);
+            Assert.That(restored.RootElement.GetProperty("uav:metadata").GetProperty("demo:payload")
+                .GetProperty("uav:id").GetString(), Is.EqualTo("ns=9;i=999"));
+        }
+
+        [Test]
         public void AGeneratedDocumentNamesBothContextIdentities()
         {
             using WotDocument document =

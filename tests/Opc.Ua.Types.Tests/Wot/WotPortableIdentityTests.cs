@@ -56,6 +56,142 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string ModelNamespace = "urn:test:identity";
         private const string EscapedModel = "nsu=urn%3Atest%3Aidentity;";
 
+        [Test]
+        public void GeneratedIdsUseQualifiedPathsAndTheActualModelNamespace()
+        {
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                """
+                {
+                  "@context": {
+                    "ns1": "urn:auxiliary",
+                    "ns2": "urn:test:identity",
+                    "a": "urn:measurements:a",
+                    "b": "urn:measurements:b"
+                  },
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "id": "urn:test:identity",
+                  "title": "Root",
+                  "uav:browseName": "ns2:Root",
+                  "properties": {
+                    "first": { "uav:browseName": "a:Value", "type": "number" },
+                    "second": { "uav:browseName": "b:Value", "type": "number" }
+                  }
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            UANode[] nodes = result.Value!.Items!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(nodes.Select(n => n.NodeId), Is.Unique);
+                Assert.That(nodes[0].NodeId, Is.EqualTo("ns=2;s=/nsu=urn%3Atest%3Aidentity;Root"));
+                Assert.That(nodes.OfType<UAVariable>().Select(n => n.NodeId), Is.EquivalentTo(s_qualifiedPropertyIds));
+            });
+        }
+
+        [TestCase("nsu=urn:test:identity;i=2")]
+        [TestCase("nsu=urn%3Atest%3Aidentity;i=2")]
+        public void AnAuthoredIdentityCannotBelongToTwoDeclarations(string secondId)
+        {
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                $$"""
+                {
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "title": "Root",
+                  "uav:id": "nsu=urn:test:identity;i=1",
+                  "properties": {
+                    "first": { "type": "number", "uav:id": "nsu=urn:test:identity;i=2" },
+                    "second": { "type": "string", "uav:id": "{{secondId}}" }
+                  }
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Diagnostics.Any(d =>
+                    d.Severity == WotDiagnosticSeverity.Error &&
+                    d.Code == WotDiagnosticCode.ValidationError &&
+                    d.Location?.NodeId == "ns=1;i=2"), Is.True);
+            });
+        }
+
+        [Test]
+        public void ArgumentIdsRetainTheQualifiedMethodPath()
+        {
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                """
+                {
+                  "@context": {
+                    "ns1": "urn:auxiliary",
+                    "ns2": "urn:test:identity",
+                    "a": "urn:methods:a",
+                    "b": "urn:methods:b"
+                  },
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "id": "urn:test:identity",
+                  "title": "Root",
+                  "uav:browseName": "ns2:Root",
+                  "actions": {
+                    "first": { "uav:browseName": "a:Reset", "input": { "type": "number" } },
+                    "second": { "uav:browseName": "b:Reset", "input": { "type": "number" } }
+                  }
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            string[] ids = result.Value!.Items!.OfType<UAVariable>().Select(v => v.NodeId!).ToArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(ids, Is.Unique);
+                Assert.That(ids,
+                    Has.Member("ns=2;s=/nsu=urn%3Atest%3Aidentity;Root/nsu=urn%3Amethods%3Aa;Reset/InputArguments"));
+                Assert.That(ids,
+                    Has.Member("ns=2;s=/nsu=urn%3Atest%3Aidentity;Root/nsu=urn%3Amethods%3Ab;Reset/InputArguments"));
+            });
+        }
+
+        [TestCase("urn:test:identity")]
+        [TestCase("urn%3Atest%3Aidentity")]
+        public void NamespaceUriEscapingDoesNotCreateAnotherModelNamespace(string namespaceForm)
+        {
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                $$"""
+                {
+                  "@context": { "m": "urn:test:identity" },
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "uav:id": "nsu={{namespaceForm}};i=1",
+                  "uav:browseName": "m:Root",
+                  "properties": { "Speed": { "type": "number" } }
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            Assert.That(result.Value!.NamespaceUris!.Single(), Is.EqualTo(ModelNamespace));
+            Assert.That(result.Value.Models!.Single().ModelUri, Is.EqualTo(ModelNamespace));
+            Assert.That(result.Value.Items!.OfType<UAVariable>().Single().NodeId,
+                Is.EqualTo("ns=1;s=/nsu=urn%3Atest%3Aidentity;Root/nsu=urn%3Atest%3Aidentity;Speed"));
+        }
+
+        [Test]
+        public void GeneratedNodeIdsEscapeTheNamespaceQualifierAsWellAsThePath()
+        {
+            const string namespaceUri = "urn:test:model;edition=2";
+            string identity = WotPortableIdentity.GenerateNodeId(
+                namespaceUri, Path(("Root", namespaceUri)));
+
+            Assert.That(WotPortableIdentity.IsPortableNodeId(identity), Is.True);
+            Assert.That(ExpandedNodeId.Parse(identity).NamespaceUri, Is.EqualTo(namespaceUri));
+        }
+
         /// <summary>
         /// The escaping is what makes the encoding injective. Without it a
         /// member named <c>A/B</c> of <c>Root</c> and a member named <c>B</c>
@@ -213,6 +349,10 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("svr=1;nsu=urn:t;s=A", false)]
         [TestCase("x=1", false)]
         [TestCase("i=", false)]
+        [TestCase("i=not-a-number", false)]
+        [TestCase("i=4294967296", false)]
+        [TestCase("g=not-a-guid", false)]
+        [TestCase("b=not-base64", false)]
         [TestCase("i;1", false)]
         [TestCase("nsu=urn:t", false)]
         [TestCase("nsu=;s=A", false)]
@@ -695,5 +835,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
                 "\"actions\":{\"Reset\":{\"uav:modellingRule\":\"Mandatory\"}}}";
         }
+
+        private static readonly string[] s_qualifiedPropertyIds =
+        [
+            "ns=2;s=/nsu=urn%3Atest%3Aidentity;Root/nsu=urn%3Ameasurements%3Aa;Value",
+            "ns=2;s=/nsu=urn%3Atest%3Aidentity;Root/nsu=urn%3Ameasurements%3Ab;Value"
+        ];
     }
 }

@@ -33,6 +33,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -50,6 +52,240 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotModellingRuleAndReferenceTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ComponentSubtypeAndIndependentReferencesSurviveInEitherOrder(bool reverseOrder)
+        {
+            const string component = """
+                {"rel":"ua:HasOrderedComponent","href":"nsu=urn:test:graph;i=2"}
+                """;
+            const string organizes = """
+                {"rel":"ua:OrganizedBy","href":"nsu=urn:test:graph;i=2"}
+                """;
+            string links = reverseOrder ? organizes + "," + component : component + "," + organizes;
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                $$"""
+                {
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "title": "Root",
+                  "uav:id": "nsu=urn:test:graph;i=1",
+                  "uav:hasComponent": ["nsu=urn:test:graph;i=2"],
+                  "links": [{{links}}]
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            Reference[] references = result.Value!.Items![0].References!
+                .Where(r => r.Value == "ns=1;i=2").ToArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(references, Has.Length.EqualTo(2));
+                Assert.That(references.Any(r => r.IsForward && r.ReferenceType == "i=49"), Is.True);
+                Assert.That(references.Any(r => !r.IsForward && r.ReferenceType == "i=35"), Is.True);
+            });
+        }
+
+        [TestCase("HasComponent", "i=47", false)]
+        [TestCase("HasComponent", "i=47", true)]
+        [TestCase("HasOrderedComponent", "i=49", false)]
+        [TestCase("HasOrderedComponent", "i=49", true)]
+        public void EitherReferenceDirectionExportsReadableVariableAndMethodAffordances(
+            string referenceType,
+            string referenceId,
+            bool inverseOnly)
+        {
+            UANodeSet source = NodeSetWithModellingRule("i=78");
+            UANode root = source.Items![0];
+            UAVariable variable = source.Items!.OfType<UAVariable>().Single();
+            root.References = root.References!.Where(r => r.ReferenceType != "HasComponent").ToArray();
+            variable.References = variable.References!.Where(r => r.ReferenceType != "HasComponent").ToArray();
+            var method = new UAMethod { NodeId = "ns=1;i=6002", BrowseName = "1:Reset" };
+            source.Items = [.. source.Items!, method];
+            foreach (UANode child in new UANode[] { variable, method })
+            {
+                if (inverseOnly)
+                {
+                    child.References =
+                    [
+                        .. child.References ?? [],
+                        new Reference { ReferenceType = referenceType, IsForward = false, Value = root.NodeId }
+                    ];
+                }
+                else
+                {
+                    root.References =
+                    [
+                        .. root.References,
+                        new Reference { ReferenceType = referenceType, IsForward = true, Value = child.NodeId }
+                    ];
+                }
+            }
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(
+                source,
+                options: new WotNodeSetConverterOptions { PreservationMode = WotNodeSetPreservationMode.Never });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(document.Properties.ContainsKey("Speed"), Is.True);
+                Assert.That(document.Actions.ContainsKey("Reset"), Is.True);
+            });
+            Assert.That(document.Properties["Speed"].GetProperty("@type").GetString(), Is.EqualTo("uav:variable"));
+            JsonObject readable = JsonNode.Parse(document.Utf8Json.Span)!.AsObject();
+            readable.Remove("uav:nodes");
+            readable.Remove("uav:nodeSet");
+            using WotDocument readableDocument = WotDocument.Parse(WotTestData.Utf8(readable.ToJsonString()));
+            WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ToNodeSetResult(readableDocument);
+            Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics.Select(d => d.Message)));
+            foreach (UANode child in restored.Value!.Items!.Where(n => n is UAVariable or UAMethod))
+            {
+                Assert.That(child.References!.Any(r =>
+                    !r.IsForward &&
+                    (r.ReferenceType == referenceId || r.ReferenceType == referenceType) &&
+                    r.Value == "ns=1;i=1001"), Is.True, child.BrowseName);
+            }
+        }
+
+        [Test]
+        public void AnObjectTypeSupertypeIsReadableAndReconstructsExactly()
+        {
+            UANodeSet source = NodeSetWithModellingRule("i=78");
+            source.Items![0].References!.Single(r => r.ReferenceType == "HasSubtype").Value = "ns=1;i=1000";
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(document.Links.Any(link =>
+                link.GetProperty("rel").GetString() == "ua:HasSupertype" &&
+                link.GetProperty("href").GetString() == "nsu=urn:test:rules;i=1000" &&
+                link.GetProperty("uav:refId").GetString() == "i=45"), Is.True);
+
+            JsonObject readable = JsonNode.Parse(document.Utf8Json.Span)!.AsObject();
+            readable.Remove("uav:nodes");
+            readable.Remove("uav:nodeSet");
+            using WotDocument readableDocument = WotDocument.Parse(WotTestData.Utf8(readable.ToJsonString()));
+            WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ToNodeSetResult(readableDocument);
+
+            Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics.Select(d => d.Message)));
+            Assert.That(restored.Value!.Items![0].References!
+                .Single(r => !r.IsForward && r.ReferenceType is "HasSubtype" or "i=45").Value,
+                Is.EqualTo("ns=1;i=1000"));
+            Assert.That(WotNodeSetConverter.TryDescribeTypeDeclarations(
+                readableDocument, out _, out ArrayOf<string> supertypes), Is.True);
+            Assert.That(supertypes.Count, Is.EqualTo(1));
+            Assert.That(supertypes[0], Is.EqualTo("nsu=urn:test:rules;i=1000"));
+        }
+
+        [TestCase("i=37", "i=78")]
+        [TestCase("RuleLink", "Required")]
+        public void NumericAndAliasedModellingRulesAreReadable(string referenceType, string ruleTarget)
+        {
+            UANodeSet source = NodeSetWithModellingRule(ruleTarget);
+            source.Aliases =
+            [
+                .. source.Aliases ?? [],
+                new NodeIdAlias { Alias = "RuleLink", Value = "i=37" },
+                new NodeIdAlias { Alias = "Required", Value = "i=78" }
+            ];
+            source.Items!.OfType<UAVariable>().Single().References!
+                .Single(r => r.ReferenceType == "HasModellingRule").ReferenceType = referenceType;
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(
+                document.Properties["Speed"].TryGetProperty("uav:modellingRule", out JsonElement rule), Is.True);
+            Assert.That(rule.GetString(), Is.EqualTo("Mandatory"));
+            JsonObject readable = JsonNode.Parse(document.Utf8Json.Span)!.AsObject();
+            readable.Remove("uav:nodes");
+            readable.Remove("uav:nodeSet");
+            using WotDocument readableDocument = WotDocument.Parse(WotTestData.Utf8(readable.ToJsonString()));
+            WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ToNodeSetResult(readableDocument);
+
+            Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics.Select(d => d.Message)));
+            Assert.That(restored.Value!.Items!.OfType<UAVariable>().Single().References!
+                .Single(r => r.IsForward && r.ReferenceType == "HasModellingRule").Value, Is.EqualTo("i=78"));
+        }
+
+        [TestCase("References", "i=31")]
+        [TestCase("NonHierarchicalReferences", "i=32")]
+        [TestCase("HierarchicalReferences", "i=33")]
+        [TestCase("HasChild", "i=34")]
+        [TestCase("Aggregates", "i=44")]
+        public void AbstractReferenceTypesCannotBeInstantiated(string name, string referenceId)
+        {
+            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
+                $$"""
+                {
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "title": "Root",
+                  "uav:id": "nsu=urn:test:graph;i=1",
+                  "links": [{ "rel": "ua:{{name}}", "href": "i=85", "uav:refId": "{{referenceId}}" }]
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Diagnostics.Any(d =>
+                    d.Severity == WotDiagnosticSeverity.Error &&
+                    d.Message.Contains("abstract", StringComparison.OrdinalIgnoreCase)), Is.True);
+                Assert.That(result.Value!.Items![0].References!.Any(r => r.ReferenceType == referenceId), Is.False);
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CompanionComponentSubtypesExportReadableAffordancesAsync(bool inverseOnly)
+        {
+            UANodeSet source = NodeSetWithModellingRule("i=78");
+            var componentType = new UAReferenceType
+            {
+                NodeId = "ns=1;i=9000",
+                BrowseName = "1:Owns",
+                InverseName = [new Export.LocalizedText { Value = "OwnedBy" }],
+                References = [new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = "i=49" }]
+            };
+            source.Items = [.. source.Items!, componentType];
+            UANode root = source.Items[0];
+            UAVariable variable = source.Items.OfType<UAVariable>().Single();
+            root.References = root.References!.Where(r => r.ReferenceType != "HasComponent").ToArray();
+            variable.References = variable.References!.Where(r => r.ReferenceType != "HasComponent").ToArray();
+            var edge = new Reference
+            {
+                ReferenceType = "ns=1;i=9000",
+                IsForward = !inverseOnly,
+                Value = inverseOnly ? root.NodeId : variable.NodeId
+            };
+            if (inverseOnly)
+            {
+                variable.References = [.. variable.References, edge];
+            }
+            else
+            {
+                root.References = [.. root.References, edge];
+            }
+            using WotDocument definition = WotNodeSetConverter.FromNodeSet(new UANodeSet
+            {
+                NamespaceUris = source.NamespaceUris,
+                Models = source.Models,
+                Items = [componentType]
+            });
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(document.Properties.ContainsKey("Speed"), Is.True);
+            JsonObject readable = JsonNode.Parse(document.Utf8Json.Span)!.AsObject();
+            readable.Remove("uav:nodes");
+            readable.Remove("uav:nodeSet");
+            using WotDocument readableDocument = WotDocument.Parse(WotTestData.Utf8(readable.ToJsonString()));
+            WotConversionResult<UANodeSet> restored = await WotNodeSetConverter.ToNodeSetResultAsync(
+                readableDocument, null, null, null, new WotDocumentNodeResolver([definition])).ConfigureAwait(false);
+
+            Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics.Select(d => d.Message)));
+            UAVariable restoredVariable = restored.Value!.Items!.OfType<UAVariable>().Single();
+            Assert.That(restoredVariable.References!.Any(r =>
+                !r.IsForward && r.ReferenceType == "ns=1;i=9000" && r.Value == "ns=1;i=1001"), Is.True);
+        }
+
         // OPC 10000-5 assigns these identifiers. They are neither adjacent nor
         // in name order, which is exactly why they were transposed: 11509 is
         // not a ModellingRule Object at all.

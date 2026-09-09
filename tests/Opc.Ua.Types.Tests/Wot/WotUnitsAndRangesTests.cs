@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
@@ -595,10 +596,9 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public async Task ThePublishedThingModelProjectsItsUnitPointerAndRangesAsync()
+        public async Task AUnitModelWithComponentDeclarationsProjectsItsUnitPointerAndRangesAsync()
         {
-            using var document = WotDocument.Parse(
-                ReadExample("02-thing-model-pump.jsonld"));
+            using WotDocument document = ReadUnitModelWithComponentDeclaration();
 
             WotConversionResult<UANodeSet> result =
                 await WotSpecExampleResolver.ConvertAsync(document).ConfigureAwait(false);
@@ -631,10 +631,9 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public async Task ThePublishedThingModelImportsAsANodeSetAsync()
+        public async Task AUnitModelWithComponentDeclarationsImportsAsANodeSetAsync()
         {
-            using var document = WotDocument.Parse(
-                ReadExample("02-thing-model-pump.jsonld"));
+            using WotDocument document = ReadUnitModelWithComponentDeclaration();
 
             // The example links its event affordances to the definitions
             // example 27 declares, so converting it is converting a document
@@ -654,7 +653,36 @@ namespace Opc.Ua.Types.Tests.Wot
             var reread = UANodeSet.Read(stream);
 
             Assert.That(reread, Is.Not.Null);
-            Assert.That(reread!.Items, Has.Length.EqualTo(nodeSet.Items!.Length));
+            Assert.That(reread!.Items!.OfType<UAObject>().Any(instance =>
+                instance.BrowseName!.EndsWith(":Impeller", StringComparison.Ordinal) &&
+                instance.References!.Any(reference => reference.ReferenceType == "HasTypeDefinition")), Is.True);
+        }
+
+        [Test]
+        public async Task ThePinnedLegacyModelDoesNotTurnAComponentTypeIntoAnInstanceAsync()
+        {
+            using WotDocument document = WotDocument.Parse(ReadExample("02-thing-model-pump.jsonld"));
+            WotConversionResult<UANodeSet> result =
+                await WotSpecExampleResolver.ConvertAsync(document).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(d =>
+                d.Code == WotDiagnosticCode.ValidationError &&
+                d.Message.Contains("uav:declaration", StringComparison.Ordinal)), Is.True);
+        }
+
+        private static WotDocument ReadUnitModelWithComponentDeclaration()
+        {
+            // The pinned SPEC bytes stay unchanged until their owner hands off the SP01 artifacts.
+            JsonObject model = JsonNode.Parse(ReadExample("02-thing-model-pump.jsonld"))!.AsObject();
+            JsonObject component = model["links"]!.AsArray().OfType<JsonObject>()
+                .Single(link => link["rel"]?.GetValue<string>() == "ua:HasComponent");
+            component["uav:declaration"] = new JsonObject { ["uav:browseName"] = "pump:Impeller" };
+            foreach (KeyValuePair<string, JsonNode?> property in model["properties"]!.AsObject())
+            {
+                property.Value!["@type"] = "uav:variable";
+            }
+            return WotDocument.Parse(WotTestData.Utf8(model.ToJsonString()));
         }
 
         private static string ModellingRuleOf(UANode node)

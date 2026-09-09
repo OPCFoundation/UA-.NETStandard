@@ -57,6 +57,11 @@ namespace Opc.Ua.Export
     /// Every lookup below is built from the one array so a name and the
     /// identifier it stands for cannot drift apart.
     /// </para>
+    /// <para>
+    /// VariableType identities also provide explicit standard NodeClass facts
+    /// for type-binding validation. An identity not in that table requires a
+    /// resolving context; namespace zero alone establishes no NodeClass.
+    /// </para>
     /// </remarks>
     internal static class NodeSetStandardAliases
     {
@@ -185,6 +190,35 @@ namespace Opc.Ua.Export
         }
 
         /// <summary>
+        /// Gets whether a standard ReferenceType is abstract and cannot connect Nodes directly.
+        /// </summary>
+        /// <param name="referenceType">The standard BrowseName or NodeId.</param>
+        /// <returns><c>true</c> when the ReferenceType is known to be abstract.</returns>
+        public static bool IsAbstractReferenceType(string? referenceType)
+        {
+            if (!TryGetReferenceTypeBrowseName(referenceType, out string browseName))
+            {
+                return false;
+            }
+            foreach (StandardReferenceType entry in s_standardReferenceTypes)
+            {
+                if (entry.BrowseName == browseName)
+                {
+                    return entry.IsAbstract;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Gets whether an identifier has the VariableType NodeClass in the standard OPC UA model.
+        /// </summary>
+        public static bool IsVariableType(string? nodeId)
+        {
+            return nodeId is not null && s_variableTypeNodeIdToName.ContainsKey(nodeId);
+        }
+
+        /// <summary>
         /// One standard ReferenceType: its base-namespace NodeId, its
         /// BrowseName and its InverseName.
         /// </summary>
@@ -197,7 +231,8 @@ namespace Opc.Ua.Export
         private readonly record struct StandardReferenceType(
             string NodeId,
             string BrowseName,
-            string InverseName);
+            string InverseName,
+            bool IsAbstract = false);
 
         /// <summary>
         /// The standard ReferenceTypes this library names, with the InverseName
@@ -205,10 +240,10 @@ namespace Opc.Ua.Export
         /// </summary>
         private static readonly StandardReferenceType[] s_standardReferenceTypes =
         [
-            new("i=31", "References", string.Empty),
-            new("i=32", "NonHierarchicalReferences", string.Empty),
-            new("i=33", "HierarchicalReferences", "InverseHierarchicalReferences"),
-            new("i=34", "HasChild", "ChildOf"),
+            new("i=31", "References", string.Empty, true),
+            new("i=32", "NonHierarchicalReferences", string.Empty, true),
+            new("i=33", "HierarchicalReferences", "InverseHierarchicalReferences", true),
+            new("i=34", "HasChild", "ChildOf", true),
             new("i=35", "Organizes", "OrganizedBy"),
             new("i=36", "HasEventSource", "EventSourceOf"),
             new("i=37", "HasModellingRule", "ModellingRuleOf"),
@@ -217,8 +252,8 @@ namespace Opc.Ua.Export
             new("i=40", "HasTypeDefinition", "TypeDefinitionOf"),
             new("i=41", "GeneratesEvent", "GeneratedBy"),
             new("i=3065", "AlwaysGeneratesEvent", "AlwaysGeneratedBy"),
-            new("i=44", "Aggregates", "AggregatedBy"),
-            new("i=45", "HasSubtype", "SubtypeOf"),
+            new("i=44", "Aggregates", "AggregatedBy", true),
+            new("i=45", "HasSubtype", "HasSupertype"),
             new("i=46", "HasProperty", "PropertyOf"),
             new("i=47", "HasComponent", "ComponentOf"),
             new("i=48", "HasNotifier", "NotifierOf"),
@@ -245,6 +280,78 @@ namespace Opc.Ua.Export
             new("i=17604", "HasAddIn", "AddInOf"),
             new("i=32059", "AlarmSuppressionGroupMember", "MemberOfAlarmSuppressionGroup")
         ];
+
+        /// <summary>
+        /// The standard model's explicit VariableType facts, not an inference from namespace zero.
+        /// </summary>
+        private static readonly Dictionary<string, string> s_variableTypeNodeIdToName =
+            new(StringComparer.Ordinal)
+            {
+                ["i=62"] = nameof(VariableTypes.BaseVariableType),
+                ["i=63"] = nameof(VariableTypes.BaseDataVariableType),
+                ["i=68"] = nameof(VariableTypes.PropertyType),
+                ["i=69"] = "DataTypeDescriptionType",
+                ["i=72"] = nameof(VariableTypes.DataTypeDictionaryType),
+                ["i=2137"] = "ServerVendorCapabilityType",
+                ["i=2138"] = "ServerStatusType",
+                ["i=2150"] = "ServerDiagnosticsSummaryType",
+                ["i=2164"] = "SamplingIntervalDiagnosticsArrayType",
+                ["i=2165"] = "SamplingIntervalDiagnosticsType",
+                ["i=2171"] = "SubscriptionDiagnosticsArrayType",
+                ["i=2172"] = "SubscriptionDiagnosticsType",
+                ["i=2196"] = "SessionDiagnosticsArrayType",
+                ["i=2197"] = "SessionDiagnosticsVariableType",
+                ["i=2243"] = "SessionSecurityDiagnosticsArrayType",
+                ["i=2244"] = "SessionSecurityDiagnosticsType",
+                ["i=2365"] = "DataItemType",
+                ["i=2368"] = "AnalogItemType",
+                ["i=2372"] = "DiscreteItemType",
+                ["i=2373"] = "TwoStateDiscreteType",
+                ["i=2376"] = "MultiStateDiscreteType",
+                ["i=2380"] = "ProgramDiagnosticType",
+                ["i=2755"] = "StateVariableType",
+                ["i=2760"] = "FiniteStateVariableType",
+                ["i=2762"] = "TransitionVariableType",
+                ["i=2767"] = "FiniteTransitionVariableType",
+                ["i=3051"] = "BuildInfoType",
+                ["i=8995"] = "TwoStateVariableType",
+                ["i=9002"] = "ConditionVariableType",
+                ["i=11238"] = "MultiStateValueDiscreteType",
+                ["i=11487"] = "OptionSetType",
+                ["i=12021"] = "ArrayItemType",
+                ["i=12029"] = "YArrayItemType",
+                ["i=12038"] = "XYArrayItemType",
+                ["i=12047"] = "ImageItemType",
+                ["i=12057"] = "CubeItemType",
+                ["i=12068"] = "NDimensionArrayItemType",
+                ["i=15113"] = "GuardVariableType",
+                ["i=15128"] = "ExpressionGuardVariableType",
+                ["i=15317"] = "ElseGuardVariableType",
+                ["i=15318"] = "BaseAnalogType",
+                ["i=15383"] = "ProgramDiagnostic2Type",
+                ["i=16309"] = "SelectionListType",
+                ["i=17277"] = "AlarmRateVariableType",
+                ["i=17497"] = "AnalogUnitType",
+                ["i=17570"] = "AnalogUnitRangeType",
+                ["i=17709"] = "RationalNumberType",
+                ["i=17714"] = "VectorType",
+                ["i=17716"] = "ThreeDVectorType",
+                ["i=17986"] = "AudioVariableType",
+                ["i=18772"] = "CartesianCoordinatesType",
+                ["i=18774"] = "ThreeDCartesianCoordinatesType",
+                ["i=18779"] = "OrientationType",
+                ["i=18781"] = "ThreeDOrientationType",
+                ["i=18786"] = "FrameType",
+                ["i=18791"] = "ThreeDFrameType",
+                ["i=19077"] = "MultiStateDictionaryEntryDiscreteBaseType",
+                ["i=19084"] = "MultiStateDictionaryEntryDiscreteType",
+                ["i=19725"] = "PubSubDiagnosticsCounterType",
+                ["i=23906"] = "AnalogNumberItemType",
+                ["i=23918"] = "AnalogNumberUnitRangeType",
+                ["i=32244"] = "AlarmStateVariableType",
+                ["i=32431"] = "BitFieldType",
+                ["i=32657"] = "ReferenceDescriptionVariableType"
+            };
 
         /// <summary>
         /// The DataType names a NodeSet2 document conventionally aliases.
@@ -350,6 +457,8 @@ namespace Opc.Ua.Export
                     table[entry.InverseName] = entry.NodeId;
                 }
             }
+            // Retain the former readable spelling as an input alias, not the emitted Core InverseName.
+            table["SubtypeOf"] = table["HasSupertype"];
             return table;
         }
 

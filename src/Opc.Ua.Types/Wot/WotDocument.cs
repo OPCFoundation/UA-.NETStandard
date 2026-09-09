@@ -121,7 +121,7 @@ namespace Opc.Ua.Wot
         {
             get
             {
-                m_typeTokens ??= ReadStringTokens("@type");
+                m_typeTokens ??= ReadStringTokens(RootElement, "@type");
                 return m_typeTokens;
             }
         }
@@ -148,34 +148,77 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="prefix">The prefix, without the colon.</param>
         /// <param name="namespaceUri">The namespace it is bound to.</param>
+        /// <param name="carryingNode">The carrying object, or the document root when omitted.</param>
         /// <returns><c>true</c> when the document binds the prefix.</returns>
-        internal bool TryGetContextPrefix(string prefix, out string namespaceUri)
+        internal bool TryGetContextPrefix(
+            string prefix,
+            out string namespaceUri,
+            JsonElement carryingNode = default)
         {
-            if (TryGetContext(out JsonElement context))
+            m_contextScopes ??= CreateContextScopes();
+            if (carryingNode.ValueKind == JsonValueKind.Undefined)
             {
-                return TryGetContextPrefix(context, prefix, out namespaceUri);
+                carryingNode = RootElement;
             }
-            namespaceUri = string.Empty;
-            return false;
+            if (m_contextScopes.TryGetValue(carryingNode, out ContextScope? scope))
+            {
+                for (; scope is not null; scope = scope.Parent)
+                {
+                    if (TryReadContextPrefix(scope.Context, prefix, out namespaceUri))
+                    {
+                        return namespaceUri.Length != 0;
+                    }
+                }
+            }
+            namespaceUri = prefix switch
+            {
+                "ua" => WotVocabulary.OpcUaNamespace,
+                "uav" => WotVocabulary.VocabularyNamespace,
+                _ => string.Empty
+            };
+            return namespaceUri.Length != 0;
         }
 
-        private static bool TryGetContextPrefix(
+        internal static bool TryGetContextPrefix(
             JsonElement context,
             string prefix,
             out string namespaceUri)
         {
-            if (context.ValueKind == JsonValueKind.Object &&
-                context.TryGetProperty(prefix, out JsonElement value) &&
-                value.ValueKind == JsonValueKind.String)
+            return TryReadContextPrefix(context, prefix, out namespaceUri) && namespaceUri.Length != 0;
+        }
+
+        private static bool TryReadContextPrefix(
+            JsonElement context,
+            string prefix,
+            out string namespaceUri)
+        {
+            namespaceUri = string.Empty;
+            if (context.ValueKind == JsonValueKind.Null)
             {
-                namespaceUri = value.GetString()!;
+                return true;
+            }
+            if (context.ValueKind == JsonValueKind.Object &&
+                context.TryGetProperty(prefix, out JsonElement value))
+            {
+                if (value.ValueKind == JsonValueKind.String)
+                {
+                    namespaceUri = value.GetString()!;
+                }
+                else if (value.ValueKind == JsonValueKind.Object &&
+                    (!value.TryGetProperty("@prefix", out JsonElement flag) ||
+                        flag.ValueKind == JsonValueKind.True) &&
+                    value.TryGetProperty("@id", out JsonElement identity) &&
+                    identity.ValueKind == JsonValueKind.String)
+                {
+                    namespaceUri = identity.GetString()!;
+                }
                 return true;
             }
             if (context.ValueKind == JsonValueKind.Array)
             {
-                foreach (JsonElement entry in context.EnumerateArray())
+                for (int index = context.GetArrayLength() - 1; index >= 0; index--)
                 {
-                    if (TryGetContextPrefix(entry, prefix, out namespaceUri))
+                    if (TryReadContextPrefix(context[index], prefix, out namespaceUri))
                     {
                         return true;
                     }
@@ -183,6 +226,104 @@ namespace Opc.Ua.Wot
             }
             namespaceUri = string.Empty;
             return false;
+        }
+
+        private Dictionary<JsonElement, ContextScope?> CreateContextScopes()
+        {
+            var scopes = new Dictionary<JsonElement, ContextScope?>();
+            AddContextScopes(RootElement, null, scopes);
+            return scopes;
+        }
+
+        private static void AddContextScopes(
+            JsonElement element,
+            ContextScope? scope,
+            Dictionary<JsonElement, ContextScope?> scopes)
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                if (element.TryGetProperty("@context", out JsonElement context))
+                {
+                    scope = new ContextScope(context, scope);
+                }
+                scopes[element] = scope;
+                foreach (JsonProperty member in element.EnumerateObject())
+                {
+                    if (!IsSemanticBoundary(member.Name))
+                    {
+                        AddContextScopes(member.Value, scope, scopes);
+                    }
+                }
+            }
+            else if (element.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement item in element.EnumerateArray())
+                {
+                    AddContextScopes(item, scope, scopes);
+                }
+            }
+        }
+
+        internal static bool IsSemanticBoundary(string name)
+        {
+            if (name is "@context" or "uav:nodes" or "uav:nodeSet")
+            {
+                return true;
+            }
+            foreach (string opaque in WotBindingConformance.OpaqueMembers)
+            {
+                if (string.Equals(name, opaque, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        internal IEnumerable<JsonElement> EnumerateLinks()
+        {
+            return EnumerateLinks(RootElement);
+        }
+
+        private static IEnumerable<JsonElement> EnumerateLinks(JsonElement element)
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                foreach (JsonProperty member in element.EnumerateObject())
+                {
+                    if (IsSemanticBoundary(member.Name))
+                    {
+                        continue;
+                    }
+                    if (member.Name == "links" && member.Value.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (JsonElement link in member.Value.EnumerateArray())
+                        {
+                            if (link.ValueKind == JsonValueKind.Object)
+                            {
+                                yield return link;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        foreach (JsonElement link in EnumerateLinks(member.Value))
+                        {
+                            yield return link;
+                        }
+                    }
+                }
+            }
+            else if (element.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement item in element.EnumerateArray())
+                {
+                    foreach (JsonElement link in EnumerateLinks(item))
+                    {
+                        yield return link;
+                    }
+                }
+            }
         }
 
         /// <summary>Gets the <c>properties</c> affordance map (name to schema).</summary>
@@ -240,7 +381,7 @@ namespace Opc.Ua.Wot
         {
             get
             {
-                m_links ??= ReadArray("links");
+                m_links ??= ReadArray(RootElement, "links");
                 return m_links;
             }
         }
@@ -250,7 +391,7 @@ namespace Opc.Ua.Wot
         {
             get
             {
-                m_forms ??= ReadArray("forms");
+                m_forms ??= ReadArray(RootElement, "forms");
                 return m_forms;
             }
         }
@@ -643,10 +784,11 @@ namespace Opc.Ua.Wot
                 : null;
         }
 
-        private List<string> ReadStringTokens(string name)
+        internal static List<string> ReadStringTokens(JsonElement element, string name)
         {
             var tokens = new List<string>();
-            if (TryGetRootProperty(name, out JsonElement value))
+            if (element.ValueKind == JsonValueKind.Object &&
+                element.TryGetProperty(name, out JsonElement value))
             {
                 if (value.ValueKind == JsonValueKind.String)
                 {
@@ -674,6 +816,73 @@ namespace Opc.Ua.Wot
             return tokens;
         }
 
+        /// <summary>
+        /// Gets the namespace-qualified identity segment allocated to a root declaration.
+        /// Authored BrowseNames and explicit NodeIds are not rewritten.
+        /// </summary>
+        internal WotBrowsePathElement GetAllocatedMemberPathElement(
+            JsonElement member,
+            string modelUri,
+            WotBrowsePathElement fallback)
+        {
+            MemberPathAllocation? allocation = m_memberPathAllocation;
+            if (allocation is null || allocation.ModelUri != modelUri)
+            {
+                allocation = CreateMemberPathAllocation(modelUri);
+                m_memberPathAllocation = allocation;
+            }
+            return allocation.Elements.TryGetValue(member, out WotBrowsePathElement allocated)
+                ? allocated
+                : fallback;
+        }
+
+        private MemberPathAllocation CreateMemberPathAllocation(string modelUri)
+        {
+            var elements = new Dictionary<JsonElement, WotBrowsePathElement>();
+            var namesByNamespace = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            AddMap(Properties);
+            AddMap(Actions);
+            AddMap(Events);
+            foreach (JsonElement link in Links)
+            {
+                if (link.ValueKind == JsonValueKind.Object &&
+                    link.TryGetProperty("uav:declaration", out JsonElement declaration) &&
+                    declaration.ValueKind == JsonValueKind.Object)
+                {
+                    Add(declaration, "member");
+                }
+            }
+            return new MemberPathAllocation(modelUri, elements);
+
+            void AddMap(IReadOnlyDictionary<string, JsonElement> map)
+            {
+                foreach (KeyValuePair<string, JsonElement> member in map)
+                {
+                    Add(member.Value, member.Key);
+                }
+            }
+
+            void Add(JsonElement member, string key)
+            {
+                WotBrowsePathElement element = member.ValueKind == JsonValueKind.Object &&
+                    member.TryGetProperty("uav:browseName", out JsonElement browseName) &&
+                    browseName.ValueKind == JsonValueKind.String &&
+                    WotPortableIdentity.TryResolveQualifiedName(
+                        browseName.GetString()!, this, member, out WotBrowsePathElement qualified)
+                    ? qualified
+                    : new WotBrowsePathElement(modelUri, WotPortableIdentity.AffordanceName(member, key));
+                string namespaceUri = string.IsNullOrEmpty(element.NamespaceUri)
+                    ? WotVocabulary.OpcUaNamespace
+                    : element.NamespaceUri!;
+                if (!namesByNamespace.TryGetValue(namespaceUri, out HashSet<string>? names))
+                {
+                    names = new HashSet<string>(StringComparer.Ordinal);
+                    namesByNamespace.Add(namespaceUri, names);
+                }
+                elements[member] = element with { Name = WotPortableIdentity.AllocateName(element.Name, names) };
+            }
+        }
+
         private Dictionary<string, JsonElement> ReadObjectMap(string name)
         {
             var map = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
@@ -688,10 +897,11 @@ namespace Opc.Ua.Wot
             return map;
         }
 
-        private List<JsonElement> ReadArray(string name)
+        internal static List<JsonElement> ReadArray(JsonElement element, string name)
         {
             var items = new List<JsonElement>();
-            if (TryGetRootProperty(name, out JsonElement value) &&
+            if (element.ValueKind == JsonValueKind.Object &&
+                element.TryGetProperty(name, out JsonElement value) &&
                 value.ValueKind == JsonValueKind.Array)
             {
                 foreach (JsonElement item in value.EnumerateArray())
@@ -712,5 +922,23 @@ namespace Opc.Ua.Wot
         private IReadOnlyDictionary<string, JsonElement>? m_schemaDefinitions;
         private IReadOnlyList<JsonElement>? m_links;
         private IReadOnlyList<JsonElement>? m_forms;
+        private Dictionary<JsonElement, ContextScope?>? m_contextScopes;
+        private MemberPathAllocation? m_memberPathAllocation;
+
+        private sealed class MemberPathAllocation(
+            string modelUri,
+            Dictionary<JsonElement, WotBrowsePathElement> elements)
+        {
+            public string ModelUri { get; } = modelUri;
+
+            public Dictionary<JsonElement, WotBrowsePathElement> Elements { get; } = elements;
+        }
+
+        private sealed class ContextScope(JsonElement context, ContextScope? parent)
+        {
+            public JsonElement Context { get; } = context;
+
+            public ContextScope? Parent { get; } = parent;
+        }
     }
 }
