@@ -73,6 +73,15 @@ path is `ConvertAsync` → serialize → `UANodeSet.Read` → `Import`. Every
 vendored specification example that converts is run through exactly that
 sequence by `WotNodeSetImportTests`, and so is every preservation mode.
 
+`ResolveAffordanceNodes` connects source interaction JSON Pointers to Nodes in
+the produced NodeSet. It reuses the converter's qualified identity allocation
+and confirms the actual NodeClass, or resolves an unauthored identity through
+one qualified declaration owned by the converted root. It does not replace a
+missing explicit identity with a name match, choose among ambiguous Nodes, or
+treat a remote ServerIndex as a local Node. The runtime receives these identities
+through `WotConversionOutput.ProjectedAffordances` rather than borrowing the
+upstream form's target.
+
 ### Modelling rules and the two placeholder identifiers
 
 OPC 10000-5 assigns `OptionalPlaceholder` the identifier `11508` and

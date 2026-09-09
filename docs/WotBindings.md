@@ -174,6 +174,20 @@ if (channel is IWotPropertyBindingChannel propertyChannel)
 
 `WotBindingPlan.ProjectedAffordances` carries each declaration's local identity,
 owning resource, and JSON Pointer separately from its upstream form address.
+It includes ordinary properties as well as Methods and EventTypes. The production
+document converter matches interactions to actual converted Nodes through
+`WotNodeSetConverter.ResolveAffordanceNodes`, retaining generated identities and
+the captured interaction schemas. `WotConversionOutput.ProjectedAffordances`
+passes those facts through the coordinator into each binding plan; the runtime
+does not derive local identities from upstream form targets.
+
+An ordinary property form therefore binds to its local Variable without requiring
+`uav:mapToNodeId`, `uav:mapToType`, or `uav:mapByFieldPath`. Explicit target mappings
+keep their existing purpose and take precedence. Local properties without forms
+remain local. Native/archive identities can be matched by an unambiguous qualified,
+root-owned declaration, but an explicit missing identity, wrong NodeClass or
+ambiguous match is an error rather than an arbitrary fallback.
+
 An action's `uav:id` identifies the local Method; its selected form supplies the
 upstream Method and Object addresses. The runtime wires the local Method through
 the existing asynchronous fluent `OnCall` hook. When an action offers several

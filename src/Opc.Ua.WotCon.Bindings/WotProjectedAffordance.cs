@@ -42,7 +42,7 @@ namespace Opc.Ua.WotCon.Bindings
     public sealed class WotProjectedAffordance
     {
         /// <summary>
-        /// Initializes a local method or event declaration.
+        /// Initializes a local property, method or event declaration.
         /// </summary>
         public WotProjectedAffordance(
             WotAffordanceKind kind,
@@ -80,7 +80,7 @@ namespace Opc.Ua.WotCon.Bindings
         public string JsonPointer { get; }
 
         /// <summary>
-        /// Gets the local Method or EventType identity. Empty means unresolved,
+        /// Gets the local Variable, Method or EventType identity. Empty means unresolved,
         /// never an instruction to use the upstream form's target instead.
         /// </summary>
         public string NodeId { get; }
@@ -107,10 +107,46 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         public string? ConditionTypeId { get; }
 
+        /// <summary>
+        /// Gets the captured property schema, action input/output schemas or event data
+        /// together with their authored interaction and local context.
+        /// </summary>
+        public JsonElement Definition { get; private init; }
+
+        /// <summary>
+        /// Creates a runtime interaction from a converter-authoritative local mapping.
+        /// </summary>
+        public static WotProjectedAffordance FromConverted(Wot.WotConvertedAffordance converted)
+        {
+            if (converted is null)
+            {
+                throw new ArgumentNullException(nameof(converted));
+            }
+            WotAffordanceKind kind = converted.Kind switch
+            {
+                Wot.WotAffordanceKind.Property => WotAffordanceKind.Property,
+                Wot.WotAffordanceKind.Action => WotAffordanceKind.Action,
+                Wot.WotAffordanceKind.Event => WotAffordanceKind.Event,
+                _ => throw new ArgumentOutOfRangeException(nameof(converted))
+            };
+            return new WotProjectedAffordance(
+                kind, converted.Name, converted.JsonPointer, converted.NodeId.ToString(), converted.OwnerNodeId.ToString(),
+                ReadString(converted.Affordance, "uav:conditionAction"),
+                ReadString(converted.Affordance, "uav:actsOn"),
+                ReadString(converted.Affordance, "uav:conditionTypeId") ??
+                    (ReadString(converted.Affordance, "uav:conditionType") is null ? null : string.Empty))
+            {
+                Definition = converted.Affordance
+            };
+        }
+
         internal WotProjectedAffordance WithDefaultOwner(string nodeId)
         {
             return OwnerNodeId.Length != 0 ? this : new WotProjectedAffordance(
-                Kind, Name, JsonPointer, NodeId, nodeId, ConditionAction, ActsOn, ConditionTypeId);
+                Kind, Name, JsonPointer, NodeId, nodeId, ConditionAction, ActsOn, ConditionTypeId)
+            {
+                Definition = Definition
+            };
         }
 
         internal static ArrayOf<WotProjectedAffordance> Extract(JsonElement root)
@@ -119,7 +155,12 @@ namespace Opc.Ua.WotCon.Bindings
             string owner = ReadString(root, "uav:id") ?? string.Empty;
             foreach (WotAffordanceKind kind in s_kinds)
             {
-                string collection = kind == WotAffordanceKind.Action ? "actions" : "events";
+                string collection = kind switch
+                {
+                    WotAffordanceKind.Property => "properties",
+                    WotAffordanceKind.Action => "actions",
+                    _ => "events"
+                };
                 if (!root.TryGetProperty(collection, out JsonElement affordances) ||
                     affordances.ValueKind != JsonValueKind.Object)
                 {
@@ -144,7 +185,10 @@ namespace Opc.Ua.WotCon.Bindings
                         ReadString(affordance, "uav:conditionAction"),
                         ReadString(affordance, "uav:actsOn"),
                         ReadString(affordance, "uav:conditionTypeId") ??
-                            (ReadString(affordance, "uav:conditionType") is null ? null : string.Empty)));
+                            (ReadString(affordance, "uav:conditionType") is null ? null : string.Empty))
+                    {
+                        Definition = affordance.Clone()
+                    });
                 }
             }
             return declarations.ToArrayOf();
@@ -159,6 +203,6 @@ namespace Opc.Ua.WotCon.Bindings
         }
 
         private static readonly ArrayOf<WotAffordanceKind> s_kinds =
-            [WotAffordanceKind.Action, WotAffordanceKind.Event];
+            [WotAffordanceKind.Property, WotAffordanceKind.Action, WotAffordanceKind.Event];
     }
 }

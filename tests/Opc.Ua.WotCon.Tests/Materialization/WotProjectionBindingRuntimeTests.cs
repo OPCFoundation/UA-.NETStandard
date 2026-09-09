@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -644,6 +645,51 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.That(h.ScalarVar.OnReadValueAsync, Is.Null);
             Assert.That(h.ChannelFactory.OpenCount, Is.Zero);
+        }
+
+        [Test]
+        public async Task OrdinaryPropertyFormReadsThroughItsLocalDeclaration()
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            h.ScalarVar.Value = new Variant(7);
+            string localId = NodeId.ToExpandedNodeId(h.ScalarVar.NodeId, h.Builder.Context.NamespaceUris).ToString();
+            string ownerId = NodeId.ToExpandedNodeId(h.Root.NodeId, h.Builder.Context.NamespaceUris).ToString();
+            string document = $$"""
+                {
+                  "@type": "uav:object",
+                  "uav:id": "{{ownerId}}",
+                  "properties": {
+                    "value": {
+                      "uav:id": "{{localId}}",
+                      "type": "integer",
+                      "forms": [{ "href": "test://source/value", "op": "readproperty" }]
+                    }
+                  }
+                }
+                """;
+            WotBindingPlanRequest request = WotBindingPlanRequest.FromDocument(
+                "res", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document));
+            WotCompiledForm form = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty, WotTargetMappingDescriptor.Empty);
+            var channel = new FakeWotBindingChannel(form)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(StatusCodes.Good, new DataValue(new Variant(42))))
+            };
+            h.ChannelFactory.SetChannel(form, channel);
+            WotBindingPlan plan = WotProjectionBindingRuntimeTestHarness.Plan(form)
+                .WithProjectedAffordances(request.ProjectedAffordances);
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(h.Builder, [plan]).ConfigureAwait(false);
+
+            (ServiceResult result, DataValue value) = await h.ScalarVar.ReadAttributeAsync(
+                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(value.WrappedValue.TryGetValue(out int actual), Is.True);
+            Assert.That(actual, Is.EqualTo(42));
+            Assert.That(channel.ReadCount, Is.EqualTo(1));
+            Assert.That(form.TargetMapping.IsEmpty, Is.True);
         }
 
         [TestCase(false)]

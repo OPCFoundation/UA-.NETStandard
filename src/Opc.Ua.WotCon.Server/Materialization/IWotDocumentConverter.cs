@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
+using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Server.Materialization
@@ -83,6 +84,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public WoTPhaseEnum FailurePhase { get; }
 
         /// <summary>
+        /// Gets the local interactions resolved against the produced NodeSet.
+        /// </summary>
+        public ArrayOf<WotProjectedAffordance> ProjectedAffordances { get; private init; }
+
+        /// <summary>
         /// Gets whether the conversion succeeded.
         /// </summary>
         public bool Succeeded => NodeSet is not null && Errors.IsEmpty;
@@ -112,6 +118,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public static WotConversionOutput Failure(WoTPhaseEnum phase, params string[] errors)
         {
             return new WotConversionOutput(null, [.. errors], failurePhase: phase);
+        }
+
+        /// <summary>
+        /// Returns an output carrying the converter-resolved local interactions.
+        /// </summary>
+        public WotConversionOutput WithProjectedAffordances(ArrayOf<WotProjectedAffordance> affordances)
+        {
+            return new WotConversionOutput(NodeSet, Errors, RootNodeId, FailurePhase)
+            {
+                ProjectedAffordances = affordances
+            };
         }
     }
 
@@ -253,10 +270,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     return new WotConversionOutput(
                         null, errors.ToImmutable(), failurePhase: phase);
                 }
+                ExpandedNodeId root = WotNodeSetConverter.TrySelectProjectionRoot(result.Value);
+                ArrayOf<WotProjectedAffordance> affordances = WotNodeSetConverter
+                    .ResolveAffordanceNodes(document, result.Value, root)
+                    .ConvertAll(WotProjectedAffordance.FromConverted);
                 return new WotConversionOutput(
                     result.Value,
                     [],
-                    WotNodeSetConverter.TrySelectProjectionRoot(result.Value));
+                    root).WithProjectedAffordances(affordances);
             }
             // One malformed document fails its own conversion and is reported
             // as such. It must never abort the refresh, because that would let

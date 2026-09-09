@@ -666,7 +666,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     continue;
                 }
 
-                (UANodeSet? nodeSet, ExpandedNodeId root, string? conversionError, WoTPhaseEnum failurePhase) =
+                (UANodeSet? nodeSet, ExpandedNodeId root, string? conversionError, WoTPhaseEnum failurePhase,
+                    ArrayOf<WotProjectedAffordance> affordances) =
                     await TryConvertAsync(member, snapshot, contentCache, cancellationToken)
                         .ConfigureAwait(false);
                 if (nodeSet is not null && m_nodeSetContributors.Length > 0)
@@ -725,6 +726,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         member, version, memberContent, snapshot, contentCache, cancellationToken)
                         .ConfigureAwait(false))
                         .WithProjectionRoot(root);
+                    if (!affordances.IsEmpty)
+                    {
+                        planRequest = planRequest.WithProjectedAffordances(affordances);
+                    }
                     preparedPlans.Add((member, planRequest));
                 }
 
@@ -1069,7 +1074,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             UANodeSet? NodeSet,
             ExpandedNodeId Root,
             string? Error,
-            WoTPhaseEnum FailurePhase)> TryConvertAsync(
+            WoTPhaseEnum FailurePhase,
+            ArrayOf<WotProjectedAffordance> Affordances)> TryConvertAsync(
             WotResource resource,
             WotRegistrySnapshot snapshot,
             Dictionary<string, ByteString> contentCache,
@@ -1082,7 +1088,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     null,
                     default,
                     "Resource has no default version.",
-                    WoTPhaseEnum.FormatValidation);
+                    WoTPhaseEnum.FormatValidation,
+                    []);
             }
             ByteString content = await ReadCachedContentAsync(contentCache, version, cancellationToken)
                 .ConfigureAwait(false);
@@ -1093,9 +1100,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return (null, default, output.Errors.IsDefaultOrEmpty
                     ? "The document could not be converted to a NodeSet."
-                    : string.Join("; ", output.Errors), output.FailurePhase);
+                    : string.Join("; ", output.Errors), output.FailurePhase, []);
             }
-            return (output.NodeSet, output.RootNodeId, null, WoTPhaseEnum.Projection);
+            return (output.NodeSet, output.RootNodeId, null, WoTPhaseEnum.Projection, output.ProjectedAffordances);
         }
 
         /// <summary>

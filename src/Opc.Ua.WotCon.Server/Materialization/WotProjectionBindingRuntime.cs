@@ -92,11 +92,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     WoTBindingCapabilityEnum Operation)>();
                 foreach (WotCompiledForm form in plan.CompiledForms)
                 {
-                    if (form is null || form.TargetMapping.IsEmpty || !form.IsExecutable)
+                    if (form is null || !form.IsExecutable)
                     {
-                        // Not target-mapped, or validated but not executable:
-                        // out of scope for this runtime.
                         continue;
+                    }
+                    WotTargetMappingDescriptor target = form.TargetMapping;
+                    if (target.IsEmpty)
+                    {
+                        WotProjectedAffordance? local = plan.ProjectedAffordances.Find(declaration =>
+                            declaration.Kind == WotAffordanceKind.Property &&
+                            form.AffordanceKind == declaration.Kind &&
+                            form.JsonPointer.StartsWith(declaration.JsonPointer + "/forms/", StringComparison.Ordinal));
+                        if (local is null)
+                        {
+                            continue;
+                        }
+                        NodeId localId = ResolveLocalNodeId(local.NodeId, plan.ResourceXid, local.JsonPointer);
+                        target = new WotTargetMappingDescriptor(targetNodeId: localId.ToString());
                     }
 
                     if (form.Operation is not (WoTBindingCapabilityEnum.ReadProperty
@@ -116,7 +128,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     {
                         continue;
                     }
-                    BaseVariableState variable = m_resolver.Resolve(m_builder, form.TargetMapping);
+                    BaseVariableState variable = m_resolver.Resolve(m_builder, target);
                     if (!groups.TryGetValue(variable.NodeId, out VariableGroup? group))
                     {
                         group = new VariableGroup(variable);

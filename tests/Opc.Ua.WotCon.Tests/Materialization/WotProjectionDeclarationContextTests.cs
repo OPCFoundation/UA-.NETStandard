@@ -46,6 +46,47 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [TestFixture]
     public sealed class WotProjectionDeclarationContextTests
     {
+        [Test]
+        public async Task CoordinatorCarriesGeneratedLocalIdentitiesIntoBindingPlans()
+        {
+            using var registry = new WotRegistryService();
+            byte[] document = Encoding.UTF8.GetBytes("""
+                {
+                  "@type": "uav:object",
+                  "id": "urn:runtime-identities",
+                  "title": "Device",
+                  "properties": {
+                    "value": { "type": "integer",
+                      "forms": [{ "href": "https://source.example/value", "op": "readproperty" }] }
+                  },
+                  "actions": {
+                    "run": { "forms": [{ "href": "https://source.example/run", "op": "invokeaction" }] }
+                  }
+                }
+                """);
+            await AddAsync(registry, "runtime-identities", WoTDocumentKindEnum.ThingDescription, document)
+                .ConfigureAwait(false);
+            var host = new FakeWotProjectionHost();
+            using var coordinator = new WotMaterializationCoordinator(
+                registry, host, new WotProtocolBinderRegistry([]), documentConverter: new WotNodeSetDocumentConverter());
+
+            WotRefreshResult result = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+
+            Assert.That(result.Results.All(item => item.Outcome == WoTOutcomeEnum.Warning), Is.True,
+                string.Join("; ", result.Results.Select(item => item.Message)));
+            HostOperation operation = host.Operations.Single(item => item.Op == "add");
+            Assert.That(operation.Document!.BindingPlans.Count, Is.EqualTo(1));
+            WotBindingPlan plan = operation.Document.BindingPlans[0];
+            Assert.That(plan.ProjectedAffordances.Count, Is.EqualTo(2));
+            foreach (WotProjectedAffordance local in plan.ProjectedAffordances)
+            {
+                Assert.That(local.NodeId, Is.Not.Empty);
+                Assert.That(ExpandedNodeId.TryParse(local.NodeId, out ExpandedNodeId nodeId), Is.True);
+                Assert.That(nodeId.NamespaceUri, Is.EqualTo("urn:runtime-identities"));
+                Assert.That(local.OwnerNodeId, Is.Not.Empty);
+            }
+        }
+
         [TestCase("type")]
         [TestCase("ua:HasTypeDefinition")]
         public async Task CoordinatorDistinguishesContainedDeclarationsFromInstancesOfTheSameModel(

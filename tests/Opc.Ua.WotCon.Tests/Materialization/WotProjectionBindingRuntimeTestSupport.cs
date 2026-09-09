@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Moq;
+using Opc.Ua.Export;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.WotCon.Bindings;
@@ -550,6 +551,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public string StructNodeIdText => $"ns={Ns};s=Struct";
 
         public string StructTypeNodeIdText => $"ns={Ns};i={TestRootType.NumericId}";
+
+        public void Import(UANodeSet nodeSet)
+        {
+            Builder.Context.EncodeableFactory.Builder.AddOpcUa().Commit();
+            var imported = new NodeStateCollection();
+            nodeSet.Import(Builder.Context, imported);
+            foreach (NodeState node in imported)
+            {
+                m_nodes.Add(node.NodeId, node);
+            }
+        }
 
         public MethodState AddMethod(
             string name, ArrayOf<Argument> inputs, ArrayOf<Argument> outputs, BaseObjectState? parent = null)
