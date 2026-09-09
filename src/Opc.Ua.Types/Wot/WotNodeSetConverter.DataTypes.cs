@@ -115,7 +115,7 @@ namespace Opc.Ua.Wot
                         nestedOnly, diagnostics);
                 }
             }
-            ValidateEncodingIdentities(complete, identities, diagnostics);
+            ValidateEncodingIdentities(document, complete, identities, nodeSet, diagnostics);
             ValidateInheritedFieldPrefixes(complete, diagnostics);
             ValidateSubtypeGraph(complete, diagnostics);
             return identities;
@@ -447,26 +447,29 @@ namespace Opc.Ua.Wot
         /// points at an Object the type does not have.
         /// </remarks>
         private static void ValidateEncodingIdentities(
+            WotDocument document,
             Dictionary<string, JsonElement> complete,
             Dictionary<string, string> identities,
+            UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics)
         {
             var claimed = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (KeyValuePair<string, JsonElement> entry in complete)
             {
-                if (!identities.TryGetValue(entry.Key, out string? identity) ||
+                if (!identities.ContainsKey(entry.Key) ||
                     GetElementBool(entry.Value, "uav:isAbstract") ||
                     IsEncodingSuppressed(entry.Value))
                 {
                     continue;
                 }
                 string name = GetElementString(entry.Value, "uav:dataTypeName") ?? entry.Key;
-                string binary = GetElementString(entry.Value, "uav:binaryEncodingId") ??
-                    identity + BinaryEncodingSuffix;
-                string xml = GetElementString(entry.Value, "uav:xmlEncodingId") ??
-                    identity + XmlEncodingSuffix;
-                string json = GetElementString(entry.Value, "uav:jsonEncodingId") ??
-                    identity + JsonEncodingSuffix;
+                string? encodingRoot = DeriveDataTypeNodeId(document, name, nodeSet, diagnostics);
+                if (encodingRoot is null)
+                {
+                    continue;
+                }
+                (string binary, string xml, string json) = ResolveEncodingIdentities(
+                    entry.Value, encodingRoot, nodeSet, diagnostics);
 
                 foreach (string encoding in new[] { binary, xml, json })
                 {
@@ -486,16 +489,13 @@ namespace Opc.Ua.Wot
 
                 string? declaredDefault = GetElementString(entry.Value, "uav:defaultEncodingId");
                 if (declaredDefault is not null &&
-                    !string.Equals(declaredDefault, binary, StringComparison.Ordinal) &&
-                    !string.Equals(declaredDefault, xml, StringComparison.Ordinal) &&
-                    !string.Equals(declaredDefault, json, StringComparison.Ordinal))
+                    NormalizeExpandedNodeId(ToNodeSetNodeId(declaredDefault, nodeSet, diagnostics)) != binary)
                 {
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
                         WotDiagnosticCode.DataTypeDefinitionInvalid,
                         $"The DataType '{name}' defaults to the encoding " +
-                        $"'{declaredDefault}', which is none of the three it " +
-                        "exposes; §6.11.7 gives it no fourth encoding to name.",
+                        $"'{declaredDefault}', which does not identify its Default Binary encoding.",
                         new WotLocation(reference: name)));
                 }
             }
@@ -1378,35 +1378,42 @@ namespace Opc.Ua.Wot
             UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics)
         {
-            AppendEncoding(
-                definition, "uav:binaryEncodingId", encodingRoot + BinaryEncodingSuffix,
-                "Default Binary", dataTypeId, references, items, nodeSet, diagnostics);
-            AppendEncoding(
-                definition, "uav:xmlEncodingId", encodingRoot + XmlEncodingSuffix,
-                "Default XML", dataTypeId, references, items, nodeSet, diagnostics);
-            AppendEncoding(
-                definition, "uav:jsonEncodingId", encodingRoot + JsonEncodingSuffix,
-                "Default JSON", dataTypeId, references, items, nodeSet, diagnostics);
+            (string binary, string xml, string json) = ResolveEncodingIdentities(
+                definition, encodingRoot, nodeSet, diagnostics);
+            AppendEncoding(binary, "Default Binary", dataTypeId, references, items);
+            AppendEncoding(xml, "Default XML", dataTypeId, references, items);
+            AppendEncoding(json, "Default JSON", dataTypeId, references, items);
         }
 
-        private static void AppendEncoding(
+        private static (string Binary, string Xml, string Json) ResolveEncodingIdentities(
             JsonElement definition,
-            string term,
-            string derivedId,
-            string name,
-            string dataTypeId,
-            List<Reference> references,
-            List<UANode> items,
+            string encodingRoot,
             UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics)
         {
-            // An authored identity is portable; a NodeSet attribute is not. It
-            // has to be resolved here or the encoding Object lands beside the
-            // one it was meant to be.
-            string? authored = GetElementString(definition, term);
-            string encodingId = authored is null
-                ? derivedId
-                : ToNodeSetNodeId(authored, nodeSet, diagnostics);
+            string? binary = GetElementString(definition, "uav:binaryEncodingId") ??
+                GetElementString(definition, "uav:defaultEncodingId");
+            string? xml = GetElementString(definition, "uav:xmlEncodingId");
+            string? json = GetElementString(definition, "uav:jsonEncodingId");
+            return (
+                NormalizeExpandedNodeId(binary is null
+                    ? encodingRoot + BinaryEncodingSuffix
+                    : ToNodeSetNodeId(binary, nodeSet, diagnostics)),
+                NormalizeExpandedNodeId(xml is null
+                    ? encodingRoot + XmlEncodingSuffix
+                    : ToNodeSetNodeId(xml, nodeSet, diagnostics)),
+                NormalizeExpandedNodeId(json is null
+                    ? encodingRoot + JsonEncodingSuffix
+                    : ToNodeSetNodeId(json, nodeSet, diagnostics)));
+        }
+
+        private static void AppendEncoding(
+            string encodingId,
+            string name,
+            string dataTypeId,
+            List<Reference> references,
+            List<UANode> items)
+        {
             references.Add(new Reference
             {
                 ReferenceType = "HasEncoding",

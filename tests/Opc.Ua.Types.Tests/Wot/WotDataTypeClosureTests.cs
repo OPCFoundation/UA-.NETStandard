@@ -189,6 +189,72 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(WotTestData.Serialize(source), Is.EqualTo(expected));
         }
 
+        [TestCase("nsu=urn:test:datatype-closure;i=3000")]
+        [TestCase("nsu=urn:test:datatype-closure;g=01234567-89ab-cdef-0123-456789abcdef")]
+        [TestCase("nsu=urn:test:datatype-closure;b=AQIDBA==")]
+        public void DefaultEncodingIdUsesTheNameDerivedBinaryIdentity(string typeId)
+        {
+            JsonObject definition = Structure(typeId);
+            definition["uav:defaultEncodingId"] = "nsu=urn:test:datatype-closure;s=DataTypes/Reading/Default Binary";
+            using WotDocument document = Parse(Document(definition));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, Describe(result));
+            Assert.That(result.Value!.Items!.OfType<UAObject>().Single(node => node.BrowseName == "Default Binary").NodeId,
+                Is.EqualTo("ns=1;s=DataTypes/Reading/Default Binary"));
+        }
+
+        [TestCase("uav:xmlEncodingId")]
+        [TestCase("uav:jsonEncodingId")]
+        public void DefaultEncodingIdCannotSelectAnExplicitNonBinaryEncoding(string encodingTerm)
+        {
+            JsonObject definition = Structure("nsu=urn:test:datatype-closure;i=3000");
+            definition[encodingTerm] = "nsu=urn:test:datatype-closure;i=4002";
+            definition["uav:defaultEncodingId"] = "nsu=urn:test:datatype-closure;i=4002";
+            using WotDocument document = Parse(Document(definition));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.DataTypeDefinitionInvalid), Is.True, Describe(result));
+        }
+
+        [Test]
+        public void DefaultEncodingIdCanSupplyTheBinaryIdentity()
+        {
+            JsonObject definition = Structure("nsu=urn:test:datatype-closure;i=3000");
+            definition["uav:defaultEncodingId"] = "nsu=urn:test:datatype-closure;i=4001";
+            using WotDocument document = Parse(Document(definition));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, Describe(result));
+            Assert.That(result.Value!.Items!.OfType<UAObject>().Single(node => node.BrowseName == "Default Binary").NodeId,
+                Is.EqualTo("ns=1;i=4001"));
+        }
+
+        [TestCase("nsu=urn%3Atest%3Adatatype-closure;i=04001", true)]
+        [TestCase("nsu=urn:test:datatype-closure;i=4002", false)]
+        public void DefaultEncodingIdAgreesWithTheNormalizedBinaryIdentity(string defaultId, bool agrees)
+        {
+            JsonObject definition = Structure("nsu=urn:test:datatype-closure;i=3000");
+            definition["uav:binaryEncodingId"] = "nsu=urn:test:datatype-closure;i=4001";
+            definition["uav:xmlEncodingId"] = "nsu=urn:test:datatype-closure;i=4002";
+            definition["uav:defaultEncodingId"] = defaultId;
+            using WotDocument document = Parse(Document(definition));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.EqualTo(agrees), Describe(result));
+            if (agrees)
+            {
+                Assert.That(result.Value!.Items!.OfType<UAObject>()
+                    .Single(node => node.BrowseName == "Default Binary").NodeId, Is.EqualTo("ns=1;i=4001"));
+            }
+        }
+
         private static JsonObject Structure(string typeId)
         {
             return new JsonObject
