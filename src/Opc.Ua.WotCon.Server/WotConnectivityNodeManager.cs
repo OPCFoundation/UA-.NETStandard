@@ -53,7 +53,10 @@ namespace Opc.Ua.WotCon.Server
     /// <see cref="AssetRegistry"/> in a dedicated namespace
     /// (<see cref="WotConnectivityServerOptions.AssetNamespaceUri"/>).
     /// </remarks>
-    public sealed class WotConnectivityNodeManager : AsyncCustomNodeManager, INodeIdFactory
+    public sealed class WotConnectivityNodeManager :
+        AsyncCustomNodeManager,
+        INodeIdFactory,
+        ILocalAddressSpaceOwnership
     {
         /// <summary>
         /// Initialises a new <see cref="WotConnectivityNodeManager"/>.
@@ -71,9 +74,18 @@ namespace Opc.Ua.WotCon.Server
                   Namespaces.WotCon)
         {
             m_options = options;
-            SystemContext.NodeIdFactory = this;
-            AssetNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(options.AssetNamespaceUri);
-            WotConNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(Namespaces.WotCon);
+            AssetNamespaceIndex = WotConModelPartition.GetRequiredNamespaceIndex(
+                server.NamespaceUris, options.AssetNamespaceUri);
+            WotConNamespaceIndex = WotConModelPartition.GetRequiredNamespaceIndex(
+                server.NamespaceUris, Namespaces.WotCon);
+
+            // counter identifiers: assets are (re)discovered at runtime and
+            // reuse browse names across generations.
+            NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(AssetNamespaceIndex);
+            if (NodeIdFactory is not INodeIdFactoryPolicy)
+            {
+                NodeIdFactory = NodeIdFactory.WithMode(NodeIdAssignmentMode.Counter);
+            }
             m_registry = new AssetRegistry(this, options, m_logger);
         }
 
@@ -87,14 +99,13 @@ namespace Opc.Ua.WotCon.Server
         /// </summary>
         public ushort WotConNamespaceIndex { get; }
 
-        /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)
+        string ILocalAddressSpaceOwnership.PartitionId =>
+            $"{m_options.AssetNamespaceUri}|{Namespaces.WotCon}:legacy";
+
+        bool ILocalAddressSpaceOwnership.OwnsNode(NodeId nodeId)
         {
-            if (!node.NodeId.IsNull)
-            {
-                return node.NodeId;
-            }
-            return new NodeId((uint)Interlocked.Increment(ref m_nextDynamicId), AssetNamespaceIndex);
+            return nodeId.NamespaceIndex == AssetNamespaceIndex ||
+                WotConModelPartition.IsLegacyNode(nodeId, WotConNamespaceIndex);
         }
 
         /// <summary>
@@ -687,7 +698,6 @@ namespace Opc.Ua.WotCon.Server
         private readonly SemaphoreSlim m_writeLock = new(1, 1);
         private readonly Lock m_changeLock = new();
         private WoTAssetConnectionManagementState? m_managementObject;
-        private long m_nextDynamicId = 1_000_000;
     }
 
     internal static partial class WotConnectivityNodeManagerLog

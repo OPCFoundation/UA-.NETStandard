@@ -33,11 +33,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 
-// Conformance tests use inline literal arrays as expected-value
-// assertions; the per-call allocation cost is irrelevant for tests
-// and keeping the literal adjacent to the assertion improves readability.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
-
 namespace Opc.Ua.History.Tests
 {
     /// <summary>
@@ -371,7 +366,7 @@ namespace Opc.Ua.History.Tests
                     new() {
                         NodeId = nodeId,
                         AttributeId = Attributes.Value,
-                        Value = new DataValue(new Variant(new int[] { 999, 888 })),
+                        Value = new DataValue(new Variant(s_intValues1)),
                         IndexRange = "1:2"
                     }
                 }.ToArrayOf(),
@@ -2030,5 +2025,7 @@ namespace Opc.Ua.History.Tests
                 DeadbandValue = deadbandValue
             });
         }
+
+        private static readonly int[] s_intValues1 = [999, 888];
     }
 }

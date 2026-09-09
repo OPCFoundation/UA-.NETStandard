@@ -49,7 +49,9 @@ namespace Opc.Ua.WotCon.Server
     /// The generated <c>Refresh</c> Method is wired to the coordinator; the
     /// coordinator's events are re-emitted as the generated registry event types.
     /// </summary>
-    public sealed class WotRegistryNodeManager : AsyncCustomNodeManager
+    public sealed class WotRegistryNodeManager :
+        AsyncCustomNodeManager,
+        ILocalAddressSpaceOwnership
     {
         /// <summary>
         /// Initializes a new registry NodeManager.
@@ -70,6 +72,10 @@ namespace Opc.Ua.WotCon.Server
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             Registry = registry ?? throw new ArgumentNullException(nameof(registry));
             Coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+            m_wotConNamespaceIndex = WotConModelPartition.GetRequiredNamespaceIndex(
+                server.NamespaceUris, Namespaces.WotCon);
+            m_xRegistryNamespaceIndex = WotConModelPartition.GetRequiredNamespaceIndex(
+                server.NamespaceUris, XRegistryWellKnown.XRegistryNamespaceUri);
             Coordinator.StrictBindings = options.StrictBindings;
             Coordinator.RetirementPolicy = options.RetirementPolicy;
             Coordinator.ServerNamespaceUris = server.NamespaceUris;
@@ -80,6 +86,7 @@ namespace Opc.Ua.WotCon.Server
             // model type cannot resolve.
             Coordinator.UseAddressSpace(new AddressSpaceWotNodeResolver(server));
             m_projection = new WotRegistryProjection(this, Registry, m_options);
+            m_reconcileQueue = new WotRegistryReconcileQueue(SafeReconcileAsync);
         }
 
         /// <summary>
@@ -91,6 +98,15 @@ namespace Opc.Ua.WotCon.Server
         /// Gets the hosted materialization coordinator.
         /// </summary>
         public WotMaterializationCoordinator Coordinator { get; }
+
+        string ILocalAddressSpaceOwnership.PartitionId =>
+            $"{Namespaces.WotCon}:registry|{XRegistryWellKnown.XRegistryNamespaceUri}";
+
+        bool ILocalAddressSpaceOwnership.OwnsNode(NodeId nodeId)
+        {
+            return nodeId.NamespaceIndex == m_xRegistryNamespaceIndex ||
+                WotConModelPartition.IsRegistryNode(nodeId, m_wotConNamespaceIndex);
+        }
 
         /// <inheritdoc/>
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
@@ -168,12 +184,12 @@ namespace Opc.Ua.WotCon.Server
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
-            // Chain WoTRegistry into the Server's notifier tree so its events
-            // reach subscribing clients. The generated WoTRegistry Object already
-            // declares the inverse HasNotifier to the Server object, so only the
-            // forward reference on the Server side is added here.
+            // Register WoTRegistry as a root notifier so Server event MonitoredItems subscribe to
+            // it, and publish the forward HasNotifier reference for browseability.
             if (m_registryNode is not null)
             {
+                await AddRootNotifierAsync(m_registryNode, cancellationToken)
+                    .ConfigureAwait(false);
                 if (externalReferences.TryGetValue(
                         Ua.ObjectIds.Server, out IList<IReference>? serverRefs) ||
                     (serverRefs = EnsureList(externalReferences, Ua.ObjectIds.Server)) != null)
@@ -195,7 +211,7 @@ namespace Opc.Ua.WotCon.Server
                     .ConfigureAwait(false);
             }
             await SafeRefreshAsync("startup").ConfigureAwait(false);
-            await m_projection.ReconcileAsync(cancellationToken).ConfigureAwait(false);
+            await m_projection.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -204,6 +220,7 @@ namespace Opc.Ua.WotCon.Server
         {
             Registry.Changed -= OnRegistryChanged;
             Coordinator.Event -= OnCoordinatorEvent;
+            await m_reconcileQueue.CompleteAsync(cancellationToken).ConfigureAwait(false);
             await Coordinator.RemoveAllAsync(cancellationToken).ConfigureAwait(false);
             m_projection.Dispose();
             await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
@@ -214,6 +231,7 @@ namespace Opc.Ua.WotCon.Server
         {
             if (disposing)
             {
+                m_reconcileQueue.Dispose();
                 m_projection.Dispose();
                 m_refreshGate.Dispose();
             }
@@ -305,7 +323,7 @@ namespace Opc.Ua.WotCon.Server
             // Keep the browseable projection synchronized on every change,
             // including projection-only callbacks (which must never re-trigger
             // materialization).
-            _ = SafeReconcileAsync();
+            m_reconcileQueue.Enqueue(e);
             if (e.ProjectionOnly || !m_options.AutoRefresh)
             {
                 return;
@@ -457,11 +475,15 @@ namespace Opc.Ua.WotCon.Server
             return new(browseName, (ushort)Server.NamespaceUris.GetIndex(Namespaces.WotCon));
         }
 
-        private async Task SafeReconcileAsync()
+        private async Task SafeReconcileAsync(WotRegistryChangedEventArgs change)
         {
             try
             {
-                await m_projection.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+                await m_projection.ReconcileAsync(
+                        change.Previous,
+                        change.Current,
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -539,8 +561,120 @@ namespace Opc.Ua.WotCon.Server
 
         private readonly WotRegistryServerOptions m_options;
         private readonly WotRegistryProjection m_projection;
+        private readonly ushort m_wotConNamespaceIndex;
+        private readonly ushort m_xRegistryNamespaceIndex;
+        private readonly WotRegistryReconcileQueue m_reconcileQueue;
         private readonly SemaphoreSlim m_refreshGate = new(1, 1);
         private BaseObjectState? m_registryNode;
+    }
+
+    internal sealed class WotRegistryReconcileQueue : IDisposable
+    {
+        public WotRegistryReconcileQueue(
+            Func<WotRegistryChangedEventArgs, Task> reconcile)
+        {
+            m_reconcile = reconcile ?? throw new ArgumentNullException(nameof(reconcile));
+        }
+
+        public void Enqueue(WotRegistryChangedEventArgs change)
+        {
+            lock (m_lock)
+            {
+                if (m_completed)
+                {
+                    return;
+                }
+                m_changes.Enqueue(change);
+                if (!m_running)
+                {
+                    m_running = true;
+                    m_worker = DrainAsync();
+                }
+            }
+        }
+
+        public async ValueTask WhenIdleAsync(CancellationToken cancellationToken = default)
+        {
+            while (true)
+            {
+                Task? worker;
+                lock (m_lock)
+                {
+                    worker = m_worker;
+                    if (!m_running && (worker is null || worker.Status == TaskStatus.RanToCompletion))
+                    {
+                        return;
+                    }
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                await worker!.ConfigureAwait(false);
+            }
+        }
+
+        public async ValueTask CompleteAsync(CancellationToken cancellationToken = default)
+        {
+            lock (m_lock)
+            {
+                m_completed = true;
+            }
+            await WhenIdleAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        public void Dispose()
+        {
+            lock (m_lock)
+            {
+                m_completed = true;
+                m_changes.Clear();
+            }
+        }
+
+        private async Task DrainAsync()
+        {
+            bool drained = false;
+            try
+            {
+                await Task.Yield();
+                while (true)
+                {
+                    WotRegistryChangedEventArgs change;
+                    lock (m_lock)
+                    {
+                        if (m_changes.Count == 0)
+                        {
+                            // Release ownership atomically with the empty check. A subsequent
+                            // Enqueue may start a worker that the finally block must not reset.
+                            m_running = false;
+                            drained = true;
+                            return;
+                        }
+                        change = m_changes.Dequeue();
+                    }
+                    await m_reconcile(change).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                if (!drained)
+                {
+                    lock (m_lock)
+                    {
+                        m_running = m_changes.Count != 0;
+                        if (m_running)
+                        {
+                            m_worker = DrainAsync();
+                        }
+                    }
+                }
+            }
+        }
+
+        private readonly Func<WotRegistryChangedEventArgs, Task> m_reconcile;
+        private readonly Queue<WotRegistryChangedEventArgs> m_changes = new();
+        private readonly Lock m_lock = new();
+        private Task? m_worker;
+        private bool m_running;
+        private bool m_completed;
     }
 
     /// <summary>

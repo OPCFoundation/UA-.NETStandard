@@ -335,6 +335,27 @@ namespace Opc.Ua.Wot
             text.Append('"');
         }
 
+        /// <summary>
+        /// Writes a generated double with the same shortest spelling on every target framework.
+        /// </summary>
+        internal static void WriteNumber(Utf8JsonWriter writer, string propertyName, double value)
+        {
+            writer.WritePropertyName(propertyName);
+            WriteNumberValue(writer, value);
+        }
+
+        /// <summary>
+        /// Formats a producer-owned value without relaxing validation of authored numeric literals.
+        /// </summary>
+        internal static void WriteNumberValue(Utf8JsonWriter writer, double value)
+        {
+            if (double.IsNaN(value) || double.IsInfinity(value))
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), "A JSON number must be finite.");
+            }
+            writer.WriteRawValue(FormatDouble(value));
+        }
+
         private static bool Write(
             StringBuilder text, JsonElement element, int depth, out string error)
         {

@@ -131,10 +131,7 @@ namespace Opc.Ua.Server.Fluent
             instance.DisplayName = new LocalizedText(symbolicName);
             instance.ReferenceTypeId = ReferenceTypeIds.HasComponent;
 
-            string parentIdentifier = parent.Node.NodeId.IdentifierAsString;
-            instance.NodeId = new NodeId(
-                $"{parentIdentifier}_{symbolicName}",
-                parent.Node.NodeId.NamespaceIndex);
+            FluentNodeRegistration.AssignNodeId(parent.Builder, instance);
 
             if (!typeDefinitionId.IsNull)
 
@@ -475,6 +472,46 @@ namespace Opc.Ua.Server.Fluent
 
         public INodeBuilder OnMonitoredItemCreated(MonitoredItemCreatedHandler handler)
         {
+            if (Builder is NodeManagerBuilder nodeManagerBuilder)
+            {
+                nodeManagerBuilder.RegisterMonitoredItemCreated(Node, handler);
+            }
+            return this;
+        }
+
+        public INodeBuilder OnCreateMonitoredItem(MonitoredItemCreatingHandler handler)
+        {
+            if (Builder is NodeManagerBuilder nodeManagerBuilder)
+            {
+                nodeManagerBuilder.RegisterMonitoredItemCreating(Node, handler);
+            }
+            return this;
+        }
+
+        public INodeBuilder OnMonitoredItemModified(MonitoredItemModifiedHandler handler)
+        {
+            if (Builder is NodeManagerBuilder nodeManagerBuilder)
+            {
+                nodeManagerBuilder.RegisterMonitoredItemModified(Node, handler);
+            }
+            return this;
+        }
+
+        public INodeBuilder OnMonitoredItemDeleted(MonitoredItemDeletedHandler handler)
+        {
+            if (Builder is NodeManagerBuilder nodeManagerBuilder)
+            {
+                nodeManagerBuilder.RegisterMonitoredItemDeleted(Node, handler);
+            }
+            return this;
+        }
+
+        public INodeBuilder OnMonitoringModeChanged(MonitoringModeChangedHandler handler)
+        {
+            if (Builder is NodeManagerBuilder nodeManagerBuilder)
+            {
+                nodeManagerBuilder.RegisterMonitoringModeChanged(Node, handler);
+            }
             return this;
         }
 
@@ -486,9 +523,9 @@ namespace Opc.Ua.Server.Fluent
 
         public INodeBuilder AllowMultipleEventConsumers(bool enable = true)
         {
-            if (Builder is NodeManagerBuilder nmb)
+            if (Builder is NodeManagerBuilder nodeManagerBuilder)
             {
-                nmb.RegisterMultiConsumerNode(Node, enable);
+                nodeManagerBuilder.RegisterMultiConsumerNode(Node, enable);
             }
             return this;
         }

@@ -50,6 +50,21 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     [Parallelizable]
     public class VariantTests
     {
+        internal static Variant CreateLegacyStorageValue(object value)
+        {
+            return new Variant(value);
+        }
+
+        internal static Variant CreateLegacyStorageValue(object value, TypeInfo typeInfo)
+        {
+            return new Variant(value, typeInfo);
+        }
+
+        internal static object GetLegacyStorageValue(Variant value)
+        {
+            return value.Value;
+        }
+
         public sealed record VariantDescriptor(
             string Name,
             Func<object> ValueFactory,

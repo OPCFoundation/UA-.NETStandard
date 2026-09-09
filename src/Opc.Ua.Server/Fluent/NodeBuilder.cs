@@ -44,6 +44,7 @@ namespace Opc.Ua.Server.Fluent
         {
             m_parent = parent ?? throw new ArgumentNullException(nameof(parent));
             Node = node ?? throw new ArgumentNullException(nameof(node));
+            m_parent.MarkConfigured(Node);
         }
 
         /// <inheritdoc/>
@@ -242,6 +243,50 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentNullException(nameof(handler));
             }
             m_parent.RegisterMonitoredItemCreated(Node, handler);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public INodeBuilder OnCreateMonitoredItem(MonitoredItemCreatingHandler handler)
+        {
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+            m_parent.RegisterMonitoredItemCreating(Node, handler);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public INodeBuilder OnMonitoredItemModified(MonitoredItemModifiedHandler handler)
+        {
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+            m_parent.RegisterMonitoredItemModified(Node, handler);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public INodeBuilder OnMonitoredItemDeleted(MonitoredItemDeletedHandler handler)
+        {
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+            m_parent.RegisterMonitoredItemDeleted(Node, handler);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public INodeBuilder OnMonitoringModeChanged(MonitoringModeChangedHandler handler)
+        {
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+            m_parent.RegisterMonitoringModeChanged(Node, handler);
             return this;
         }
 

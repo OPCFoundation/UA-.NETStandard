@@ -29,90 +29,122 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
 using NUnit.Framework;
+using ModelSource = Opc.Ua.WotCon.Tests.Samples.WotAggregationDocumentGenerator.ModelSource;
+using SampleDocument = Opc.Ua.WotCon.Tests.Samples.WotAggregationDocumentGenerator.SampleDocument;
 
 namespace Opc.Ua.WotCon.Tests.Samples
 {
     /// <summary>
-    /// Materializes the companion models as sets of linked documents.
+    /// Explicit, reproducible writers for the complete aggregation document set.
     /// </summary>
-    /// <remarks>
-    /// Explicit because it rewrites the checked-in sample document set. Run it
-    /// when the converter's output changes, then commit what it produced:
-    ///
-    ///   dotnet test tests\Opc.Ua.WotCon.Tests --filter "FullyQualifiedName~WriteCompanionModelSets"
-    /// </remarks>
     [TestFixture]
     [Category("WotCon")]
     [Category("Samples")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [NonParallelizable]
     public sealed class WotCompanionModelMaterializationTests
     {
         [Test]
-        [Explicit("Rewrites the checked-in sample documents.")]
-        public void WriteCompanionModelSets()
+        [Explicit("Rewrites the authoritative two-pump source and all demo documents.")]
+        public async Task WriteAggregationDocuments()
         {
-            string documents = Path.Combine(
-                RepositoryRoot, "samples", "WotCon", "AggregationClient", "Documents");
-
-            var written = new List<string>();
-            string? previousModel = null;
-            foreach ((string source, string directory, string title) in s_models)
-            {
-                IReadOnlyList<WotAggregationDocumentGenerator.GeneratedDocument> set =
-                    WotAggregationDocumentGenerator.GenerateThingModelSet(
-                        Path.Combine(RepositoryRoot, source), directory, title);
-
-                IReadOnlyList<WotAggregationDocumentGenerator.ManifestEntry> entries =
-                    WotAggregationDocumentGenerator.WriteThingModelSet(
-                        documents, directory, set, previousModel);
-
-                written.Add($"{directory}: {entries.Count} documents");
-                previousModel = entries[^1].ResourceId;
-            }
-
-            foreach (string line in written)
-            {
-                TestContext.Out.WriteLine(line);
-            }
-            Assert.That(written, Is.Not.Empty);
+            await WriteAllDocumentsAsync().ConfigureAwait(false);
         }
 
-        private static readonly (string Source, string Directory, string Title)[] s_models =
-        [
-            (Path.Combine(
-                "tests", "Opc.Ua.SourceGeneration.Core.Tests", "Resources",
-                "Opc.Ua.Di.NodeSet2.xml"),
-                "opc-ua-di",
-                "OPC UA Device Integration"),
-            (Path.Combine(
-                "samples", "DI", "PumpDeviceIntegrationServer", "Model",
-                "Opc.Ua.Machinery.NodeSet2.xml"),
-                "opc-ua-machinery",
-                "OPC UA Machinery"),
-            (Path.Combine(
-                "samples", "DI", "PumpDeviceIntegrationServer", "Model",
-                "Opc.Ua.Pumps.NodeSet2.xml"),
-                "opc-ua-pumps",
-                "OPC UA Pumps")
-        ];
+        [Test]
+        [Explicit("Rewrites the complete linked sample set and manifest, including companion models.")]
+        public async Task WriteCompanionModelSets()
+        {
+            await WriteAllDocumentsAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        [Explicit("Rewrites only the authoritative two-pump NodeSet source.")]
+        public async Task WritePumpNodeSetSource()
+        {
+            await WriteSourceAsync().ConfigureAwait(false);
+        }
+
+        private static async Task WriteAllDocumentsAsync()
+        {
+            await WriteSourceAsync().ConfigureAwait(false);
+            ArrayOf<SampleDocument> generated = await WotAggregationDocumentGenerator
+                .GenerateAggregationDocumentsAsync(RepositoryRoot).ConfigureAwait(false);
+            await WotAggregationDocumentGenerator.WriteDocumentsAsync(
+                DocumentsDirectory, generated).ConfigureAwait(false);
+
+            for (int modelIndex = 0; modelIndex < WotAggregationDocumentGenerator.CompanionModels.Count; modelIndex++)
+            {
+                ModelSource model = WotAggregationDocumentGenerator.CompanionModels[modelIndex];
+                ByteString standalone = ByteString.From(WotAggregationDocumentGenerator.GenerateThingModel(
+                    Path.Combine(RepositoryRoot, model.SourcePath), model.Title));
+                await WotAggregationDocumentGenerator.WriteBytesAsync(
+                    Path.Combine(DocumentsDirectory, model.StandaloneFile), standalone).ConfigureAwait(false);
+            }
+            ByteString legacyPump = ByteString.From(WotAggregationDocumentGenerator.GeneratePumpThingDescription(
+                Path.Combine(DocumentsDirectory, "SamplePump.NodeSet2.xml")));
+            await WotAggregationDocumentGenerator.WriteBytesAsync(
+                Path.Combine(DocumentsDirectory, "SamplePump.td.json"), legacyPump).ConfigureAwait(false);
+
+            var generatedDocuments = generated.ToList();
+            foreach (var group in generatedDocuments.GroupBy(document =>
+                document.Path.Contains('/', StringComparison.Ordinal)
+                    ? document.Path[..document.Path.IndexOf('/', StringComparison.Ordinal)]
+                    : "asset-projections"))
+            {
+                TestContext.Out.WriteLine($"{group.Key}: {group.Count()} documents");
+            }
+            foreach (string pumpName in new[] { "Pump1", "Pump2" })
+            {
+                string identity = WotAggregationDocumentGenerator.LocalNodeId(pumpName, string.Empty);
+                foreach (SampleDocument document in generatedDocuments)
+                {
+                    using var json = JsonDocument.Parse(document.Json.ToArray());
+                    if (json.RootElement.TryGetProperty("uav:id", out JsonElement localId) &&
+                        string.Equals(localId.GetString(), identity, StringComparison.Ordinal))
+                    {
+                        TestContext.Out.WriteLine($"{pumpName}: {document.ResourceId} -> {document.Path}");
+                    }
+                }
+                TestContext.Out.WriteLine(WotAggregationDocumentGenerator.AffordanceReference(
+                    generatedDocuments.Where(document => document.Path.StartsWith(
+                        "sample-pump/", StringComparison.Ordinal)).ToArrayOf(),
+                    "properties",
+                    WotAggregationDocumentGenerator.LocalNodeId(
+                        pumpName, "Operational.Measurements.DifferentialPressure")));
+            }
+            TestContext.Out.WriteLine($"documents.json: {generated.Count} exact manifest entries");
+            Assert.That(generatedDocuments, Is.Not.Empty);
+        }
+
+        private static async Task WriteSourceAsync()
+        {
+            string path = Path.Combine(DocumentsDirectory, "SamplePump.NodeSet2.xml");
+            ByteString source = WotAggregationDocumentGenerator.GeneratePumpNodeSetXml(path);
+            await WotAggregationDocumentGenerator.WriteBytesAsync(path, source).ConfigureAwait(false);
+            TestContext.Out.WriteLine($"SamplePump.NodeSet2.xml: {source.Length} bytes");
+        }
+
+        private static string DocumentsDirectory => Path.Combine(
+            RepositoryRoot, "samples", "WotCon", "AggregationClient", "Documents");
 
         private static string RepositoryRoot
         {
             get
             {
                 DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);
-                while (directory is not null &&
-                    !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
+                while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
                 {
                     directory = directory.Parent;
                 }
-                if (directory is null)
-                {
-                    throw new InvalidOperationException("The repository root was not found.");
-                }
-                return directory.FullName;
+                return directory?.FullName
+                    ?? throw new DirectoryNotFoundException("The repository root was not found.");
             }
         }
     }

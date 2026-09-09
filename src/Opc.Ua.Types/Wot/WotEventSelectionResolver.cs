@@ -217,7 +217,7 @@ namespace Opc.Ua.Wot
     /// caller a document the first one closed.
     /// </para>
     /// </remarks>
-    public sealed class WotEventSelectionResolver
+    public sealed partial class WotEventSelectionResolver
     {
         /// <summary>
         /// Initializes a new instance of the
@@ -303,6 +303,8 @@ namespace Opc.Ua.Wot
             using var scope = new ResolutionScope(
                 resolutionContext ??
                     new WotResolutionContext(m_options.ToResolverOptions()));
+            await BuildDefinitionIndexAsync(document, scope, cancellationToken)
+                .ConfigureAwait(false);
             foreach (KeyValuePair<string, JsonElement> affordance in document.Events)
             {
                 if (!StatesSelection(affordance.Value))
@@ -395,13 +397,15 @@ namespace Opc.Ua.Wot
                     return ArrayOf<WotResolvedEventSelectClause>.Empty;
                 }
             }
-            else
-            {
-                foreach (WotResolvedEventSelectClause clause in WotEventSelectClauses.Default)
-                {
-                    baseline.Add(clause);
-                }
-            }
+
+            // No affordance-level tm:ref: the clauses the affordance writes are
+            // the complete selection, not an overlay on the implicit default.
+            // The implicit eight-field default is what an affordance that
+            // states nothing at all falls back to, and StatesSelection keeps
+            // that case out of here entirely. Seeding it as a baseline would
+            // silently subscribe to eight fields the author did not ask for -
+            // and would make a document that deliberately selects one field
+            // return nine.
 
             var explicitClauses = new List<WotResolvedEventSelectClause>();
             if (affordance.TryGetProperty(WotEventSelectClauses.Term, out JsonElement authored))
@@ -511,7 +515,7 @@ namespace Opc.Ua.Wot
         /// together, every baseline clause an explicit clause names is removed,
         /// and the explicit clauses are appended in the order they are written.
         /// </summary>
-        private static ArrayOf<WotResolvedEventSelectClause> Overlay(
+        internal static ArrayOf<WotResolvedEventSelectClause> Overlay(
             List<WotResolvedEventSelectClause> baseline,
             List<WotResolvedEventSelectClause> explicitClauses)
         {
@@ -738,45 +742,15 @@ namespace Opc.Ua.Wot
 
             for (int depth = 0; depth < maxDepth; depth++)
             {
-                if (!WotEventSelectClauses.TrySplitEventTypeReference(
-                    current, out string documentUri, out string pointer))
+                JsonElement? located = await ResolveReferenceTargetAsync(
+                        document, current, where, scope, cancellationToken)
+                    .ConfigureAwait(false);
+                if (located is null)
                 {
-                    AddError(
-                        diagnostics,
-                        $"The EventType reference '{current}' is not a document URI with an " +
-                        "optional RFC 6901 JSON Pointer (WoT Binding Section 6.1).",
-                        where);
                     return null;
                 }
-
-                JsonElement root;
-                if (documentUri.Length == 0)
-                {
-                    root = document.RootElement;
-                }
-                else
-                {
-                    WotDocument? resolved = await LoadAsync(
-                            documentUri, where, scope, cancellationToken)
-                        .ConfigureAwait(false);
-                    if (resolved is null)
-                    {
-                        return null;
-                    }
-                    root = resolved.RootElement;
-                }
-
-                if (!WotDocument.TryEvaluatePointer(root, pointer, out JsonElement definition) ||
-                    definition.ValueKind != JsonValueKind.Object)
-                {
-                    AddError(
-                        diagnostics,
-                        $"The EventType reference '{current}' does not resolve to a definition " +
-                        "of the document it names (WoT Binding Section 6.1).",
-                        where);
-                    return null;
-                }
-                if (!seen.Add(documentUri + "#" + pointer))
+                JsonElement definition = located.Value;
+                if (!seen.Add(current))
                 {
                     AddError(
                         diagnostics,
@@ -889,7 +863,6 @@ namespace Opc.Ua.Wot
 
         private async System.Threading.Tasks.ValueTask<WotDocument?> LoadAsync(
             string documentUri,
-            string where,
             ResolutionScope scope,
             System.Threading.CancellationToken cancellationToken)
         {
@@ -917,13 +890,11 @@ namespace Opc.Ua.Wot
                     .ConfigureAwait(false);
                 if (!result.Found)
                 {
-                    AddError(
-                        diagnostics,
-                        $"The EventType reference to '{documentUri}' does not resolve in the " +
-                        "local document set; such a reference is resolved against the " +
-                        "documents held together with this one and is never dereferenced over " +
-                        "the network (WoT Binding Sections 5.1.5 and 6.1).",
-                        where);
+                    // Not found is not reported here: the same document is
+                    // probed speculatively while the definition index is built,
+                    // and only the caller knows whether anything actually
+                    // needed it. Reporting here would fail a document over a
+                    // reference nothing followed.
                     scope.MarkUnresolvable(documentUri);
                     return null;
                 }
@@ -944,11 +915,9 @@ namespace Opc.Ua.Wot
                 catch (Exception exception) when (
                     exception is JsonException or FormatException)
                 {
-                    AddError(
-                        diagnostics,
-                        $"The EventType reference target '{documentUri}' is not a well-formed " +
-                        "document: " + exception.Message,
-                        where);
+                    // Same reason as above: a document that cannot be parsed
+                    // resolves to nothing, and the caller reports the reference
+                    // that needed it.
                     scope.MarkUnresolvable(documentUri);
                     return null;
                 }
@@ -1214,6 +1183,13 @@ namespace Opc.Ua.Wot
 
             public List<WotDiagnostic> Diagnostics { get; } = [];
 
+            /// <summary>
+            /// Every definition the held documents declare, indexed by the
+            /// logical identifiers it can be named by.
+            /// </summary>
+            public Dictionary<string, List<DefinitionCandidate>> Definitions { get; } =
+                new(StringComparer.Ordinal);
+
             public bool TryGetLoaded(string documentUri, out WotDocument? document)
             {
                 return m_loaded.TryGetValue(documentUri, out document);
@@ -1232,6 +1208,15 @@ namespace Opc.Ua.Wot
             public void MarkUnresolvable(string documentUri)
             {
                 m_unresolvable.Add(documentUri);
+            }
+
+            /// <summary>
+            /// Records that a document's failure to resolve has been reported,
+            /// answering <c>true</c> only for the first reader that asks.
+            /// </summary>
+            public bool TryMarkReported(string documentUri)
+            {
+                return m_reported.Add(documentUri);
             }
 
             public void SetLinkedData(string affordanceName, byte[] utf8Json)
@@ -1254,11 +1239,14 @@ namespace Opc.Ua.Wot
                 }
                 m_loaded.Clear();
                 m_unresolvable.Clear();
+                m_reported.Clear();
                 m_linkedData.Clear();
+                Definitions.Clear();
             }
 
             private readonly Dictionary<string, WotDocument> m_loaded = new(StringComparer.Ordinal);
             private readonly HashSet<string> m_unresolvable = new(StringComparer.Ordinal);
+            private readonly HashSet<string> m_reported = new(StringComparer.Ordinal);
             private readonly Dictionary<string, byte[]> m_linkedData = new(StringComparer.Ordinal);
         }
 

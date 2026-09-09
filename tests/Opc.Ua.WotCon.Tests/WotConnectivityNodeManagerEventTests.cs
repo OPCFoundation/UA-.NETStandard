@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -181,18 +182,17 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         /// <summary>
-        /// A provider that supplies no severity must fall back to the value
-        /// authored on the affordance, not to an arbitrary constant.
+        /// A provider that supplies no severity uses the server fallback.
         /// </summary>
         [Test]
-        public async Task ReportedEventFallsBackToTheAuthoredSeverityAsync()
+        public async Task ReportedEventFallsBackToTheServerSeverityAsync()
         {
             using var harness = new ManagerHarness(
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory());
             await harness.StartAsync().ConfigureAwait(false);
-            AssetEntry entry = await CreateAssetWithOverheatingEventAsync(
-                harness, severity: 900).ConfigureAwait(false);
+            AssetEntry entry = await CreateAssetWithOverheatingEventAsync(harness)
+                .ConfigureAwait(false);
 
             var reported = new List<IFilterTarget>();
             entry.Asset.OnReportEvent += (_, _, e) => reported.Add(e);
@@ -200,106 +200,81 @@ namespace Opc.Ua.WotCon.Tests
             ((SimulatedWotAssetProvider)entry.Provider!).RaiseEvent(
                 "Overheating", s_overheatingFields);
 
-            Assert.That(((BaseEventState)reported[0]).Severity?.Value, Is.EqualTo((ushort)900));
+            Assert.That(
+                ((BaseEventState)reported[0]).Severity?.Value,
+                Is.EqualTo((ushort)EventSeverity.Medium));
         }
 
         /// <summary>
-        /// A TD that omits the severity gets the default, and an in-range one
-        /// is published verbatim.
+        /// The event tag carries the server fallback, not document metadata.
         /// </summary>
-        [TestCase(null, (ushort)500)]
-        [TestCase((ushort)250, (ushort)250)]
-        [TestCase((ushort)1, (ushort)1)]
-        [TestCase((ushort)1000, (ushort)1000)]
-        public async Task AuthoredSeverityInRangeIsPublishedAsync(
-            ushort? authored,
-            ushort expected)
+        [Test]
+        public async Task EventTagUsesTheServerSeverityAsync()
         {
             using var harness = new ManagerHarness(
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory());
             await harness.StartAsync().ConfigureAwait(false);
-            AssetEntry entry = await CreateAssetWithOverheatingEventAsync(
-                harness, severity: authored).ConfigureAwait(false);
+            AssetEntry entry = await CreateAssetWithOverheatingEventAsync(harness)
+                .ConfigureAwait(false);
 
             (_, WotEventTag tag) = entry.Events.Values.First();
 
-            Assert.That(tag.Severity, Is.EqualTo(expected));
+            Assert.That(tag.Severity, Is.EqualTo((ushort)EventSeverity.Medium));
         }
 
         /// <summary>
-        /// The WoT Binding "Event severity range" rule makes an out-of-range
-        /// severity invalid and forbids silently clamping it, so the affordance
-        /// is skipped rather than published with a rewritten value.
-        /// </summary>
-        [TestCase((ushort)0)]
-        [TestCase((ushort)1001)]
-        [TestCase((ushort)5000)]
-        public async Task AnOutOfRangeSeverityIsRejectedRatherThanClampedAsync(ushort authored)
-        {
-            using var harness = new ManagerHarness(
-                _tempFolder,
-                new SimulatedWotAssetProviderFactory());
-            await harness.StartAsync().ConfigureAwait(false);
-            AssetEntry entry = await CreateAssetWithOverheatingEventAsync(
-                harness, severity: authored).ConfigureAwait(false);
-
-            Assert.That(entry.Events, Is.Empty,
-                "An out-of-range severity must not be silently rewritten into a valid one.");
-        }
-
-        /// <summary>
-        /// Rejecting one affordance must not leave a half-built event type
-        /// advertised on the asset.
+        /// A retired severity member is an unknown JSON member and has no
+        /// effect on the event the asset surface materializes.
         /// </summary>
         [Test]
-        public async Task ARejectedEventLeavesNoGeneratesEventReferenceAsync()
+        public async Task RetiredSeverityMemberDoesNotAffectTheEventAsync()
         {
             using var harness = new ManagerHarness(
                 _tempFolder,
                 new SimulatedWotAssetProviderFactory());
             await harness.StartAsync().ConfigureAwait(false);
-            AssetEntry entry = await CreateAssetWithOverheatingEventAsync(
-                harness, severity: 5000).ConfigureAwait(false);
+            const string json =
+                """
+                {
+                  "name": "asset-001",
+                  "base": "sim://opcua.test/wot/asset-001",
+                  "events": {
+                    "Overheating": {
+                      "title": "Overheating",
+                      "uav:severity": 1001,
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "Temperature": { "type": "number" }
+                        }
+                      }
+                    }
+                  }
+                }
+                """;
+            ThingDescription? thing = JsonSerializer.Deserialize(
+                json,
+                ThingDescriptionJsonContext.Default.ThingDescription);
+            Assert.That(thing, Is.Not.Null);
 
-            NodeId eventTypeId = harness.Manager.AllocateChildNodeId(
-                entry.Name, "events", "Overheating");
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            ServiceResult status = await harness.Registry.RebuildAsync(
+                entry,
+                thing!,
+                persistOnSuccess: false,
+                CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(
-                entry.Asset.ReferenceExists(Ua.ReferenceTypeIds.GeneratesEvent, false, eventTypeId),
-                Is.False,
-                "A rejected affordance must not advertise an event type.");
-            Assert.That(
-                harness.Manager.FindPredefinedNode<NodeState>(eventTypeId),
-                Is.Null,
-                "A rejected affordance must not leave its event type registered.");
-        }
-
-        /// <summary>
-        /// An affordance the Server cannot materialise is skipped so the rest
-        /// of the asset stays usable, but the caller must be told. Reporting a
-        /// plain Good would leave an operator believing an alarm they authored
-        /// is configured when it silently does not exist.
-        /// </summary>
-        [Test]
-        public async Task ARejectedEventIsReportedAsAnIncompleteResultAsync()
-        {
-            using var harness = new ManagerHarness(
-                _tempFolder,
-                new SimulatedWotAssetProviderFactory());
-            await harness.StartAsync().ConfigureAwait(false);
-
-            ServiceResult status = await RebuildWithOverheatingEventAsync(
-                harness, severity: 5000).ConfigureAwait(false);
-
-            Assert.That(
-                ServiceResult.IsGood(status),
-                Is.True,
-                "The asset is still usable, so the result stays in the Good class.");
-            Assert.That(
-                status.StatusCode.Code,
-                Is.EqualTo(StatusCodes.GoodResultsMayBeIncomplete),
-                "A silently dropped alarm must not be reported as a plain Good.");
+            Assert.Multiple(() =>
+            {
+                Assert.That(status.StatusCode.Code, Is.EqualTo(StatusCodes.Good));
+                Assert.That(entry.Events, Has.Count.EqualTo(1));
+                Assert.That(
+                    entry.Events.Values.Single().Tag.Severity,
+                    Is.EqualTo((ushort)EventSeverity.Medium));
+            });
         }
 
         /// <summary>
@@ -314,8 +289,8 @@ namespace Opc.Ua.WotCon.Tests
                 new SimulatedWotAssetProviderFactory());
             await harness.StartAsync().ConfigureAwait(false);
 
-            ServiceResult status = await RebuildWithOverheatingEventAsync(
-                harness, severity: 900).ConfigureAwait(false);
+            ServiceResult status = await RebuildWithOverheatingEventAsync(harness)
+                .ConfigureAwait(false);
 
             Assert.That(status.StatusCode.Code, Is.EqualTo(StatusCodes.Good));
         }
@@ -459,13 +434,12 @@ namespace Opc.Ua.WotCon.Tests
 
         private static async Task<AssetEntry> CreateAssetWithOverheatingEventAsync(
             ManagerHarness harness,
-            ushort? severity = null,
             string? conditionType = null)
         {
             (_, NodeId assetId) = await harness.Registry
                 .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
             AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
-            await RebuildWithOverheatingEventAsync(harness, entry, severity, conditionType)
+            await RebuildWithOverheatingEventAsync(harness, entry, conditionType)
                 .ConfigureAwait(false);
             return entry;
         }
@@ -475,20 +449,18 @@ namespace Opc.Ua.WotCon.Tests
         /// that asserts on what the caller is told rather than on the nodes.
         /// </summary>
         private static async Task<ServiceResult> RebuildWithOverheatingEventAsync(
-            ManagerHarness harness,
-            ushort? severity)
+            ManagerHarness harness)
         {
             (_, NodeId assetId) = await harness.Registry
                 .CreateAssetAsync("asset-001", CancellationToken.None).ConfigureAwait(false);
             AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
-            return await RebuildWithOverheatingEventAsync(harness, entry, severity)
+            return await RebuildWithOverheatingEventAsync(harness, entry)
                 .ConfigureAwait(false);
         }
 
         private static ValueTask<ServiceResult> RebuildWithOverheatingEventAsync(
             ManagerHarness harness,
             AssetEntry entry,
-            ushort? severity,
             string? conditionType = null)
         {
             return harness.Registry.RebuildAsync(
@@ -502,7 +474,6 @@ namespace Opc.Ua.WotCon.Tests
                         ["Overheating"] = new WotEvent
                         {
                             Title = "Overheating",
-                            Severity = severity,
                             ConditionType = conditionType,
                             Data = new WotActionSchema
                             {

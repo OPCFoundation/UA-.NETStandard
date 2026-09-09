@@ -50,7 +50,8 @@ namespace Opc.Ua.Wot
     /// converting one without this resolver either mistypes every node or
     /// reports every type binding unresolved.
     /// </remarks>
-    public sealed class WotDocumentNodeResolver : IWotNodeResolver, IWotReferenceTypeResolver
+    public sealed class WotDocumentNodeResolver
+        : IWotNodeResolver, IWotReferenceTypeResolver, IWotTypeDeclarationResolver
     {
         /// <summary>
         /// Initializes a resolver over the supplied documents.
@@ -238,12 +239,32 @@ namespace Opc.Ua.Wot
             matches.Add(new WotResolvedReferenceType(nodeId, matchedName, isForward));
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// A Thing Model states its declarations as affordances and names what
+        /// it extends with <c>tm:extends</c>, so a set of sibling documents can
+        /// answer the whole question - including the inherited half - without
+        /// any AddressSpace being loaded. That is what lets a Thing Description
+        /// converted alongside its own Thing Model populate a declaration the
+        /// model states rather than add a second Node beside it.
+        /// </remarks>
+        public ValueTask<WotTypeDeclarationSet?> ResolveDeclarationsAsync(
+            string typeNodeId,
+            WotDeclarationScope scope,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return new ValueTask<WotTypeDeclarationSet?>(
+                m_declarations.Resolve(typeNodeId, scope));
+        }
+
         private void Index(WotDocument document)
         {
             if (document is null)
             {
                 return;
             }
+            m_declarations.Add(document);
             IndexNode(
                 document.RootElement,
                 ClassOfTokens(document.TypeTokens),
@@ -460,6 +481,8 @@ namespace Opc.Ua.Wot
 
         private readonly Dictionary<string, WotResolvedNode> m_byNodeId =
             new(StringComparer.Ordinal);
+
+        private readonly WotDocumentDeclarationIndex m_declarations = new();
 
         private readonly Dictionary<string, List<WotResolvedNode>> m_byBrowseName =
             new(StringComparer.Ordinal);

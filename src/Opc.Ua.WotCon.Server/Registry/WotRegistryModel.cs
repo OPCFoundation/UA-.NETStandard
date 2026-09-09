@@ -157,9 +157,35 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         /// <summary>
+        /// Creates a structural Version that has not committed document bytes yet.
+        /// </summary>
+        public static WotResourceVersion CreatePlaceholder(
+            string versionId,
+            DateTime createdAt)
+        {
+            return new WotResourceVersion(
+                versionId,
+                ByteString.Empty,
+                0,
+                string.Empty,
+                string.Empty,
+                createdAt,
+                createdAt)
+            {
+                HasContent = false,
+                Epoch = 1
+            };
+        }
+
+        /// <summary>
         /// Gets the xRegistry versionid.
         /// </summary>
         public string VersionId { get; }
+
+        /// <summary>
+        /// Gets the immutable in-process identity of this Version incarnation.
+        /// </summary>
+        internal Guid IncarnationId { get; init; } = Guid.NewGuid();
 
         /// <summary>
         /// Gets the SHA-256 content digest used as the resource-store key.
@@ -192,9 +218,121 @@ namespace Opc.Ua.WotCon.Server.Registry
         public DateTime ModifiedAt { get; }
 
         /// <summary>
+        /// Gets the Version epoch.
+        /// </summary>
+        public long Epoch { get; init; } = 1;
+
+        /// <summary>
+        /// Gets the Version labels and extension attributes.
+        /// </summary>
+        public ImmutableSortedDictionary<string, string> Labels { get; init; } =
+            WotLabels.Empty;
+
+        /// <summary>
+        /// Gets whether this Version has committed document bytes.
+        /// </summary>
+        public bool HasContent { get; init; } = true;
+
+        /// <summary>
+        /// Gets the validation outcome recorded for this Version, if any.
+        /// </summary>
+        public WoTValidationOutcomeDataType? Validation { get; init; }
+
+        /// <summary>
+        /// Gets the document identity parsed from this Version's bytes.
+        /// </summary>
+        public string? DocumentId { get; init; }
+
+        /// <summary>
+        /// Gets the document title parsed from this Version's bytes.
+        /// </summary>
+        public string? Title { get; init; }
+
+        /// <summary>
+        /// Gets the Thing Description base URI parsed from this Version.
+        /// </summary>
+        public string? BaseUri { get; init; }
+
+        /// <summary>
+        /// Gets the Thing Model <c>version.model</c> value parsed from this Version.
+        /// </summary>
+        public string? ModelVersion { get; init; }
+
+        /// <summary>
         /// Gets the content digest as a lowercase hexadecimal string.
         /// </summary>
-        public string DigestHex => WotContentDigest.ToHex(Digest);
+        public string DigestHex => HasContent ? WotContentDigest.ToHex(Digest) : string.Empty;
+
+        /// <summary>
+        /// Creates a copy with selected Version state replaced.
+        /// </summary>
+        internal WotResourceVersion With(
+            ByteString digest = default,
+            long? contentLength = null,
+            string? contentType = null,
+            string? format = null,
+            DateTime? modifiedAt = null,
+            long? epoch = null,
+            ImmutableSortedDictionary<string, string>? labels = null,
+            WoTValidationOutcomeDataType? validation = null,
+            bool clearValidation = false)
+        {
+            bool replacesDigest = !digest.IsNull;
+            ByteString updatedDigest = replacesDigest ? digest : Digest;
+            bool updatedHasContent = HasContent || replacesDigest;
+            if (updatedHasContent && (updatedDigest.IsNull || updatedDigest.Length == 0))
+            {
+                throw new ArgumentException(
+                    "A non-empty digest is required for a Version with content.",
+                    nameof(digest));
+            }
+            return new WotResourceVersion(
+                VersionId,
+                updatedDigest,
+                contentLength ?? ContentLength,
+                contentType ?? ContentType,
+                format ?? Format,
+                CreatedAt,
+                modifiedAt ?? ModifiedAt)
+            {
+                IncarnationId = this.IncarnationId,
+                Epoch = epoch ?? Epoch,
+                Labels = labels ?? Labels,
+                HasContent = updatedHasContent,
+                Validation = clearValidation ? null : (validation ?? Validation),
+                DocumentId = DocumentId,
+                Title = Title,
+                BaseUri = BaseUri,
+                ModelVersion = ModelVersion
+            };
+        }
+
+        internal WotResourceVersion WithDocumentMetadata(
+            string? documentId,
+            string? title,
+            string? baseUri,
+            string? modelVersion)
+        {
+            return new WotResourceVersion(
+                VersionId,
+                Digest,
+                ContentLength,
+                ContentType,
+                Format,
+                CreatedAt,
+                ModifiedAt)
+            {
+                IncarnationId = this.IncarnationId,
+                Epoch = Epoch,
+                Labels = Labels,
+                HasContent = HasContent,
+                Validation = Validation,
+                DocumentId = documentId,
+                Title = title,
+                BaseUri = baseUri,
+                ModelVersion = modelVersion
+            };
+        }
     }
 
     /// <summary>
@@ -266,6 +404,13 @@ namespace Opc.Ua.WotCon.Server.Registry
             ThingId = thingId;
             Title = title;
             Labels = labels ?? WotLabels.Empty;
+            DateTime fallback = Versions.IsDefaultOrEmpty
+                ? s_unixEpoch
+                : Versions.Min(version => version.CreatedAt);
+            MetaCreatedAt = fallback;
+            MetaModifiedAt = Versions.IsDefaultOrEmpty
+                ? fallback
+                : Versions.Max(version => version.ModifiedAt);
         }
 
         /// <summary>
@@ -329,7 +474,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         public ImmutableArray<string> Diagnostics { get; }
 
         /// <summary>
-        /// Gets the resource epoch (bumped on every mutation).
+        /// Gets the logical Resource Meta epoch.
         /// </summary>
         public long Epoch { get; }
 
@@ -374,11 +519,31 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string? Title { get; }
 
         /// <summary>
-        /// Gets the resource's extensible xRegistry labels/attributes,
+        /// Gets the Resource Meta extensible xRegistry labels/attributes,
         /// ordinally ordered by key. Materialized as the resource's
         /// browseable <c>Labels</c> (AttributesType) container.
         /// </summary>
         public ImmutableSortedDictionary<string, string> Labels { get; }
+
+        /// <summary>
+        /// Gets the logical Resource Meta epoch.
+        /// </summary>
+        public long MetaEpoch => Epoch;
+
+        /// <summary>
+        /// Gets the logical Resource Meta labels.
+        /// </summary>
+        public ImmutableSortedDictionary<string, string> MetaLabels => Labels;
+
+        /// <summary>
+        /// Gets the logical Resource Meta creation time.
+        /// </summary>
+        public DateTime MetaCreatedAt { get; init; }
+
+        /// <summary>
+        /// Gets the logical Resource Meta modification time.
+        /// </summary>
+        public DateTime MetaModifiedAt { get; init; }
 
         /// <summary>
         /// Gets the default (or desired) version snapshot, if present.
@@ -457,8 +622,81 @@ namespace Opc.Ua.WotCon.Server.Registry
                 description ?? Description,
                 thingId ?? ThingId,
                 title ?? Title,
-                labels ?? Labels);
+                labels ?? Labels)
+            {
+                MetaCreatedAt = MetaCreatedAt,
+                MetaModifiedAt = MetaModifiedAt
+            };
         }
+
+        internal WotResource WithMeta(
+            long epoch,
+            ImmutableSortedDictionary<string, string>? labels = null,
+            DateTime? modifiedAt = null)
+        {
+            WotResource updated = With(epoch: epoch, labels: labels ?? Labels);
+            return new WotResource(
+                updated.GroupId,
+                updated.ResourceId,
+                updated.Kind,
+                updated.Versions,
+                updated.DefaultVersionId,
+                updated.DesiredVersionId,
+                updated.ActiveVersionId,
+                updated.Enabled,
+                updated.LoadState,
+                updated.Validation,
+                updated.Diagnostics,
+                updated.Epoch,
+                updated.RefreshGeneration,
+                updated.LastRefreshTime,
+                updated.MaterializedNodeCount,
+                updated.RootNodeId,
+                updated.Name,
+                updated.Description,
+                updated.ThingId,
+                updated.Title,
+                updated.Labels)
+            {
+                MetaCreatedAt = MetaCreatedAt,
+                MetaModifiedAt = modifiedAt ?? MetaModifiedAt
+            };
+        }
+
+        internal WotResource WithSelectedVersionMetadata(
+            string? documentId,
+            string? title)
+        {
+            return new WotResource(
+                GroupId,
+                ResourceId,
+                Kind,
+                Versions,
+                DefaultVersionId,
+                DesiredVersionId,
+                ActiveVersionId,
+                Enabled,
+                LoadState,
+                Validation,
+                Diagnostics,
+                Epoch,
+                RefreshGeneration,
+                LastRefreshTime,
+                MaterializedNodeCount,
+                RootNodeId,
+                Name,
+                Description,
+                documentId,
+                title,
+                Labels)
+            {
+                MetaCreatedAt = MetaCreatedAt,
+                MetaModifiedAt = MetaModifiedAt
+            };
+        }
+
+        private static readonly DateTime s_unixEpoch =
+            new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     }
 
     /// <summary>
@@ -529,7 +767,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Gets the group's extensible xRegistry labels/attributes, ordinally
         /// ordered by key. Materialized as the group's browseable
-        /// <c>Labels</c> (AttributesType) container.
+        /// <c>MetaLabels</c> (AttributesType) container.
         /// </summary>
         public ImmutableSortedDictionary<string, string> Labels { get; }
 

@@ -45,11 +45,17 @@ using Opc.Ua.Server.Historian.InMemory;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies historian event insertion, reading, and deletion by identifier.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
     public class HistorianEventDispatcherTests
     {
+        /// <summary>
+        /// Verifies that an inserted historical event is returned by event-read dispatch.
+        /// </summary>
         [Test]
         public async Task EventInsertReadRoundTripAsync()
         {
@@ -70,11 +76,11 @@ namespace Opc.Ua.Server.Tests.Historian
                     [BrowseNames.EventType] = new Variant(ObjectTypeIds.BaseEventType),
                     [BrowseNames.Time] = new Variant((DateTimeUtc)when),
                     [BrowseNames.Message] = new Variant(new LocalizedText("hello"))
-                });
+                }.ToArrayOf());
 
-            IList<StatusCode> insertStatuses = await provider.InsertEventsAsync(
+            HistorianUpdateOutcome<HistorianEventRecord> insertOutcome = await provider.InsertEventsAsync(
                 context, notifier, [record], CancellationToken.None).ConfigureAwait(false);
-            Assert.That(StatusCode.IsGood(insertStatuses[0]), Is.True);
+            Assert.That(StatusCode.IsGood(insertOutcome.OperationResults[0]), Is.True);
 
             var filter = new EventFilter();
             filter.AddSelectClause(ObjectTypeIds.BaseEventType, BrowseNames.EventId, Attributes.Value);
@@ -104,6 +110,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(messageOut.Text, Is.EqualTo("hello"));
         }
 
+        /// <summary>
+        /// Verifies that event deletion removes the record with the requested identifier.
+        /// </summary>
         [Test]
         public async Task EventDeleteRemovesByIdAsync()
         {
@@ -119,13 +128,14 @@ namespace Opc.Ua.Server.Tests.Historian
                 await provider.InsertEventsAsync(context, notifier,
                     [new HistorianEventRecord(ids[i], ObjectTypeIds.BaseEventType,
                         BaseTime.AddSeconds(i),
-                        new Dictionary<string, Variant>(StringComparer.Ordinal))],
+                        new Dictionary<string, Variant>(
+                            StringComparer.Ordinal).ToArrayOf())],
                     CancellationToken.None).ConfigureAwait(false);
             }
 
-            IList<StatusCode> deleted = await provider.DeleteEventsAsync(
+            HistorianUpdateOutcome<HistorianEventRecord> deleted = await provider.DeleteEventsAsync(
                 context, notifier, [ids[0]], CancellationToken.None).ConfigureAwait(false);
-            Assert.That(StatusCode.IsGood(deleted[0]), Is.True);
+            Assert.That(StatusCode.IsGood(deleted.OperationResults[0]), Is.True);
 
             HistorianPage<HistorianEventRecord> remaining = await provider.ReadEventsAsync(
                 context,

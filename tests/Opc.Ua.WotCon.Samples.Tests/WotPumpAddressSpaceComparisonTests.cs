@@ -87,7 +87,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
             ushort wotPumpNs = ResolveNamespace(wotConnection.Session, kWotPumpNamespaceUri);
             var wotRoot = new NodeId("Pump1", wotPumpNs);
-            var nativeRoot = new NodeId("5001_Pump_1", 1);
+            NodeId nativeRoot = await ResolveNativePumpAsync(
+                nativeConnection.Session,
+                "Pump_1",
+                timeout.Token).ConfigureAwait(false);
             AddressSpaceTree wotTree = await CaptureTreeAsync(
                 wotConnection.Session,
                 wotRoot,
@@ -149,6 +152,41 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 Is.GreaterThan(0),
                 $"The namespace '{namespaceUri}' must exist.");
             return checked((ushort)namespaceIndex);
+        }
+
+        /// <summary>
+        /// Finds a pump under the DI <c>DeviceSet</c> by browse name.
+        /// </summary>
+        /// <remarks>
+        /// The native server mints instance NodeIds through its
+        /// <c>DefaultNodeIdFactory</c>, so a client cannot spell one out - it
+        /// browses for the pump the way any client would.
+        /// </remarks>
+        private static async Task<NodeId> ResolveNativePumpAsync(
+            ManagedSession session,
+            string browseName,
+            CancellationToken cancellationToken)
+        {
+            var deviceSetId = new NodeId(
+                global::Opc.Ua.Di.Objects.DeviceSet,
+                (ushort)session.NamespaceUris.GetIndex(global::Opc.Ua.Di.Namespaces.OpcUaDi));
+
+            ArrayOf<ReferenceDescription> references =
+                await BrowseHierarchicalReferencesAsync(
+                    session,
+                    deviceSetId,
+                    cancellationToken).ConfigureAwait(false);
+
+            foreach (ReferenceDescription reference in references.ToArray() ?? [])
+            {
+                if (reference.BrowseName.Name == browseName)
+                {
+                    return ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris);
+                }
+            }
+
+            Assert.Fail($"'{browseName}' was not found under the DI DeviceSet.");
+            return NodeId.Null;
         }
 
         private static async Task<AddressSpaceTree> CaptureTreeAsync(
@@ -419,10 +457,17 @@ namespace Opc.Ua.WotCon.Samples.Tests
         private static string CompareWotSubset(AddressSpaceTree wotTree, AddressSpaceTree nativeTree)
         {
             var failures = new StringBuilder();
+            int comparedNodes = 0;
             foreach ((string path, StructuralNode wotNode) in wotTree.Nodes.OrderBy(
                 pair => pair.Key,
                 StringComparer.Ordinal))
             {
+                // Sample-specific source controls and proxy Conditions are exercised by the control round-trip test.
+                if (path.Contains(kWotPumpNamespaceUri, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                comparedNodes++;
                 if (!nativeTree.Nodes.TryGetValue(path, out StructuralNode? nativeNode))
                 {
                     failures.Append(CultureInfo.InvariantCulture, $"{wotNode.DisplayPath} missing from native Pump_1.");
@@ -455,6 +500,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 }
             }
 
+            Assert.That(comparedNodes, Is.GreaterThanOrEqualTo(35),
+                "The independent companion-model comparison must include the complete modeled Pump subset.");
             return failures.ToString();
         }
 

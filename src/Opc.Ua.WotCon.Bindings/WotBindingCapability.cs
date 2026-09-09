@@ -119,17 +119,54 @@ namespace Opc.Ua.WotCon.Bindings
         /// <see cref="WoTBindingCapabilityDataType"/> for the registry nodes and
         /// refresh results. No credentials or secrets are ever included.
         /// </summary>
+        /// <remarks>
+        /// A Client reads <c>Capabilities</c> as what it can do through this
+        /// binding, so a planner-only binder reports none. It validates and
+        /// compiles plans, but nothing it names can be invoked, and advertising
+        /// the operations anyway would promise a Client an interaction that
+        /// fails only when it tries. The title still says which binding it is,
+        /// so a planner-only binder remains visible rather than disappearing.
+        /// </remarks>
         public WoTBindingCapabilityDataType ToDataType()
         {
+            return ToDataType(executorPresent: true);
+        }
+
+        /// <summary>
+        /// Projects this snapshot, taking into account whether a runtime
+        /// executor is actually registered for the binder.
+        /// </summary>
+        /// <remarks>
+        /// A binder may be executable in principle and still have no executor
+        /// registered in a given host. The capability a Client reads has to
+        /// describe the host it is talking to, not the binder's ambitions, so
+        /// the two conditions are combined here.
+        /// </remarks>
+        /// <param name="executorPresent">
+        /// Whether the registry holds an executor for this binder.
+        /// </param>
+        /// <returns>The projected capability.</returns>
+        public WoTBindingCapabilityDataType ToDataType(bool executorPresent)
+        {
+            bool effective = IsExecutable && executorPresent;
             return new WoTBindingCapabilityDataType
             {
                 BindingUri = BindingUri,
                 Title = Title,
                 ProfileVersion = Source.Version,
-                DraftMaturity = Source.MaturityText,
-                Capabilities = Operations.ToArray(),
+                DraftMaturity = effective
+                    ? Source.MaturityText
+                    : Source.MaturityText + PlannerOnlySuffix,
+                Capabilities = effective ? Operations.ToArray() : [],
                 ContentTypes = ContentTypes.ToArray()
             };
         }
+
+        /// <summary>
+        /// The token appended to <c>DraftMaturity</c> for a binder that has no
+        /// runtime executor, so the empty capability list reads as a deliberate
+        /// statement rather than as a binding that declares nothing.
+        /// </summary>
+        public const string PlannerOnlySuffix = "+PlannerOnly";
     }
 }

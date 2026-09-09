@@ -182,6 +182,16 @@ namespace Opc.Ua.Gds.Tests
                 Assert.That(customGroupNodeId.IsNull, Is.False,
                     "The custom group NodeId must not be null");
 
+                // The identifier itself is minted by the server and may change,
+                // but the namespace it is minted in is part of the GDS contract:
+                // server-owned instance nodes live in the application record
+                // namespace, not in the companion model's.
+                Assert.That(
+                    m_gdsClient.GDSClient.Session.NamespaceUris
+                        .GetString(customGroupNodeId.NamespaceIndex),
+                    Is.EqualTo("http://opcfoundation.org/UA/GDS/applications/"),
+                    "The custom group node must live in the application record namespace");
+
                 // Read the BrowseName of the custom group node from the address space
                 Node customGroupNode = await m_gdsClient.GDSClient.Session
                     .ReadNodeAsync(customGroupNodeId)
@@ -193,6 +203,52 @@ namespace Opc.Ua.Gds.Tests
                     $"BrowseName of the custom group node must be '{kCustomGroupId}'");
 
                 await m_gdsClient.GDSClient.UnregisterApplicationAsync(appId).ConfigureAwait(false);
+            }
+            finally
+            {
+                await m_gdsClient.GDSClient.DisconnectAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task DefaultApplicationGroupAdvertisesConfiguredCertificateTypesAsync()
+        {
+            m_gdsClient.GDSClient.AdminCredentials = m_gdsClient.AdminUser;
+            await m_gdsClient.GDSClient.ConnectAsync().ConfigureAwait(false);
+
+            try
+            {
+                ISession session = m_gdsClient.GDSClient.Session!;
+
+                NodeId certificateTypesNodeId = ExpandedNodeId.ToNodeId(
+                    VariableIds.Directory_CertificateGroups_DefaultApplicationGroup_CertificateTypes,
+                    session.NamespaceUris);
+
+                DataValue value = await session
+                    .ReadValueAsync(certificateTypesNodeId)
+                    .ConfigureAwait(false);
+
+                Assert.That(
+                    StatusCode.IsGood(value.StatusCode),
+                    Is.True,
+                    $"Reading CertificateTypes failed with status {value.StatusCode}.");
+
+                Assert.That(
+                    value.WrappedValue.TryGetValue(out ArrayOf<NodeId> certificateTypes),
+                    Is.True,
+                    "CertificateTypes is not a NodeId array.");
+
+                // OPC 10000-12 requires the DefaultApplicationGroup to advertise the concrete
+                // subtypes of ApplicationCertificateType which the group supports.
+                Assert.That(
+                    certificateTypes.Contains(t => t == Opc.Ua.ObjectTypeIds.ApplicationCertificateType),
+                    Is.False,
+                    "The abstract ApplicationCertificateType must not be advertised.");
+                Assert.That(
+                    certificateTypes.Contains(
+                        t => t == Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
+                    Is.True,
+                    "The configured RsaSha256ApplicationCertificateType must be advertised.");
             }
             finally
             {

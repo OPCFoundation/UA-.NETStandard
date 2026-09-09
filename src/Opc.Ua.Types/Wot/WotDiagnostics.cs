@@ -174,9 +174,11 @@ namespace Opc.Ua.Wot
         NonPortableIdentity = 6001,
 
         /// <summary>
-        /// An event affordance annotated <c>@type: uav:eventType</c> also set
-        /// <c>uav:isEvent: false</c>, contradicting the event mapping
-        /// (WoT Binding Section 5.2).
+        /// Reserved. WoT Binding 1.1 defines no <c>uav:isEvent</c> term - event
+        /// identity comes solely from <c>@type: uav:eventType</c> - so no
+        /// diagnostic carries this code. The member stays declared, and keeps
+        /// its number, so a consumer that switches over or persists the numeric
+        /// value still compiles and still round-trips.
         /// </summary>
         EventAnnotationConflict = 6002,
 
@@ -377,12 +379,10 @@ namespace Opc.Ua.Wot
         ProjectionAnnotationNotPermitted = 6028,
 
         /// <summary>
-        /// An affordance carries <c>uav:severity</c> outside the range OPC
-        /// 10000-5 defines for <c>BaseEventType.Severity</c>, or on an
-        /// affordance that is not an event (WoT Binding Sections 6.6 and 7).
-        /// The value is rejected rather than clamped: a clamped severity is a
-        /// number the author never wrote, and no later reader could tell it
-        /// from an authored one.
+        /// Reserved. WoT Binding 1.1 defines no <c>uav:severity</c> term, so no
+        /// diagnostic carries this code. The member stays declared, and keeps
+        /// its number, so a consumer that switches over or persists the numeric
+        /// value still compiles and still round-trips.
         /// </summary>
         InvalidEventSeverity = 6029,
 
@@ -629,7 +629,91 @@ namespace Opc.Ua.Wot
         /// that silently lost its fields is indistinguishable from one that
         /// never had any.
         /// </summary>
-        EventSelectionUnresolved = 6053
+        EventSelectionUnresolved = 6053,
+
+        /// <summary>
+        /// A member of a document bound to an existing type has the exact
+        /// BrowseName of an instance declaration of that type, and populates it
+        /// (WoT Binding Section 5.2.1). The Node the member projects is the
+        /// declared one rather than a second Node beside it, so the merge is
+        /// reported at information severity: nothing is wrong, but which Node a
+        /// member became is not otherwise visible in the result.
+        /// </summary>
+        DeclarationPopulated = 6054,
+
+        /// <summary>
+        /// A member of a document bound to an existing type has the exact
+        /// BrowseName of an instance declaration of that type, but cannot
+        /// populate it: the member is a different NodeClass than the
+        /// declaration, or it states a DataType, ValueRank or ArrayDimensions
+        /// the declaration does not admit. Emitting it anyway would put a
+        /// second, differently-typed Node under the name the type already
+        /// declares.
+        /// </summary>
+        DeclarationMismatch = 6055,
+
+        /// <summary>
+        /// More than one instance declaration of the bound type answers to one
+        /// qualified BrowseName, so a member of that name does not say which
+        /// one it populates. Choosing one here would assert a binding the
+        /// document never made.
+        /// </summary>
+        DeclarationAmbiguous = 6056,
+
+        /// <summary>
+        /// A document states <c>uav:additionalProperties: false</c> and carries
+        /// a member the resolved effective type does not declare (WoT Binding
+        /// Section 6.8). The document closed its own content, so a member
+        /// outside the declared set is a contradiction rather than an
+        /// extension.
+        /// </summary>
+        UndeclaredMember = 6057,
+
+        /// <summary>
+        /// A rule that depends on the instance declarations of the bound type
+        /// cannot be evaluated: no part of the local context offers the
+        /// <see cref="IWotTypeDeclarationResolver"/> capability, the bound type
+        /// is not held by the part that answered, or the reported closure is
+        /// incomplete. The rule fails explicitly rather than passing because
+        /// nothing contradicted it.
+        /// </summary>
+        DeclarationsUnavailable = 6058,
+
+        /// <summary>
+        /// An <c>uav:externalSchema</c> reference was resolved and compared
+        /// against the canonical DataSchema of the affordance, and the two
+        /// describe different data (WoT Connectivity Section
+        /// sec-projection-mapping). The external schema never overrides the
+        /// DataType the Binding derives, so a disagreement is reported rather
+        /// than applied.
+        /// </summary>
+        ExternalSchemaIncompatible = 6059,
+
+        /// <summary>
+        /// An <c>uav:externalSchema</c> reference could not be resolved by any
+        /// configured provider, resolved to a media type this Binding does not
+        /// read, or was named in a form no provider accepts. The affordance
+        /// keeps the DataType the canonical DataSchema states; nothing is
+        /// fetched from an arbitrary URL.
+        /// </summary>
+        ExternalSchemaUnresolved = 6060,
+
+        /// <summary>
+        /// More than one configured provider resolved an
+        /// <c>uav:externalSchema</c> reference to different bytes. Provider
+        /// order settles which one is read, and the disagreement is reported so
+        /// that a federation whose providers do not agree is visible rather
+        /// than silently resolved by ordering alone.
+        /// </summary>
+        ExternalSchemaAmbiguous = 6061,
+
+        /// <summary>
+        /// A bounded traversal - the <c>Organizes</c> closure of a projection,
+        /// for instance - stopped because it exhausted its budget. The result
+        /// is a partial closure, so it is reported rather than returned as if
+        /// it were whole.
+        /// </summary>
+        TraversalBudgetExhausted = 6062
     }
 
     /// <summary>
@@ -674,10 +758,23 @@ namespace Opc.Ua.Wot
             return new WotLocation(jsonPointer: jsonPointer);
         }
 
-        /// <summary>Creates a location from a NodeId and optional attribute.</summary>
-        public static WotLocation FromNode(string nodeId, string? attribute = null)
+        /// <summary>
+        /// Creates a location from a NodeId and optional attribute.
+        /// </summary>
+        /// <remarks>
+        /// A Node that carries no NodeId locates a diagnostic no better than
+        /// the document does, so it is normalized to the empty NodeId here
+        /// rather than at every call site: a caller reporting on a Node it was
+        /// handed should not have to decide what "no NodeId" means.
+        /// </remarks>
+        /// <param name="nodeId">
+        /// The Node's OPC UA NodeId, or <c>null</c> where it has none.
+        /// </param>
+        /// <param name="attribute">An OPC UA attribute name.</param>
+        /// <returns>The location.</returns>
+        public static WotLocation FromNode(string? nodeId, string? attribute = null)
         {
-            return new WotLocation(nodeId: nodeId, attribute: attribute);
+            return new WotLocation(nodeId: nodeId ?? string.Empty, attribute: attribute);
         }
 
         /// <inheritdoc/>

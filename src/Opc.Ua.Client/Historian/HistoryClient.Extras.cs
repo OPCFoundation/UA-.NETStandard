@@ -50,35 +50,66 @@ namespace Opc.Ua.Client.Historian
         /// <exception cref="ArgumentNullException"><paramref name="times"/> is <c>null</c>.</exception>
         public IAsyncEnumerable<DataValue> ReadAtTimeAsync(
             NodeId nodeId,
-            IReadOnlyList<DateTime> times,
+            ArrayOf<DateTime> times,
             bool useSimpleBounds = false,
-            TimestampsToReturn timestampsToReturn = TimestampsToReturn.Source,
+            TimestampsToReturn? timestampsToReturn = null,
+            HistoryReadNodeOptions? nodeOptions = null,
             CancellationToken cancellationToken = default)
         {
-            if (times == null)
+            if (nodeId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(nodeId));
+            }
+            if (times.IsNull)
             {
                 throw new ArgumentNullException(nameof(times));
             }
             return ReadAtTimeIteratorAsync(
                 nodeId, BuildAtTimeDetails(times, useSimpleBounds),
-                timestampsToReturn, cancellationToken);
+                ResolveTimestamps(timestampsToReturn, nameof(timestampsToReturn)),
+                nodeOptions,
+                times.Count,
+                cancellationToken);
         }
 
         private async IAsyncEnumerable<DataValue> ReadAtTimeIteratorAsync(
             NodeId nodeId,
             ExtensionObject details,
             TimestampsToReturn timestampsToReturn,
+            HistoryReadNodeOptions? nodeOptions,
+            int expectedValueCount,
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
+            int returnedValueCount = 0;
             await foreach (DataValue v in ReadDetailsAsync(
-                nodeId, details, timestampsToReturn, cancellationToken)
+                nodeId,
+                details,
+                timestampsToReturn,
+                DecodeHistoryData,
+                nodeOptions,
+                cancellationToken)
                 .ConfigureAwait(false))
             {
+                if (returnedValueCount >= expectedValueCount)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "ReadAtTime returned more values than requested.");
+                }
+                returnedValueCount++;
                 yield return v;
+            }
+            if (returnedValueCount != expectedValueCount)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "ReadAtTime returned fewer values than requested.");
             }
         }
 
-        private static ExtensionObject BuildAtTimeDetails(IReadOnlyList<DateTime> times, bool useSimpleBounds)
+        private static ExtensionObject BuildAtTimeDetails(
+            ArrayOf<DateTime> times,
+            bool useSimpleBounds)
         {
             var typed = new DateTimeUtc[times.Count];
             for (int i = 0; i < times.Count; i++)
@@ -97,16 +128,33 @@ namespace Opc.Ua.Client.Historian
         /// for the time range using <paramref name="aggregateFunctionId"/>
         /// (Part 11 §5.2.6 ReadProcessedDetails).
         /// </summary>
-        public async IAsyncEnumerable<DataValue> ReadProcessedAsync(
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public IAsyncEnumerable<DataValue> ReadProcessedAsync(
             NodeId nodeId,
             NodeId aggregateFunctionId,
             DateTime startTime,
             DateTime endTime,
             double processingInterval,
             AggregateConfiguration? configuration = null,
-            TimestampsToReturn timestampsToReturn = TimestampsToReturn.Source,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+            TimestampsToReturn? timestampsToReturn = null,
+            HistoryReadNodeOptions? nodeOptions = null,
+            CancellationToken cancellationToken = default)
         {
+            if (nodeId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(nodeId));
+            }
+            if (aggregateFunctionId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(aggregateFunctionId));
+            }
+            if (double.IsNaN(processingInterval) ||
+                double.IsInfinity(processingInterval) ||
+                processingInterval < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(processingInterval));
+            }
             var details = new ReadProcessedDetails
             {
                 StartTime = startTime,
@@ -120,12 +168,13 @@ namespace Opc.Ua.Client.Historian
                     }
             };
 
-            await foreach (DataValue v in ReadDetailsAsync(
-                nodeId, new ExtensionObject(details), timestampsToReturn, cancellationToken)
-                .ConfigureAwait(false))
-            {
-                yield return v;
-            }
+            return ReadDetailsAsync(
+                nodeId,
+                new ExtensionObject(details),
+                ResolveTimestamps(timestampsToReturn, nameof(timestampsToReturn)),
+                DecodeHistoryData,
+                nodeOptions,
+                cancellationToken);
         }
 
         /// <summary>
@@ -134,18 +183,40 @@ namespace Opc.Ua.Client.Historian
         /// <c>Annotations</c> property NodeId via TranslateBrowsePaths
         /// before issuing the read.
         /// </summary>
-        public async IAsyncEnumerable<Annotation> ReadAnnotationsAsync(
+        /// <exception cref="ArgumentNullException"></exception>
+        public IAsyncEnumerable<Annotation> ReadAnnotationsAsync(
             NodeId variableId,
             DateTime startTime,
             DateTime endTime,
             uint maxValuesPerNode = 0,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default)
+        {
+            if (variableId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(variableId));
+            }
+            return ReadAnnotationsIteratorAsync(
+                variableId,
+                startTime,
+                endTime,
+                maxValuesPerNode,
+                cancellationToken);
+        }
+
+        private async IAsyncEnumerable<Annotation> ReadAnnotationsIteratorAsync(
+            NodeId variableId,
+            DateTime startTime,
+            DateTime endTime,
+            uint maxValuesPerNode,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             NodeId annotationsNode = await ResolveAnnotationsPropertyAsync(
                 variableId, cancellationToken).ConfigureAwait(false);
             if (annotationsNode.IsNull)
             {
-                yield break;
+                throw new ServiceResultException(
+                    StatusCodes.BadHistoryOperationUnsupported,
+                    "The variable does not expose an Annotations property.");
             }
 
             var details = new ReadRawModifiedDetails
@@ -153,20 +224,30 @@ namespace Opc.Ua.Client.Historian
                 IsReadModified = false,
                 StartTime = startTime,
                 EndTime = endTime,
-                NumValuesPerNode = maxValuesPerNode,
+                NumValuesPerNode = maxValuesPerNode == 0
+                    ? Options.DefaultMaxValuesPerNode
+                    : maxValuesPerNode,
                 ReturnBounds = false
             };
 
             await foreach (DataValue v in ReadDetailsAsync(
-                annotationsNode, new ExtensionObject(details),
-                TimestampsToReturn.Source, cancellationToken).ConfigureAwait(false))
+                annotationsNode,
+                new ExtensionObject(details),
+                TimestampsToReturn.Source,
+                DecodeHistoryData,
+                nodeOptions: null,
+                cancellationToken).ConfigureAwait(false))
             {
                 if (v.WrappedValue.TryGetValue(out ExtensionObject ext) &&
                     !ext.IsNull &&
                     ext.TryGetValue(out Annotation? annotation))
                 {
                     yield return annotation;
+                    continue;
                 }
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "Historical annotation data did not contain an Annotation.");
             }
         }
 
@@ -182,13 +263,6 @@ namespace Opc.Ua.Client.Historian
             PerformUpdateType performUpdate = PerformUpdateType.Insert,
             CancellationToken cancellationToken = default)
         {
-            NodeId annotationsNode = await ResolveAnnotationsPropertyAsync(
-                variableId, cancellationToken).ConfigureAwait(false);
-            if (annotationsNode.IsNull)
-            {
-                return StatusCodes.BadNodeIdUnknown;
-            }
-
             var annotation = new Annotation
             {
                 Message = message,
@@ -196,33 +270,67 @@ namespace Opc.Ua.Client.Historian
                 AnnotationTime = annotationTime
             };
 
-            var dataValue = new DataValue(
-                new Variant(new ExtensionObject(annotation)),
-                StatusCodes.Good,
-                sourceTimestamp: annotationTime,
-                serverTimestamp: DateTimeUtc.MinValue);
+            ArrayOf<StatusCode> statuses = await WriteAnnotationsAsync(
+                variableId,
+                [annotation],
+                performUpdate,
+                cancellationToken).ConfigureAwait(false);
 
-            var details = new UpdateStructureDataDetails
+            return statuses.Count > 0 ? statuses[0] : StatusCodes.BadInternalError;
+        }
+
+        /// <summary>
+        /// Inserts, replaces, updates, or removes a batch of annotations in one
+        /// <c>UpdateStructureDataDetails</c> request.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        public async ValueTask<ArrayOf<StatusCode>> WriteAnnotationsAsync(
+            NodeId variableId,
+            ArrayOf<Annotation> annotations,
+            PerformUpdateType performUpdate = PerformUpdateType.Insert,
+            CancellationToken cancellationToken = default)
+        {
+            if (variableId.IsNull)
             {
-                NodeId = annotationsNode,
-                PerformInsertReplace = performUpdate,
-                UpdateValues = new DataValue[] { dataValue }
-            };
-
-            HistoryUpdateResponse response = await Session.HistoryUpdateAsync(
-                null, new ExtensionObject[] { new(details) }, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (response.Results.Count == 0)
-            {
-                return StatusCodes.BadInternalError;
+                throw new ArgumentNullException(nameof(variableId));
             }
-            HistoryUpdateResult result = response.Results[0];
-            if (result.OperationResults.Count > 0)
+            if (annotations.IsNull)
             {
-                return result.OperationResults[0];
+                throw new ArgumentNullException(nameof(annotations));
             }
-            return result.StatusCode;
+
+            NodeId annotationsNode = await ResolveAnnotationsPropertyAsync(
+                variableId, cancellationToken).ConfigureAwait(false);
+            if (annotationsNode.IsNull)
+            {
+                var statuses = new StatusCode[annotations.Count];
+                for (int i = 0; i < statuses.Length; i++)
+                {
+                    statuses[i] = StatusCodes.BadNodeIdUnknown;
+                }
+                return statuses.ToArrayOf();
+            }
+
+            var values = new DataValue[annotations.Count];
+            for (int i = 0; i < values.Length; i++)
+            {
+                Annotation annotation = annotations[i] ??
+                    throw new ArgumentException(
+                        "The annotations collection contains a null value.",
+                        nameof(annotations));
+                values[i] = new DataValue(
+                    new Variant(new ExtensionObject(annotation)),
+                    StatusCodes.Good,
+                    sourceTimestamp: annotation.AnnotationTime,
+                    serverTimestamp: DateTimeUtc.MinValue);
+            }
+
+            return await UpdateStructureDataAsync(
+                annotationsNode,
+                performUpdate,
+                values.ToArrayOf(),
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -262,7 +370,11 @@ namespace Opc.Ua.Client.Historian
                 VariableIds.HistoryServerCapabilities_DeleteRawCapability,
                 VariableIds.HistoryServerCapabilities_DeleteAtTimeCapability,
                 VariableIds.HistoryServerCapabilities_InsertAnnotationCapability,
-                VariableIds.HistoryServerCapabilities_ServerTimestampSupported
+                VariableIds.HistoryServerCapabilities_ServerTimestampSupported,
+                VariableIds.HistoryServerCapabilities_InsertEventCapability,
+                VariableIds.HistoryServerCapabilities_ReplaceEventCapability,
+                VariableIds.HistoryServerCapabilities_UpdateEventCapability,
+                VariableIds.HistoryServerCapabilities_DeleteEventCapability
             };
 
             DataValue[] values = await BatchReadValueAsync(nodes, cancellationToken)
@@ -280,7 +392,41 @@ namespace Opc.Ua.Client.Historian
                 DeleteRaw = ReadBool(values[7]),
                 DeleteAtTime = ReadBool(values[8]),
                 InsertAnnotation = ReadBool(values[9]),
-                ServerTimestampSupported = ReadBool(values[10])
+                ServerTimestampSupported = ReadBool(values[10]),
+                InsertEvent = ReadBool(values[11]),
+                ReplaceEvent = ReadBool(values[12]),
+                UpdateEvent = ReadBool(values[13]),
+                DeleteEvent = ReadBool(values[14])
+            };
+        }
+
+        /// <summary>
+        /// Reads the historical entries published in ServerProfileArray and
+        /// ConformanceUnits.
+        /// </summary>
+        public async ValueTask<HistoricalConformanceInfo> GetConformanceInfoAsync(
+            CancellationToken cancellationToken = default)
+        {
+            DataValue[] values = await BatchReadValueAsync(
+                [
+                    VariableIds.Server_ServerCapabilities_ServerProfileArray,
+                    VariableIds.Server_ServerCapabilities_ConformanceUnits
+                ],
+                cancellationToken).ConfigureAwait(false);
+            ArrayOf<string> profiles =
+                values[0].WrappedValue.TryGetValue(
+                    out ArrayOf<string> serverProfiles)
+                ? FilterHistoricalProfiles(serverProfiles)
+                : [];
+            ArrayOf<QualifiedName> units =
+                values[1].WrappedValue.TryGetValue(
+                    out ArrayOf<QualifiedName> conformanceUnits)
+                ? FilterHistoricalConformanceUnits(conformanceUnits)
+                : [];
+            return new HistoricalConformanceInfo
+            {
+                ServerProfiles = profiles,
+                ConformanceUnits = units
             };
         }
 
@@ -290,10 +436,15 @@ namespace Opc.Ua.Client.Historian
         /// <see cref="HistoricalDataConfigurationInfo.HasConfiguration"/>=<c>false</c>
         /// when the variable does not expose a configuration object.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public async ValueTask<HistoricalDataConfigurationInfo> GetConfigurationAsync(
             NodeId variableId,
             CancellationToken cancellationToken = default)
         {
+            if (variableId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(variableId));
+            }
             // The companion object lives under <variable>/HA Configuration,
             // linked via HasHistoricalConfiguration (i=56) per Part 11 §5.2.3.
             NodeId configNode = await TranslateBrowseChildAsync(
@@ -315,8 +466,12 @@ namespace Opc.Ua.Client.Historian
                 BrowseNames.MaxTimeInterval,
                 BrowseNames.MinTimeInterval,
                 BrowseNames.ExceptionDeviation,
+                BrowseNames.ExceptionDeviationFormat,
                 BrowseNames.StartOfArchive,
-                BrowseNames.StartOfOnlineArchive
+                BrowseNames.StartOfOnlineArchive,
+                BrowseNames.ServerTimestampSupported,
+                BrowseNames.MaxTimeStoredValues,
+                BrowseNames.MaxCountStoredValues
             ];
             var childNodes = new NodeId[childNames.Length];
             for (int i = 0; i < childNames.Length; i++)
@@ -344,13 +499,119 @@ namespace Opc.Ua.Client.Historian
                 MaxTimeInterval = !childNodes[2].IsNull ? ReadDouble(values[2]) : null,
                 MinTimeInterval = !childNodes[3].IsNull ? ReadDouble(values[3]) : null,
                 ExceptionDeviation = !childNodes[4].IsNull ? ReadDouble(values[4]) : null,
-                StartOfArchive = !childNodes[5].IsNull
-                    ? ReadDateTimeUtc(values[5]).ToDateTime()
+                ExceptionDeviationFormat = !childNodes[5].IsNull
+                    ? ReadExceptionDeviationFormat(values[5])
                     : null,
-                StartOfOnlineArchive = !childNodes[6].IsNull
+                StartOfArchive = !childNodes[6].IsNull
                     ? ReadDateTimeUtc(values[6]).ToDateTime()
                     : null,
+                StartOfOnlineArchive = !childNodes[7].IsNull
+                    ? ReadDateTimeUtc(values[7]).ToDateTime()
+                    : null,
+                ServerTimestampSupported = !childNodes[8].IsNull
+                    ? ReadBool(values[8])
+                    : null,
+                MaxTimeStoredValues = !childNodes[9].IsNull
+                    ? ReadDouble(values[9])
+                    : null,
+                MaxCountStoredValues = !childNodes[10].IsNull
+                    ? ReadUInt(values[10])
+                    : null,
                 AggregateConfiguration = aggregateConfiguration
+            };
+        }
+
+        /// <summary>
+        /// Reads the <c>HistoricalEventConfigurationType</c> companion of an
+        /// event notifier.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public async ValueTask<HistoricalEventConfigurationInfo>
+            GetEventConfigurationAsync(
+                NodeId notifierId,
+                CancellationToken cancellationToken = default)
+        {
+            if (notifierId.IsNull)
+            {
+                throw new ArgumentNullException(nameof(notifierId));
+            }
+            NodeId configurationNode = await TranslateBrowseChildAsync(
+                notifierId,
+                BrowseNames.HAConfiguration,
+                ReferenceTypeIds.HasHistoricalConfiguration,
+                cancellationToken).ConfigureAwait(false);
+            if (configurationNode.IsNull)
+            {
+                return new HistoricalEventConfigurationInfo();
+            }
+
+            NodeId eventTypesNode = await TranslateBrowseChildAsync(
+                configurationNode,
+                BrowseNames.EventTypes,
+                ReferenceTypeIds.HasComponent,
+                cancellationToken).ConfigureAwait(false);
+            NodeId startOfArchiveNode = await TranslateBrowseChildAsync(
+                configurationNode,
+                BrowseNames.StartOfArchive,
+                ReferenceTypeIds.HasProperty,
+                cancellationToken).ConfigureAwait(false);
+            NodeId startOfOnlineArchiveNode = await TranslateBrowseChildAsync(
+                configurationNode,
+                BrowseNames.StartOfOnlineArchive,
+                ReferenceTypeIds.HasProperty,
+                cancellationToken).ConfigureAwait(false);
+            NodeId sortByEventFieldsNode = await TranslateBrowseChildAsync(
+                configurationNode,
+                BrowseNames.SortByEventFields,
+                ReferenceTypeIds.HasProperty,
+                cancellationToken).ConfigureAwait(false);
+
+            DataValue[] values = await BatchReadValueAsync(
+                [
+                    startOfArchiveNode,
+                    startOfOnlineArchiveNode,
+                    sortByEventFieldsNode
+                ],
+                cancellationToken).ConfigureAwait(false);
+            var eventTypes = new List<NodeId>();
+            if (!eventTypesNode.IsNull)
+            {
+                ArrayOf<ReferenceDescription> references = await Session
+                    .FetchReferencesAsync(eventTypesNode, cancellationToken)
+                    .ConfigureAwait(false);
+                for (int i = 0; i < references.Count; i++)
+                {
+                    ReferenceDescription reference = references[i];
+                    if (reference.IsForward &&
+                        reference.ReferenceTypeId == ReferenceTypeIds.Organizes)
+                    {
+                        var typeId = ExpandedNodeId.ToNodeId(
+                            reference.NodeId,
+                            Session.NamespaceUris);
+                        if (!typeId.IsNull)
+                        {
+                            eventTypes.Add(typeId);
+                        }
+                    }
+                }
+            }
+
+            return new HistoricalEventConfigurationInfo
+            {
+                HasConfiguration = true,
+                EventTypes = eventTypes.ToArrayOf(),
+                StartOfArchive = !startOfArchiveNode.IsNull
+                    ? ReadDateTimeUtc(values[0]).ToDateTime()
+                    : null,
+                StartOfOnlineArchive = !startOfOnlineArchiveNode.IsNull
+                    ? ReadDateTimeUtc(values[1]).ToDateTime()
+                    : null,
+                SortByEventFields = !sortByEventFieldsNode.IsNull &&
+                    values[2].WrappedValue.TryGetValue(
+                        out ArrayOf<SimpleAttributeOperand> sortFields,
+                        Session.MessageContext)
+                    ? sortFields
+                    : []
             };
         }
 
@@ -403,131 +664,6 @@ namespace Opc.Ua.Client.Historian
             };
         }
 
-        private async IAsyncEnumerable<DataValue> ReadDetailsAsync(
-            NodeId nodeId,
-            ExtensionObject historyReadDetails,
-            TimestampsToReturn timestampsToReturn,
-            [EnumeratorCancellation] CancellationToken cancellationToken)
-        {
-            // Tracks the in-flight continuation point. When the enumerator
-            // is abandoned mid-iteration (via break/exception/cancellation)
-            // we issue a best-effort release in the finally block to avoid
-            // server-side continuation-point leaks. R3.1: also detects a
-            // buggy server emitting an unbounded sequence of empty pages
-            // with a non-empty continuation point.
-            ByteString continuationPoint = ByteString.Empty;
-            ByteString liveContinuationPoint = ByteString.Empty;
-            int emptyPagesInARow = 0;
-            try
-            {
-                while (true)
-                {
-                    var nodesToRead = new HistoryReadValueId[]
-                    {
-                        new() { NodeId = nodeId, ContinuationPoint = continuationPoint }
-                    };
-
-                    HistoryReadResponse response = await Session.HistoryReadAsync(
-                        null,
-                        historyReadDetails,
-                        timestampsToReturn,
-                        releaseContinuationPoints: false,
-                        nodesToRead,
-                        cancellationToken).ConfigureAwait(false);
-
-                    if (response.Results.Count == 0)
-                    {
-                        yield break;
-                    }
-
-                    HistoryReadResult result = response.Results[0];
-                    if (StatusCode.IsBad(result.StatusCode))
-                    {
-                        throw new ServiceResultException(
-                            result.StatusCode, "HistoryRead returned a bad status.");
-                    }
-
-                    // Capture the server-held CP so the finally block can release it.
-                    liveContinuationPoint = result.ContinuationPoint;
-
-                    bool yieldedSomething = false;
-                    if (!result.HistoryData.IsNull &&
-                        result.HistoryData.TryGetValue(out HistoryData? hd))
-                    {
-                        DataValue[]? values = hd.DataValues.ToArray();
-                        if (values != null && values.Length > 0)
-                        {
-                            foreach (DataValue v in values)
-                            {
-                                yield return v;
-                            }
-                            yieldedSomething = true;
-                        }
-                    }
-
-                    if (result.ContinuationPoint.IsEmpty)
-                    {
-                        // Server has already released the CP — clear our cleanup marker.
-                        liveContinuationPoint = ByteString.Empty;
-                        yield break;
-                    }
-
-                    // R3.1: malformed-server guard.
-                    if (!yieldedSomething)
-                    {
-                        emptyPagesInARow++;
-                        if (emptyPagesInARow >= 3)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadInternalError,
-                                "Server returned three consecutive empty paginated history pages with a non-empty continuation point.");
-                        }
-                    }
-                    else
-                    {
-                        emptyPagesInARow = 0;
-                    }
-
-                    continuationPoint = result.ContinuationPoint;
-                }
-            }
-            finally
-            {
-                if (!liveContinuationPoint.IsEmpty)
-                {
-                    // Best-effort release. Swallow exceptions because the
-                    // caller may already be tearing down the session, or
-                    // the CP may have expired before this runs.
-                    try
-                    {
-                        var releaseNodes = new HistoryReadValueId[]
-                        {
-                            new() { NodeId = nodeId, ContinuationPoint = liveContinuationPoint }
-                        };
-                        _ = await Session.HistoryReadAsync(
-                            null,
-                            historyReadDetails,
-                            timestampsToReturn,
-                            releaseContinuationPoints: true,
-                            releaseNodes,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (ServiceResultException)
-                    {
-                        // ignore — best-effort cleanup
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        // ignore — best-effort cleanup
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // ignore — best-effort cleanup
-                    }
-                }
-            }
-        }
-
         private ValueTask<NodeId> ResolveAnnotationsPropertyAsync(
             NodeId variableId, CancellationToken cancellationToken)
         {
@@ -563,9 +699,11 @@ namespace Opc.Ua.Client.Historian
                 .TranslateBrowsePathsToNodeIdsAsync(null, [path], cancellationToken)
                 .ConfigureAwait(false);
 
-            if (response.Results.Count == 0)
+            if (response.Results.Count != 1)
             {
-                return NodeId.Null;
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "TranslateBrowsePaths returned a result count that does not match the request.");
             }
             BrowsePathResult result = response.Results[0];
             if (StatusCode.IsBad(result.StatusCode))
@@ -575,6 +713,12 @@ namespace Opc.Ua.Client.Historian
             if (result.Targets.Count == 0)
             {
                 return NodeId.Null;
+            }
+            if (result.Targets.Count != 1)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "Historical configuration browse path resolved to multiple targets.");
             }
             var resolved = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris);
             return resolved.IsNull ? NodeId.Null : resolved;
@@ -597,18 +741,16 @@ namespace Opc.Ua.Client.Historian
                 nodesToRead: requests,
                 cancellationToken).ConfigureAwait(false);
 
-            DataValue[] values = response.Results.ToArray() ?? new DataValue[requests.Length];
-            // Defensive: if response.Results was short, fill the rest with BadNoData.
-            if (values.Length < requests.Length)
+            if (response.Results.Count != requests.Length)
             {
-                int original = values.Length;
-                Array.Resize(ref values, requests.Length);
-                for (int i = original; i < values.Length; i++)
-                {
-                    values[i] = DataValue.FromStatusCode(StatusCodes.BadNoData);
-                }
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "Read returned a result count that does not match the request.");
             }
-            return values;
+            return response.Results.ToArray() ??
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "Read returned a null result array.");
         }
 
         private static bool ReadBool(DataValue value)
@@ -663,6 +805,55 @@ namespace Opc.Ua.Client.Historian
                 return null;
             }
             return value.WrappedValue.TryGetValue(out string s) ? s : null;
+        }
+
+        private static ExceptionDeviationFormat ReadExceptionDeviationFormat(
+            DataValue value)
+        {
+            if (value.IsNull || StatusCode.IsBad(value.StatusCode))
+            {
+                return default;
+            }
+            return value.WrappedValue.TryGetValue(out ExceptionDeviationFormat format)
+                ? format
+                : default;
+        }
+
+        private static ArrayOf<string> FilterHistoricalProfiles(
+            ArrayOf<string> profiles)
+        {
+            var historical = new List<string>();
+            for (int i = 0; i < profiles.Count; i++)
+            {
+                string profile = profiles[i];
+                if (profile.Contains(
+                    "Historical",
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    historical.Add(profile);
+                }
+            }
+            return historical.ToArrayOf();
+        }
+
+        private static ArrayOf<QualifiedName> FilterHistoricalConformanceUnits(
+            ArrayOf<QualifiedName> units)
+        {
+            var historical = new List<QualifiedName>();
+            for (int i = 0; i < units.Count; i++)
+            {
+                QualifiedName unit = units[i];
+                if (unit.Name?.Contains(
+                    "Histor",
+                    StringComparison.OrdinalIgnoreCase) == true ||
+                    unit.Name?.Contains(
+                        "Aggregate",
+                        StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    historical.Add(unit);
+                }
+            }
+            return historical.ToArrayOf();
         }
     }
 }

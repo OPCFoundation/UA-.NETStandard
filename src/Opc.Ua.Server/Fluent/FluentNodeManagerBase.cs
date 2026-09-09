@@ -27,11 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Server.NodeManager;
+using Opc.Ua.Server.Nodes;
 
 namespace Opc.Ua.Server.Fluent
 {
@@ -69,8 +71,10 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, namespaceUris)
         {
+            Configuration = null;
             EventSources = new EventSourceRegistry(this, m_logger);
             Simulations = new SimulationRegistry(this, m_logger);
+            MonitoredSources = new MonitoredSourceRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -82,8 +86,10 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, logger, namespaceUris)
         {
+            Configuration = null;
             EventSources = new EventSourceRegistry(this, m_logger);
             Simulations = new SimulationRegistry(this, m_logger);
+            MonitoredSources = new MonitoredSourceRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -95,8 +101,10 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, configuration, namespaceUris)
         {
+            Configuration = configuration;
             EventSources = new EventSourceRegistry(this, m_logger);
             Simulations = new SimulationRegistry(this, m_logger);
+            MonitoredSources = new MonitoredSourceRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -109,8 +117,10 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, configuration, logger, namespaceUris)
         {
+            Configuration = configuration;
             EventSources = new EventSourceRegistry(this, m_logger);
             Simulations = new SimulationRegistry(this, m_logger);
+            MonitoredSources = new MonitoredSourceRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -123,8 +133,10 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, configuration, useSamplingGroups, namespaceUris)
         {
+            Configuration = configuration;
             EventSources = new EventSourceRegistry(this, m_logger);
             Simulations = new SimulationRegistry(this, m_logger);
+            MonitoredSources = new MonitoredSourceRegistry(this, m_logger);
         }
 
         /// <summary>
@@ -138,9 +150,23 @@ namespace Opc.Ua.Server.Fluent
             params string[] namespaceUris)
             : base(server, configuration, useSamplingGroups, logger, namespaceUris)
         {
+            Configuration = configuration;
             EventSources = new EventSourceRegistry(this, m_logger);
             Simulations = new SimulationRegistry(this, m_logger);
+            MonitoredSources = new MonitoredSourceRegistry(this, m_logger);
         }
+
+        /// <summary>
+        /// The application configuration supplied when this manager was
+        /// constructed. Configuration-less legacy constructors expose
+        /// <c>null</c>.
+        /// </summary>
+        protected ApplicationConfiguration? Configuration { get; }
+
+        /// <summary>
+        /// The concrete fluent builder attached to this manager.
+        /// </summary>
+        internal NodeManagerBuilder? AttachedBuilder { get; private set; }
 
         /// <summary>
         /// Registry that the fluent <c>Publish</c> surface stores its
@@ -154,10 +180,15 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// Registry that the fluent <c>Simulation</c> surface stores its
         /// registered periodic tick loops in. Started after
-        /// <c>Configure</c> completes (via <c>NodeManagerBuilder.Seal</c>)
+        /// <c>Configure</c> completes (via <c>NodeManagerBuilder.SealAsync</c>)
         /// and torn down on disposal.
         /// </summary>
         internal SimulationRegistry Simulations { get; }
+
+        /// <summary>
+        /// Registry for data sources activated by monitored-item lifecycle.
+        /// </summary>
+        internal MonitoredSourceRegistry MonitoredSources { get; }
 
         /// <summary>
         /// Constructs a <see cref="NodeManagerBuilder"/> for this
@@ -166,11 +197,11 @@ namespace Opc.Ua.Server.Fluent
         /// to collapse the imperative
         /// <c>new NodeManagerBuilder(SystemContext, this, nsIndex, ...)</c>
         /// + <c>AttachToBuilder(builder)</c> + <c>Configure(builder)</c>
-        /// + <c>builder.Seal()</c> quadruple to a single fluent chain:
+        /// + <c>builder.SealAsync()</c> quadruple to a short pipeline:
         /// <code>
-        /// this.CreateFluentBuilder(nsIndex)
-        ///     .Configure(Configure)
-        ///     .Seal();
+        /// NodeManagerBuilder builder = CreateFluentBuilder(nsIndex);
+        /// Configure(builder);
+        /// await builder.SealAsync(cancellationToken);
         /// </code>
         /// The root/nodeId/typeId/dataTypeId lookups default to scanning the
         /// manager's <see cref="CustomNodeManager2.PredefinedNodes"/>
@@ -185,9 +216,8 @@ namespace Opc.Ua.Server.Fluent
         /// </param>
         /// <returns>
         /// A configured <see cref="NodeManagerBuilder"/> ready to
-        /// receive <c>Configure(builder)</c> wiring; the fluent
-        /// extensions <see cref="FluentNodeManagerBuilderExtensions.Configure(NodeManagerBuilder, System.Action{INodeManagerBuilder})"/>
-        /// and <see cref="NodeManagerBuilder.Seal"/> chain off it.
+        /// receive <c>Configure(builder)</c> wiring and, once the wiring
+        /// is done, <see cref="NodeManagerBuilder.SealAsync"/>.
         /// </returns>
         public NodeManagerBuilder CreateFluentBuilder(ushort defaultNamespaceIndex)
         {
@@ -225,8 +255,153 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new System.ArgumentNullException(nameof(builder));
             }
-            builder.AttachEventSources(EventSources);
-            builder.AttachSimulations(Simulations);
+
+            lock (m_attachedBuildersLock)
+            {
+                foreach (NodeManagerBuilder attached in m_attachedBuilders)
+                {
+                    if (ReferenceEquals(attached, builder))
+                    {
+                        return;
+                    }
+                }
+
+                builder.AttachEventSources(EventSources);
+                builder.AttachSimulations(Simulations);
+                builder.AttachMonitoredSources(MonitoredSources);
+                builder.AttachOwner(this);
+                m_attachedBuilders.Add(builder);
+                AttachedBuilder = builder;
+            }
+        }
+
+        /// <summary>
+        /// Resolves the concrete builder attached to the manager exposed by
+        /// an arbitrary <see cref="INodeManagerBuilder"/> facade.
+        /// </summary>
+        internal static NodeManagerBuilder ResolveAttachedBuilder(
+            INodeManagerBuilder builder,
+            string feature)
+        {
+            if (builder == null)
+            {
+                throw new System.ArgumentNullException(nameof(builder));
+            }
+
+            NodeManagerBuilder? resolved = TryResolveAttachedBuilder(builder);
+            if (resolved != null)
+            {
+                return resolved;
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadConfigurationError,
+                "{0} requires the node manager to derive from FluentNodeManagerBase " +
+                "and attach its builder before Configure runs. Manager type '{1}' does not opt in.",
+                feature,
+                builder.NodeManager?.GetType().FullName ?? "(unknown)");
+        }
+
+        /// <summary>
+        /// Resolves the attached builder, or <c>null</c> when the manager does not opt
+        /// into the fluent surface.
+        /// </summary>
+        /// <remarks>
+        /// Used by features that work on any node manager but gain something extra on a
+        /// fluent one — behavior-owned release, for instance — so that opting out costs
+        /// the extra rather than the feature.
+        /// </remarks>
+        internal static NodeManagerBuilder? TryResolveAttachedBuilder(
+            INodeManagerBuilder builder)
+        {
+            if (builder == null)
+            {
+                return null;
+            }
+
+            if (builder is NodeManagerBuilder concreteBuilder &&
+                concreteBuilder.FluentOwner != null)
+            {
+                return concreteBuilder;
+            }
+
+            if (builder.NodeManager is FluentNodeManagerBase manager &&
+                manager.AttachedBuilder is { } concrete)
+            {
+                return concrete;
+            }
+
+            return null;
+        }
+
+        internal VirtualNodeRegistration? FindVirtualNodeRegistration(
+            NodeId nodeId)
+        {
+            VirtualNodeRegistration? match = null;
+            foreach (NodeManagerBuilder builder in GetAttachedBuilders())
+            {
+                VirtualNodeRegistration? registration =
+                    builder.FindVirtualNodeRegistration(nodeId);
+                if (registration == null)
+                {
+                    continue;
+                }
+                if (match != null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "NodeId '{0}' matches virtual-node families registered " +
+                        "on more than one fluent builder.",
+                        nodeId);
+                }
+                match = registration;
+            }
+            return match;
+        }
+
+        /// <summary>
+        /// Asynchronous counterpart of the <c>Configure(INodeManagerBuilder)</c>
+        /// hook, invoked once per manager activation with the same builder
+        /// immediately <em>before</em> the synchronous <c>Configure</c>
+        /// callbacks run.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This is the seam for wiring that has to await: materialising
+        /// instances from a store or a companion-spec factory, reading a
+        /// configuration source, or registering nodes whose creation is
+        /// asynchronous. Because it runs before the synchronous
+        /// <c>Configure</c> pass, nodes it creates are already in the
+        /// address space when <c>Configure</c> wires callbacks against
+        /// them, and everything it stages on the builder is picked up by
+        /// the <c>RegisterAuthoredNodes</c> / reverse-reference /
+        /// <see cref="NodeManagerBuilder.SealAsync"/> steps that follow.
+        /// </para>
+        /// <para>
+        /// The hook is a <c>virtual</c> method rather than a second
+        /// <c>partial</c> declaration because a <c>partial</c> method can be
+        /// either optional (<c>partial void</c>, no return value) or
+        /// awaitable (an extended partial method, which must be
+        /// implemented) — not both. Generated managers therefore keep
+        /// <c>partial void Configure(INodeManagerBuilder)</c> for
+        /// synchronous wiring and override this method for asynchronous
+        /// wiring; a manager can use either or both.
+        /// </para>
+        /// <para>
+        /// The default implementation does nothing. Overrides do not need
+        /// to invoke <c>base.ConfigureAsync</c>.
+        /// </para>
+        /// </remarks>
+        /// <param name="builder">
+        /// The fluent builder for this activation, already attached to the
+        /// manager's registries.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected virtual ValueTask ConfigureAsync(
+            INodeManagerBuilder builder,
+            CancellationToken cancellationToken)
+        {
+            return default;
         }
 
         /// <summary>
@@ -243,7 +418,7 @@ namespace Opc.Ua.Server.Fluent
         /// <remarks>
         /// The source-generated <c>CreateAddressSpaceAsync</c> and the
         /// hosting <c>FluentNodeManager</c> invoke this once between the
-        /// <c>Configure</c> callbacks and <see cref="NodeManagerBuilder.Seal"/>;
+        /// <c>Configure</c> callbacks and <see cref="NodeManagerBuilder.SealAsync"/>;
         /// hand-written managers that drive
         /// <see cref="CreateFluentBuilder"/> themselves should do the
         /// same. Timing is safe because the master node manager
@@ -257,11 +432,557 @@ namespace Opc.Ua.Server.Fluent
         /// was handed to <c>CreateAddressSpaceAsync</c>.
         /// </param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        protected ValueTask CompleteConfigureAsync(
+        protected async ValueTask CompleteConfigureAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
-            return AddReverseReferencesAsync(externalReferences, cancellationToken);
+            await CompleteNodeSetImportsAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
+            await AddReverseReferencesAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
+
+            // Behaviors are deliberately NOT activated here. Sealing is the single
+            // activation point, and it is the later of the two: a manager that replays
+            // NotifyNodeAdded does so between SealGraphAuthoring and CompleteSealAsync,
+            // so activating at completion time would start a simulation loop before the
+            // replay it is supposed to follow. Every caller of this method seals
+            // afterwards, so nothing is left unactivated by the omission.
+        }
+
+        /// <summary>
+        /// Drains the behavior registrations pending on every attached builder and
+        /// activates them as one transactional generation.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <see cref="CompleteConfigureAsync"/> calls this, so a manager that already
+        /// routes through it needs no extra call. A manager that indexes its address
+        /// space by hand calls this once the graph is fully indexed and before it starts
+        /// driving nodes, since behaviors may only observe nodes that already exist.
+        /// </para>
+        /// <para>
+        /// The call is a no-op when nothing is pending, so it is safe to call twice. A
+        /// second configure pass drains only what that pass registered, and its
+        /// behaviors unwind before the earlier pass's.
+        /// </para>
+        /// </remarks>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="ServiceResultException">
+        /// Raised when a registration matches no node and did not allow that.
+        /// </exception>
+        protected async ValueTask ActivateNodeBehaviorsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            var registrations = new List<NodeAttachRegistration>();
+            lock (m_attachedBuildersLock)
+            {
+                foreach (NodeManagerBuilder builder in m_attachedBuilders)
+                {
+                    registrations.AddRange(builder.DrainNodeAttachments());
+                }
+            }
+
+            if (registrations.Count == 0)
+            {
+                return;
+            }
+
+            ITelemetryContext telemetry = Server.Telemetry;
+            TimeProvider timeProvider = NodeManagerTimeProvider;
+
+            var typeRegistrations = new List<NodeBehaviorRegistration>();
+            var pinned = new List<NodeBehaviorPinnedRegistration>();
+            var managerScoped = new List<INodeBehaviorFactory>();
+            var requireMatch = new List<INodeBehaviorFactory>();
+
+            foreach (NodeAttachRegistration registration in registrations)
+            {
+                var factory = new NodeAttachFactory(
+                    registration,
+                    registration.Kind == NodeAttachKind.Type
+                        ? ToNamespaceStableTypeId(registration.TypeDefinitionId)
+                        : ExpandedNodeId.Null,
+                    this,
+                    telemetry,
+                    timeProvider);
+
+                switch (registration.Kind)
+                {
+                    case NodeAttachKind.Type:
+                        typeRegistrations.Add(
+                            new NodeBehaviorRegistration(
+                                factory,
+                                registration.Options.IncludeSubtypes));
+                        if (!registration.Options.AllowZeroMatches)
+                        {
+                            requireMatch.Add(factory);
+                        }
+                        break;
+                    case NodeAttachKind.Node:
+                        pinned.Add(
+                            new NodeBehaviorPinnedRegistration(
+                                registration.Node!,
+                                factory));
+                        break;
+                    default:
+                        managerScoped.Add(factory);
+                        break;
+                }
+            }
+
+            var activation = new NodeBehaviorActivation(
+                new NodeBehaviorRegistry(
+                    typeRegistrations,
+                    Server.NamespaceUris,
+                    Server.TypeTree),
+                new NodeBehaviorAddressSpace(Server.NamespaceUris, Find),
+                SystemContext,
+                telemetry,
+                timeProvider,
+                pinned,
+                managerScoped,
+                requireMatch.Count == 0 ? null : requireMatch);
+
+            // Record before activating: a failed activation rolls itself back, and the
+            // recorded entry keeps a later teardown idempotent rather than surprised.
+            lock (m_behaviorActivationsLock)
+            {
+                m_behaviorActivations.Add(activation);
+            }
+
+            await activation
+                .ActivateAsync(
+                    new ArrayOf<NodeState>(System.Linq.Enumerable.ToArray(
+                        PredefinedNodes.Values)),
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public override async ValueTask DeleteAddressSpaceAsync(
+            CancellationToken cancellationToken = default)
+        {
+            List<NodeBehaviorActivation> activations;
+            lock (m_behaviorActivationsLock)
+            {
+                activations = [.. m_behaviorActivations];
+                m_behaviorActivations.Clear();
+            }
+
+            var failures = new List<Exception>();
+
+            // Unwind in reverse pass order, so a later generation releases before the
+            // one it was layered onto, and before base clears the nodes themselves.
+            for (int i = activations.Count - 1; i >= 0; i--)
+            {
+                try
+                {
+                    await activations[i]
+                        .DeactivateAndDisposeAsync()
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    failures.Add(ex);
+                }
+            }
+
+            try
+            {
+                await base
+                    .DeleteAddressSpaceAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                failures.Add(ex);
+            }
+
+            if (failures.Count == 1)
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo
+                    .Capture(failures[0])
+                    .Throw();
+            }
+            if (failures.Count > 1)
+            {
+                throw new AggregateException(
+                    "One or more node behaviors failed to release.",
+                    failures);
+            }
+        }
+
+        /// <summary>
+        /// Lets the builder drive behavior activation from its seal.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="NodeManagerBuilder"/> is not a subclass, so it cannot reach the
+        /// protected activation entry point directly. Sealing is the one point every
+        /// manager passes through, which is what makes activation reliable rather than
+        /// dependent on the manager also calling <see cref="CompleteConfigureAsync"/>.
+        /// </remarks>
+        internal ValueTask ActivateNodeBehaviorsFromSealAsync(
+            CancellationToken cancellationToken)
+        {
+            return ActivateNodeBehaviorsAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// Gets the server time provider, falling back to the system clock.
+        /// </summary>
+        /// <remarks>
+        /// Exposed so the manager-owned registries schedule from the same clock the
+        /// behavior surface hands to user code, which lets tests drive both from a
+        /// fake clock.
+        /// </remarks>
+        internal TimeProvider NodeManagerTimeProvider =>
+            (Server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System;
+
+        /// <summary>
+        /// Rewrites a type definition into the namespace-stable form the behavior
+        /// registry matches on.
+        /// </summary>
+        private ExpandedNodeId ToNamespaceStableTypeId(NodeId typeDefinitionId)
+        {
+            if (typeDefinitionId.NamespaceIndex == 0)
+            {
+                return new ExpandedNodeId(typeDefinitionId);
+            }
+
+            string? namespaceUri =
+                Server.NamespaceUris.GetString(typeDefinitionId.NamespaceIndex);
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "The namespace index of type definition '{0}' is not registered in " +
+                    "the server namespace table.",
+                    typeDefinitionId);
+            }
+
+            return new ExpandedNodeId(typeDefinitionId, namespaceUri);
+        }
+
+        /// <summary>
+        /// Links and registers the NodeSet documents which the
+        /// <c>Configure</c> pass imported through
+        /// <see cref="INodeManagerBuilder.Import"/>.
+        /// </summary>
+        private async ValueTask CompleteNodeSetImportsAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken)
+        {
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = 0; ii < builders.Length; ii++)
+            {
+                NodeManagerBuilder builder = builders[ii];
+                if (!builder.HasPendingNodeSetImports)
+                {
+                    continue;
+                }
+
+                // Snapshot the nodes owned before the import so linking can
+                // resolve parents in them without seeing the imported nodes.
+                var existingNodes = new Dictionary<NodeId, NodeState>();
+                foreach (KeyValuePair<NodeId, NodeState> entry in PredefinedNodes)
+                {
+                    existingNodes[entry.Key] = entry.Value;
+                }
+
+                // RemovePredefinedNodeAsync only collects the references other
+                // node managers hold on a removed node; dropping them is the
+                // caller's job.
+                var referencesToRemove = new List<LocalReference>();
+                await builder.CompleteNodeSetImportsAsync(
+                    existingNodes,
+                    (node, ct) => AddPredefinedNodeAsync(
+                        SystemContext,
+                        node,
+                        externalReferences,
+                        ct),
+                    (node, ct) => RemovePredefinedNodeAsync(
+                        SystemContext,
+                        node,
+                        referencesToRemove,
+                        ct),
+                    cancellationToken).ConfigureAwait(false);
+
+                if (referencesToRemove.Count > 0)
+                {
+                    DropPendingExternalReferences(externalReferences, referencesToRemove);
+                    await Server.NodeManager
+                        .RemoveReferencesAsync(referencesToRemove, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes references to displaced nodes which this pass has staged in
+        /// <paramref name="externalReferences"/> but the master node manager
+        /// has not applied yet.
+        /// </summary>
+        /// <remarks>
+        /// At startup the reverse-reference pass of
+        /// <c>LoadPredefinedNodesAsync</c> has already published the generated
+        /// nodes' references into the dictionary. An entry that targets a node
+        /// the import has just removed would otherwise be applied afterwards,
+        /// leaving another node manager pointing at a node that no longer
+        /// exists.
+        /// </remarks>
+        private static void DropPendingExternalReferences(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            List<LocalReference> referencesToRemove)
+        {
+            for (int ii = 0; ii < referencesToRemove.Count; ii++)
+            {
+                LocalReference reference = referencesToRemove[ii];
+                if (!externalReferences.TryGetValue(
+                        reference.SourceId,
+                        out IList<IReference>? references) ||
+                    references is null)
+                {
+                    continue;
+                }
+
+                for (int jj = references.Count - 1; jj >= 0; jj--)
+                {
+                    IReference candidate = references[jj];
+                    if (candidate.IsInverse == reference.IsInverse &&
+                        candidate.ReferenceTypeId == reference.ReferenceTypeId &&
+                        !candidate.TargetId.IsAbsolute &&
+                        (NodeId)candidate.TargetId == reference.TargetId)
+                    {
+                        references.RemoveAt(jj);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Registers every node staged by the builder's <c>Add*</c> methods
+        /// with this manager.
+        /// </summary>
+        /// <remarks>
+        /// Call this once, after the user's <c>Configure</c> delegates return
+        /// and before <see cref="CompleteConfigureAsync"/>, so that the
+        /// reverse-reference pass sees the newly registered nodes and mirrors
+        /// their references to nodes owned by other managers (typically the
+        /// Objects folder) into <c>externalReferences</c>. A builder that
+        /// staged no nodes registers nothing, so the call is safe to make
+        /// unconditionally. The source-generated
+        /// <c>CreateAddressSpaceAsync</c> emits it for you.
+        /// </remarks>
+        /// <param name="builder">The builder whose staged nodes to register.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="System.ArgumentNullException">
+        /// <paramref name="builder"/> is <c>null</c>.
+        /// </exception>
+        protected ValueTask RegisterAuthoredNodesAsync(
+            NodeManagerBuilder builder,
+            CancellationToken cancellationToken = default)
+        {
+            if (builder == null)
+            {
+                throw new System.ArgumentNullException(nameof(builder));
+            }
+
+            return builder.RegisterAuthoredNodesAsync(
+                (node, ct) => AddPredefinedNodeAsync(SystemContext, node, ct),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Seals the builder, replays <c>NotifyNodeAdded</c> for every node
+        /// this manager owns, and then completes the registrations the
+        /// <c>Configure</c> pass could not finish synchronously and starts
+        /// the simulations it registered.
+        /// </summary>
+        /// <remarks>
+        /// Call this once the address space is complete - after
+        /// <see cref="RegisterAuthoredNodesAsync"/> and
+        /// <see cref="CompleteConfigureAsync"/>. Both ends of the order
+        /// matter: sealing first stops a lifecycle handler from authoring
+        /// nodes that nothing would register any more, and activating last
+        /// keeps a simulated value change from preceding the
+        /// <c>OnNodeAdded</c> handler of its own node. The source-generated
+        /// <c>CreateAddressSpaceAsync</c> emits this call for you.
+        /// </remarks>
+        /// <param name="builder">The builder the Configure pass used.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="System.ArgumentNullException">
+        /// <paramref name="builder"/> is <c>null</c>.
+        /// </exception>
+        protected ValueTask SealConfigurationAsync(
+            NodeManagerBuilder builder,
+            CancellationToken cancellationToken = default)
+        {
+            if (builder == null)
+            {
+                throw new System.ArgumentNullException(nameof(builder));
+            }
+
+            builder.SealGraphAuthoring();
+
+            foreach (KeyValuePair<NodeId, NodeState> entry in PredefinedNodes)
+            {
+                builder.Dispatcher.NotifyNodeAdded(SystemContext, entry.Value);
+            }
+
+            return builder.CompleteSealAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask<NodeHandle> GetManagerHandleAsync(
+            ServerSystemContext context,
+            NodeId nodeId,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
+        {
+            NodeHandle handle = await base.GetManagerHandleAsync(
+                context,
+                nodeId,
+                cache,
+                cancellationToken).ConfigureAwait(false);
+            if (handle != null || !IsNodeIdInNamespace(nodeId))
+            {
+                return handle!;
+            }
+
+            VirtualNodeRegistration? registration =
+                FindVirtualNodeRegistration(nodeId);
+            return registration == null
+                ? null!
+                : new NodeHandle
+                {
+                    NodeId = nodeId,
+                    ParsedNodeId = registration,
+                    Validated = false
+                };
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask<NodeState> ValidateNodeAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            IDictionary<NodeId, NodeState> cache,
+            CancellationToken cancellationToken = default)
+        {
+            NodeState? node = await base.ValidateNodeAsync(
+                context,
+                handle,
+                cache,
+                cancellationToken).ConfigureAwait(false);
+            if (node != null ||
+                handle?.ParsedNodeId is not VirtualNodeRegistration registration)
+            {
+                return node!;
+            }
+
+            if (cache != null && cache.TryGetValue(handle.NodeId, out NodeState? cached))
+            {
+                return cached == null
+                    ? null!
+                    : ValidationComplete(context, handle, cached, cache);
+            }
+
+            NodeState? resolved = await registration.Resolver(
+                context,
+                handle.NodeId,
+                cancellationToken).ConfigureAwait(false);
+            if (resolved == null)
+            {
+                if (cache != null)
+                {
+                    cache[handle.NodeId] = null!;
+                }
+                return null!;
+            }
+
+            if (resolved.NodeId.IsNull)
+            {
+                resolved.NodeId = handle.NodeId;
+            }
+            else if (resolved.NodeId != handle.NodeId)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    "Virtual-node resolver returned NodeId '{0}' for requested NodeId '{1}'.",
+                    resolved.NodeId,
+                    handle.NodeId);
+            }
+
+            registration.Apply(resolved);
+            return ValidationComplete(context, handle, resolved, cache!);
+        }
+
+        /// <inheritdoc/>
+        protected override bool TryHandleHistoryRead(
+            ISystemContext context,
+            NodeState source,
+            HistoryReadDetails details,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            HistoryReadValueId nodeToRead,
+            HistoryReadResult result,
+            out ServiceResult status)
+        {
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].Dispatcher.TryHandleHistoryRead(
+                    context,
+                    source,
+                    details,
+                    timestampsToReturn,
+                    releaseContinuationPoints,
+                    nodeToRead,
+                    result,
+                    out status))
+                {
+                    return true;
+                }
+            }
+
+            return base.TryHandleHistoryRead(
+                context,
+                source,
+                details,
+                timestampsToReturn,
+                releaseContinuationPoints,
+                nodeToRead,
+                result,
+                out status);
+        }
+
+        /// <inheritdoc/>
+        protected override bool TryHandleHistoryUpdate(
+            ISystemContext context,
+            NodeState source,
+            HistoryUpdateDetails nodeToUpdate,
+            HistoryUpdateResult result,
+            out ServiceResult status)
+        {
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].Dispatcher.TryHandleHistoryUpdate(
+                    context,
+                    source,
+                    nodeToUpdate,
+                    result,
+                    out status))
+                {
+                    return true;
+                }
+            }
+
+            return base.TryHandleHistoryUpdate(
+                context,
+                source,
+                nodeToUpdate,
+                result,
+                out status);
         }
 
         /// <summary>
@@ -271,14 +992,348 @@ namespace Opc.Ua.Server.Fluent
         /// <see cref="AsyncCustomNodeManager.OnSubscribeToEventsAsync"/>
         /// must call <c>base</c> before doing their own work.
         /// </summary>
-        protected override ValueTask OnSubscribeToEventsAsync(
+        protected override async ValueTask OnSubscribeToEventsAsync(
             ServerSystemContext context,
             MonitoredNode2 monitoredNode,
             bool unsubscribe,
             CancellationToken cancellationToken = default)
         {
-            EventSources.SignalReconcile();
-            return base.OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cancellationToken);
+            if (unsubscribe)
+            {
+                EventSources.SignalReconcile();
+            }
+            else
+            {
+                await EventSources.WaitUntilReadyAsync(monitoredNode.Node, cancellationToken).ConfigureAwait(false);
+            }
+            await base.OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        protected override void OnMonitoredItemCreated(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem)
+        {
+            base.OnMonitoredItemCreated(context, handle, monitoredItem);
+
+            if (handle?.Node is not { } node)
+            {
+                return;
+            }
+
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].HasMonitoredItemCreatedHandler(node.NodeId))
+                {
+                    builders[ii].Dispatcher.NotifyMonitoredItemCreated(
+                        context,
+                        node,
+                        monitoredItem);
+                    break;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask<MonitoredItemCreateDecision>
+            OnCreatingMonitoredItemAsync(
+                MonitoredItemCreateContext context,
+                CancellationToken cancellationToken = default)
+        {
+            MonitoredItemCreateDecision decision =
+                await base.OnCreatingMonitoredItemAsync(
+                    context,
+                    cancellationToken).ConfigureAwait(false);
+            if (decision.Kind != MonitoredItemCreateDecisionKind.Default)
+            {
+                return decision;
+            }
+
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].HasMonitoredItemCreatingHandler(
+                    context.Source.NodeId))
+                {
+                    return await builders[ii].Dispatcher
+                        .GetMonitoredItemCreateDecisionAsync(
+                            context,
+                            cancellationToken).ConfigureAwait(false);
+                }
+            }
+            return decision;
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnMonitoredItemModifiedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnMonitoredItemModifiedAsync(
+                context,
+                handle,
+                monitoredItem,
+                cancellationToken).ConfigureAwait(false);
+
+            if (handle?.Node is not { } node)
+            {
+                return;
+            }
+
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].HasMonitoredItemModifiedHandler(node.NodeId))
+                {
+                    await builders[ii].Dispatcher.NotifyMonitoredItemModifiedAsync(
+                        context,
+                        node,
+                        monitoredItem,
+                        cancellationToken).ConfigureAwait(false);
+                    break;
+                }
+            }
+
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnMonitoredItemDeletedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnMonitoredItemDeletedAsync(
+                context,
+                handle,
+                monitoredItem,
+                cancellationToken).ConfigureAwait(false);
+
+            if (handle?.Node is not { } node)
+            {
+                return;
+            }
+
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].HasMonitoredItemDeletedHandler(node.NodeId))
+                {
+                    await builders[ii].Dispatcher.NotifyMonitoredItemDeletedAsync(
+                        context,
+                        node,
+                        monitoredItem,
+                        cancellationToken).ConfigureAwait(false);
+                    break;
+                }
+            }
+
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnMonitoringModeChangedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            MonitoringMode previousMode,
+            MonitoringMode monitoringMode,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnMonitoringModeChangedAsync(
+                context,
+                handle,
+                monitoredItem,
+                previousMode,
+                monitoringMode,
+                cancellationToken).ConfigureAwait(false);
+
+            if (handle?.Node is not { } node)
+            {
+                return;
+            }
+
+            NodeManagerBuilder[] builders = GetAttachedBuilders();
+            for (int ii = builders.Length - 1; ii >= 0; ii--)
+            {
+                if (builders[ii].HasMonitoringModeChangedHandler(node.NodeId))
+                {
+                    await builders[ii].Dispatcher.NotifyMonitoringModeChangedAsync(
+                        context,
+                        node,
+                        monitoredItem,
+                        previousMode,
+                        monitoringMode,
+                        cancellationToken).ConfigureAwait(false);
+                    break;
+                }
+            }
+
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnMonitoredItemAttachedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnMonitoredItemAttachedAsync(
+                context,
+                handle,
+                monitoredItem,
+                cancellationToken).ConfigureAwait(false);
+
+            if (handle?.Node is { } source)
+            {
+                await MonitoredSources.OnCreatedAsync(
+                    context,
+                    source,
+                    monitoredItem).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnMonitoredItemDetachedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnMonitoredItemDetachedAsync(
+                context,
+                handle,
+                monitoredItem,
+                cancellationToken).ConfigureAwait(false);
+
+            if (handle?.Node is { } source)
+            {
+                await MonitoredSources.OnDeletedAsync(
+                    context,
+                    source,
+                    monitoredItem).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnCreateMonitoredItemsCompleteAsync(
+            ServerSystemContext context,
+            IList<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnCreateMonitoredItemsCompleteAsync(
+                context,
+                monitoredItems,
+                cancellationToken).ConfigureAwait(false);
+
+            foreach (IMonitoredItem item in monitoredItems)
+            {
+                if (item is ISampledDataChangeMonitoredItem sampled &&
+                    sampled.ManagerHandle is NodeHandle { Node: { } source })
+                {
+                    await MonitoredSources.OnCreatedAsync(
+                        context,
+                        source,
+                        sampled).ConfigureAwait(false);
+                }
+            }
+
+            ArrayOf<IMonitoredItem> snapshot =
+                new List<IMonitoredItem>(monitoredItems);
+            foreach (NodeManagerBuilder builder in GetAttachedBuilders())
+            {
+                await builder.Dispatcher.NotifyMonitoredItemsCreatedAsync(
+                    context,
+                    snapshot,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnDeleteMonitoredItemsCompleteAsync(
+            ServerSystemContext context,
+            IList<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnDeleteMonitoredItemsCompleteAsync(
+                context,
+                monitoredItems,
+                cancellationToken).ConfigureAwait(false);
+
+            foreach (IMonitoredItem item in monitoredItems)
+            {
+                if (item is ISampledDataChangeMonitoredItem sampled &&
+                    sampled.ManagerHandle is NodeHandle { Node: { } source })
+                {
+                    await MonitoredSources.OnDeletedAsync(
+                        context,
+                        source,
+                        sampled).ConfigureAwait(false);
+                }
+            }
+
+            ArrayOf<IMonitoredItem> snapshot =
+                new List<IMonitoredItem>(monitoredItems);
+            foreach (NodeManagerBuilder builder in GetAttachedBuilders())
+            {
+                await builder.Dispatcher.NotifyMonitoredItemsDeletedAsync(
+                    context,
+                    snapshot,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnModifyMonitoredItemsCompleteAsync(
+            ServerSystemContext context,
+            IList<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnModifyMonitoredItemsCompleteAsync(
+                context,
+                monitoredItems,
+                cancellationToken).ConfigureAwait(false);
+
+            foreach (IMonitoredItem item in monitoredItems)
+            {
+                if (item is ISampledDataChangeMonitoredItem sampled &&
+                    sampled.ManagerHandle is NodeHandle { Node: { } source })
+                {
+                    await MonitoredSources.OnModifiedAsync(
+                        context,
+                        source,
+                        sampled).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnSetMonitoringModeCompleteAsync(
+            ServerSystemContext context,
+            IList<IMonitoredItem> monitoredItems,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnSetMonitoringModeCompleteAsync(
+                context,
+                monitoredItems,
+                cancellationToken).ConfigureAwait(false);
+
+            foreach (IMonitoredItem item in monitoredItems)
+            {
+                if (item is ISampledDataChangeMonitoredItem sampled &&
+                    sampled.ManagerHandle is NodeHandle { Node: { } source })
+                {
+                    await MonitoredSources.OnMonitoringModeChangedAsync(
+                        context,
+                        source,
+                        sampled,
+                        sampled.MonitoringMode).ConfigureAwait(false);
+                }
+            }
         }
 
         /// <summary>
@@ -292,10 +1347,32 @@ namespace Opc.Ua.Server.Fluent
         {
             if (disposing)
             {
+                // Signal-only: real release runs in DeleteAddressSpaceAsync, which
+                // MasterNodeManager.ShutdownAsync invokes before it disposes managers.
+                // Blocking here would sit under a sync-over-async dispose.
+                SignalNodeBehaviorShutdown();
+                MonitoredSources.Dispose();
                 Simulations.Dispose();
                 EventSources.Dispose();
             }
             base.Dispose(disposing);
+        }
+
+        /// <summary>
+        /// Trips every activated behavior's shutdown signal without awaiting release.
+        /// </summary>
+        private void SignalNodeBehaviorShutdown()
+        {
+            List<NodeBehaviorActivation> activations;
+            lock (m_behaviorActivationsLock)
+            {
+                activations = [.. m_behaviorActivations];
+            }
+
+            for (int i = activations.Count - 1; i >= 0; i--)
+            {
+                activations[i].SignalShutdown();
+            }
         }
 
         /// <summary>
@@ -312,5 +1389,29 @@ namespace Opc.Ua.Server.Fluent
         {
             return AddRootNotifierAsync(notifier, cancellationToken).AsTask();
         }
+
+        /// <summary>
+        /// Internal trampoline used by <see cref="EventSourceRegistry"/> to undo a root
+        /// notifier registration when the manager tears down.
+        /// </summary>
+        internal Task RemoveRootNotifierFromFluentAsync(
+            NodeState notifier,
+            CancellationToken cancellationToken)
+        {
+            return RemoveRootNotifierAsync(notifier, cancellationToken).AsTask();
+        }
+
+        private NodeManagerBuilder[] GetAttachedBuilders()
+        {
+            lock (m_attachedBuildersLock)
+            {
+                return [.. m_attachedBuilders];
+            }
+        }
+
+        private readonly Lock m_attachedBuildersLock = new();
+        private readonly List<NodeManagerBuilder> m_attachedBuilders = [];
+        private readonly Lock m_behaviorActivationsLock = new();
+        private readonly List<NodeBehaviorActivation> m_behaviorActivations = [];
     }
 }

@@ -189,15 +189,8 @@ namespace Opc.Ua.Server.Fluent
                     "Sampling interval must be positive.");
             }
 
-            if (builder.Builder is not NodeManagerBuilder concrete ||
-                concrete.Simulations == null)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    "PollEvery requires the node manager to derive from " +
-                    "FluentNodeManagerBase. Manager type '{0}' does not opt in.",
-                    builder.Builder.NodeManager?.GetType().FullName ?? "(unknown)");
-            }
+            NodeManagerBuilder concrete =
+                FluentNodeManagerBase.ResolveAttachedBuilder(builder.Builder, "PollEvery");
 
             ISystemContext context = concrete.Context;
             var updater = new ValueUpdater<TValue>(builder.Node, context);
@@ -208,7 +201,11 @@ namespace Opc.Ua.Server.Fluent
             TValue last = sample(context);
             updater.SetValue(last);
 
-            concrete.Simulations
+            // Reaches the registry directly rather than through Simulation(...), so it
+            // has to register the lifecycle behavior itself — that behavior is what
+            // starts the loops and releases them again.
+            concrete.EnsureSimulationLifecycleRegistered();
+            concrete.Simulations!
                 .NewSimulation(interval)
                 .OnTick((ctx, _) =>
                 {

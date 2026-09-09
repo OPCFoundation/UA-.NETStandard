@@ -5,26 +5,26 @@
       "uav": "http://opcfoundation.org/UA/WoT-Binding/",
       "ua": "http://opcfoundation.org/UA/",
       "pump": "http://example.com/demo/pump",
+      "evt": "urn:example:opcua:event-type:",
       "@language": "en"
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
   "@type": ["tm:ThingModel", "uav:objectType"],
   "title": "PumpAlarmsType",
-  "description": "A Thing Model of the ObjectType that raises the pump's alarms, carrying the two EventType definitions a Thing Description links to instead of restating one select clause per field. The first is the pump's own HighTemperatureAlarmType, stated as the complete effective field set a fast path derives its baseline selection from; the second is the ua:LimitAlarmType, which declares four limit fields and inherits the rest, and which an explicit select clause names to reach one of them.",
+  "description": "A Thing Model of the ObjectType that raises the pump's alarms and events, carrying four logically identified EventType definitions. The first is the pump's own HighTemperatureAlarmType with the complete effective field set that supplies an affordance's baseline selection; the second is ua:LimitAlarmType, which declares four limit fields and is used by an explicit select clause; the last two are the effective definitions of the pump's TemperatureExceededEventType and SealLeakEventType, which examples 01 and 02 reference so that their affordances select the domain field the type adds rather than only the implicit BaseEventType default.",
   "uav:bindingVersion": "1.1",
   "uav:profile": ["WoT-Modeller", "WoT-EventMapping"],
   "uav:browseName": "pump:PumpAlarmsType",
   "uav:id": "nsu=http://example.com/demo/pump;i=1005",
   "events": {
     "highTemperatureAlarm": {
+      "@id": "evt:highTemperatureAlarm",
       "@type": "uav:eventType",
       "title": "High Temperature Alarm",
-      "description": "The EventType definition of the pump's high-temperature limit alarm. Its data schema is effective: it declares every field an affordance that links to this definition selects, the fields inherited from BaseEventType, ConditionType, AcknowledgeableConditionType, AlarmConditionType and LimitAlarmType included, and uav:fieldOrder states the order the clauses are derived in.",
-      "uav:isEvent": true,
+      "description": "The EventType definition of the pump's high-temperature limit alarm. @id is the definition's logical JSON-LD identifier; uav:id and uav:browseName identify the OPC UA EventType Node in the pump namespace. uav:id becomes the TypeDefinitionId of clauses derived from this definition. Its data schema is effective: it declares every selected field, including fields inherited from BaseEventType, ConditionType, AcknowledgeableConditionType, AlarmConditionType and LimitAlarmType, and uav:fieldOrder states the derivation order.",
       "uav:id": "nsu=http://example.com/demo/pump;i=6001",
       "uav:browseName": "pump:HighTemperatureAlarmType",
-      "uav:severity": 700,
       "data": {
         "type": "object",
         "uav:fieldOrder": [
@@ -197,10 +197,10 @@
       }
     },
     "limitAlarm": {
+      "@id": "evt:limitAlarm",
       "@type": "uav:eventType",
       "title": "Limit Alarm",
       "description": "The EventType definition of the standard ua:LimitAlarmType. It declares the four limit fields that type declares and inherits the rest, which is what a definition named by a single select clause has to state: a clause uses it for the EventType identity and for the one field it names. It is therefore not effective and is not linked as a baseline.",
-      "uav:isEvent": true,
       "uav:id": "i=2955",
       "uav:browseName": "ua:LimitAlarmType",
       "data": {
@@ -223,6 +223,144 @@
           },
           "LowLowLimit": {
             "type": "number"
+          }
+        }
+      }
+    },
+    "temperatureExceeded": {
+      "@id": "evt:temperatureExceeded",
+      "@type": "uav:eventType",
+      "title": "Temperature Exceeded",
+      "description": "The effective EventType definition of the pump's over-temperature event. It declares the eight fields every BaseEventType subtype inherits together with the one domain field this type adds, Temperature, and uav:fieldOrder states the derivation order. An affordance that references it with tm:ref therefore selects the domain field as well, which is what distinguishes a described EventType from the implicit BaseEventType default.",
+      "uav:id": "nsu=http://example.com/demo/pump;i=6002",
+      "uav:browseName": "pump:TemperatureExceededEventType",
+      "uav:semanticId": "http://example.com/ontology/TemperatureExceeded",
+      "data": {
+        "type": "object",
+        "uav:fieldOrder": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity",
+          "Temperature"
+        ],
+        "required": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity"
+        ],
+        "properties": {
+          "EventId": {
+            "type": "string",
+            "contentEncoding": "base64"
+          },
+          "EventType": {
+            "type": "string"
+          },
+          "SourceNode": {
+            "type": "string"
+          },
+          "SourceName": {
+            "type": "string"
+          },
+          "Time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ReceiveTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "Message": {
+            "type": "string"
+          },
+          "Severity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "Temperature": {
+            "uav:browseName": "pump:Temperature",
+            "type": "number",
+            "unit": "Cel"
+          }
+        }
+      }
+    },
+    "sealLeak": {
+      "@id": "evt:sealLeak",
+      "@type": "uav:eventType",
+      "title": "Seal Leak",
+      "description": "The effective EventType definition of the pump's seal-leak event: the eight inherited BaseEventType fields and the domain field LeakRate. It is the second definition an affordance can reference instead of falling back to the implicit default, and it shows that the domain field, not the annotation, is what a subscriber gains from naming the type.",
+      "uav:id": "nsu=http://example.com/demo/pump;i=6003",
+      "uav:browseName": "pump:SealLeakEventType",
+      "uav:semanticId": "http://example.com/ontology/SealLeak",
+      "data": {
+        "type": "object",
+        "uav:fieldOrder": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity",
+          "LeakRate"
+        ],
+        "required": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity"
+        ],
+        "properties": {
+          "EventId": {
+            "type": "string",
+            "contentEncoding": "base64"
+          },
+          "EventType": {
+            "type": "string"
+          },
+          "SourceNode": {
+            "type": "string"
+          },
+          "SourceName": {
+            "type": "string"
+          },
+          "Time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ReceiveTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "Message": {
+            "type": "string"
+          },
+          "Severity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "LeakRate": {
+            "uav:browseName": "pump:LeakRate",
+            "type": "number",
+            "unit": "L/min"
           }
         }
       }

@@ -99,6 +99,80 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
+    /// What to delete from the registry, and under which WoT Connectivity
+    /// delete policy.
+    /// </summary>
+    public sealed class WotDeleteRequest
+    {
+        /// <summary>
+        /// Gets or sets the owning group.
+        /// </summary>
+        public string GroupId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the resource to delete.
+        /// </summary>
+        public string ResourceId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the delete policy. The default, <c>Reject</c>, refuses
+        /// while anything still depends on the document.
+        /// </summary>
+        public WoTDeletePolicyEnum Policy { get; set; } = WoTDeletePolicyEnum.Reject;
+
+        /// <summary>
+        /// Gets or sets the resource epoch the caller last observed, or
+        /// <c>null</c> to delete regardless of concurrent changes.
+        /// </summary>
+        public long? ExpectedEpoch { get; set; }
+
+        /// <summary>
+        /// Gets or sets an opaque request id echoed in the summary.
+        /// </summary>
+        public string RequestId { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// The result of a policy-driven delete: what the registry did, and what
+    /// reconciling the AddressSpace afterwards produced.
+    /// </summary>
+    public sealed class WotDeleteOutcome
+    {
+        internal WotDeleteOutcome(
+            WotDeleteResult delete,
+            WoTRefreshSummaryDataType summary,
+            ImmutableArray<WoTResourceLoadResultDataType> results,
+            uint generation)
+        {
+            Delete = delete;
+            Summary = summary;
+            Results = results.IsDefault ? [] : results;
+            Generation = generation;
+        }
+
+        /// <summary>
+        /// Gets what the delete policy did to stored state.
+        /// </summary>
+        public WotDeleteResult Delete { get; }
+
+        /// <summary>
+        /// Gets the summary of the reconciliation that followed. A rejected
+        /// delete reconciles nothing, so its counts are all zero.
+        /// </summary>
+        public WoTRefreshSummaryDataType Summary { get; }
+
+        /// <summary>
+        /// Gets the per-resource results of the reconciliation.
+        /// </summary>
+        public ImmutableArray<WoTResourceLoadResultDataType> Results { get; }
+
+        /// <summary>
+        /// Gets the refresh generation after the operation.
+        /// </summary>
+        public uint Generation { get; }
+    }
+
+    /// <summary>
     /// The kind of materialization event emitted by the coordinator.
     /// </summary>
     public enum WotMaterializationEventKind

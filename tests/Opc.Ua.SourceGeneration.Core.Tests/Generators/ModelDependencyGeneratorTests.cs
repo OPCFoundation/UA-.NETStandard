@@ -321,14 +321,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var generator = new ModelDependencyGenerator(BuildContext());
             generator.Emit();
 
-            string output = ReadOutput();
-            int payloadEnd = output.IndexOf("\")]", StringComparison.Ordinal);
-            Assert.That(payloadEnd, Is.GreaterThanOrEqualTo(0));
-            int payloadStart = output.LastIndexOf('"', payloadEnd - 1);
-            Assert.That(payloadStart, Is.GreaterThanOrEqualTo(0));
-            string encodedPayload = output[(payloadStart + 1)..payloadEnd];
-            ModelDependencyV1 payload =
-                ModelDependencyV1.FromBase64Payload(encodedPayload);
+            ModelDependencyV1 payload = ReadSelfPayload();
             Assert.That(payload, Is.Not.Null);
             DependencyChild child = payload.Nodes
                 .Single(node => node.SymbolicName == "ControllerType")
@@ -352,7 +345,85 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
-        public void LegacyPayloadWithoutMethodIdentityRemainsReadable()
+        public void EmitVariableSerializesEffectiveMetadata()
+        {
+            Namespace target = ConfigureSelf();
+            var document = new XmlDocument();
+            System.Xml.XmlElement defaultValue = document.CreateElement(
+                "uax",
+                "ListOfString",
+                Types.Namespaces.OpcUaXsd);
+            System.Xml.XmlElement first = document.CreateElement(
+                "uax",
+                "String",
+                Types.Namespaces.OpcUaXsd);
+            first.InnerText = "First";
+            defaultValue.AppendChild(first);
+            System.Xml.XmlElement second = document.CreateElement(
+                "uax",
+                "String",
+                Types.Namespaces.OpcUaXsd);
+            second.InnerText = "Second";
+            defaultValue.AppendChild(second);
+            var variable = new VariableDesign
+            {
+                BrowseName = "Values",
+                SymbolicId = new XmlQualifiedName("ControllerType_Values", TestUri),
+                SymbolicName = new XmlQualifiedName("Values", TestUri),
+                TypeDefinition = new XmlQualifiedName(
+                    "BaseDataVariableType",
+                    Types.Namespaces.OpcUa),
+                DataType = new XmlQualifiedName("String", Types.Namespaces.OpcUa),
+                ValueRank = ValueRank.Array,
+                ValueRankSpecified = true,
+                AccessLevel = AccessLevel.ReadWrite,
+                AccessLevelSpecified = true,
+                RawAccessLevel = 5,
+                RawUserAccessLevel = 1,
+                MinimumSamplingInterval = 250,
+                MinimumSamplingIntervalSpecified = true,
+                Historizing = true,
+                HistorizingSpecified = true,
+                DefaultValue = defaultValue
+            };
+            var objectType = new ObjectTypeDesign
+            {
+                ClassName = "Controller",
+                SymbolicId = new XmlQualifiedName("ControllerType", TestUri),
+                SymbolicName = new XmlQualifiedName("ControllerType", TestUri),
+                HasChildren = true,
+                Children = new ListOfChildren { Items = [variable] }
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(target);
+            m_mockModelDesign.Setup(m => m.Nodes).Returns([objectType]);
+
+            var generator = new ModelDependencyGenerator(BuildContext());
+            generator.Emit();
+
+            ModelDependencyV1 payload = ReadSelfPayload();
+            Assert.That(payload, Is.Not.Null);
+            DependencyChild child = payload.Nodes
+                .Single(node => node.SymbolicName == "ControllerType")
+                .Children
+                .Single(candidate => candidate.SymbolicName == "Values");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(child.AccessLevel, Is.EqualTo((byte)AccessLevel.ReadWrite));
+                Assert.That(child.AccessLevelSpecified, Is.True);
+                Assert.That(child.RawAccessLevel, Is.EqualTo(5u));
+                Assert.That(child.RawUserAccessLevel, Is.EqualTo(1u));
+                Assert.That(child.MinimumSamplingInterval, Is.EqualTo(250));
+                Assert.That(child.MinimumSamplingIntervalSpecified, Is.True);
+                Assert.That(child.Historizing, Is.True);
+                Assert.That(child.HistorizingSpecified, Is.True);
+                Assert.That(child.DefaultValueXml, Does.Contain("First"));
+                Assert.That(child.DefaultValueXml, Does.Contain("Second"));
+            });
+        }
+
+        [Test]
+        public void PayloadWithoutMethodIdentityRemainsReadable()
         {
             var payload = new ModelDependencyV1
             {
@@ -440,6 +511,17 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // The generator wraps the captured stream in a StreamWriter and
             // disposes it on Emit(); the stream's Position is at the end.
             return Encoding.UTF8.GetString(m_memoryStream.ToArray());
+        }
+
+        private ModelDependencyV1 ReadSelfPayload()
+        {
+            string output = ReadOutput();
+            int payloadEnd = output.IndexOf("\")]", StringComparison.Ordinal);
+            Assert.That(payloadEnd, Is.GreaterThanOrEqualTo(0));
+            int payloadStart = output.LastIndexOf('"', payloadEnd - 1);
+            Assert.That(payloadStart, Is.GreaterThanOrEqualTo(0));
+            string encodedPayload = output[(payloadStart + 1)..payloadEnd];
+            return ModelDependencyV1.FromBase64Payload(encodedPayload);
         }
     }
 }

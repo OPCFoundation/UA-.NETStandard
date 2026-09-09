@@ -1297,6 +1297,7 @@ namespace Opc.Ua.Types.Tests.State
         /// consume thread-pool threads and does not starve other parallelisable tests.
         /// </summary>
         [Test]
+        [NonParallelizable]
         public void ConcurrentIncrementsAndDecrementsReturnToFalse()
         {
             const int k_threadCount = 32;
@@ -1307,26 +1308,32 @@ namespace Opc.Ua.Types.Tests.State
             // Task.Run + Barrier so that the k_threadCount blocked threads do
             // not occupy thread-pool slots during the gate-wait period.
             using var gate1 = new ManualResetEventSlim(false);
-            Exception[] phase1Errors = new Exception[k_threadCount];
+            var phase1Errors = new Exception[k_threadCount];
 
-            Thread[] incThreads = Enumerable.Range(0, k_threadCount).Select((_, i) =>
+            Thread[] incThreads = [.. Enumerable.Range(0, k_threadCount).Select((_, i) =>
             {
                 int idx = i;
-                var t = new Thread(() =>
+                return new Thread(() =>
                 {
                     try
                     {
                         gate1.Wait();
                         node.SetAreEventsMonitored(m_context, true, false);
                     }
-                    catch (Exception ex) { phase1Errors[idx] = ex; }
-                });
-                t.IsBackground = true;
-                return t;
-            }).ToArray();
+                    catch (Exception ex)
+                    {
+                        phase1Errors[idx] = ex;
+                    }
+                })
+                {
+                    IsBackground = true
+                };
+            })];
 
             foreach (Thread t in incThreads)
-            { t.Start(); }
+            {
+                t.Start();
+            }
             gate1.Set();
             foreach (Thread t in incThreads)
             {
@@ -1339,26 +1346,32 @@ namespace Opc.Ua.Types.Tests.State
 
             // Phase 2: all threads decrement simultaneously.
             using var gate2 = new ManualResetEventSlim(false);
-            Exception[] phase2Errors = new Exception[k_threadCount];
+            var phase2Errors = new Exception[k_threadCount];
 
-            Thread[] decThreads = Enumerable.Range(0, k_threadCount).Select((_, i) =>
+            Thread[] decThreads = [.. Enumerable.Range(0, k_threadCount).Select((_, i) =>
             {
                 int idx = i;
-                var t = new Thread(() =>
+                return new Thread(() =>
                 {
                     try
                     {
                         gate2.Wait();
                         node.SetAreEventsMonitored(m_context, false, false);
                     }
-                    catch (Exception ex) { phase2Errors[idx] = ex; }
-                });
-                t.IsBackground = true;
-                return t;
-            }).ToArray();
+                    catch (Exception ex)
+                    {
+                        phase2Errors[idx] = ex;
+                    }
+                })
+                {
+                    IsBackground = true
+                };
+            })];
 
             foreach (Thread t in decThreads)
-            { t.Start(); }
+            {
+                t.Start();
+            }
             gate2.Set();
             foreach (Thread t in decThreads)
             {
@@ -1377,6 +1390,7 @@ namespace Opc.Ua.Types.Tests.State
         /// <see cref="NodeState.AreEventsMonitored"/> true.
         /// </summary>
         [Test]
+        [NonParallelizable]
         public void ConcurrentExcessFalseCallsDoNotPoisonCounter()
         {
             const int k_threadCount = 32;
@@ -1385,12 +1399,12 @@ namespace Opc.Ua.Types.Tests.State
 
             using var ready = new CountdownEvent(k_threadCount);
             using var gate = new ManualResetEventSlim(false);
-            Exception[] errors = new Exception[k_threadCount];
+            var errors = new Exception[k_threadCount];
 
-            Thread[] threads = Enumerable.Range(0, k_threadCount).Select((_, index) =>
+            Thread[] threads = [.. Enumerable.Range(0, k_threadCount).Select((_, index) =>
             {
                 int idx = index;
-                var thread = new Thread(() =>
+                return new Thread(() =>
                 {
                     try
                     {
@@ -1402,10 +1416,11 @@ namespace Opc.Ua.Types.Tests.State
                     {
                         errors[idx] = ex;
                     }
-                });
-                thread.IsBackground = true;
-                return thread;
-            }).ToArray();
+                })
+                {
+                    IsBackground = true
+                };
+            })];
 
             foreach (Thread thread in threads)
             {
@@ -2284,12 +2299,16 @@ namespace Opc.Ua.Types.Tests.State
             original.SaveAsBinary(m_context, stream);
             stream.Position = 0;
 
-            var loaded = new BaseObjectState(null);
+            var loaded = new BaseObjectState(null)
+            {
+                UserWriteMask = AttributeWriteMask.DisplayName
+            };
             loaded.LoadAsBinary(m_context, stream);
 
             Assert.That(loaded.NodeId, Is.EqualTo(original.NodeId));
             Assert.That(loaded.BrowseName, Is.EqualTo(original.BrowseName));
             Assert.That(loaded.Description, Is.EqualTo(original.Description));
+            Assert.That(loaded.UserWriteMask, Is.EqualTo(AttributeWriteMask.None));
         }
 
         [Test]
@@ -2879,6 +2898,63 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void CreateAsPredefinedNodePassesCancellationToken()
+        {
+            using var cts = new System.Threading.CancellationTokenSource();
+            System.Threading.CancellationToken observed = default;
+            var node = new LifecycleProbeState(
+                null,
+                ct => observed = ct);
+
+            node.CreateAsPredefinedNode(m_context, cts.Token);
+
+            Assert.That(observed, Is.EqualTo(cts.Token));
+        }
+
+        [Test]
+        public void CreateAsPredefinedNodeThrowsWhenAlreadyCanceled()
+        {
+            using var cts = new System.Threading.CancellationTokenSource();
+            cts.Cancel();
+            var node = new LifecycleProbeState(null);
+
+            Assert.That(
+                () => node.CreateAsPredefinedNode(m_context, cts.Token),
+                Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(node.IsCreated, Is.False);
+            Assert.That(node.BeforeCreateCount, Is.Zero);
+            Assert.That(node.AfterCreateCount, Is.Zero);
+        }
+
+        [Test]
+        public void CreateAsPredefinedNodeResumesAfterCancellationBetweenChildren()
+        {
+            using var cts = new System.Threading.CancellationTokenSource();
+            var parent = new LifecycleProbeState(null);
+            var first = new LifecycleProbeState(parent, _ => cts.Cancel());
+            var second = new LifecycleProbeState(parent);
+            parent.AddChild(first);
+            parent.AddChild(second);
+
+            Assert.That(
+                () => parent.CreateAsPredefinedNode(m_context, cts.Token),
+                Throws.InstanceOf<OperationCanceledException>());
+
+            Assert.That(first.IsCreated, Is.True);
+            Assert.That(second.IsCreated, Is.False);
+            Assert.That(parent.IsCreated, Is.False);
+
+            parent.CreateAsPredefinedNode(m_context);
+
+            Assert.That(first.IsCreated, Is.True);
+            Assert.That(first.AfterCreateCount, Is.EqualTo(1));
+            Assert.That(second.IsCreated, Is.True);
+            Assert.That(second.AfterCreateCount, Is.EqualTo(1));
+            Assert.That(parent.IsCreated, Is.True);
+            Assert.That(parent.AfterCreateCount, Is.EqualTo(1));
+        }
+
+        [Test]
         public void DeleteResetsCreatedState()
         {
             var node = new LifecycleProbeState(null);
@@ -2971,18 +3047,16 @@ namespace Opc.Ua.Types.Tests.State
             var node = new BaseObjectState(null);
 
             const int k_count = 8;
-            BaseObjectState[] targets = Enumerable.Range(0, k_count)
-                .Select(_ => new BaseObjectState(null))
-                .ToArray();
+            BaseObjectState[] targets = [.. Enumerable.Range(0, k_count).Select(_ => new BaseObjectState(null))];
 
             using var ready = new CountdownEvent(k_count);
             using var gate = new ManualResetEventSlim(false);
-            Exception[] errors = new Exception[k_count];
+            var errors = new Exception[k_count];
 
-            Thread[] threads = targets.Select((target, index) =>
+            Thread[] threads = [.. targets.Select((target, index) =>
             {
                 int idx = index;
-                var t = new Thread(() =>
+                return new Thread(() =>
                 {
                     try
                     {
@@ -2994,10 +3068,11 @@ namespace Opc.Ua.Types.Tests.State
                     {
                         errors[idx] = ex;
                     }
-                });
-                t.IsBackground = true;
-                return t;
-            }).ToArray();
+                })
+                {
+                    IsBackground = true
+                };
+            })];
 
             foreach (Thread t in threads)
             {
@@ -3041,7 +3116,7 @@ namespace Opc.Ua.Types.Tests.State
 
             using var gate = new ManualResetEventSlim(false);
 
-            Exception[] errors = new Exception[4];
+            var errors = new Exception[4];
 
             Thread[] threads =
             [
@@ -3055,7 +3130,10 @@ namespace Opc.Ua.Types.Tests.State
                             node.AddNotifier(m_context, ReferenceTypeIds.HasEventSource, false, target);
                         }
                     }
-                    catch (Exception ex) { errors[0] = ex; }
+                    catch (Exception ex)
+                    {
+                        errors[0] = ex;
+                    }
                 }) { IsBackground = true },
                 new Thread(() =>
                 {
@@ -3067,7 +3145,10 @@ namespace Opc.Ua.Types.Tests.State
                             node.RemoveNotifier(m_context, target, false);
                         }
                     }
-                    catch (Exception ex) { errors[1] = ex; }
+                    catch (Exception ex)
+                    {
+                        errors[1] = ex;
+                    }
                 }) { IsBackground = true },
                 new Thread(() =>
                 {
@@ -3081,7 +3162,10 @@ namespace Opc.Ua.Types.Tests.State
                             node.GetNotifiers(m_context, buf);
                         }
                     }
-                    catch (Exception ex) { errors[2] = ex; }
+                    catch (Exception ex)
+                    {
+                        errors[2] = ex;
+                    }
                 }) { IsBackground = true },
                 new Thread(() =>
                 {
@@ -3093,7 +3177,10 @@ namespace Opc.Ua.Types.Tests.State
                             node.ReportEvent(m_context, null!);
                         }
                     }
-                    catch (Exception ex) { errors[3] = ex; }
+                    catch (Exception ex)
+                    {
+                        errors[3] = ex;
+                    }
                 }) { IsBackground = true }
             ];
 
@@ -3140,7 +3227,7 @@ namespace Opc.Ua.Types.Tests.State
             using var firstCallbackEntered = new ManualResetEventSlim(false);
             using var releaseFirstCallback = new ManualResetEventSlim(false);
             using var overlappingCallbackEntered = new ManualResetEventSlim(false);
-            Exception[] errors = new Exception[k_threadCount];
+            var errors = new Exception[k_threadCount];
 
             node.OnPopulateBrowser = (ctx, currentNode, browser) =>
             {
@@ -3164,10 +3251,10 @@ namespace Opc.Ua.Types.Tests.State
                 Interlocked.Decrement(ref activeCallbacks);
             };
 
-            Thread[] threads = Enumerable.Range(0, k_threadCount).Select((_, index) =>
+            Thread[] threads = [.. Enumerable.Range(0, k_threadCount).Select((_, index) =>
             {
                 int idx = index;
-                var t = new Thread(() =>
+                return new Thread(() =>
                 {
                     try
                     {
@@ -3188,10 +3275,11 @@ namespace Opc.Ua.Types.Tests.State
                     {
                         errors[idx] = ex;
                     }
-                });
-                t.IsBackground = true;
-                return t;
-            }).ToArray();
+                })
+                {
+                    IsBackground = true
+                };
+            })];
 
             foreach (Thread t in threads)
             {
@@ -3311,9 +3399,14 @@ namespace Opc.Ua.Types.Tests.State
 
         private sealed class LifecycleProbeState : BaseObjectState
         {
-            public LifecycleProbeState(NodeState parent)
+            private readonly Action<System.Threading.CancellationToken> m_afterCreate;
+
+            public LifecycleProbeState(
+                NodeState parent,
+                Action<System.Threading.CancellationToken> afterCreate = null)
                 : base(parent)
             {
+                m_afterCreate = afterCreate;
             }
 
             public int BeforeCreateCount { get; private set; }
@@ -3332,6 +3425,7 @@ namespace Opc.Ua.Types.Tests.State
                 System.Threading.CancellationToken ct = default)
             {
                 AfterCreateCount++;
+                m_afterCreate?.Invoke(ct);
                 base.OnAfterCreate(context, node, ct);
             }
         }

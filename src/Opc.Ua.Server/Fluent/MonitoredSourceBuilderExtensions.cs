@@ -1,0 +1,344 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Opc.Ua.Server.Fluent
+{
+    /// <summary>
+    /// Subscription-gated source and polling extensions.
+    /// </summary>
+    public static class MonitoredSourceBuilderExtensions
+    {
+        /// <summary>
+        /// Invokes <paramref name="handler"/> when the first active
+        /// data-change subscriber appears.
+        /// </summary>
+        public static INodeBuilder OnFirstSubscriber(
+            this INodeBuilder builder,
+            MonitoredSourceLifecycleHandler handler)
+        {
+            GetRegistration(builder).SetFirstSubscriber(handler);
+            return builder;
+        }
+
+        /// <summary>
+        /// Typed-variable overload that preserves fluent chaining.
+        /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR value type carried by the variable.
+        /// </typeparam>
+        public static IVariableBuilder<TValue> OnFirstSubscriber<TValue>(
+            this IVariableBuilder<TValue> builder,
+            MonitoredSourceLifecycleHandler handler)
+        {
+            GetRegistration(builder).SetFirstSubscriber(handler);
+            return builder;
+        }
+
+        /// <summary>
+        /// Invokes <paramref name="handler"/> when the last active
+        /// data-change subscriber disappears.
+        /// </summary>
+        public static INodeBuilder OnLastSubscriber(
+            this INodeBuilder builder,
+            MonitoredSourceLifecycleHandler handler)
+        {
+            GetRegistration(builder).SetLastSubscriber(handler);
+            return builder;
+        }
+
+        /// <summary>
+        /// Typed-variable overload that preserves fluent chaining.
+        /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR value type carried by the variable.
+        /// </typeparam>
+        public static IVariableBuilder<TValue> OnLastSubscriber<TValue>(
+            this IVariableBuilder<TValue> builder,
+            MonitoredSourceLifecycleHandler handler)
+        {
+            GetRegistration(builder).SetLastSubscriber(handler);
+            return builder;
+        }
+
+        /// <summary>
+        /// Invokes <paramref name="handler"/> when the first active
+        /// data-change subscriber appears on a virtual node.
+        /// </summary>
+        public static IVirtualNodeBuilder OnFirstSubscriber(
+            this IVirtualNodeBuilder builder,
+            MonitoredSourceLifecycleHandler handler)
+        {
+            GetRegistration(builder).SetFirstSubscriber(handler);
+            return builder;
+        }
+
+        /// <summary>
+        /// Invokes <paramref name="handler"/> when the last active
+        /// data-change subscriber disappears from a virtual node.
+        /// </summary>
+        public static IVirtualNodeBuilder OnLastSubscriber(
+            this IVirtualNodeBuilder builder,
+            MonitoredSourceLifecycleHandler handler)
+        {
+            GetRegistration(builder).SetLastSubscriber(handler);
+            return builder;
+        }
+
+        /// <summary>
+        /// Polls a variable only while it has at least one active subscriber.
+        /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR value type carried by the variable.
+        /// </typeparam>
+        public static IVariableBuilder<TValue> PollWhileMonitored<TValue>(
+            this IVariableBuilder<TValue> builder,
+            TimeSpan minimumPeriod,
+            Func<ISystemContext, CancellationToken, ValueTask<TValue>> sample)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (sample == null)
+            {
+                throw new ArgumentNullException(nameof(sample));
+            }
+
+            GetRegistration(builder).SetPoller(
+                new MonitoredValuePoller<TValue>(
+                    (context, source, cancellationToken) =>
+                        sample(context, cancellationToken)),
+                minimumPeriod);
+            return builder;
+        }
+
+        /// <summary>
+        /// Synchronous convenience overload for monitored polling.
+        /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR value type carried by the variable.
+        /// </typeparam>
+        public static IVariableBuilder<TValue> PollWhileMonitored<TValue>(
+            this IVariableBuilder<TValue> builder,
+            TimeSpan minimumPeriod,
+            Func<ISystemContext, TValue> sample)
+        {
+            if (sample == null)
+            {
+                throw new ArgumentNullException(nameof(sample));
+            }
+            return builder.PollWhileMonitored(
+                minimumPeriod,
+                (context, cancellationToken) =>
+                    new ValueTask<TValue>(sample(context)));
+        }
+
+        /// <summary>
+        /// Polls each materialized virtual variable only while it has an
+        /// active subscriber.
+        /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR value type returned by the source.
+        /// </typeparam>
+        public static IVirtualNodeBuilder PollWhileMonitored<TValue>(
+            this IVirtualNodeBuilder builder,
+            TimeSpan minimumPeriod,
+            Func<
+                ISystemContext,
+                NodeState,
+                CancellationToken,
+                ValueTask<TValue>> sample)
+        {
+            if (sample == null)
+            {
+                throw new ArgumentNullException(nameof(sample));
+            }
+            GetRegistration(builder).SetPoller(
+                new MonitoredValuePoller<TValue>(sample),
+                minimumPeriod);
+            return builder;
+        }
+
+        /// <summary>
+        /// Acquires a resource while the node has at least one subscriber, and releases
+        /// it on the last subscriber — and at server shutdown.
+        /// </summary>
+        /// <remarks>
+        /// This is the demand verb: it replaces writing
+        /// <c>OnFirstSubscriber</c>/<c>OnLastSubscriber</c> by hand and storing the
+        /// handle somewhere yourself. Release also runs when the node manager tears
+        /// down with a live subscription, which the raw handler pair does not do.
+        /// </remarks>
+        /// <typeparam name="TValue">The variable's value type.</typeparam>
+        /// <param name="builder">The variable builder.</param>
+        /// <param name="acquire">
+        /// Invoked on the first subscriber. The returned handle is disposed on the last
+        /// subscriber or at teardown, whichever comes first.
+        /// </param>
+        public static IVariableBuilder<TValue> AcquireWhileMonitored<TValue>(
+            this IVariableBuilder<TValue> builder,
+            Func<ISystemContext, NodeState, CancellationToken, ValueTask<IAsyncDisposable>> acquire)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (acquire == null)
+            {
+                throw new ArgumentNullException(nameof(acquire));
+            }
+
+            var held = new HeldResource();
+
+            builder.OnFirstSubscriber(async (context, source, cancellationToken) =>
+            {
+                // Take the generation before awaiting: a release that lands while the
+                // acquisition is still in flight bumps it, and the handle we are about
+                // to receive is then disposed on arrival rather than stranded.
+                long generation = held.BeginAcquire();
+                IAsyncDisposable handle = await acquire(context, source, cancellationToken)
+                    .ConfigureAwait(false);
+                await held.CompleteAcquireAsync(generation, handle).ConfigureAwait(false);
+            });
+
+            builder.OnLastSubscriber(async (context, source, cancellationToken) =>
+            {
+                _ = context;
+                _ = source;
+                _ = cancellationToken;
+                await held.ReleaseAsync().ConfigureAwait(false);
+            });
+
+            return builder;
+        }
+
+        /// <summary>
+        /// Holds the handle an <c>AcquireWhileMonitored</c> source acquired, so that
+        /// exactly one release happens however teardown is reached.
+        /// </summary>
+        private sealed class HeldResource
+        {
+            /// <summary>
+            /// Marks the start of an acquisition and returns the generation it belongs
+            /// to.
+            /// </summary>
+            public long BeginAcquire()
+            {
+                lock (m_gate)
+                {
+                    return m_generation;
+                }
+            }
+
+            /// <summary>
+            /// Stores the acquired handle, or disposes it when a release overtook the
+            /// acquisition that produced it.
+            /// </summary>
+            public ValueTask CompleteAcquireAsync(
+                long generation,
+                IAsyncDisposable handle)
+            {
+                if (handle is null)
+                {
+                    return default;
+                }
+
+                lock (m_gate)
+                {
+                    if (generation == m_generation)
+                    {
+                        m_handle = handle;
+                        return default;
+                    }
+                }
+
+                // The subscriber that asked for this went away while it was being
+                // acquired, so nothing will ever release it but us.
+                return handle.DisposeAsync();
+            }
+
+            public ValueTask ReleaseAsync()
+            {
+                IAsyncDisposable? handle;
+                lock (m_gate)
+                {
+                    // Bump first: an acquisition still in flight belongs to the old
+                    // generation and will dispose its own result.
+                    m_generation++;
+                    handle = m_handle;
+                    m_handle = null;
+                }
+
+                return handle?.DisposeAsync() ?? default;
+            }
+
+            private readonly Lock m_gate = new();
+            private IAsyncDisposable? m_handle;
+            private long m_generation;
+        }
+
+        private static MonitoredSourceRegistration GetRegistration(
+            INodeBuilder builder)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            NodeManagerBuilder concrete =
+                FluentNodeManagerBase.ResolveAttachedBuilder(
+                    builder.Builder,
+                    "monitored source");
+
+            // Hand release of the monitored sources to the behavior mechanism, so the
+            // last-subscriber handlers also run when the manager tears down.
+            concrete.EnsureMonitoredSourceLifecycleRegistered();
+            return concrete.MonitoredSources!.Register(builder.Node);
+        }
+
+        private static MonitoredSourceRegistration GetRegistration(
+            IVirtualNodeBuilder builder)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (builder is not VirtualNodeRegistration registration)
+            {
+                throw new ArgumentException(
+                    "The virtual node builder was not created by ResolveNodes.",
+                    nameof(builder));
+            }
+            return registration.Owner.MonitoredSources!.Register(registration);
+        }
+    }
+}

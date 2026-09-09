@@ -41,4 +41,24 @@
     <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The stack-side evidence for the WoT specification requirements the
+         specification leaves to an implementation. One file, embedded in every
+         assembly that carries some of that evidence, because no test assembly
+         can see another and a per-assembly copy would drift. -->
+    <Compile Include="..\Opc.Ua.Types.Tests\Wot\WotSpecRequirementLedger.cs">
+      <Link>Wot\WotSpecRequirementLedger.cs</Link>
+    </Compile>
+    <EmbeddedResource Include="..\Opc.Ua.Types.Tests\Wot\Assets\wot-spec-requirements.json">
+      <Link>Wot\Assets\wot-spec-requirements.json</Link>
+      <LogicalName>wot-spec-requirements.json</LogicalName>
+    </EmbeddedResource>
+    <Compile Include="..\Opc.Ua.Types.Tests\Wot\WotTraceabilityLedger.cs">
+      <Link>Wot\WotTraceabilityLedger.cs</Link>
+    </Compile>
+    <EmbeddedResource Include="..\Opc.Ua.Types.Tests\Wot\Assets\wot-binding-traceability.json">
+      <Link>Wot\Assets\wot-binding-traceability.json</Link>
+      <LogicalName>wot-binding-traceability.json</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 </Project>

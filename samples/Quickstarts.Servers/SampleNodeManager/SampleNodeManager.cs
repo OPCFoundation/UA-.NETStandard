@@ -91,6 +91,18 @@ namespace Opc.Ua.Sample
         }
 
         /// <summary>
+        /// Mints NodeIds for nodes this NodeManager creates at runtime.
+        /// </summary>
+        /// <remarks>
+        /// This sample base predates <see cref="AsyncCustomNodeManager"/> and
+        /// so carries the factory itself. A subclass selects its identifier
+        /// style by assigning this rather than by overriding
+        /// <see cref="New"/>.
+        /// </remarks>
+        public IRebasableNodeIdFactory NodeIdFactory { get; set; }
+            = new DefaultNodeIdFactory(NodeIdAssignmentMode.String);
+
+        /// <summary>
         /// Creates the NodeId for the specified node.
         /// </summary>
         /// <param name="context">The context.</param>
@@ -98,7 +110,7 @@ namespace Opc.Ua.Sample
         /// <returns>The new NodeId.</returns>
         public virtual NodeId New(ISystemContext context, NodeState node)
         {
-            return node.NodeId;
+            return NodeIdFactory.New(context, node);
         }
 
         /// <summary>
@@ -306,6 +318,18 @@ namespace Opc.Ua.Sample
                 {
                     m_namespaceIndexes[ii] = Server.NamespaceUris
                         .GetIndexOrAppend(m_namespaceUris[ii]);
+                }
+
+                // A factory still pointing at namespace 0 adopts the first
+                // namespace this manager owns. Namespace 0 is the OPC UA
+                // namespace, so minting there would hand out identifiers in
+                // a namespace no NodeManager owns. A subclass that wants a
+                // different one of its namespaces rebases the factory itself,
+                // as BoilerNodeManager and MemoryBufferNodeManager do.
+                if (NodeIdFactory.DefaultNamespaceIndex == 0 && m_namespaceIndexes.Length > 0)
+                {
+                    NodeIdFactory = NodeIdFactory
+                        .WithDefaultNamespaceIndex(m_namespaceIndexes[0]);
                 }
 
                 LoadPredefinedNodes(SystemContext, externalReferences);

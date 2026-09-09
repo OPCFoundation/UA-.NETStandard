@@ -52,7 +52,8 @@ namespace Opc.Ua.Server.RuntimeNodeSet
     /// </remarks>
     internal sealed class RuntimeNodeSetNodeManager :
         FluentNodeManagerBase,
-        INodeManagerReloadParticipant
+        INodeManagerReloadParticipant,
+        IRequestCallbackSafeNodeManager
     {
         /// <summary>
         /// Initializes the node manager.
@@ -85,6 +86,10 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// generation; it is disposed asynchronously when the generation
         /// is torn down.
         /// </param>
+        /// <param name="allowLifecycleFromRequestCallback">
+        /// Whether lifecycle operations may be initiated from this manager's
+        /// OPC UA request callbacks.
+        /// </param>
         internal RuntimeNodeSetNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -93,7 +98,8 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             ParsedNodeSetDocument[] documents,
             string? defaultNamespaceUri,
             Action<INodeManagerBuilder>? configure,
-            Func<INodeManagerBuilder, CancellationToken, ValueTask<IAsyncDisposable?>>? configureAsync)
+            Func<INodeManagerBuilder, CancellationToken, ValueTask<IAsyncDisposable?>>? configureAsync,
+            bool allowLifecycleFromRequestCallback)
             : base(server, configuration, logger, modelNamespaceUris)
         {
             m_documents = documents
@@ -101,7 +107,11 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             m_defaultNamespaceUri = defaultNamespaceUri;
             m_configure = configure;
             m_configureAsync = configureAsync;
+            AllowLifecycleFromRequestCallback = allowLifecycleFromRequestCallback;
         }
+
+        /// <inheritdoc/>
+        public bool AllowLifecycleFromRequestCallback { get; }
 
         /// <inheritdoc/>
         public override async ValueTask CreateAddressSpaceAsync(
@@ -113,31 +123,37 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 throw new ArgumentNullException(nameof(externalReferences));
             }
 
-            // Step 1 – Ensure all mapping NamespaceUris (external references)
-            // from every document are registered before any Import call, so
-            // that node ids in those namespaces resolve correctly.
-            foreach (ParsedNodeSetDocument doc in m_documents)
-            {
-                RegisterMappingNamespaces(doc.NodeSet);
-            }
-
-            // Step 2 – Import each document in topological order.
-            var predefinedNodes = new NodeStateCollection();
+            // Step 1 – Import every document into one batch. The importer
+            // registers each document's mapping NamespaceUris before parsing
+            // it and rejects duplicate NodeIds across documents. A runtime
+            // NodeSet has no generated model, so it registers no typed import
+            // factories; a fluent configuration may still import further
+            // documents with its own factory provider.
+            var importer = new NodeSetImporter(SystemContext, factoryProvider: null);
 
             foreach (ParsedNodeSetDocument doc in m_documents)
             {
-                doc.NodeSet.Import(SystemContext, predefinedNodes, linkParentChild: true);
+                importer.Import(doc.NodeSet);
             }
 
-            // Step 3 – Detect duplicate NodeIds across all loaded sources.
-            DetectDuplicateNodeIds(predefinedNodes);
+            // Step 2 – Link the complete batch exactly once, so a node may
+            // declare a parent which lives in another document.
+            importer.Complete();
+
+            NodeStateCollection predefinedNodes = importer.ImportedNodes;
             ValidateOwnedNodeNamespaces(predefinedNodes);
 
-            // Step 4 – Add every imported node through the base flow so they
-            // are indexed and properly linked.
+            // Step 3 – Add every imported node through the base flow so they
+            // are indexed and properly linked. XML node order does not define
+            // inheritance order, so supertypes are registered before derived
+            // types, and the remaining roots follow.
+            foreach (BaseTypeState type in OrderTypes(predefinedNodes, cancellationToken))
+            {
+                await AddPredefinedNodeAsync(SystemContext, type, cancellationToken).ConfigureAwait(false);
+            }
             for (int i = 0; i < predefinedNodes.Count; i++)
             {
-                if (predefinedNodes[i] is BaseInstanceState { Parent: not null })
+                if (predefinedNodes[i] is BaseTypeState or BaseInstanceState { Parent: not null })
                 {
                     continue;
                 }
@@ -148,13 +164,19 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     cancellationToken).ConfigureAwait(false);
             }
 
-            // Step 5 – Establish reverse references to external node managers.
-            await AddReverseReferencesAsync(externalReferences, cancellationToken)
-                .ConfigureAwait(false);
+            // Step 4 – Establish reverse references to external node managers.
+            // A fluent configuration runs the same pass through
+            // CompleteConfigureAsync below, once its own nodes and imports are
+            // staged, so it is not run twice.
+            if (m_configure is null && m_configureAsync is null)
+            {
+                await AddReverseReferencesAsync(externalReferences, cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             ReportUnbackedExternalParents(predefinedNodes);
 
-            // Step 6 – Apply the optional fluent configuration.
+            // Step 5 – Apply the optional fluent configuration.
             if (m_configure is not null || m_configureAsync is not null)
             {
                 ushort defaultNsIndex = ResolveDefaultNamespaceIndex();
@@ -167,14 +189,27 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     : await m_configureAsync(builder, cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    builder.Seal();
+                    // Register nodes the configuration created through the
+                    // builder's Add* methods, then register any NodeSet it
+                    // imported on top of the documents this manager was created
+                    // with, and re-run the reverse-reference pass so their
+                    // references to externally owned nodes reach the
+                    // externalReferences dictionary as well.
+                    await RegisterAuthoredNodesAsync(builder, cancellationToken)
+                        .ConfigureAwait(false);
+                    await CompleteConfigureAsync(externalReferences, cancellationToken)
+                        .ConfigureAwait(false);
 
-                    // Step 7 – Replay NotifyNodeAdded for every predefined node
-                    // so that OnNodeAdded handlers registered in Configure fire.
-                    foreach (KeyValuePair<NodeId, NodeState> kvp in PredefinedNodes)
-                    {
-                        builder.NotifyNodeAdded(SystemContext, kvp.Value);
-                    }
+                    // Step 6 – Seal, replay NotifyNodeAdded for every
+                    // predefined node so that OnNodeAdded handlers registered
+                    // in Configure fire, and only then complete the staged
+                    // registrations and start the simulations.
+                    //
+                    // Behavior registrations are already drained by the
+                    // CompleteConfigureAsync call above, so this path needs no
+                    // activation of its own.
+                    await SealConfigurationAsync(builder, cancellationToken)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception activationException) when (
                     activationException is not OutOfMemoryException)
@@ -483,40 +518,49 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             return new ArrayOf<LocalReference>(droppedReferences.ToArray());
         }
 
-        /// <inheritdoc/>
-        protected override void OnMonitoredItemCreated(
-            ServerSystemContext context,
-            NodeHandle handle,
-            ISampledDataChangeMonitoredItem monitoredItem)
-        {
-            base.OnMonitoredItemCreated(context, handle, monitoredItem);
-
-            if (handle?.Node is { } node)
-            {
-                m_dispatcher?.NotifyMonitoredItemCreated(context, node, monitoredItem);
-            }
-        }
-
         /// <summary>
-        /// Appends all <c>NamespaceUris</c> entries from the NodeSet2
-        /// document to the server's namespace table without claiming them.
-        /// These are mapping/reference namespaces required for resolving
-        /// node ids that belong to external models.
+        /// Orders imported types by inheritance without depending on XML record order.
         /// </summary>
-        private void RegisterMappingNamespaces(UANodeSet nodeSet)
+        private static List<BaseTypeState> OrderTypes(NodeStateCollection nodes, CancellationToken cancellationToken)
         {
-            if (nodeSet.NamespaceUris is null)
+            var types = nodes.OfType<BaseTypeState>().ToDictionary(type => type.NodeId);
+            var derived = new Dictionary<NodeId, List<BaseTypeState>>();
+            var ready = new Queue<BaseTypeState>();
+            foreach (BaseTypeState type in types.Values)
             {
-                return;
-            }
-
-            foreach (string uri in nodeSet.NamespaceUris)
-            {
-                if (!string.IsNullOrEmpty(uri))
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!types.ContainsKey(type.SuperTypeId))
                 {
-                    Server.NamespaceUris.GetIndexOrAppend(uri);
+                    ready.Enqueue(type);
+                    continue;
+                }
+                if (!derived.TryGetValue(type.SuperTypeId, out List<BaseTypeState>? children))
+                {
+                    children = [];
+                    derived.Add(type.SuperTypeId, children);
+                }
+                children.Add(type);
+            }
+            var ordered = new List<BaseTypeState>(types.Count);
+            while (ready.Count > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                BaseTypeState type = ready.Dequeue();
+                ordered.Add(type);
+                if (derived.TryGetValue(type.NodeId, out List<BaseTypeState>? children))
+                {
+                    foreach (BaseTypeState child in children)
+                    {
+                        ready.Enqueue(child);
+                    }
                 }
             }
+            if (ordered.Count != types.Count)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadTypeDefinitionInvalid, "The runtime NodeSet type hierarchy contains a cycle.");
+            }
+            return ordered;
         }
 
         /// <summary>
@@ -568,30 +612,6 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 if (!backed)
                 {
                     m_logger.UnbackedExternalParent(instance.NodeId, parentNodeId);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Scans the imported node collection for duplicate
-        /// <see cref="NodeId"/> values and throws
-        /// <see cref="InvalidOperationException"/> on the first duplicate
-        /// detected.
-        /// </summary>
-        /// <exception cref="InvalidOperationException"></exception>
-        private static void DetectDuplicateNodeIds(NodeStateCollection nodes)
-        {
-            var seen = new HashSet<NodeId>();
-
-            for (int i = 0; i < nodes.Count; i++)
-            {
-                NodeId id = nodes[i].NodeId;
-
-                if (!id.IsNull && !seen.Add(id))
-                {
-                    throw new InvalidOperationException(
-                        $"Duplicate NodeId '{id}' detected across the loaded NodeSet2 " +
-                        "sources. Each node must have a unique NodeId.");
                 }
             }
         }

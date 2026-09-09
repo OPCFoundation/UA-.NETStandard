@@ -179,8 +179,8 @@ namespace Opc.Ua.Robotics.Tests
             var target = new Pose3DDataType
             {
                 FrameId = BinPickingPalletizerGeometry.RobotBaseFrameId,
-                Position = new[] { 0.60, 0.0, 0.0 }.ToArrayOf(),
-                Orientation = new[] { 0.0, 0.0, 0.0, 1.0 }.ToArrayOf()
+                Position = s_doubleValues1.ToArrayOf(),
+                Orientation = s_doubleValues2.ToArrayOf()
             };
 
             SimulatedArmIkResult result = kinematics.Inverse(
@@ -387,5 +387,8 @@ namespace Opc.Ua.Robotics.Tests
             }
             return maximum;
         }
+
+        private static readonly double[] s_doubleValues1 = [0.60, 0.0, 0.0];
+        private static readonly double[] s_doubleValues2 = [0.0, 0.0, 0.0, 1.0];
     }
 }

@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Generators;
@@ -103,13 +104,16 @@ namespace Generators
         /// already-running simulation.
         /// </summary>
         /// <param name="set">The registered generator set.</param>
-        private void RegisterGeneratorSimulation(GeneratorSetState set)
+        /// <param name="cancellationToken">Cancellation token.</param>
+        private ValueTask RegisterGeneratorSimulationAsync(
+            GeneratorSetState set,
+            CancellationToken cancellationToken)
         {
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(
                 Opc.Ua.Generators.Namespaces.Generators);
             NodeManagerBuilder builder = CreateFluentBuilder(ns);
             RegisterGeneratorSimulation(builder, set);
-            builder.Seal();
+            return builder.SealAsync(cancellationToken);
         }
 
         /// <summary>

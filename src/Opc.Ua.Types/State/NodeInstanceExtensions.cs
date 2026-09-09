@@ -67,6 +67,55 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates an instance of a generated type and gives it, and every
+        /// node below it, per-instance NodeIds.
+        /// </summary>
+        /// <remarks>
+        /// A generated state object is born carrying its own type's NodeId,
+        /// and <see cref="NodeState.Create(ISystemContext, NodeId, QualifiedName, LocalizedText, bool)"/>
+        /// only replaces that when the caller already knows the identifier it
+        /// wants. Creating an instance and leaving it on the type's
+        /// identifier makes the predefined-node index replace the type with
+        /// the instance, silently, so this is the call to reach for when the
+        /// identifiers are the factory's to choose.
+        /// </remarks>
+        /// <param name="context">
+        /// The system context supplying the NodeIdFactory.
+        /// </param>
+        /// <param name="node">The instance to create.</param>
+        /// <param name="browseName">The browse name of the instance.</param>
+        /// <param name="displayName">
+        /// The display name, or a null value to derive it from the browse
+        /// name.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="context"/> or <paramref name="node"/> is null.
+        /// </exception>
+        public static void CreateInstance(
+            this ISystemContext context,
+            NodeState node,
+            QualifiedName browseName,
+            LocalizedText displayName)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (node is null)
+            {
+                throw new ArgumentNullException(nameof(node));
+            }
+
+            // the subtree is built first and rebased afterwards, so the
+            // children are minted from the instance's identifier rather than
+            // from the type's.
+            node.Create(context, NodeId.Null, browseName, displayName, false);
+
+            NodeId previousNodeId = context.AssignInstanceNodeId(node);
+            context.AssignInstanceChildNodeIds(node, previousNodeId);
+        }
+
+        /// <summary>
         /// Recursively assigns per-instance NodeIds to every descendant of
         /// <paramref name="node"/> using the active
         /// <see cref="ISystemContext.NodeIdFactory"/>.

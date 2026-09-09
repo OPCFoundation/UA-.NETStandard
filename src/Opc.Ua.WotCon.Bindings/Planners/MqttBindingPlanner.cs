@@ -168,7 +168,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                     .Add("qos", qos.ToString(System.Globalization.CultureInfo.InvariantCulture))
                     .Add("retain", retain ? "true" : "false"));
             ImmutableArray<WotCredentialReference> security =
-                ResolveSecurity(form, context, uri.GetLeftPart(UriPartial.Authority), diagnostics);
+                ResolveSecurity(form, context, ToTransmittedAuthority(uri), diagnostics);
 
             ImmutableArray<WotCompiledForm>.Builder entries = ImmutableArray.CreateBuilder<WotCompiledForm>();
             foreach ((string op, WoTBindingCapabilityEnum capability) in ResolveOperations(form, diagnostics))

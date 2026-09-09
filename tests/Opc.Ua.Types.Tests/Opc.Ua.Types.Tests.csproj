@@ -38,6 +38,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
+    <Compile Include="..\Common\NodeStateMemoryEvidence.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Types\Opc.Ua.Types.csproj" />
@@ -58,5 +59,9 @@
          specification change cannot reach them unreviewed. -->
     <EmbeddedResource Include="Wot\Assets\*.jsonld" />
     <EmbeddedResource Include="Wot\Assets\spec-examples.manifest.json" />
+    <EmbeddedResource Include="Wot\Assets\wot-binding-traceability.json" />
+    <EmbeddedResource Include="Wot\Assets\wot-binding-vectors.json" />
+    <EmbeddedResource Include="Wot\Assets\wot-spec-requirements.json" />
+    <EmbeddedResource Include="Wot\Assets\wot-spec-statements.json" />
   </ItemGroup>
 </Project>

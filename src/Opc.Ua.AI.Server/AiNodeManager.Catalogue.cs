@@ -67,12 +67,10 @@ namespace Opc.Ua.AI.Server
         private void BuildCatalogue()
         {
             m_source = new ModelSourceState(null);
-            m_source.Create(
-                SystemContext,
-                NodeId.Null,
+            SystemContext.CreateInstance(
+                m_source,
                 new QualifiedName("ModelSource", NamespaceIndex),
-                new LocalizedText(m_backendOptions.EndpointUri),
-                true);
+                new LocalizedText(m_backendOptions.EndpointUri));
 
             Child<PropertyState<string>>(m_source, BrowseNames.SourceId).Value =
                 m_options.SourceId;

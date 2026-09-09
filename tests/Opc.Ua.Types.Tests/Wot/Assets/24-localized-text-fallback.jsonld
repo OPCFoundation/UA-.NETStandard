@@ -9,7 +9,17 @@
       "pump": "http://example.com/demo/pump",
       "@language": "en"
     },
-    "../opc-ua-wot-binding.context.jsonld"
+    "../opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      },
+      "description": {
+        "@id": "https://www.w3.org/2019/wot/td#description",
+        "@language": null
+      }
+    }
   ],
   "@type": "uav:object",
   "id": "urn:dev:opcua:pump-09-localized",
@@ -38,6 +48,12 @@
   "base": "opc.tcp://opcuademo.com:4840",
   "properties": {
     "pumpSpeed": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "title": "Drehzahl",
       "titles": {
@@ -62,6 +78,12 @@
       ]
     },
     "pumpSpeedUnit": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "title": "Einheit",
       "titles": {
@@ -72,6 +94,16 @@
       "readOnly": true,
       "uav:browseName": "ua:EngineeringUnits",
       "uav:engineeringUnits": {
+        "@context": {
+          "displayName": {
+            "@id": "uav:unitDisplayName",
+            "@language": null
+          },
+          "description": {
+            "@id": "uav:unitDescription",
+            "@language": null
+          }
+        },
         "namespaceUri": "http://www.opcfoundation.org/UA/units/un/cefact",
         "unitId": 5340017,
         "displayName": "rpm",
@@ -90,6 +122,47 @@
           "href": "/?id=nsu=http://example.com/demo/pump;s=Pump09.PumpSpeed.EngineeringUnits",
           "contentType": "application/octet-stream",
           "op": ["readproperty"]
+        }
+      ]
+    }
+  },
+  "actions": {
+    "setSpeed": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
+      "@type": "uav:method",
+      "title": "Drehzahl setzen",
+      "titles": {
+        "de": "Drehzahl setzen",
+        "fr": "Régler la vitesse"
+      },
+      "uav:browseName": "pump:SetSpeed",
+      "input": {
+        "@context": {
+          "title": {
+            "@id": "https://www.w3.org/2019/wot/td#title",
+            "@language": null
+          }
+        },
+        "type": "number",
+        "title": "Sollwert",
+        "titles": {
+          "de": "Sollwert",
+          "fr": "Consigne"
+        },
+        "unit": "rpm",
+        "minimum": 0,
+        "maximum": 3600
+      },
+      "forms": [
+        {
+          "href": "/?id=nsu=http://example.com/demo/pump;s=Pump09.SetSpeed",
+          "contentType": "application/octet-stream",
+          "op": ["invokeaction"]
         }
       ]
     }

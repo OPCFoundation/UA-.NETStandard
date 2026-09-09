@@ -549,15 +549,23 @@ namespace Opc.Ua
         /// <value>The Permissions that apply to the node.</value>
         public ArrayOf<RolePermissionType> RolePermissions
         {
-            get => m_rolePermissions;
+            get
+            {
+                NodeStateSecurityData? data = Volatile.Read(ref m_securityData);
+                if (data is null)
+                {
+                    return default;
+                }
+                return data.RolePermissions;
+            }
             set
             {
-                if (m_rolePermissions != value)
+                if (RolePermissions != value)
                 {
                     m_changeMasks |= NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions;
                 }
 
-                m_rolePermissions = value;
+                SetRolePermissions(value);
             }
         }
 
@@ -567,15 +575,26 @@ namespace Opc.Ua
         /// <value>The Permissions that apply to the node for the current user.</value>
         public ArrayOf<RolePermissionType> UserRolePermissions
         {
-            get => m_userRolePermissions;
+            get
+            {
+                NodeStateSecurityData? data = Volatile.Read(ref m_securityData);
+                if (data is null)
+                {
+                    return default;
+                }
+                return data.UserRolePermissions;
+            }
             set
             {
-                if (m_userRolePermissions != value)
+                if (UserRolePermissions != value)
                 {
                     m_changeMasks |= NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions;
                 }
 
-                m_userRolePermissions = value;
+                NodeStateSecurityData? data = value.IsNull
+                    ? Volatile.Read(ref m_securityData)
+                    : GetOrCreateSecurityData();
+                data?.UserRolePermissions = value;
             }
         }
 
@@ -585,15 +604,15 @@ namespace Opc.Ua
         /// <value>The server specific access restrictions of the node.</value>
         public AccessRestrictionType? AccessRestrictions
         {
-            get => m_accessRestrictions;
+            get => Volatile.Read(ref m_securityData)?.AccessRestrictions;
             set
             {
-                if (m_accessRestrictions != value)
+                if (AccessRestrictions != value)
                 {
                     m_changeMasks |= NodeStateChangeMasks.NonValue;
                 }
 
-                m_accessRestrictions = value;
+                SetAccessRestrictions(value);
             }
         }
 
@@ -610,32 +629,122 @@ namespace Opc.Ua
         /// <value>
         /// The extensions.
         /// </value>
-        public XmlElement[]? Extensions { get; set; }
+        public XmlElement[]? Extensions
+        {
+            get => Volatile.Read(ref m_designMetadata)?.Extensions;
+            set
+            {
+                if (value is not null)
+                {
+                    GetOrCreateDesignMetadata().Extensions = value;
+                }
+                else
+                {
+                    NodeStateDesignMetadata? bag = Volatile.Read(ref m_designMetadata);
+                    bag?.Extensions = null;
+                }
+            }
+        }
 
         /// <summary>
         /// The categories assigned to the node.
         /// </summary>
-        public IList<string>? Categories { get; set; }
+        public IList<string>? Categories
+        {
+            get => Volatile.Read(ref m_designMetadata)?.Categories;
+            set
+            {
+                if (value is not null)
+                {
+                    GetOrCreateDesignMetadata().Categories = value;
+                }
+                else
+                {
+                    NodeStateDesignMetadata? bag = Volatile.Read(ref m_designMetadata);
+                    bag?.Categories = null;
+                }
+            }
+        }
 
         /// <summary>
         /// The release status for the node.
         /// </summary>
-        public Export.ReleaseStatus ReleaseStatus { get; set; }
+        public Export.ReleaseStatus ReleaseStatus
+        {
+            get => Volatile.Read(ref m_designMetadata)?.ReleaseStatus ?? default;
+            set
+            {
+                if (value != default)
+                {
+                    GetOrCreateDesignMetadata().ReleaseStatus = value;
+                }
+                else
+                {
+                    NodeStateDesignMetadata? bag = Volatile.Read(ref m_designMetadata);
+                    bag?.ReleaseStatus = default;
+                }
+            }
+        }
 
         /// <summary>
         /// The specification that defines the node.
         /// </summary>
-        public string? Specification { get; set; }
+        public string? Specification
+        {
+            get => Volatile.Read(ref m_designMetadata)?.Specification;
+            set
+            {
+                if (value is not null)
+                {
+                    GetOrCreateDesignMetadata().Specification = value;
+                }
+                else
+                {
+                    NodeStateDesignMetadata? bag = Volatile.Read(ref m_designMetadata);
+                    bag?.Specification = null;
+                }
+            }
+        }
 
         /// <summary>
         /// The documentation for the node that is saved in the NodeSet.
         /// </summary>
-        public string? NodeSetDocumentation { get; set; }
+        public string? NodeSetDocumentation
+        {
+            get => Volatile.Read(ref m_designMetadata)?.NodeSetDocumentation;
+            set
+            {
+                if (value is not null)
+                {
+                    GetOrCreateDesignMetadata().NodeSetDocumentation = value;
+                }
+                else
+                {
+                    NodeStateDesignMetadata? bag = Volatile.Read(ref m_designMetadata);
+                    bag?.NodeSetDocumentation = null;
+                }
+            }
+        }
 
         /// <summary>
-        /// The documentation for the node that is saved in the NodeSet.
+        /// Indicates this node is used only by a design tool and should not be published to clients.
         /// </summary>
-        public bool DesignToolOnly { get; set; }
+        public bool DesignToolOnly
+        {
+            get => Volatile.Read(ref m_designMetadata)?.DesignToolOnly ?? false;
+            set
+            {
+                if (value)
+                {
+                    GetOrCreateDesignMetadata().DesignToolOnly = true;
+                }
+                else
+                {
+                    NodeStateDesignMetadata? bag = Volatile.Read(ref m_designMetadata);
+                    bag?.DesignToolOnly = false;
+                }
+            }
+        }
 
         /// <summary>
         /// Exports a copy of the node to a node table.
@@ -818,6 +927,7 @@ namespace Opc.Ua
 
             // update the node and children.
             var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
+            ApplyBinaryDefaults(this, attributesToLoad);
             Update(context, decoder, attributesToLoad);
             UpdateReferences(context, decoder);
             UpdateChildren(context, decoder);
@@ -1211,6 +1321,7 @@ namespace Opc.Ua
         protected BaseInstanceState? UpdateChild(ISystemContext context, BinaryDecoder decoder)
         {
             var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
+            AttributesToSave encodedAttributes = attributesToLoad;
             string? symbolicName = null;
             QualifiedName browseName = default;
 
@@ -1239,6 +1350,7 @@ namespace Opc.Ua
 
             if (child != null)
             {
+                ApplyBinaryDefaults(child, encodedAttributes);
                 child.SymbolicName = symbolicName ?? string.Empty;
                 child.BrowseName = browseName;
 
@@ -1926,6 +2038,10 @@ namespace Opc.Ua
             QualifiedName browseName)
         {
             decoder.PushNamespace(Namespaces.OpcUaXsd);
+            AttributesToSave encodedAttributes = attributesToLoad |
+                AttributesToSave.NodeClass |
+                AttributesToSave.SymbolicName |
+                AttributesToSave.BrowseName;
 
             NodeId nodeId = default;
             LocalizedText displayName = default;
@@ -2015,6 +2131,7 @@ namespace Opc.Ua
             child.TypeDefinitionId = typeDefinitionId;
 
             // update attributes.
+            ApplyBinaryDefaults(child, encodedAttributes);
             child.Update(context, decoder, attributesToLoad);
 
             // update any references.
@@ -2076,6 +2193,12 @@ namespace Opc.Ua
                     child.BrowseName = browseName;
 
                     // update attributes.
+                    ApplyBinaryDefaults(
+                        child,
+                        attributesToLoad |
+                            AttributesToSave.NodeClass |
+                            AttributesToSave.SymbolicName |
+                            AttributesToSave.BrowseName);
                     child.Update(context, decoder, attributesToLoad);
 
                     // update any references.
@@ -2088,6 +2211,172 @@ namespace Opc.Ua
                 default:
                     throw ServiceResultException.Unexpected(
                         $"Unexpected NodeClass {nodeClass}");
+            }
+        }
+
+        private static void ApplyBinaryDefaults(
+            NodeState node,
+            AttributesToSave attributesToLoad)
+        {
+            if ((attributesToLoad & AttributesToSave.SymbolicName) == 0)
+            {
+                node.SymbolicName = string.Empty;
+            }
+            if ((attributesToLoad & AttributesToSave.NodeId) == 0)
+            {
+                node.NodeId = NodeId.Null;
+            }
+            if ((attributesToLoad & AttributesToSave.BrowseName) == 0)
+            {
+                node.BrowseName = default;
+            }
+            if ((attributesToLoad & AttributesToSave.DisplayName) == 0)
+            {
+                node.DisplayName = default;
+            }
+            if ((attributesToLoad & AttributesToSave.Description) == 0)
+            {
+                node.Description = default;
+            }
+            if ((attributesToLoad & AttributesToSave.WriteMask) == 0)
+            {
+                node.WriteMask = AttributeWriteMask.None;
+            }
+            if ((attributesToLoad & AttributesToSave.UserWriteMask) == 0)
+            {
+                node.UserWriteMask = AttributeWriteMask.None;
+            }
+
+            if (node is BaseInstanceState instance)
+            {
+                if ((attributesToLoad & AttributesToSave.ReferenceTypeId) == 0)
+                {
+                    instance.ReferenceTypeId = NodeId.Null;
+                }
+                if ((attributesToLoad & AttributesToSave.TypeDefinitionId) == 0)
+                {
+                    instance.TypeDefinitionId = NodeId.Null;
+                }
+                if ((attributesToLoad & AttributesToSave.ModellingRuleId) == 0)
+                {
+                    instance.ModellingRuleId = NodeId.Null;
+                }
+                if ((attributesToLoad & AttributesToSave.NumericId) == 0)
+                {
+                    instance.NumericId = 0;
+                }
+            }
+            if (node is BaseObjectState objectState &&
+                (attributesToLoad & AttributesToSave.EventNotifier) == 0)
+            {
+                objectState.EventNotifier = EventNotifiers.None;
+            }
+            if (node is BaseVariableState variable)
+            {
+                if ((attributesToLoad & AttributesToSave.Value) == 0)
+                {
+                    variable.Value = Variant.Null;
+                }
+                if ((attributesToLoad & AttributesToSave.StatusCode) == 0)
+                {
+                    variable.StatusCode = StatusCodes.Good;
+                }
+                if ((attributesToLoad & AttributesToSave.DataType) == 0)
+                {
+                    variable.DataType = NodeId.Null;
+                }
+                if ((attributesToLoad & AttributesToSave.ValueRank) == 0)
+                {
+                    variable.ValueRank = ValueRanks.Any;
+                }
+                if ((attributesToLoad & AttributesToSave.ArrayDimensions) == 0)
+                {
+                    variable.ArrayDimensions = default;
+                }
+                if ((attributesToLoad & AttributesToSave.AccessLevel) == 0)
+                {
+                    variable.AccessLevel = 0;
+                }
+                if ((attributesToLoad & AttributesToSave.UserAccessLevel) == 0)
+                {
+                    variable.UserAccessLevel = 0;
+                }
+                if ((attributesToLoad & AttributesToSave.MinimumSamplingInterval) == 0)
+                {
+                    variable.MinimumSamplingInterval = 0;
+                }
+                if ((attributesToLoad & AttributesToSave.Historizing) == 0)
+                {
+                    variable.Historizing = false;
+                }
+            }
+            if (node is MethodState method)
+            {
+                if ((attributesToLoad & AttributesToSave.Executable) == 0)
+                {
+                    method.Executable = false;
+                }
+                if ((attributesToLoad & AttributesToSave.UserExecutable) == 0)
+                {
+                    method.UserExecutable = false;
+                }
+            }
+            if (node is ViewState view)
+            {
+                if ((attributesToLoad & AttributesToSave.EventNotifier) == 0)
+                {
+                    view.EventNotifier = EventNotifiers.None;
+                }
+                if ((attributesToLoad & AttributesToSave.ContainsNoLoops) == 0)
+                {
+                    view.ContainsNoLoops = false;
+                }
+            }
+            if (node is BaseTypeState type)
+            {
+                if ((attributesToLoad & AttributesToSave.SuperTypeId) == 0)
+                {
+                    type.SuperTypeId = NodeId.Null;
+                }
+                if ((attributesToLoad & AttributesToSave.IsAbstract) == 0)
+                {
+                    type.IsAbstract = false;
+                }
+            }
+            if (node is BaseVariableTypeState variableType)
+            {
+                if ((attributesToLoad & AttributesToSave.Value) == 0)
+                {
+                    variableType.Value = Variant.Null;
+                }
+                if ((attributesToLoad & AttributesToSave.DataType) == 0)
+                {
+                    variableType.DataType = NodeId.Null;
+                }
+                if ((attributesToLoad & AttributesToSave.ValueRank) == 0)
+                {
+                    variableType.ValueRank = ValueRanks.Any;
+                }
+                if ((attributesToLoad & AttributesToSave.ArrayDimensions) == 0)
+                {
+                    variableType.ArrayDimensions = default;
+                }
+            }
+            if (node is ReferenceTypeState referenceType)
+            {
+                if ((attributesToLoad & AttributesToSave.InverseName) == 0)
+                {
+                    referenceType.InverseName = default;
+                }
+                if ((attributesToLoad & AttributesToSave.Symmetric) == 0)
+                {
+                    referenceType.Symmetric = false;
+                }
+            }
+            if (node is DataTypeState dataType &&
+                (attributesToLoad & AttributesToSave.DataTypeDefinition) == 0)
+            {
+                dataType.DataTypeDefinition = default;
             }
         }
 
@@ -2307,6 +2596,13 @@ namespace Opc.Ua
         /// it but blocks until it completes (only synchronous callers pay that cost).
         /// </summary>
         public NodeStateReportEventAsyncHandler? OnReportEventAsync;
+
+        /// <summary>
+        /// Additive observers invoked after live event forwarding completes.
+        /// Use this for independent consumers that must not replace
+        /// <see cref="OnReportEvent"/> or <see cref="OnReportEventAsync"/>.
+        /// </summary>
+        public event NodeStateReportEventHandler? EventReported;
 
         /// <summary>
         /// Called when ClearChangeMasks is called and the ChangeMask is not None.
@@ -2584,7 +2880,7 @@ namespace Opc.Ua
                     // A synchronization context is present (e.g. a UI / legacy ASP.NET thread):
                     // run the sink on the thread pool so a context-capturing continuation cannot
                     // deadlock the blocking wait below.
-                    Task.Run(() => onReportEventAsync(context, this, e, CancellationToken.None).AsTask())
+                    ScheduleReportEventAsync(onReportEventAsync, context, this, e)
                         .GetAwaiter().GetResult();
                 }
             }
@@ -2611,6 +2907,7 @@ namespace Opc.Ua
                     }
                 }
             }
+            EventReported?.Invoke(context, this, e);
         }
 
         /// <summary>
@@ -2657,6 +2954,7 @@ namespace Opc.Ua
                     }
                 }
             }
+            EventReported?.Invoke(context, this, e);
         }
 
         /// <summary>
@@ -3096,7 +3394,7 @@ namespace Opc.Ua
             Initialize(context);
 
             // Call OnBeforeCreate on all children.
-            CallOnBeforeCreate(context, true);
+            CallOnBeforeCreate(context, true, default);
 
             // override node id.
             if (!nodeId.IsNull)
@@ -3118,7 +3416,7 @@ namespace Opc.Ua
                 DisplayName = displayName;
             }
 
-            CreateInternal(context, assignNodeIds, true);
+            CreateInternal(context, assignNodeIds, true, default);
         }
 
         /// <summary>
@@ -3127,7 +3425,8 @@ namespace Opc.Ua
         private void CreateInternal(
             ISystemContext context,
             bool assignNodeIds,
-            bool forceCreateLifecycle)
+            bool forceCreateLifecycle,
+            CancellationToken ct)
         {
             // get all children.
             var children = new List<BaseInstanceState>();
@@ -3146,7 +3445,7 @@ namespace Opc.Ua
                 UpdateReferenceTargets(context, children, mappingTable);
             }
 
-            CallOnAfterCreate(context, children, forceCreateLifecycle);
+            CallOnAfterCreate(context, children, forceCreateLifecycle, ct);
 
             const int maxLifecycleCompletionPasses = 100;
             for (int pass = 0; HasUncreatedNodes(context); pass++)
@@ -3158,8 +3457,9 @@ namespace Opc.Ua
                         "kept adding uncreated nodes.");
                 }
 
-                CallOnBeforeCreate(context, false);
-                CallOnAfterCreate(context, null, false);
+                ct.ThrowIfCancellationRequested();
+                CallOnBeforeCreate(context, false, ct);
+                CallOnAfterCreate(context, null, false, ct);
             }
 
             ClearChangeMasks(context, true);
@@ -3187,10 +3487,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Recusivesly calls OnBeforeCreate for the node and its children.
+        /// Recursively calls OnBeforeCreate for the node and its children.
         /// </summary>
-        private void CallOnBeforeCreate(ISystemContext context, bool force)
+        private void CallOnBeforeCreate(
+            ISystemContext context,
+            bool force,
+            CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
+
             if (force || !IsCreated)
             {
                 OnBeforeCreate(context, this);
@@ -3201,12 +3506,12 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < children.Count; ii++)
             {
-                children[ii].CallOnBeforeCreate(context, force);
+                children[ii].CallOnBeforeCreate(context, force, ct);
             }
         }
 
         /// <summary>
-        /// Recusivesly calls OnBeforeCreate for the node and its children.
+        /// Recursively calls OnBeforeAssignNodeIds for the node and its children.
         /// </summary>
         private void CallOnBeforeAssignNodeIds(
             ISystemContext context,
@@ -3227,7 +3532,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Recusivesly calls OnAfterCreate for the node and its children.
+        /// Recursively calls OnAfterCreate for the node and its children.
         /// </summary>
         private void CallOnAfterCreate(
             ISystemContext context,
@@ -3235,6 +3540,8 @@ namespace Opc.Ua
             bool force,
             CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
+
             if (children == null)
             {
                 children = [];
@@ -3259,8 +3566,25 @@ namespace Opc.Ua
         public virtual void Create(ISystemContext context, NodeState source)
         {
             Initialize(context, source);
-            CallOnBeforeCreate(context, true);
-            CreateInternal(context, false, true);
+            CallOnBeforeCreate(context, true, default);
+            CreateInternal(context, false, true, default);
+        }
+
+        /// <summary>
+        /// Updates serialized state from another node without invoking the creation lifecycle.
+        /// </summary>
+        internal void UpdateFrom(ISystemContext context, NodeState source)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            Initialize(context, source);
         }
 
         /// <summary>
@@ -3291,8 +3615,21 @@ namespace Opc.Ua
         /// </summary>
         public void CreateAsPredefinedNode(ISystemContext context)
         {
-            CallOnBeforeCreate(context, false);
-            CreateInternal(context, false, false);
+            CreateAsPredefinedNode(context, default);
+        }
+
+        /// <summary>
+        /// Completes the create lifecycle for a predefined node and any
+        /// children which have not already completed it.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="ct">The cancellation token.</param>
+        public void CreateAsPredefinedNode(
+            ISystemContext context,
+            CancellationToken ct)
+        {
+            CallOnBeforeCreate(context, false, ct);
+            CreateInternal(context, false, false, ct);
         }
 
         /// <summary>
@@ -4235,7 +4572,7 @@ namespace Opc.Ua
                     value = (uint)userWriteMask;
                     return result;
                 case Attributes.RolePermissions:
-                    ArrayOf<RolePermissionType> rolePermissions = m_rolePermissions;
+                    ArrayOf<RolePermissionType> rolePermissions = RolePermissions;
 
                     NodeAttributeEventHandler<ArrayOf<RolePermissionType>>? onReadRolePermissions =
                         OnReadRolePermissions;
@@ -4258,7 +4595,7 @@ namespace Opc.Ua
                     }
                     break;
                 case Attributes.UserRolePermissions:
-                    ArrayOf<RolePermissionType> userRolePermissions = m_userRolePermissions;
+                    ArrayOf<RolePermissionType> userRolePermissions = UserRolePermissions;
 
                     NodeAttributeEventHandler<ArrayOf<RolePermissionType>>? onReadUserRolePermissions =
                         OnReadUserRolePermissions;
@@ -4281,7 +4618,7 @@ namespace Opc.Ua
                     }
                     break;
                 case Attributes.AccessRestrictions:
-                    AccessRestrictionType? accessRestrictions = m_accessRestrictions;
+                    AccessRestrictionType? accessRestrictions = AccessRestrictions;
                     NodeAttributeEventHandler<AccessRestrictionType?>? onReadAccessRestrictions =
                         OnReadAccessRestrictions;
                     if (onReadAccessRestrictions != null)
@@ -4689,7 +5026,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_rolePermissions = rolePermissions;
+                        SetRolePermissions(rolePermissions);
                         m_changeMasks |= NodeStateChangeMasks.NonValue | NodeStateChangeMasks.RolePermissions;
                     }
 
@@ -4724,7 +5061,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_accessRestrictions = accessRestrictions;
+                        SetAccessRestrictions(accessRestrictions);
                     }
 
                     return result;
@@ -4927,6 +5264,125 @@ namespace Opc.Ua
             }
 
             FindChild(context, child.BrowseName, true, child);
+        }
+
+        /// <summary>
+        /// Replaces a child which is held in a generated, explicitly defined
+        /// slot rather than in the ordinary child collection.
+        /// </summary>
+        /// <remarks>
+        /// Returns <c>false</c> for an ordinary child so that importing a node
+        /// does not evict an application-authored child which happens to share
+        /// its browse name.
+        /// </remarks>
+        /// <param name="context">The system context.</param>
+        /// <param name="replacement">The replacement child.</param>
+        /// <param name="replaced">The displaced explicitly defined child.</param>
+        /// <param name="explicitSlotFound">
+        /// Whether the browse name maps to an explicitly defined child slot.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> when an explicitly defined child was replaced.
+        /// </returns>
+        internal bool TryReplaceExplicitlyDefinedChild(
+            ISystemContext context,
+            BaseInstanceState replacement,
+            out BaseInstanceState? replaced,
+            out bool explicitSlotFound)
+        {
+            replaced = null;
+            explicitSlotFound = false;
+
+            BaseInstanceState? existing = FindChild(
+                context,
+                replacement.BrowseName,
+                createOrReplace: false,
+                replacement: null);
+            if (existing is not null)
+            {
+                if (ContainsBaseChildReference(existing))
+                {
+                    // An ordinary child, not a slot: never evict one.
+                    return false;
+                }
+                if (existing.BrowseName != replacement.BrowseName)
+                {
+                    // A state may dispatch on the browse name alone and offer
+                    // a slot declared in another namespace.
+                    return false;
+                }
+            }
+
+            // A state which declares the child adopts the replacement into its
+            // slot; the base implementation appends it to the ordinary child
+            // collection instead.
+            BaseInstanceState? adopted = FindChild(
+                context,
+                replacement.BrowseName,
+                createOrReplace: true,
+                replacement);
+            if (!ReferenceEquals(adopted, replacement))
+            {
+                return false;
+            }
+            if (ContainsBaseChildReference(replacement))
+            {
+                // There was no slot. Undo the append so the caller can attach
+                // the child the ordinary way.
+                RemoveChild(replacement);
+                return false;
+            }
+
+            explicitSlotFound = true;
+            if (existing is not null && !ReferenceEquals(existing, replacement))
+            {
+                existing.Parent = null;
+                replaced = existing;
+            }
+            return true;
+        }
+
+        private bool ContainsBaseChildReference(BaseInstanceState child)
+        {
+            lock (m_childrenLock)
+            {
+                if (m_children is null)
+                {
+                    return false;
+                }
+                for (int ii = 0; ii < m_children.Count; ii++)
+                {
+                    if (ReferenceEquals(m_children[ii], child))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Gets whether the child is held in a generated, explicitly defined
+        /// slot of this node rather than in the ordinary child collection.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="child">The child to test.</param>
+        /// <returns><c>true</c> when the child occupies a generated slot.</returns>
+        public bool IsExplicitlyDefinedChild(ISystemContext context, BaseInstanceState child)
+        {
+            if (child is null)
+            {
+                throw new ArgumentNullException(nameof(child));
+            }
+
+            return !ContainsBaseChildReference(child) &&
+                ReferenceEquals(
+                    FindChild(
+                        context,
+                        child.BrowseName,
+                        createOrReplace: false,
+                        replacement: null),
+                    child);
         }
 
         /// <summary>
@@ -5699,12 +6155,22 @@ namespace Opc.Ua
             return null;
         }
 
+        private static Task ScheduleReportEventAsync(
+            NodeStateReportEventAsyncHandler onReportEventAsync,
+            ISystemContext context,
+            NodeState node,
+            IFilterTarget e)
+        {
+            // Keep the scheduling closure out of ReportEvent's no-sink and inline paths.
+            return Task.Run(() => onReportEventAsync(context, node, e, CancellationToken.None).AsTask());
+        }
+
         /// <summary>
         /// Gets the existing notifiers lock or publishes a fresh one using a
         /// Volatile.Read / Interlocked.CompareExchange pattern.
         /// </summary>
         /// <remarks>
-        /// Safe on all TFMs and NativeAOT: no <see cref="System.Lazy{T}"/> or
+        /// Safe on all TFMs and NativeAOT: no <see cref="Lazy{T}"/> or
         /// reflection involved.  Only the CAS winner's <see cref="Lock"/> is used;
         /// any concurrently-allocated candidates in other threads are discarded by the
         /// GC.  Every subsequent call returns the same published instance via
@@ -5719,7 +6185,7 @@ namespace Opc.Ua
                 return existing;
             }
 
-            Lock candidate = new Lock();
+            var candidate = new Lock();
             return Interlocked.CompareExchange(ref m_notifiersLock, candidate, null) ?? candidate;
         }
 
@@ -5740,8 +6206,54 @@ namespace Opc.Ua
                 return existing;
             }
 
-            Lock candidate = new Lock();
+            var candidate = new Lock();
             return Interlocked.CompareExchange(ref m_browseLock, candidate, null) ?? candidate;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private NodeStateDesignMetadata GetOrCreateDesignMetadata()
+        {
+            NodeStateDesignMetadata? existing = Volatile.Read(ref m_designMetadata);
+            if (existing is not null)
+            {
+                return existing;
+            }
+
+            NodeStateDesignMetadata candidate = new();
+            return Interlocked.CompareExchange(ref m_designMetadata, candidate, null) ?? candidate;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private NodeStateSecurityData GetOrCreateSecurityData()
+        {
+            NodeStateSecurityData? existing = Volatile.Read(ref m_securityData);
+            if (existing is not null)
+            {
+                return existing;
+            }
+
+            NodeStateSecurityData candidate = new();
+            return Interlocked.CompareExchange(ref m_securityData, candidate, null) ?? candidate;
+        }
+
+        /// <summary>
+        /// Storage-only writes preserve the attribute service's distinct change-mask behavior.
+        /// </summary>
+        /// <param name="value"></param>
+        private void SetRolePermissions(ArrayOf<RolePermissionType> value)
+        {
+            NodeStateSecurityData? data = value.IsNull
+                ? Volatile.Read(ref m_securityData)
+                : GetOrCreateSecurityData();
+            data?.RolePermissions = value;
+        }
+
+        private void SetAccessRestrictions(AccessRestrictionType? value)
+        {
+            NodeStateSecurityData? data = value.HasValue
+                ? GetOrCreateSecurityData()
+                : Volatile.Read(ref m_securityData);
+            data?.AccessRestrictions = value;
         }
 
         /// <summary>
@@ -5775,22 +6287,46 @@ namespace Opc.Ua
         /// </summary>
         protected NodeStateChangeMasks m_changeMasks;
 
-        private Lock? m_notifiersLock;       // lazily published; see GetOrCreateNotifiersLock()
+        /// <summary>Lazily published; see <see cref="GetOrCreateNotifiersLock"/>.</summary>
+        private Lock? m_notifiersLock;
+
         private readonly Lock m_referencesLock = new();
         private readonly Lock m_childrenLock = new();
-        private Lock? m_browseLock;           // lazily published; see GetOrCreateBrowseLock()
+
+        /// <summary>Lazily published; see <see cref="GetOrCreateBrowseLock"/>.</summary>
+        private Lock? m_browseLock;
+
         private NodeId m_nodeId;
         private QualifiedName m_browseName;
         private LocalizedText m_displayName;
         private LocalizedText m_description;
         private AttributeWriteMask m_writeMask;
         private AttributeWriteMask m_userWriteMask;
-        private ArrayOf<RolePermissionType> m_rolePermissions;
-        private ArrayOf<RolePermissionType> m_userRolePermissions;
-        private AccessRestrictionType? m_accessRestrictions;
+        private NodeStateSecurityData? m_securityData;
         private ReferenceDictionary<object?>? m_references;
         private int m_areEventsMonitored;
         private List<Notifier>? m_notifiers;
+        private NodeStateDesignMetadata? m_designMetadata;
+
+        /// <summary>
+        /// Published once and retained after resets so concurrent writers use the same storage.
+        /// </summary>
+        private sealed class NodeStateSecurityData
+        {
+            public ArrayOf<RolePermissionType> RolePermissions;
+            public ArrayOf<RolePermissionType> UserRolePermissions;
+            public AccessRestrictionType? AccessRestrictions;
+        }
+
+        private sealed class NodeStateDesignMetadata
+        {
+            public XmlElement[]? Extensions;
+            public IList<string>? Categories;
+            public Export.ReleaseStatus ReleaseStatus;
+            public string? Specification;
+            public string? NodeSetDocumentation;
+            public bool DesignToolOnly;
+        }
     }
 
     /// <summary>

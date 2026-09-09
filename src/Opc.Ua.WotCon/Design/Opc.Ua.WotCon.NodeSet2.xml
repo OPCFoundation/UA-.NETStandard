@@ -6,9 +6,9 @@
     <Uri>http://opcfoundation.org/UA/WoT-Con/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/WoT-Con/" Version="1.1" PublicationDate="2026-08-05T00:00:00Z">
+    <Model ModelUri="http://opcfoundation.org/UA/WoT-Con/" Version="1.1" PublicationDate="2026-09-05T00:00:00Z">
       <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2024-05-01T00:00:00Z" />
-      <RequiredModel ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.3.0" PublicationDate="2026-07-31T00:00:00Z" />
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.6.0" PublicationDate="2026-09-05T00:00:00Z" />
     </Model>
   </Models>
   <Aliases>
@@ -430,7 +430,7 @@
   </UAObjectType>
   <UAObjectType NodeId="ns=2;i=64003" BrowseName="2:WoTDocumentType" IsAbstract="true">
     <DisplayName>WoTDocumentType</DisplayName>
-    <Description>The abstract base of a stored WoT document resource - an xRegistry ResourceType (a FileType) whose content bytes are the JSON-LD document, read/written with the inherited Open/Read/Write/Close Methods. Adds the derived-projection metadata (load state, desired/active version, validation and compatibility outcomes, content digest, materialized-node count and root, selected bindings) and the Validate, SetEnabled and SetDefaultVersion Methods. Concrete subtypes fix the document kind.</Description>
+    <Description>The abstract base used by a stable logical WoT document Resource and each exact Version - an xRegistry ResourceType (a FileType) whose JSON-LD bytes are read/written with the inherited Open/Read/Write/Close Methods. A logical Resource delegates its file and Version-view state to the selected default Version; an exact Version owns that state. Adds the derived-projection metadata (load state, desired/active version, validation and compatibility outcomes, content digest, materialized-node count and root, selected bindings) and the Validate, SetEnabled and SetDefaultVersion Methods. Concrete subtypes fix the document kind.</Description>
     <Category>WOTC-DocumentRead</Category>
     <Category>WOTC-DocumentWrite</Category>
     <Category>WOTC-VersionLifecycle</Category>
@@ -474,6 +474,7 @@
       <Reference ReferenceType="HasProperty">ns=2;i=64572</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=64573</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=64574</Reference>
+      <Reference ReferenceType="HasComponent">ns=2;i=64610</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="ns=2;i=64005" BrowseName="2:ThingModelFileType">
@@ -490,6 +491,7 @@
       <Reference ReferenceType="HasProperty">ns=2;i=64576</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=64577</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=64608</Reference>
+      <Reference ReferenceType="HasComponent">ns=2;i=64612</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="ns=2;i=64006" BrowseName="2:WoTBindingType">
@@ -1005,7 +1007,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=64569" BrowseName="2:SetDefaultVersion" ParentNodeId="ns=2;i=64003">
     <DisplayName>SetDefaultVersion</DisplayName>
-    <Description>Make a specific version of this resource its default (sticky) version, so that resolvers selecting the resource without a versionid resolve to it. If ExpectedEpoch is non-zero and does not equal the resource's current Epoch the call fails with Bad_InvalidState and changes nothing.</Description>
+    <Description>Make a specific version of this resource its default (sticky) version, so that resolvers selecting the resource without a versionid resolve to it. This Method is invoked on the logical Resource; a call on an exact Version fails with Bad_NotSupported. If ExpectedEpoch is non-zero and does not equal the logical Resource's current MetaEpoch the call fails with Bad_InvalidState and changes nothing.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=64003</Reference>
@@ -1019,7 +1021,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=64569</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>VersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid to make default.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current Epoch for optimistic concurrency; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>VersionId</Name><DataType><Identifier>i=12</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The versionid to make default.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current Resource MetaEpoch for optimistic concurrency; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64571" BrowseName="2:ThingId" ParentNodeId="ns=2;i=64004" DataType="String" ValueRank="-1">
     <DisplayName>ThingId</DisplayName>
@@ -1381,7 +1383,7 @@
   </UAVariable>
   <UAObjectType NodeId="ns=2;i=1" BrowseName="2:WoTAssetConnectionManagementType">
     <DisplayName>WoTAssetConnectionManagementType</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
       <Reference ReferenceType="Organizes">ns=2;i=2</Reference>
@@ -1396,7 +1398,7 @@
   </UAObjectType>
   <UAObject NodeId="ns=2;i=2" BrowseName="2:&lt;WoTAssetName&gt;" ParentNodeId="ns=2;i=1">
     <DisplayName>&lt;WoTAssetName&gt;</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=11508</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=2;i=1</Reference>
@@ -1408,7 +1410,7 @@
   </UAObject>
   <UAObject NodeId="ns=2;i=3" BrowseName="2:NamespaceFile" ParentNodeId="ns=2;i=67">
     <DisplayName>NamespaceFile</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=11575</Reference>
@@ -1430,7 +1432,7 @@
   </UAObject>
   <UAVariable NodeId="ns=2;i=4" BrowseName="Size" ParentNodeId="ns=2;i=3" DataType="UInt64" ValueRank="-1">
     <DisplayName>Size</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=3</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1438,7 +1440,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=5" BrowseName="Writable" ParentNodeId="ns=2;i=3" DataType="Boolean" ValueRank="-1">
     <DisplayName>Writable</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=3</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1446,7 +1448,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=6" BrowseName="UserWritable" ParentNodeId="ns=2;i=3" DataType="Boolean" ValueRank="-1">
     <DisplayName>UserWritable</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=3</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1454,7 +1456,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=7" BrowseName="OpenCount" ParentNodeId="ns=2;i=3" DataType="UInt16" ValueRank="-1">
     <DisplayName>OpenCount</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=3</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1462,7 +1464,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=8" BrowseName="MimeType" ParentNodeId="ns=2;i=3" DataType="String" ValueRank="-1">
     <DisplayName>MimeType</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=3</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1470,7 +1472,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=9" BrowseName="MaxByteStringLength" ParentNodeId="ns=2;i=3" DataType="UInt32" ValueRank="-1">
     <DisplayName>MaxByteStringLength</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=3</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1478,7 +1480,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=10" BrowseName="LastModifiedTime" ParentNodeId="ns=2;i=3" DataType="UtcTime" ValueRank="-1">
     <DisplayName>LastModifiedTime</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=3</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1486,7 +1488,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=11" BrowseName="Open" ParentNodeId="ns=2;i=3">
     <DisplayName>Open</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=3</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=12</Reference>
@@ -1495,7 +1497,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=12" BrowseName="InputArguments" ParentNodeId="ns=2;i=11" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=11</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1504,7 +1506,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=13" BrowseName="OutputArguments" ParentNodeId="ns=2;i=11" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=11</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1513,7 +1515,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=14" BrowseName="Close" ParentNodeId="ns=2;i=3">
     <DisplayName>Close</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=3</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=15</Reference>
@@ -1521,7 +1523,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=15" BrowseName="InputArguments" ParentNodeId="ns=2;i=14" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=14</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1530,7 +1532,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=16" BrowseName="Read" ParentNodeId="ns=2;i=3">
     <DisplayName>Read</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=3</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=17</Reference>
@@ -1539,7 +1541,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=17" BrowseName="InputArguments" ParentNodeId="ns=2;i=16" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=16</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1548,7 +1550,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=18" BrowseName="OutputArguments" ParentNodeId="ns=2;i=16" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=16</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1557,7 +1559,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=19" BrowseName="Write" ParentNodeId="ns=2;i=3">
     <DisplayName>Write</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=3</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=20</Reference>
@@ -1565,7 +1567,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=20" BrowseName="InputArguments" ParentNodeId="ns=2;i=19" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=19</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1574,7 +1576,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=21" BrowseName="GetPosition" ParentNodeId="ns=2;i=3">
     <DisplayName>GetPosition</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=3</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=22</Reference>
@@ -1583,7 +1585,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=22" BrowseName="InputArguments" ParentNodeId="ns=2;i=21" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=21</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1592,7 +1594,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=23" BrowseName="OutputArguments" ParentNodeId="ns=2;i=21" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=21</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1601,7 +1603,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=24" BrowseName="SetPosition" ParentNodeId="ns=2;i=3">
     <DisplayName>SetPosition</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=3</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=25</Reference>
@@ -1609,7 +1611,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=25" BrowseName="InputArguments" ParentNodeId="ns=2;i=24" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=24</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1618,7 +1620,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=26" BrowseName="2:CreateAsset" ParentNodeId="ns=2;i=1">
     <DisplayName>CreateAsset</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=1</Reference>
@@ -1628,7 +1630,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=27" BrowseName="InputArguments" ParentNodeId="ns=2;i=26" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=26</Reference>
@@ -1638,7 +1640,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=28" BrowseName="OutputArguments" ParentNodeId="ns=2;i=26" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=26</Reference>
@@ -1648,7 +1650,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=29" BrowseName="2:DeleteAsset" ParentNodeId="ns=2;i=1">
     <DisplayName>DeleteAsset</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=1</Reference>
@@ -1657,7 +1659,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=30" BrowseName="InputArguments" ParentNodeId="ns=2;i=29" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=29</Reference>
@@ -1667,7 +1669,7 @@
   </UAVariable>
   <UAObject NodeId="ns=2;i=31" BrowseName="2:WoTAssetConnectionManagement" ParentNodeId="i=85">
     <DisplayName>WoTAssetConnectionManagement</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasTypeDefinition">ns=2;i=1</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
@@ -1682,7 +1684,7 @@
   </UAObject>
   <UAMethod NodeId="ns=2;i=32" BrowseName="2:CreateAsset" ParentNodeId="ns=2;i=31">
     <DisplayName>CreateAsset</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=31</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=33</Reference>
@@ -1691,7 +1693,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=33" BrowseName="InputArguments" ParentNodeId="ns=2;i=32" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=32</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1700,7 +1702,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=34" BrowseName="OutputArguments" ParentNodeId="ns=2;i=32" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=32</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1709,7 +1711,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=35" BrowseName="2:DeleteAsset" ParentNodeId="ns=2;i=31">
     <DisplayName>DeleteAsset</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=31</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=36</Reference>
@@ -1717,7 +1719,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=36" BrowseName="InputArguments" ParentNodeId="ns=2;i=35" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=35</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1726,14 +1728,14 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=37" BrowseName="ExportNamespace" ParentNodeId="ns=2;i=3">
     <DisplayName>ExportNamespace</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=3</Reference>
     </References>
   </UAMethod>
   <UAVariable NodeId="ns=2;i=38" BrowseName="ConfigurationVersion" ParentNodeId="ns=2;i=67" DataType="i=20998" ValueRank="-1">
     <DisplayName>ConfigurationVersion</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1741,7 +1743,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=39" BrowseName="ModelVersion" ParentNodeId="ns=2;i=67" DataType="i=24263" ValueRank="-1">
     <DisplayName>ModelVersion</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1750,7 +1752,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=40" BrowseName="2:SupportedWoTBindings" ParentNodeId="ns=2;i=1" DataType="UriString" ValueRank="1" ArrayDimensions="0">
     <DisplayName>SupportedWoTBindings</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=1</Reference>
@@ -1759,7 +1761,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=41" BrowseName="2:DiscoverAssets" ParentNodeId="ns=2;i=1">
     <DisplayName>DiscoverAssets</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=1</Reference>
@@ -1768,7 +1770,7 @@
   </UAMethod>
   <UAObjectType NodeId="ns=2;i=42" BrowseName="2:IWoTAssetType" IsAbstract="true">
     <DisplayName>IWoTAssetType</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=17602</Reference>
       <Reference ReferenceType="HasComponent">ns=2;i=43</Reference>
@@ -1778,7 +1780,7 @@
   </UAObjectType>
   <UAObject NodeId="ns=2;i=43" BrowseName="2:WoTFile" ParentNodeId="ns=2;i=42">
     <DisplayName>WoTFile</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=42</Reference>
@@ -1801,7 +1803,7 @@
   </UAObject>
   <UAVariable NodeId="ns=2;i=44" BrowseName="Size" ParentNodeId="ns=2;i=43" DataType="UInt64" ValueRank="-1">
     <DisplayName>Size</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=43</Reference>
@@ -1810,7 +1812,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=45" BrowseName="Writable" ParentNodeId="ns=2;i=43" DataType="Boolean" ValueRank="-1">
     <DisplayName>Writable</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=43</Reference>
@@ -1819,7 +1821,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=46" BrowseName="UserWritable" ParentNodeId="ns=2;i=43" DataType="Boolean" ValueRank="-1">
     <DisplayName>UserWritable</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=43</Reference>
@@ -1828,7 +1830,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=47" BrowseName="OpenCount" ParentNodeId="ns=2;i=43" DataType="UInt16" ValueRank="-1">
     <DisplayName>OpenCount</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=43</Reference>
@@ -1837,7 +1839,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=48" BrowseName="OutputArguments" ParentNodeId="ns=2;i=41" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=41</Reference>
@@ -1847,7 +1849,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=49" BrowseName="2:CreateAssetForEndpoint" ParentNodeId="ns=2;i=1">
     <DisplayName>CreateAssetForEndpoint</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=1</Reference>
@@ -1857,7 +1859,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=50" BrowseName="InputArguments" ParentNodeId="ns=2;i=49" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=49</Reference>
@@ -1867,7 +1869,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=51" BrowseName="Open" ParentNodeId="ns=2;i=43">
     <DisplayName>Open</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=43</Reference>
@@ -1877,7 +1879,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=52" BrowseName="InputArguments" ParentNodeId="ns=2;i=51" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=51</Reference>
@@ -1887,7 +1889,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=53" BrowseName="OutputArguments" ParentNodeId="ns=2;i=51" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=51</Reference>
@@ -1897,7 +1899,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=54" BrowseName="Close" ParentNodeId="ns=2;i=43">
     <DisplayName>Close</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=43</Reference>
@@ -1906,7 +1908,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=55" BrowseName="InputArguments" ParentNodeId="ns=2;i=54" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=54</Reference>
@@ -1916,7 +1918,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=56" BrowseName="Read" ParentNodeId="ns=2;i=43">
     <DisplayName>Read</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=43</Reference>
@@ -1926,7 +1928,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=57" BrowseName="InputArguments" ParentNodeId="ns=2;i=56" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=56</Reference>
@@ -1936,7 +1938,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=58" BrowseName="OutputArguments" ParentNodeId="ns=2;i=56" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=56</Reference>
@@ -1946,7 +1948,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=59" BrowseName="Write" ParentNodeId="ns=2;i=43">
     <DisplayName>Write</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=43</Reference>
@@ -1955,7 +1957,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=60" BrowseName="InputArguments" ParentNodeId="ns=2;i=59" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=59</Reference>
@@ -1965,7 +1967,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=61" BrowseName="GetPosition" ParentNodeId="ns=2;i=43">
     <DisplayName>GetPosition</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=43</Reference>
@@ -1975,7 +1977,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=62" BrowseName="InputArguments" ParentNodeId="ns=2;i=61" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=61</Reference>
@@ -1985,7 +1987,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=63" BrowseName="OutputArguments" ParentNodeId="ns=2;i=61" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=61</Reference>
@@ -1995,7 +1997,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=64" BrowseName="SetPosition" ParentNodeId="ns=2;i=43">
     <DisplayName>SetPosition</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=43</Reference>
@@ -2004,7 +2006,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=65" BrowseName="InputArguments" ParentNodeId="ns=2;i=64" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=64</Reference>
@@ -2014,7 +2016,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=66" BrowseName="2:&lt;WoTPropertyName&gt;" ParentNodeId="ns=2;i=42" DataType="BaseDataType" ValueRank="-1">
     <DisplayName>&lt;WoTPropertyName&gt;</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=11508</Reference>
       <Reference ReferenceType="ns=2;i=142" IsForward="false">ns=2;i=42</Reference>
@@ -2043,7 +2045,7 @@
   </UAObject>
   <UAVariable NodeId="ns=2;i=68" BrowseName="NamespaceUri" ParentNodeId="ns=2;i=67" DataType="String" ValueRank="-1">
     <DisplayName>NamespaceUri</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2052,7 +2054,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=69" BrowseName="NamespaceVersion" ParentNodeId="ns=2;i=67" DataType="String" ValueRank="-1">
     <DisplayName>NamespaceVersion</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2061,16 +2063,16 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=70" BrowseName="NamespacePublicationDate" ParentNodeId="ns=2;i=67" DataType="DateTime" ValueRank="-1">
     <DisplayName>NamespacePublicationDate</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
-    <Value><uax:DateTime xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">2026-08-05T00:00:00Z</uax:DateTime></Value>
+    <Value><uax:DateTime xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">2026-09-05T00:00:00Z</uax:DateTime></Value>
   </UAVariable>
   <UAVariable NodeId="ns=2;i=71" BrowseName="IsNamespaceSubset" ParentNodeId="ns=2;i=67" DataType="Boolean" ValueRank="-1">
     <DisplayName>IsNamespaceSubset</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2079,7 +2081,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=72" BrowseName="StaticNodeIdTypes" ParentNodeId="ns=2;i=67" DataType="i=256" ValueRank="1" ArrayDimensions="0">
     <DisplayName>StaticNodeIdTypes</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2087,7 +2089,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=73" BrowseName="StaticNumericNodeIdRange" ParentNodeId="ns=2;i=67" DataType="i=291" ValueRank="1" ArrayDimensions="0">
     <DisplayName>StaticNumericNodeIdRange</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2095,7 +2097,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=74" BrowseName="StaticStringNodeIdPattern" ParentNodeId="ns=2;i=67" DataType="String" ValueRank="-1">
     <DisplayName>StaticStringNodeIdPattern</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2104,7 +2106,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=75" BrowseName="2:ConnectionTest" ParentNodeId="ns=2;i=1">
     <DisplayName>ConnectionTest</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=1</Reference>
@@ -2114,7 +2116,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=76" BrowseName="InputArguments" ParentNodeId="ns=2;i=75" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=75</Reference>
@@ -2124,7 +2126,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=77" BrowseName="OutputArguments" ParentNodeId="ns=2;i=75" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=75</Reference>
@@ -2134,7 +2136,7 @@
   </UAVariable>
   <UAObject NodeId="ns=2;i=78" BrowseName="2:Configuration" ParentNodeId="ns=2;i=1">
     <DisplayName>Configuration</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=1</Reference>
@@ -2144,7 +2146,7 @@
   </UAObject>
   <UAVariable NodeId="ns=2;i=79" BrowseName="2:License" ParentNodeId="ns=2;i=78" DataType="String" ValueRank="-1">
     <DisplayName>License</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=78</Reference>
@@ -2153,7 +2155,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=80" BrowseName="2:SupportedWoTBindings" ParentNodeId="ns=2;i=31" DataType="UriString" ValueRank="1" ArrayDimensions="0">
     <DisplayName>SupportedWoTBindings</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=31</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2161,7 +2163,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=81" BrowseName="2:DiscoverAssets" ParentNodeId="ns=2;i=31">
     <DisplayName>DiscoverAssets</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=31</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=82</Reference>
@@ -2169,7 +2171,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=82" BrowseName="OutputArguments" ParentNodeId="ns=2;i=81" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=81</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2178,7 +2180,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=83" BrowseName="2:CreateAssetForEndpoint" ParentNodeId="ns=2;i=31">
     <DisplayName>CreateAssetForEndpoint</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=31</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=84</Reference>
@@ -2187,7 +2189,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=84" BrowseName="InputArguments" ParentNodeId="ns=2;i=83" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=83</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2196,7 +2198,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=85" BrowseName="2:ConnectionTest" ParentNodeId="ns=2;i=31">
     <DisplayName>ConnectionTest</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=31</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=86</Reference>
@@ -2205,7 +2207,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=86" BrowseName="InputArguments" ParentNodeId="ns=2;i=85" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=85</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2214,7 +2216,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=87" BrowseName="OutputArguments" ParentNodeId="ns=2;i=85" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=85</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2223,7 +2225,7 @@
   </UAVariable>
   <UAObject NodeId="ns=2;i=88" BrowseName="2:Configuration" ParentNodeId="ns=2;i=31">
     <DisplayName>Configuration</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=31</Reference>
       <Reference ReferenceType="HasTypeDefinition">ns=2;i=105</Reference>
@@ -2232,7 +2234,7 @@
   </UAObject>
   <UAVariable NodeId="ns=2;i=89" BrowseName="2:License" ParentNodeId="ns=2;i=88" DataType="String" ValueRank="-1">
     <DisplayName>License</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=88</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2240,7 +2242,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=90" BrowseName="2:CreateAssetMethodType">
     <DisplayName>CreateAssetMethodType</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty">ns=2;i=91</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=92</Reference>
@@ -2248,7 +2250,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=91" BrowseName="InputArguments" ParentNodeId="ns=2;i=90" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=90</Reference>
@@ -2258,7 +2260,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=92" BrowseName="OutputArguments" ParentNodeId="ns=2;i=90" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=90</Reference>
@@ -2268,14 +2270,14 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=93" BrowseName="2:DeleteAssetMethodType">
     <DisplayName>DeleteAssetMethodType</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty">ns=2;i=94</Reference>
     </References>
   </UAMethod>
   <UAVariable NodeId="ns=2;i=94" BrowseName="InputArguments" ParentNodeId="ns=2;i=93" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=93</Reference>
@@ -2285,14 +2287,14 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=95" BrowseName="2:DiscoverAssetsMethodType">
     <DisplayName>DiscoverAssetsMethodType</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty">ns=2;i=96</Reference>
     </References>
   </UAMethod>
   <UAVariable NodeId="ns=2;i=96" BrowseName="OutputArguments" ParentNodeId="ns=2;i=95" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=95</Reference>
@@ -2302,7 +2304,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=97" BrowseName="2:CreateAssetForEndpointMethodType">
     <DisplayName>CreateAssetForEndpointMethodType</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty">ns=2;i=98</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=172</Reference>
@@ -2310,7 +2312,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=98" BrowseName="InputArguments" ParentNodeId="ns=2;i=97" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=97</Reference>
@@ -2320,7 +2322,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=99" BrowseName="DefaultRolePermissions" ParentNodeId="ns=2;i=67" DataType="i=96" ValueRank="1" ArrayDimensions="0">
     <DisplayName>DefaultRolePermissions</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2328,7 +2330,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=100" BrowseName="DefaultUserRolePermissions" ParentNodeId="ns=2;i=67" DataType="i=96" ValueRank="1" ArrayDimensions="0">
     <DisplayName>DefaultUserRolePermissions</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2336,7 +2338,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=101" BrowseName="DefaultAccessRestrictions" ParentNodeId="ns=2;i=67" DataType="i=95" ValueRank="-1">
     <DisplayName>DefaultAccessRestrictions</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2344,7 +2346,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=102" BrowseName="2:ConnectionTestMethodType">
     <DisplayName>ConnectionTestMethodType</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty">ns=2;i=103</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=104</Reference>
@@ -2352,7 +2354,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=103" BrowseName="InputArguments" ParentNodeId="ns=2;i=102" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=102</Reference>
@@ -2362,7 +2364,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=104" BrowseName="OutputArguments" ParentNodeId="ns=2;i=102" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=102</Reference>
@@ -2372,7 +2374,7 @@
   </UAVariable>
   <UAObjectType NodeId="ns=2;i=105" BrowseName="2:WoTAssetConfigurationType">
     <DisplayName>WoTAssetConfigurationType</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=17602</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=108</Reference>
@@ -2381,7 +2383,7 @@
   </UAObjectType>
   <UAMethod NodeId="ns=2;i=106" BrowseName="2:CloseAndUpdate" ParentNodeId="ns=2;i=43">
     <DisplayName>CloseAndUpdate</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=43</Reference>
@@ -2390,7 +2392,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=107" BrowseName="InputArguments" ParentNodeId="ns=2;i=106" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=106</Reference>
@@ -2400,7 +2402,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=108" BrowseName="2:&lt;WoTConfigurationParameterName&gt;" ParentNodeId="ns=2;i=105" DataType="BaseDataType" ValueRank="-1">
     <DisplayName>&lt;WoTConfigurationParameterName&gt;</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=11508</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=105</Reference>
@@ -2409,7 +2411,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=109" BrowseName="2:License" ParentNodeId="ns=2;i=105" DataType="String" ValueRank="-1">
     <DisplayName>License</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=105</Reference>
@@ -2418,7 +2420,7 @@
   </UAVariable>
   <UAObjectType NodeId="ns=2;i=110" BrowseName="2:WoTAssetFileType">
     <DisplayName>WoTAssetFileType</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11575</Reference>
       <Reference ReferenceType="HasComponent">ns=2;i=111</Reference>
@@ -2426,7 +2428,7 @@
   </UAObjectType>
   <UAMethod NodeId="ns=2;i=111" BrowseName="2:CloseAndUpdate" ParentNodeId="ns=2;i=110">
     <DisplayName>CloseAndUpdate</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=110</Reference>
@@ -2435,7 +2437,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=112" BrowseName="InputArguments" ParentNodeId="ns=2;i=111" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=111</Reference>
@@ -2445,7 +2447,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=113" BrowseName="MimeType" ParentNodeId="ns=2;i=43" DataType="String" ValueRank="-1">
     <DisplayName>MimeType</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=43</Reference>
@@ -2454,7 +2456,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=114" BrowseName="MaxByteStringLength" ParentNodeId="ns=2;i=43" DataType="UInt32" ValueRank="-1">
     <DisplayName>MaxByteStringLength</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=43</Reference>
@@ -2463,7 +2465,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=121" BrowseName="LastModifiedTime" ParentNodeId="ns=2;i=43" DataType="UtcTime" ValueRank="-1">
     <DisplayName>LastModifiedTime</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=43</Reference>
@@ -2472,7 +2474,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=122" BrowseName="2:AssetEndpoint" ParentNodeId="ns=2;i=42" DataType="String" ValueRank="-1">
     <DisplayName>AssetEndpoint</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=42</Reference>
@@ -2481,7 +2483,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=123" BrowseName="2:CloseAndUpdateMethodType">
     <DisplayName>CloseAndUpdateMethodType</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty">ns=2;i=143</Reference>
     </References>
@@ -2489,14 +2491,14 @@
   <UAReferenceType NodeId="ns=2;i=142" BrowseName="2:HasWoTComponent">
     <DisplayName>HasWoTComponent</DisplayName>
     <InverseName>WoTComponentOf</InverseName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
     </References>
   </UAReferenceType>
   <UAVariable NodeId="ns=2;i=143" BrowseName="InputArguments" ParentNodeId="ns=2;i=123" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=123</Reference>
@@ -2506,7 +2508,7 @@
   </UAVariable>
   <UAObject NodeId="ns=2;i=144" BrowseName="2:WoTFile" ParentNodeId="ns=2;i=2">
     <DisplayName>WoTFile</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=2</Reference>
@@ -2529,7 +2531,7 @@
   </UAObject>
   <UAVariable NodeId="ns=2;i=145" BrowseName="Size" ParentNodeId="ns=2;i=144" DataType="UInt64" ValueRank="-1">
     <DisplayName>Size</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=144</Reference>
@@ -2538,7 +2540,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=146" BrowseName="Writable" ParentNodeId="ns=2;i=144" DataType="Boolean" ValueRank="-1">
     <DisplayName>Writable</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=144</Reference>
@@ -2547,7 +2549,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=147" BrowseName="UserWritable" ParentNodeId="ns=2;i=144" DataType="Boolean" ValueRank="-1">
     <DisplayName>UserWritable</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=144</Reference>
@@ -2556,7 +2558,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=148" BrowseName="OpenCount" ParentNodeId="ns=2;i=144" DataType="UInt16" ValueRank="-1">
     <DisplayName>OpenCount</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=144</Reference>
@@ -2565,7 +2567,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=149" BrowseName="MimeType" ParentNodeId="ns=2;i=144" DataType="String" ValueRank="-1">
     <DisplayName>MimeType</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=144</Reference>
@@ -2574,7 +2576,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=150" BrowseName="MaxByteStringLength" ParentNodeId="ns=2;i=144" DataType="UInt32" ValueRank="-1">
     <DisplayName>MaxByteStringLength</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=144</Reference>
@@ -2583,7 +2585,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=151" BrowseName="LastModifiedTime" ParentNodeId="ns=2;i=144" DataType="UtcTime" ValueRank="-1">
     <DisplayName>LastModifiedTime</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=144</Reference>
@@ -2592,7 +2594,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=152" BrowseName="Open" ParentNodeId="ns=2;i=144">
     <DisplayName>Open</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=144</Reference>
@@ -2602,7 +2604,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=153" BrowseName="InputArguments" ParentNodeId="ns=2;i=152" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=152</Reference>
@@ -2612,7 +2614,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=154" BrowseName="OutputArguments" ParentNodeId="ns=2;i=152" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=152</Reference>
@@ -2622,7 +2624,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=155" BrowseName="Close" ParentNodeId="ns=2;i=144">
     <DisplayName>Close</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=144</Reference>
@@ -2631,7 +2633,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=156" BrowseName="InputArguments" ParentNodeId="ns=2;i=155" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=155</Reference>
@@ -2641,7 +2643,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=157" BrowseName="Read" ParentNodeId="ns=2;i=144">
     <DisplayName>Read</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=144</Reference>
@@ -2651,7 +2653,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=158" BrowseName="InputArguments" ParentNodeId="ns=2;i=157" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=157</Reference>
@@ -2661,7 +2663,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=159" BrowseName="OutputArguments" ParentNodeId="ns=2;i=157" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=157</Reference>
@@ -2671,7 +2673,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=160" BrowseName="Write" ParentNodeId="ns=2;i=144">
     <DisplayName>Write</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=144</Reference>
@@ -2680,7 +2682,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=161" BrowseName="InputArguments" ParentNodeId="ns=2;i=160" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=160</Reference>
@@ -2690,7 +2692,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=162" BrowseName="GetPosition" ParentNodeId="ns=2;i=144">
     <DisplayName>GetPosition</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=144</Reference>
@@ -2700,7 +2702,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=163" BrowseName="InputArguments" ParentNodeId="ns=2;i=162" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=162</Reference>
@@ -2710,7 +2712,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=164" BrowseName="OutputArguments" ParentNodeId="ns=2;i=162" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=162</Reference>
@@ -2720,7 +2722,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=165" BrowseName="SetPosition" ParentNodeId="ns=2;i=144">
     <DisplayName>SetPosition</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=144</Reference>
@@ -2729,7 +2731,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=166" BrowseName="InputArguments" ParentNodeId="ns=2;i=165" DataType="Argument" ValueRank="1" ArrayDimensions="2">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=165</Reference>
@@ -2739,7 +2741,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=167" BrowseName="2:CloseAndUpdate" ParentNodeId="ns=2;i=144">
     <DisplayName>CloseAndUpdate</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=144</Reference>
@@ -2748,7 +2750,7 @@
   </UAMethod>
   <UAVariable NodeId="ns=2;i=168" BrowseName="InputArguments" ParentNodeId="ns=2;i=167" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=167</Reference>
@@ -2758,7 +2760,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=169" BrowseName="2:AssetEndpoint" ParentNodeId="ns=2;i=2" DataType="String" ValueRank="-1">
     <DisplayName>AssetEndpoint</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=2</Reference>
@@ -2767,7 +2769,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=170" BrowseName="OutputArguments" ParentNodeId="ns=2;i=49" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=49</Reference>
@@ -2777,7 +2779,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=171" BrowseName="OutputArguments" ParentNodeId="ns=2;i=83" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=83</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2786,7 +2788,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=172" BrowseName="OutputArguments" ParentNodeId="ns=2;i=97" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>OutputArguments</DisplayName>
-    <Category>Wot-Con 1.02</Category>
+    <Category>WOTC-Legacy</Category>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=97</Reference>
@@ -2794,4 +2796,60 @@
     </References>
     <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>AssetId</Name><DataType><Identifier>i=17</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
+  <UAObjectType NodeId="ns=2;i=64015" BrowseName="2:ThingDescriptionVersionsType">
+    <DisplayName>ThingDescriptionVersionsType</DisplayName>
+    <Description>The typed Versions folder of a logical Thing Description Resource.</Description>
+    <Category>WOTC-DocumentRead</Category>
+    <Category>WOTC-VersionLifecycle</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=63025</Reference>
+      <Reference ReferenceType="Organizes">ns=2;i=64609</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=2;i=64609" BrowseName="2:&lt;Version&gt;" ParentNodeId="ns=2;i=64015">
+    <DisplayName>&lt;Version&gt;</DisplayName>
+    <Description>One exact Thing Description Version.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=64004</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=2;i=64015</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=64610" BrowseName="2:Versions" ParentNodeId="ns=2;i=64004">
+    <DisplayName>Versions</DisplayName>
+    <Description>Overrides the inherited Versions component so every exact Version is a ThingDescriptionFileType.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=64015</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=64004</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="ns=2;i=64016" BrowseName="2:ThingModelVersionsType">
+    <DisplayName>ThingModelVersionsType</DisplayName>
+    <Description>The typed Versions folder of a logical Thing Model Resource.</Description>
+    <Category>WOTC-DocumentRead</Category>
+    <Category>WOTC-VersionLifecycle</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=63025</Reference>
+      <Reference ReferenceType="Organizes">ns=2;i=64611</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=2;i=64611" BrowseName="2:&lt;Version&gt;" ParentNodeId="ns=2;i=64016">
+    <DisplayName>&lt;Version&gt;</DisplayName>
+    <Description>One exact Thing Model Version.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=64005</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=2;i=64016</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=64612" BrowseName="2:Versions" ParentNodeId="ns=2;i=64005">
+    <DisplayName>Versions</DisplayName>
+    <Description>Overrides the inherited Versions component so every exact Version is a ThingModelFileType.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=64016</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=64005</Reference>
+    </References>
+  </UAObject>
 </UANodeSet>

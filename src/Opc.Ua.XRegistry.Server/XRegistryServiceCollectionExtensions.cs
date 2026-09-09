@@ -105,7 +105,7 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
-        /// Registers the content-derived identity provider a concrete registry supplies.
+        /// Registers the document content-key provider a concrete registry supplies.
         /// </summary>
         /// <typeparam name="TProvider">The provider implementation.</typeparam>
         /// <param name="services">The service collection.</param>

@@ -423,9 +423,11 @@ namespace Opc.Ua.Robotics.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(
-                    childId.IdentifierAsString,
-                    Is.EqualTo($"{fixture.Manager.Root.NodeId.IdentifierAsString}_Child"));
+                // The child carries a SymbolicName but no BrowseName, so it
+                // has no browse path to derive a deterministic identifier
+                // from and the factory falls back to its counter.
+                Assert.That(childId.IsNull, Is.False);
+                Assert.That(childId.IdType, Is.EqualTo(IdType.Numeric));
                 Assert.That(generated.IsNull, Is.False);
                 Assert.That(fixture.Manager.New(fixture.Manager.SystemContext, existing), Is.EqualTo(existing.NodeId));
                 Assert.That(RobotIntentNodeManager.NormalizeProviders(default).Count, Is.EqualTo(1));
@@ -525,7 +527,7 @@ namespace Opc.Ua.Robotics.Tests
                                     AxisId = "Axis0",
                                     Kind = AxisKindEnum.Revolute,
                                     OriginTransform = Pose(),
-                                    AxisVector = new[] { 0.0, 0.0, 1.0 }.ToArrayOf()
+                                    AxisVector = s_doubleValues1.ToArrayOf()
                                 }
                             }.ToArrayOf())
                             .WithLimits(1.2, 3.4, 5.6, 7.8));
@@ -640,8 +642,8 @@ namespace Opc.Ua.Robotics.Tests
             return new Pose3DDataType
             {
                 FrameId = "world",
-                Position = new[] { 0.0, 0.0, 0.0 }.ToArrayOf(),
-                Orientation = new[] { 0.0, 0.0, 0.0, 1.0 }.ToArrayOf()
+                Position = s_doubleValues2.ToArrayOf(),
+                Orientation = s_doubleValues3.ToArrayOf()
             };
         }
 
@@ -913,5 +915,9 @@ namespace Opc.Ua.Robotics.Tests
 
             private readonly SemaphoreSlim m_gate = new(0);
         }
+
+        private static readonly double[] s_doubleValues1 = [0.0, 0.0, 1.0];
+        private static readonly double[] s_doubleValues2 = [0.0, 0.0, 0.0];
+        private static readonly double[] s_doubleValues3 = [0.0, 0.0, 0.0, 1.0];
     }
 }

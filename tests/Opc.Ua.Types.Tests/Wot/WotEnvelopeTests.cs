@@ -96,8 +96,8 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(document.Events.ContainsKey("OverTemperatureEventType"), Is.True);
             Assert.That(
-                document.Events["OverTemperatureEventType"].GetProperty("uav:isEvent").GetBoolean(),
-                Is.True);
+                document.Events["OverTemperatureEventType"].GetProperty("@type").GetString(),
+                Is.EqualTo("uav:eventType"));
         }
 
         [Test]
