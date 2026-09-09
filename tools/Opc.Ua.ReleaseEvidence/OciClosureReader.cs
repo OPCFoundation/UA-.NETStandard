@@ -1,5 +1,31 @@
-// Copyright (c) OPC Foundation, Inc. All rights reserved.
-// Licensed under the MIT License. See LICENSE.txt in the project root for license information.
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -11,17 +37,50 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.ReleaseEvidence
 {
+    /// <summary>
+    /// Identifies a verified OCI blob by image, digest, media type, byte length, and local relative path.
+    /// </summary>
+    /// <param name="Image">The OCI image repository identifier.</param>
+    /// <param name="Digest">The content digest identifying the referenced bytes.</param>
+    /// <param name="MediaType">The OCI media type declared for the verified blob.</param>
+    /// <param name="Size">The length of the referenced content in bytes.</param>
+    /// <param name="Path">The request-relative path locating the verified blob bytes.</param>
     internal sealed record OciBlobReference(
         string Image, string Digest, string MediaType, long Size, string Path);
 
+    /// <summary>
+    /// Binds an OCI referrer manifest and artifact type to an image subject digest.
+    /// </summary>
+    /// <param name="Image">The OCI image repository identifier.</param>
+    /// <param name="SubjectDigest">The digest of the OCI subject described by the attestation or referrer.</param>
+    /// <param name="ManifestDigest">
+    /// The digest of the OCI manifest containing the referenced attestation or artifact.
+    /// </param>
+    /// <param name="ArtifactType">The OCI artifact type under which the referrer must be discoverable.</param>
     internal sealed record OciReferrerBinding(
         string Image, string SubjectDigest, string ManifestDigest, string ArtifactType);
 
+    /// <summary>
+    /// Contains an image's root digest, complete referenced blob set, and authenticated referrer bindings.
+    /// </summary>
+    /// <param name="Image">The OCI image repository identifier.</param>
+    /// <param name="RootDigest">The immutable digest of the requested OCI image root.</param>
+    /// <param name="Blobs">The complete set of verified blobs referenced by the image and its referrers.</param>
+    /// <param name="Referrers">
+    /// The authenticated subject-to-referrer relationships required for the image closure.
+    /// </param>
     internal sealed record OciImageClosure(
         string Image, string RootDigest, OciBlobReference[] Blobs, OciReferrerBinding[] Referrers);
 
+    /// <summary>
+    /// Reads bounded OCI blob closures and checks their expected subjects and authenticated referrer relationships.
+    /// </summary>
+    /// <param name="files">The service for bounded evidence-file access and content digests.</param>
     internal sealed class OciClosureReader(EvidenceFiles files)
     {
+        /// <summary>
+        /// Reads an OCI closure whose subjects, referrers, and signature-bundle bytes match authenticated evidence.
+        /// </summary>
         public async Task<OciImageClosure[]> ReadAuthenticatedAsync(
             string requestPath,
             string evidencePath,
@@ -98,6 +157,9 @@ namespace Opc.Ua.ReleaseEvidence
             return closures;
         }
 
+        /// <summary>
+        /// Maps a verified OCI subject and its supporting closure into a candidate-relative promotion member.
+        /// </summary>
         public static PromotionMember ToPromotionMember(
             OciImageClosure closure,
             ArtifactRecord artifact,
@@ -177,6 +239,9 @@ namespace Opc.Ua.ReleaseEvidence
                 artifact.Kind, artifact.Scopes.Platforms.SingleOrDefault());
         }
 
+        /// <summary>
+        /// Reads the requested OCI closures and checks their complete artifact group and authenticated referrer scope.
+        /// </summary>
         public async Task<OciImageClosure[]> ReadAsync(
             string requestPath,
             EvaluationExpectation independentlyExpected,
@@ -266,6 +331,9 @@ namespace Opc.Ua.ReleaseEvidence
             return [.. result];
         }
 
+        /// <summary>
+        /// Parses a closed, bounded referrer context and rejects malformed or duplicate referrer identities.
+        /// </summary>
         internal static OciReferrerBinding[] ParseReferrers(JsonElement value)
         {
             CheckProperties(value, ["schemaVersion", "kind", "referrers"]);
@@ -307,8 +375,15 @@ namespace Opc.Ua.ReleaseEvidence
 
         private sealed class ImageReader(EvidenceFiles files, string image, string root, string layout)
         {
+            /// <summary>
+            /// Gets the verified blobs visited for the image, indexed by their content digest.
+            /// </summary>
             public Dictionary<string, OciBlobReference> Blobs { get; } = new(StringComparer.Ordinal);
 
+            /// <summary>
+            /// Visits a blob and its manifest descendants while checking descriptor consistency, digests, and resource
+            /// bounds.
+            /// </summary>
             public async Task VisitAsync(
                 string digest,
                 string? mediaType,

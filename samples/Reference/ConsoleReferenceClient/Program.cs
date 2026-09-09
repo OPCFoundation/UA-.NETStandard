@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -48,12 +48,13 @@ using Opc.Ua.Security.Certificates;
 namespace Quickstarts.ConsoleReferenceClient
 {
     /// <summary>
-    /// The program.
+    /// Runs the console reference client's browsing, reading, subscription, and export demonstrations.
     /// </summary>
     public static class Program
     {
         /// <summary>
-        /// Main entry point.
+        /// Prints library information, parses the requested operations and connection options,
+        /// and invokes the console reference client workflow.
         /// </summary>
         /// <exception cref="ErrorExitException"></exception>
         public static Task<int> Main(string[] args)

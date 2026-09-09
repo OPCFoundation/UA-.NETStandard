@@ -47,6 +47,9 @@ using Opc.Ua.WotCon.Client;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
+    /// <summary>
+    /// Exercises real WoT sample aggregation, secured management, live generation replacement, and loader failures.
+    /// </summary>
     [TestFixture]
     [Category("WotCon")]
     [Category("Integration")]
@@ -65,6 +68,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
         private const string kWotConNamespaceUri = "http://opcfoundation.org/UA/WoT-Con/";
         private const string kPumpsNamespaceUri = "http://opcfoundation.org/UA/Pumps/";
 
+        /// <summary>
+        /// Verifies that the upstream session factory selects the configured message-security mode and policy.
+        /// </summary>
         [TestCase(true, MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256)]
         [TestCase(false, MessageSecurityMode.None, SecurityPolicies.None)]
         public async Task UpstreamFactorySelectsConfiguredEndpointAsync(
@@ -83,6 +89,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 Is.EqualTo(expectedPolicy));
         }
 
+        /// <summary>
+        /// Verifies that an unsupported upstream security policy is rejected instead of downgraded or retried
+        /// indefinitely.
+        /// </summary>
         [Test]
         public async Task UnsupportedUpstreamPolicyFailsWithoutDowngradeOrReconnectLoopAsync()
         {
@@ -97,6 +107,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
         }
 
+        /// <summary>
+        /// Verifies that encrypted registry management accepts an administrator but denies anonymous management
+        /// requests.
+        /// </summary>
         [Test]
         public async Task EncryptedRegistryManagementAuthenticatesAdministratorAndRejectsAnonymousAsync()
         {
@@ -125,6 +139,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(source.Session.Identity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
         }
 
+        /// <summary>
+        /// Verifies that a valid username identity without the SecurityAdmin role cannot refresh the registry.
+        /// </summary>
         [Test]
         public async Task AuthenticatedUserWithoutSecurityAdminCannotManageRegistryAsync()
         {
@@ -139,6 +156,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
+        /// <summary>
+        /// Verifies that mutually trusted peers aggregate both pumps successfully over encrypted connections.
+        /// </summary>
         [Test]
         public async Task ProvisionedPeersAggregateUsingEncryptedUpstreamConnectionsAsync()
         {
@@ -164,6 +184,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(connection.Session.Identity.TokenType, Is.EqualTo(UserTokenType.UserName));
         }
 
+        /// <summary>
+        /// Verifies pump projection and subscriptions across a mapping replacement, retaining the retired
+        /// subscription's data.
+        /// </summary>
         [Test]
         public async Task RealSamplesAggregateSubscribeAndReplaceGenerationAsync()
         {
@@ -412,6 +436,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
             AssertDataValue(afterDrain, environment.SourceBValues.BearingTemperature);
         }
 
+        /// <summary>
+        /// Verifies that projected pump groups and management actions preserve source ownership and complete alarm
+        /// attention.
+        /// </summary>
         [Test]
         public async Task RealSamplesRouteManagementAndConditionActionsToEachSourceAsync()
         {
@@ -497,6 +525,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 connection.Session, sourceA.Session, sourceB.Session, timeout.Token).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that invalid Thing Description JSON is rejected through the real document-upload path.
+        /// </summary>
         [Test]
         public async Task InvalidDocumentFailsThroughRealLoaderAsync()
         {
@@ -531,6 +562,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(failure, Is.TypeOf<ServiceResultException>());
         }
 
+        /// <summary>
+        /// Verifies that a missing manifest dependency is reported before document upload.
+        /// </summary>
         [Test]
         public async Task MissingManifestDependencyFailsBeforeUploadAsync()
         {
@@ -562,6 +596,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(failure.Message, Does.Contain("missing or cyclic dependency"));
         }
 
+        /// <summary>
+        /// Verifies that mapping a measurement to a nonexistent target node causes the real refresh to fail.
+        /// </summary>
         [Test]
         public async Task BadTargetMappingFailsRefreshAsync()
         {
@@ -585,6 +622,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(failure, Is.TypeOf<ServiceResultException>());
         }
 
+        /// <summary>
+        /// Verifies that a mapped read reports failure when its upstream source endpoint is unavailable.
+        /// </summary>
         [Test]
         public async Task UnavailableUpstreamEndpointFailsMappedReadAsync()
         {

@@ -1,5 +1,31 @@
-// Copyright (c) OPC Foundation, Inc. All rights reserved.
-// Licensed under the MIT License. See LICENSE.txt in the project root for license information.
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -14,10 +40,25 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.ReleaseEvidence
 {
+    /// <summary>
+    /// Describes an effective image filesystem entry and its content or recorded link target.
+    /// </summary>
+    /// <param name="Path">The normalized entry path within the image filesystem.</param>
+    /// <param name="Digest">The regular-file content digest or digest of the recorded symbolic-link target.</param>
+    /// <param name="Size">The length of the referenced content in bytes.</param>
+    /// <param name="Kind">Whether the entry represents a regular file, hard link, or symbolic link.</param>
+    /// <param name="Target">The optional recorded hard-link or symbolic-link target.</param>
     internal sealed record OciFileEvidence(string Path, string Digest, long Size, string Kind, string? Target = null);
 
+    /// <summary>
+    /// Builds a bounded final-image filesystem inventory without extracting entries or following host links.
+    /// </summary>
+    /// <param name="files">The service for bounded evidence-file access and content digests.</param>
     internal sealed class OciLayerInventory(EvidenceFiles files)
     {
+        /// <summary>
+        /// Verifies compressed and expanded layer digests and applies whiteouts and links to the final-image inventory.
+        /// </summary>
         public async Task<Dictionary<string, OciFileEvidence>> ReadAsync(
             string layout,
             JsonElement manifest,
@@ -185,6 +226,9 @@ namespace Opc.Ua.ReleaseEvidence
             return final;
         }
 
+        /// <summary>
+        /// Normalizes relative OCI entry paths and rejects traversal, ambiguous segments, and unsupported path forms.
+        /// </summary>
         internal static string Normalize(string value, bool directory = false)
         {
             while (value.StartsWith("./", StringComparison.Ordinal))
@@ -262,22 +306,51 @@ namespace Opc.Ua.ReleaseEvidence
 
         private sealed class BoundedHashStream(Stream inner, long limit) : Stream
         {
+            /// <summary>
+            /// Gets the total number of bytes consumed from the wrapped stream.
+            /// </summary>
             public long BytesRead { get; private set; }
+
+            /// <summary>
+            /// Gets a value indicating that sequential reads are supported.
+            /// </summary>
             public override bool CanRead => true;
+
+            /// <summary>
+            /// Gets a value indicating that seeking is not supported.
+            /// </summary>
             public override bool CanSeek => false;
+
+            /// <summary>
+            /// Gets a value indicating that writing is not supported.
+            /// </summary>
             public override bool CanWrite => false;
+
+            /// <summary>
+            /// Rejects length queries because the wrapped read stream does not expose a supported length operation.
+            /// </summary>
             public override long Length => throw new NotSupportedException();
+
+            /// <summary>
+            /// Gets the number of consumed bytes and rejects attempts to change the stream position.
+            /// </summary>
             public override long Position
             {
                 get => BytesRead;
                 set => throw new NotSupportedException();
             }
 
+            /// <summary>
+            /// Returns the SHA-256 digest of bytes consumed since the previous digest reset and resets the hash state.
+            /// </summary>
             public string GetDigest()
             {
                 return "sha256:" + Convert.ToHexStringLower(m_hash.GetHashAndReset());
             }
 
+            /// <summary>
+            /// Reads into an array segment, enforces the expanded-byte limit, and includes consumed bytes in the hash.
+            /// </summary>
             public override int Read(byte[] buffer, int offset, int count)
             {
                 int read = inner.Read(buffer, offset, count);
@@ -285,6 +358,9 @@ namespace Opc.Ua.ReleaseEvidence
                 return read;
             }
 
+            /// <summary>
+            /// Asynchronously reads into memory, enforces the expanded-byte limit, and hashes the consumed bytes.
+            /// </summary>
             public override async ValueTask<int> ReadAsync(
                 Memory<byte> buffer, CancellationToken cancellationToken = default)
             {
@@ -293,27 +369,42 @@ namespace Opc.Ua.ReleaseEvidence
                 return read;
             }
 
+            /// <summary>
+            /// Asynchronously reads an array segment through the bounded, hashing memory-based read implementation.
+            /// </summary>
             public override Task<int> ReadAsync(
                 byte[] buffer, int offset, int count, CancellationToken cancellationToken)
             {
                 return ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
             }
 
+            /// <summary>
+            /// Rejects flushing because this wrapper only supports reads.
+            /// </summary>
             public override void Flush()
             {
                 throw new NotSupportedException();
             }
 
+            /// <summary>
+            /// Rejects seeking because reads must remain sequential for byte accounting and hashing.
+            /// </summary>
             public override long Seek(long offset, SeekOrigin origin)
             {
                 throw new NotSupportedException();
             }
 
+            /// <summary>
+            /// Rejects changes to the length of the read-only stream.
+            /// </summary>
             public override void SetLength(long value)
             {
                 throw new NotSupportedException();
             }
 
+            /// <summary>
+            /// Rejects writes to the read-only stream.
+            /// </summary>
             public override void Write(byte[] buffer, int offset, int count)
             {
                 throw new NotSupportedException();

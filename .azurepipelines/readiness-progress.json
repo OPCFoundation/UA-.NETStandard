@@ -20,11 +20,11 @@
       "revalidationTriggers": ["producer-change", "tool-change", "revocation", "review-due"]
     },
     {
-      "id": "complete-nuget-containers-pump-pilots",
+      "id": "complete-nuget-containers-pump-verifications",
       "category": "graduation", "status": "pending", "responsibleFunction": "release-assurance",
       "groups": ["nuget", "containers", "pump"],
       "destinations": ["nuget.org", "github-packages", "ghcr"],
-      "limitations": ["real-pilot-records-not-supplied"],
+      "limitations": ["production-verification-records-not-supplied"],
       "revalidationTriggers": ["producer-change", "scope-change", "review-due"]
     },
     {

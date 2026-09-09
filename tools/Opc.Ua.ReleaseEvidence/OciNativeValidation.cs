@@ -1,5 +1,31 @@
-// Copyright (c) OPC Foundation, Inc. All rights reserved.
-// Licensed under the MIT License. See LICENSE.txt in the project root for license information.
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -12,8 +38,27 @@ using Json.Schema;
 
 namespace Opc.Ua.ReleaseEvidence
 {
+    /// <summary>
+    /// Identifies a native build material by URI and algorithm-specific content digest.
+    /// </summary>
+    /// <param name="Uri">The URI identifying the source or dependency material.</param>
+    /// <param name="Algorithm">The digest algorithm used to identify the material.</param>
+    /// <param name="Digest">The material digest expressed in the form required by the selected algorithm.</param>
     internal sealed record OciMaterial(string Uri, string Algorithm, string Digest);
 
+    /// <summary>
+    /// Carries independently authenticated source, builder, invocation, scanner, and material identities for an OCI
+    /// build.
+    /// </summary>
+    /// <param name="BuilderId">The builder identity expected in native provenance.</param>
+    /// <param name="InvocationId">The unique native build invocation identifier expected in provenance.</param>
+    /// <param name="SourceUri">The repository source URI consumed by the native image build.</param>
+    /// <param name="SourceSha">The source commit hash associated with the build or assurance result.</param>
+    /// <param name="Dockerfile">The repository-relative Dockerfile path selected for the image build.</param>
+    /// <param name="ScannerCreator">The scanner creator identity expected in native SPDX creation metadata.</param>
+    /// <param name="ScannerDigest">The pinned digest of the scanner used to produce the native image inventory.</param>
+    /// <param name="BuildkitDigest">The pinned digest of the BuildKit tool used for the image build.</param>
+    /// <param name="Materials">The exact source and dependency materials expected in native provenance.</param>
     internal sealed record OciBuildExpectation(
         string BuilderId,
         string InvocationId,
@@ -25,8 +70,14 @@ namespace Opc.Ua.ReleaseEvidence
         string BuildkitDigest,
         OciMaterial[] Materials);
 
+    /// <summary>
+    /// Checks native SPDX inventory and BuildKit provenance against image contents and authenticated expectations.
+    /// </summary>
     internal static class OciNativeValidation
     {
+        /// <summary>
+        /// Checks the frozen SPDX schema, scanner identity, package relationships, and final-image payload coverage.
+        /// </summary>
         public static async Task<string> CheckSpdxAsync(
             EvidenceFiles files,
             JsonElement predicate,
@@ -171,6 +222,9 @@ namespace Opc.Ua.ReleaseEvidence
             return version;
         }
 
+        /// <summary>
+        /// Adds a finding unless the SPDX document describes at least one defined package subject.
+        /// </summary>
         internal static void CheckDescribedSubject(JsonElement predicate, List<Finding> findings)
         {
             var packages = new HashSet<string>(StringComparer.Ordinal);
@@ -228,6 +282,10 @@ namespace Opc.Ua.ReleaseEvidence
             }
         }
 
+        /// <summary>
+        /// Checks native BuildKit provenance structure and binds source, tools, invocation, and materials to
+        /// expectations.
+        /// </summary>
         public static void CheckProvenance(
             JsonElement predicate,
             string predicateType,
@@ -309,12 +367,19 @@ namespace Opc.Ua.ReleaseEvidence
             }
         }
 
+        /// <summary>
+        /// Checks whether a value is a canonical lowercase SHA-256 content identifier.
+        /// </summary>
         internal static bool IsSha256(string? digest)
         {
             return digest is { Length: 71 } && digest.StartsWith("sha256:", StringComparison.Ordinal) &&
                 digest[7..].All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f');
         }
 
+        /// <summary>
+        /// Checks that OCI source coordinates and native tool digests match the independently expected producer
+        /// context.
+        /// </summary>
         internal static bool MatchesBuildContext(OciBuildExpectation build, EvaluationExpectation expected)
         {
             string repository = "https://github.com/" + expected.Source.Repository;

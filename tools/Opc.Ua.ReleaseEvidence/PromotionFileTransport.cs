@@ -1,5 +1,31 @@
-// Copyright (c) OPC Foundation, Inc. All rights reserved.
-// Licensed under the MIT License. See LICENSE.txt in the project root for license information.
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.IO;
@@ -13,10 +39,18 @@ namespace Opc.Ua.ReleaseEvidence
     /// <summary>
     /// Offline fixture transport, never an official registry or a distributed lease implementation.
     /// </summary>
+    /// <param name="root">The isolated local fixture root containing objects, aliases, and lease files.</param>
+    /// <param name="files">The service for bounded evidence-file access and content digests.</param>
     internal sealed class PromotionFileTransport(string root, EvidenceFiles files) : IPromotionTransport
     {
+        /// <summary>
+        /// Gets a value indicating that this local fixture is never an official delivery transport.
+        /// </summary>
         public bool IsOfficial => false;
 
+        /// <summary>
+        /// Acquires an exclusive local file lease for the selected artifact group and destination.
+        /// </summary>
         public Task<IPromotionLease> AcquireLeaseAsync(
             string group,
             string destination,
@@ -30,6 +64,9 @@ namespace Opc.Ua.ReleaseEvidence
             return Task.FromResult<IPromotionLease>(new FileLease(path));
         }
 
+        /// <summary>
+        /// Reads content and evidence digests and the selected alias target from the isolated local fixture.
+        /// </summary>
         public async Task<PromotionObservation> ReadAsync(
             PromotionMember member,
             CancellationToken cancellationToken)
@@ -64,6 +101,9 @@ namespace Opc.Ua.ReleaseEvidence
             return new PromotionObservation(digest, [.. evidence], alias);
         }
 
+        /// <summary>
+        /// Copies exact candidate content into the fixture under a held lease without replacing conflicting bytes.
+        /// </summary>
         public async Task CreateImmutableAsync(
             PromotionMember member,
             string candidateRoot,
@@ -76,6 +116,9 @@ namespace Opc.Ua.ReleaseEvidence
                 ContentPath(member), member.Content.Digest, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Restores each required evidence object in the local fixture after checking the lease.
+        /// </summary>
         public async Task RestoreEvidenceAsync(
             PromotionMember member,
             string candidateRoot,
@@ -91,6 +134,9 @@ namespace Opc.Ua.ReleaseEvidence
             }
         }
 
+        /// <summary>
+        /// Conditionally updates a fixture alias under the local lease and rejects a changed prior digest.
+        /// </summary>
         public async Task CompareExchangeAliasAsync(
             PromotionMember member,
             string? expectedDigest,
@@ -210,13 +256,23 @@ namespace Opc.Ua.ReleaseEvidence
 
         private sealed class FileLease : IPromotionLease
         {
+            /// <summary>
+            /// Acquires an exclusive file handle that represents ownership of the local promotion lease.
+            /// </summary>
             public FileLease(string path)
             {
                 m_stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
             }
 
+            /// <summary>
+            /// Gets the unique ownership marker for this local lease instance.
+            /// </summary>
             public string Fence { get; } = Guid.NewGuid().ToString("N");
 
+            /// <summary>
+            /// Checks cancellation and confirms that the local lease is undisposed and its file handle remains
+            /// writable.
+            /// </summary>
             public ValueTask AssertHeldAsync(CancellationToken cancellationToken)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -228,6 +284,9 @@ namespace Opc.Ua.ReleaseEvidence
                 return ValueTask.CompletedTask;
             }
 
+            /// <summary>
+            /// Releases the exclusive file handle for this local promotion lease.
+            /// </summary>
             public async ValueTask DisposeAsync()
             {
                 if (!m_disposed)
@@ -242,8 +301,16 @@ namespace Opc.Ua.ReleaseEvidence
         }
     }
 
+    /// <summary>
+    /// Stores each promotion event as a separate immutable JSON file in a local journal directory.
+    /// </summary>
+    /// <param name="root">The local directory in which immutable event JSON files are created.</param>
+    /// <param name="files">The service for bounded evidence-file access and content digests.</param>
     internal sealed class PromotionFileJournal(string root, EvidenceFiles files) : IPromotionJournal
     {
+        /// <summary>
+        /// Creates a new journal file named for the event identifier without overwriting an existing event.
+        /// </summary>
         public Task AppendAsync(PromotionEvent entry, CancellationToken cancellationToken)
         {
             return files.WriteModelAsync(

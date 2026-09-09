@@ -293,7 +293,9 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             await WaitUntilListeningAsync(replica.Process, startupTimeout, cancellationToken).ConfigureAwait(false);
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Stops every replica and attempts to remove the cluster's temporary PKI stores.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             foreach (RedundantServerReplica replica in Replicas)

@@ -15,8 +15,8 @@ remain the policy baseline.[^foundation] Use the confidential contact and PGP ke
 a competing intake or authorize public disclosure.
 
 **Programme approval and operational readiness: PENDING.** The sections below
-specify implementation and verification work. Committing this annex is not evidence
-that the Foundation has approved a stewardship programme, appointed staff, verified
+specify operating requirements and verification records. Committing this annex
+is not evidence that the Foundation has approved a stewardship programme, appointed staff, verified
 reporting platforms or publication protections, or completed an exercise.
 
 | Record | Status | Evidence needed to close |
@@ -27,7 +27,7 @@ reporting platforms or publication protections, or completed an exercise.
 | Cooperation/document retrieval arrangements | **PENDING** | Approved controlled packet, retrieval and language arrangements. |
 | Steward reporting route and access | **PENDING** | Then-current operational guidance, authorized access and outage procedure confirmation. |
 | Reporting and cooperation exercises | **PENDING** | Dated exercise records, outcomes and disposition of gaps; instructions alone are not completion evidence. |
-| New release-evidence engineering controls | **PILOT** | See [Release Evidence](ReleaseEvidence.md); producer readiness, public outputs and enforcement require actual records. |
+| Release-evidence engineering controls | **ACTIVE; stable controls required** | See [Release Evidence](ReleaseEvidence.md); missing production trust, verification or publication-boundary records block in-scope stable publication. This does not establish Foundation programme approval. |
 
 Article 24 does not itself impose an SBOM, CE marking, conformity assessment, a
 manufacturer's minimum five-year support period or ten-year retention mandate.
@@ -250,11 +250,12 @@ scope/deadline decisions, retrieval/language results, gaps, corrective owners an
 review acceptance in controlled records. Publish only a reviewed, sanitized status.
 Do not mark an exercise complete until its outcome record exists.
 
-### Machine-readable handoff and synthetic scenarios
+### Machine-readable readiness records and synthetic scenarios
 
 [`readiness-progress.json`](../.azurepipelines/readiness-progress.json) tracks the
-six organizational handoffs above and references the engineering checks in
-`release-policy.json` by ID. All checked-in records are **pending**.
+six organizational requirements above and references the active engineering checks
+in `release-policy.json` by ID. All checked-in readiness records are **pending**;
+that status does not defer the required stable engineering gates.
 [`readiness-record.schema.json`](../.azurepipelines/readiness-record.schema.json)
 is a separate versioned companion; it does not change signed release envelopes.
 The responsible function identifies who must arrange a decision, not an existing
@@ -325,7 +326,7 @@ Outputs always state that Foundation review is required and an operational
 exercise has **not** been completed. The command cannot file reports or establish
 platform access.
 
-### Administrator and Foundation handoff
+### Administrator and Foundation operating prerequisites
 
 Supply the following through controlled, attributable records; do not publish
 credentials, personal contacts or infrastructure inventories in this repository.
@@ -343,12 +344,14 @@ None of these actions is authorized merely by running the validators.
 | Development and provided-system scope | Stack maintenance / development infrastructure response | Fact-based participation and provided-system decisions, including outsourced/shared services; repository settings alone are insufficient. |
 | Cooperation and reporting operation | Security WG / authority liaison / user communications | Current steward routing/access and outage procedure, language/retrieval arrangements, performed synthetic exercises and reviewed outcomes; incident-user communication remains scoped to the incident route. |
 
-Publication isolation, production graduation and organizational readiness remain
-separate **pending** decisions. Repository implementations and offline fixtures
-cannot close those decisions, create production trust, or authorize notification
-to authorities.
+Production trust and publisher isolation require authenticated setup records;
+Foundation approvals, assignments and exercises require separate operational
+records. These records remain **pending**. Missing required engineering records
+block stable publication under the active contract. Repository implementations
+and offline fixtures cannot establish production trust or organizational
+readiness, or authorize notification to authorities.
 
-## Optional engineering controls and release scope
+## Chosen engineering controls and release scope
 
 SBOMs, provenance/attestations, stronger artifact verification, risk-to-test
 traceability, retained release evidence and the maintenance matrix are chosen
@@ -360,15 +363,17 @@ The [Release Evidence contract](ReleaseEvidence.md) is the engineering reference
 Its implementation scope is current **`master`/2.0 only**, covering NuGet and the
 designated published container images. The `master378`/1.5 pipeline backport is
 **deferred**, while 1.5 maintenance remains as stated in
-[SECURITY.md](../SECURITY.md#supported-versions). Engineering rollout scope must
+[SECURITY.md](../SECURITY.md#supported-versions). Engineering enrollment scope must
 not be used to exclude relevant products from the statutory scope inventory.
 
-The new controls are **pilot**. Missing or failed evidence is visible as incomplete
-or unmet, not fabricated success. A separate reviewed, protected graduation is
-needed before new required gates apply to **in-scope stable releases only**.
-Official previews and rolling development builds remain advisory for these new
-controls and are not represented as meeting the required stable profile. Existing
-mandatory signing, build, test and security checks are not weakened.
+The contract is **active**, with `stage: required` for **in-scope stable releases**.
+Missing or failed evidence remains incomplete and blocks stable publication.
+Production trust and publication isolation are required operating prerequisites,
+not implied by the policy setting. Official previews and rolling development
+builds retain advisory applicability for these controls; those are release
+channels, not maturity modes of the contract, and do not establish compliance
+with the required stable profile. Existing mandatory signing, build, test and
+security checks are not weakened.
 
 Public evidence is limited to reviewed, sanitized SBOMs, provenance and summaries
 under the contract. Keep raw findings, sensitive crash inputs, credentials,

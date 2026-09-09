@@ -31,12 +31,13 @@ need local link and whitespace checks, not a build. Existing required CI checks
 still apply.
 
 Changes affecting release assurance follow the [Release Evidence contract](docs/ReleaseEvidence.md).
-The new controls are a current `master`/2.0 **pilot**, not a declaration of complete
-evidence or platform enforcement. Missing/failed new evidence must be visible.
-After separate reviewed, protected graduation, only in-scope stable releases require
-the new controls; preview/development evidence stays advisory. Do not weaken existing
-mandatory signing, build, test or security checks. The 1.5 pipeline rollout is
-deferred without changing its maintenance status.
+The contract is **active** for current `master`/2.0, with controls required for
+in-scope stable releases. Missing/failed evidence or required production setup
+blocks stable publication; the policy setting does not prove publisher isolation.
+Preview/development release channels retain advisory applicability for these
+controls, not a different contract maturity mode. Do not weaken existing mandatory
+signing, build, test or security checks. The 1.5 pipeline backport is deferred
+without changing its maintenance status.
 
 ### Continuous integration on your pull request
 

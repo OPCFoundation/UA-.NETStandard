@@ -1,5 +1,31 @@
-// Copyright (c) OPC Foundation, Inc. All rights reserved.
-// Licensed under the MIT License. See LICENSE.txt in the project root for license information.
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Diagnostics;
@@ -20,6 +46,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
     [TestFixture]
     public sealed class NugetDeliveryVerifierTests
     {
+        /// <summary>
+        /// Verifies that recompression and countersigning can preserve package content without authenticating delivery.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task RepositoryCountersigningPreservesContentButDoesNotAuthenticateDeliveryAsync(
@@ -62,6 +91,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that changed package contents, identity, or author signatures produce an equivalence failure.
+        /// </summary>
         [TestCase("payload")]
         [TestCase("added")]
         [TestCase("removed")]
@@ -113,6 +145,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that malformed signatures and unsupported archive layouts fail without writing a receipt.
+        /// </summary>
         [TestCase("malformed-cms")]
         [TestCase("duplicate")]
         [TestCase("unsafe-path")]
@@ -141,6 +176,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that identical unsigned packages match content but cannot satisfy author-signature preservation.
+        /// </summary>
         [Test]
         public async Task IdenticalUnsignedPackagesNeverPreserveAnAuthorSignatureAsync()
         {

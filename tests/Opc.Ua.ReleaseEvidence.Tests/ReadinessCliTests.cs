@@ -1,5 +1,31 @@
-// Copyright (c) OPC Foundation, Inc. All rights reserved.
-// Licensed under the MIT License. See LICENSE.txt in the project root for license information.
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Diagnostics;
@@ -13,9 +39,15 @@ using NUnit.Framework;
 
 namespace Opc.Ua.ReleaseEvidence.Tests
 {
+    /// <summary>
+    /// Exercises structural readiness validation and synthetic tabletop clocks without claiming operational approval.
+    /// </summary>
     [TestFixture]
     public sealed class ReadinessCliTests
     {
+        /// <summary>
+        /// Verifies that valid record shapes remain pending and invalid or forged readiness records produce no report.
+        /// </summary>
         [TestCase("template", 0, "pending")]
         [TestCase("submitted", 0, "authentication-required")]
         [TestCase("stale-policy", 0, "stale")]
@@ -124,6 +156,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies independent awareness and final-event deadlines, including calendar-month and leap-year boundaries.
+        /// </summary>
         [TestCase("vulnerability", "2028-01-31T08:00:00Z", "2028-02-14T08:00:00Z")]
         [TestCase("incident", "2028-01-31T08:00:00Z", "2028-02-29T08:00:00Z")]
         [TestCase("incident", "2027-01-31T08:00:00Z", "2027-02-28T08:00:00Z")]
@@ -143,6 +178,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(result["operationalExerciseCompleted"]!.GetValue<bool>(), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a calendar-month deadline retains local wall-clock time across a daylight-saving transition.
+        /// </summary>
         [Test]
         public async Task CalendarMonthUsesDeclaredZoneAcrossDaylightSavingChangeAsync()
         {
@@ -154,6 +192,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(result["calendarTimeZone"]!.GetValue<string>(), Is.EqualTo("Europe/Berlin"));
         }
 
+        /// <summary>
+        /// Verifies that unknown scope retains provisional clocks while excluded scope establishes no mandatory
+        /// deadlines.
+        /// </summary>
         [TestCase("vulnerability", "developmentInvolvement", "no")]
         [TestCase("vulnerability", "activelyExploited", "no")]
         [TestCase("incident", "providedDevelopmentSystem", "no")]
@@ -173,6 +215,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(result.ContainsKey("finalReport"), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that voluntary and cooperation routes request supporting records without inventing universal
+        /// deadlines.
+        /// </summary>
         [TestCase("voluntary", "current-secure-reporting-route")]
         [TestCase("cooperation", "retrieval-language-delivery")]
         public async Task VoluntaryAndCooperationCasesDoNotInventADeadlineAsync(string route, string record)
@@ -187,6 +233,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(result["requiredRecords"]!.ToJsonString(), Does.Contain(record));
         }
 
+        /// <summary>
+        /// Verifies that live cases and ambiguous or unsupported scenario inputs fail without an operational-looking
+        /// report.
+        /// </summary>
         [TestCase("live")]
         [TestCase("no-offset")]
         [TestCase("identifier")]

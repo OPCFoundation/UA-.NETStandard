@@ -3,7 +3,7 @@
   "id": "opcua-current-release",
   "version": "1.0.0",
   "currentMajor": 2,
-  "stage": "pilot",
+  "stage": "required",
   "requiredChannel": "stable",
   "publisherBoundaryVerified": false,
   "evidenceSchemaVersion": 2,
@@ -51,7 +51,6 @@
     "insufficientSignals": ["workflow_dispatch", "PublicRelease", "latest", "release-tag", "configuration"]
   },
   "enforcement": {
-    "pilot": "report-new-controls",
     "requiredStable": "block-on-any-unmet-new-control",
     "previewAndDevelopment": "report-new-controls",
     "baselineControls": "unchanged",
@@ -98,19 +97,19 @@
       "id": "nuget",
       "workflow": ".github/workflows/nuget-publish.yml",
       "status": "incomplete",
-      "pending": ["real-signed-package-pilot", "symbol-verification", "trusted-producer-record", "public-retrieval-review"]
+      "pending": ["verified-signed-package-release", "symbol-verification", "trusted-producer-record", "public-retrieval-review"]
     },
     {
       "id": "containers",
       "workflow": ".github/workflows/docker-image.yml",
       "status": "incomplete",
-      "pending": ["real-platform-inventory-pilot", "reviewed-signing", "trusted-producer-record", "isolated-registry-transport"]
+      "pending": ["verified-platform-inventory", "reviewed-signing", "trusted-producer-record", "isolated-registry-transport"]
     },
     {
       "id": "pump",
       "workflow": ".github/workflows/pump-device-integration-server-docker.yml",
       "status": "incomplete",
-      "pending": ["real-platform-inventory-pilot", "reviewed-signing", "trusted-producer-record", "isolated-registry-transport"]
+      "pending": ["verified-platform-inventory", "reviewed-signing", "trusted-producer-record", "isolated-registry-transport"]
     },
     {
       "id": "actions-tests",
@@ -143,7 +142,7 @@
     "requiredChecks": [
       "reviewed-protected-policy-and-controller",
       "authenticated-producer-definition-and-tool-pins",
-      "complete-nuget-containers-pump-pilots",
+      "complete-nuget-containers-pump-verifications",
       "negative-tests-and-real-result-counts",
       "administrator-inventory-of-all-official-writers",
       "external-azure-definitions-and-credentials-reviewed",
@@ -160,7 +159,7 @@
       "verification-results-and-evidence-digests",
       "limitations-and-revalidation-triggers"
     ],
-    "activation": "protected-reviewed-change-after-all-records-verified-not-a-boolean-toggle"
+    "activation": "official-writer-access-requires-current-authenticated-records-not-a-boolean-toggle"
   },
   "publicEvidence": {
     "whitelistVersion": "1",

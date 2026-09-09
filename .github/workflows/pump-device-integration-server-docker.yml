@@ -38,7 +38,7 @@ jobs:
       id-token: write
 
     steps:
-    - name: Initialize runner-local pilot work location
+    - name: Initialize runner-local evidence work location
       shell: pwsh
       run: |
         "EVIDENCE_WORK=$(Join-Path $env:RUNNER_TEMP 'container-evidence')" >> $env:GITHUB_ENV
@@ -137,7 +137,7 @@ jobs:
       run: |
         dotnet build ./tools/Opc.Ua.ReleaseEvidence/Opc.Ua.ReleaseEvidence.csproj -c Release -f net10.0 `
           --nologo *> "$env:EVIDENCE_WORK/tool-build.log"
-        if ($LASTEXITCODE -ne 0) { Write-Warning 'OCI reader unavailable; container pilot remains incomplete.' }
+        if ($LASTEXITCODE -ne 0) { Write-Warning 'OCI reader unavailable; container evidence remains incomplete.' }
         exit $LASTEXITCODE
 
     - name: Read back complete OCI blobs by digest
@@ -160,7 +160,7 @@ jobs:
         ./.azurepipelines/container-evidence.ps1 -Operation VerifyLocal -Group pump `
           -Image $env:IMAGE_REPOSITORY -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK -BuildState success
 
-    - name: Install approved pilot cosign
+    - name: Install pinned cosign
       id: cosign
       if: steps.reconcile.outcome == 'success'
       continue-on-error: true
@@ -201,7 +201,7 @@ jobs:
             -BuildState $env:BUILD_STATE -Output $status
           $reportExit = $LASTEXITCODE
         }
-        Write-Warning 'Container pilot is incomplete; status is not authorization or baseline success.'
+        Write-Warning 'Container evidence is incomplete; status is not authorization or baseline success.'
         exit $reportExit
 
     - name: Upload sanitized status only

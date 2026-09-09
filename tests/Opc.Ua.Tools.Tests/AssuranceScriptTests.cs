@@ -37,10 +37,17 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Tools.Tests
 {
+    /// <summary>
+    /// Exercises assurance pipeline fixtures for project selection, execution proof, and authenticated evidence
+    /// collection.
+    /// </summary>
     [TestFixture]
     [NonParallelizable]
     public sealed class AssuranceScriptTests
     {
+        /// <summary>
+        /// Verifies that matrix generation rejects a missing explicitly selected project even when another exists.
+        /// </summary>
         [Test]
         public async Task MissingExplicitProjectFailsEvenWhenAnotherExistsAsync()
         {
@@ -58,6 +65,9 @@ namespace Opc.Ua.Tools.Tests
             Assert.That(exitCode, Is.Not.Zero, output);
         }
 
+        /// <summary>
+        /// Verifies that evaluated target-framework support controls matrix inclusion and not-applicable reporting.
+        /// </summary>
         [TestCase("net48", "tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj", false)]
         [TestCase("net9.0", "tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj", false)]
         [TestCase("netstandard2.1", "tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj", false)]
@@ -88,6 +98,10 @@ namespace Opc.Ua.Tools.Tests
             });
         }
 
+        /// <summary>
+        /// Checks that result collection distinguishes actual successful execution from missing or invalid result
+        /// files.
+        /// </summary>
         [TestCase("missing-trx")]
         [TestCase("zero-trx")]
         [TestCase("ignored-trx")]
@@ -105,12 +119,15 @@ namespace Opc.Ua.Tools.Tests
             string root = FindRepositoryRoot();
             (int exitCode, string output) = await RunAsync(
                 root, "-File",
-                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "AssuranceResults.fixture.ps1"),
+                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "Fixtures", "AssuranceResults.fixture.ps1"),
                 "-Scenario", scenario).ConfigureAwait(false);
 
             Assert.That(exitCode, Is.Zero, output);
         }
 
+        /// <summary>
+        /// Checks fuzz-input bucket attribution, output isolation, and handling of missing or empty input sets.
+        /// </summary>
         [TestCase("bucket-identity")]
         [TestCase("output-collision")]
         [TestCase("missing-seeds")]
@@ -121,12 +138,15 @@ namespace Opc.Ua.Tools.Tests
             string root = FindRepositoryRoot();
             (int exitCode, string output) = await RunAsync(
                 root, "-File",
-                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "AssuranceFuzzInputs.fixture.ps1"),
+                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "Fixtures", "AssuranceFuzzInputs.fixture.ps1"),
                 "-Scenario", scenario).ConfigureAwait(false);
 
             Assert.That(exitCode, Is.Zero, output);
         }
 
+        /// <summary>
+        /// Checks that replay credit requires observed coverage of the selected targets and their unchanged inputs.
+        /// </summary>
         [TestCase("complete")]
         [TestCase("omitted-target")]
         [TestCase("omitted-input")]
@@ -139,12 +159,16 @@ namespace Opc.Ua.Tools.Tests
             string root = FindRepositoryRoot();
             (int exitCode, string output) = await RunAsync(
                 root, "-File",
-                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "AssuranceReplay.fixture.ps1"),
+                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "Fixtures", "AssuranceReplay.fixture.ps1"),
                 "-Scenario", scenario).ConfigureAwait(false);
 
             Assert.That(exitCode, Is.Zero, output);
         }
 
+        /// <summary>
+        /// Checks that profile collection accepts matching job proofs and rejects missing, duplicate, or misbound
+        /// evidence.
+        /// </summary>
         [TestCase("complete-security")]
         [TestCase("wrong-source")]
         [TestCase("stale-attempt")]
@@ -161,12 +185,15 @@ namespace Opc.Ua.Tools.Tests
             string root = FindRepositoryRoot();
             (int exitCode, string output) = await RunAsync(
                 root, "-File",
-                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "AssuranceCollection.fixture.ps1"),
+                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "Fixtures", "AssuranceCollection.fixture.ps1"),
                 "-Scenario", scenario).ConfigureAwait(false);
 
             Assert.That(exitCode, Is.Zero, output);
         }
 
+        /// <summary>
+        /// Checks that native-image validation rejects apphosts, malformed images, and invalid architecture or exports.
+        /// </summary>
         [TestCase("native-image")]
         [TestCase("apphost")]
         [TestCase("wrong-architecture")]
@@ -179,12 +206,16 @@ namespace Opc.Ua.Tools.Tests
             string root = FindRepositoryRoot();
             (int exitCode, string output) = await RunAsync(
                 root, "-File",
-                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "AssuranceNative.fixture.ps1"),
+                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "Fixtures", "AssuranceNative.fixture.ps1"),
                 "-Scenario", scenario).ConfigureAwait(false);
 
             Assert.That(exitCode, Is.Zero, output);
         }
 
+        /// <summary>
+        /// Checks that finding dispositions require an authenticated, current review covering the complete alert
+        /// population.
+        /// </summary>
         [TestCase("signed-review")]
         [TestCase("signed-review-unreported-alert-count")]
         [TestCase("partial-review")]
@@ -204,12 +235,15 @@ namespace Opc.Ua.Tools.Tests
             string root = FindRepositoryRoot();
             (int exitCode, string output) = await RunAsync(
                 root, "-File",
-                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "AssuranceDisposition.fixture.ps1"),
+                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "Fixtures", "AssuranceDisposition.fixture.ps1"),
                 "-Scenario", scenario).ConfigureAwait(false);
 
             Assert.That(exitCode, Is.Zero, output);
         }
 
+        /// <summary>
+        /// Checks bounded CodeQL evidence production, including extraction, query coverage, source binding, and review.
+        /// </summary>
         [TestCase("complete")]
         [TestCase("incomplete-extraction")]
         [TestCase("missing-query-result")]
@@ -223,12 +257,15 @@ namespace Opc.Ua.Tools.Tests
             string root = FindRepositoryRoot();
             (int exitCode, string output) = await RunAsync(
                 root, "-File",
-                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "AssuranceCodeql.fixture.ps1"),
+                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "Fixtures", "AssuranceCodeql.fixture.ps1"),
                 "-Scenario", scenario).ConfigureAwait(false);
 
             Assert.That(exitCode, Is.Zero, output);
         }
 
+        /// <summary>
+        /// Checks that native assurance rejects managed substitutes and failed publishing, compilation, or execution.
+        /// </summary>
         [TestCase("apphost")]
         [TestCase("publish-failure")]
         [TestCase("compiler-missing")]
@@ -241,12 +278,16 @@ namespace Opc.Ua.Tools.Tests
             string root = FindRepositoryRoot();
             (int exitCode, string output) = await RunAsync(
                 root, "-File",
-                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "AssuranceNativeProducer.fixture.ps1"),
+                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "Fixtures", "AssuranceNativeProducer.fixture.ps1"),
                 "-Scenario", scenario).ConfigureAwait(false);
 
             Assert.That(exitCode, Is.Zero, output);
         }
 
+        /// <summary>
+        /// Checks release evidence retrieval against authenticated run identity, artifact integrity, and execution
+        /// proofs.
+        /// </summary>
         [TestCase("complete")]
         [TestCase("wrong-repository")]
         [TestCase("wrong-sha")]
@@ -298,12 +339,15 @@ namespace Opc.Ua.Tools.Tests
             string root = FindRepositoryRoot();
             (int exitCode, string output) = await RunAsync(
                 root, "-File",
-                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "AssuranceRetrieval.fixture.ps1"),
+                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "Fixtures", "AssuranceRetrieval.fixture.ps1"),
                 "-Scenario", scenario).ConfigureAwait(false);
 
             Assert.That(exitCode, Is.Zero, output);
         }
 
+        /// <summary>
+        /// Checks that workflow discovery includes replay projects affected by corpus, dictionary, or helper changes.
+        /// </summary>
         [TestCase("full-discovery")]
         [TestCase("missing-fuzz-project")]
         [TestCase("corpus-change")]
@@ -315,7 +359,7 @@ namespace Opc.Ua.Tools.Tests
             string root = FindRepositoryRoot();
             (int exitCode, string output) = await RunAsync(
                 root, "-File",
-                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "AssuranceDiscovery.fixture.ps1"),
+                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "Fixtures", "AssuranceDiscovery.fixture.ps1"),
                 "-Scenario", scenario).ConfigureAwait(false);
 
             Assert.That(exitCode, Is.Zero, output);

@@ -1,5 +1,31 @@
-// Copyright (c) OPC Foundation, Inc. All rights reserved.
-// Licensed under the MIT License. See LICENSE.txt in the project root for license information.
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.CommandLine;
@@ -10,15 +36,46 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.ReleaseEvidence
 {
+    /// <summary>
+    /// Projects an authenticated independent review into the finding-disposition data consumed by assurance.
+    /// </summary>
+    /// <param name="SchemaVersion">The version of this JSON document contract.</param>
+    /// <param name="Kind">The codeql-disposition discriminator identifying this projection.</param>
+    /// <param name="Id">The identifier of the independently authenticated review record.</param>
+    /// <param name="Digest">The digest of the independently authenticated review-record file.</param>
+    /// <param name="SourceSha">The source commit hash associated with the build or assurance result.</param>
+    /// <param name="RunId">The producer run identifier.</param>
+    /// <param name="Attempt">The producer run attempt associated with this evidence.</param>
+    /// <param name="AnalysisId">The identifier of the CodeQL analysis being assessed or reviewed.</param>
+    /// <param name="QueryDigest">The digest binding the exact CodeQL query set.</param>
+    /// <param name="PopulationDigest">The digest binding the complete CodeQL finding population.</param>
+    /// <param name="ReviewedOccurrences">
+    /// The number of CodeQL finding occurrences covered by the independent review.
+    /// </param>
+    /// <param name="ReviewedAlerts">The number of distinct CodeQL alerts covered by the independent review.</param>
+    /// <param name="UnresolvedFindings">The number of findings that remain unresolved after review.</param>
+    /// <param name="Revoked">Whether the review record is marked as revoked.</param>
+    /// <param name="IssuedAt">The start of the record's validity interval.</param>
+    /// <param name="ExpiresAt">The end of the record's validity interval.</param>
     internal sealed record CodeqlReviewProjection(
         int SchemaVersion, string Kind, string Id, string Digest,
         string SourceSha, string RunId, int Attempt, string AnalysisId, string QueryDigest, string PopulationDigest,
         int ReviewedOccurrences, int ReviewedAlerts, int UnresolvedFindings, bool Revoked,
         DateTimeOffset IssuedAt, DateTimeOffset ExpiresAt);
 
+    /// <summary>
+    /// Authenticates independently signed CodeQL reviews against protected policy and the current clock.
+    /// </summary>
+    /// <param name="files">The service for bounded evidence-file access and content digests.</param>
+    /// <param name="policies">The source of independently anchored trust-policy snapshots.</param>
+    /// <param name="signatures">The verifier that authenticates independently signed CodeQL review records.</param>
+    /// <param name="clock">The clock used to check proof validity and freshness.</param>
     internal sealed class CodeqlReviewCommands(
         EvidenceFiles files, ITrustPolicySource policies, IRecordSignatureVerifier signatures, TimeProvider clock)
     {
+        /// <summary>
+        /// Registers the command that authenticates and projects a complete independent CodeQL review.
+        /// </summary>
         public static void Register(RootCommand root)
         {
             var command = new Command("verify-codeql-review", "Authenticate an independent, complete finding review.");
@@ -59,6 +116,9 @@ namespace Opc.Ua.ReleaseEvidence
             root.Subcommands.Add(command);
         }
 
+        /// <summary>
+        /// Writes a disposition projection only for a unique authenticated review with no unresolved findings.
+        /// </summary>
         public async Task<int> VerifyAsync(
             string repositoryRoot, string bundlePath, string trustPath,
             string reviewId, string reviewDigest, string output, CancellationToken cancellationToken)

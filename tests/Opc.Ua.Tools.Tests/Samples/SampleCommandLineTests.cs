@@ -40,10 +40,16 @@ using Opc.Ua.Samples;
 
 namespace Opc.Ua.Tools.Tests.Samples
 {
+    /// <summary>
+    /// Checks sample option parsing, explicit security consent, and separation from forwarded host configuration.
+    /// </summary>
     [TestFixture]
     [Parallelizable(ParallelScope.All)]
     public sealed class SampleCommandLineTests
     {
+        /// <summary>
+        /// Verifies that omitting the auto-accept option leaves untrusted-certificate acceptance disabled.
+        /// </summary>
         [Test]
         public void DefaultRequiresTrustedCertificates()
         {
@@ -56,6 +62,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(result.GetValue(autoAccept), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that malformed Boolean consent prevents startup and reports the invalid value with help guidance.
+        /// </summary>
         [Test]
         public async Task MalformedBooleanDoesNotStartHostAndSuggestsHelpAsync()
         {
@@ -75,6 +84,10 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output.ToString(), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that an endpoint supplied as a Boolean option value remains an error rather than a positional
+        /// argument.
+        /// </summary>
         [Test]
         public async Task MalformedBooleanCannotBecomePositionalEndpointAsync()
         {
@@ -97,6 +110,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error.ToString(), Does.Contain("--auto-accept"));
         }
 
+        /// <summary>
+        /// Verifies that each warning describes only the enabled certificate-trust or None-policy relaxation.
+        /// </summary>
         [TestCase(true, false, "--auto-accept", "SecurityPolicy None")]
         [TestCase(false, true, "--insecure", "untrusted server certificates")]
         public void WarningsDescribeOnlyEnabledRelaxation(
@@ -114,6 +130,10 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error.ToString(), Does.Not.Contain(absent));
         }
 
+        /// <summary>
+        /// Verifies that aliases and explicit Boolean values keep certificate acceptance independent of None-policy
+        /// consent.
+        /// </summary>
         [TestCase(new string[] { }, false, false)]
         [TestCase(new[] { "--auto-accept" }, true, false)]
         [TestCase(new[] { "--auto-accept", "false" }, false, false)]
@@ -147,6 +167,10 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error.ToString(), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that every help alias prints usage without starting the host or warning about unapplied
+        /// relaxations.
+        /// </summary>
         [TestCase("--help")]
         [TestCase("-h")]
         [TestCase("-?")]
@@ -174,6 +198,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error.ToString(), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that unknown options and invalid Boolean aliases report help guidance without invoking the action.
+        /// </summary>
         [TestCase("--unknown")]
         [TestCase("-z")]
         [TestCase("--insecure=perhaps")]
@@ -198,6 +225,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error.ToString(), Does.Contain("--help").And.Not.Contain("WARNING"));
         }
 
+        /// <summary>
+        /// Verifies that flag-like text inside another option's value is preserved without enabling auto-accept.
+        /// </summary>
         [Test]
         public async Task FlagTextInOptionValueDoesNotEnableTrustAsync()
         {
@@ -223,6 +253,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error.ToString(), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that positional endpoint URLs survive Boolean parsing even when the URL contains flag-like text.
+        /// </summary>
         [TestCase("opc.tcp://localhost:62542/MinimalCalcServer")]
         [TestCase("opc.tcp://localhost:4840/--auto-accept")]
         public async Task PositionalEndpointIsPreservedAsync(string discoveryUrl)
@@ -243,6 +276,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error.ToString(), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that disabling both security relaxations leaves the warning stream empty.
+        /// </summary>
         [Test]
         public void DisabledRelaxationsProduceNoWarnings()
         {
@@ -253,6 +289,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error.ToString(), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that command invocation returns the asynchronous action's exit status unchanged.
+        /// </summary>
         [Test]
         public async Task ActionExitStatusIsPreservedAsync()
         {
@@ -267,6 +306,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(exitCode, Is.EqualTo(7));
         }
 
+        /// <summary>
+        /// Verifies that arguments after the host separator bind configuration without becoming sample security flags.
+        /// </summary>
         [Test]
         public void HostArgumentsRetainConfigurationValuesWithoutEnablingSampleFlags()
         {
@@ -285,6 +327,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(configuration["Example:Label"], Is.EqualTo("--auto-accept"));
         }
 
+        /// <summary>
+        /// Verifies that host cross-validation cannot accept unknown sample switches or non-assignment arguments.
+        /// </summary>
         [TestCase("--unknown")]
         [TestCase("--unknown=value")]
         [TestCase("not-an-assignment")]
@@ -307,6 +352,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error.ToString(), Does.Contain("key=value").And.Contain("--help"));
         }
 
+        /// <summary>
+        /// Verifies that a forwarded host switch without its value produces an actionable error.
+        /// </summary>
         [TestCase("--port")]
         [TestCase("--environment", "Development", "--port")]
         [TestCase("environment=Development", "--port")]
@@ -317,6 +365,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error, Does.Contain("--port").And.Contain("value"));
         }
 
+        /// <summary>
+        /// Verifies that valid host assignments and flag-like configuration values pass host-argument validation.
+        /// </summary>
         [TestCase]
         [TestCase("--port", "62543")]
         [TestCase("port=62543")]
@@ -327,6 +378,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(SampleCommandLine.GetHostArgumentError(arguments), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that malformed forwarded configuration is reported as an invalid host-configuration error.
+        /// </summary>
         [TestCase("-p=62542")]
         public void MalformedForwardedHostConfigurationHasActionableError(params string[] arguments)
         {
@@ -335,6 +389,10 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error, Does.Contain("Invalid host configuration"));
         }
 
+        /// <summary>
+        /// Verifies that missing, nonnumeric, and out-of-range ports prevent invocation and explain the permitted
+        /// values.
+        /// </summary>
         [TestCase("65536", "65535")]
         [TestCase("0", "65535")]
         [TestCase("-1", "65535")]
@@ -358,6 +416,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error.ToString(), Does.Contain("--port").And.Contain(expectedError).And.Contain("--help"));
         }
 
+        /// <summary>
+        /// Verifies that explicitly disabling each trust alias preserves unrelated JSON settings and keeps consent off.
+        /// </summary>
         [TestCase("--auto-accept")]
         [TestCase("--autoaccept")]
         [TestCase("-a")]
@@ -397,6 +458,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error.ToString(), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that enabling a server trust alias warns about client certificates without advertising None policy.
+        /// </summary>
         [TestCase("--auto-accept")]
         [TestCase("--autoaccept")]
         [TestCase("-a")]
@@ -423,6 +487,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error.ToString(), Does.Not.Contain("SecurityPolicy None"));
         }
 
+        /// <summary>
+        /// Verifies that the minimum and maximum valid port values reach the command action unchanged.
+        /// </summary>
         [TestCase("1")]
         [TestCase("65535")]
         public async Task NumericHostOptionPreservesBoundaryValuesAsync(string value)
@@ -443,6 +510,10 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error.ToString(), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies named-option precedence over forwarded and positional configuration without changing explicit
+        /// trust.
+        /// </summary>
         [Test]
         public async Task NamedHostOptionsOverrideConfigurationWithoutChangingTrustAsync()
         {
@@ -478,6 +549,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error.ToString(), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that positional host assignments override forwarded values while flag-like labels remain inert.
+        /// </summary>
         [Test]
         public async Task PositionalHostSettingsOverrideForwardedValuesWithoutChangingTrustAsync()
         {

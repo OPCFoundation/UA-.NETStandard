@@ -121,7 +121,7 @@ If you are still on 1.x and not ready to upgrade, stay on the
 [`master378`](https://github.com/OPCFoundation/UA-.NETStandard/tree/master378)
 line and use its latest `1.5.378.x` patch. Maintenance and backport decisions
 are described in [SECURITY.md](SECURITY.md#supported-versions); the current
-2.0 engineering-control pilot does not change 1.5 maintenance.
+2.0 release-evidence contract does not change 1.5 maintenance.
 
 ## 🤝 Contributing and license
 
@@ -151,8 +151,9 @@ vulnerabilities via the process documented in
   [`docs/migrate/2.0.x/`](docs/migrate/2.0.x/README.md)).
 - [Security Stewardship](docs/SecurityStewardship.md) — OSS steward duties,
   scoped reporting and pending operational-readiness work.
-- [Release Evidence](docs/ReleaseEvidence.md) — current-line engineering
-  evidence contract and pilot; separate from statutory steward duties.
+- [Release Evidence](docs/ReleaseEvidence.md) — active current-line engineering
+  contract: required stable gates and advisory preview/development channels;
+  separate from statutory steward duties.
 - [OPC UA Online Reference](https://reference.opcfoundation.org/) —
   the official OPC 10000 series specification index.
 - [Preview Nuget package feed](https://nuget.pkg.github.com/OPCFoundation/index.json) —

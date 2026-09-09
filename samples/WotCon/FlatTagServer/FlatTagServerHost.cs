@@ -45,9 +45,10 @@ namespace FlatTagServer
     public static class FlatTagServerHost
     {
         /// <summary>
-        /// Builds a host from explicit options.
+        /// Builds, but does not start, a flat-tag source host from explicit options,
+        /// warning for enabled certificate-trust or unsecured-endpoint exceptions.
         /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentNullException">The options argument is null.</exception>
         public static IHost Build(FlatTagServerOptions options)
         {
             if (options is null)
@@ -61,7 +62,8 @@ namespace FlatTagServer
         }
 
         /// <summary>
-        /// Builds and runs a host from explicit options.
+        /// Runs the flat-tag source host with the supplied policies until shutdown or cancellation
+        /// and disposes the host afterward.
         /// </summary>
         public static async Task RunAsync(
             FlatTagServerOptions options,
@@ -72,7 +74,9 @@ namespace FlatTagServer
         }
 
         /// <summary>
-        /// Builds and runs a host from command-line configuration.
+        /// Parses sample switches and forwarded host settings before running the flat-tag source.
+        /// Certificate auto-acceptance and SecurityPolicy None are independent default-false opt-ins.
+        /// Stores the command result in Environment.ExitCode.
         /// </summary>
         public static async Task RunAsync(
             string[] args,

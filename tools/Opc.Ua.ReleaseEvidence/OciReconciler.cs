@@ -1,5 +1,31 @@
-// Copyright (c) OPC Foundation, Inc. All rights reserved.
-// Licensed under the MIT License. See LICENSE.txt in the project root for license information.
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -11,6 +37,16 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.ReleaseEvidence
 {
+    /// <summary>
+    /// Collects reconciled OCI artifacts, attestations, native documents, and observed or pending control gaps.
+    /// </summary>
+    /// <param name="Artifacts">The exact artifacts and target scopes covered by this record.</param>
+    /// <param name="Attestations">The native OCI attestations discovered during reconciliation.</param>
+    /// <param name="Documents">The evidence documents covered by this record.</param>
+    /// <param name="Findings">The findings describing failed checks or unmet controls.</param>
+    /// <param name="PendingControls">
+    /// The unmet controls that still require independent verification rather than describing observed failures.
+    /// </param>
     internal sealed record OciAnalysis(
         ArtifactRecord[] Artifacts,
         OciAttestation[] Attestations,
@@ -18,8 +54,16 @@ namespace Opc.Ua.ReleaseEvidence
         Finding[] Findings,
         string[]? PendingControls = null);
 
+    /// <summary>
+    /// Reconciles downloaded OCI descriptors, filesystem contents, and native attestations against an artifact group.
+    /// </summary>
+    /// <param name="files">The service for bounded evidence-file access and content digests.</param>
     internal sealed class OciReconciler(EvidenceFiles files)
     {
+        /// <summary>
+        /// Writes an offline OCI reconciliation report without treating descriptor checks as independent release
+        /// approval.
+        /// </summary>
         public async Task<int> ReconcileAsync(
             string repositoryRoot,
             string requestPath,
@@ -71,6 +115,10 @@ namespace Opc.Ua.ReleaseEvidence
             return Versions.RequiresStableControls(policy, context.Release) ? 1 : 0;
         }
 
+        /// <summary>
+        /// Analyzes OCI group membership, image bytes, and native attestations using optional authenticated build
+        /// expectations.
+        /// </summary>
         internal async Task<OciAnalysis> AnalyzeAsync(
             OciRequest request,
             string root,
@@ -562,6 +610,9 @@ namespace Opc.Ua.ReleaseEvidence
             return true;
         }
 
+        /// <summary>
+        /// Resolves a canonical lowercase SHA-256 blob identifier to its confined OCI layout path.
+        /// </summary>
         internal static string BlobPath(string layout, string digest)
         {
             if (digest == null ||

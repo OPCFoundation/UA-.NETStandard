@@ -250,18 +250,20 @@ The full set of packages the preview pipeline produces is pinned in [`.azurepipe
 
 The [Release Evidence contract](ReleaseEvidence.md) defines the new engineering
 controls for current `master`/2.0 NuGet packages and designated published container
-images. Their stage is **pilot**: collect evidence and expose failed or missing
-controls as unmet, rather than treating incomplete evidence as a pass. The pilot
-does not itself prove that producers, protected publication paths or archives are
-operational. Pipeline backport to `master378`/1.5 is deferred; its
+images. The contract is **active**, with `stage: required`: failed or missing
+controls block in-scope stable publication. Production trust, authenticated
+producer verification and administrator-verified publication isolation are
+required operating prerequisites, not consequences of the policy setting.
+Candidate verification/writer jobs remain literally disabled and no official
+publication transport is configured, so stable gates refuse publication.
+Pipeline backport to `master378`/1.5 is deferred; its
 [maintenance status](../SECURITY.md#supported-versions) is unchanged.
 
-A separate reviewed, protected graduation is necessary before the new controls
-become required for **in-scope stable releases only**. Official previews and
-rolling development builds continue to collect advisory evidence and must not be
-represented as satisfying the required stable profile. Dispatch parameters do not
-authorize graduation. Existing required signing, build, test and security checks
-remain required throughout; the pilot is not permission to bypass them.
+Official previews and rolling development builds retain advisory applicability
+for these controls. They are release channels, not maturity modes of the contract,
+and must not be represented as satisfying the required stable profile. Dispatch
+parameters cannot weaken required stable gates. Existing required signing, build,
+test and security checks remain required in every channel.
 
 SBOMs, provenance, artifact verification, risk-to-test evidence and the maintenance
 matrix are chosen engineering practices, not additional Article 24 mandates.
@@ -473,7 +475,7 @@ Omit `-BaseRef` to check only the project floor, and `-SummaryPath` to skip the 
 - Before submitting: all tests pass, code analysis is clean (no new warnings), the change keeps backward compatibility, and security implications are reviewed.
 - The pull-request template asks you to confirm the CLA, added tests/coverage, documentation, a warning-free build, that the `UA.slnx` suite passed on **.NET Framework 4.8** and **.NET 10.0**, and that CI and CodeQL are green.
 - Mark checklist items only when verified; state applicable validation and unperformed checks without exposing sensitive details. Documentation-only changes need local link and whitespace checks, not a build.
-- Release-evidence changes follow the [pilot contract](ReleaseEvidence.md); report incomplete evidence honestly and do not weaken existing required checks.
+- Release-evidence changes follow the [active contract](ReleaseEvidence.md); incomplete evidence blocks in-scope stable publication. Preserve advisory applicability for preview/development channels and all existing required checks.
 - You can run the `opc-ua-codestyle-enforcer` agent to drive analyzer warnings to zero before opening the PR.
 
 ## Related documentation

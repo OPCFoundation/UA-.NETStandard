@@ -49,11 +49,18 @@ using Opc.Ua.WotCon.Server;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
+    /// <summary>
+    /// Checks aggregation sample startup, secure host defaults, management access, and required runtime registrations.
+    /// </summary>
     [TestFixture]
     [Category("WotCon")]
     [Category("Samples")]
     public sealed class AggregationStartupTests
     {
+        /// <summary>
+        /// Verifies that explicit security flags override host settings and named ports override other configuration
+        /// sources.
+        /// </summary>
         [TestCase(false, false, false)]
         [TestCase(true, false, false)]
         [TestCase(false, true, false)]
@@ -87,6 +94,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(invoked, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that invalid security consent or out-of-range host options prevent the sample action from running.
+        /// </summary>
         [TestCase("--security-none=invalid")]
         [TestCase("--allow-anonymous-management=invalid")]
         [TestCase("--port=65536")]
@@ -104,6 +114,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(invoked, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that sample help and parse errors return their expected exit codes without creating PKI stores.
+        /// </summary>
         [TestCase("FlatTagServer", "--help", 0)]
         [TestCase("AggregationServer", "--help", 0)]
         [TestCase("AggregationClient", "--help", 0)]
@@ -160,6 +173,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that registry management defaults to an authenticated SecurityAdmin on a SignAndEncrypt channel.
+        /// </summary>
         [Test]
         public void RegistryManagementRequiresAuthenticatedSecurityAdminOnEncryptedChannel()
         {
@@ -171,6 +187,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(policy.RequiredRoleId, Is.EqualTo(Ua.ObjectIds.WellKnownRole_SecurityAdmin));
         }
 
+        /// <summary>
+        /// Verifies independent projection of certificate-trust and None-policy options into source, aggregate, and
+        /// client hosts.
+        /// </summary>
         [TestCase(false, false)]
         [TestCase(true, false)]
         [TestCase(false, true)]
@@ -211,6 +231,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 securityNone ? SecurityPolicies.None : SecurityPolicies.Basic256Sha256));
         }
 
+        /// <summary>
+        /// Verifies that directly constructed sample hosts disable untrusted-certificate acceptance and None endpoints.
+        /// </summary>
         [Test]
         public void DirectHostsRequireTrustedCertificatesAndSecureEndpoints()
         {
@@ -232,6 +255,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 .Value.AutoAcceptUntrustedCertificates, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that aggregation sample project settings select executable frameworks and retain legacy-TFM
+        /// restrictions.
+        /// </summary>
         [Test]
         public void SampleTargetsOnlyExecutableAggregationFrameworks()
         {
@@ -251,6 +278,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 Is.EqualTo("$(AppTargetFrameworks)"));
         }
 
+        /// <summary>
+        /// Verifies that the aggregation host registers the OPC UA binding executor required by its documented
+        /// mappings.
+        /// </summary>
         [Test]
         public void AggregationHostRegistersOpcUaExecutor()
         {

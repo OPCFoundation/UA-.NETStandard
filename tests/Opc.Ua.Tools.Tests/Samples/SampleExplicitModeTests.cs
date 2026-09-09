@@ -37,10 +37,16 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Tools.Tests.Samples
 {
+    /// <summary>
+    /// Checks reference-client help for explicit test-mode security consent without running a client session.
+    /// </summary>
     [TestFixture]
     [NonParallelizable]
     public sealed class SampleExplicitModeTests
     {
+        /// <summary>
+        /// Verifies that help explains isolated test-mode consent and disabling auto-accept without emitting warnings.
+        /// </summary>
         [TestCase("--help")]
         [TestCase("-h")]
         public async Task ReferenceClientHelpExplainsTestModeConsentWithoutStartingClientAsync(string help)

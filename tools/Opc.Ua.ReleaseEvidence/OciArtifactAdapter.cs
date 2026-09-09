@@ -1,5 +1,31 @@
-// Copyright (c) OPC Foundation, Inc. All rights reserved.
-// Licensed under the MIT License. See LICENSE.txt in the project root for license information.
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -11,14 +37,38 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.ReleaseEvidence
 {
+    /// <summary>
+    /// Binds one OCI image subject and platform to its root digest and expected native build context.
+    /// </summary>
+    /// <param name="Image">The OCI image repository identifier.</param>
+    /// <param name="RootDigest">The immutable digest of the requested OCI image root.</param>
+    /// <param name="SubjectDigest">The digest of the OCI subject described by the attestation or referrer.</param>
+    /// <param name="Platform">The operating-system and architecture scope associated with the artifact or job.</param>
+    /// <param name="Build">
+    /// The independently expected source, tool, and material identities for this image subject.
+    /// </param>
     internal sealed record OciSubjectBuildRecord(
         string Image, string RootDigest, string SubjectDigest, string Platform, OciBuildExpectation Build);
 
+    /// <summary>
+    /// Collects native build expectations for the subjects of a related OCI image set.
+    /// </summary>
+    /// <param name="SchemaVersion">The version of this JSON document contract.</param>
+    /// <param name="Kind">The oci-build-context discriminator identifying the native build record.</param>
+    /// <param name="Relationship">The declared same-source relationship between the image subjects.</param>
+    /// <param name="Subjects">The image subjects and independently expected native build contexts.</param>
     internal sealed record OciBuildContext(
         int SchemaVersion, string Kind, string Relationship, OciSubjectBuildRecord[] Subjects);
 
+    /// <summary>
+    /// Assembles and verifies OCI evidence using native image attestations and authenticated build contexts.
+    /// </summary>
+    /// <param name="files">The service for bounded evidence-file access and content digests.</param>
     internal sealed class OciArtifactAdapter(EvidenceFiles files)
     {
+        /// <summary>
+        /// Assembles an OCI evidence envelope and copies native documents, contracts, and optional assurance inputs.
+        /// </summary>
         public async Task<EvidenceEnvelope> AssembleAsync(
             string repositoryRoot,
             string requestPath,
@@ -131,6 +181,9 @@ namespace Opc.Ua.ReleaseEvidence
                 .ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Reconciles OCI artifacts and native attestations against independently authenticated build expectations.
+        /// </summary>
         public Task<OciAnalysis> VerifyNativeAsync(
             OciRequest request,
             string root,
@@ -144,6 +197,9 @@ namespace Opc.Ua.ReleaseEvidence
                 request, root, expected, group, authenticatedBuilds, cancellationToken);
         }
 
+        /// <summary>
+        /// Validates signed producer-document bindings and uses their OCI build contexts for native reconciliation.
+        /// </summary>
         public async Task<OciAnalysis> VerifyAuthenticatedAsync(
             string requestPath,
             string evidenceRoot,

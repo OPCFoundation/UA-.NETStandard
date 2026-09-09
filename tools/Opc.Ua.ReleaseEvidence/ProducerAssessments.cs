@@ -1,5 +1,31 @@
-// Copyright (c) OPC Foundation, Inc. All rights reserved.
-// Licensed under the MIT License. See LICENSE.txt in the project root for license information.
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.IO;
@@ -10,12 +36,33 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.ReleaseEvidence
 {
+    /// <summary>
+    /// Preserves a producer's partition of unmet controls into observed failures and pending verification.
+    /// </summary>
+    /// <param name="SchemaVersion">The version of this JSON document contract.</param>
+    /// <param name="Kind">The producer-assessment discriminator identifying the control-classification record.</param>
+    /// <param name="Source">The actual checkout identity associated with the evidence.</param>
+    /// <param name="Producer">The workflow, run, job, and tool identity that produced the evidence.</param>
+    /// <param name="Release">The artifact group, release version, and delivery channel covered by this record.</param>
+    /// <param name="Artifacts">The exact artifacts and target scopes covered by this record.</param>
+    /// <param name="UnmetControls">The controls not yet satisfied by the available evidence.</param>
+    /// <param name="PendingControls">
+    /// The unmet controls that still require independent verification rather than describing observed failures.
+    /// </param>
+    /// <param name="ObservedControls">The unmet controls classified as observed failures by the producer.</param>
     internal sealed record ProducerAssessment(
         int SchemaVersion, string Kind, SourceRecord Source, ProducerRecord Producer, ReleaseRecord Release,
         ArtifactRecord[] Artifacts, string[] UnmetControls, string[] PendingControls, string[] ObservedControls);
 
+    /// <summary>
+    /// Persists and retrieves producer control classifications bound to the evidence source and artifact set.
+    /// </summary>
     internal static class ProducerAssessments
     {
+        /// <summary>
+        /// Writes available producer control classifications and attaches their content-addressed document to the
+        /// envelope.
+        /// </summary>
         public static async Task<EvidenceEnvelope> AttachAsync(
             EvidenceEnvelope envelope, string root, EvidenceFiles files, CancellationToken cancellationToken)
         {
@@ -49,6 +96,9 @@ namespace Opc.Ua.ReleaseEvidence
             };
         }
 
+        /// <summary>
+        /// Reads a unique matching producer assessment or retains the envelope's unpartitioned unmet controls.
+        /// </summary>
         public static async Task<AssessmentRecord> ReadAsync(
             EvidenceEnvelope envelope, string root, EvidenceFiles files, CancellationToken cancellationToken)
         {

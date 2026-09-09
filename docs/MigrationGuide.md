@@ -31,8 +31,10 @@ migration notes inline.
    in the linked matrix; this migration guidance sets no fixed upgrade deadline
    or support period.
 
-The [release-evidence engineering pilot](ReleaseEvidence.md) applies to current
-`master`/2.0 only. Pipeline backport to 1.5 is deferred, not a withdrawal of
+The active [release-evidence contract](ReleaseEvidence.md) applies to current
+`master`/2.0, requiring complete evidence for in-scope stable publication while
+preview/development release channels retain advisory applicability for these
+controls. Pipeline backport to 1.5 is deferred, not a withdrawal of
 1.5 security or critical-bug maintenance. The [Security Stewardship annex](SecurityStewardship.md)
 separates these engineering choices from the Foundation's statutory OSS steward duties.
 

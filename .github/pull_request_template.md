@@ -42,6 +42,7 @@ Use only sanitized information; do not attach restricted findings or raw sensiti
 
 _If release evidence is affected, identify the artifact group and contract changes
 under [Release Evidence](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/ReleaseEvidence.md), including unmet controls.
-New controls are a current `master`/2.0 pilot; required stable-only graduation needs
-a separate reviewed, protected change. Preview/development checks stay advisory.
-Existing mandatory checks must not be weakened._
+The contract is active for current `master`/2.0: missing evidence or required
+production setup blocks in-scope stable publication. Preview/development release
+channels retain advisory applicability for these controls, not a different
+contract maturity mode. Existing mandatory checks must not be weakened._

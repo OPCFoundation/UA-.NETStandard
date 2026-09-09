@@ -337,7 +337,9 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             }
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Terminates the sample process, waits for exit, and releases its output subscriptions and process handle.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             Kill();

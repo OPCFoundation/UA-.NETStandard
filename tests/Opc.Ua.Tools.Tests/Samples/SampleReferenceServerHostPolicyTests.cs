@@ -41,10 +41,16 @@ using Opc.Ua.Configuration;
 
 namespace Opc.Ua.Tools.Tests.Samples
 {
+    /// <summary>
+    /// Checks reference-server consent parsing, warning-before-application behavior, and secure endpoint configuration.
+    /// </summary>
     [TestFixture]
     [NonParallelizable]
     public sealed class SampleReferenceServerHostPolicyTests
     {
+        /// <summary>
+        /// Verifies that help describes None, trust, and provisioning options without running the host action.
+        /// </summary>
         [TestCase("--help")]
         [TestCase("-h")]
         [TestCase("-?")]
@@ -68,6 +74,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output.ToString(), Does.Not.Contain("WARNING:"));
         }
 
+        /// <summary>
+        /// Verifies that unknown switches and malformed consent values fail before host execution or warnings.
+        /// </summary>
         [TestCase("--unknown")]
         [TestCase("--allow-none=perhaps")]
         [TestCase("--autoaccept=perhaps")]
@@ -90,6 +99,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output.ToString(), Does.Not.Contain("WARNING:"));
         }
 
+        /// <summary>
+        /// Verifies that a failed warning write prevents None policy from being added to server configuration.
+        /// </summary>
         [Test]
         public async Task NoneIsNotEnabledIfWarningCannotBeWrittenAsync()
         {
@@ -108,6 +120,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(configuration.ServerConfiguration.SecurityPolicies, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that explicit false CLI consent overrides enabled environment defaults for every supported alias.
+        /// </summary>
         [TestCase("--allow-none", "REFSERVER_ALLOW-NONE", "--allow-none")]
         [TestCase("--autoaccept", "REFSERVER_AUTOACCEPT", "--autoaccept")]
         [TestCase("-a", "REFSERVER_AUTOACCEPT", "--autoaccept")]
@@ -138,6 +153,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that None-policy consent defaults to false and respects explicit enable and disable forms.
+        /// </summary>
         [Test]
         public void NoneEndpointOptionIsExplicitAndDefaultFalse()
         {
@@ -154,6 +172,10 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(disabled.GetValue<bool>("--allow-none"), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that None opt-in warns and preserves secure policies without enabling automatic certificate
+        /// acceptance.
+        /// </summary>
         [Test]
         public async Task NoneOptInAddsOnlyNoneAndWarnsAsync()
         {
@@ -190,6 +212,9 @@ namespace Opc.Ua.Tools.Tests.Samples
                 Does.Contain("WARNING").And.Contain("None").And.Contain("no message security"));
         }
 
+        /// <summary>
+        /// Verifies that trust and provisioning consent produce their own warnings without adding None endpoints.
+        /// </summary>
         [TestCase(new string[] { }, false, "")]
         [TestCase(new[] { "--autoaccept" }, true, "untrusted application certificates")]
         [TestCase(new[] { "-a" }, true, "untrusted application certificates")]
@@ -229,6 +254,10 @@ namespace Opc.Ua.Tools.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that explicit false removes loaded None policy while omission and unrelated server settings are
+        /// preserved.
+        /// </summary>
         [TestCase(new string[] { }, true)]
         [TestCase(new[] { "--allow-none=false" }, false)]
         [TestCase(new[] { "--allow-none", "false" }, false)]
@@ -276,6 +305,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that the ordinary reference-server XML configuration advertises no None security modes or policies.
+        /// </summary>
         [Test]
         public void OrdinaryConfigurationAdvertisesOnlySecuredEndpoints()
         {
@@ -328,6 +360,9 @@ namespace Opc.Ua.Tools.Tests.Samples
 
         private sealed class UnavailableWarningWriter : StringWriter
         {
+            /// <summary>
+            /// Simulates unavailable warning output by throwing before any text can be written.
+            /// </summary>
             public override void WriteLine(string? value)
             {
                 throw new IOException("Warning output is unavailable.");

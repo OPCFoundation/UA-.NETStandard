@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -12,7 +12,7 @@
  * Software is furnished to do so, subject to the following
  * conditions:
  *
- * This notice and this permission notice shall be
+ * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
@@ -238,8 +238,14 @@ static async Task RunClientAsync(IServiceProvider services, CancellationToken ca
     Console.WriteLine("Done");
 }
 
+/// <summary>
+/// Writes sample subscription values, event counts, and state changes to the console while ignoring keep-alives.
+/// </summary>
 internal sealed class ConsoleSubscriptionHandler : ISubscriptionNotificationHandler
 {
+    /// <summary>
+    /// Writes each changed value in the received data-change notification to the console.
+    /// </summary>
     public ValueTask OnDataChangeNotificationAsync(
         ISubscription subscription,
         uint sequenceNumber,
@@ -255,6 +261,9 @@ internal sealed class ConsoleSubscriptionHandler : ISubscriptionNotificationHand
         return default;
     }
 
+    /// <summary>
+    /// Reports the number of received alarm and condition events without decoding their fields.
+    /// </summary>
     public ValueTask OnEventDataNotificationAsync(
         ISubscription subscription,
         uint sequenceNumber,
@@ -267,6 +276,9 @@ internal sealed class ConsoleSubscriptionHandler : ISubscriptionNotificationHand
         return default;
     }
 
+    /// <summary>
+    /// Completes a keep-alive callback without producing console output.
+    /// </summary>
     public ValueTask OnKeepAliveNotificationAsync(
         ISubscription subscription,
         uint sequenceNumber,
@@ -276,6 +288,9 @@ internal sealed class ConsoleSubscriptionHandler : ISubscriptionNotificationHand
         return default;
     }
 
+    /// <summary>
+    /// Writes the subscription's new lifecycle state to the console.
+    /// </summary>
     public ValueTask OnSubscriptionStateChangedAsync(
         ISubscription subscription,
         Opc.Ua.Client.Subscriptions.SubscriptionState state,

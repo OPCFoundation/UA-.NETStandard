@@ -53,9 +53,10 @@ namespace AggregationServer
     public static class AggregationServerHost
     {
         /// <summary>
-        /// Builds a host from explicit options.
+        /// Builds, but does not start, the aggregation server and upstream-client host from explicit options,
+        /// warning for enabled certificate-trust, unsecured-channel, or anonymous-management exceptions.
         /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentNullException">The options argument is null.</exception>
         public static IHost Build(AggregationServerOptions options)
         {
             if (options is null)
@@ -69,7 +70,8 @@ namespace AggregationServer
         }
 
         /// <summary>
-        /// Builds and runs a host from explicit options.
+        /// Runs the aggregation host with the supplied policies until shutdown or cancellation
+        /// and disposes the host afterward.
         /// </summary>
         public static async Task RunAsync(
             AggregationServerOptions options,
@@ -80,7 +82,10 @@ namespace AggregationServer
         }
 
         /// <summary>
-        /// Builds and runs a host from command-line configuration.
+        /// Parses sample switches and forwarded host settings before running the aggregation server.
+        /// Certificate auto-acceptance, unsecured channels, and anonymous management
+        /// are separate default-false opt-ins.
+        /// Stores the command result in Environment.ExitCode.
         /// </summary>
         public static async Task RunAsync(
             string[] args,

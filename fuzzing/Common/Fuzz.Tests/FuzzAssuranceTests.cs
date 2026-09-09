@@ -34,9 +34,15 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Fuzzing
 {
+    /// <summary>
+    /// Verifies that replay requires a nonempty good-seed inventory while regression inputs remain optional.
+    /// </summary>
     [TestFixture]
     public sealed class FuzzAssuranceTests
     {
+        /// <summary>
+        /// Verifies that missing required good seeds fail enumeration rather than imply successful replay.
+        /// </summary>
         [Test]
         public void MissingGoodSeedsAreNotSuccessfulReplay()
         {
@@ -44,6 +50,9 @@ namespace Opc.Ua.Fuzzing
                 TestUtils.EnumerateTestAssets("missing-good-seeds-" + Guid.NewGuid().ToString("N"), "*", true));
         }
 
+        /// <summary>
+        /// Verifies that an empty directory fails required-seed enumeration but is valid for optional regressions.
+        /// </summary>
         [Test]
         public void EmptyGoodSeedDirectoryIsNotSuccessfulReplay()
         {
@@ -61,6 +70,9 @@ namespace Opc.Ua.Fuzzing
             }
         }
 
+        /// <summary>
+        /// Verifies that a missing optional regression directory produces an empty inventory.
+        /// </summary>
         [Test]
         public void MissingOptionalRegressionDirectoryHasAnEmptyInventory()
         {

@@ -55,6 +55,10 @@ using Opc.Ua.WotCon.Client;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
+    /// <summary>
+    /// Owns two flat-tag source hosts and an aggregation host with isolated state, known pump values, and client
+    /// settings.
+    /// </summary>
     internal sealed class WotSampleEnvironment : IAsyncDisposable
     {
         private WotSampleEnvironment(
@@ -79,26 +83,65 @@ namespace Opc.Ua.WotCon.Samples.Tests
             SourceBPump2Values = sourceBPump2Values;
         }
 
+        /// <summary>
+        /// Gets the temporary root for this environment's PKI stores, clients, and mutable document copies.
+        /// </summary>
         public string Root { get; }
 
+        /// <summary>
+        /// Gets the source-A host providing process measurements and cavitation signals.
+        /// </summary>
         public IHost SourceAHost { get; }
 
+        /// <summary>
+        /// Gets the source-B host providing pump-operation measurements and motor-overheat signals.
+        /// </summary>
         public IHost SourceBHost { get; }
 
+        /// <summary>
+        /// Gets the host exposing the WoT registry and the combined pump address space.
+        /// </summary>
         public IHost AggregationHost { get; }
 
+        /// <summary>
+        /// Gets the client options configured for this environment's endpoints, documents, and security identity.
+        /// </summary>
         public AggregationClientOptions ClientOptions { get; }
 
+        /// <summary>
+        /// Gets the known source-A values for Pump1 used to verify projected process data.
+        /// </summary>
         public FlatTagValues SourceAValues { get; }
 
+        /// <summary>
+        /// Gets the known source-B values for Pump1 used to verify projected pump-operation data.
+        /// </summary>
         public FlatTagValues SourceBValues { get; }
 
+        /// <summary>
+        /// Gets the distinct source-A values and identity for Pump2.
+        /// </summary>
         public FlatTagValues SourceAPump2Values { get; }
 
+        /// <summary>
+        /// Gets the distinct source-B values and identity for Pump2.
+        /// </summary>
         public FlatTagValues SourceBPump2Values { get; }
 
+        /// <summary>
+        /// Gets the checked-in aggregation sample documents directory.
+        /// </summary>
         public string DocumentsDirectory => FindDocumentsDirectory();
 
+        /// <summary>
+        /// Starts the three-host environment and waits for aggregation readiness, provisioning peer trust for secure
+        /// runs.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels startup and readiness waits.</param>
+        /// <param name="secure">Enables encrypted connections and an isolated username identity.</param>
+        /// <param name="allowAnonymousManagement">Overrides the management policy derived from secure mode.</param>
+        /// <param name="aggregationSecurityNone">Overrides whether the aggregation host includes None policy.</param>
+        /// <param name="grantSecurityAdmin">Whether the test user receives the SecurityAdmin role mapping.</param>
         public static async Task<WotSampleEnvironment> StartAsync(
             CancellationToken cancellationToken,
             bool secure = false,
@@ -310,6 +353,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
         }
 
+        /// <summary>
+        /// Creates document and endpoint overrides while retaining secure identity or allocating fresh insecure-client
+        /// state.
+        /// </summary>
         public AggregationClientOptions CreateClientOptions(
             string documentsDirectory,
             string? sourceAEndpoint = null,
@@ -332,6 +379,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             };
         }
 
+        /// <summary>
+        /// Connects a registry client to the aggregation host using this environment's security settings.
+        /// </summary>
         public Task<WotClientConnection> ConnectAsync(
             CancellationToken cancellationToken)
         {
@@ -339,6 +389,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             return WotClientConnection.CreateAsync(options, cancellationToken);
         }
 
+        /// <summary>
+        /// Connects directly to source A, reusing provisioned trust for secure runs or isolating a None-policy client.
+        /// </summary>
         public Task<OpcUaClientConnection> ConnectSourceAAsync(
             CancellationToken cancellationToken)
         {
@@ -353,6 +406,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 cancellationToken);
         }
 
+        /// <summary>
+        /// Connects directly to source B, reusing provisioned trust for secure runs or isolating a None-policy client.
+        /// </summary>
         public Task<OpcUaClientConnection> ConnectSourceBAsync(
             CancellationToken cancellationToken)
         {
@@ -367,6 +423,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 cancellationToken);
         }
 
+        /// <summary>
+        /// Copies the checked-in document tree beneath the test root for isolated mutation scenarios.
+        /// </summary>
         public string CreateDocumentsCopy()
         {
             string target = Path.Combine(Root, "Documents", Guid.NewGuid().ToString("N"));
@@ -380,6 +439,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             return target;
         }
 
+        /// <summary>
+        /// Stops and disposes all hosts, removes temporary state, and reports collected host-shutdown failures.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             var failures = new List<Exception>();
@@ -412,6 +474,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
         }
 
+        /// <summary>
+        /// Adds a peer's public application certificate to the trusting host's managed trust list or certificate store.
+        /// </summary>
         internal static async Task TrustPeerAsync(IHost trustingHost, IHost peer, CancellationToken cancellationToken)
         {
             using Certificate publicCertificate = await GetPeerCertificateAsync(peer, cancellationToken)
@@ -551,6 +616,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
         }
     }
 
+    /// <summary>
+    /// Owns a direct OPC UA client host and managed session with synchronized namespace tables.
+    /// </summary>
     internal sealed class OpcUaClientConnection : IAsyncDisposable
     {
         private OpcUaClientConnection(IHost host, ManagedSession session)
@@ -559,10 +627,19 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Session = session;
         }
 
+        /// <summary>
+        /// Gets the client host that supplies the connection's configuration and services.
+        /// </summary>
         public IHost Host { get; }
 
+        /// <summary>
+        /// Gets the connected managed session used for direct source-server operations.
+        /// </summary>
         public ManagedSession Session { get; }
 
+        /// <summary>
+        /// Starts an isolated None-policy client for the specified endpoint and populates its namespace tables.
+        /// </summary>
         public static Task<OpcUaClientConnection> CreateAsync(
             string root,
             string endpointUrl,
@@ -573,6 +650,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             return ConnectAsync(host, cancellationToken);
         }
 
+        /// <summary>
+        /// Starts a client from explicit aggregation-client options and connects its managed session.
+        /// </summary>
         public static Task<OpcUaClientConnection> CreateAsync(
             AggregationClientOptions options,
             CancellationToken cancellationToken)
@@ -601,6 +681,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
         }
 
+        /// <summary>
+        /// Disposes the managed session, then stops and disposes the client host even if session disposal fails.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             try
@@ -652,6 +735,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
         }
     }
 
+    /// <summary>
+    /// Owns an aggregation client host, managed session, and WoT registry client for a single test connection.
+    /// </summary>
     internal sealed class WotClientConnection : IAsyncDisposable
     {
         private WotClientConnection(IHost host, ManagedSession session, WotRegistryClient registry)
@@ -661,12 +747,25 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Registry = registry;
         }
 
+        /// <summary>
+        /// Gets the aggregation client host supplying connection and registry services.
+        /// </summary>
         public IHost Host { get; }
 
+        /// <summary>
+        /// Gets the managed session connected to the aggregation server.
+        /// </summary>
         public ManagedSession Session { get; }
 
+        /// <summary>
+        /// Gets the registry client bound to the managed session.
+        /// </summary>
         public WotRegistryClient Registry { get; }
 
+        /// <summary>
+        /// Starts the configured host, connects its session, and creates a registry client with host cleanup on
+        /// failure.
+        /// </summary>
         public static async Task<WotClientConnection> CreateAsync(
             AggregationClientOptions options,
             CancellationToken cancellationToken)
@@ -695,6 +794,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
         }
 
+        /// <summary>
+        /// Disposes the managed session, then stops and disposes the client host even if session disposal fails.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             try

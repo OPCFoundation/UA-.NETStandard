@@ -10,7 +10,7 @@ Here is a list of available documentation for different topics:
 
 * [Security policy](../SECURITY.md) - Canonical maintenance matrix and confidential Foundation Security WG intake, including obsolete APIs.
 * [Security Stewardship](SecurityStewardship.md) - Article 24 OSS steward duties, reporting scope and clocks, controlled records, and pending approvals/operational readiness.
-* [Release Evidence](ReleaseEvidence.md) - Current `master`/2.0 pilot evidence contract; optional engineering practices, not additional statutory steward requirements. The 1.5 pipeline rollout is deferred without changing maintenance.
+* [Release Evidence](ReleaseEvidence.md) - Active current `master`/2.0 contract: required stable gates and advisory preview/development release channels. These chosen engineering controls are not additional statutory steward requirements. The 1.5 pipeline backport is deferred without changing maintenance.
 
 ## UA Core stack related
 

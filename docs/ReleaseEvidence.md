@@ -2,15 +2,22 @@
 
 ## Status and scope
 
-This is the shared **pilot contract**, not evidence of successful assurance or an
-operational publication gate. The committed policy has `currentMajor: 2`,
-`stage: pilot`, `requiredChannel: stable` and
-`publisherBoundaryVerified: false`. NuGet, container and assurance adapters are
-wired into the workflows. Trusted definition records, complete producer
-verification, actual publication-pilot records and administrator-owned publication
-verification remain incomplete. The offline producer/reader implements capture,
-NuGet reconciliation and OCI descriptor checks; installing these adapters does
-not establish successful publication or readiness for required-mode acceptance.
+This is the **active release-evidence contract** for current `master`/major 2.
+The committed policy has `currentMajor: 2`, `stage: required`,
+`requiredChannel: stable` and `publisherBoundaryVerified: false`. In-scope stable
+publication fails closed on unmet controls. Preview and development are release
+channels with separately approved advisory applicability for these controls,
+not maturity stages of the contract.
+
+NuGet, container and assurance adapters are wired into the workflows, but
+production setup is incomplete. Independent trust roots and tool enrollments,
+authenticated producer records, complete verification and administrator-verified
+publication isolation are required operating prerequisites. The official
+candidate-verification and writer jobs in `release.yml` are literally disabled,
+and no official publication transport is configured. **The active stable gates
+therefore refuse publication.** Repository code and offline verification do not
+establish successful publication, a working isolated publisher or statutory
+readiness.
 
 This implements engineering recommendations from the 8 September 2026
 *Cyber Resilience Act readiness for UA-.NETStandard: OSS stewardship only*
@@ -20,14 +27,14 @@ The Foundation's OSS steward role is the premise; SBOMs and these release gates
 are chosen engineering controls, not a manufacturer conformity programme.
 There is no CE-marking claim or fixed five-year support/ten-year retention
 commitment. Follow the Foundation process referenced by [SECURITY.md](../SECURITY.md)
-for confidential handling. The maintained 1.5 line's pipeline rollout is
+for confidential handling. The maintained 1.5 line's pipeline backport is
 deferred, not declared unsupported.
 
 ## Canonical files and ownership
 
 | File under `.azurepipelines` | Responsibility |
 | --- | --- |
-| `release-policy.json` | Stage, current-line scope, classification, trust, public whitelist and graduation |
+| `release-policy.json` | Required stage, current-line scope, classification, trust, public whitelist and operating prerequisites |
 | `release-evidence.schema.json` | Closed, typed v2 companion envelope |
 | `release-artifacts.json` | Approved groups and variant/platform membership |
 | `assurance-profiles.json` | Initial expected jobs, result criteria and permitted N/A rules |
@@ -137,16 +144,16 @@ official destination must agree. Invalid/unknown identity is incomplete.
 
 | Policy and release | New controls unmet | Existing baseline failure |
 | --- | --- | --- |
-| Pilot, any channel | Report `incomplete`; do not newly block publication | Still fails |
-| Graduated required, stable major 2 | Block before official promotion | Still fails |
-| Required, preview/development | Report `incomplete`; new controls nonblocking | Still fails |
-| Deferred release line | Not enrolled in current-line graduation | Existing rules unchanged |
+| Required, stable major 2 | Block before official promotion | Still fails |
+| Required, preview/development channels | Report `incomplete`; these controls remain advisory | Still fails |
+| Deferred 1.5 release line | Not enrolled in current-line controls | Existing rules unchanged |
 
 `assessment.status=complete` means all applicable contract controls were
 independently verified, **not** that publication occurred or a legal/security
-certification was obtained. Pilot does not certify success. It does not mask
-baseline signing, build or test failures. Current readiness/boundary gaps keep
-an honest current assessment incomplete even when an individual producer ran.
+certification was obtained. Advisory channel applicability does not mask baseline
+signing, build or test failures. Missing trust, producer qualification or
+publication-boundary records leave the assessment incomplete even when an
+individual producer ran, and block in-scope stable publication.
 
 ## V2 wire contract
 
@@ -189,8 +196,9 @@ the error outside the envelope rather than manufacturing schema-valid evidence.
 attempt, job, checkout and definition against authenticated CI records and
 approved immutable producer records; YAML names and self-asserted JSON are
 not authentication. Azure template paths also require the resolved outer
-definition/template chain in a producer record. The approved-record list is
-currently empty intentionally. Observed tool versions are not approval pins.
+definition/template chain in a producer record. No approved producer records
+are enrolled; required stable publication remains blocked. Observed tool
+versions are not approval pins.
 
 Artifact kinds: `nuget-package`, `nuget-symbols`, `oci-index`, `oci-manifest`.
 NuGet `id` is the embedded ID; OCI `id` is the full registry repository without
@@ -331,12 +339,13 @@ Foundation-approved controls, without an inferred fixed retention term.
 Repository files do not prove those controls operate.
 
 The separate [readiness progress template](../.azurepipelines/readiness-progress.json)
-references the policy's graduation check IDs, alongside the stewardship handoffs.
-`validate-readiness` checks its structure and scope but deliberately cannot
-authenticate an approval or activate required mode. See the
-[administrator/Foundation handoff](SecurityStewardship.md#administrator-and-foundation-handoff)
+references the policy's required engineering check IDs alongside the separate
+stewardship records. `validate-readiness` checks structure and scope; it cannot
+authenticate an approval, establish production setup or relax required stable
+gates. See the
+[administrator/Foundation operating prerequisites](SecurityStewardship.md#administrator-and-foundation-operating-prerequisites)
 for the external records needed, including all current-line writers, independent
-trust provisioning, actual environment/grant settings and protection of deferred
+trust provisioning, actual environment/grant settings and protection of maintained
 1.5 delivery. Submitted record shapes are not authorization.
 
 Publication receipts are **later, separate records**, not extra fields
@@ -393,7 +402,7 @@ content-only report still says it did not verify signatures. Unsupported symbols
 retain their own unresolved status and are not credited by ordinary-package
 verification.
 
-## Workflow pilot adapters
+## Workflow adapters
 
 ### NuGet production and promotion
 
@@ -424,8 +433,10 @@ Configuration-wide SLSA subjects do not claim to be per-package SBOM attestation
 `release.yml` runs from the current master controller and obtains the selected
 producer run/attempt from the GitHub API. Preflight checks those observations
 against the manifest and expected context. Contradictory source/run expectations
-are blocking even during pilot; a missing new collector instead produces an
-explicit incomplete report. This does not replace baseline signature/hash checks.
+are blocking in every channel. A missing collector produces an explicit incomplete
+report that blocks required stable publication; preview/development channels retain
+their advisory applicability for the new controls. This does not replace baseline
+signature/hash checks.
 
 Assurance refresh writes `assurance/assurance.json`, its metadata receipt, and
 per-job proof files. Preflight constructs a runner-local evaluation copy with the
@@ -499,33 +510,41 @@ are counted independently from OCI indexes and attestation descriptors.
 
 The scanner image and cosign installer are pinned; tool versions still require
 producer approval and compatibility evidence. Native SPDX documents are retained
-without conversion. The pilot uses minimum-detail BuildKit provenance to limit
+without conversion. The workflows use minimum-detail BuildKit provenance to limit
 public build-argument exposure; richer provenance requires review of its inputs.
 Collection reads back digest-addressed blobs. Local reconciliation checks their
 relationships, and the signing adapter records root/platform signature operations
 without claiming an administrator-verified publisher boundary.
 
-Production tags retain the existing publication behavior during pilot. The
-current producer path refuses required-stable publication because the isolated
-official writer is not activated. Separate `oci-assemble` and authenticated
-`evaluate` commands support complete group assessments; they do not change tags.
-The dormant promotion code is described below. See
+Registry identities and tag formats are unchanged. Under the active required
+policy, the current producer path refuses current-major stable publication because
+isolated official promotion is not configured. Preview/development channels retain
+advisory evidence applicability, not a claim of publisher isolation. Separate
+`oci-assemble` and authenticated `evaluate` commands support complete group
+assessments; they do not change tags. Publication setup and recovery requirements
+are described below. See
 [Container Reference Server](ContainerReferenceServer.md) for image-specific
 output and verification details.
 
-### Remaining graduation work
+### Required operating prerequisites
 
-| Area | Repository support | Evidence or implementation still needed |
+Stable publication requires production trust, authenticated verification and
+isolated publication authority. Foundation stewardship approvals and operations
+are separate controlled records, not certifications issued by the evaluator.
+
+| Area | Repository support | Required setup or controlled evidence |
 | --- | --- | --- |
-| NuGet inventory | Frozen-input reconciliation, variant sidecars, index and receipts | Real signed-package pilot, complete ownership/metadata review and public retrieval records. |
-| Container evidence | Native schema/content validation, digest/closure traversal, independent group assembly and authenticated evaluation | Actual container pilots, approved producer/scanner/signer identities and isolated registry promotion. |
+| NuGet inventory | Frozen-input reconciliation, variant sidecars, index and receipts | Actual signed-package and applicable symbol verification, complete ownership/metadata review and public retrieval records. |
+| Container evidence | Native schema/content validation, digest/closure traversal, independent group assembly and authenticated evaluation | Actual source-bound image verification, approved producer/scanner/signer identities and an isolated registry transport. |
 | Assurance | Expected-job inventory, native image/runtime and analysis extraction/query/disposition proof validators | Authentic CI runs, reviewed findings and operational producer qualification. |
-| Trusted acceptance | Cryptographic verification seams, protected bootstrap checks and conditional required-stable evaluation | Administrator-provisioned immutable trust/tool identities, current checkpoints and live producer verification. |
-| Publication boundary | Controller restrictions and setup requirements | Administrator inventory of every current-line writer, credential isolation and recovery exercises without affecting 1.5. |
-| Steward operations | Policy, cooperation packet and simulated-exercise instructions | Foundation approvals, assigned owners, performed exercises and current reporting-route confirmation. |
+| Trusted acceptance | Cryptographic verification seams, protected bootstrap checks and required-stable evaluation | Administrator-provisioned immutable trust/tool identities, current authenticated trust state and live producer verification. |
+| Publication boundary | Controller restrictions, fail-closed preflight and offline recovery support | Administrator inventory of every current-line writer, candidate/official separation, official transport, credential isolation and recovery exercises without affecting 1.5. |
+| Steward operations (separate) | Policy, cooperation packet and synthetic-exercise instructions | Foundation approvals, assigned owners, performed exercises and current reporting-route confirmation. |
 
-Keep `stage: pilot` while these items remain unresolved. Neither fixture success
-nor changing `publisherBoundaryVerified` to true completes them.
+The contract remains `stage: required` while setup is incomplete. Missing required
+engineering records block in-scope stable publication. Neither fixture success nor
+changing `publisherBoundaryVerified` to true completes those prerequisites or
+establishes Foundation operational readiness.
 
 ### Authenticated evaluation and independent bootstrap
 
@@ -563,8 +582,8 @@ from a candidate-supplied bootstrap to make it appear trusted.
 **No production bootstrap, key, approval or tool enrollment is supplied here.**
 Do not publish bootstrap files containing local paths or protected identities.
 
-Production record verification runs the approved, independently pinned GitHub
-attestation verifier against saved bundles and custom trusted roots, checking
+Production record verification requires an approved, independently pinned GitHub
+attestation verifier, saved bundles and custom trusted roots. Verification checks
 issuer, certificate/workflow/ref/definition identity and the exact signed record
 subject/predicate. Artifact signatures are checked separately against actual
 archive or OCI bytes. Reimporting a bundle verifies it again; saved command output,
@@ -589,18 +608,20 @@ Public attachments contain reviewed native producer bundles, not the protected
 policy snapshot, organizational approvals, publication-boundary records or
 finding-review records.
 
-Exit **0** means complete, or explicitly advisory incomplete for pilot/preview/
-development; inspect the assessment. Exit **1** means a baseline failure or
+Exit **0** means complete, or explicitly advisory incomplete for preview/development
+release channels; inspect the assessment. Exit **1** means a baseline failure or
 unmet current-major required-stable controls. Exit **2** means malformed or
 unsupported input or an unusable verification contract. A stable official
 candidate cannot escape enforcement by labelling both supplied contexts
 `development`. Independent groups never borrow missing members from each other.
 
-### Dormant promotion and recovery
+### Publication setup and recovery
 
 `release.yml` contains literally disabled candidate-verification and writer jobs
 under the existing intended `release` authority. There is no dispatch switch to
-activate them. Existing pilot publication remains unchanged.
+enable them. Approved candidate acquisition, independent trust, official transport
+and verified publication-boundary records are required before production use.
+Until that setup is complete, the active required stable gates refuse publication.
 `.azurepipelines\release-promotion.ps1` separates `Verify`, `Offline` and `Write`;
 the corresponding commands are `promotion-verify`, `promotion-offline` and
 `promotion-write`. **No official transport is registered or configured.**
@@ -618,18 +639,20 @@ are a refusal. Interrupted transfers and write-before-journal interruption resum
 from actual destination state. Publication is not atomic across images or groups.
 
 The concrete file transport is a bounded, isolated **offline exercise adapter**,
-not a registry implementation or proof of distributed locking. An eventual
+not a registry implementation or proof of distributed locking. An
 official transport must enforce remote leases/conditional writes and verify OCI
 manifest/layer/referrer discoverability, not merely blob existence. Candidate
-locations, visibility, credentials and grants remain administrator handoffs.
-At cutover all current-line official writers, including previews and rolling
-builds, must use the isolated boundary; their new assurance controls stay
-advisory. Do not alter shared authority that affects deferred 1.5 delivery.
+locations, visibility, credentials and grants require administrator provisioning
+and controlled approval records. Production setup must place all current-line
+official writers, including preview and rolling-build writers, behind the isolated
+boundary. Advisory applicability for preview/development evidence does not permit
+bypassing stable gates or prove that isolation exists. Do not alter shared
+authority that affects maintained 1.5 delivery.
 
 ## Offline tool commands
 
 `tools\Opc.Ua.ReleaseEvidence` is a nonpackable **.NET 10-only build tool**.
-It uses the approved CycloneDX.Core **12.1.1** SDK with an explicit CycloneDX
+It uses the centrally pinned CycloneDX.Core **12.1.1** SDK with an explicit CycloneDX
 **1.6** output version, centrally pinned System.CommandLine, the existing
 JsonSchema.Net validator, and the installed .NET SDK's NuGet.Versioning parser.
 No CycloneDX CLI installation, tool restore, package enrichment, publication,
@@ -656,7 +679,10 @@ Create a JSON capture request (UTF-8; no comments) with exactly these producer
 inputs. The complete JSON examples in this section use **synthetic** SHAs,
 run IDs and digests, not verification records. Replace every identity and
 version with observed values before execution; never copy `trackedClean`
-without checking the actual tracked worktree:
+without checking the actual tracked worktree. Examples use the active
+`stage: required` policy and stable version `2.0.0`; missing authentic intent,
+trust, membership or assurance leaves evidence incomplete and blocks stable
+publication. Writing diagnostic output is not release authorization:
 
 ```json
 {
@@ -675,7 +701,7 @@ without checking the actual tracked worktree:
     "job": "build-release",
     "tools": [{"id": "dotnet", "version": "10.0.100"}]
   },
-  "version": "2.0.0-preview.1",
+  "version": "2.0.0",
   "configuration": "Release",
   "projects": [
     "src/Opc.Ua.Types/Opc.Ua.Types.csproj",
@@ -738,7 +764,7 @@ job rather than substituting its build job:
     "job": "aggregate",
     "tools": [{"id": "dotnet", "version": "10.0.100"}]
   },
-  "release": { "group": "nuget", "version": "2.0.0-preview.1", "channel": "preview" },
+  "release": { "group": "nuget", "version": "2.0.0", "channel": "stable" },
   "policyDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
   "artifacts": []
 }
@@ -813,12 +839,12 @@ it is deliberately not the complete NuGet group:
     "job": "aggregate",
     "tools": [{"id": "dotnet", "version": "10.0.100"}]
   },
-  "release": { "group": "nuget", "version": "2.0.0-preview.1", "channel": "preview" },
+  "release": { "group": "nuget", "version": "2.0.0", "channel": "stable" },
   "policyDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
   "artifacts": [{
     "kind": "nuget-package",
     "id": "OPCFoundation.NetStandard.Opc.Ua.Types",
-    "version": "2.0.0-preview.1",
+    "version": "2.0.0",
     "configuration": "Release",
     "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
     "scopes": { "tfms": ["net10.0"], "rids": [], "roslyn": [], "platforms": [] }
@@ -840,13 +866,19 @@ dotnet $evidenceTool evaluate --repository-root . `
   --output .\staging\evaluation.json
 ```
 
+This local-only invocation supplies no independent trust policy or verification
+bundle. Its incomplete required-stable assessment blocks publication. Use
+[authenticated evaluation](#authenticated-evaluation-and-independent-bootstrap)
+with independently provisioned inputs for production verification; the synthetic,
+partial examples do not satisfy that requirement.
+
 `--repository-root` supplies the **current protected** policy/catalog/profiles,
 not an old policy bundled with a candidate. The operator must obtain that
 checkout and expectations through the protected controller. There is no
 `--stage`, dispatch override, or claim that self-asserted policy fields were
 authenticated. Bundle paths cannot be absolute, traverse, alias a reparse
 point, or retrieve a URL. Duplicate JSON fields, unsupported schemas and
-malformed records are invalid input, not successful pilot evidence.
+malformed records are invalid input, not successful evidence processing.
 Required constructor fields cannot be omitted; omit optional fields rather
 than setting them to `null`. Per-archive CycloneDX documents undergo full
 SDK 1.6 schema validation and embedded component name/version/SHA-256 checks,
@@ -860,7 +892,8 @@ The result document has `schemaVersion: 1`, `status`, `stage`, `channel`,
 Consumers must retain this document, not interpret exit code zero as
 `complete`. Exit codes:
 
-* **0**: complete valid assessment, or explicitly advisory incomplete processing.
+* **0**: complete valid assessment, or explicitly advisory incomplete processing
+  for preview/development release channels.
 * **1**: required stable controls unmet, or an observed baseline assurance
   failure (including a purportedly executed zero-test suite).
 * **2**: invalid command arguments or input, unsafe path/archive, malformed JSON/schema, fatal I/O,
@@ -912,7 +945,7 @@ For example, `oci-context.json` for the Pump group is:
     "job": "build",
     "tools": []
   },
-  "release": { "group": "pump", "version": "2.0.0-preview.1", "channel": "preview" },
+  "release": { "group": "pump", "version": "2.0.0", "channel": "stable" },
   "policyDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
   "artifacts": []
 }
@@ -977,42 +1010,47 @@ type; the closure includes layers, configs, native attestations and signature
 material. Required referrers cannot be replaced by arbitrary present blobs.
 
 Complete synthetic groups can satisfy required evaluation under isolated,
-ephemeral test trust. Actual production trust, qualification, publisher isolation
-and organizational approval remain unconfigured or pending. The tool does not
-authorize policy graduation, and an assessment is not a legal certification.
+ephemeral test trust. Production trust, qualification and publisher isolation
+remain required operating prerequisites; without their authenticated records,
+stable publication is blocked. Separate Foundation approvals remain pending.
+An engineering assessment neither authorizes platform configuration nor
+certifies legal compliance.
 
-## Reader migration and required-mode activation
+## Reader compatibility and publication requirements
 
-1. Deploy a reader that understands the existing `release-manifest.json`
+1. Readers must understand the existing `release-manifest.json`
    **schemaVersion 1** and the separate v2 companion. Preserve every existing
    archive field and v1 validation rule. Never reinterpret v1 as v2 or change the
    signed archive bytes.
-2. In pilot, absent or v1-only new evidence is explicitly incomplete.
+2. Absent or v1-only evidence is explicitly incomplete and blocks in-scope
+   stable publication under the active required policy.
    A v1 reader continues to consume its unchanged file; a v2 reader verifies
    the v1 digest link and matching source/version/archive identities.
    Malformed or unsupported supplied contracts return exit 2; they do not
    silently become complete or an advisory success.
-3. Integrate real producers and external verification. Clear readiness entries
-   only after actual positive/negative pilot records, verified tool compatibility,
-   complete membership, reproducible input capture and public retrieval.
+3. Producer qualification requires authenticated positive/negative verification
+   records, verified tool compatibility, complete membership, reproducible input
+   capture and public retrieval. Clear readiness entries only after those records
+   exist and have been verified.
 4. Publication administrators must inventory **all** official current-line
    writers, including external Azure release definitions/credentials and older
    workflows. Verify principal/ref restrictions, protected policy/controller,
    isolated candidate versus official authority, and recovery/rerun behavior.
    Merely naming a GitHub environment or changing YAML does not establish this.
 5. Record scoped approvals, immutable identities, verification evidence/results
-   and revalidation triggers satisfying `graduation.recordRequirements`.
+   and revalidation triggers satisfying the policy's required record fields.
    `publisherBoundaryVerified` is a derived summary of verified records, **not
-   an activation switch**. Empty records or incomplete required checks forbid
-   graduation even if somebody sets that Boolean true.
-6. Only a separately approved protected policy change can set stage `required`
-   after verification. Official stable publication must fail closed on missing
-   v2 evidence; preview/development remains nonblocking for the new controls.
-   Keep baseline failures intact.
+   release authorization**. Empty records or incomplete required checks block
+   stable publication even if somebody sets that Boolean true.
+6. `stage: required` is the committed policy. In-scope official stable publication
+   fails closed on missing v2 evidence or any other unmet required control.
+   Preview/development channels remain advisory for these controls; they are not
+   contract maturity modes. Keep baseline failures intact. Dispatch parameters
+   and historical policy cannot weaken the current required stable gates.
 
 No actual platform/credential changes are authorized by this contract. Shared
-authority that cannot be isolated without affecting deferred 1.5 delivery is a
-graduation blocker requiring separate scope approval, not permission to break
+authority that cannot be isolated without affecting maintained 1.5 delivery is a
+publication blocker requiring separate scope approval, not permission to break
 that line. No current exception path exists. If the Foundation later permits
 emergency dispositions, add a reviewed protected, attributable, scoped record
 design; controls remain visibly unmet/waived, never pass. Integrity, authorization
@@ -1025,18 +1063,18 @@ JSON Schema checks shape; the reader must enforce cross-record invariants.
 
 | Synthetic case | Expected outcome |
 | --- | --- |
-| Version `2.0.0`, authorized matching stable intent, pilot, missing fuzz job | Stable, incomplete, new-control report only |
-| Version `2.0.0-preview.1`, authorized matching preview intent, required stage, missing inventory | Preview, incomplete, new controls nonblocking |
+| Version `2.0.0`, authorized matching stable intent, required stage, missing fuzz job | Stable, incomplete; exit `1`; publication blocked |
+| Version `2.0.0-preview.1`, authorized matching preview intent, required stage, missing inventory | Preview, incomplete; exit `0` for advisory processing, not release authorization |
 | Version `2.0.0`, no official intent, development destination | Development, never authorized as stable |
 | Prerelease bytes with claimed stable intent or dispatch-only authorization | `RELEASE_INTENT` unmet; no official stable eligibility |
 | Source/run mismatch, altered sidecar, stale profile, historical weaker policy | Identity/integrity/freshness controls unmet |
 | Net10 Network result is empty but job reports success | `ASSURANCE_COMPLETE` unmet; zero tests are not success |
 | Net48 Network shell claims completed in required net10 profile | Reject scope substitution; no N/A escape |
 | Verified empty regression inventory, all good seeds and targets executed | Empty regression subset allowed; whole job still required |
-| Required stable, all local results present but boundary records absent | Incomplete; activation forbidden |
+| Required stable, all local results present but boundary records absent | Incomplete; exit `1`; publication blocked |
 | Complete payload shape with empty artifacts/jobs or inconsistent counters | Semantic rejection; schema validity alone cannot pass |
 | Unknown top-level property, malformed digest or traversal document path | Schema rejection |
-| V1-only evidence after authorized required-stage graduation | Stable fails closed; no silent v1 fallback |
+| V1-only evidence under the active required stable policy | Stable fails closed with exit `1`; no silent v1 fallback |
 
 Inspect the committed schema/configuration with installed JSON tools; do not
 install a schema library just for this documentation. Reader and pipeline fixtures cover these semantics, including immutable v1

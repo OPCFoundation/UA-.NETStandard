@@ -38,9 +38,15 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Tools.Tests.Samples
 {
+    /// <summary>
+    /// Checks reference-client help and parse failures in a process isolated from inherited client configuration.
+    /// </summary>
     [TestFixture]
     public sealed class SampleReferenceClientHostPolicyTests
     {
+        /// <summary>
+        /// Verifies that each help alias explains test-mode trust consent without warnings or client initialization.
+        /// </summary>
         [TestCase("--help")]
         [TestCase("-h")]
         [TestCase("-?")]
@@ -57,6 +63,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output, Does.Not.Contain("WARNING:"));
         }
 
+        /// <summary>
+        /// Verifies that unknown or malformed options fail without starting the client or emitting security warnings.
+        /// </summary>
         [TestCase("--unknown")]
         [TestCase("--testall=perhaps")]
         [TestCase("--ea=perhaps")]

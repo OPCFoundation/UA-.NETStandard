@@ -510,7 +510,7 @@ jobs:
         if-no-files-found: error
 
   assurance-summary:
-    name: release assurance (pilot)
+    name: release assurance
     needs: [discover, build-and-test, assurance-windows, aot-test]
     if: ${{ always() && needs.discover.result == 'success' && needs.discover.outputs.relevant_changes == 'true' }}
     runs-on: ubuntu-latest
@@ -524,7 +524,7 @@ jobs:
     - name: Collect profile scope without inventing external results
       shell: pwsh
       run: |
-        # Local pilot summary only, not authenticated release retrieval.
+        # Local summary only, not authenticated release retrieval.
         # The publisher calls get-release-assurance.ps1 for cross-workflow checks.
         $sha = (& git rev-parse HEAD).Trim()
         ./.azurepipelines/collect-assurance.ps1 -RecordsPath assurance-records `

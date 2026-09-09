@@ -39,9 +39,15 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Tools.Tests.Samples
 {
+    /// <summary>
+    /// Checks PubSub bridge security defaults, explicit consent precedence, and configuration-only reload behavior.
+    /// </summary>
     [TestFixture]
     public sealed class SamplePubSubHostPolicyTests
     {
+        /// <summary>
+        /// Verifies that an unknown external-bridge option fails before the host starts.
+        /// </summary>
         [Test]
         public async Task UnknownOptionFailsWithoutStartingHostAsync()
         {
@@ -53,6 +59,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output, Does.Not.Contain("Bridge started"));
         }
 
+        /// <summary>
+        /// Verifies that omitted consent keeps every bridge direction encrypted and unsecured actions disabled.
+        /// </summary>
         [Test]
         public async Task OmittedSecurityConsentKeepsEveryBridgeDirectionSecureAsync()
         {
@@ -68,6 +77,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output, Does.Not.Contain("warn:"));
         }
 
+        /// <summary>
+        /// Verifies that None-policy consent warns before application and does not also permit unsecured actions.
+        /// </summary>
         [Test]
         public async Task ExplicitNoneWarnsBeforeApplyingAndDoesNotPermitUnsecuredActionsAsync()
         {
@@ -86,6 +98,10 @@ namespace Opc.Ua.Tools.Tests.Samples
                 Is.LessThan(output.IndexOf("Publisher: SecurityMode=None", StringComparison.Ordinal)));
         }
 
+        /// <summary>
+        /// Verifies that unsecured-action consent emits its own warning while retaining encrypted responder
+        /// connections.
+        /// </summary>
         [Test]
         public async Task UnsecuredActionsRequireIndependentConsentAndWarnAsync()
         {
@@ -100,6 +116,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output, Does.Not.Contain("not signed or encrypted"));
         }
 
+        /// <summary>
+        /// Verifies that host-supplied configuration disables automatic acceptance of untrusted certificates.
+        /// </summary>
         [Test]
         public async Task HostSuppliesTrustedCertificateConfigurationInsteadOfAdapterFallbackAsync()
         {
@@ -112,6 +131,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output, Does.Not.Contain("AutoAcceptUntrustedCertificates=True"));
         }
 
+        /// <summary>
+        /// Verifies that legacy adapter-level JSON settings cannot bypass the host's explicit security-consent options.
+        /// </summary>
         [Test]
         public async Task HotReloadConfigurationCannotImplicitlyEnableLegacyInsecureOptionsAsync()
         {
@@ -133,6 +155,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output, Does.Not.Contain("warn:"));
         }
 
+        /// <summary>
+        /// Verifies that reloading host consent applies or revokes both relaxations and warns before enabling them.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ConfigurationReloadAppliesAndRevokesBothExplicitConsentsAsync(bool initiallyUnsecured)
@@ -166,6 +191,9 @@ namespace Opc.Ua.Tools.Tests.Samples
                     StringComparison.Ordinal)));
         }
 
+        /// <summary>
+        /// Verifies that requesting help does not conceal invalid security options or start the bridge.
+        /// </summary>
         [TestCase("--security-none=perhaps")]
         [TestCase("--allow-unsecured-actions=perhaps")]
         [TestCase("--unknown")]
@@ -179,6 +207,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output, Does.Not.Contain("warn:").And.Not.Contain("Bridge started"));
         }
 
+        /// <summary>
+        /// Verifies that malformed Boolean options fail before configuration output or relaxation warnings are emitted.
+        /// </summary>
         [TestCase("--security-none=perhaps")]
         [TestCase("--security-none=")]
         [TestCase("--security-none=1")]
@@ -195,6 +226,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output, Does.Not.Contain("warn:").And.Not.Contain("SecurityMode="));
         }
 
+        /// <summary>
+        /// Verifies that help displays relaxation options without applying them or starting the host.
+        /// </summary>
         [TestCase("--help")]
         [TestCase("-h")]
         [TestCase("-?")]
@@ -208,6 +242,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output, Does.Not.Contain("warn:").And.Not.Contain("Bridge started"));
         }
 
+        /// <summary>
+        /// Verifies that explicit false CLI values override enabled JSON and environment consent in both host modes.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ExplicitFalseOverridesJsonAndEnvironmentAsync(bool hotReload)
@@ -238,6 +275,10 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output, Does.Not.Contain("warn:"));
         }
 
+        /// <summary>
+        /// Verifies that reloading permissive JSON cannot override explicit false CLI consent or emit relaxation
+        /// warnings.
+        /// </summary>
         [Test]
         public async Task ExplicitFalseRemainsAuthoritativeAfterJsonReloadAsync()
         {
@@ -263,6 +304,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output, Does.Not.Contain("warn:"));
         }
 
+        /// <summary>
+        /// Verifies that environment consent overrides JSON when CLI consent is omitted, including hot-reload mode.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task EnvironmentConsentOverridesJsonWhenCliIsOmittedAsync(bool hotReload)
@@ -285,6 +329,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output, Does.Contain("not signed or encrypted").And.Contain("unauthenticated PubSub actions"));
         }
 
+        /// <summary>
+        /// Verifies that invalid host-consent configuration fails before responder options are applied.
+        /// </summary>
         [TestCase("UseSecurityNone")]
         [TestCase("AllowUnsecuredActions")]
         public async Task InvalidHostConsentFailsClosedAsync(string key)
@@ -298,6 +345,10 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output, Does.Not.Contain("Responder:"));
         }
 
+        /// <summary>
+        /// Verifies that existing profile, bridge-mode, read-mode, and affinity validation retain their failure exit
+        /// code.
+        /// </summary>
         [TestCase("publisher", "--profile", "invalid")]
         [TestCase("subscriber", "--profile", "invalid")]
         [TestCase("external", "--mode", "invalid")]
@@ -313,6 +364,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(output, Does.Not.Contain("started"));
         }
 
+        /// <summary>
+        /// Verifies that configuration watching requires both hot reload and configuration-only validation.
+        /// </summary>
         [Test]
         public async Task WatchRequiresConfigurationOnlyHotReloadAsync()
         {
@@ -323,6 +377,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(error, Does.Contain("--hot-reload").And.Contain("--validate-configuration"));
         }
 
+        /// <summary>
+        /// Verifies that the supplied hot-reload template keeps all bridge directions secure without warnings.
+        /// </summary>
         [Test]
         public async Task SuppliedHotReloadTemplateSelectsSecureHostOptionsAsync()
         {

@@ -1,5 +1,31 @@
-// Copyright (c) OPC Foundation, Inc. All rights reserved.
-// Licensed under the MIT License. See LICENSE.txt in the project root for license information.
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Diagnostics;
@@ -22,6 +48,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
     [TestFixture]
     public sealed class ReleaseEvidenceCliTests
     {
+        /// <summary>
+        /// Verifies that CLI help lists the offline capture, NuGet, and evaluation commands.
+        /// </summary>
         [Test]
         public async Task HelpDescribesOfflineEvidenceCommandsAsync()
         {
@@ -30,6 +59,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(output, Does.Contain("capture").And.Contain("nuget").And.Contain("evaluate"));
         }
 
+        /// <summary>
+        /// Verifies that unknown commands and missing required arguments return a fatal-input exit with diagnostics.
+        /// </summary>
         [TestCase("unknown-command")]
         [TestCase("evaluate")]
         [TestCase("capture")]
@@ -40,8 +72,11 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(output, Is.Not.Empty);
         }
 
+        /// <summary>
+        /// Verifies that a legacy manifest produces a blocking incomplete report under the active evidence contract.
+        /// </summary>
         [Test]
-        public async Task LegacyManifestReportsIncompleteDuringPilotAsync()
+        public async Task LegacyManifestIsRejectedByTheActiveContractAsync()
         {
             string work = CreateWorkspace();
             try
@@ -51,13 +86,13 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     "evaluate", "--repository-root", FindRoot(),
                     "--evidence", Fixture("v1.json"), "--expected", Fixture("expected.json"),
                     "--output", result).ConfigureAwait(false);
-                Assert.That(code, Is.Zero, output);
+                Assert.That(code, Is.EqualTo(1), output);
                 Assert.That(File.Exists(result), Is.True, output);
                 using var document = JsonDocument.Parse(await File.ReadAllTextAsync(result).ConfigureAwait(false));
                 Assert.That(document.RootElement.GetProperty("status").GetString(), Is.EqualTo("incomplete"));
                 Assert.That(document.RootElement.GetProperty("unmetControls").ToString(),
                     Does.Contain("EVIDENCE_SCHEMA"));
-                Assert.That(document.RootElement.GetProperty("blocking").GetBoolean(), Is.False);
+                Assert.That(document.RootElement.GetProperty("blocking").GetBoolean(), Is.True);
             }
             finally
             {
@@ -65,6 +100,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that stage and channel govern blocking while incomplete evidence never claims verified readiness.
+        /// </summary>
         [TestCase("pilot", "stable", 0)]
         [TestCase("required", "stable", 1)]
         [TestCase("required", "preview", 0)]
@@ -109,6 +147,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that required-stage controls leave the deferred 1.5 release line advisory without claiming
+        /// completeness.
+        /// </summary>
         [Test]
         public async Task NewRequiredControlsDoNotEnrollTheDeferredReleaseLineAsync()
         {
@@ -147,11 +189,15 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that malformed, duplicate-version, unsupported, or incomplete evidence JSON returns a fatal-input
+        /// exit.
+        /// </summary>
         [TestCase("{")]
         [TestCase(/*lang=json,strict*/ "{\"schemaVersion\":2,\"schemaVersion\":1}")]
         [TestCase(/*lang=json,strict*/ "{\"schemaVersion\":3}")]
         [TestCase(/*lang=json,strict*/ "{\"schemaVersion\":2}")]
-        public async Task InvalidEvidenceCannotPretendPilotSuccessAsync(string json)
+        public async Task InvalidEvidenceCannotPretendSuccessAsync(string json)
         {
             string work = CreateWorkspace();
             try
@@ -170,6 +216,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that capture preserves target-specific dependency graphs and nonpackable contributors with exact
+        /// digests.
+        /// </summary>
         [Test]
         public async Task CaptureFreezesTargetGraphsAndNonpackableContributorsAsync()
         {
@@ -204,6 +254,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that invented checkout state or evaluated package versions prevent frozen-input output.
+        /// </summary>
         [TestCase("sha")]
         [TestCase("cleanliness")]
         [TestCase("ref")]
@@ -244,6 +297,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that missing or null expectation members produce an input error without a report or null-reference
+        /// failure.
+        /// </summary>
         [TestCase("release", false)]
         [TestCase("release", true)]
         [TestCase("artifacts", false)]
@@ -279,6 +336,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that NuGet sidecars preserve package and manifest bytes while describing private payloads and TFM
+        /// graphs.
+        /// </summary>
         [Test]
         public async Task NugetSidecarsPreserveSignedBytesPrivatePayloadsAndTargetSpecificGraphsAsync()
         {
@@ -311,7 +372,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     "--inputs", Path.Combine(work, "frozen"), "--context", Path.Combine(work, "expected.json"),
                     "--manifest", manifestPath,
                     "--output", Path.Combine(work, "evidence")).ConfigureAwait(false);
-                Assert.That(code, Is.Zero, output);
+                Assert.That(code, Is.EqualTo(1), output);
                 Assert.That(await File.ReadAllBytesAsync(package).ConfigureAwait(false), Is.EqualTo(before));
                 Assert.That(await File.ReadAllBytesAsync(Path.Combine(work, "evidence", "release-manifest.json"))
                     .ConfigureAwait(false),
@@ -349,7 +410,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     Path.Combine(work, "expected.json"), "--artifacts-root", Path.Combine(work, "packages"),
                     "--output", Path.Combine(work, "report.json"))
                     .ConfigureAwait(false);
-                Assert.That(evaluateCode, Is.Zero, evaluateOutput);
+                Assert.That(evaluateCode, Is.EqualTo(1), evaluateOutput);
             }
             finally
             {
@@ -357,6 +418,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies honest inventory classification of unowned native payloads, Debug packages, symbols, and
+        /// metapackages.
+        /// </summary>
         [TestCase("unknown-native")]
         [TestCase("debug")]
         [TestCase("symbols")]
@@ -416,7 +481,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     File.Copy(package, Path.ChangeExtension(package, ".snupkg"));
                 }
                 (int code, string output) = await GenerateAsync(work).ConfigureAwait(false);
-                Assert.That(code, Is.Zero, output);
+                Assert.That(code, Is.EqualTo(1), output);
                 string[] inventoryPaths = Directory.GetFiles(
                     Path.Combine(work, "evidence"), "*.inventory.json", SearchOption.AllDirectories);
                 string path = inventoryPaths.Single(p => p.Contains(
@@ -454,6 +519,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that unsafe archive entry paths are rejected without extracting files or writing an evidence
+        /// envelope.
+        /// </summary>
         [TestCase("../escape.dll")]
         [TestCase("/absolute.dll")]
         [TestCase("C:/outside.dll")]
@@ -484,6 +553,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that changing frozen dependency-graph bytes causes reconciliation to fail with an integrity
+        /// diagnostic.
+        /// </summary>
         [Test]
         public async Task AlteredFrozenGraphCannotBeReconciledAsync()
         {
@@ -508,6 +581,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that equivalent normalized stable NuGet versions do not create a false release-identity mismatch.
+        /// </summary>
         [TestCase("2.0")]
         [TestCase("2.0.0")]
         [TestCase("2.0.0.0")]
@@ -526,7 +602,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 (int code, string output) = await RunAsync(
                     "evaluate", "--repository-root", FindRoot(), "--evidence", Fixture("v2.json"),
                     "--expected", expectedPath, "--output", reportPath).ConfigureAwait(false);
-                Assert.That(code, Is.Zero, output);
+                Assert.That(code, Is.EqualTo(1), output);
                 Assert.That(await File.ReadAllTextAsync(reportPath).ConfigureAwait(false),
                     Does.Not.Contain("Actual version/group/channel contradict"));
             }
@@ -536,6 +612,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a completed job with zero executed tests is a blocking baseline failure under the active
+        /// required policy.
+        /// </summary>
         [Test]
         public async Task ZeroExecutedAssuranceIsBaselineFailureEvenDuringPilotAsync()
         {
@@ -572,6 +652,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that locally asserted passing results cannot authenticate producer identity or complete assurance.
+        /// </summary>
         [TestCase("pilot", 0)]
         [TestCase("required", 1)]
         public async Task SelfAssertedPassingAssuranceNeverAuthenticatesItsProducerAsync(
@@ -672,7 +755,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
-        [TestCase(true, 0)]
+        /// <summary>
+        /// Verifies that empty-regression skips avoid baseline failure only when bound replay counts justify them.
+        /// </summary>
+        [TestCase(true, 1)]
         [TestCase(false, 1)]
         public async Task EmptyRegressionSkipsRequireBoundReplayProofAsync(bool validProof, int expectedExit)
         {
@@ -745,6 +831,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that source, producer, policy, and document mismatches yield specific evidence findings.
+        /// </summary>
         [TestCase("source", "Actual source does not match")]
         [TestCase("run", "Producer run, attempt or definition differs")]
         [TestCase("policy", "Protected policy bytes/identity differ")]
@@ -783,7 +872,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 (int code, string output) = await RunAsync(
                     "evaluate", "--repository-root", FindRoot(), "--evidence", evidencePath,
                     "--expected", Fixture("expected.json"), "--output", resultPath).ConfigureAwait(false);
-                Assert.That(code, Is.Zero, output);
+                Assert.That(code, Is.EqualTo(1), output);
                 Assert.That(await File.ReadAllTextAsync(resultPath).ConfigureAwait(false), Does.Contain(finding));
             }
             finally
@@ -792,6 +881,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies SBOM schema and artifact-subject content instead of accepting a document's format labels alone.
+        /// </summary>
         [TestCase("none", null)]
         [TestCase("schema", "CycloneDX 1.6 schema validation failed")]
         [TestCase("subject", "SBOM content disagrees with its artifact subject")]
@@ -835,7 +927,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 (int code, string output) = await RunAsync(
                     "evaluate", "--repository-root", FindRoot(), "--evidence", evidencePath,
                     "--expected", Fixture("expected.json"), "--output", resultPath).ConfigureAwait(false);
-                Assert.That(code, Is.Zero, output);
+                Assert.That(code, Is.EqualTo(1), output);
                 using var report = JsonDocument.Parse(await File.ReadAllTextAsync(resultPath).ConfigureAwait(false));
                 if (finding == null)
                 {
@@ -853,6 +945,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a conflicting development expectation cannot downgrade a claimed stable release's blocking
+        /// policy.
+        /// </summary>
         [Test]
         public async Task ConflictingDevelopmentExpectationCannotDowngradeClaimedStableReleaseAsync()
         {
@@ -883,6 +979,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that evaluation rejects an output path equal to its evidence input and preserves the original
+        /// bytes.
+        /// </summary>
         [Test]
         public async Task EvaluationCannotOverwriteItsEvidenceInputAsync()
         {
@@ -904,6 +1004,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies OCI descriptor integrity and binds attestation references and predicates to the runnable image
+        /// subject.
+        /// </summary>
         [TestCase("none", null)]
         [TestCase("descriptor-size", "OCI descriptor size")]
         [TestCase("missing-layer", "Missing or altered OCI blob")]
@@ -1008,7 +1112,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 (int code, string output) = await RunAsync(
                     "oci", "--repository-root", FindRoot(), "--context", context,
                     "--request", request, "--output", result).ConfigureAwait(false);
-                Assert.That(code, Is.Zero, output);
+                Assert.That(code, Is.EqualTo(1), output);
                 using var report = JsonDocument.Parse(await File.ReadAllTextAsync(result).ConfigureAwait(false));
                 if (mutation == "descriptor-size")
                 {

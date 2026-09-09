@@ -272,8 +272,14 @@ namespace Opc.Ua.Mcp
         }
     }
 
+    /// <summary>
+    /// Defines source-generated warning messages for MCP host diagnostics and explicit connection-policy overrides.
+    /// </summary>
     internal static partial class ProgramLog
     {
+        /// <summary>
+        /// Logs that diagnostic tools exposing captured channel keys are enabled.
+        /// </summary>
         [LoggerMessage(
             EventId = McpHostEventIds.Program + 0,
             Level = LogLevel.Warning,
@@ -283,6 +289,9 @@ namespace Opc.Ua.Mcp
                 "Ensure the MCP transport is authenticated and audited.")]
         public static partial void PcapDiagnosticsToolsEnabled(this ILogger logger);
 
+        /// <summary>
+        /// Logs an explicit request to connect without OPC UA message signing or encryption.
+        /// </summary>
         [LoggerMessage(
             EventId = McpHostEventIds.Program + 1,
             Level = LogLevel.Warning,
@@ -290,6 +299,9 @@ namespace Opc.Ua.Mcp
                 "encrypted. Use only for isolated testing. This does not enable certificate auto-acceptance.")]
         public static partial void UnsecuredConnectionRequested(this ILogger logger);
 
+        /// <summary>
+        /// Logs an explicit request to accept an untrusted server certificate for a connection.
+        /// </summary>
         [LoggerMessage(
             EventId = McpHostEventIds.Program + 2,
             Level = LogLevel.Warning,

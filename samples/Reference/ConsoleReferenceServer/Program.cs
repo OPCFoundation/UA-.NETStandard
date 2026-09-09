@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -44,10 +44,16 @@ using Opc.Ua.Server;
 namespace Quickstarts.ReferenceServer
 {
     /// <summary>
-    /// The program.
+    /// Hosts the OPC UA reference server with environment defaults and explicit command-line security opt-ins.
     /// </summary>
     public static class Program
     {
+        /// <summary>
+        /// Prints application information, merges REFSERVER defaults with explicit arguments,
+        /// and invokes the reference server command.
+        /// </summary>
+        /// <param name="args">Explicit command-line arguments, which take precedence over environment defaults.</param>
+        /// <returns>The command invocation exit code.</returns>
         public static Task<int> Main(string[] args)
         {
             Console.WriteLine("{0} OPC UA Reference Server", Utils.IsRunningOnMono() ? "Mono" : ".NET Core");
@@ -400,8 +406,14 @@ namespace Quickstarts.ReferenceServer
         }
     }
 
+    /// <summary>
+    /// Source-generated diagnostics for reference server command-line configuration.
+    /// </summary>
     internal static partial class ProgramLog
     {
+        /// <summary>
+        /// Reports a malformed reverse-connect URL together with its parsing exception.
+        /// </summary>
         [LoggerMessage(EventId = ConsoleReferenceServerEventIds.Program + 0, Level = LogLevel.Error,
             Message = "Invalid reverse connect URL: {Url}")]
         public static partial void InvalidReverseConnectUrl(this ILogger logger, UriFormatException ex, string url);

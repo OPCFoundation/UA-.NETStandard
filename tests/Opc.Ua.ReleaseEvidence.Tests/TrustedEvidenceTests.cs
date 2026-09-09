@@ -1,5 +1,31 @@
-// Copyright (c) OPC Foundation, Inc. All rights reserved.
-// Licensed under the MIT License. See LICENSE.txt in the project root for license information.
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -25,6 +51,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
     [TestFixture]
     public sealed class TrustedEvidenceTests
     {
+        /// <summary>
+        /// Verifies that independently signed required-group evidence satisfies all sixteen controls without rewriting
+        /// assessment.
+        /// </summary>
         [Test]
         public async Task CompleteSignedRequiredGroupSatisfiesAllSixteenControlsAsync()
         {
@@ -47,6 +77,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(fixture.Envelope.Documents.Any(d => d.Path == "producer-assessment.json"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a signed review created before its referencing envelope authenticates the complete finding
+        /// population.
+        /// </summary>
         [Test]
         public async Task SignedFindingReviewCanPrecedeTheEnvelopeThatReferencesItAsync()
         {
@@ -63,6 +97,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(projection.Revoked, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that original native pack and index statement signatures authenticate a complete NuGet release.
+        /// </summary>
         [Test]
         public async Task NativePackAndIndexBundlesAuthenticateWithoutRelabelledSignaturesAsync()
         {
@@ -74,6 +111,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(report.UnmetControls, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that native proof authentication rejects mismatched source, run, signer, or configuration
+        /// membership.
+        /// </summary>
         [TestCase("unsigned")]
         [TestCase("wrong-key")]
         [TestCase("index-source")]
@@ -92,6 +133,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(report.UnmetControls, Does.Contain("PROVENANCE_VERIFIED"));
         }
 
+        /// <summary>
+        /// Verifies that later assurance retains the original producer envelope and cannot erase an observed baseline
+        /// failure.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task LaterAssuranceLinksProducerBytesAndCannotEraseObservedFailureAsync(bool originalFailure)
@@ -109,6 +154,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 d.Type == "producer-record" && d.Version == "2" && d.Digest == originalDigest), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that matching delivered package identity still requires independent approval of the author
+        /// signature.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public async Task DeliveredPrimaryIdentityNeedsIndependentApprovedSignatureVerificationAsync(bool approved)
@@ -123,6 +172,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(report.AuthorDigest, Is.EqualTo(report.DeliveredDigest));
         }
 
+        /// <summary>
+        /// Verifies that an authenticated outer index cannot make restricted fields in referenced documents
+        /// publishable.
+        /// </summary>
         [TestCase("pilot")]
         [TestCase("required")]
         public async Task AReviewedOuterIndexCannotMakeRestrictedTransitiveFieldsPublicAsync(string stage)
@@ -135,6 +188,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(report.BaselineFailed, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that signed finding reviews remain current, unrevoked, and complete for the bound query population.
+        /// </summary>
         [TestCase("partial-occurrences")]
         [TestCase("partial-alerts")]
         [TestCase("query")]
@@ -153,6 +209,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(report.UnmetControls, Does.Contain("ASSURANCE_COMPLETE"));
         }
 
+        /// <summary>
+        /// Verifies that signed promotion authority binds the exact request digest, artifact set, and member count.
+        /// </summary>
         [Test]
         public async Task SignedPromotionAuthorizationBindsExactRequestAsync()
         {
@@ -170,6 +229,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(verified.OfficialTransportAuthorized, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that promotion rejects unbound requests, changed aliases, incorrect member identities, or missing
+        /// evidence.
+        /// </summary>
         [TestCase("unbound")]
         [TestCase("alias-change")]
         [TestCase("wrong-id")]
@@ -185,6 +248,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 fixture, CancellationToken.None), Throws.TypeOf<PromotionRejectedException>());
         }
 
+        /// <summary>
+        /// Verifies idempotent promotion recovery after content is written but before evidence and receipts are
+        /// completed.
+        /// </summary>
         [Test]
         public async Task CryptographicPromotionRecoversAfterContentWriteBeforeReceiptAsync()
         {
@@ -212,6 +279,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(repeated.VerifiedMembers, Is.EqualTo(4));
         }
 
+        /// <summary>
+        /// Verifies that publication revocation at the creation boundary prevents any destination content or evidence
+        /// write.
+        /// </summary>
         [Test]
         public async Task RevokedGrantIsReverifiedImmediatelyBeforeMutationAsync()
         {
@@ -234,6 +305,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that missing new assurance blocks isolated promotion only for the required stable release cohort.
+        /// </summary>
         [TestCase("required", "stable", "2.0.0")]
         [TestCase("required", "preview", "2.0.0-preview")]
         [TestCase("pilot", "stable", "2.0.0")]
@@ -257,6 +331,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that signed record shapes cannot conceal missing or mismatched source, authority, artifact, or
+        /// execution proof.
+        /// </summary>
         [TestCase("unsigned")]
         [TestCase("source")]
         [TestCase("definition")]
@@ -281,6 +359,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(report.Blocking, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that observed baseline failures block legacy pilot configurations and preview releases.
+        /// </summary>
         [TestCase("pilot", "stable", "2.0.0")]
         [TestCase("required", "preview", "2.0.0-preview")]
         public async Task ObservedBaselineFailureAlwaysBlocksAsync(
@@ -294,6 +375,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(report.BaselineFailed, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that missing new cryptographic proof remains advisory outside the currently required stable release
+        /// line.
+        /// </summary>
         [TestCase("pilot", "stable", "2.0.0")]
         [TestCase("required", "preview", "2.0.0-preview")]
         [TestCase("required", "development", "2.0.0")]
@@ -310,6 +395,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(report.Blocking, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that caller-controlled development labels cannot override independently protected stable release
+        /// intent.
+        /// </summary>
         [Test]
         public async Task BothCallerContextsCannotDowngradeProtectedStableIntentAsync()
         {
@@ -324,6 +413,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(report.Channel, Is.EqualTo("stable"));
         }
 
+        /// <summary>
+        /// Verifies that production evaluator composition does not authenticate policy merely from protected-looking
+        /// filenames.
+        /// </summary>
         [Test]
         public async Task ProductionCompositionDoesNotTrustUnsignedProtectedFileNamesAsync()
         {
@@ -340,6 +433,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(report.UnmetControls, Does.Contain("POLICY_IDENTITY"));
         }
 
+        /// <summary>
+        /// Verifies that an unknown trust claim in the verification bundle is a fatal contract error rather than
+        /// advisory evidence.
+        /// </summary>
         [Test]
         public async Task MalformedVerificationContractIsFatalRatherThanAdvisoryAsync()
         {
@@ -376,16 +473,54 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 }
             }
 
+            /// <summary>
+            /// Gets the temporary root owning all candidate, package, and verification fixture files.
+            /// </summary>
             public string Root { get; }
+
+            /// <summary>
+            /// Gets the synthetic candidate repository containing its copied release contracts.
+            /// </summary>
             public string Repository { get; }
+
+            /// <summary>
+            /// Gets the directory containing package and symbol artifacts submitted for verification.
+            /// </summary>
             public string Packages { get; }
+
+            /// <summary>
+            /// Gets the directory containing the evidence envelope, referenced documents, and cryptographic proofs.
+            /// </summary>
             public string BundleRoot { get; }
+
+            /// <summary>
+            /// Gets the evidence-envelope path evaluated by the real release verifier.
+            /// </summary>
             public string EvidencePath => Path.Combine(BundleRoot, "release-evidence.json");
+
+            /// <summary>
+            /// Gets the expected-release context path saved alongside the evidence envelope.
+            /// </summary>
             public string ExpectedPath => Path.Combine(BundleRoot, "expected.json");
+
+            /// <summary>
+            /// Gets the verification bundle path containing references to independently authenticated records.
+            /// </summary>
             public string BundlePath => Path.Combine(BundleRoot, "verification-bundle.json");
+
+            /// <summary>
+            /// Gets or sets the candidate envelope mutated by evidence-validation scenarios.
+            /// </summary>
             public EvidenceEnvelope Envelope { get; set; } = null!;
+
+            /// <summary>
+            /// Gets the independently supplied policy snapshot, including approved authorities and revocations.
+            /// </summary>
             public TrustedPolicySnapshot Policy { get; private set; } = null!;
 
+            /// <summary>
+            /// Creates a signed synthetic release for the requested rollout stage, channel, and version.
+            /// </summary>
             public static async Task<SyntheticRelease> CreateAsync(
                 string stage = "required", string channel = "stable", string version = "2.0.0")
             {
@@ -394,6 +529,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 return fixture;
             }
 
+            /// <summary>
+            /// Creates a required stable release with a primary NuGet signature and a separately approved author
+            /// identity.
+            /// </summary>
             public static async Task<SyntheticRelease> CreateWithPrimarySignatureAsync()
             {
                 var fixture = new SyntheticRelease(primarySignature: true);
@@ -406,6 +545,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 return fixture;
             }
 
+            /// <summary>
+            /// Releases ephemeral keys and certificates and removes the synthetic release workspace.
+            /// </summary>
             public void Dispose()
             {
                 m_signer.Dispose();
@@ -414,6 +556,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 Directory.Delete(Root, true);
             }
 
+            /// <summary>
+            /// Saves the current envelope and evaluates it against the fixture's independent policy and signature
+            /// verifiers.
+            /// </summary>
             public async Task<(int Code, EvaluationReport Report)> EvaluateAsync()
             {
                 await SaveEnvelopeAsync().ConfigureAwait(false);
@@ -428,6 +574,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 return (code, report);
             }
 
+            /// <summary>
+            /// Stages package evidence, binds publication authority to a promotion request, and applies a requested
+            /// mutation.
+            /// </summary>
             public async Task<PromotionVerificationInput> CreatePromotionInputAsync(string mutation)
             {
                 Directory.CreateDirectory(Path.Combine(Packages, "evidence"));
@@ -509,6 +659,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     Path.Combine(Root, "protected-anchor.json"), requestPath, work);
             }
 
+            /// <summary>
+            /// Adds a signed CodeQL disposition and updates assurance bindings with optional review-validity mutations.
+            /// </summary>
             public async Task AddCodeqlReviewAsync(string mutation = "valid")
             {
                 JobRecord job = Envelope.Assurance.Jobs.Single(j => j.Id == "codeql-csharp");
@@ -589,6 +742,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 await CreateProofsAsync().ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Removes proof references for the selected record kind from the bundle while retaining its record files.
+            /// </summary>
             public async Task OmitProofAsync(string kind)
             {
                 VerificationBundle bundle = await m_files.ReadModelAsync(
@@ -600,11 +756,17 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 }, VerificationJsonContext.Default.VerificationBundle).ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Revokes the publication-boundary record in the policy used by subsequent verification calls.
+            /// </summary>
             public void RevokePublication()
             {
                 Policy = Policy with { RevokedRecordIds = ["record-publication-boundary"] };
             }
 
+            /// <summary>
+            /// Adds a referenced document containing a restricted field and refreshes the enclosing signed proofs.
+            /// </summary>
             public async Task AddRestrictedDocumentAsync()
             {
                 const string path = "restricted-fixture.json";
@@ -622,6 +784,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 await CreateProofsAsync().ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Replaces the producer-record proof with native signed index and per-configuration NuGet pack statements.
+            /// </summary>
             public async Task UseNativeNugetProofsAsync(string mutation = "valid")
             {
                 Directory.CreateDirectory(Path.Combine(BundleRoot, "producer"));
@@ -762,6 +927,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 }, VerificationJsonContext.Default.VerificationBundle).ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Links later complete assurance to the original producer envelope and returns that envelope's unchanged
+            /// digest.
+            /// </summary>
             public async Task<string> LinkLaterAssuranceAsync(bool originalFailure)
             {
                 EvidenceEnvelope completed = Envelope;
@@ -811,6 +980,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 return digest;
             }
 
+            /// <summary>
+            /// Copies the author package to a delivery file and verifies it under the selected approved-signer policy.
+            /// </summary>
             public async Task<ApprovedNugetDeliveryReport> VerifyApprovedDeliveryAsync(bool approved)
             {
                 string author = Path.Combine(Packages, "Synthetic.nupkg");
@@ -834,12 +1006,18 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     .ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Returns the fixture's independent policy snapshot instead of reading candidate-provided trust files.
+            /// </summary>
             public Task<TrustedPolicySnapshot?> LoadAsync(
                 string? path, string[] candidateRoots, CancellationToken cancellationToken)
             {
                 return Task.FromResult<TrustedPolicySnapshot?>(Policy);
             }
 
+            /// <summary>
+            /// Verifies the signed CodeQL review record and returns its public review projection.
+            /// </summary>
             public async Task<CodeqlReviewProjection> VerifyReviewProjectionAsync()
             {
                 string output = Path.Combine(Root, "review-projection.json");
@@ -854,6 +1032,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     .ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Verifies the fixture authority and key identity, exact record payload, and DSSE RSA signature.
+            /// </summary>
             public async Task<bool> VerifyAsync(
                 string recordPath, string bundlePath, VerificationAuthority authority,
                 TrustedPolicySnapshot policy, CancellationToken cancellationToken)
@@ -868,6 +1049,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                         HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             }
 
+            /// <summary>
+            /// Verifies artifact bytes and signer identity, including primary NuGet signature identity when configured.
+            /// </summary>
             public async Task<bool> VerifyAsync(
                 string artifactPath, ArtifactSignatureProof proof, string bundleRoot,
                 TrustedPolicySnapshot policy, CancellationToken cancellationToken)
@@ -888,6 +1072,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     m_verifier.VerifyData(artifact, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             }
 
+            /// <summary>
+            /// Authenticates an in-toto DSSE statement with the fixture key and returns its parsed payload or null.
+            /// </summary>
             public async Task<JsonDocument?> VerifyAsync(
                 string subjectPath, string bundlePath, string predicateType,
                 VerificationAuthority authority, TrustedPolicySnapshot policy, CancellationToken cancellationToken)
@@ -905,6 +1092,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 return JsonDocument.Parse(bytes);
             }
 
+            /// <summary>
+            /// Applies targeted source, authority, membership, execution-proof, or signature mutations to the release
+            /// fixture.
+            /// </summary>
             public async Task MutateAsync(string mutation)
             {
                 switch (mutation)
@@ -1416,9 +1607,18 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             private VerificationProof[]? m_reviews;
         }
 
+        /// <summary>
+        /// Re-evaluates promotion eligibility using the fixture's current independent policy and cryptographic
+        /// verifiers.
+        /// </summary>
+        /// <param name="fixture">The release fixture supplying policy, keys, and signature verification.</param>
+        /// <param name="input">The immutable promotion request and evidence locations to verify.</param>
         private sealed class FixtureEligibility(SyntheticRelease fixture, PromotionVerificationInput input)
             : IPromotionEligibility
         {
+            /// <summary>
+            /// Verifies the bound request against the latest fixture policy before a promotion operation proceeds.
+            /// </summary>
             public Task<VerifiedPromotion> VerifyAsync(CancellationToken cancellationToken)
             {
                 var files = new EvidenceFiles();
@@ -1428,8 +1628,15 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Wraps a promotion journal to simulate interruption after content readback but before it is recorded.
+        /// </summary>
+        /// <param name="inner">The journal that receives entries not selected for interruption.</param>
         private sealed class InterruptAfterContent(IPromotionJournal inner) : IPromotionJournal
         {
+            /// <summary>
+            /// Rejects content-readback entries with a synthetic I/O failure and forwards other entries to the journal.
+            /// </summary>
             public Task AppendAsync(PromotionEvent entry, CancellationToken cancellationToken)
             {
                 if (entry.Operation == "content-readback")
@@ -1440,8 +1647,15 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Simulates publication revocation at the create-started journal boundary.
+        /// </summary>
+        /// <param name="fixture">The release fixture whose publication authority is revoked during creation.</param>
         private sealed class RevokeOnCreate(SyntheticRelease fixture) : IPromotionJournal
         {
+            /// <summary>
+            /// Honors cancellation and revokes publication on create-started entries without persisting a journal.
+            /// </summary>
             public Task AppendAsync(PromotionEvent entry, CancellationToken cancellationToken)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -1454,9 +1668,24 @@ namespace Opc.Ua.ReleaseEvidence.Tests
         }
     }
 
+    /// <summary>
+    /// Represents a DSSE envelope carrying a base64-encoded fixture payload and its signatures.
+    /// </summary>
+    /// <param name="PayloadType">The media type authenticated alongside the payload.</param>
+    /// <param name="Payload">The base64-encoded record or in-toto statement bytes.</param>
+    /// <param name="Signatures">The signature entries authenticating the encoded payload.</param>
     internal sealed record DsseFixture(string PayloadType, string Payload, DsseFixtureSignature[] Signatures);
+
+    /// <summary>
+    /// Represents one fixture signing-key identity and its encoded DSSE signature.
+    /// </summary>
+    /// <param name="KeyId">The digest identifying the ephemeral verification key or author certificate.</param>
+    /// <param name="Sig">The base64-encoded signature over the DSSE pre-authentication encoding.</param>
     internal sealed record DsseFixtureSignature(string KeyId, string Sig);
 
+    /// <summary>
+    /// Provides source-generated JSON metadata for the DSSE test envelope and signature records.
+    /// </summary>
     [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
     [JsonSerializable(typeof(DsseFixture))]
     internal sealed partial class TrustedTestJsonContext : JsonSerializerContext;

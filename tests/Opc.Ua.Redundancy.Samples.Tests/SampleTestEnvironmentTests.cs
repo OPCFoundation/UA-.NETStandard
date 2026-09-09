@@ -35,10 +35,16 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Redundancy.Samples.Tests
 {
+    /// <summary>
+    /// Checks redundancy sample startup guards, independent security consent, and isolated demo endpoints.
+    /// </summary>
     [TestFixture]
     [Category("Unit")]
     internal sealed class SampleTestEnvironmentTests
     {
+        /// <summary>
+        /// Verifies that OPC UA trust and None-policy warnings depend on explicit flags, not HA or host settings.
+        /// </summary>
         [TestCase(false, false, false)]
         [TestCase(false, false, true)]
         [TestCase(true, false, false)]
@@ -70,6 +76,9 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             Assert.That(Directory.Exists(root), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that help and invalid options exit before HA configuration or PKI initialization.
+        /// </summary>
         [TestCase("--help", 0)]
         [TestCase("--unknown-option", 1)]
         [TestCase("--auto-accept=invalid", 1)]
@@ -91,6 +100,9 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             Assert.That(Directory.Exists(root), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that the fast demo uses a dynamically allocated loopback endpoint and explicit insecure HA mode.
+        /// </summary>
         [Test]
         public void BuildFastDemoUsesLoopbackEndpointAndInsecureDemoKey()
         {
@@ -109,6 +121,10 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that historian startup rejects unsupported HA topology or unprotected shared records before PKI
+        /// setup.
+        /// </summary>
         [TestCase("aa", "strong", "strongly consistent active/passive topology")]
         [TestCase("ap", "eventual", "strongly consistent active/passive topology")]
         [TestCase("ap", "strong", "requires protected shared records")]
@@ -135,6 +151,9 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             Assert.That(Directory.Exists(root), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that separate fast-demo environments receive distinct UDP endpoints.
+        /// </summary>
         [Test]
         public void BuildFastDemoAllocatesDistinctUdpPortsPerCall()
         {

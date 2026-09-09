@@ -76,6 +76,12 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         private const string ExternalSubscriberOptionsName = "ExternalSubscriber";
         private const string ExternalResponderOptionsName = "ExternalResponder";
 
+        /// <summary>
+        /// Parses publisher, subscriber, or external-bridge mode and invokes the selected workflow,
+        /// rejecting unknown arguments and malformed Boolean assignments before startup.
+        /// </summary>
+        /// <param name="args">Mode and options supplied to the executable.</param>
+        /// <returns>Zero on success, or the parsing or workflow failure exit code.</returns>
         public static async Task<int> Main(string[] args)
         {
             int exitCode = 0;
@@ -1048,6 +1054,12 @@ namespace Quickstarts.ConsoleReferencePubSubClient
     /// </summary>
     internal sealed class ExternalBridgeHostPolicy
     {
+        /// <summary>
+        /// Captures the host configuration and application settings and creates the logger for security warnings.
+        /// </summary>
+        /// <param name="configuration">Host configuration containing the independent bridge security opt-ins.</param>
+        /// <param name="telemetry">Telemetry context used to create the policy logger.</param>
+        /// <param name="applicationConfiguration">Application settings used when a connection has none.</param>
         public ExternalBridgeHostPolicy(
             IConfiguration configuration,
             ITelemetryContext telemetry,
@@ -1058,6 +1070,11 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             m_applicationConfiguration = applicationConfiguration;
         }
 
+        /// <summary>
+        /// Supplies missing application settings, disables automatic acceptance of untrusted certificates,
+        /// and selects SignAndEncrypt unless SecurityPolicy None is explicitly enabled, in which case it warns.
+        /// </summary>
+        /// <param name="connection">Bound adapter connection options to update with the host policy.</param>
         internal void Apply(ServerConnectionOptions connection)
         {
             // Avoid the adapter's convenience configuration, which auto-accepts untrusted peers.
@@ -1080,6 +1097,11 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             }
         }
 
+        /// <summary>
+        /// Applies the external connection policy and separately controls acceptance of unauthenticated
+        /// PubSub actions, emitting a warning when that opt-in is enabled.
+        /// </summary>
+        /// <param name="options">Bound responder options to update with channel and action policies.</param>
         internal void Apply(ServerActionResponderOptions options)
         {
             Apply(options.Connection);
@@ -1091,7 +1113,16 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             options.AllowUnsecured = allowUnsecured;
         }
 
+        /// <summary>
+        /// Configuration key for the default-false opt-in to unsigned, unencrypted external OPC UA channels.
+        /// This setting does not relax certificate trust or permit unsecured PubSub actions.
+        /// </summary>
         internal const string SecurityNoneKey = "ExternalBridge:UseSecurityNone";
+
+        /// <summary>
+        /// Configuration key for the default-false opt-in to unauthenticated PubSub actions
+        /// that can call external server methods, independently of external channel security.
+        /// </summary>
         internal const string UnsecuredActionsKey = "ExternalBridge:AllowUnsecuredActions";
 
         private readonly IConfiguration m_configuration;
@@ -1198,8 +1229,14 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         Responder = 4
     }
 
+    /// <summary>
+    /// Source-generated messages for PubSub startup, adapter reloads, and explicit security relaxations.
+    /// </summary>
     internal static partial class ProgramLog
     {
+        /// <summary>
+        /// Logs the publisher profile, endpoint, interval, and publisher/writer-group identifiers before startup.
+        /// </summary>
         [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 0, Level = LogLevel.Information,
             Message = "Publisher starting: profile={Profile} endpoint={Endpoint} interval={Interval}ms " +
                 "publisherId={PublisherId} writerGroup={WriterGroupId}")]
@@ -1211,10 +1248,16 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             ushort publisherId,
             ushort writerGroupId);
 
+        /// <summary>
+        /// Logs publisher startup completion and the console shutdown instruction.
+        /// </summary>
         [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 1, Level = LogLevel.Information,
             Message = "Publisher started. Press Ctrl-C to exit.")]
         public static partial void PublisherStarted(this ILogger logger);
 
+        /// <summary>
+        /// Logs the subscriber profile, endpoint, and publisher/writer-group filters before startup.
+        /// </summary>
         [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 2, Level = LogLevel.Information,
             Message = "Subscriber starting: profile={Profile} endpoint={Endpoint} " +
                 "publisherFilter={PublisherFilter} writerGroupFilter={WriterGroupFilter}")]
@@ -1225,10 +1268,16 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             ushort publisherFilter,
             ushort writerGroupFilter);
 
+        /// <summary>
+        /// Logs subscriber startup completion and the console shutdown instruction.
+        /// </summary>
         [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 3, Level = LogLevel.Information,
             Message = "Subscriber started. Press Ctrl-C to exit.")]
         public static partial void SubscriberStarted(this ILogger logger);
 
+        /// <summary>
+        /// Logs bridge directions, read strategy, subscription affinity, and external-server/PubSub endpoints.
+        /// </summary>
         [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 4, Level = LogLevel.Information,
             Message = "External-server PubSub bridge starting: mode={Mode} readMode={ReadMode} " +
                 "affinity={Affinity} externalServer={ExternalEndpoint} pubSub={PubSubEndpoint}")]
@@ -1240,6 +1289,9 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             string externalEndpoint,
             string pubSubEndpoint);
 
+        /// <summary>
+        /// Identifies the host and PubSub configuration files and named publisher options used for live reload.
+        /// </summary>
         [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 5, Level = LogLevel.Information,
             Message = "Hot reload enabled. Edit {AppSettingsFile} (for example, change " +
                 "{PublisherOptionsName}:ReadMode to Subscription) or {ConfigFile} (for example, add or remove " +
@@ -1250,10 +1302,16 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             string publisherOptionsName,
             string? configFile);
 
+        /// <summary>
+        /// Logs bridge startup completion and the console shutdown instruction.
+        /// </summary>
         [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 6, Level = LogLevel.Information,
             Message = "Bridge started. Press Ctrl-C to exit.")]
         public static partial void BridgeStarted(this ILogger logger);
 
+        /// <summary>
+        /// Logs channel security, unsecured-action consent, and certificate auto-acceptance per bridge direction.
+        /// </summary>
         [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 7, Level = LogLevel.Information,
             Message = "{Direction}: SecurityMode={SecurityMode}; AllowUnsecuredActions={AllowUnsecuredActions}; " +
                 "AutoAcceptUntrustedCertificates={AutoAcceptUntrustedCertificates}")]
@@ -1264,18 +1322,29 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             bool allowUnsecuredActions,
             bool? autoAcceptUntrustedCertificates);
 
+        /// <summary>
+        /// Warns that the external OPC UA connection has no message signing or encryption
+        /// and identifies the switch for disabling that development-only exception.
+        /// </summary>
         [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 8, Level = LogLevel.Warning,
             Message = "DEVELOPMENT ONLY: --security-none / ExternalBridge:UseSecurityNone enables " +
                 "external OPC UA messages that are not signed or encrypted. " +
                 "Use --security-none=false and provision trusted certificates outside an isolated lab.")]
         public static partial void UnsecuredExternalConnection(this ILogger logger);
 
+        /// <summary>
+        /// Warns that unauthenticated PubSub actions can invoke external server methods
+        /// and identifies the switch for disabling that development-only exception.
+        /// </summary>
         [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 9, Level = LogLevel.Warning,
             Message = "DEVELOPMENT ONLY: --allow-unsecured-actions / ExternalBridge:AllowUnsecuredActions " +
                 "accepts unauthenticated PubSub actions that can invoke external server methods. " +
                 "Use --allow-unsecured-actions=false outside an isolated lab.")]
         public static partial void UnsecuredPubSubActions(this ILogger logger);
 
+        /// <summary>
+        /// Reports configuration-watching mode without starting PubSub or connecting to an external server.
+        /// </summary>
         [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 10, Level = LogLevel.Information,
             Message = "Watching adapter configuration without starting PubSub or connecting. Press Ctrl-C to exit.")]
         public static partial void WatchingAdapterConfiguration(this ILogger logger);

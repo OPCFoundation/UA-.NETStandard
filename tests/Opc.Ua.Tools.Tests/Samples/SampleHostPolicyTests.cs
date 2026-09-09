@@ -48,9 +48,15 @@ using Opc.Ua.Pcap.DependencyInjection;
 
 namespace Opc.Ua.Tools.Tests.Samples
 {
+    /// <summary>
+    /// Checks MCP host connection defaults, per-request security consent, and warning-channel isolation.
+    /// </summary>
     [TestFixture]
     public sealed class SampleHostPolicyTests
     {
+        /// <summary>
+        /// Verifies that the host supplies SignAndEncrypt for an omitted mode without mutating the caller's arguments.
+        /// </summary>
         [Test]
         public async Task McpHostRequiresEncryptedConnectionsWhenModeIsOmittedAsync()
         {
@@ -82,6 +88,9 @@ namespace Opc.Ua.Tools.Tests.Samples
                 "The caller's arguments must not become state shared with another connection.");
         }
 
+        /// <summary>
+        /// Verifies that invalid explicit security modes return actionable errors before the connection tool runs.
+        /// </summary>
         [TestCase("null")]
         [TestCase("\"\"")]
         [TestCase("\"Unknown\"")]
@@ -116,6 +125,9 @@ namespace Opc.Ua.Tools.Tests.Samples
                 Does.Contain("securityMode").And.Contain("SignAndEncrypt").And.Contain("GetEndpoints"));
         }
 
+        /// <summary>
+        /// Verifies that supported explicit security modes and other connection arguments are forwarded unchanged.
+        /// </summary>
         [TestCase("None")]
         [TestCase("none")]
         [TestCase("Sign")]
@@ -145,6 +157,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(result.IsError, Is.Not.True);
         }
 
+        /// <summary>
+        /// Verifies that one request's relaxed security consent does not affect a later request or its metadata.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task McpHostKeepsConnectionConsentIsolatedAcrossRequestsAsync(bool composedProfiles)
@@ -190,6 +205,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(secure.Arguments.ContainsKey("securityMode"), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that connection requests without an endpoint fail argument validation before tool invocation.
+        /// </summary>
         [Test]
         public async Task McpHostStillReportsMissingEndpointWithoutInvokingToolAsync()
         {
@@ -209,6 +227,9 @@ namespace Opc.Ua.Tools.Tests.Samples
                 Does.Contain("missing required argument(s): endpointUrl"));
         }
 
+        /// <summary>
+        /// Verifies that host connection policy leaves unrelated tool requests and absent arguments unchanged.
+        /// </summary>
         [Test]
         public async Task McpHostDoesNotChangeNonConnectionRequestsAsync()
         {
@@ -225,6 +246,10 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(result.IsError, Is.Not.True);
         }
 
+        /// <summary>
+        /// Verifies that embedded MCP core filters do not inherit the standalone host's default security-mode
+        /// injection.
+        /// </summary>
         [Test]
         public async Task EmbeddedCoreKeepsItsOmittedModeCompatibilityAsync()
         {
@@ -251,6 +276,10 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(result.IsError, Is.Not.True);
         }
 
+        /// <summary>
+        /// Verifies that each explicit relaxation is warned about before invocation without logging connection
+        /// arguments.
+        /// </summary>
         [TestCase("None", false, "securityMode=None", "untrusted")]
         [TestCase("SignAndEncrypt", true, "untrusted", "securityMode=None")]
         public async Task McpHostWarnsBeforeEachExplicitRelaxationWithoutLoggingArgumentsAsync(
@@ -284,6 +313,9 @@ namespace Opc.Ua.Tools.Tests.Samples
             Assert.That(result.IsError, Is.Not.True);
         }
 
+        /// <summary>
+        /// Verifies that stdio-host security warnings use standard error and leave JSON-RPC standard output untouched.
+        /// </summary>
         [Test]
         [NonParallelizable]
         public async Task StdioHostWritesRelaxationWarningsOnlyToStandardErrorAsync()
@@ -379,24 +411,39 @@ namespace Opc.Ua.Tools.Tests.Samples
 
         private sealed class WarningLog : ILoggerProvider, ILogger
         {
+            /// <summary>
+            /// Gets the formatted warning messages captured during tool invocation.
+            /// </summary>
             public List<string> Messages { get; } = [];
 
+            /// <summary>
+            /// Returns this shared warning collector for every requested logger category.
+            /// </summary>
             public ILogger CreateLogger(string categoryName)
             {
                 return this;
             }
 
+            /// <summary>
+            /// Leaves scopes untracked because these assertions inspect only formatted warning messages.
+            /// </summary>
             public IDisposable? BeginScope<TState>(TState state)
                 where TState : notnull
             {
                 return null;
             }
 
+            /// <summary>
+            /// Enables capture only for warning-level log entries.
+            /// </summary>
             public bool IsEnabled(LogLevel logLevel)
             {
                 return logLevel == LogLevel.Warning;
             }
 
+            /// <summary>
+            /// Formats and records warning entries while ignoring other log levels.
+            /// </summary>
             public void Log<TState>(
                 LogLevel logLevel,
                 EventId eventId,
@@ -410,6 +457,9 @@ namespace Opc.Ua.Tools.Tests.Samples
                 }
             }
 
+            /// <summary>
+            /// Completes the in-memory collector's lifetime without releasing external resources.
+            /// </summary>
             public void Dispose()
             {
             }

@@ -18,11 +18,13 @@ affected/fixed versions and mitigations. This policy does not establish a patch 
 fixed support duration, EOL date, or a guarantee to patch every affected historical API.
 See the [Migration Guide](docs/MigrationGuide.md) for upgrade guidance.
 
-The new [release-evidence controls](docs/ReleaseEvidence.md) are a **current `master`/2.0
-pilot**. Pipeline backport to `master378`/1.5 is deferred; that does not change its
-maintenance status. New controls are advisory during the pilot. Only a separate
-reviewed, protected graduation can require them for in-scope stable releases;
-preview/development evidence remains advisory. Existing mandatory checks remain mandatory.
+The [release-evidence contract](docs/ReleaseEvidence.md) is **active for current
+`master`/2.0**, with controls required for in-scope stable releases. Missing evidence
+or required production setup blocks stable publication; the policy setting does
+not establish publisher isolation. Preview/development release channels retain
+advisory applicability for these controls. Pipeline backport to `master378`/1.5
+is deferred without changing its maintenance status. Existing mandatory checks
+remain mandatory.
 
 ## Reporting a Vulnerability
 

@@ -38,14 +38,15 @@ Pump is the **tenth, separately published image**:
 There is no enrolled `uanetstandard/pumpserver` image. The two artifact groups
 can publish independently; the catalog contains **19 runnable platform subjects**.
 
-## Container release-evidence pilot
+## Container release evidence
 
-This is a repository-side **pilot checkpoint**, not a completed release gate.
-The shared [release-evidence contract](ReleaseEvidence.md) remains authoritative;
-no policy graduation or 1.5 pipeline rollout is performed here. Existing tags
-and repository identities are unchanged. Baseline build/push failures still
-fail. A cosign, collection or reconciliation failure emits an explicitly
-`incomplete` status and is nonblocking for new pilot controls.
+The shared [release-evidence contract](ReleaseEvidence.md) is **active** with
+`stage: required`: unmet controls block in-scope stable major-2 publication.
+Preview/development are release channels with advisory evidence applicability,
+not contract maturity modes. Registry identities and tag formats are unchanged;
+the 1.5 pipeline backport remains deferred without changing maintenance.
+Baseline build/push failures still fail. A cosign, collection or reconciliation
+failure remains explicitly incomplete and cannot satisfy required stable gates.
 
 Both workflows request actual BuildKit `provenance: mode=min` and native SPDX
 SBOM attestations for each runnable platform. Minimum provenance intentionally
@@ -60,9 +61,8 @@ there is no unsigned/no-SBOM retry masking a failed build.
 
 Cosign **3.1.3** is installed through
 `sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad` (v4.0.0).
-The upstream release, installer input and `sign`/`verify` flags were checked
-against their public source. After reading back the complete graph, the pilot
-signs the immutable root digest and every runnable manifest digest separately.
+After reading back the complete graph, the adapter signs the immutable root
+digest and every runnable manifest digest separately.
 Verification requires the exact GitHub workflow certificate identity, GitHub
 OIDC issuer, and signed source/workflow-definition SHA annotations. The signed
 root binds its child and attestation descriptors; platform in-toto subjects
@@ -83,7 +83,7 @@ multi-platform availability; a tag is not an immutable base pin.
 
 | Operation | Behavior |
 | --- | --- |
-| `Preflight` | Reads the committed policy; refuses current-major, stable-looking official publication through the existing producer path in future `required` mode while isolated promotion remains inactive. No stage override exists. |
+| `Preflight` | Reads the active `required` policy; refuses current-major, stable-looking official publication through the existing producer path because isolated promotion is not configured. No stage override exists. |
 | `Record` | Saves actual checkout/workflow context and the build action's root digest; writes the tool's `images[{id,layout,rootDigest}]` request. |
 | `Collect` | Reads GHCR manifests, configs, runnable layers and native attestation blobs by digest into a complete local OCI layout, checking every digest/size. |
 | `VerifyLocal` | Checks local descriptor relationships, runnable platform membership, source/version labels and native predicate subjects; invokes the existing tool's `oci` command when available. |
@@ -99,8 +99,10 @@ runner-provided `GHCR_TOKEN`. They reject PR execution before network access.
 No helper operation logs in, builds, pushes an image, changes tags, or changes
 platform permissions. Registry download uses the distribution manifest/blob
 endpoints, not `imagetools --raw` as a substitute for layer/config retrieval.
-Redirected blob downloads do not forward Authorization. These registry paths
-are workflow wiring only; they have not been executed as part of this checkpoint.
+Redirected blob downloads do not forward Authorization. Workflow wiring and
+offline fixtures do not establish production registry execution or publisher
+isolation. Actual source-bound verification and retrieval records are required
+operating evidence.
 
 For an existing **offline** layout and context in the contract's documented
 shape (use observed identities, not the synthetic documentation examples):
@@ -109,7 +111,7 @@ shape (use observed identities, not the synthetic documentation examples):
 $helper = '.\.azurepipelines\container-evidence.ps1'
 & $helper -Operation VerifyLocal -Group pump -Image pumpdeviceintegrationserver `
   -Request .\staging\oci-inputs.json -Context .\staging\oci-context.json `
-  -Version 2.0.0-preview.1 -Work .\staging\container-work `
+  -Version 2.0.0 -Work .\staging\container-work `
   -Tool .\tools\Opc.Ua.ReleaseEvidence\bin\Release\net10.0\Opc.Ua.ReleaseEvidence.dll `
   -Output .\staging\public\status.json
 ```
@@ -140,58 +142,65 @@ remain runner-local and are not artifacts. Native BuildKit attestations remain
 attached to their registry image; transitive public-payload review remains
 unmet. Cross-workflow Pump/main observations are not silently combined as one
 authenticated attempt, and absent/cancelled matrix results remain missing.
-The aggregate manifest is a pilot observation index, **not a v2 evidence envelope**
+The aggregate manifest is an observation index, **not a v2 evidence envelope**
 or independently authenticated membership record. The separate `Assemble` and
 `Evaluate` paths provide the versioned companion and authenticated assessment.
 See [Release Evidence](ReleaseEvidence.md#authenticated-evaluation-and-independent-bootstrap)
 for the protected trust boundary and complete native-document/referrer closure.
 
-Helper exit codes are **0** for processed, nonblocking but incomplete evidence,
-**1** for a required-stable refusal or recorded baseline failure, and **2** for
-invalid input/collection failure. Read `status`, never infer completion from
-exit zero or an Actions step conclusion. Workflow fallback statuses explicitly
-say `unavailable`/`incomplete`, even if the helper itself cannot run.
+Helper exit codes are **1** for required-stable refusals or recorded baseline
+failures, and **2** for invalid input/collection failure. `Aggregate` and `Assemble`
+can return **0** after writing incomplete evidence; that is not an eligibility
+decision. Authenticated `Evaluate` returns **0** for a complete assessment or
+advisory incomplete preview/development evidence. Read `status`, never infer
+completion from exit zero or an Actions step conclusion. The stable example
+above does not provide the independent trust, assurance or boundary records
+required for publication. Workflow fallback statuses explicitly say
+`unavailable`/`incomplete`, even if the helper itself cannot run.
 
-### Validation and dormant enforcement
+### Offline fixtures and production prerequisites
 
 Pure PowerShell fixtures use synthetic OCI blobs and no registry, Docker,
 credentials or .NET build:
 
 ```powershell
-pwsh -NoProfile -File .\tests\Opc.Ua.Tools.Tests\ContainerEvidencePipeline.fixture.ps1 -Scenario valid-pump
+pwsh -NoProfile -File .\tests\Opc.Ua.Tools.Tests\Fixtures\ContainerEvidencePipeline.fixture.ps1 -Scenario required-stable
 ```
 
-Other cases: `wrong-digest`, `missing-platform`, `attestation-descriptor`,
-`wrong-attestation-subject`, `private-path-filter`, `private-field-filter`, `pilot-incomplete`,
-`required-stable`, `required-preview`, `baseline-failure`, `pr-no-publish`,
+Other cases: `valid-pump`, `wrong-digest`, `missing-platform`, `attestation-descriptor`,
+`wrong-attestation-subject`, `private-path-filter`, `private-field-filter`,
+`active-incomplete`, `required-preview`, `baseline-failure`, `pr-no-publish`,
 `catalog-membership`, `path-traversal`, `valid-dual-platform`, `record-request`,
 `recorded-root-mismatch`, `required-four-part-version`, `required-context-version`, `aggregate-observed`.
 The dedicated NUnit fixture is
-`Opc.Ua.Tools.Tests.ContainerEvidencePipelineTests` (net10.0 only), for the
-parent's batched .NET run; no .NET build/test is performed in this checkpoint.
+`Opc.Ua.Tools.Tests.ContainerEvidencePipelineTests` (net10.0 only). These fixtures
+cover local behavior and required stable refusals, not production qualification.
 
-**Still unmet:** authenticated producer/tool approval records, independently
-verified provenance and complete inventories, all assurance profiles,
-protected release intent/current policy, public retrieval/retention review,
-and administrator-verified publisher isolation. Neither source-controlled
+**Required production records are missing:** authenticated producer/tool approval
+records, independently verified provenance and complete inventories, authenticated
+results for all assurance profiles, protected release intent and current-policy
+authentication, public retrieval/retention review, and administrator-verified
+publisher isolation. Neither source-controlled
 YAML nor an identity-bound signature establishes that ordinary/old workflows
 and external Azure credentials cannot publish official tags.
 
-Future required stable publication through the current producer path is refused
-even if the boundary Boolean alone is changed. The separate dormant promoter
+Required stable publication through the current producer path is refused
+even if the boundary Boolean alone is changed. The separate promotion coordinator
 supports exact-content transfer, conditional aliases, append-only recovery records
 and repeated eligibility verification, with an offline file transport for
 exercises. The existing release controller's candidate jobs are literally disabled
 and no official registry transport or candidate namespace is configured.
 
-An eventual registry transport must prove exact manifests/layers and native/
+An official registry transport must prove exact manifests/layers and native/
 signature referrer discoverability after copying, and enforce remote serialization
 without cancelling active promotion. Matching immutable content is a no-op;
 different content is a collision, not permission to overwrite. All current-line
-official writers, including preview writers, need the isolated authority at
-cutover while preview assurance remains advisory. Environment protection, grants,
-production trust and real recovery/retrieval exercises remain administrator-owned
-activation blockers; deferred 1.5 delivery must remain unaffected.
+official writers, including preview writers, require the isolated authority for
+production setup while preview/development evidence remains advisory.
+Environment protection, grants, production trust and real recovery/retrieval
+records are administrator-owned operating prerequisites. Until the required
+setup is complete, stable publication remains blocked; maintained 1.5 delivery
+must remain unaffected.
 
 ## Building the local containers
 

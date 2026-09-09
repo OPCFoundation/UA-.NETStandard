@@ -1,5 +1,31 @@
-// Copyright (c) OPC Foundation, Inc. All rights reserved.
-// Licensed under the MIT License. See LICENSE.txt in the project root for license information.
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -11,8 +37,14 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.ReleaseEvidence
 {
+    /// <summary>
+    /// Defines record-to-control coverage and canonical identity checks shared by independent evidence verification.
+    /// </summary>
     internal static class VerificationControls
     {
+        /// <summary>
+        /// Returns the release controls covered by a supported verification-record kind.
+        /// </summary>
         public static string[] ForKind(string kind)
         {
             return kind switch
@@ -29,6 +61,9 @@ namespace Opc.Ua.ReleaseEvidence
             };
         }
 
+        /// <summary>
+        /// Checks whether a value uses the canonical lowercase SHA-256 identifier format.
+        /// </summary>
         public static bool IsDigest(string value)
         {
             if (value.Length != 71 || !value.StartsWith("sha256:", StringComparison.Ordinal))
@@ -45,6 +80,10 @@ namespace Opc.Ua.ReleaseEvidence
             return true;
         }
 
+        /// <summary>
+        /// Computes a canonical artifact-set digest after normalizing versions and ordering artifacts and target
+        /// scopes.
+        /// </summary>
         public static string ArtifactSetDigest(ArtifactRecord[] artifacts)
         {
             ArtifactRecord[] canonical = [.. artifacts.Select(a => a with
@@ -61,6 +100,10 @@ namespace Opc.Ua.ReleaseEvidence
                 canonical, VerificationJsonContext.Default.ArtifactRecordArray));
         }
 
+        /// <summary>
+        /// Compares producer workflow, run attempt, job, and ordered tool identities without relying on timing
+        /// metadata.
+        /// </summary>
         public static bool SameProducer(ProducerRecord left, ProducerRecord right)
         {
             return left.System == right.System && left.Workflow == right.Workflow &&
@@ -70,6 +113,9 @@ namespace Opc.Ua.ReleaseEvidence
                     .SequenceEqual(right.Tools.OrderBy(t => t.Id, StringComparer.Ordinal));
         }
 
+        /// <summary>
+        /// Checks required policy-contract membership and verifies every pinned file's size and digest.
+        /// </summary>
         internal static async Task<bool> PolicyFilesMatchAsync(
             TrustedPolicySnapshot policy, string repositoryRoot, EvidenceFiles files, CancellationToken cancellationToken)
         {
@@ -95,6 +141,9 @@ namespace Opc.Ua.ReleaseEvidence
             return true;
         }
 
+        /// <summary>
+        /// Lists the verification-record kinds required for complete release-control coverage.
+        /// </summary>
         internal static readonly string[] Kinds =
         [
             "release-intent", "producer", "artifact-signatures", "assurance",
@@ -102,6 +151,17 @@ namespace Opc.Ua.ReleaseEvidence
         ];
     }
 
+    /// <summary>
+    /// Authenticates current release claims against protected policy, pinned authorities, and independent proof
+    /// records.
+    /// </summary>
+    /// <param name="files">The service for bounded evidence-file access and content digests.</param>
+    /// <param name="policySource">The source of independently anchored trust-policy snapshots.</param>
+    /// <param name="signatureVerifier">
+    /// The service that independently authenticates signed verification records.
+    /// </param>
+    /// <param name="timeProvider">The clock used to validate policy and proof freshness.</param>
+    /// <param name="statements">The optional service for authenticating native in-toto statements.</param>
     internal sealed class TrustedEvidenceVerifier(
         EvidenceFiles files,
         ITrustPolicySource policySource,
@@ -109,12 +169,19 @@ namespace Opc.Ua.ReleaseEvidence
         TimeProvider timeProvider,
         IStatementSignatureVerifier? statements = null)
     {
+        /// <summary>
+        /// Creates the verifier with protected policy loading, pinned GitHub record verification, and the system clock.
+        /// </summary>
         public TrustedEvidenceVerifier(EvidenceFiles files)
             : this(files, new ProtectedTrustPolicySource(files),
                 new GitHubRecordSignatureVerifier(files, new ProcessRunner()), TimeProvider.System)
         {
         }
 
+        /// <summary>
+        /// Verifies current policy and proof bindings and returns authenticated claims together with unmet-control
+        /// findings.
+        /// </summary>
         public async Task<VerifiedClaims> VerifyAsync(
             string repositoryRoot,
             string evidencePath,
@@ -364,6 +431,9 @@ namespace Opc.Ua.ReleaseEvidence
             return claims;
         }
 
+        /// <summary>
+        /// Requires exactly one policy pin matching the producer definition, job, and complete digest-bound tool set.
+        /// </summary>
         internal static bool PinnedProducer(TrustedPolicySnapshot policy, ProducerRecord producer)
         {
             return policy.Producers.Count(p =>

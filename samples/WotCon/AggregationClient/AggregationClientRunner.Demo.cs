@@ -14,7 +14,6 @@
  *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -44,6 +43,10 @@ using Opc.Ua.WotCon.Client;
 
 namespace AggregationClient
 {
+    /// <summary>
+    /// Exercises explicitly enabled pump control and alarm round trips through the aggregation server,
+    /// verifying the resulting state independently on both upstream sources.
+    /// </summary>
     public static partial class AggregationClientRunner
     {
         private static async Task<ArrayOf<WotPumpControlResult>> ExerciseControlsAsync(
@@ -480,6 +483,17 @@ namespace AggregationClient
             return result;
         }
 
+        /// <summary>
+        /// Associates a materialized aggregate action with its source-owned method and optional condition event.
+        /// </summary>
+        /// <param name="LocalId">Materialized method node ID invoked on the aggregation server.</param>
+        /// <param name="Endpoint">Source endpoint from the action's sole form.</param>
+        /// <param name="UpstreamOwner">Portable node ID of the source object owning the method.</param>
+        /// <param name="UpstreamMethod">Portable node ID of the source method targeted by the form.</param>
+        /// <param name="ConditionAction">
+        /// Condition operation such as Acknowledge or Confirm, or null when absent.
+        /// </param>
+        /// <param name="EventKey">Resource-qualified event key referenced by actsOn, or null when absent.</param>
         private sealed record DemoAction(
             NodeId LocalId,
             string Endpoint,
@@ -488,6 +502,13 @@ namespace AggregationClient
             string? ConditionAction,
             string? EventKey);
 
+        /// <summary>
+        /// Associates an aggregate alarm event type with its document identity and upstream event notifier.
+        /// </summary>
+        /// <param name="Key">Resource ID and event name joined by # to match condition-action references.</param>
+        /// <param name="LocalId">Materialized event type node ID used to filter aggregate notifications.</param>
+        /// <param name="Endpoint">Source endpoint from the event's sole form.</param>
+        /// <param name="UpstreamNotifier">Portable node ID of the source object that emits the event.</param>
         private sealed record DemoEvent(string Key, NodeId LocalId, string Endpoint, string UpstreamNotifier);
 
         private static readonly string[] s_demoSources = ["SourceA", "SourceB"];

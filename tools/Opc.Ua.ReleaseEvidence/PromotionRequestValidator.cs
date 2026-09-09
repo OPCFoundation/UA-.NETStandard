@@ -1,5 +1,31 @@
-// Copyright (c) OPC Foundation, Inc. All rights reserved.
-// Licensed under the MIT License. See LICENSE.txt in the project root for license information.
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -10,8 +36,14 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.ReleaseEvidence
 {
+    /// <summary>
+    /// Checks bounded promotion identities, artifact membership, alias operations, and exact candidate bytes.
+    /// </summary>
     internal static class PromotionRequestValidator
     {
+        /// <summary>
+        /// Validates request structure, unique member and alias identities, candidate path bounds, and content digests.
+        /// </summary>
         public static async Task ValidateAsync(
             PromotionRequest request,
             string candidateRoot,
@@ -129,12 +161,18 @@ namespace Opc.Ua.ReleaseEvidence
             }
         }
 
+        /// <summary>
+        /// Builds a member identity from destination, artifact kind, identifier, version, and platform.
+        /// </summary>
         public static string MemberIdentity(PromotionMember member)
         {
             return string.Join('\n',
                 member.Destination, member.Kind, member.Id, member.Version, member.Platform ?? string.Empty);
         }
 
+        /// <summary>
+        /// Returns the bounded alias set while rejecting mixed legacy and explicit alias representations.
+        /// </summary>
         public static PromotionAlias[] GetAliases(PromotionMember member)
         {
             if (member.Aliases != null)
@@ -157,6 +195,9 @@ namespace Opc.Ua.ReleaseEvidence
             return [];
         }
 
+        /// <summary>
+        /// Builds an alias identity from destination, artifact identifier, and the required selected alias name.
+        /// </summary>
         public static string AliasIdentity(PromotionMember member)
         {
             if (member.Alias == null)

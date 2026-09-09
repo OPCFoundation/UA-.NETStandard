@@ -46,8 +46,11 @@ namespace Opc.Ua.Samples
     internal static class SampleCommandLine
     {
         /// <summary>
-        /// Creates an explicit, default-false trust exception with app-selected aliases.
+        /// Creates the default-false --auto-accept certificate-trust exception with app-selected aliases.
+        /// This development-only switch does not select SecurityPolicy None.
         /// </summary>
+        /// <param name="aliases">Additional command-line spellings chosen by the sample.</param>
+        /// <returns>A Boolean option that requires explicit consent to accept untrusted peer certificates.</returns>
         internal static Option<bool> CreateAutoAcceptOption(params string[] aliases)
         {
             return new Option<bool>("--auto-accept", aliases)
@@ -74,6 +77,11 @@ namespace Opc.Ua.Samples
         /// Projects app-declared host switches after forwarded and positional settings.
         /// Security flags are deliberately not projected into generic-host configuration.
         /// </summary>
+        /// <param name="result">Successfully parsed sample arguments.</param>
+        /// <param name="forwardedArguments">Host arguments supplied after the explicit -- boundary.</param>
+        /// <param name="configurationArgument">The sample's positional key=value argument.</param>
+        /// <param name="options">Declared host-setting options whose supplied values take precedence.</param>
+        /// <returns>Host arguments ordered as forwarded settings, positional settings, then explicit options.</returns>
         internal static string[] GetHostArguments(
             ParseResult result,
             string[] forwardedArguments,
@@ -184,7 +192,8 @@ namespace Opc.Ua.Samples
         }
 
         /// <summary>
-        /// Invokes an application's action only after parsing; help never runs the action.
+        /// Rejects malformed Boolean assignments and parse errors before invoking the application's action.
+        /// Routes output to the supplied writers; help never runs the action.
         /// </summary>
         internal static async Task<int> InvokeAsync(
             RootCommand command,
@@ -252,9 +261,14 @@ namespace Opc.Ua.Samples
         }
 
         /// <summary>
-        /// Writes only enabled relaxations. Call from the parsed action, before starting
-        /// a host or connecting, so help and parse errors never produce warnings.
+        /// Warns independently about accepting untrusted certificates and disabling message security.
+        /// Call from the parsed action before starting a host or connecting, so help and parse errors do not warn.
         /// </summary>
+        /// <param name="error">Writer receiving warnings for enabled security relaxations.</param>
+        /// <param name="autoAccept">Whether untrusted peer certificates may be accepted.</param>
+        /// <param name="securityNone">Whether messages will be sent without signing or encryption.</param>
+        /// <param name="certificatePeer">Peer role named in the certificate warning, such as client or server.</param>
+        /// <param name="securityNoneOption">Application-specific switch named in the unsecured-message warning.</param>
         internal static void WriteSecurityWarnings(
             TextWriter error,
             bool autoAccept,

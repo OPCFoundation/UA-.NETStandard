@@ -38,11 +38,17 @@ using Opc.Ua.Redundancy.Samples.Tests;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
+    /// <summary>
+    /// Checks onboarding sample startup consent, encrypted bootstrap, and administrator-only ticket authorization.
+    /// </summary>
     [TestFixture]
     [Category("Samples")]
     [NonParallelizable]
     public sealed class OnboardingSampleStartupTests
     {
+        /// <summary>
+        /// Verifies that onboarding help and rejected options exit without warnings or PKI initialization.
+        /// </summary>
         [TestCase("OnboardingClient", "--help", 0)]
         [TestCase("OnboardingRegistrar", "--help", 0)]
         [TestCase("OnboardingClient", "--security-none", 1)]
@@ -74,6 +80,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that bootstrap warnings require explicit trust consent and never enable None policy.
+        /// </summary>
         [TestCase("OnboardingClient", false)]
         [TestCase("OnboardingClient", true)]
         [TestCase("OnboardingRegistrar", false)]
@@ -105,6 +114,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies encrypted onboarding rejects anonymous administration and permits the authenticated ticket
+        /// lifecycle.
+        /// </summary>
         [Test]
         public async Task ConsentedBootstrapRetainsEncryptedChannelAndTicketAuthorizationAsync()
         {

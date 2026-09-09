@@ -40,6 +40,23 @@ namespace Opc.Ua.Samples
     /// </summary>
     internal static class WotSampleCommandLine
     {
+        /// <summary>
+        /// Parses WoT sample options and explicitly forwarded host settings before invoking the host action.
+        /// Passes the three independent, default-false security opt-ins separately from host configuration.
+        /// </summary>
+        /// <param name="args">Sample options, key=value settings, and host arguments forwarded after --.</param>
+        /// <param name="description">Root command description displayed in help.</param>
+        /// <param name="configurationKeys">
+        /// Host keys exposed as sample options; port, timeout, and document-size keys receive bounded validators.
+        /// </param>
+        /// <param name="management">Whether to expose the separate --allow-anonymous-management switch.</param>
+        /// <param name="action">
+        /// Callback receiving the host builder, certificate auto-accept flag, SecurityPolicy None flag,
+        /// anonymous-management flag, and cancellation token, in that order.
+        /// The callback applies the selected policies and emits their security warnings.
+        /// </param>
+        /// <param name="cancellationToken">Cancellation token forwarded to command invocation and the callback.</param>
+        /// <returns>Zero on success, or a nonzero command failure code after reporting the error.</returns>
         internal static Task<int> InvokeAsync(
             string[] args,
             string description,

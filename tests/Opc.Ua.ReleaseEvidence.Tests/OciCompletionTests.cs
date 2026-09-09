@@ -1,5 +1,31 @@
-// Copyright (c) OPC Foundation, Inc. All rights reserved.
-// Licensed under the MIT License. See LICENSE.txt in the project root for license information.
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -17,9 +43,16 @@ using NUnit.Framework;
 
 namespace Opc.Ua.ReleaseEvidence.Tests
 {
+    /// <summary>
+    /// Exercises native OCI evidence reconciliation, authenticated object closure, and digest-bound promotion.
+    /// </summary>
     [TestFixture]
     public sealed class OciCompletionTests
     {
+        /// <summary>
+        /// Verifies complete image and platform membership without rewriting native statements or trusting unsigned
+        /// context.
+        /// </summary>
         [TestCase("containers", 9, 18)]
         [TestCase("pump", 1, 1)]
         public async Task NativeGroupPreservesAllSubjectsAndOriginalStatementsAsync(
@@ -28,7 +61,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             using var fixture = new NativeFixture(group);
             await fixture.CreateAsync("valid").ConfigureAwait(false);
             (int code, JsonNode report, string log) = await fixture.RunAsync().ConfigureAwait(false);
-            Assert.That(code, Is.Zero, log);
+            Assert.That(code, Is.EqualTo(1), log);
             JsonArray artifacts = report["artifacts"]!.AsArray();
             Assert.That(
                 artifacts.Count(a => a!["kind"]!.GetValue<string>() == "oci-index"), Is.EqualTo(expectedImages));
@@ -46,6 +79,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that invalid subjects, layers, inventories, or file ownership leave the corresponding controls
+        /// unmet.
+        /// </summary>
         [TestCase("wrong-platform", "ARTIFACT_INTEGRITY")]
         [TestCase("wrong-subject", "ARTIFACT_INTEGRITY")]
         [TestCase("missing-child", "INVENTORY_COMPLETE")]
@@ -61,7 +98,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             using var fixture = new NativeFixture("pump");
             await fixture.CreateAsync(scenario).ConfigureAwait(false);
             (int code, JsonNode report, string log) = await fixture.RunAsync().ConfigureAwait(false);
-            Assert.That(code, Is.Zero, log);
+            Assert.That(code, Is.EqualTo(1), log);
             Assert.That(report["status"]!.GetValue<string>(), Is.EqualTo("incomplete"));
             Assert.That(report["unmetControls"]!.AsArray().Select(c => c!.GetValue<string>()),
                 Does.Contain(expectedControl));
@@ -84,6 +121,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that independently authenticated native evidence satisfies required evaluation for every group
+        /// platform.
+        /// </summary>
         [TestCase("containers", "valid")]
         [TestCase("pump", "valid")]
         [TestCase("pump", "valid-v1")]
@@ -101,6 +142,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 Is.EqualTo(group == "containers" ? 18 : 1));
         }
 
+        /// <summary>
+        /// Verifies that signed OCI promotion includes every index and platform manifest with immutable version
+        /// aliases.
+        /// </summary>
         [TestCase("containers", 27)]
         [TestCase("pump", 2)]
         public async Task SignedOciPromotionPreservesAllPlatformsAndDiscoverableProofsAsync(string group, int count)
@@ -113,6 +158,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 .All(m => m.Aliases is [{ Immutable: true, Name: "2.0.0" }]), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that signed promotion rejects omitted layers, missing immutable versions, and aliases on child
+        /// manifests.
+        /// </summary>
         [TestCase("missing-layer")]
         [TestCase("missing-version-alias")]
         [TestCase("mutable-version-alias")]
@@ -124,6 +173,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(() => fixture.VerifyPromotionAsync(mutation), Throws.TypeOf<PromotionRejectedException>());
         }
 
+        /// <summary>
+        /// Verifies that OCI assembly preserves referenced document bytes in a v2 envelope without claiming
+        /// eligibility.
+        /// </summary>
         [Test]
         public async Task AssemblyCliEmitsImmutableNativeV2RatherThanEligibilityAsync()
         {
@@ -145,6 +198,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that promotion mapping preserves each subject and its complete native-layer and referrer closure.
+        /// </summary>
         [TestCase("containers", 9)]
         [TestCase("pump", 1)]
         public async Task PromotionMappingRetainsCompleteNativeAndReferrerClosureAsync(string group, int count)
@@ -192,6 +248,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 [.. members]), fixture.Root, new EvidenceFiles(), CancellationToken.None).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that closure reading rejects missing or altered layers, incorrect referrer subjects, and unsafe
+        /// layouts.
+        /// </summary>
         [TestCase("missing-referrer")]
         [TestCase("wrong-referrer-subject")]
         [TestCase("changed-layer")]
@@ -207,6 +267,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 Path.Combine(fixture.Root, "request.json"), expected, referrers, CancellationToken.None));
         }
 
+        /// <summary>
+        /// Verifies that promotion mapping rejects a foreign image identity or a separate platform-manifest alias.
+        /// </summary>
         [TestCase("foreign-subject")]
         [TestCase("platform-alias")]
         public async Task PromotionMappingRejectsForeignIdentityOrAdditionalPlatformTagAsync(string scenario)
@@ -228,6 +291,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 "ghcr-referrers", [], scenario == "platform-alias" ? "2.0.0" : null));
         }
 
+        /// <summary>
+        /// Verifies that nested request layouts retain confined relative blob paths and cannot escape the candidate
+        /// root.
+        /// </summary>
         [TestCase("nested")]
         [TestCase("outside")]
         public async Task PromotionMappingConfinesRequestRelativeBlobsToCandidateRootAsync(string scenario)
@@ -265,6 +332,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that authenticated closure includes referrers carrying the original artifact-signature bundles.
+        /// </summary>
         [Test]
         public async Task AuthenticatedClosureRetainsExactSignatureBundlesAsync()
         {
@@ -275,6 +345,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(closures[0].Referrers, Has.Length.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that changed referrer context or an unbound signature bundle invalidates authenticated closure.
+        /// </summary>
         [TestCase("tampered-context")]
         [TestCase("unbound-signature")]
         public async Task AuthenticatedClosureRejectsDetachedOrChangedProofsAsync(string scenario)
@@ -284,6 +357,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.ThrowsAsync<InvalidDataException>(() => fixture.ReadAuthenticatedClosureAsync(scenario));
         }
 
+        /// <summary>
+        /// Verifies that assembly retains the original referrer-context digest without treating context as
+        /// authorization.
+        /// </summary>
         [Test]
         public async Task AssemblyCliRetainsOriginalReferrerContextWithoutAuthorizationAsync()
         {
@@ -304,6 +381,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             Assert.That(envelope["assessment"]!["status"]!.GetValue<string>(), Is.EqualTo("incomplete"));
         }
 
+        /// <summary>
+        /// Verifies that signatures cannot hide invalid authority, provenance, inventory, subject binding, or
+        /// freshness.
+        /// </summary>
         [TestCase("unsigned")]
         [TestCase("wrong-issuer")]
         [TestCase("wrong-ref")]
@@ -346,6 +427,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 m_verifier.ImportParameters(m_signer.ExportParameters(false));
             }
 
+            /// <summary>
+            /// Gets the current native evidence envelope authenticated by the fixture's independent signing root.
+            /// </summary>
             public EvidenceEnvelope Envelope { get; private set; } = null!;
 
             private string EvidenceRoot => Path.Combine(m_native.Root, "evidence");
@@ -356,6 +440,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             private string PromotionWork => m_native.Root + "-promotion-controller";
             private string KeyDigest => Digest(m_verifier.ExportSubjectPublicKeyInfo());
 
+            /// <summary>
+            /// Creates native group evidence and ephemeral cryptographic proofs for the selected validation scenario.
+            /// </summary>
             public static async Task<AuthenticatedFixture> CreateAsync(string group, string scenario)
             {
                 var fixture = new AuthenticatedFixture(group);
@@ -363,6 +450,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 return fixture;
             }
 
+            /// <summary>
+            /// Runs the real evidence evaluator against the fixture's independent policy and signature verifiers.
+            /// </summary>
             public async Task<(int Code, EvaluationReport Report)> EvaluateAsync()
             {
                 var verifier = new TrustedEvidenceVerifier(m_files, this, this, TimeProvider.System);
@@ -375,6 +465,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     .ConfigureAwait(false));
             }
 
+            /// <summary>
+            /// Binds genuine artifact signatures into referrer context and reads closure after any requested proof
+            /// mutation.
+            /// </summary>
             public async Task<OciImageClosure[]> ReadAuthenticatedClosureAsync(string scenario)
             {
                 VerificationRecord signatures = await m_files.ReadModelAsync(
@@ -419,6 +513,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     .ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Builds a closure-backed promotion request, signs its authorization, and verifies the selected mutation.
+            /// </summary>
             public async Task<VerifiedPromotion> VerifyPromotionAsync(string mutation)
             {
                 OciImageClosure[] closures = await ReadAuthenticatedClosureAsync("valid").ConfigureAwait(false);
@@ -488,12 +585,18 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     CancellationToken.None).ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Supplies the fixture's independent trust policy rather than accepting a candidate-provided policy file.
+            /// </summary>
             public Task<TrustedPolicySnapshot?> LoadAsync(
                 string? path, string[] candidateRoots, CancellationToken cancellationToken)
             {
                 return Task.FromResult<TrustedPolicySnapshot?>(m_policy);
             }
 
+            /// <summary>
+            /// Verifies the fixed fixture authority, exact record payload, key identity, and DSSE RSA signature.
+            /// </summary>
             public async Task<bool> VerifyAsync(
                 string recordPath, string bundlePath, VerificationAuthority authority,
                 TrustedPolicySnapshot policy, CancellationToken cancellationToken)
@@ -512,6 +615,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                         HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             }
 
+            /// <summary>
+            /// Verifies artifact and signature digests together with the fixture signer's RSA signature.
+            /// </summary>
             public async Task<bool> VerifyAsync(
                 string artifactPath, ArtifactSignatureProof proof, string bundleRoot,
                 TrustedPolicySnapshot policy, CancellationToken cancellationToken)
@@ -524,6 +630,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     m_verifier.VerifyData(bytes, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             }
 
+            /// <summary>
+            /// Releases ephemeral keys and removes the native-evidence and promotion-controller workspaces.
+            /// </summary>
             public void Dispose()
             {
                 m_signer.Dispose();
@@ -840,16 +949,36 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             private TrustedPolicySnapshot m_policy = null!;
         }
 
+        /// <summary>
+        /// Creates an isolated OCI layout, producer context, and native statements for one catalog release group.
+        /// </summary>
+        /// <param name="group">The catalog group whose images and platforms populate the fixture.</param>
         private sealed class NativeFixture(string group) : IDisposable
         {
+            /// <summary>
+            /// Gets the original native statement paths and digests used to detect rewriting.
+            /// </summary>
             public List<(string Path, string Digest)> OriginalStatements { get; } = [];
 
+            /// <summary>
+            /// Gets expected build provenance keyed by image identity and runnable-manifest digest.
+            /// </summary>
             public Dictionary<string, OciBuildExpectation> Builds { get; } = new(StringComparer.Ordinal);
 
+            /// <summary>
+            /// Gets the temporary root containing this fixture's layout and evidence inputs.
+            /// </summary>
             public string Root => m_work;
 
+            /// <summary>
+            /// Gets the checkout root containing the release catalog, policy, and evidence CLI.
+            /// </summary>
             public static string RepositoryRoot => FindRoot();
 
+            /// <summary>
+            /// Writes catalog-derived image layouts and native SBOM and provenance statements for the requested
+            /// scenario.
+            /// </summary>
             public async Task CreateAsync(string scenario)
             {
                 string root = FindRoot();
@@ -970,6 +1099,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     new JsonObject { ["images"] = images }.ToJsonString()).ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Invokes OCI analysis or assembly with a bounded timeout and returns its exit code, report, and console
+            /// output.
+            /// </summary>
             public async Task<(int Code, JsonNode Report, string Log)> RunAsync(
                 bool assemble = false, string? referrers = null)
             {
@@ -1021,6 +1154,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 return (process.ExitCode, report, log);
             }
 
+            /// <summary>
+            /// Reconciles expected subjects, creates signature referrers, and applies optional closure-integrity
+            /// mutations.
+            /// </summary>
             public async Task<(EvaluationExpectation Expected, OciReferrerBinding[] Referrers)>
                 CreateClosureInputsAsync(string scenario, ArtifactSignatureProof[]? signatureProofs = null)
             {
@@ -1099,6 +1236,10 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 return (expected, [.. referrers]);
             }
 
+            /// <summary>
+            /// Writes image, subject, manifest, and artifact-type bindings as a versioned OCI referrer-context
+            /// document.
+            /// </summary>
             public static Task WriteReferrerContextAsync(string path, OciReferrerBinding[] referrers)
             {
                 var bindings = new JsonArray();
@@ -1116,6 +1257,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 }.ToJsonString());
             }
 
+            /// <summary>
+            /// Removes the temporary OCI layout and all evidence files owned by this fixture.
+            /// </summary>
             public void Dispose()
             {
                 Directory.Delete(m_work, recursive: true);

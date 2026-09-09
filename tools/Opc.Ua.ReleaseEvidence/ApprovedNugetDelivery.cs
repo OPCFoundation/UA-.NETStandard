@@ -1,5 +1,31 @@
-// Copyright (c) OPC Foundation, Inc. All rights reserved.
-// Licensed under the MIT License. See LICENSE.txt in the project root for license information.
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -12,14 +38,40 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.ReleaseEvidence
 {
+    /// <summary>
+    /// Records delivery-content comparison and independent approval of the original and delivered NuGet signatures.
+    /// </summary>
+    /// <param name="SchemaVersion">The version of this JSON document contract.</param>
+    /// <param name="Status">
+    /// Whether delivered content and approved signatures are verified or remain incomplete.
+    /// </param>
+    /// <param name="BaselineFailed">Whether a baseline integrity or assurance check failed.</param>
+    /// <param name="SignatureVerificationPerformed">
+    /// Whether cryptographic signature verification was actually performed.
+    /// </param>
+    /// <param name="AuthorDigest">The SHA-256 digest of the original author package archive.</param>
+    /// <param name="DeliveredDigest">The SHA-256 digest of the delivered package archive.</param>
+    /// <param name="EvidenceDigest">The digest of the exact release-evidence document.</param>
+    /// <param name="UnmetControls">The controls not yet satisfied by the available evidence.</param>
+    /// <param name="PolicyDigest">The digest of the policy bytes to which this record is bound.</param>
+    /// <param name="SignerDigest">The digest identifying the signer certificate used by the proof.</param>
     internal sealed record ApprovedNugetDeliveryReport(
         int SchemaVersion, string Status, bool BaselineFailed, bool SignatureVerificationPerformed,
         string AuthorDigest, string DeliveredDigest, string EvidenceDigest, string[] UnmetControls,
         string? PolicyDigest = null, string? SignerDigest = null);
 
+    /// <summary>
+    /// Combines preserved-content checks with trusted policy and approved NuGet author-signature verification.
+    /// </summary>
+    /// <param name="files">The service for bounded evidence-file access and content digests.</param>
+    /// <param name="verifier">The verifier for independently authenticated release claims.</param>
+    /// <param name="signatures">The verifier for approved primary NuGet author signatures.</param>
     internal sealed class ApprovedNugetDelivery(
         EvidenceFiles files, TrustedEvidenceVerifier verifier, IArtifactSignatureVerifier signatures)
     {
+        /// <summary>
+        /// Registers the command that verifies delivered NuGet content and independently approved author signatures.
+        /// </summary>
         public static void Register(RootCommand root)
         {
             var command = new Command("verify-delivery-approved",
@@ -63,6 +115,10 @@ namespace Opc.Ua.ReleaseEvidence
             root.Subcommands.Add(command);
         }
 
+        /// <summary>
+        /// Writes an approved-delivery report and returns success only when content and approved signatures are
+        /// verified.
+        /// </summary>
         public async Task<int> VerifyAsync(
             string repositoryRoot, string evidencePath, string bundlePath, string trustPolicyPath,
             string authorPath, string deliveredPath, string output, CancellationToken cancellationToken)

@@ -41,42 +41,69 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Fuzzing
 {
+    /// <summary>
+    /// Replays required good seeds and optional regression inputs against each fuzz target
+    /// and records the observed target/input executions.
+    /// </summary>
     [TestFixture]
     [Category("Fuzzing")]
     public abstract class FuzzTargetTestsBase
     {
+        /// <summary>
+        /// Required good-seed inputs loaded recursively from Testcases; a missing or empty inventory is an error.
+        /// </summary>
         public static readonly TestcaseAsset[] GoodTestcases =
         [
             .. AssetCollection<TestcaseAsset>.CreateFromFiles(
                 TestUtils.EnumerateTestAssets("Testcases", "*", requireNonEmpty: true))
         ];
 
+        /// <summary>
+        /// Optional crash regression inputs loaded recursively from Assets whose replay must no longer throw.
+        /// </summary>
         public static readonly TestcaseAsset[] CrashAssets =
         [
             .. AssetCollection<TestcaseAsset>.CreateFromFiles(
                 TestUtils.EnumerateTestAssets("Assets", "crash*.*"))
         ];
 
+        /// <summary>
+        /// Optional timeout regression inputs loaded recursively from matching files in Assets.
+        /// </summary>
         public static readonly TestcaseAsset[] TimeoutAssets =
         [
             .. AssetCollection<TestcaseAsset>.CreateFromFiles(
                 TestUtils.EnumerateTestAssets("Assets", "timeout*.*"))
         ];
 
+        /// <summary>
+        /// Optional slow-input regression assets loaded recursively from matching files in Assets.
+        /// </summary>
         public static readonly TestcaseAsset[] SlowAssets =
         [
             .. AssetCollection<TestcaseAsset>.CreateFromFiles(
                 TestUtils.EnumerateTestAssets("Assets", "slow*.*"))
         ];
 
+        /// <summary>
+        /// Distinct, sorted encoder suffixes discovered below Testcases and in sibling Testcases.* directories.
+        /// </summary>
         [DatapointSource]
         public static readonly string[] TestcaseEncoderSuffixes =
             TestUtils.DiscoverTestcaseEncoderSuffixes("Testcases");
 
         protected abstract Type FuzzableCodeType { get; }
 
+        /// <summary>
+        /// Represents a fuzz target that consumes its input through a read-only byte span.
+        /// </summary>
+        /// <param name="span">Input bytes to pass directly to the target.</param>
         public delegate void LibFuzzTemplate(ReadOnlySpan<byte> span);
 
+        /// <summary>
+        /// Captures target signatures and input identities, digests, and categories before replay
+        /// so the evidence describes a fixed input and target scope.
+        /// </summary>
         [OneTimeSetUp]
         public void FreezeReplayScope()
         {
@@ -97,6 +124,14 @@ namespace Opc.Ua.Fuzzing
             }
         }
 
+        /// <summary>
+        /// Writes the frozen target/input inventory and successful file-backed executions to replay XML
+        /// and attaches the evidence file to the NUnit result.
+        /// </summary>
+        /// <remarks>
+        /// Uses OPCUA_ASSURANCE_REPLAY_PATH when set; otherwise writes an assembly-named replay file
+        /// in the NUnit work directory. Paths and target signatures are represented by their hashes.
+        /// </remarks>
         [OneTimeTearDown]
         public void WriteObservedReplay()
         {
@@ -146,6 +181,11 @@ namespace Opc.Ua.Fuzzing
             TestContext.AddTestAttachment(path, "Sanitized public replay execution mappings");
         }
 
+        /// <summary>
+        /// Replays one required good seed against the selected target and records a successful execution.
+        /// </summary>
+        /// <param name="fuzzableCode">Target selected for this replay.</param>
+        /// <param name="messageEncoder">Good-seed bytes and their source path.</param>
         [Theory]
         public void FuzzGoodTestcases(
             FuzzTargetFunction fuzzableCode,
@@ -154,12 +194,21 @@ namespace Opc.Ua.Fuzzing
             FuzzTarget(fuzzableCode, messageEncoder.Testcase, messageEncoder.Path);
         }
 
+        /// <summary>
+        /// Exercises the selected target with empty input without adding a file-backed replay execution.
+        /// </summary>
+        /// <param name="fuzzableCode">Target to invoke with an empty byte array.</param>
         [Theory]
         public void FuzzEmptyByteArray(FuzzTargetFunction fuzzableCode)
         {
             FuzzTarget(fuzzableCode, []);
         }
 
+        /// <summary>
+        /// Replays all known crash regressions against the selected target and fails if any input still throws.
+        /// Successful file-backed replays are recorded in the execution evidence.
+        /// </summary>
+        /// <param name="fuzzableCode">Target to exercise with every available crash asset.</param>
         [Theory]
         public void FuzzCrashAssets(FuzzTargetFunction fuzzableCode)
         {
@@ -196,6 +245,11 @@ namespace Opc.Ua.Fuzzing
                 string.Join(Environment.NewLine, failures));
         }
 
+        /// <summary>
+        /// Replays a previous timeout input with NUnit cancellation requested after one second.
+        /// </summary>
+        /// <param name="fuzzableCode">Target selected for the timeout regression.</param>
+        /// <param name="messageEncoder">Timeout regression bytes and their source path.</param>
         [Theory]
         [CancelAfter(1000)]
         public void FuzzTimeoutAssets(
@@ -205,6 +259,11 @@ namespace Opc.Ua.Fuzzing
             FuzzTarget(fuzzableCode, messageEncoder.Testcase, messageEncoder.Path);
         }
 
+        /// <summary>
+        /// Replays a previously slow input with NUnit cancellation requested after one second.
+        /// </summary>
+        /// <param name="fuzzableCode">Target selected for the slow-input regression.</param>
+        /// <param name="messageEncoder">Slow-input regression bytes and their source path.</param>
         [Theory]
         [CancelAfter(1000)]
         public void FuzzSlowAssets(

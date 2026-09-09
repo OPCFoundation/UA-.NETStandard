@@ -78,11 +78,13 @@ namespace FlatTagServer
 
         /// <summary>
         /// Gets or sets an explicit development-only exception for untrusted peer certificates.
+        /// Defaults to false; this does not enable an unsecured endpoint.
         /// </summary>
         public bool AutoAcceptUntrustedCertificates { get; set; }
 
         /// <summary>
         /// Gets or sets whether an unsecured endpoint is offered for an isolated demonstration.
+        /// Defaults to false; enabling SecurityPolicy None does not change certificate trust.
         /// </summary>
         public bool IncludeUnsecurePolicyNone { get; set; }
 
