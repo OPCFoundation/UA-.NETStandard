@@ -51,6 +51,7 @@
   - [Typed model-traversal — the Configure(I{Manager}NodeManagerBuilder) partial](#typed-model-traversal--the-configureimanagernodemanagerbuilder-partial)
     - [What the generator emits per model](#what-the-generator-emits-per-model)
     - [Methods with arguments — typed OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
+    - [Complete Method results and diagnostic forwarding](#complete-method-results-and-diagnostic-forwarding)
   - [Event sources — typed Publish&lt;TEvent&gt; on notifier wrappers](#event-sources--typed-publishtevent-on-notifier-wrappers)
     - [Where the typed overload appears](#where-the-typed-overload-appears)
     - [Two registration shapes](#two-registration-shapes)
@@ -1431,6 +1432,44 @@ The end-to-end sample lives in
 in `CalcNodeManager.Configure.cs`). The companion AOT round-trip tests
 in `tests/Opc.Ua.Aot.Tests/CalculatorNodeManagerAotTests.cs` exercise
 each shape over a real `Session.CallAsync(...)`.
+
+#### Complete Method results and diagnostic forwarding
+
+Use `OnCallWithResult` when a Method handler must return operation diagnostics
+and ordered input-argument results as well as output values. It accepts a
+`MethodCalledWithResultEventHandlerAsync` returning `MethodInvocationResult`,
+whose `OperationResult`, `OutputArguments` and `InputArgumentResults` describe
+the complete invocation. The result owns its argument arrays. Input results
+contain resolved `ServiceResult` text, never foreign `DiagnosticInfo` indexes.
+
+The hook is available on ordinary and typed Method builders and on virtual
+families registered by `ResolveNodes`. Typed chaining retains the generated
+Method type. It cannot coexist with an ordinary `OnCall` handler, in either
+registration order; a virtual registration also refuses to overwrite a handler
+already present on a materialized Method. For direct construction, assign
+`MethodState.OnCallMethodWithResultAsync`.
+
+The normal executable, permission, input-count and input-type checks run before
+the callback. A nonempty input-result array must have one entry per input, and
+a successful or Uncertain result must have the declared number of outputs.
+Malformed callback results return `BadUnexpectedError` without partial outputs.
+An omitted input-result array stays omitted rather than acquiring synthesized
+upstream successes. Existing ordinary callbacks retain their null-`ServiceResult`
+success convention; a null complete `MethodInvocationResult` is still invalid.
+
+For `BadInvalidArgument`, `AsyncCustomNodeManager` and `CustomNodeManager2`
+retain each supplied input result, including useful diagnostics on successful
+positions. They encode diagnostics against the receiving response's StringTable
+only when requested. Additional diagnostic details require the receiving
+Session's authorization as well as its request mask.
+Final Call assembly retains requested operation text even on Good results and
+retains inner-status-only diagnostics even when no strings are added to the
+response StringTable.
+
+`CustomNodeManager2` subclasses must explicitly implement
+`ICallAsyncNodeManager` to enable asynchronous dispatch through
+`AsyncNodeManagerAdapter`. Without that opt-in, an asynchronous-only complete
+handler returns `BadNotSupported`; synchronous dispatch never blocks on it.
 
 ### Event sources — typed `Publish<TEvent>` on notifier wrappers
 

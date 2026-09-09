@@ -114,6 +114,65 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(nb.Builder, Is.SameAs(b));
         }
 
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void CompleteMethodHandlerRejectsConflictsInEitherRegistrationOrder(bool asynchronous, bool richFirst)
+        {
+            (NodeManagerBuilder manager, _, _, MethodState method) = CreateBuilderWithGraph();
+            INodeBuilder<MethodState> builder = manager.Node<MethodState>(method.NodeId);
+            MethodCalledWithResultEventHandlerAsync rich = s_completeMethodHandler;
+
+            void RegisterOrdinary()
+            {
+                if (asynchronous)
+                {
+                    builder.OnCall((_, _, _, _, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good));
+                }
+                else
+                {
+                    builder.OnCall((_, _, _, _, _) => ServiceResult.Good);
+                }
+            }
+
+            if (richFirst)
+            {
+                Assert.That(builder.OnCallWithResult(rich), Is.SameAs(builder));
+                ServiceResultException error = Assert.Throws<ServiceResultException>(RegisterOrdinary);
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(method.OnCallMethodWithResultAsync, Is.SameAs(rich));
+                Assert.That(method.OnCallMethod2, Is.Null);
+                Assert.That(method.OnCallMethod2Async, Is.Null);
+            }
+            else
+            {
+                RegisterOrdinary();
+                ServiceResultException error = Assert.Throws<ServiceResultException>(() => builder.OnCallWithResult(rich));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(method.OnCallMethodWithResultAsync, Is.Null);
+            }
+        }
+
+        [Test]
+        public void CompleteMethodHandlerPreservesTheGeneratedMethodBuilderType()
+        {
+            var method = new AddCommentMethodState(null) { NodeId = new NodeId("Comment", kNs) };
+            var manager = new NodeManagerBuilder(
+                CreateContext(), Mock.Of<IAsyncNodeManager>(), kNs,
+                rootResolver: _ => null,
+                nodeIdResolver: id => id == method.NodeId ? method : null,
+                typeIdResolver: _ => []);
+            INodeBuilder<AddCommentMethodState> builder = manager.Node<AddCommentMethodState>(method.NodeId);
+            MethodCalledWithResultEventHandlerAsync handler = s_completeMethodHandler;
+
+            INodeBuilder<AddCommentMethodState> configured = builder.OnCallWithResult(handler);
+
+            Assert.That(configured, Is.SameAs(builder));
+            Assert.That(configured.Node, Is.SameAs(method));
+            Assert.That(method.OnCallMethodWithResultAsync, Is.SameAs(handler));
+        }
+
         [Test]
         public void NodeByPathTypedReturnsTypedBuilder()
         {
@@ -1001,5 +1060,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 () => b.VariableFromDataTypeId<int>(dataTypeId));
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
         }
+
+        private static readonly MethodCalledWithResultEventHandlerAsync s_completeMethodHandler =
+            static (_, _, _, _, _) =>
+                new ValueTask<MethodInvocationResult>(new MethodInvocationResult(ServiceResult.Good));
     }
 }

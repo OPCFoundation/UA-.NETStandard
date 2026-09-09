@@ -492,8 +492,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
         }
 
-        [Test]
-        public async Task ValidateDiagnosticInfoGrantsUserPermissionInfoForSecurityAdminAsync()
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ValidateDiagnosticInfoUsesEffectiveSessionRoleForBothLevelsAsync(bool authorized)
         {
             UserTokenPolicy[] tokens =
             [
@@ -512,10 +513,10 @@ namespace Opc.Ua.Server.Tests
 
             var effectiveIdentity = new Mock<IUserIdentity>();
             effectiveIdentity.Setup(i => i.TokenType).Returns(UserTokenType.Anonymous);
-            effectiveIdentity.Setup(i => i.DisplayName).Returns("admin");
+            effectiveIdentity.Setup(i => i.DisplayName).Returns("diagnostic-test");
             effectiveIdentity
                 .Setup(i => i.GrantedRoleIds)
-                .Returns(new ArrayOf<NodeId>(new[] { ObjectIds.WellKnownRole_SecurityAdmin }));
+                .Returns(authorized ? [ObjectIds.WellKnownRole_SecurityAdmin] : [ObjectIds.WellKnownRole_Observer]);
 
             session.Activate(
                 context,
@@ -525,14 +526,18 @@ namespace Opc.Ua.Server.Tests
                 default,
                 Nonce.CreateNonce(SecurityPolicies.None));
 
-            const uint mask = (uint)DiagnosticsMasks.ServiceAdditionalInfo;
+            const uint mask = (uint)(DiagnosticsMasks.ServiceAdditionalInfo |
+                DiagnosticsMasks.OperationAdditionalInfo |
+                DiagnosticsMasks.UserPermissionAdditionalInfo);
             var header = new RequestHeader { ReturnDiagnostics = mask };
 
             session.ValidateDiagnosticInfo(header);
 
             Assert.That(
-                header.ReturnDiagnostics & (uint)DiagnosticsMasks.UserPermissionAdditionalInfo,
-                Is.Not.Zero);
+                (header.ReturnDiagnostics & (uint)DiagnosticsMasks.UserPermissionAdditionalInfo) != 0,
+                Is.EqualTo(authorized));
+            Assert.That(header.ReturnDiagnostics & (uint)DiagnosticsMasks.AdditionalInfo,
+                Is.EqualTo((uint)DiagnosticsMasks.AdditionalInfo));
         }
 
         [Test]

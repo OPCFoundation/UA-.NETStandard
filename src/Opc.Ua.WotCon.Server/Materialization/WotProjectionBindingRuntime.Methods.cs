@@ -85,7 +85,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                     }
                     WotBindingChannelSlot slot = GetOrCreateSlot(form);
-                    builder.OnCall(BuildMethodHandler(builder.Node, slot, condition, local.ConditionAction));
+                    builder.OnCallWithResult(BuildMethodHandler(builder.Node, slot, condition, local.ConditionAction));
                     if (condition?.Condition is { } state)
                     {
                         MethodState standard = state.FindChild(
@@ -105,7 +105,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             commentMethod.OnCall = null;
                             commentMethod.OnCallAsync = null;
                         }
-                        m_builder.Node(standard.NodeId).OnCall(
+                        m_builder.Node(standard.NodeId).OnCallWithResult(
                             BuildMethodHandler(standard, slot, condition, local.ConditionAction));
                     }
                 }
@@ -191,7 +191,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return nodeId;
         }
 
-        private GenericMethodCalledEventHandler2Async BuildMethodHandler(
+        private MethodCalledWithResultEventHandlerAsync BuildMethodHandler(
             MethodState method,
             WotBindingChannelSlot slot,
             WotProjectedEventBinding? condition,
@@ -233,15 +233,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 throw new ServiceResultException(
                     StatusCodes.BadConfigurationError, "Enable and Disable take no input arguments.");
             }
-            return async (context, _, _, arguments, results, cancellationToken) =>
+            return async (context, _, _, arguments, cancellationToken) =>
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
-                    return new ServiceResult(StatusCodes.BadRequestCancelledByClient);
+                    return new MethodInvocationResult(StatusCodes.BadRequestCancelledByClient);
                 }
                 if (m_generationToken.IsCancellationRequested)
                 {
-                    return new ServiceResult(StatusCodes.BadShutdown);
+                    return new MethodInvocationResult(StatusCodes.BadShutdown);
                 }
                 using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(
                     cancellationToken, m_generationToken);
@@ -249,19 +249,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ServiceResult inputStatus = ValidateArguments(context, arguments, inputs);
                 if (ServiceResult.IsBad(inputStatus))
                 {
-                    return inputStatus;
+                    return new MethodInvocationResult(inputStatus);
                 }
                 ArrayOf<Variant> upstreamArguments = arguments;
                 if (occurrenceAction)
                 {
                     if (!arguments[eventIdIndex].TryGetValue(out ByteString eventId))
                     {
-                        return new ServiceResult(StatusCodes.BadTypeMismatch);
+                        return new MethodInvocationResult(StatusCodes.BadTypeMismatch);
                     }
                     ServiceResult routing = condition!.ResolveEventId(eventId, out ByteString originalEventId);
                     if (ServiceResult.IsBad(routing))
                     {
-                        return routing;
+                        return new MethodInvocationResult(routing);
                     }
                     upstreamArguments =
                     [
@@ -281,7 +281,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     if (channel is IWotContextualBindingChannel contextual)
                     {
                         response = await contextual.InvokeAsync(
-                            new WotInvokeRequest(upstreamArguments, localContext), token).ConfigureAwait(false);
+                            new WotInvokeRequest(
+                                upstreamArguments, localContext,
+                                context is IOperationContext operation
+                                    ? operation.DiagnosticsMask : DiagnosticsMasks.None), token)
+                            .ConfigureAwait(false);
                     }
                     else
                     {
@@ -299,23 +303,24 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested)
                 {
-                    return new ServiceResult(cancellationToken.IsCancellationRequested
+                    return new MethodInvocationResult(cancellationToken.IsCancellationRequested
                         ? StatusCodes.BadRequestCancelledByClient : StatusCodes.BadShutdown);
                 }
                 if (StatusCode.IsBad(response.Status))
                 {
-                    return new ServiceResult(response.Status);
+                    return new MethodInvocationResult(
+                        response.OperationResult, inputArgumentResults: response.InputArgumentResults);
                 }
                 if (response.Outputs.Count != outputs.Count)
                 {
-                    return new ServiceResult(StatusCodes.BadDecodingError);
+                    return new MethodInvocationResult(StatusCodes.BadDecodingError);
                 }
                 StatusCode status = response.Status;
                 foreach (DataValue output in response.Outputs)
                 {
                     if (StatusCode.IsBad(output.StatusCode))
                     {
-                        return new ServiceResult(output.StatusCode);
+                        return new MethodInvocationResult(output.StatusCode);
                     }
                     if (status == StatusCodes.Good && !StatusCode.IsGood(output.StatusCode))
                     {
@@ -329,11 +334,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ServiceResult outputStatus = ValidateArguments(context, values, outputs);
                 if (ServiceResult.IsBad(outputStatus))
                 {
-                    return outputStatus;
+                    return new MethodInvocationResult(outputStatus);
                 }
-                results.Clear();
-                results.AddRange(values);
-                return new ServiceResult(status);
+                return new MethodInvocationResult(
+                    status == response.Status ? response.OperationResult : new ServiceResult(status),
+                    values,
+                    response.InputArgumentResults);
             };
         }
 

@@ -292,6 +292,7 @@ namespace Opc.Ua.WotCon.Bindings
             Status = status;
             Outputs = outputs ?? [];
             Error = error;
+            OperationResult = new ServiceResult(status, error is null ? LocalizedText.Null : new LocalizedText(error));
         }
 
         /// <summary>
@@ -311,6 +312,18 @@ namespace Opc.Ua.WotCon.Bindings
         public IServiceMessageContext? Context { get; private init; }
 
         /// <summary>
+        /// Gets the operation status and diagnostic text, independent of any
+        /// transport response StringTable.
+        /// </summary>
+        public ServiceResult OperationResult { get; private init; }
+
+        /// <summary>
+        /// Gets the input results in argument order. Diagnostic indexes are
+        /// resolved against their source StringTable before these results are stored.
+        /// </summary>
+        public ArrayOf<ServiceResult> InputArgumentResults { get; private init; }
+
+        /// <summary>
         /// Gets the error message on failure, if any.
         /// </summary>
         public string? Error { get; }
@@ -327,7 +340,39 @@ namespace Opc.Ua.WotCon.Bindings
         {
             return new WotInvokeResult(Status, Outputs, Error)
             {
-                Context = context ?? throw new ArgumentNullException(nameof(context))
+                Context = context ?? throw new ArgumentNullException(nameof(context)),
+                OperationResult = OperationResult,
+                InputArgumentResults = InputArgumentResults
+            };
+        }
+
+        /// <summary>
+        /// Returns a result carrying resolved operation and per-input diagnostics.
+        /// </summary>
+        public WotInvokeResult WithResultDetails(ServiceResult operationResult, ArrayOf<ServiceResult> inputResults)
+        {
+            if (operationResult is null)
+            {
+                throw new ArgumentNullException(nameof(operationResult));
+            }
+            if (!operationResult.StatusCode.Equals(Status, StatusCodeComparison.AllBits))
+            {
+                throw new ArgumentException("The diagnostic result must have the invocation status.",
+                    nameof(operationResult));
+            }
+            ArrayOf<ServiceResult> ownedInputs = inputResults.Span.ToArray();
+            foreach (ServiceResult result in ownedInputs)
+            {
+                if (result is null)
+                {
+                    throw new ArgumentException("Input results must retain every argument position.", nameof(inputResults));
+                }
+            }
+            return new WotInvokeResult(Status, Outputs, Error)
+            {
+                Context = Context,
+                OperationResult = operationResult,
+                InputArgumentResults = ownedInputs
             };
         }
     }
@@ -396,9 +441,20 @@ namespace Opc.Ua.WotCon.Bindings
         /// Initializes an invocation with ordered inputs and their source context.
         /// </summary>
         public WotInvokeRequest(ArrayOf<Variant> inputs, IServiceMessageContext context)
+            : this(inputs, context, DiagnosticsMasks.None)
+        {
+        }
+
+        /// <summary>
+        /// Initializes an invocation with requested diagnostics. Server-internal
+        /// permission flags are not transferred to the source Session.
+        /// </summary>
+        public WotInvokeRequest(
+            ArrayOf<Variant> inputs, IServiceMessageContext context, DiagnosticsMasks diagnosticsMask)
         {
             Inputs = inputs;
             Context = context ?? throw new ArgumentNullException(nameof(context));
+            DiagnosticsMask = diagnosticsMask & DiagnosticsMasks.All;
         }
 
         /// <summary>
@@ -410,6 +466,11 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets the context of the input values.
         /// </summary>
         public IServiceMessageContext Context { get; }
+
+        /// <summary>
+        /// Gets the requested service and operation diagnostics, excluding local permissions.
+        /// </summary>
+        public DiagnosticsMasks DiagnosticsMask { get; }
     }
 
     /// <summary>

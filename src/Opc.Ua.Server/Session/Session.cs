@@ -591,6 +591,11 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void ValidateDiagnosticInfo(RequestHeader requestHeader)
         {
+            if (requestHeader is null)
+            {
+                throw new ArgumentNullException(nameof(requestHeader));
+            }
+            requestHeader.ReturnDiagnostics &= ~(uint)DiagnosticsMasks.UserPermissionAdditionalInfo;
             const uint additionalInfoDiagnosticsMask = (uint)(
                 DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.OperationAdditionalInfo);
             if ((requestHeader.ReturnDiagnostics & additionalInfoDiagnosticsMask) != 0)

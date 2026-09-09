@@ -216,6 +216,12 @@ namespace Opc.Ua
         public GenericMethodCalledEventHandler2Async? OnCallMethod2Async;
 
         /// <summary>
+        /// Processes an asynchronous call and returns ordered input diagnostics
+        /// as well as the operation result and outputs.
+        /// </summary>
+        public MethodCalledWithResultEventHandlerAsync? OnCallMethodWithResultAsync;
+
+        /// <summary>
         /// Exports a copy of the node to a node table.
         /// </summary>
         /// <param name="context">The context.</param>
@@ -793,7 +799,42 @@ namespace Opc.Ua
             {
                 if (sync)
                 {
-                    result = Call(context, objectId, inputs, outputs);
+                    result = OnCallMethodWithResultAsync is null
+                        ? Call(context, objectId, inputs, outputs)
+                        : new ServiceResult(StatusCodes.BadNotSupported);
+                }
+                else if (OnCallMethodWithResultAsync is { } complete)
+                {
+                    MethodInvocationResult invocation = await complete(
+                        context, this, objectId, inputArguments, cancellationToken).ConfigureAwait(false);
+                    if (invocation is null)
+                    {
+                        return ServiceResult.Create(
+                            StatusCodes.BadUnexpectedError, "The Method returned no invocation result.");
+                    }
+                    if (invocation.InputArgumentResults.Count != 0 &&
+                        invocation.InputArgumentResults.Count != inputArguments.Count)
+                    {
+                        return ServiceResult.Create(
+                            StatusCodes.BadUnexpectedError, "The Method returned an incomplete input-result array.");
+                    }
+                    if (ServiceResult.IsGoodOrUncertain(invocation.OperationResult) &&
+                        invocation.OutputArguments.Count != outputs.Count)
+                    {
+                        return ServiceResult.Create(
+                            StatusCodes.BadUnexpectedError, "The Method returned an incomplete output array.");
+                    }
+                    argumentErrors.Clear();
+                    foreach (ServiceResult argumentResult in invocation.InputArgumentResults)
+                    {
+                        argumentErrors.Add(argumentResult);
+                    }
+                    outputs.Clear();
+                    foreach (Variant output in invocation.OutputArguments)
+                    {
+                        outputs.Add(output);
+                    }
+                    result = invocation.OperationResult;
                 }
                 else
                 {

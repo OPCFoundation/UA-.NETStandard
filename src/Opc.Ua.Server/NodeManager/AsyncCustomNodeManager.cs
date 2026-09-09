@@ -6027,70 +6027,8 @@ namespace Opc.Ua.Server
                cancellationToken
             ).ConfigureAwait(false);
 
-            if (ServiceResult.IsBad(callResult))
-            {
-                return callResult;
-            }
-
-            // check for argument errors.
-            bool argumentsValid = true;
-
-            var inputArgumentResults = new List<StatusCode>();
-            var inputArgumentDiagnosticInfos = new List<DiagnosticInfo>();
-
-            for (int jj = 0; jj < argumentErrors.Count; jj++)
-            {
-                ServiceResult argumentError = argumentErrors[jj];
-
-                if (argumentError != null)
-                {
-                    inputArgumentResults.Add(argumentError.StatusCode);
-
-                    if (ServiceResult.IsBad(argumentError))
-                    {
-                        argumentsValid = false;
-                    }
-
-                    // only fill in diagnostic info if it is requested.
-                    if (systemContext!.OperationContext != null &&
-                        (systemContext.OperationContext.DiagnosticsMask &
-                            DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        if (ServiceResult.IsBad(argumentError))
-                        {
-                            inputArgumentDiagnosticInfos.Add(
-                                new DiagnosticInfo(
-                                    argumentError,
-                                    systemContext.OperationContext.DiagnosticsMask,
-                                    false,
-                                    systemContext.OperationContext.StringTable,
-                                    m_logger));
-                        }
-                        else
-                        {
-                            inputArgumentDiagnosticInfos.Add(null!);
-                        }
-                    }
-                }
-            }
-
-            // check for validation errors.
-            if (!argumentsValid)
-            {
-                // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty
-                // when StatusCode is Good. Therefore set here to the argument results
-                // and return a Bad status code.
-                result.InputArgumentResults = inputArgumentResults;
-                result.InputArgumentDiagnosticInfos = inputArgumentDiagnosticInfos;
-                result.StatusCode = StatusCodes.BadInvalidArgument;
-                return result.StatusCode;
-            }
-
-            // return output arguments.
-            result.OutputArguments = outputArguments;
-
-            // return the actual result of the original call
-            return callResult;
+            return MethodCallResultBuilder.Apply(
+                callResult, argumentErrors, outputArguments, result, systemContext?.OperationContext, m_logger);
         }
 
         /// <summary>

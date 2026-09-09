@@ -54,7 +54,7 @@ namespace Opc.Ua.Server.Tests
     // CA1001: NUnit test fixture: per-test instance lifecycle is managed by NUnit;
     // ApplicationConfiguration disposal is handled by the configuration manager pipeline.
 #pragma warning disable CA1001
-    public class AsyncCustomNodeManagerTests
+    public partial class AsyncCustomNodeManagerTests
 #pragma warning restore CA1001
     {
         private Mock<IServerInternal> m_mockServer;
@@ -451,7 +451,7 @@ namespace Opc.Ua.Server.Tests
         {
             using ITestNodeManager manager = CreateManager();
             ushort instanceNamespaceIndex = manager.NamespaceIndexes[0];
-            ushort elementNamespaceIndex = (ushort)manager.SystemContext.NamespaceUris
+            ushort elementNamespaceIndex = manager.SystemContext.NamespaceUris
                 .GetIndexOrAppend(NamespaceFiniteStateMachineState.ElementsNamespaceUri);
             var machine = new NamespaceFiniteStateMachineState(null)
             {
@@ -5297,16 +5297,15 @@ namespace Opc.Ua.Server.Tests
             return new OperationContext(new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, m_mockSession.Object);
         }
 
-        private ITestNodeManager CreateManager()
+        private ITestNodeManager CreateManager(bool asynchronousLegacyCall = false)
         {
             if (m_managerType == AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
             {
-                var cnm2 = new TestableCustomNodeManager2(
-                    m_mockServer.Object,
-                    m_configuration,
-                    m_useSamplingGroups,
-                    m_mockLogger.Object,
-                    m_testNamespaceUri);
+                TestableCustomNodeManager2 cnm2 = asynchronousLegacyCall
+                    ? new AsyncCallTestNodeManager(
+                        m_mockServer.Object, m_configuration, m_useSamplingGroups, m_mockLogger.Object, m_testNamespaceUri)
+                    : new TestableCustomNodeManager2(
+                        m_mockServer.Object, m_configuration, m_useSamplingGroups, m_mockLogger.Object, m_testNamespaceUri);
                 var adapter = new AsyncNodeManagerAdapter(cnm2);
                 var adapterWrapper = new TestableCustomNodeManager2Adapter(cnm2, adapter);
                 SetupMasterNodeManager(adapterWrapper);
@@ -5916,7 +5915,9 @@ namespace Opc.Ua.Server.Tests
         void SetNamespaceUrisPublic(IEnumerable<string>? uris);
     }
 
-    /// <summary>A testable subclass of <see cref="CustomNodeManager2"/> that exposes protected members.</summary>
+    /// <summary>
+    /// A testable subclass of <see cref="CustomNodeManager2"/> that exposes protected members.
+    /// </summary>
     public class TestableCustomNodeManager2 : CustomNodeManager2
     {
         public TestableCustomNodeManager2(

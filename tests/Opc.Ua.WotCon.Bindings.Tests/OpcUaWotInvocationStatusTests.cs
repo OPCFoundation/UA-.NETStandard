@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -40,6 +41,190 @@ namespace Opc.Ua.WotCon.Bindings.Tests
     [TestFixture]
     public sealed class OpcUaWotInvocationStatusTests
     {
+        [Test]
+        public async Task RejectedInvocationPreservesEveryArgumentResultAndResolvesSourceDiagnostics()
+        {
+            var namespaces = new NamespaceTable();
+            namespaces.Append("urn:source");
+            var session = new Mock<ISession>();
+            session.SetupGet(s => s.NamespaceUris).Returns(namespaces);
+            session.Setup(s => s.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CallResponse
+                {
+                    ResponseHeader = new ResponseHeader
+                    {
+                        StringTable = ["urn:source:diagnostics", "SpeedRejected", "de", "Drehzahl zu hoch", "CallRejected"]
+                    },
+                    DiagnosticInfos = [new DiagnosticInfo { NamespaceUri = 0, SymbolicId = 4 }],
+                    Results =
+                    [
+                        new CallMethodResult
+                        {
+                            StatusCode = StatusCodes.BadInvalidArgument,
+                            InputArgumentResults = [StatusCodes.Good, StatusCodes.BadOutOfRange],
+                            InputArgumentDiagnosticInfos =
+                            [
+                                null!,
+                                new DiagnosticInfo
+                                {
+                                    NamespaceUri = 0,
+                                    SymbolicId = 1,
+                                    Locale = 2,
+                                    LocalizedText = 3,
+                                    AdditionalInfo = "limit: 100",
+                                    InnerStatusCode = StatusCodes.BadInvalidArgument,
+                                    InnerDiagnosticInfo = new DiagnosticInfo { SymbolicId = 4 }
+                                }
+                            ]
+                        }
+                    ]
+                });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, CreateForm(), new WotExecutorContext(), new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([new Variant(1), new Variant(200)]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(result.InputArgumentResults.Count, Is.EqualTo(2));
+            Assert.That(result.InputArgumentResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            ServiceResult rejected = result.InputArgumentResults[1];
+            Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(rejected.NamespaceUri, Is.EqualTo("urn:source:diagnostics"));
+            Assert.That(rejected.SymbolicId, Is.EqualTo("SpeedRejected"));
+            Assert.That(rejected.LocalizedText, Is.EqualTo(new LocalizedText("de", "Drehzahl zu hoch")));
+            Assert.That(rejected.AdditionalInfo, Is.EqualTo("limit: 100"));
+            Assert.That(rejected.InnerResult?.SymbolicId, Is.EqualTo("CallRejected"));
+            Assert.That(result.OperationResult.SymbolicId, Is.EqualTo("CallRejected"));
+            Assert.That(result.OperationResult.NamespaceUri, Is.EqualTo("urn:source:diagnostics"));
+            Assert.That(result.Outputs, Is.Empty);
+            session.Verify(s => s.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [TestCase("short-inputs")]
+        [TestCase("long-inputs")]
+        [TestCase("short-diagnostics")]
+        [TestCase("invalid-index")]
+        [TestCase("negative-index")]
+        [TestCase("invalid-operation-index")]
+        [TestCase("successful-inputs")]
+        public async Task MalformedCallDetailsFailWithoutRetryingOrReturningPartialResults(string malformed)
+        {
+            var namespaces = new NamespaceTable();
+            namespaces.Append("urn:source");
+            var method = new CallMethodResult
+            {
+                StatusCode = StatusCodes.BadInvalidArgument,
+                InputArgumentResults = [StatusCodes.Good, StatusCodes.BadOutOfRange]
+            };
+            switch (malformed)
+            {
+                case "short-inputs":
+                    method.InputArgumentResults = [StatusCodes.BadOutOfRange];
+                    break;
+                case "long-inputs":
+                    method.InputArgumentResults = [StatusCodes.Good, StatusCodes.BadOutOfRange, StatusCodes.Good];
+                    break;
+                case "short-diagnostics":
+                    method.InputArgumentDiagnosticInfos = [new DiagnosticInfo()];
+                    break;
+                case "invalid-index":
+                    method.InputArgumentDiagnosticInfos = [null!, new DiagnosticInfo { SymbolicId = 2 }];
+                    break;
+                case "negative-index":
+                    method.InputArgumentDiagnosticInfos = [null!, new DiagnosticInfo { LocalizedText = -2 }];
+                    break;
+                case "successful-inputs":
+                    method.StatusCode = StatusCodes.Good;
+                    break;
+            }
+            var session = new Mock<ISession>();
+            session.SetupGet(s => s.NamespaceUris).Returns(namespaces);
+            session.Setup(s => s.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CallResponse
+                {
+                    ResponseHeader = new ResponseHeader { StringTable = ["available"] },
+                    DiagnosticInfos = malformed == "invalid-operation-index"
+                        ? [new DiagnosticInfo { NamespaceUri = 1 }] : [],
+                    Results = [method]
+                });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, CreateForm(), new WotExecutorContext(), new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([new Variant(1), new Variant(200)]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(result.InputArgumentResults.IsEmpty, Is.True);
+            Assert.That(result.Outputs, Is.Empty);
+            Assert.That(result.Error, Is.Not.Null.And.Not.Empty);
+            session.Verify(s => s.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [TestCase(3)]
+        [TestCase(4)]
+        [TestCase(5)]
+        public async Task InvocationDiagnosticDepthIsBoundedWithoutDiscardingValidNestedText(int depth)
+        {
+            var diagnostic = new DiagnosticInfo { SymbolicId = 0 };
+            for (int i = 0; i < depth; i++)
+            {
+                diagnostic = new DiagnosticInfo { SymbolicId = 0, InnerDiagnosticInfo = diagnostic };
+            }
+            var namespaces = new NamespaceTable();
+            namespaces.Append("urn:source");
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.NamespaceUris).Returns(namespaces);
+            session.Setup(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CallResponse
+                {
+                    ResponseHeader = new ResponseHeader { StringTable = ["ValidationContext"] },
+                    Results =
+                    [
+                        new CallMethodResult
+                        {
+                            StatusCode = StatusCodes.BadInvalidArgument,
+                            InputArgumentResults = [StatusCodes.BadTypeMismatch],
+                            InputArgumentDiagnosticInfos = [diagnostic]
+                        }
+                    ]
+                });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, CreateForm(), new WotExecutorContext(), new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([new Variant(1)]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(depth < 5
+                ? StatusCodes.BadInvalidArgument : StatusCodes.BadDecodingError));
+            Assert.That(result.Outputs, Is.Empty);
+            if (depth < 5)
+            {
+                ServiceResult? nested = result.InputArgumentResults[0];
+                for (int i = 0; i <= depth; i++)
+                {
+                    Assert.That(nested, Is.Not.Null);
+                    Assert.That(nested!.SymbolicId, Is.EqualTo("ValidationContext"));
+                    nested = nested.InnerResult;
+                }
+                Assert.That(nested, Is.Null);
+            }
+            else
+            {
+                Assert.That(result.InputArgumentResults.IsEmpty, Is.True);
+            }
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
         [TestCaseSource(nameof(s_statusCases))]
         public async Task InvocationRetainsTheOperationStatusAndOrderedArguments(StatusCode status)
         {
@@ -71,7 +256,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 });
             var channel = new OpcUaWotBindingChannel(
                 session.Object, false, CreateForm(), new WotExecutorContext(), new OpcUaWotBindingOptions());
-            await using var channelOwner = channel.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable channelOwner = channel.ConfigureAwait(false);
 
             WotInvokeResult result = await channel.InvokeAsync([new Variant(31)]).ConfigureAwait(false);
 
@@ -89,10 +274,46 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        [TestCase(DiagnosticsMasks.None)]
+        [TestCase(DiagnosticsMasks.OperationAll)]
+        [TestCase(DiagnosticsMasks.All | DiagnosticsMasks.UserPermissionAdditionalInfo)]
+        public async Task ContextualCallForwardsRequestedDiagnosticsWithoutLocalPermission(DiagnosticsMasks mask)
+        {
+            var context = ServiceMessageContext.CreateEmpty(
+                TelemetryExtensions.InternalOnly__TelemetryHook());
+            context.NamespaceUris.Append("urn:source");
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.NamespaceUris).Returns(context.NamespaceUris);
+            session.SetupGet(value => value.ServerUris).Returns(context.ServerUris);
+            session.SetupGet(value => value.Factory).Returns(context.Factory);
+            session.Setup(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ArrayOf<CallMethodRequest>, CancellationToken>((header, _, _) =>
+                {
+                    Assert.That(header?.ReturnDiagnostics ?? 0, Is.EqualTo((uint)(mask & DiagnosticsMasks.All)));
+                    return new ValueTask<CallResponse>(new CallResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = [new CallMethodResult { StatusCode = StatusCodes.Good }]
+                    });
+                });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, CreateForm(), new WotExecutorContext(), new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync(new WotInvokeRequest([], context, mask))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Good));
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
         [Test]
         public async Task ContextualInvocationTranslatesNodeIdsAndQualifiedNamesByUri()
         {
-            ServiceMessageContext caller = ServiceMessageContext.CreateEmpty(
+            var caller = ServiceMessageContext.CreateEmpty(
                 TelemetryExtensions.InternalOnly__TelemetryHook());
             caller.NamespaceUris.Append("urn:local-only");
             ushort local = caller.NamespaceUris.GetIndexOrAppend("urn:source");
@@ -129,7 +350,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 });
             var channel = new OpcUaWotBindingChannel(
                 session.Object, false, CreateForm(), new WotExecutorContext(), new OpcUaWotBindingOptions());
-            await using var owner = channel.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
 
             WotInvokeResult result = await channel.InvokeAsync(new WotInvokeRequest(
                 [new Variant(new NodeId("Input", local)), new Variant(new QualifiedName("Mode", local))], caller))
@@ -150,7 +371,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [Test]
         public async Task MissingRemoteNamespaceFailsBeforeCallingAndDoesNotInventASessionIndex()
         {
-            ServiceMessageContext caller = ServiceMessageContext.CreateEmpty(
+            var caller = ServiceMessageContext.CreateEmpty(
                 TelemetryExtensions.InternalOnly__TelemetryHook());
             ushort local = caller.NamespaceUris.GetIndexOrAppend("urn:absent-remotely");
             var namespaces = new NamespaceTable();
@@ -161,7 +382,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             session.SetupGet(s => s.Factory).Returns(caller.Factory);
             var channel = new OpcUaWotBindingChannel(
                 session.Object, false, CreateForm(), new WotExecutorContext(), new OpcUaWotBindingOptions());
-            await using var owner = channel.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
 
             WotInvokeResult result = await channel.InvokeAsync(new WotInvokeRequest(
                 [new Variant(new NodeId("Unknown", local))], caller)).ConfigureAwait(false);

@@ -114,6 +114,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 context, nodeId,
                 new QualifiedName(declaration.Name, eventTypeId.NamespaceIndex),
                 new LocalizedText(declaration.Name), assignNodeIds: false);
+            // The factory owns these freshly installed Core transitions; a proxy
+            // must invoke its selected source instead of changing only local state.
+            condition.Enable?.OnCallMethod = null;
+            condition.Disable?.OnCallMethod = null;
             if (condition is AcknowledgeableConditionState acknowledgeable)
             {
                 acknowledgeable.ConfirmedState ??= new TwoStateVariableState(condition);

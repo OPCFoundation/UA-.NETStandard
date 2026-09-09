@@ -199,7 +199,8 @@ namespace Opc.Ua
 
             if (!serviceLevel)
             {
-                mask >>= 5;
+                mask = (mask >> 5) |
+                    ((uint)diagnosticsMask & (uint)DiagnosticsMasks.UserPermissionAdditionalInfo);
             }
 
             diagnosticsMask = (DiagnosticsMasks)mask;
@@ -351,7 +352,7 @@ namespace Opc.Ua
                 // recursively append the inner diagnostics.
                 if ((DiagnosticsMasks.ServiceInnerDiagnostics & diagnosticsMask) != 0)
                 {
-                    if (depth < MaxInnerDepth)
+                    if (depth + 1 < MaxInnerDepth)
                     {
                         InnerDiagnosticInfo = new DiagnosticInfo(
                             result.InnerResult,

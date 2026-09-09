@@ -190,11 +190,34 @@ ambiguous match is an error rather than an arbitrary fallback.
 
 An action's `uav:id` identifies the local Method; its selected form supplies the
 upstream Method and Object addresses. The runtime wires the local Method through
-the existing asynchronous fluent `OnCall` hook. When an action offers several
+the asynchronous fluent `OnCallWithResult` hook. When an action offers several
 forms, the runtime selects one supported, executable form and sends the request
 only to that form's upstream source. It returns the upstream call's status and
 any argument errors to the caller; invoking the local Method does not by itself
 count as success.
+
+`WotInvokeResult.OperationResult` and `InputArgumentResults` carry resolved
+diagnostic text, not indexes into the source server's response StringTable.
+Argument results preserve their order and optional absence. The receiving
+server encodes diagnostic indexes into its own response StringTable and applies
+the caller's diagnostic mask and its own authorization for additional details.
+Malformed native input-result counts, invalid diagnostic indexes and excessive inner
+diagnostic depth fail with `BadDecodingError`, without retrying the action.
+
+Contextual channels receive the requested diagnostics through
+`WotInvokeRequest.DiagnosticsMask`. This mask excludes local server permission
+flags; the upstream Session authorizes additional diagnostic information
+independently. The existing two-argument request constructor and context-free
+channel interface remain available. With no mask, native invocation retains the
+Session's configured diagnostic defaults; receiving-server filtering still applies.
+
+```csharp
+var request = new WotInvokeRequest(
+    inputs, messageContext, DiagnosticsMasks.OperationAll);
+WotInvokeResult result = await contextualChannel.InvokeAsync(request, cancellationToken);
+ServiceResult operation = result.OperationResult;
+ArrayOf<ServiceResult> inputResults = result.InputArgumentResults;
+```
 
 Type-owned declarations need not have executable forms. Their declaration
 context follows document containment or authoritative native ownership, not
@@ -232,6 +255,9 @@ a native two-argument Method's signature: OPC UA callers supply both arguments.
 After acknowledgement changes the occurrence, confirmation uses the updated
 EventId. Unbound standard Methods on a Condition proxy are disabled, so they
 cannot change only the local copy.
+The default Condition factory detaches its own Core Enable/Disable transitions
+before proxy wiring. Application-installed handlers are not cleared: a conflicting
+handler still prevents activation rather than being silently replaced.
 
 `WotProjectionBindingRuntimeOptions` limits pending notifications per local
 notifier (`MaxQueuedEvents`) and retained occurrence routes per event declaration

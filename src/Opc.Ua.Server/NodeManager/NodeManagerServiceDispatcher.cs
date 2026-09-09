@@ -260,7 +260,8 @@ namespace Opc.Ua.Server
                     int depth = 0;
                     while (diagnosticInfo != null && depth++ < DiagnosticInfo.MaxInnerDepth)
                     {
-                        if (!string.IsNullOrEmpty(diagnosticInfo.AdditionalInfo))
+                        if (!string.IsNullOrEmpty(diagnosticInfo.AdditionalInfo) ||
+                            !diagnosticInfo.InnerStatusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
                         {
                             diagnosticsExist = true;
                             break;
@@ -1756,29 +1757,27 @@ namespace Opc.Ua.Server
                 }
 
                 // update the diagnostic info and ensure the status code in the result is the same as the error code.
-                if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
+                if (errors[ii] != null && errors[ii].Code != StatusCodes.Good.Code)
                 {
                     if (results[ii] == null)
                     {
                         results[ii] = new CallMethodResult();
                     }
-
                     results[ii].StatusCode = errors[ii].Code;
-
-                    // add diagnostics if requested.
-                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
-                            Server,
-                            context,
-                            errors[ii],
-                            m_logger)!;
-                        diagnosticsExist = true;
-                    }
+                }
+                if (MethodCallResultBuilder.HasDiagnosticDetails(errors[ii]) &&
+                    (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                {
+                    diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
+                        Server,
+                        context,
+                        errors[ii],
+                        m_logger)!;
+                    diagnosticsExist = true;
                 }
             }
 
-            // clear the diagnostics array if no diagnostics requested or no errors occurred.
+            // Clear the array only when no requested diagnostic information remains.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
 
             return (results, diagnosticInfos);

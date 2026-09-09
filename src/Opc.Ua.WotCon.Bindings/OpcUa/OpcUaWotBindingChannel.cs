@@ -100,7 +100,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         public ValueTask<WotInvokeResult> InvokeAsync(
             IReadOnlyList<Variant> inputs, CancellationToken cancellationToken = default)
         {
-            return InvokeCoreAsync(inputs is null ? [] : inputs.ToArrayOf(), null, cancellationToken);
+            return InvokeCoreAsync(
+                inputs is null ? [] : inputs.ToArrayOf(), null, DiagnosticsMasks.None, cancellationToken);
         }
 
         public ValueTask<WotInvokeResult> InvokeAsync(
@@ -110,7 +111,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             {
                 throw new ArgumentNullException(nameof(request));
             }
-            return InvokeCoreAsync(request.Inputs, request.Context, cancellationToken);
+            return InvokeCoreAsync(request.Inputs, request.Context, request.DiagnosticsMask, cancellationToken);
         }
 
         public ValueTask<IWotSubscription> ObserveAsync(
@@ -274,6 +275,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         private async ValueTask<WotInvokeResult> InvokeCoreAsync(
             ArrayOf<Variant> inputs,
             IServiceMessageContext? inputContext,
+            DiagnosticsMasks diagnosticsMask,
             CancellationToken cancellationToken)
         {
             if (!Form.Addressing.Metadata.TryGetValue("componentOf", out string? objectRef) ||
@@ -314,15 +316,29 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                         InputArguments = inputs
                     }
                 ];
-                CallResponse response = await m_session.CallAsync(null, requests, cancellationToken)
+                RequestHeader? header = diagnosticsMask == DiagnosticsMasks.None
+                    ? null : new RequestHeader { ReturnDiagnostics = (uint)diagnosticsMask };
+                CallResponse response = await m_session.CallAsync(header, requests, cancellationToken)
                     .ConfigureAwait(false);
                 ClientBase.ValidateResponse(response.Results, requests);
                 ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
                 CallMethodResult result = response.Results[0];
+                ValidateInvocationDetails(result, inputs.Count, response);
+                ServiceResult operation = ClientBase.GetResult(
+                    result.StatusCode, 0, response.DiagnosticInfos, response.ResponseHeader);
+                ArrayOf<StatusCode> argumentStatuses = result.InputArgumentResults;
+                ClientBase.ValidateDiagnosticInfos(result.InputArgumentDiagnosticInfos, argumentStatuses);
+                var argumentResults = new ServiceResult[argumentStatuses.Count];
+                for (int i = 0; i < argumentResults.Length; i++)
+                {
+                    argumentResults[i] = ClientBase.GetResult(
+                        argumentStatuses[i], i, result.InputArgumentDiagnosticInfos, response.ResponseHeader);
+                }
                 if (StatusCode.IsBad(result.StatusCode))
                 {
-                    throw ServiceResultException.Create(
-                        result.StatusCode, 0, response.DiagnosticInfos, response.ResponseHeader.StringTable);
+                    return new WotInvokeResult(result.StatusCode, error: operation.ToString())
+                        .WithResultDetails(operation, argumentResults)
+                        .WithContext(CreateSourceContext());
                 }
                 ArrayOf<Variant> outputs = result.OutputArguments;
                 var results = new DataValue[outputs.Count];
@@ -330,12 +346,56 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 {
                     results[i] = new DataValue(outputs[i], StatusCodes.Good, DateTimeUtc.Now, DateTimeUtc.Now);
                 }
-                return new WotInvokeResult(result.StatusCode, results).WithContext(CreateSourceContext());
+                return new WotInvokeResult(result.StatusCode, results)
+                    .WithResultDetails(operation, argumentResults)
+                    .WithContext(CreateSourceContext());
             }
             catch (ServiceResultException ex)
             {
-                return new WotInvokeResult(ex.StatusCode, null, ex.Message);
+                return new WotInvokeResult(ex.StatusCode, null, ex.Message).WithResultDetails(ex.Result, []);
             }
+        }
+
+        private static void ValidateInvocationDetails(CallMethodResult result, int inputCount, CallResponse response)
+        {
+            int resultsCount = result.InputArgumentResults.Count;
+            int diagnosticsCount = result.InputArgumentDiagnosticInfos.Count;
+            if ((resultsCount != 0 && (resultsCount != inputCount || result.StatusCode != StatusCodes.BadInvalidArgument)) ||
+                (diagnosticsCount != 0 && diagnosticsCount != resultsCount))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError, "The server returned inconsistent Call input-result details.");
+            }
+            ArrayOf<string> strings = response.ResponseHeader.StringTable;
+            foreach (DiagnosticInfo? diagnostic in response.DiagnosticInfos)
+            {
+                ValidateDiagnosticIndexes(diagnostic, strings.Count);
+            }
+            foreach (DiagnosticInfo? diagnostic in result.InputArgumentDiagnosticInfos)
+            {
+                ValidateDiagnosticIndexes(diagnostic, strings.Count);
+            }
+        }
+
+        private static void ValidateDiagnosticIndexes(DiagnosticInfo? diagnostic, int stringCount)
+        {
+            for (int depth = 0; diagnostic is not null; depth++, diagnostic = diagnostic.InnerDiagnosticInfo)
+            {
+                if (depth >= DiagnosticInfo.MaxInnerDepth ||
+                    !IsValidIndex(diagnostic.SymbolicId, stringCount) ||
+                    !IsValidIndex(diagnostic.NamespaceUri, stringCount) ||
+                    !IsValidIndex(diagnostic.Locale, stringCount) ||
+                    !IsValidIndex(diagnostic.LocalizedText, stringCount))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError, "The server returned invalid Call diagnostic indexes or depth.");
+                }
+            }
+        }
+
+        private static bool IsValidIndex(int index, int count)
+        {
+            return index >= -1 && index < count;
         }
 
         /// <summary>

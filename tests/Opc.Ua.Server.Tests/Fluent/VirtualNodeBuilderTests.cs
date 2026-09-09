@@ -64,6 +64,117 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public async Task VirtualCompleteHandlerRetainsReceiverAndResultAcrossMaterializationsAsync()
+        {
+            using var manager = new TestVirtualManager();
+            NodeId methodId = manager.VirtualId("Run");
+            NodeId receiver = manager.VirtualId("Owner");
+            var expected = new ServiceResult(
+                "urn:virtual", new StatusCode(StatusCodes.BadNotSupported.Code, "DeviceCannotRun"),
+                new LocalizedText("en", "Device cannot run"), "detail", innerResult: null);
+            int calls = 0;
+            IVirtualNodeBuilder family = manager.Builder.ResolveNodes(
+                id => id == methodId,
+                (_, id, _) => new ValueTask<NodeState?>(
+                    new MethodState(null) { NodeId = id, BrowseName = new QualifiedName("Run") }));
+            IVirtualNodeBuilder configured = family.OnCallWithResult((_, method, owner, inputs, _) =>
+            {
+                calls++;
+                Assert.That(method.NodeId, Is.EqualTo(methodId));
+                Assert.That(owner, Is.EqualTo(receiver));
+                Assert.That(inputs.IsEmpty, Is.True);
+                return new ValueTask<MethodInvocationResult>(new MethodInvocationResult(expected));
+            });
+            manager.Builder.Seal();
+            Assert.That(configured, Is.SameAs(family));
+
+            for (int i = 0; i < 2; i++)
+            {
+                var cache = new Dictionary<NodeId, NodeState>();
+                (_, NodeState? node) = await manager.ResolveAsync(methodId, cache).ConfigureAwait(false);
+                (_, NodeState? cached) = await manager.ResolveAsync(methodId, cache).ConfigureAwait(false);
+                Assert.That(node, Is.TypeOf<MethodState>());
+                Assert.That(cached, Is.SameAs(node));
+                var outputs = new List<Variant>();
+                ServiceResult result = await ((MethodState)node!).CallAsync(
+                    manager.SystemContext, receiver, [], [], outputs).ConfigureAwait(false);
+
+                Assert.That(result, Is.SameAs(expected));
+                Assert.That(outputs, Is.Empty);
+            }
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(manager.ContainsPredefined(methodId), Is.False);
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void VirtualCompleteHandlerRejectsBothRegistrationOrders(bool asynchronous, bool richFirst)
+        {
+            using var manager = new TestVirtualManager();
+            IVirtualNodeBuilder family = manager.Builder.ResolveNodes(
+                _ => true, (_, _, _) => new ValueTask<NodeState?>(new MethodState(null)));
+            MethodCalledWithResultEventHandlerAsync rich = s_completeMethodHandler;
+
+            void RegisterOrdinary()
+            {
+                if (asynchronous)
+                {
+                    family.OnCall((_, _, _, _, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good));
+                }
+                else
+                {
+                    family.OnCall((_, _, _, _, _) => ServiceResult.Good);
+                }
+            }
+
+            ServiceResultException? error;
+            if (richFirst)
+            {
+                family.OnCallWithResult(rich);
+                error = Assert.Throws<ServiceResultException>(RegisterOrdinary);
+            }
+            else
+            {
+                RegisterOrdinary();
+                error = Assert.Throws<ServiceResultException>(() => family.OnCallWithResult(rich));
+            }
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void VirtualCompleteHandlerNeverOverwritesAMaterializedHandler(bool richFamily)
+        {
+            using var manager = new TestVirtualManager();
+            NodeId id = manager.VirtualId("Configured");
+            var method = new MethodState(null) { NodeId = id, BrowseName = new QualifiedName("Configured") };
+            MethodCalledWithResultEventHandlerAsync rich = s_completeMethodHandler;
+            GenericMethodCalledEventHandler2Async ordinary = s_ordinaryMethodHandler;
+            IVirtualNodeBuilder family = manager.Builder.ResolveNodes(
+                nodeId => nodeId == id, (_, _, _) => new ValueTask<NodeState?>(method));
+            if (richFamily)
+            {
+                method.OnCallMethod2Async = ordinary;
+                family.OnCallWithResult(rich);
+            }
+            else
+            {
+                method.OnCallMethodWithResultAsync = rich;
+                family.OnCall(ordinary);
+            }
+            manager.Builder.Seal();
+
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await manager.ResolveAsync(id, new Dictionary<NodeId, NodeState>()).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(method.OnCallMethodWithResultAsync, Is.SameAs(richFamily ? null : rich));
+            Assert.That(method.OnCallMethod2Async, Is.SameAs(richFamily ? ordinary : null));
+        }
+
+        [Test]
         public async Task VirtualNodeMaterializesWithRequestedIdAndHandlersAsync()
         {
             using var manager = new TestVirtualManager();
@@ -88,7 +199,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                         variable.Value = 0;
                         return new ValueTask<NodeState?>(variable);
                     })
-                .OnRead((ISystemContext context, NodeState node, ref Variant value) =>
+                .OnRead((context, node, ref value) =>
                 {
                     value = Variant.From(42);
                     return ServiceResult.Good;
@@ -609,5 +720,12 @@ namespace Opc.Ua.Server.Tests.Fluent
                 return server.Object;
             }
         }
+
+        private static readonly MethodCalledWithResultEventHandlerAsync s_completeMethodHandler =
+            static (_, _, _, _, _) =>
+                new ValueTask<MethodInvocationResult>(new MethodInvocationResult(ServiceResult.Good));
+
+        private static readonly GenericMethodCalledEventHandler2Async s_ordinaryMethodHandler =
+            static (_, _, _, _, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good);
     }
 }
