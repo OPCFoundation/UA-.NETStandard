@@ -647,6 +647,35 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Keeps the earlier case identity while distinguishing strict
+        /// consumers from strict authoring validation.
+        /// </summary>
+        [Test]
+        public void UnnamespacedOpaqueKeyWarnsPermissivelyAndFailsStrictly()
+        {
+            const string metadata = "\"uav:metadata\":{\"revision\":3}";
+            WotConversionResult<UANodeSet> permissive = Convert(metadata);
+            WotConversionResult<UANodeSet> strictConsumer = Convert(metadata, Strict());
+            WotConversionResult<UANodeSet> strictAuthor = Convert(metadata, Authoring());
+
+            foreach (WotConversionResult<UANodeSet> consumer in new[] { permissive, strictConsumer })
+            {
+                Assert.That(consumer.HasErrors, Is.False, Describe(consumer));
+                Assert.That(consumer.Value, Is.Not.Null);
+                Assert.That(consumer.Diagnostics.Single(diagnostic =>
+                    diagnostic.Code == WotDiagnosticCode.OpaqueObjectInvalid).Severity,
+                    Is.EqualTo(WotDiagnosticSeverity.Warning));
+                using WotDocument restored = WotNodeSetConverter.FromNodeSet(consumer.Value!);
+                Assert.That(restored.RootElement.GetProperty("uav:metadata").GetProperty("revision").GetInt32(),
+                    Is.EqualTo(3));
+            }
+            Assert.That(strictAuthor.HasErrors, Is.True, Describe(strictAuthor));
+            Assert.That(strictAuthor.Diagnostics.Single(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.OpaqueObjectInvalid).Severity,
+                Is.EqualTo(WotDiagnosticSeverity.Error));
+        }
+
         [Test]
         public void UnboundOpaqueKeyPrefixIsReported()
         {
