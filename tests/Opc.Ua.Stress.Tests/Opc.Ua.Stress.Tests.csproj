@@ -27,11 +27,11 @@
     <TargetFrameworks Condition="'$(_StressTestSupportedTarget)' == 'true' AND '$(CustomTestTarget)' != ''">$(TestsTargetFrameworks)</TargetFrameworks>
     <!--
       For incompatible matrix entries (net48 / net472 / netstandard2.0) the
-      project compiles against net8.0 as a placeholder that contains no test
+      project follows the matrix framework as a placeholder that contains no test
       sources. The matrix step still runs dotnet test against the resulting
       assembly; NUnit discovers zero tests and exits cleanly.
     -->
-    <TargetFrameworks Condition="'$(_StressTestSupportedTarget)' != 'true'">net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(_StressTestSupportedTarget)' != 'true'">$(TestsTargetFrameworks)</TargetFrameworks>
     <EnableDefaultCompileItems Condition="'$(_StressTestSupportedTarget)' != 'true'">false</EnableDefaultCompileItems>
     <!--
       The placeholder assembly compiled for net48/net472/netstandard2.0

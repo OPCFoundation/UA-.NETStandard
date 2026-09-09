@@ -26,7 +26,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <IsAotCompatible>true</IsAotCompatible>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
     <!-- ICaptureSource.StartAsync itself is intentionally NOT annotated, because most
          capture sources do not need SharpPcap's dynamic-loading requirement.
          NicCaptureSource.StartAsync keeps [RequiresDynamicCode]/[RequiresUnreferencedCode]
