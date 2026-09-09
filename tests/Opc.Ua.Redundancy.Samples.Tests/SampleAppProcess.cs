@@ -54,14 +54,17 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         /// <param name="assemblyName">The sample application assembly (dll) name without extension.</param>
         /// <param name="arguments">The command-line arguments passed to the sample application.</param>
         /// <param name="environment">Additional environment variables set for the process.</param>
+        /// <param name="writeOutput">Receives captured output, or uses the NUnit progress stream.</param>
         public SampleAppProcess(
             string name,
             string applicationDirectory,
             string assemblyName,
             IReadOnlyList<string> arguments,
-            IReadOnlyDictionary<string, string?>? environment = null)
+            IReadOnlyDictionary<string, string?>? environment = null,
+            Action<string>? writeOutput = null)
         {
             Name = name;
+            m_writeOutput = writeOutput ?? TestContext.Progress.WriteLine;
             string dll = LocateApplicationAssembly(applicationDirectory, assemblyName);
             var startInfo = new ProcessStartInfo
             {
@@ -125,7 +128,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 .ConfigureAwait(false) ??
                 throw new TimeoutException(
                     $"Sample process '{Name}' did not emit a line containing '{substring}' within {timeout}. " +
-                    $"Process {(HasExited ? "has exited" : "is still running")}. " +
+                    $"Process {(HasExited ? $"has exited (code {m_process.ExitCode})" : "is still running")}. " +
                     $"Last output:{Environment.NewLine}{GetOutputTail(20)}");
         }
 
@@ -158,7 +161,12 @@ namespace Opc.Ua.Redundancy.Samples.Tests
 
                 if (HasExited)
                 {
-                    await Task.Delay(250, cancellationToken).ConfigureAwait(false);
+                    TimeSpan remaining = deadline - DateTime.UtcNow;
+                    if (remaining <= TimeSpan.Zero ||
+                        !await WaitForExitAndOutputAsync(remaining, cancellationToken).ConfigureAwait(false))
+                    {
+                        return null;
+                    }
                     lock (m_lock)
                     {
                         for (; index < m_lines.Count; index++)
@@ -294,24 +302,13 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         }
 
         /// <summary>
-        /// Waits for the process to exit, or the timeout to elapse.
+        /// Waits for process exit and redirected output completion, or the timeout to elapse.
         /// </summary>
         /// <param name="timeout">The maximum time to wait.</param>
         /// <returns><c>true</c> when the process exited before the timeout.</returns>
-        public async Task<bool> WaitForExitAsync(TimeSpan timeout)
+        public Task<bool> WaitForExitAsync(TimeSpan timeout)
         {
-            DateTime deadline = DateTime.UtcNow + timeout;
-            while (DateTime.UtcNow < deadline)
-            {
-                if (m_process.HasExited)
-                {
-                    return true;
-                }
-
-                await Task.Delay(50).ConfigureAwait(false);
-            }
-
-            return m_process.HasExited;
+            return WaitForExitAndOutputAsync(timeout, CancellationToken.None);
         }
 
         /// <summary>
@@ -342,6 +339,22 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             m_process.Dispose();
         }
 
+        private async Task<bool> WaitForExitAndOutputAsync(TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            using var deadline = new CancellationTokenSource(timeout);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+            try
+            {
+                await m_process.WaitForExitAsync(linked.Token).ConfigureAwait(false);
+                return true;
+            }
+            catch (OperationCanceledException) when (deadline.IsCancellationRequested &&
+                !cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+        }
+
         private void OnOutput(object sender, DataReceivedEventArgs e)
         {
             if (e.Data == null)
@@ -354,7 +367,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 m_lines.Add(e.Data);
             }
 
-            TestContext.Progress.WriteLine($"[{Name}] {e.Data}");
+            m_writeOutput($"[{Name}] {e.Data}");
         }
 
         private string GetOutputTail(int maximumLines)
@@ -444,6 +457,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         }
 
         private readonly Process m_process;
+        private readonly Action<string> m_writeOutput;
         private readonly List<string> m_lines = [];
         private readonly Lock m_lock = new();
     }

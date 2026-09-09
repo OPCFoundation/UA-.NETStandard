@@ -34,6 +34,8 @@
 
 using System;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
@@ -233,38 +235,104 @@ namespace Opc.Ua.Redundancy.Server.Tests
         [Test]
         public async Task ReconcileMaterializedValuesCorrectsStaleReplicaAndRebroadcastsAsync()
         {
-            await using TwoReplicaFixture fixture = await TwoReplicaFixture.CreateAsync(this).ConfigureAwait(false);
+            await using var replicaA = new ControlledReplica(this, 1);
+            await using var replicaB = new ControlledReplica(this, 2);
+            await replicaA.StartAsync().ConfigureAwait(false);
+            await replicaB.StartAsync().ConfigureAwait(false);
+            await replicaA.SendToAsync(replicaB).ConfigureAwait(false);
+            await replicaB.SendToAsync(replicaA).ConfigureAwait(false);
 
             BaseDataVariableState source = NewVariable("reconcile", 1.0);
-            await fixture.SpaceA.AddOrUpdateNodeAsync(source).ConfigureAwait(false);
-            await AssertEventuallyAsync(
-                () => fixture.SpaceB.TryGetNode(source.NodeId, out _),
-                "the seed node should replicate before reconciliation").ConfigureAwait(false);
+            await replicaA.Space.AddOrUpdateNodeAsync(source).ConfigureAwait(false);
+            await replicaA.SendToAsync(replicaB).ConfigureAwait(false);
+            await replicaB.SendToAsync(replicaA).ConfigureAwait(false);
 
             source.Value = new Variant(42.0);
             source.ClearChangeMasks(m_systemContext, false);
-            await AssertEventuallyAsync(
-                () => fixture.SpaceB.TryGetNode(source.NodeId, out NodeState? remote) &&
-                    remote is BaseVariableState variable &&
-                    variable.Value.Equals(new Variant(42.0)),
-                "the authoritative value should replicate before making B stale").ConfigureAwait(false);
+            var expected = new DataValue(source.Value, source.StatusCode, source.Timestamp);
+            await replicaA.SendToAsync(replicaB).ConfigureAwait(false);
+            await replicaB.SendToAsync(replicaA).ConfigureAwait(false);
+            AssertValue(replicaB, source.NodeId, in expected);
+            Assert.That(replicaA.Transport.HasSentFrame, Is.False);
+            Assert.That(replicaB.Transport.HasSentFrame, Is.False);
 
-            Assert.That(fixture.SpaceB.TryGetNode(source.NodeId, out NodeState? staleNode), Is.True);
-            var staleVariable = (BaseVariableState)staleNode!;
+            BaseVariableState staleVariable = replicaB.GetVariable(source.NodeId);
+            staleVariable.Value = new Variant(11.0);
+            staleVariable.StatusCode = StatusCodes.BadOutOfService;
+            staleVariable.Timestamp = DateTimeUtc.Now;
+
+            int topologyUpdates = 0;
+            replicaB.Space.NodeAdded += _ => Interlocked.Increment(ref topologyUpdates);
+            long inboundApplyCount = replicaA.Sync.InboundApplyCount;
+            Task rebroadcastApplied = replicaA.Sync.WaitForInboundApplyAfterAsync(inboundApplyCount);
+            await replicaA.Sync.SeedOrHydrateAsync().ConfigureAwait(false);
+            await replicaA.SendToAsync(replicaB).ConfigureAwait(false);
+
+            AssertValue(replicaB, source.NodeId, in expected);
+            Assert.That(topologyUpdates, Is.Zero, "reconciliation must not depend on a topology diff");
+            Assert.That(rebroadcastApplied.IsCompleted, Is.False, "the correcting frame has not reached A yet");
+            await replicaB.SendToAsync(replicaA).ConfigureAwait(false);
+            await AwaitWithTimeoutAsync(rebroadcastApplied).ConfigureAwait(false);
+            AssertValue(replicaA, source.NodeId, in expected);
+            Assert.That(replicaA.Sync.InboundApplyCount, Is.EqualTo(inboundApplyCount + 1));
+            Assert.That(replicaA.Transport.HasSentFrame, Is.False);
+            Assert.That(replicaB.Transport.HasSentFrame, Is.False);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReconciliationRebroadcastCompletesBeforeReseedAsync(bool registerAfterApply)
+        {
+            await using var replicaA = new ControlledReplica(this, 1);
+            await using var replicaB = new ControlledReplica(this, 2);
+            await replicaA.StartAsync().ConfigureAwait(false);
+            await replicaB.StartAsync().ConfigureAwait(false);
+            await replicaA.SendToAsync(replicaB).ConfigureAwait(false);
+            await replicaB.SendToAsync(replicaA).ConfigureAwait(false);
+
+            BaseDataVariableState source = NewVariable("reconcile-before-reseed", 1.0);
+            await replicaA.Space.AddOrUpdateNodeAsync(source).ConfigureAwait(false);
+            await replicaA.SendToAsync(replicaB).ConfigureAwait(false);
+
+            source.Value = new Variant(42.0);
+            source.ClearChangeMasks(m_systemContext, false);
+            var expected = new DataValue(source.Value, source.StatusCode, source.Timestamp);
+            await replicaA.SendToAsync(replicaB).ConfigureAwait(false);
+            AssertValue(replicaB, source.NodeId, in expected);
+            BaseVariableState staleVariable = replicaB.GetVariable(source.NodeId);
+
             staleVariable.Value = new Variant(11.0);
             staleVariable.StatusCode = StatusCodes.Good;
             staleVariable.Timestamp = DateTimeUtc.Now;
 
-            await fixture.DrainAsync().ConfigureAwait(false);
-            long inboundApplyCount = fixture.SyncA.InboundApplyCount;
-            await fixture.SyncA.SeedOrHydrateAsync().ConfigureAwait(false);
+            // The delayed echo predates A's write, so A sends its current state back to B.
+            await replicaB.SendToAsync(replicaA).ConfigureAwait(false);
+            await replicaA.SendToAsync(replicaB).ConfigureAwait(false);
+            AssertValue(replicaB, source.NodeId, in expected);
 
-            await AssertEventuallyAsync(
-                () => fixture.SpaceB.TryGetNode(source.NodeId, out NodeState? remote) &&
-                    remote is BaseVariableState variable &&
-                    variable.Value.Equals(new Variant(42.0)),
-                "a zero-diff merge should reconcile the stale materialized value on B").ConfigureAwait(false);
-            await AwaitWithTimeoutAsync(fixture.SyncA.WaitForInboundApplyAfterAsync(inboundApplyCount)).ConfigureAwait(false);
+            // Consume the earlier value echo separately from the reconciliation rebroadcast.
+            await replicaB.SendToAsync(replicaA).ConfigureAwait(false);
+            long correctionApplyCount = replicaA.Sync.InboundApplyCount;
+            Task? rebroadcastApplied = registerAfterApply ?
+                null :
+                replicaA.Sync.WaitForInboundApplyAfterAsync(correctionApplyCount);
+            await replicaB.SendToAsync(replicaA).ConfigureAwait(false);
+            rebroadcastApplied ??= replicaA.Sync.WaitForInboundApplyAfterAsync(correctionApplyCount);
+            await AwaitWithTimeoutAsync(rebroadcastApplied).ConfigureAwait(false);
+            AssertValue(replicaA, source.NodeId, in expected);
+            Assert.That(replicaA.Sync.InboundApplyCount, Is.EqualTo(correctionApplyCount + 1));
+            Assert.That(replicaA.Transport.HasSentFrame, Is.False);
+            Assert.That(replicaB.Transport.HasSentFrame, Is.False);
+
+            long inboundApplyCount = replicaA.Sync.InboundApplyCount;
+            await replicaA.Sync.SeedOrHydrateAsync().ConfigureAwait(false);
+            await replicaA.SendToAsync(replicaB).ConfigureAwait(false);
+
+            AssertValue(replicaB, source.NodeId, in expected);
+            Assert.That(replicaA.Transport.HasSentFrame, Is.False);
+            Assert.That(replicaB.Transport.HasSentFrame, Is.False);
+            Assert.That(replicaA.Sync.InboundApplyCount, Is.EqualTo(inboundApplyCount),
+                "a peer that was already reconciled must not echo the no-op reseed");
         }
 
         [Test]
@@ -382,17 +450,102 @@ namespace Opc.Ua.Redundancy.Server.Tests
                 TimeSpan.FromSeconds(30);
         }
 
+        private static void AssertValue(ControlledReplica replica, NodeId nodeId, in DataValue expected)
+        {
+            BaseVariableState actual = replica.GetVariable(nodeId);
+            Assert.That(actual.Value, Is.EqualTo(expected.WrappedValue));
+            Assert.That(actual.StatusCode, Is.EqualTo(expected.StatusCode));
+            Assert.That(actual.Timestamp, Is.EqualTo(expected.SourceTimestamp));
+        }
+
+        private sealed class ControlledReplica : IAsyncDisposable
+        {
+            public ControlledReplica(ReplicatedAddressSpaceSynchronizerTests test, ulong replicaId)
+            {
+                Space = new DictionaryAddressSpace(test.m_systemContext);
+                Transport = new ControlledTransport();
+                Sync = new ReplicatedAddressSpaceSynchronizer(
+                    Space, test.m_messageContext, ReplicaId.FromUInt64(replicaId),
+                    Transport, TimeProvider.System, CrdtReaderOptions.Default);
+            }
+
+            public DictionaryAddressSpace Space { get; }
+
+            public ControlledTransport Transport { get; }
+
+            public ReplicatedAddressSpaceSynchronizer Sync { get; }
+
+            public async Task StartAsync()
+            {
+                await Sync.SeedOrHydrateAsync().ConfigureAwait(false);
+                Sync.Start();
+            }
+
+            public async Task SendToAsync(ControlledReplica peer)
+            {
+                long observedCount = peer.Sync.InboundApplyCount;
+                Task applied = peer.Sync.WaitForInboundApplyAfterAsync(observedCount);
+                peer.Transport.Receive(Transport.TakeSentFrame());
+                await AwaitWithTimeoutAsync(applied).ConfigureAwait(false);
+                Assert.That(peer.Sync.InboundApplyCount, Is.EqualTo(observedCount + 1));
+            }
+
+            public BaseVariableState GetVariable(NodeId nodeId)
+            {
+                Assert.That(Space.TryGetNode(nodeId, out NodeState? node), Is.True);
+                Assert.That(node, Is.InstanceOf<BaseVariableState>());
+                return (BaseVariableState)node!;
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                return Sync.DisposeAsync();
+            }
+        }
+
+        private sealed class ControlledTransport : ITransport
+        {
+            public event Action<ReadOnlyMemory<byte>>? FrameReceived;
+
+            public bool HasSentFrame => m_sent.Reader.TryPeek(out _);
+
+            public ByteString TakeSentFrame()
+            {
+                Assert.That(m_sent.Reader.TryRead(out ByteString frame), Is.True,
+                    "the completed operation must have sent a frame");
+                return frame;
+            }
+
+            public void Receive(ByteString frame)
+            {
+                FrameReceived?.Invoke(frame.ToArray());
+            }
+
+            public ValueTask StartAsync(CancellationToken ct = default)
+            {
+                ct.ThrowIfCancellationRequested();
+                return default;
+            }
+
+            public ValueTask SendAsync(ReadOnlyMemory<byte> frame, CancellationToken ct = default)
+            {
+                Assert.That(FrameCodec.Decode(frame).MessageType, Is.EqualTo(MessageType.State));
+                return m_sent.Writer.WriteAsync(new ByteString(frame.ToArray()), ct);
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                m_sent.Writer.TryComplete();
+                return default;
+            }
+
+            private readonly Channel<ByteString> m_sent = Channel.CreateUnbounded<ByteString>();
+        }
+
         private sealed class TwoReplicaFixture : IAsyncDisposable
         {
             public DictionaryAddressSpace SpaceA { get; private set; } = null!;
             public DictionaryAddressSpace SpaceB { get; private set; } = null!;
-            public ReplicatedAddressSpaceSynchronizer SyncA => m_syncA!;
-            public ReplicatedAddressSpaceSynchronizer SyncB => m_syncB!;
-
-            public ValueTask DrainAsync()
-            {
-                return m_network!.DrainAsync(default);
-            }
 
             public static async Task<TwoReplicaFixture> CreateAsync(ReplicatedAddressSpaceSynchronizerTests test)
             {
