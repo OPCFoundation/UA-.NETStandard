@@ -365,6 +365,14 @@ The surrounding document may be formatted independently. Combined document-depth
 limits still apply, and another residue entry cannot be silently hidden by a raw
 value. These guarantees apply whether or not a native preservation envelope is requested.
 
+The four explicit opaque members are also converter semantic boundaries.
+Model-looking keys such as `uav:id`, `uav:dataTypeName`, `uav:dataTypeDefinition`
+and `uav:externalSchema`, or a nested `@context`, remain payload data inside
+them. They do not contribute Nodes or DataType definitions and are not removed
+as redundant mapped annotations. Ordinary mapped terms outside those boundaries
+retain their normal conversion behavior; the outer opaque-object shape and
+resource limits still apply.
+
 ### Unmapped reference vocabulary is residue
 
 The Binding vocabulary does not define `uav:capability`,

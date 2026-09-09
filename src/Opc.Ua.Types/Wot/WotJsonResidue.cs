@@ -1154,7 +1154,8 @@ namespace Opc.Ua.Wot
             entries.Add(new Entry
             {
                 Pointer = pointer,
-                Json = WriteWithoutMappedTerms(value)
+                Json = WotBindingConformance.OpaqueMembers.Contains(ParsePointer(pointer)[^1])
+                    ? value.GetRawText() : WriteWithoutMappedTerms(value)
             });
         }
 
@@ -1167,7 +1168,8 @@ namespace Opc.Ua.Wot
         /// restores it on top of what the mapping already produced and the
         /// document states the same fact twice. An unrecognized value is stored
         /// whole, so a mapped term nested inside one has to be removed on the
-        /// way in rather than merely skipped at the top level.
+        /// way in rather than merely skipped at the top level. Explicit opaque
+        /// members remain traversal boundaries.
         /// </remarks>
         private static string WriteWithoutMappedTerms(JsonElement value)
         {
@@ -1190,6 +1192,10 @@ namespace Opc.Ua.Wot
                 case JsonValueKind.Object:
                     foreach (JsonProperty member in value.EnumerateObject())
                     {
+                        if (WotBindingConformance.OpaqueMembers.Contains(member.Name))
+                        {
+                            continue;
+                        }
                         if (s_mappedNestedTerms.Contains(member.Name) ||
                             ContainsMappedTerm(member.Value))
                         {
@@ -1224,7 +1230,14 @@ namespace Opc.Ua.Wot
                             continue;
                         }
                         writer.WritePropertyName(member.Name);
-                        WriteStripped(writer, member.Value);
+                        if (WotBindingConformance.OpaqueMembers.Contains(member.Name))
+                        {
+                            writer.WriteRawValue(member.Value.GetRawText(), skipInputValidation: true);
+                        }
+                        else
+                        {
+                            WriteStripped(writer, member.Value);
+                        }
                     }
                     writer.WriteEndObject();
                     break;
