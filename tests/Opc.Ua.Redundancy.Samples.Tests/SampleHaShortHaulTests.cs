@@ -201,6 +201,37 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         }
 
         /// <summary>
+        /// Reuses factory-assigned Browse results for Read and monitoring after the serving replica is killed.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(300_000)]
+        public async Task FactoryAssignedNodeIdsSurviveActiveReplicaFailureAsync(
+            bool activeActive,
+            CancellationToken cancellationToken)
+        {
+            await using RedundantServerCluster cluster = activeActive
+                ? await RedundantServerCluster.StartActiveActiveAsync(
+                    count: 3, startupTimeout: TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false)
+                : await RedundantServerCluster.StartStrongAsync(
+                    count: 3, startupTimeout: TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
+            RedundantServerReplica active = await WaitForActiveReplicaAsync(
+                cluster, TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
+            await using var client = new SampleAppProcess(
+                "identity-client", "Redundancy/RedundantClient", "RedundantClient",
+                ["--server", active.ServerUrl, "--autoaccept", "--nosecurity", "--identity"],
+                SampleTestEnvironment.IndependentClient);
+            await client.WaitForLineAsync(
+                "IDENTITY: cached shared NodeIds", TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
+            active.Process.Kill();
+            Assert.That(await active.Process.WaitForExitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false), Is.True);
+            await client.WaitForLineAsync("IDENTITY HA OK:", TimeSpan.FromSeconds(120), cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(client.ContainsLine("without remapping or rebrowsing"), Is.True);
+            Assert.That(await client.WaitForExitAsync(TimeSpan.FromSeconds(20)).ConfigureAwait(false), Is.True);
+        }
+
+        /// <summary>
         /// Verifies that selecting a strong store does not make an active/active
         /// multi-writer historian topology valid.
         /// </summary>

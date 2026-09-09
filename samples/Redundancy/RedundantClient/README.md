@@ -20,6 +20,7 @@ dotnet run --project samples\Redundancy\RedundantClient\RedundantClient.csproj -
 | `--duration`, `-d` | `00:02:00` | How long to monitor before exiting; `00:00:00` runs until Ctrl+C. |
 | `--suite` | off | Run a browse/read/subscribe workload against the redundant `ISession`. |
 | `--history` | off | Open raw, event, and processed HistoryRead continuations, pause for active-server loss, then resume all three through the promoted replica. Requires an independent client and the strong active/passive historian sample. |
+| `--identity` | off | Cache factory-created shared NodeIds from Browse, wait for server failover, then Read and create a monitored item with the exact saved IDs. Requires an independent client. |
 | `--history-failover-delay` | `00:00:15` | Pause after the first page so an operator or process test can terminate the active server. |
 
 The sample connects, logs the server's reported `RedundancySupport` (or notes that the server is not redundant), subscribes to `Server.ServerStatus.CurrentTime`, and logs the values together with any transparent connection-state changes (reconnect or failover). To observe failover, lower the active server's service level (for example with the `RedundantServer` sample's manual failover support) or stop the active server; the managed session reconnects to a healthy peer on its own.
@@ -35,6 +36,13 @@ dotnet run --project samples\Redundancy\RedundantClient\RedundantClient.csproj -
 The workflow first writes a distinctive raw-history marker and reads it back through the active replica. When the client prints `HISTORY: portable continuations ready`, stop the active server. The managed session uses token-reuse takeover, resumes the raw, event, and processed cursors without duplicates or gaps, reads the same marker through the promoted replica, verifies that the promoted writer adds new shared raw and event history, and prints `HISTORY HA OK`.
 
 See [HighAvailability.md](../../../docs/HighAvailability.md) for the redundancy design and the [RedundantServer](../RedundantServer/README.md) sample for the server side.
+
+For the NodeId identity workflow, run the client with `--identity` against a
+replica set. When it prints `IDENTITY: cached shared NodeIds`, terminate its
+serving server. It verifies the new serving ApplicationUri through `ServerArray`,
+reads `FactoryAssigned/Value` and its NodeId-valued `Target` with the saved IDs,
+and uses the saved value ID in `CreateMonitoredItems`. No post-failover browse or
+namespace remapping is used. Success is reported as `IDENTITY HA OK`.
 
 ## Run with docker compose (one file, the full HA matrix, env-driven)
 

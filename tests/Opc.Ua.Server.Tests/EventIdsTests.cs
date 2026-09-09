@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,37 +27,44 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Server
+using System.Linq;
+using System.Reflection;
+using NUnit.Framework;
+
+namespace Opc.Ua.Server.Tests
 {
     /// <summary>
-    /// Opt-in interface implemented by node managers that expose their local
-    /// address space to a distributed address-space synchronizer.
+    /// Unit tests for <see cref="ServerEventIds"/>.
     /// </summary>
-    public interface ILocalAddressSpaceSource
+    [TestFixture]
+    public class EventIdsTests
     {
         /// <summary>
-        /// Creates an adapter over the node manager's local address space.
+        /// Every per-class event id offset in <see cref="ServerEventIds"/> must be unique,
+        /// otherwise the ids emitted by two different <c>&lt;ClassName&gt;Log</c> classes
+        /// collide and can no longer be attributed to a single log message.
         /// </summary>
-        /// <returns>The local address space adapter.</returns>
-        ILocalAddressSpace CreateLocalAddressSpace();
-    }
+        [Test]
+        public void OffsetsAreDistinct()
+        {
+            FieldInfo[] fields = typeof(ServerEventIds).GetFields(
+                BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);
 
-    /// <summary>
-    /// Supplies explicit node ownership for a distributed address-space source
-    /// whose node manager does not partition nodes by namespace URI.
-    /// </summary>
-    public interface ILocalAddressSpaceOwnership
-    {
-        /// <summary>
-        /// Gets a stable identifier for this ownership partition across replicas.
-        /// </summary>
-        string PartitionId { get; }
+            var offsets = fields
+                .Where(f => f.IsLiteral && f.FieldType == typeof(int))
+                .Select(f => (Name: f.Name, Offset: (int)f.GetRawConstantValue()))
+                .ToList();
 
-        /// <summary>
-        /// Returns whether the source owns and may replicate the specified node.
-        /// </summary>
-        /// <param name="nodeId">The node identifier to test.</param>
-        /// <returns><c>true</c> when the source owns the node.</returns>
-        bool OwnsNode(NodeId nodeId);
+            Assert.That(offsets, Is.Not.Empty);
+
+            var duplicates = offsets
+                .GroupBy(f => f.Offset)
+                .Where(g => g.Count() > 1)
+                .Select(g => $"{g.Key}: {string.Join(", ", g.Select(f => f.Name))}")
+                .ToList();
+
+            Assert.That(duplicates, Is.Empty,
+                $"Duplicate ServerEventIds offsets found: {string.Join("; ", duplicates)}");
+        }
     }
 }

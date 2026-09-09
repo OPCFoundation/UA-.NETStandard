@@ -66,12 +66,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeState? added = null;
             NodeState? observed = null;
             BaseObjectState node = CreateObject("Added");
+            NodeIdDictionary<NodeState> predefinedNodes = [];
             var addressSpace = new PredefinedNodesAddressSpace(
                 CreateContext(),
-                [],
+                predefinedNodes,
                 (n, _) =>
                 {
                     added = n;
+                    predefinedNodes[n.NodeId] = n;
                     return default;
                 },
                 (_, _) => new ValueTask<bool>(false));
@@ -84,6 +86,49 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(added, Is.SameAs(node));
                 Assert.That(observed, Is.SameAs(node));
             });
+        }
+
+        [Test]
+        public async Task AddOrUpdateNodeAsyncPublishesRegisteredActiveNodeAsync()
+        {
+            NodeIdDictionary<NodeState> predefinedNodes = [];
+            BaseObjectState input = CreateObject("Replaced");
+            var active = new FolderState(null)
+            {
+                NodeId = input.NodeId,
+                BrowseName = input.BrowseName
+            };
+            NodeState? observed = null;
+            var addressSpace = new PredefinedNodesAddressSpace(
+                CreateContext(),
+                predefinedNodes,
+                (_, _) =>
+                {
+                    predefinedNodes[active.NodeId] = active;
+                    return default;
+                },
+                (_, _) => new ValueTask<bool>(false));
+            addressSpace.NodeAdded += node => observed = node;
+
+            await addressSpace.AddOrUpdateNodeAsync(input).ConfigureAwait(false);
+
+            Assert.That(observed, Is.SameAs(active));
+            Assert.That(addressSpace.TryGetNode(active.NodeId, out NodeState? registered), Is.True);
+            Assert.That(observed, Is.SameAs(registered));
+        }
+
+        [Test]
+        public async Task AddOrUpdateNodeAsyncRejectsUnregisteredResultAsync()
+        {
+            PredefinedNodesAddressSpace addressSpace = CreateAddressSpace([]);
+            bool notified = false;
+            addressSpace.NodeAdded += _ => notified = true;
+
+            await Assert.ThatAsync(
+                async () => await addressSpace.AddOrUpdateNodeAsync(CreateObject("Missing")).ConfigureAwait(false),
+                Throws.InvalidOperationException.With.Message.Contains("without registering")).ConfigureAwait(false);
+
+            Assert.That(notified, Is.False);
         }
 
         [Test]
@@ -154,8 +199,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             ISystemContext context = CreateContext();
             NodeIdDictionary<NodeState> predefinedNodes = [];
-            Func<NodeState, CancellationToken, ValueTask> addAsync = (_, _) => default;
-            Func<NodeId, CancellationToken, ValueTask<bool>> removeAsync = (_, _) => new ValueTask<bool>(false);
+            static ValueTask addAsync(NodeState node, CancellationToken ct) => default;
+            static ValueTask<bool> removeAsync(NodeId nodeId, CancellationToken ct) => new(false);
 
             Assert.Multiple(() =>
             {

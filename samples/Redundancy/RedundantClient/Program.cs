@@ -56,7 +56,7 @@ namespace RedundantClient
     /// <summary>
     /// Entry point for the managed client sample.
     /// </summary>
-    public static class Program
+    public static partial class Program
     {
         /// <summary>
         /// Starts the sample.
@@ -92,6 +92,11 @@ namespace RedundantClient
                 Description =
                     "Exercise raw, event, and processed history continuations across an active-server failover."
             };
+            var identityOption = new Option<bool>("--identity")
+            {
+                Description =
+                    "Cache factory-assigned NodeIds, then read and monitor them unchanged after server failover."
+            };
             var historyFailoverDelayOption = new Option<TimeSpan>("--history-failover-delay")
             {
                 Description =
@@ -108,6 +113,7 @@ namespace RedundantClient
                 durationOption,
                 suiteOption,
                 historyOption,
+                identityOption,
                 historyFailoverDelayOption
             };
 
@@ -118,6 +124,7 @@ namespace RedundantClient
                     parseResult.GetValue(durationOption),
                     parseResult.GetValue(suiteOption),
                     parseResult.GetValue(historyOption),
+                    parseResult.GetValue(identityOption),
                     parseResult.GetValue(historyFailoverDelayOption),
                     cancellationToken).ConfigureAwait(false));
 
@@ -132,6 +139,7 @@ namespace RedundantClient
             TimeSpan duration,
             bool suite,
             bool history,
+            bool identity,
             TimeSpan historyFailoverDelay,
             CancellationToken ct)
         {
@@ -189,11 +197,11 @@ namespace RedundantClient
                     .Trim().ToLowerInvariant();
                 if (clientMode is "eventual" or "strong")
                 {
-                    if (history)
+                    if (history || identity)
                     {
                         throw new InvalidOperationException(
-                            "The --history scenario requires CLIENT_MODE=independent so one managed session can " +
-                            "retain and resume its HistoryRead continuations across server failover.");
+                            "The --history and --identity scenarios require CLIENT_MODE=independent so one managed " +
+                            "session can retain its state across server failover.");
                     }
                     await RunCoordinatedClientAsync(
                             clientMode, configuration, endpoint, telemetry, serverUrl, suite, duration, ct)
@@ -243,6 +251,12 @@ namespace RedundantClient
                         await SubscribeToCurrentTimeAsync(session, haMonitor, ct).ConfigureAwait(false);
                     }
 
+                    if (identity)
+                    {
+                        await RunIdentityFailoverScenarioAsync(session, ct).ConfigureAwait(false);
+                        session.ConnectionStateChanged -= OnConnState;
+                        return;
+                    }
                     if (history)
                     {
                         await RunHistorianFailoverScenarioAsync(
