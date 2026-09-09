@@ -1,0 +1,20 @@
+{
+  "source": {
+    "repository": "OPCFoundation/UA-.NETStandard",
+    "actualSha": "1111111111111111111111111111111111111111",
+    "actualRef": "refs/heads/master",
+    "trackedClean": true
+  },
+  "producer": {
+    "system": "github-actions",
+    "workflow": ".github/workflows/nuget-publish.yml",
+    "definitionSha": "2222222222222222222222222222222222222222",
+    "runId": "42",
+    "attempt": 1,
+    "job": "aggregate",
+    "tools": []
+  },
+  "release": { "group": "nuget", "version": "2.0.0", "channel": "stable" },
+  "policyDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "artifacts": []
+}

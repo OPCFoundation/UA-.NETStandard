@@ -39,6 +39,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Samples;
 using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Client;
 
@@ -55,6 +56,9 @@ namespace AggregationClient
         public static IHost BuildHost(AggregationClientOptions options)
         {
             Validate(options);
+            SampleCommandLine.WriteSecurityWarnings(
+                Console.Error, options.AutoAcceptUntrustedCertificates,
+                options.UseSecurityPolicyNone, "server", "--security-none");
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             builder.Logging.ClearProviders();
             builder.Logging.AddConsole();
@@ -72,18 +76,23 @@ namespace AggregationClient
                     {
                         client.PkiRoot = options.PkiRoot;
                     }
-                    client.AutoAcceptUntrustedCertificates = true;
+                    client.AutoAcceptUntrustedCertificates = options.AutoAcceptUntrustedCertificates;
                     client.Session = new ManagedSessionOptions
                     {
                         SessionName = "AggregationClient",
-                        SessionTimeout = TimeSpan.FromSeconds(60)
+                        SessionTimeout = TimeSpan.FromSeconds(60),
+                        IdentityProvider = options.IdentityProvider
                     };
                 })
                 .AddDiscoveryAndConnect(discovery =>
                 {
                     discovery.DiscoveryUrl = options.AggregationEndpoint;
-                    discovery.SecurityMode = MessageSecurityMode.None;
-                    discovery.SecurityPolicyUri = SecurityPolicies.None;
+                    discovery.SecurityMode = options.UseSecurityPolicyNone
+                        ? MessageSecurityMode.None
+                        : MessageSecurityMode.SignAndEncrypt;
+                    discovery.SecurityPolicyUri = options.UseSecurityPolicyNone
+                        ? SecurityPolicies.None
+                        : SecurityPolicies.Basic256Sha256;
                 })
                 .AddWotRegistryClient();
             return builder.Build();

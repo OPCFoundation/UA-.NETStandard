@@ -54,6 +54,13 @@
     because an empty matrix skips the downstream job, which rolls up as a
     successful stage and would let the 'Tests passed' gate approve a run that
     executed no tests.
+
+ .PARAMETER TestHostTfm
+    For test matrices, evaluate each project with MSBuild and omit unsupported
+    hosts and compatibility shells. A successful all-TFM build is not a test.
+
+ .PARAMETER LibraryTfm
+    CustomTestTarget used for applicability evaluation. Defaults to TestHostTfm.
 #>
 
 Param(
@@ -65,9 +72,12 @@ Param(
     [string]    $Configurations  = '',
     [string]    $Files           = '',
     [string]    $Tfms            = '',
+    [string]    $TestHostTfm     = '',
+    [string]    $LibraryTfm      = '',
     [switch]    $AllowEmpty
 )
 
+$ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrEmpty($BuildRoot)) {
     $BuildRoot = & (Join-Path $PSScriptRoot 'get-root.ps1') -fileName '*.slnx'
 }
@@ -120,7 +130,7 @@ if ($fileList.Count -gt 0) {
             $items += Get-Item -LiteralPath $full
         }
         else {
-            Write-Warning "File not found: $rel"
+            throw "Requested matrix file was not found: $rel"
         }
     }
 }
@@ -139,6 +149,22 @@ else {
 }
 
 foreach ($item in $items) {
+    if ($TestHostTfm -and $item.Extension -eq '.csproj') {
+        $target = $LibraryTfm
+        if (-not $target) { $target = $TestHostTfm }
+        # Evaluation (not a build) observes imported framework restrictions too.
+        # Empty compatibility shells are build coverage, never test coverage.
+        $evaluation = & dotnet msbuild $item.FullName -nologo -maxcpucount:1 -nodeReuse:false `
+            "-p:CustomTestTarget=$target" `
+            '-getProperty:TargetFramework,TargetFrameworks,_RestrictedToLegacyTfm'
+        if ($LASTEXITCODE -ne 0) { throw "Cannot evaluate test project: $($item.Name)" }
+        $properties = ($evaluation -join "`n" | ConvertFrom-Json).Properties
+        $supported = @("$($properties.TargetFramework);$($properties.TargetFrameworks)" -split ';')
+        if ($properties._RestrictedToLegacyTfm -eq 'true' -or $TestHostTfm -notin $supported) {
+            Write-Host "Not applicable: $($item.Name), host=$TestHostTfm, library=$target (evaluated framework restriction)."
+            continue
+        }
+    }
     $fullFolder = $item.DirectoryName.Replace('\', '/')
     $folder     = $item.DirectoryName.Replace($BuildRoot, '').Replace('\', '/').TrimStart('/')
     $file       = $item.FullName.Replace($BuildRoot, '').Replace('\', '/').TrimStart('/')

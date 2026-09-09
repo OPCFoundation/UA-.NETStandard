@@ -48,43 +48,30 @@ route. Alternative forms are not an instruction to invoke multiple sources.
 
 The complete sample requires .NET 8, .NET 9, or .NET 10. `AggregationServer` intentionally targets only `net8.0`, `net9.0`, and `net10.0` because the OPC UA executor required by the checked-in mappings is available only on those frameworks. Legacy `CustomTestTarget` solution builds replace that project with the repository's no-op shell; those matrix builds are not runnable aggregation-server configurations. `FlatTagServer` and `AggregationClient` remain on the shared application target matrix for standalone compatibility, but a runnable end-to-end topology always requires the modern aggregation server.
 
-Run the commands below from the repository root with the .NET 10 SDK. The samples accept unencrypted anonymous OPC UA connections for local demonstration and auto-accept untrusted certificates; do not copy those security settings into a production deployment.
+Run the commands below from the repository root with the .NET 10 SDK. All three
+executables and their direct `Build` / `BuildHost` APIs reject untrusted peer
+certificates by default. Clients select `SignAndEncrypt` / `Basic256Sha256`;
+servers do not offer an unsecured session endpoint. Registry mutation requires
+an authenticated `SecurityAdmin` on an encrypted channel.
 
-## Run the sample
+## Run an explicitly unsecured local demonstration
 
-From the repository root, the demo script builds all three applications, starts
-the two source servers and aggregation server with isolated PKI stores, waits
-for their endpoints, and runs the complete client workflow. Success requires
-every manifest resource, thirty Good values, and all four pump/source control
-and alarm round trips. The script stops only the processes it started:
+The four-terminal commands below deliberately opt into unsecured channels and
+anonymous registry management. Use them only on an isolated lab network. They
+do not need certificate auto-accept because these connections select None.
+Choose separate persistent `--pkiRoot` directories for each application when
+provisioning certificates; never share source A and source B application stores.
 
-```powershell
-pwsh samples/WotCon/run-aggregation-demo.ps1
-```
-
-Use different local ports or keep the captured logs and PKI stores with:
-
-```powershell
-pwsh samples/WotCon/run-aggregation-demo.ps1 `
-  -AggregationPort 62650 `
-  -SourceAPort 62651 `
-  -SourceBPort 62652 `
-  -Keep
-```
-
-With the platform's NativeAOT prerequisites installed, the same workflow can
-publish and run native executables:
-
-```powershell
-pwsh samples/WotCon/run-aggregation-demo.ps1 -NativeAot
-```
-
-To run each process manually instead, use the four terminals below.
+The existing `run-aggregation-demo.ps1` wrapper must be updated to forward these
+explicit opt-ins before it can run against the hardened executables. Until that
+separate wrapper update is applied, use the manual commands below, not the old
+implicit-trust script invocation.
 
 Start Source A in the first terminal:
 
 ```powershell
 dotnet run --project samples/WotCon/FlatTagServer/FlatTagServer.csproj -f net10.0 -- `
+  --security-none `
   --port 62551 `
   --instanceName SourceA `
   --applicationName FlatTagServerSourceA `
@@ -105,6 +92,7 @@ Start Source B in the second terminal:
 
 ```powershell
 dotnet run --project samples/WotCon/FlatTagServer/FlatTagServer.csproj -f net10.0 -- `
+  --security-none `
   --port 62552 `
   --instanceName SourceB `
   --applicationName FlatTagServerSourceB `
@@ -125,6 +113,7 @@ Start the generic aggregation server in the third terminal:
 
 ```powershell
 dotnet run --project samples/WotCon/AggregationServer/AggregationServer.csproj -f net10.0 -- `
+  --security-none --allow-anonymous-management `
   --port 62550 `
   --applicationName AggregationServer
 ```
@@ -133,6 +122,7 @@ Run the loader/client in a fourth terminal after all three servers are listening
 
 ```powershell
 dotnet run --project samples/WotCon/AggregationClient/AggregationClient.csproj -f net10.0 -- `
+  --security-none `
   --aggregationEndpoint opc.tcp://localhost:62550/AggregationServer `
   --sourceAEndpoint opc.tcp://localhost:62551/SourceA `
   --sourceBEndpoint opc.tcp://localhost:62552/SourceB `
@@ -147,7 +137,111 @@ recursively browsed pump hierarchies, and their typed values. The
 workflows finish. `-ClientTimeoutSeconds` bounds the script's client process;
 `--timeoutSeconds` bounds a manually launched client.
 
+## Secure provisioning and authenticated management
+
+Remove **all** lab switches for the secure path. Provision each application's
+certificate and trust lists through the existing
+[certificate-manager APIs](../../docs/CertificateManager.md), or import verified
+public certificates using the certificate-store APIs. For self-signed peers,
+verify the application URI, endpoint hostname, validity and fingerprint out of
+band before adding the certificate to the peer trust list. Do not copy private
+keys between distinct applications or import an entire rejected store blindly.
+
+Trust must be mutual on each connection: loader and aggregation host; aggregation
+host and Source A; aggregation host and Source B. The optional control demo also
+opens direct loader-to-source connections, so provision those two pairs too.
+Use stable application names/URIs and explicit PKI roots across restarts. In a
+combined DI server/client host, use its effective application configuration and
+certificate manager when exporting the aggregate's certificate and updating
+trust; do not assume that a separately named upstream client has a second
+application certificate.
+
+The stock aggregation executable intentionally has no built-in administrator
+account. Without the anonymous-management lab opt-in it is locked down. Embed
+`AggregationServerHost.Build` to inject your authenticated user database and
+role mapping; never give an anonymous identity the administrator role. For
+example, given an already populated `IUserDatabase users` and `adminUserName`:
+
+```csharp
+using IHost host = AggregationServerHost.Build(new AggregationServerOptions
+{
+    PkiRoot = aggregatePkiRoot,
+    ConfigureAuthentication = server =>
+    {
+        server.Services.AddSingleton<IUserDatabase>(users);
+        server.Services.AddSingleton<IUserManagement>(services =>
+            new UserManagement(services.GetRequiredService<IUserDatabase>()));
+        server.Services.Configure<OpcUaServerOptions>(options =>
+        {
+            options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy { TokenType = UserTokenType.Anonymous });
+            options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy { TokenType = UserTokenType.UserName });
+        });
+        server.AddDefaultIdentityAuthenticators(options =>
+        {
+            options.EnableAnonymous = true;
+            options.EnableUserNamePassword = true;
+            options.EnableX509 = false;
+            options.EnableJwt = false;
+        });
+        server.ConfigureRoles(options =>
+        {
+            var role = new RoleDefinitionOptions { Name = "SecurityAdmin" };
+            role.Identities.Add(new RoleIdentityMappingOptions
+            {
+                CriteriaType = IdentityCriteriaType.UserName,
+                Criteria = adminUserName
+            });
+            options.Roles.Add(role);
+        });
+    }
+});
+await host.RunAsync(cancellationToken);
+```
+
+Anonymous bootstrap/read sessions are distinct from management authorization:
+they cannot upload documents or call `Refresh`. The example leaves that
+authorization at its secure default while the managed client activates its
+username identity. Create users before constructing `UserManagement`, which
+loads their active-state metadata at construction.
+
+Use `Opc.Ua.Identity.UserNamePasswordIdentityProvider` with a password already
+provisioned in an `ISecretRegistry`; passwords do not belong in CLI arguments or
+checked-in configuration:
+
+```csharp
+var options = new AggregationClientOptions
+{
+    AggregationEndpoint = aggregationEndpoint,
+    SourceAEndpoint = sourceAEndpoint,
+    SourceBEndpoint = sourceBEndpoint,
+    PkiRoot = clientPkiRoot,
+    DocumentsDirectory = documentsDirectory,
+    IdentityProvider = new UserNamePasswordIdentityProvider(adminUserName, secrets, passwordId)
+};
+AggregationClientResult result = await AggregationClientRunner.RunAsync(options, cancellationToken);
+```
+
+For a disposable encrypted demonstration without provisioning trust, explicitly
+pass `--auto-accept` to every participating application and
+`--allow-anonymous-management` to the aggregate, but **not** `--security-none`.
+This still encrypts traffic, but does not authenticate unknown peer certificates;
+it is not equivalent to the provisioned configuration above.
+
 ## Command-line and programmatic options
+
+| CLI switch | Default | Direct option / effect |
+| --- | --- | --- |
+| `--auto-accept` | `false` | `AutoAcceptUntrustedCertificates`; unknown peer trust only, never endpoint security or user authorization. On the aggregate this covers inbound clients and upstream servers. |
+| `--security-none` | `false` | Servers: `IncludeUnsecurePolicyNone`; client: `UseSecurityPolicyNone`. On the aggregate it also selects None for upstream sessions. |
+| `--allow-anonymous-management` | `false` | Aggregate only: `AllowAnonymousManagement`. Permits registry mutation by anonymous callers; the channel remains encrypted unless None was also explicitly enabled. |
+| `--help` | n/a | Prints help and exits without creating PKI or opening listeners/connections. Unknown or malformed switches fail before startup. |
+
+Each boolean accepts explicit `=false`. Security choices come only from these
+sample switches (or explicit direct-host options), not generic-host environment,
+JSON or `key=value` settings. Ordinary host settings retain JSON/environment
+defaults; forwarded settings after a second `--` are overridden by positional
+`key=value`, then by an explicit sample switch such as `--port`. There is no
+broad `--insecure` alias in these three executables.
 
 `FlatTagServer` reads the following command-line configuration keys:
 
@@ -434,6 +528,13 @@ If conversion, mapping resolution, channel wiring, or shadow activation fails, t
 
 Verify that all three server processes are listening and that the client endpoint paths exactly match `/SourceA`, `/SourceB`, and `/AggregationServer`. The generic-host command-line syntax requires the `--` separator after `dotnet run` options.
 
+`BadCertificateUntrusted` requires verified trust-list provisioning on both
+peers, not `--security-none`. A missing matching upstream endpoint now fails
+with `BadSecurityPolicyRejected` instead of retrying a fabricated None endpoint.
+`BadUserAccessDenied` during upload or `Refresh` requires an authenticated
+`SecurityAdmin` on `SignAndEncrypt`; trusting a certificate alone does not grant
+that user role.
+
 ### The source namespace is rejected
 
 `FlatTagServer` accepts only `urn:opcfoundation.org:UA:WotAggregation:SourceA` or `urn:opcfoundation.org:UA:WotAggregation:SourceB`. Use the matching namespace and endpoint placeholder for each process.
@@ -470,6 +571,10 @@ The suite covers both pump hierarchies and all typed readings, exact projection
 membership, source-owned management actions, Condition round trips, local
 monitored items, replacement and shadow drain, invalid documents, missing
 dependencies, invalid target mappings, and unavailable upstream endpoints.
+Targeted startup tests cover direct defaults, independent flags and precedence,
+help without PKI, provisioned encrypted upstream connections, and authenticated
+registry management with anonymous denial. The same project also runs the
+small onboarding executable bootstrap/authorization regressions.
 
 ## NativeAOT publishing
 

@@ -59,15 +59,21 @@ The default endpoint is `opc.tcp://localhost:62865/VisualInspectionCell`.
 `--host <name>` and `--port <number>` configure the endpoint host and port. The
 anonymous operator role is mapped for the local sample.
 
-`--insecure` is a demo convenience. It accepts untrusted certificates and must
-not be used for production systems.
+On the **cell server**, `--insecure` is a trust-only demo convenience: it sets
+`AutoAcceptUntrustedCertificates` and accepts `BadCertificateUntrusted` for client
+application certificates. Other certificate errors remain rejected. It does not
+enable None endpoints or disable signing/encryption. A warning is written to
+standard error before server configuration takes effect. Do not use it in production.
 
-It is also, in practice, required to run the pair on a fresh machine. The flag
-sets `AutoAcceptUntrustedCertificates` on the server, and without it the cell
+On a fresh machine, provision trust or deliberately opt into the isolated demo.
+Without trusted client certificates or the server's `--insecure` flag, the cell
 rejects the agent's self-signed certificate with `BadCertificateUntrusted` and
 the agent fails with `BadNotConnected` - which reads like a connectivity problem
-rather than a trust one. Start both halves with `--insecure`, or trust the
-agent's certificate in the server's PKI store first.
+rather than a trust one. Trust the agent's certificate in the server's PKI store
+and the server certificate in the agent's PKI store. Alternatively, in an
+isolated lab, start both halves with `--insecure`. The agent's flag is broader:
+its sample callback accepts **any server-certificate validation error**. Do not
+confuse that client behavior with the server's trust-only flag.
 
 ## Startup options
 
@@ -76,7 +82,7 @@ agent's certificate in the server's PKI store first.
 | `--host <name>` | Endpoint host name. Default `localhost`. |
 | `--port <number>` | Endpoint port. Default `62865`. |
 | `--inferenceLocation OnServer\|EdgeOffServer` | Selects the advertised Vision inference location. Default `OnServer`. |
-| `--insecure` | Demo-only certificate convenience. |
+| `--insecure` | Off by default. Trust-only acceptance of untrusted client application certificates; does not enable None. |
 
 ## Fixtures and measurement
 

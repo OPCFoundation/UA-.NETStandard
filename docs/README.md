@@ -6,6 +6,12 @@ Here is a list of available documentation for different topics:
 
 * [Sample applications](samples.md) - Platform-independent reference, PubSub, minimal API, companion-model, robotics, Vision, AI, ISA-95, and OpenUSD demos included in this repository.
 
+## Security stewardship and release assurance
+
+* [Security policy](../SECURITY.md) - Canonical maintenance matrix and confidential Foundation Security WG intake, including obsolete APIs.
+* [Security Stewardship](SecurityStewardship.md) - Article 24 OSS steward duties, reporting scope and clocks, controlled records, and pending approvals/operational readiness.
+* [Release Evidence](ReleaseEvidence.md) - Current `master`/2.0 pilot evidence contract; optional engineering practices, not additional statutory steward requirements. The 1.5 pipeline rollout is deferred without changing maintenance.
+
 ## UA Core stack related
 
 * [OPC UA Profiles and Facets](Profiles.md) - Overview of supported OPC UA profiles, facets, security policies, and transport protocols.

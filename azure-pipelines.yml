@@ -56,6 +56,7 @@ parameters:
   default:
   - build
   - testfastpr
+  - testassurance
   - testaot
   - testdebug
   - testnet90
@@ -231,13 +232,61 @@ stages:
       poolName: ${{ variables.mgdPoolName }}
       windowsImage: ${{ variables.mgdWindowsImage }}
       condition: and(eq(variables.MacOSJobsEnabled, 'True'), ne(variables.ScheduledBuild, 'False'))
+- stage: testassurance
+  dependsOn: []
+  displayName: 'Full security and public replay profile'
+  # Preserve fast PR selection. Every non-PR build (including release branches)
+  # runs the complete, unfiltered Windows/net10 profile, not just weekly builds.
+  condition: and(succeeded(), ne(variables.FullBuild, 'False'))
+  jobs:
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      framework: net10.0
+      customtestarget: net10.0
+      jobnamesuffix: assurance
+      projects: 'tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj,tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj,fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Opc.Ua.Encoders.Fuzz.Tests.csproj,fuzzing/Opc.Ua.Certificates.Fuzz.Tests/Opc.Ua.Certificates.Fuzz.Tests.csproj,fuzzing/Opc.Ua.Network.Fuzz.Tests/Opc.Ua.Network.Fuzz.Tests.csproj'
+      testfilter: ''
+      agents: '@{ windows = "${{ variables.mgdWindowsImage }}" }'
+      poolName: ${{ variables.mgdPoolName }}
+      windowsImage: ${{ variables.mgdWindowsImage }}
+  - job: assurancepilot
+    displayName: 'Collect truthful release assurance (pilot)'
+    dependsOn: testallassurance
+    condition: succeededOrFailed()
+    continueOnError: true
+    pool:
+      ${{ if ne(variables.hostPoolName, '') }}:
+        name: ${{ variables.hostPoolName }}
+        demands:
+          - ImageOverride -equals ${{ variables.hostWindowsImage }}
+      ${{ else }}:
+        vmImage: ${{ variables.hostWindowsImage }}
+    steps:
+    - checkout: self
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        buildType: current
+        patterns: 'assurance-assurance-*/*.json'
+        path: '$(Build.SourcesDirectory)/.assurance-records'
+      continueOnError: true
+    - task: PowerShell@2
+      inputs:
+        pwsh: true
+        targetType: filePath
+        filePath: ./.azurepipelines/collect-assurance.ps1
+        arguments: -RecordsPath "$(Build.SourcesDirectory)/.assurance-records" -OutputPath "$(Build.ArtifactStagingDirectory)/assurance-component/assurance.json" -ExpectedSourceSha "$(Build.SourceVersion)" -ExpectedRunId "$(Build.BuildId)" -ExpectedAttempt "$(System.JobAttempt)" -ExpectedWorkflow azure-pipelines.yml -ExpectedDefinitionSha "$(Build.SourceVersion)"
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)/assurance-component'
+        artifact: assurance-component
 - stage: testaot
   dependsOn: []
   displayName: 'Test Native AoT'
   # Native AoT is Schedule/Manual-only while GitHub Actions runs its own ubuntu
   # AoT job.  When ADO owns the matrix this is the only place AoT runs, so it
   # has to gate pull requests too.
-  condition: and(succeeded(), or(ne(variables.ScheduledBuild, 'False'), ne(variables.AdoOwnsMatrix, 'False')))
+  condition: and(succeeded(), or(ne(variables.FullBuild, 'False'), ne(variables.AdoOwnsMatrix, 'False')))
   jobs:
   - template: .azurepipelines/test-aot.yml
     parameters:
@@ -438,16 +487,17 @@ stages:
   condition: |
     and(
       not(canceled()),
-      in(dependencies.build.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
-      in(dependencies.testfastpr.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
-      in(dependencies.testaot.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
-      in(dependencies.testdebug.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
-      in(dependencies.testnet90.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
-      in(dependencies.testnet80.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
-      in(dependencies.testnet472.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
-      in(dependencies.testnetstandard20.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
-      in(dependencies.testnetstandard21.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'),
-      in(dependencies.testnightly.result, 'Succeeded', 'SucceededWithIssues', 'Skipped')
+      in(dependencies.build.result, 'Succeeded', 'SucceededWithIssues'),
+      in(dependencies.testfastpr.result, 'Succeeded', 'SucceededWithIssues'),
+      or(in(dependencies.testassurance.result, 'Succeeded', 'SucceededWithIssues'), and(eq(variables.FullBuild, 'False'), eq(dependencies.testassurance.result, 'Skipped'))),
+      or(in(dependencies.testaot.result, 'Succeeded', 'SucceededWithIssues'), and(eq(variables.FullBuild, 'False'), eq(variables.AdoOwnsMatrix, 'False'), eq(dependencies.testaot.result, 'Skipped'))),
+      or(in(dependencies.testdebug.result, 'Succeeded', 'SucceededWithIssues'), and(eq(variables.ScheduledBuild, 'False'), eq(dependencies.testdebug.result, 'Skipped'))),
+      or(in(dependencies.testnet90.result, 'Succeeded', 'SucceededWithIssues'), and(eq(variables.ScheduledBuild, 'False'), eq(dependencies.testnet90.result, 'Skipped'))),
+      or(in(dependencies.testnet80.result, 'Succeeded', 'SucceededWithIssues'), and(eq(variables.ScheduledBuild, 'False'), eq(dependencies.testnet80.result, 'Skipped'))),
+      or(in(dependencies.testnet472.result, 'Succeeded', 'SucceededWithIssues'), and(eq(variables.ScheduledBuild, 'False'), eq(dependencies.testnet472.result, 'Skipped'))),
+      or(in(dependencies.testnetstandard20.result, 'Succeeded', 'SucceededWithIssues'), and(eq(variables.ScheduledBuild, 'False'), eq(dependencies.testnetstandard20.result, 'Skipped'))),
+      or(in(dependencies.testnetstandard21.result, 'Succeeded', 'SucceededWithIssues'), and(eq(variables.ScheduledBuild, 'False'), eq(dependencies.testnetstandard21.result, 'Skipped'))),
+      or(in(dependencies.testnightly.result, 'Succeeded', 'SucceededWithIssues'), and(eq(variables.ScheduledBuild, 'False'), eq(dependencies.testnightly.result, 'Skipped')))
     )
   jobs:
   - job: gate

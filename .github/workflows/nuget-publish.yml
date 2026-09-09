@@ -4,7 +4,8 @@ name: NuGet Publish
 # configuration supplies all normal package IDs; Debug configuration supplies
 # only package IDs ending in .Debug. Automatic master and release/* runs publish
 # normal packages to GitHub Packages and retain the exact bytes for release.yml.
-# Manual runs can publish from any branch.
+# Publication and public attestations are restricted to upstream master/release/*
+# definitions. Other branches retain the existing build/sign/validate baseline.
 
 on:
   workflow_dispatch:
@@ -124,6 +125,12 @@ jobs:
           "PACK_MODE=$mode" | Out-File -FilePath $env:GITHUB_ENV -Append
           Write-Host "Packing $mode packages."
 
+      - name: Prepare offline evidence tool before final restore
+        shell: pwsh
+        run: |
+          .\.azurepipelines\nuget-evidence.ps1 -Operation PrepareTool `
+            -Work "$env:RUNNER_TEMP\nuget-tool" -Output "$env:RUNNER_TEMP\nuget-tool-report.json"
+
       - name: Restore
         shell: pwsh
         run: dotnet restore 'preview-pack.slnx' --disable-parallel
@@ -137,6 +144,7 @@ jobs:
             "/p:Version=$env:NBGV_Version" `
             "/p:AssemblyVersion=$env:NBGV_SimpleVersion" `
             "/p:FileVersion=$env:NBGV_AssemblyFileVersion" `
+            "/p:PackageVersion=$env:NBGV_NuGetPackageVersion" `
             "/p:AssemblyOriginatorKeyFile=$env:SNK_PATH" `
             /p:SignAssembly=true
           if ($LASTEXITCODE -ne 0) {
@@ -169,6 +177,7 @@ jobs:
           dotnet pack 'preview-pack.slnx' `
             --no-build `
             --configuration '${{ matrix.configuration }}' `
+            "/p:PackageVersion=$env:NBGV_NuGetPackageVersion" `
             --output "$env:ARTIFACTS_DIR"
           if ($LASTEXITCODE -ne 0) {
               throw '${{ matrix.configuration }} package creation failed.'
@@ -305,6 +314,28 @@ jobs:
             -ExpectedVersion "$env:PACK_VERSION" `
             -VerifySignatures
 
+      - name: Capture final inputs and generate configuration sidecars
+        shell: pwsh
+        run: |
+          $work = Join-Path $env:RUNNER_TEMP 'nuget-${{ matrix.configuration }}'
+          $env:PackageVersion = $env:PACK_VERSION
+          .\.azurepipelines\nuget-evidence.ps1 -Operation Capture `
+            -Version $env:PACK_VERSION -Configuration '${{ matrix.configuration }}' `
+            -Work $work -Output "$work\frozen"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .\.azurepipelines\nuget-evidence.ps1 -Operation Sidecars `
+            -Version $env:PACK_VERSION -Configuration '${{ matrix.configuration }}' `
+            -Packages $env:ARTIFACTS_DIR -Inputs "$work\frozen" `
+            -Work $work -Output "$env:ARTIFACTS_DIR\evidence"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Test-Path -LiteralPath "$work\frozen.incomplete.json") {
+              Copy-Item -LiteralPath "$work\frozen.incomplete.json" `
+                -Destination "$env:ARTIFACTS_DIR\capture.incomplete.json"
+          }
+          Copy-Item -LiteralPath "$env:RUNNER_TEMP\nuget-tool-report.json" `
+            -Destination "$env:ARTIFACTS_DIR\tool-report.json"
+          # Raw graphs, tool diagnostics, and capture requests stay on this runner.
+
       - name: Upload signed package set
         uses: actions/upload-artifact@v7
         with:
@@ -318,16 +349,17 @@ jobs:
     needs: pack
     if: >-
       ${{
-        github.event_name == 'workflow_dispatch' ||
-        (github.event_name == 'push' &&
-          (github.ref == 'refs/heads/master' ||
-            startsWith(github.ref, 'refs/heads/release/')))
+        github.repository == 'OPCFoundation/UA-.NETStandard' &&
+        (github.event_name == 'workflow_dispatch' || github.event_name == 'push') &&
+        (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/'))
       }}
     runs-on: windows-2025
     permissions:
       actions: read
       contents: read
       packages: write
+      id-token: write
+      attestations: write
 
     steps:
       - name: Checkout
@@ -337,6 +369,12 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
+
+      - name: Prepare offline evidence tool
+        shell: pwsh
+        run: |
+          .\.azurepipelines\nuget-evidence.ps1 -Operation PrepareTool `
+            -Work "$env:RUNNER_TEMP\nuget-tool" -Output "$env:RUNNER_TEMP\nuget-tool-report.json"
 
       - name: Download signed package sets
         uses: actions/download-artifact@v8
@@ -364,17 +402,22 @@ jobs:
           ./.azurepipelines/validate-nuget-package-set.ps1 `
             -PackageDirectory $output `
             -ManifestPath $packageManifest `
+            -MetadataPath (Join-Path $output 'archive-metadata.json') `
             -RequireDebug `
             -VerifySignatures
 
           $inventory = Get-Content -LiteralPath $packageManifest -Raw | ConvertFrom-Json
+          $actualSha = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $actualSha -cne $env:GITHUB_SHA) {
+              throw 'The aggregate checkout differs from the selected producing commit.'
+          }
           $manifest = [ordered]@{
               schemaVersion = 1
               repository = '${{ github.repository }}'
               workflow = '.github/workflows/nuget-publish.yml'
               runId = '${{ github.run_id }}'
               ref = '${{ github.ref }}'
-              commit = '${{ github.sha }}'
+              commit = $actualSha
               packageVersion = $inventory.packageVersion
               packageCount = $inventory.packageCount
               symbolPackageCount = $inventory.symbolPackageCount
@@ -384,22 +427,130 @@ jobs:
           $manifest | ConvertTo-Json -Depth 6 |
               Set-Content -LiteralPath (Join-Path $output 'release-manifest.json') -Encoding utf8NoBOM
 
+      - name: Aggregate sanitized evidence
+        shell: pwsh
+        run: |
+          .\.azurepipelines\nuget-evidence.ps1 -Operation Aggregate `
+            -Packages promotion -Inputs downloaded -Output promotion\evidence `
+            -Work "$env:RUNNER_TEMP\nuget-aggregate"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item -LiteralPath "$env:RUNNER_TEMP\nuget-tool-report.json" `
+            -Destination promotion\tool-report.json
+
+      - name: Attest Release package subjects from pack provenance
+        id: release-proof
+        if: ${{ hashFiles('promotion/evidence/producer-context.json') != '' && hashFiles('promotion/evidence/Release/subjects.sha256') != '' }}
+        continue-on-error: true
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-checksums: promotion/evidence/Release/subjects.sha256
+          predicate-type: https://slsa.dev/provenance/v1
+          predicate-path: promotion/evidence/Release/pack-provenance.json
+
+      - name: Attest Debug package subjects from pack provenance
+        id: debug-proof
+        if: ${{ hashFiles('promotion/evidence/producer-context.json') != '' && hashFiles('promotion/evidence/Debug/subjects.sha256') != '' }}
+        continue-on-error: true
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-checksums: promotion/evidence/Debug/subjects.sha256
+          predicate-type: https://slsa.dev/provenance/v1
+          predicate-path: promotion/evidence/Debug/pack-provenance.json
+
+      - name: Attest immutable companion index
+        id: index-proof
+        if: ${{ hashFiles('promotion/evidence/producer-context.json') != '' }}
+        continue-on-error: true
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: promotion/evidence/release-evidence.json
+          predicate-type: https://github.com/OPCFoundation/UA-.NETStandard/release-evidence/v1
+          predicate-path: promotion/evidence/producer-context.json
+
+      - name: Record public proof results
+        if: always()
+        shell: pwsh
+        env:
+          RELEASE_PROOF: ${{ steps.release-proof.outcome }}
+          DEBUG_PROOF: ${{ steps.debug-proof.outcome }}
+          INDEX_PROOF: ${{ steps.index-proof.outcome }}
+          RELEASE_BUNDLE: ${{ steps.release-proof.outputs.bundle-path }}
+          DEBUG_BUNDLE: ${{ steps.debug-proof.outputs.bundle-path }}
+          INDEX_BUNDLE: ${{ steps.index-proof.outputs.bundle-path }}
+        run: |
+          . .\.azurepipelines\nuget-evidence-functions.ps1
+          $proofs = @()
+          $native = @()
+          foreach ($kind in @('RELEASE', 'DEBUG', 'INDEX')) {
+              $proof = @{ subjectGroup = $kind; outcome = [Environment]::GetEnvironmentVariable("${kind}_PROOF") }
+              $bundle = [Environment]::GetEnvironmentVariable("${kind}_BUNDLE")
+              if ($bundle -and (Test-Path -LiteralPath $bundle)) {
+                  Assert-NugetPublicJson $bundle
+                  $proof.bundleDigest = Get-NugetDigest $bundle
+                  $proof.bundle = "$($kind.ToLowerInvariant()).sigstore.json"
+                  New-Item -ItemType Directory -Force -Path promotion\proofs | Out-Null
+                  Copy-Item -LiteralPath $bundle -Destination "promotion\proofs\$($proof.bundle)"
+                  $role = switch ($kind) { RELEASE { 'Release' } DEBUG { 'Debug' } INDEX { 'index' } }
+                  $nativeProof = @{
+                      role = $role; authorityId = 'nuget-publisher'
+                      bundlePath = "proofs/$($proof.bundle)"; digest = $proof.bundleDigest
+                  }
+                  if ($role -ceq 'index') { $nativeProof.indexPath = 'evidence/release-evidence.json' }
+                  $native += $nativeProof
+              }
+              $proofs += $proof
+          }
+          Write-NugetJson @{ schemaVersion = 1; status = 'incomplete'; externalVerificationPerformed = $false
+              proofs = $proofs; unmetControls = @('PROVENANCE_VERIFIED', 'PUBLISHER_BOUNDARY') } `
+              promotion\proof-results.json
+          Write-NugetJson @{ schemaVersion = 1; proofs = @(); nativeNuget = $native } `
+              promotion\verification-bundle.json
+
+      - name: Retrieve same-source assurance without changing producer evidence
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          .\.azurepipelines\nuget-evidence.ps1 -Operation Assurance -Packages promotion `
+            -Output promotion\assurance -Work "$env:RUNNER_TEMP\nuget-assurance"
+
+      - name: Preflight current policy
+        shell: pwsh
+        run: |
+          .\.azurepipelines\nuget-evidence.ps1 -Operation Preflight -Packages promotion `
+            -Output promotion\preflight.json `
+            -Work "$env:RUNNER_TEMP\nuget-preflight"
+
       - name: Push to GitHub Packages
         shell: pwsh
         run: |
           $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File | Sort-Object Name)
+          .\.azurepipelines\nuget-evidence.ps1 -Operation Receipt -Packages promotion `
+            -Output promotion\publication-receipt.json -Destination GitHubPackages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           foreach ($package in $packages) {
+              .\.azurepipelines\nuget-evidence.ps1 -Operation Receipt -Packages promotion `
+                -Output promotion\publication-receipt.json -Destination GitHubPackages `
+                -File $package.Name -State attempting
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
               dotnet nuget push $package.FullName `
                 --source 'https://nuget.pkg.github.com/OPCFoundation/index.json' `
                 --api-key '${{ secrets.GITHUB_TOKEN }}' `
                 --skip-duplicate `
                 --no-symbols
-              if ($LASTEXITCODE -ne 0) {
+              $pushCode = $LASTEXITCODE
+              $state = if ($pushCode -eq 0) { 'push-accepted-or-duplicate' } else { 'push-failed' }
+              .\.azurepipelines\nuget-evidence.ps1 -Operation Receipt -Packages promotion `
+                -Output promotion\publication-receipt.json -Destination GitHubPackages `
+                -File $package.Name -State $state
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              if ($pushCode -ne 0) {
                   throw "GitHub Packages push failed for '$($package.Name)'."
               }
           }
 
       - name: Upload promotion artifact
+        if: ${{ always() && hashFiles('promotion/release-manifest.json') != '' }}
         uses: actions/upload-artifact@v7
         with:
           name: opcua-packages-${{ github.run_id }}

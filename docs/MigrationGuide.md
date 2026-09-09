@@ -17,13 +17,24 @@ migration notes inline.
 2. API that cannot be supported anymore will be removed in a minor
    version and migration steps documented in the version sub-folder.
    We try to keep this to an absolute minimum.
-3. Bugs or issues found in obsoleted API are not supported.
+3. Prefer replacement APIs for ongoing development. Security reports affecting
+   `[Obsolete]` APIs or older releases must still be assessed through the
+   [confidential Foundation process](../SECURITY.md#reporting-a-vulnerability).
+   Report intake and triage do not guarantee a fix or backport to every API or
+   historical release; maintenance decisions follow the
+   [canonical security-maintenance matrix](../SECURITY.md#supported-versions).
 4. We follow semver, but do not use the major version indicator to
    denote breaking changes like (1) or (2) as we should if we followed
-   related conventions. We are a small team and cannot afford to
-   maintain previous major versions, therefore we try to keep cases of
-   (2) to a minimum and expect you to upgrade to the next minor version
-   within 6 months of release.
+   related conventions. Consult the per-version notes before upgrading and
+   address obsolete warnings as you go. The maintained `1.5.378.x` line on
+   `master378` and current 2.0 preview/development line on `master` are described
+   in the linked matrix; this migration guidance sets no fixed upgrade deadline
+   or support period.
+
+The [release-evidence engineering pilot](ReleaseEvidence.md) applies to current
+`master`/2.0 only. Pipeline backport to 1.5 is deferred, not a withdrawal of
+1.5 security or critical-bug maintenance. The [Security Stewardship annex](SecurityStewardship.md)
+separates these engineering choices from the Foundation's statutory OSS steward duties.
 
 > **Pro TIP.** Point your favourite coding agent at this guide and let
 > it do the migration work for you. The

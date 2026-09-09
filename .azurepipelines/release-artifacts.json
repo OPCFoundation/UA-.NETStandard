@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "id": "opcua-release-artifacts",
+  "version": "1.0.0",
+  "pathBase": "repository-root",
+  "membershipRevision": "actual-source-sha",
+  "groups": [
+    {
+      "id": "nuget",
+      "producer": ".github/workflows/nuget-publish.yml",
+      "kind": "nuget",
+      "profiles": ["security-net10", "fuzz-replay-net10", "codeql-net10", "aot-net10"],
+      "modernCatalog": ".azurepipelines/expected-packages.txt",
+      "modernCatalogSyntax": "trim-lines-ignore-blank-and-leading-hash-require-unique-ids",
+      "variants": [
+        {
+          "id": "modern-release",
+          "configuration": "Release",
+          "membership": "every-modern-catalog-id",
+          "identity": "embedded-nuspec-id-and-version",
+          "mapping": "evaluated-packable-projects-and-pack-targets-at-source-sha"
+        },
+        {
+          "id": "modern-debug",
+          "configuration": "Debug",
+          "membership": "catalog-backed-projects-whose-evaluated-debug-package-id-ends-with-dot-debug",
+          "identity": "embedded-nuspec-id-and-version",
+          "mapping": "strip-terminal-dot-debug-to-match-catalog-id",
+          "filterSource": ".github/workflows/nuget-publish.yml",
+          "filterStep": "Keep only distinct Debug package IDs",
+          "discardUnsuffixedDebugAndMatchingSymbols": true,
+          "requireAtLeastOne": true
+        },
+        {
+          "id": "metapackages",
+          "configuration": "Release",
+          "membership": "root-nuget-Opc-dot-star-nuspec",
+          "sources": ["nuget/Opc.Ua.nuspec", "nuget/Opc.Ua.Symbols.nuspec"],
+          "identity": "nuspec-metadata-id-with-actual-pack-version",
+          "payload": "metadata-license-icon-readme-and-declared-consumer-dependencies",
+          "symbolsNamedMetapackageIsNotSnupkg": true,
+          "dependencyVersions": "retain-embedded-ranges-do-not-invent-resolved-runtime-versions"
+        }
+      ],
+      "symbols": {
+        "kind": "nuget-symbols",
+        "extension": ".snupkg",
+        "membership": "evaluated-include-symbols-and-actual-pack-payload-for-retained-modern-variants",
+        "defaultSource": "common.props",
+        "overrideSources": [
+          "tools/SourceGeneratorPack.targets",
+          "tools/Opc.Ua.MigrationAnalyzer/Opc.Ua.MigrationAnalyzer.csproj"
+        ],
+        "pairing": "same-embedded-id-version-and-configuration-as-retained-nupkg",
+        "rejectOrphansAndDuplicates": true,
+        "absence": "only-if-evaluated-pack-settings-and-payload-prove-not-applicable",
+        "signatureBaseline": "signing-attempted-but-current-validator-verifies-nupkg-only",
+        "requireVerifiedEvidenceForClaim": true
+      },
+      "inventory": {
+        "format": "CycloneDX",
+        "version": "1.6",
+        "resolvedGraph": "project-assets-after-final-restore-including-implicit-build-restore",
+        "scope": "per-tfm-rid-and-roslyn-variant",
+        "reconcile": "signed-archive-content-and-embedded-nuspec",
+        "includeBundledPrivateDependencies": true,
+        "includeNonpackableContributingVariants": true,
+        "ownership": ["shipped", "declared-consumer", "build-only", "external-prerequisite"]
+      },
+      "identities": {
+        "buildArtifact": "author-signed-archive-sha256",
+        "deliveryArtifact": "feed-delivered-archive-sha256-in-separate-receipt",
+        "repositorySigningMayChangeBytes": true
+      }
+    },
+    {
+      "id": "containers",
+      "producer": ".github/workflows/docker-image.yml",
+      "kind": "oci",
+      "profiles": ["security-net10", "fuzz-replay-net10", "codeql-net10", "aot-net10"],
+      "registry": "ghcr.io",
+      "repositoryTransform": "lowercase-owner-slash-repository-then-remove-hyphens-and-periods",
+      "repositoryTemplate": "ghcr.io/{normalizedRepository}/{image}",
+      "upstreamRepositoryPrefix": "ghcr.io/opcfoundation/uanetstandard",
+      "platforms": ["linux/amd64", "linux/arm64/v8"],
+      "images": [
+        {"id": "refserver", "dockerfile": "samples/Reference/ConsoleReferenceServer/Dockerfile"},
+        {"id": "ldsserver", "dockerfile": "samples/Lds/ConsoleLdsServer/Dockerfile"},
+        {"id": "boilerserver", "dockerfile": "samples/MinimalApi/MinimalBoilerServer/Dockerfile"},
+        {"id": "calcserver", "dockerfile": "samples/MinimalApi/MinimalCalcServer/Dockerfile"},
+        {"id": "mcpserver", "dockerfile": "tools/Opc.Ua.Mcp/Dockerfile"},
+        {"id": "redundantserver", "dockerfile": "samples/Redundancy/RedundantServer/Dockerfile"},
+        {"id": "redundantclient", "dockerfile": "samples/Redundancy/RedundantClient/Dockerfile"},
+        {"id": "redundantpubsub", "dockerfile": "samples/Redundancy/RedundantPubSub/Dockerfile"},
+        {"id": "pubsubclient", "dockerfile": "samples/PubSub/ConsoleReferencePubSubClient/Dockerfile"}
+      ],
+      "nugetRelationship": "same-source",
+      "inventory": "native-buildkit-spdx-record-actual-supported-version",
+      "subjectRules": "verify-each-runnable-manifest-and-final-index-relationships-exclude-attestation-descriptors"
+    },
+    {
+      "id": "pump",
+      "producer": ".github/workflows/pump-device-integration-server-docker.yml",
+      "kind": "oci",
+      "profiles": ["security-net10", "fuzz-replay-net10", "codeql-net10", "aot-net10"],
+      "registry": "ghcr.io",
+      "repositoryTransform": "lowercase-owner",
+      "repositoryTemplate": "ghcr.io/{owner}/{image}",
+      "upstreamRepositoryPrefix": "ghcr.io/opcfoundation",
+      "platforms": ["linux/amd64"],
+      "images": [
+        {"id": "pumpdeviceintegrationserver", "dockerfile": "samples/DI/PumpDeviceIntegrationServer/Dockerfile"}
+      ],
+      "nugetRelationship": "same-source",
+      "inventory": "native-buildkit-spdx-record-actual-supported-version",
+      "subjectRules": "inspect-actual-media-type-index-possible-even-with-one-runnable-platform"
+    }
+  ]
+}

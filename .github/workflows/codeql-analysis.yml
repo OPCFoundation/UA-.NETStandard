@@ -9,6 +9,15 @@ on:
     branches: [ master, main, master378 ]
     paths:
     - '**.cs'
+    - '**.csproj'
+    - '**.props'
+    - '**.targets'
+    - '**.slnx'
+    - 'global.json'
+    - 'nuget.config'
+    - '.github/workflows/codeql-analysis.yml'
+    - '.azurepipelines/**'
+    - 'fuzzing/**'
   schedule:
     - cron: '30 6 * * 6'
   workflow_dispatch:
@@ -25,7 +34,7 @@ concurrency:
 
 jobs:
   analyze:
-    name: Analyze
+    name: Analyze (${{ matrix.language }})
     runs-on: windows-2025
 
     strategy:
@@ -40,11 +49,18 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v7
 
+    - name: Prepare evaluated compilation evidence
+      if: ${{ github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/2.') }}
+      shell: pwsh
+      run: ./.azurepipelines/assurance-codeql.ps1 -Mode Prepare -WorkDirectory '.assurance/codeql'
+
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
+      id: initialize
       uses: github/codeql-action/init@v4
       with:
         languages: ${{ matrix.language }}
+        config-file: ${{ (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/2.')) && '.assurance/codeql/codeql-config.yml' || '' }}
         # If you wish to specify custom queries, you can do so here or in a config file.
         # By default, queries listed here will override any specified in a config file.
         # Prefix the list here with "+" to use these queries and those in the config file.
@@ -65,12 +81,54 @@ jobs:
     # on the hosted runner. Analyzing one framework covers the same sources
     # once and keeps the database within the runner's memory budget.
     - name: Build Solution
+      shell: pwsh
       run: |
-        dotnet build "UA.slnx" -c Release -p:CustomTestTarget=net10.0 -p:UseSharedCompilation=false -p:EmitCompilerGeneratedFiles=true
+        $arguments = @('build', 'UA.slnx', '-c', 'Release', '-p:CustomTestTarget=net10.0',
+          '-p:UseSharedCompilation=false', '-p:EmitCompilerGeneratedFiles=true')
+        if (Test-Path -LiteralPath '.assurance/codeql/capture.targets') {
+          $arguments += '--no-incremental'
+          $arguments += "-p:CustomAfterMicrosoftCommonTargets=$env:GITHUB_WORKSPACE/.assurance/codeql/capture.targets"
+          $arguments += "-p:AssuranceCodeqlDirectory=$env:GITHUB_WORKSPACE/.assurance/codeql/compilations"
+        }
+        dotnet @arguments
+        exit $LASTEXITCODE
     - name: Perform CodeQL Analysis
+      id: analysis
       uses: github/codeql-action/analyze@v4
       with:
+        output: .assurance/codeql-sarif
+        category: ${{ (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/2.')) && 'assurance-csharp-net10' || '' }}
+        upload-database: ${{ !(github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/2.')) }}
         # Interpreting results in parallel keeps a result set and its source
         # snippets in memory per thread. Two threads bound the peak memory of
         # the step that previously failed with an out of memory error.
         threads: 2
+    - name: Collect actual database, query and extraction evidence
+      if: ${{ always() && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/2.')) }}
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+        CODEQL_EXECUTABLE: ${{ steps.initialize.outputs.codeql-path }}
+        CODEQL_VERSION: ${{ steps.initialize.outputs.codeql-version }}
+        CODEQL_DATABASES: ${{ steps.analysis.outputs.db-locations }}
+        CODEQL_SARIF_ID: ${{ steps.analysis.outputs.sarif-id }}
+      run: |
+        ./.azurepipelines/assurance-codeql.ps1 -Mode Collect -WorkDirectory '.assurance/codeql' `
+          -CodeqlPath $env:CODEQL_EXECUTABLE -CodeqlVersion $env:CODEQL_VERSION `
+          -DatabaseLocations $env:CODEQL_DATABASES -SarifId $env:CODEQL_SARIF_ID `
+          -ResultsPath '.assurance/codeql-sarif' -OutputPath '.assurance/codeql-proof.json'
+    - name: Record source-bound analysis proof without findings
+      if: ${{ always() && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/2.')) }}
+      shell: pwsh
+      run: |
+        ./.azurepipelines/write-assurance-job.ps1 -Project 'UA.slnx' `
+          -ResultsPath '.assurance/codeql-proof.json' -Kind codeql `
+          -OutputPath '.assurance/public/evidence.job.json' `
+          -Workflow '.github/workflows/codeql-analysis.yml'
+    - name: Upload sanitized analysis proof only
+      if: ${{ always() && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/2.')) }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: assurance-codeql-csharp-${{github.run_id}}-${{github.run_attempt}}-analyze
+        path: .assurance/public/*.json
+        if-no-files-found: error

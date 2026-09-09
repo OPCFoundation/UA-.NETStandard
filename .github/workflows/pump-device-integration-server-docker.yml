@@ -13,6 +13,9 @@ on:
     - '*.props'
     - 'NuGet.config'
     - '.github/workflows/pump-device-integration-server-docker.yml'
+    - '.azurepipelines/container-evidence.ps1'
+    - '.azurepipelines/release-*.json'
+    - '.dockerignore'
   workflow_dispatch:
 
 concurrency:
@@ -22,6 +25,9 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: pumpdeviceintegrationserver
+  DOCKER_BUILD_RECORD_UPLOAD: 'false'
+  # Public registry response bytes verified against Docker-Content-Digest, 2026-09-08; scanner 1.12.0.
+  SBOM_SCANNER: docker.io/docker/buildkit-syft-scanner@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9
 
 jobs:
   build-and-push-image:
@@ -29,8 +35,14 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
 
     steps:
+    - name: Initialize runner-local pilot work location
+      shell: pwsh
+      run: |
+        "EVIDENCE_WORK=$(Join-Path $env:RUNNER_TEMP 'container-evidence')" >> $env:GITHUB_ENV
+
     - uses: actions/checkout@v7
       with:
         fetch-depth: 0
@@ -38,7 +50,9 @@ jobs:
     - name: Set up .NET
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '8.x'
+        dotnet-version: |
+          8.x
+          10.x
 
     - name: Set Version
       shell: pwsh
@@ -48,6 +62,7 @@ jobs:
       uses: docker/setup-buildx-action@v4
 
     - name: Log into registry ${{ env.REGISTRY }}
+      if: github.event_name != 'pull_request'
       uses: docker/login-action@v4
       with:
         registry: ${{ env.REGISTRY }}
@@ -57,6 +72,14 @@ jobs:
     - name: Prepare image repository name
       run: |
         echo IMAGE_REPOSITORY=$(echo ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
+        echo IMAGE_VERSION=${{ env.NBGV_Version }}${{ env.NBGV_PrereleaseVersion }} >> $GITHUB_ENV
+
+    - name: Refuse unsupported required stable publication
+      if: github.event_name != 'pull_request'
+      shell: pwsh
+      run: |
+        ./.azurepipelines/container-evidence.ps1 -Operation Preflight -Group pump `
+          -Image $env:IMAGE_NAME -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK
 
     - name: Extract Docker metadata
       id: meta
@@ -75,14 +98,144 @@ jobs:
         context: .
         file: ./samples/DI/PumpDeviceIntegrationServer/Dockerfile
         build-args: |
-          Version=${{ env.NBGV_Version }}
+          Version=${{ env.IMAGE_VERSION }}
           SimpleVersion=${{ env.NBGV_SimpleVersion }}
+          FileVersion=${{ env.NBGV_SimpleVersion }}
           InformationalVersion=${{ env.NBGV_AssemblyInformationalVersion }}
-        push: true
+          SourceRevisionId=${{ github.sha }}
+          SourceRepositoryUrl=${{ github.server_url }}/${{ github.repository }}
+        push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+        labels: |
+          ${{ steps.meta.outputs.labels }}
+          org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
+          org.opencontainers.image.revision=${{ github.sha }}
+          org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
         platforms: linux/amd64
-        provenance: false
+        provenance: mode=min
+        sbom: generator=${{ env.SBOM_SCANNER }}
         cache-from: type=gha
         # setup-buildx-action@v4 installs Buildx and BuildKit versions that support ignore-error.
         cache-to: type=gha,mode=max,ignore-error=true
+
+    - name: Record immutable build identity
+      id: record
+      if: github.event_name != 'pull_request' && steps.build-and-push.outcome == 'success'
+      continue-on-error: true
+      shell: pwsh
+      env:
+        ROOT_DIGEST: ${{ steps.build-and-push.outputs.digest }}
+      run: |
+        ./.azurepipelines/container-evidence.ps1 -Operation Record -Group pump `
+          -Image $env:IMAGE_REPOSITORY -RootDigest $env:ROOT_DIGEST -Version $env:IMAGE_VERSION `
+          -Work $env:EVIDENCE_WORK -BuildState success
+
+    - name: Prepare offline OCI reader
+      if: steps.record.outcome == 'success'
+      continue-on-error: true
+      shell: pwsh
+      run: |
+        dotnet build ./tools/Opc.Ua.ReleaseEvidence/Opc.Ua.ReleaseEvidence.csproj -c Release -f net10.0 `
+          --nologo *> "$env:EVIDENCE_WORK/tool-build.log"
+        if ($LASTEXITCODE -ne 0) { Write-Warning 'OCI reader unavailable; container pilot remains incomplete.' }
+        exit $LASTEXITCODE
+
+    - name: Read back complete OCI blobs by digest
+      id: collect
+      if: steps.record.outcome == 'success'
+      continue-on-error: true
+      shell: pwsh
+      env:
+        GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        ./.azurepipelines/container-evidence.ps1 -Operation Collect -Group pump `
+          -Image $env:IMAGE_REPOSITORY -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK -BuildState success
+
+    - name: Reconcile runnable subjects and native attestations
+      id: reconcile
+      if: steps.collect.outcome == 'success'
+      continue-on-error: true
+      shell: pwsh
+      run: |
+        ./.azurepipelines/container-evidence.ps1 -Operation VerifyLocal -Group pump `
+          -Image $env:IMAGE_REPOSITORY -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK -BuildState success
+
+    - name: Install approved pilot cosign
+      id: cosign
+      if: steps.reconcile.outcome == 'success'
+      continue-on-error: true
+      uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+      with:
+        cosign-release: 'v3.1.3'
+
+    - name: Sign and verify root and runnable subjects (publisher boundary pending)
+      if: steps.cosign.outcome == 'success'
+      continue-on-error: true
+      shell: pwsh
+      env:
+        GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        ./.azurepipelines/container-evidence.ps1 -Operation Sign -Group pump `
+          -Image $env:IMAGE_REPOSITORY -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK -BuildState success
+
+    - name: Always produce sanitized per-image status
+      if: always()
+      continue-on-error: true
+      shell: pwsh
+      env:
+        BUILD_STATE: ${{ steps.build-and-push.outcome }}
+      run: |
+        $public = Join-Path $env:EVIDENCE_WORK 'public'
+        $null = New-Item -ItemType Directory -Force -Path $public
+        $status = Join-Path $public 'status.json'
+        @{
+          schemaVersion = 1; status = 'incomplete'; group = 'pump'
+          image = 'ghcr.io/opcfoundation/pumpdeviceintegrationserver'
+          collectorState = 'unavailable'; observedSubjects = @(); observedAttestations = @()
+          unmetControls = @('PRODUCER_NOT_READY', 'PUBLISHER_BOUNDARY')
+        } | ConvertTo-Json | Set-Content -LiteralPath $status
+        $reportExit = 2
+        if (Test-Path ./.azurepipelines/container-evidence.ps1) {
+          & ./.azurepipelines/container-evidence.ps1 -Operation Status -Group pump `
+            -Image $env:IMAGE_NAME -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK `
+            -BuildState $env:BUILD_STATE -Output $status
+          $reportExit = $LASTEXITCODE
+        }
+        Write-Warning 'Container pilot is incomplete; status is not authorization or baseline success.'
+        exit $reportExit
+
+    - name: Upload sanitized status only
+      if: always()
+      continue-on-error: true
+      uses: actions/upload-artifact@v4
+      with:
+        name: container-status-pump
+        path: ${{ runner.temp }}/container-evidence/public/status.json
+        if-no-files-found: error
+
+    - name: Retain per-subject public signature bundles
+      if: github.event_name != 'pull_request' && steps.cosign.outcome == 'success'
+      continue-on-error: true
+      uses: actions/upload-artifact@v4
+      with:
+        name: container-signature-bundles-pump
+        # Explicit signature material only; never upload the work directory, native predicates or raw tool logs.
+        path: |
+          ${{ runner.temp }}/container-evidence/subject-proofs/*.bundle.json
+        if-no-files-found: error
+
+    - name: Record the independent one-image Pump group
+      if: always()
+      continue-on-error: true
+      shell: pwsh
+      run: |
+        ./.azurepipelines/container-evidence.ps1 -Operation Aggregate -Group pump `
+          -Inputs "$env:EVIDENCE_WORK/public" -Output "$env:EVIDENCE_WORK/artifact-group-manifest.json"
+
+    - uses: actions/upload-artifact@v4
+      if: always()
+      continue-on-error: true
+      with:
+        name: pump-artifact-group-manifest
+        path: ${{ runner.temp }}/container-evidence/artifact-group-manifest.json
+        if-no-files-found: error

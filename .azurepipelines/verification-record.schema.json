@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opcfoundation.org/schemas/ua-netstandard/verification-record-v1.schema.json",
+  "title": "Release record requiring external cryptographic authentication and semantic verification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "id", "kind", "evidenceDigest", "policyDigest", "artifactSetDigest",
+    "source", "producer", "release", "artifacts", "documents", "jobs", "controls",
+    "checkpointSequence", "issuedAt", "expiresAt", "scope"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "$ref": "#/$defs/text" },
+    "kind": {
+      "enum": [
+        "release-intent", "producer", "artifact-signatures", "assurance",
+        "public-review", "producer-qualification", "publication-boundary", "codeql-disposition"
+      ]
+    },
+    "evidenceDigest": { "$ref": "#/$defs/digest" },
+    "policyDigest": { "$ref": "#/$defs/digest" },
+    "artifactSetDigest": { "$ref": "#/$defs/digest" },
+    "intentDigest": { "$ref": "#/$defs/digest" },
+    "promotionRequestDigest": {
+      "$ref": "#/$defs/digest",
+      "description": "On a publication-boundary record, authorizes the exact immutable promotion request bytes, including destinations, member identities, evidence and alias preconditions."
+    },
+    "source": { "$ref": "release-evidence.schema.json#/$defs/source" },
+    "producer": { "$ref": "release-evidence.schema.json#/$defs/producer" },
+    "release": { "$ref": "release-evidence.schema.json#/properties/release" },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "release-evidence.schema.json#/$defs/artifact" }
+    },
+    "documents": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/frozenFile" }
+    },
+    "jobs": {
+      "type": "array",
+      "items": { "$ref": "release-evidence.schema.json#/$defs/job" }
+    },
+    "controls": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "release-evidence.schema.json#/$defs/control" }
+    },
+    "checkpointSequence": { "type": "integer", "minimum": 1 },
+    "issuedAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["groups", "destinations", "recordReferences", "limitations"],
+      "properties": {
+        "groups": { "$ref": "#/$defs/strings" },
+        "destinations": { "$ref": "#/$defs/strings" },
+        "recordReferences": { "$ref": "#/$defs/strings" },
+        "limitations": { "$ref": "#/$defs/strings" }
+      }
+    },
+    "artifactSignatures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "id", "artifactDigest", "bundlePath", "signatureDigest", "signerDigest"],
+        "properties": {
+          "kind": { "enum": ["nuget-package", "nuget-symbols", "oci-index", "oci-manifest"] },
+          "id": { "$ref": "#/$defs/text" },
+          "artifactDigest": { "$ref": "#/$defs/digest" },
+          "bundlePath": { "$ref": "#/$defs/path" },
+          "signatureDigest": { "$ref": "#/$defs/digest" },
+          "signerDigest": { "$ref": "#/$defs/digest" },
+          "authorityId": { "$ref": "#/$defs/text" }
+        }
+      }
+    },
+    "ociBuilds": {
+      "type": "object",
+      "propertyNames": { "type": "string", "minLength": 1 },
+      "additionalProperties": { "$ref": "#/$defs/ociBuild" }
+    },
+    "codeqlReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceSha", "runId", "attempt", "analysisId", "queryDigest", "populationDigest",
+        "reviewedOccurrences", "reviewedAlerts", "unresolvedFindings"
+      ],
+      "properties": {
+        "sourceSha": { "$ref": "release-evidence.schema.json#/$defs/sha" },
+        "runId": { "$ref": "#/$defs/text" },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "analysisId": { "$ref": "#/$defs/text" },
+        "queryDigest": { "$ref": "#/$defs/digest" },
+        "populationDigest": { "$ref": "#/$defs/digest" },
+        "reviewedOccurrences": { "type": "integer", "minimum": 0 },
+        "reviewedAlerts": { "type": "integer", "minimum": 0 },
+        "unresolvedFindings": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "required": ["promotionRequestDigest"] },
+      "then": { "properties": { "kind": { "const": "publication-boundary" } } }
+    }
+  ],
+  "$defs": {
+    "ociBuild": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "builderId", "invocationId", "sourceUri", "sourceSha", "dockerfile",
+        "scannerCreator", "scannerDigest", "buildkitDigest", "materials"
+      ],
+      "properties": {
+        "builderId": { "$ref": "#/$defs/text" },
+        "invocationId": { "$ref": "#/$defs/text" },
+        "sourceUri": { "$ref": "#/$defs/text" },
+        "sourceSha": { "$ref": "release-evidence.schema.json#/$defs/sha" },
+        "dockerfile": { "$ref": "#/$defs/path" },
+        "scannerCreator": { "$ref": "#/$defs/text" },
+        "scannerDigest": { "$ref": "#/$defs/digest" },
+        "buildkitDigest": { "$ref": "#/$defs/digest" },
+        "materials": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["uri", "algorithm", "digest"],
+            "properties": {
+              "uri": { "$ref": "#/$defs/text" },
+              "algorithm": { "enum": ["sha1", "sha256", "sha512"] },
+              "digest": { "type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64}|[0-9a-f]{128})$" }
+            }
+          }
+        }
+      }
+    },
+    "text": { "type": "string", "minLength": 1 },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "path": { "$ref": "verification-bundle.schema.json#/$defs/path" },
+    "strings": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/text" } },
+    "frozenFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "digest", "size"],
+      "properties": {
+        "path": { "$ref": "#/$defs/path" },
+        "digest": { "$ref": "#/$defs/digest" },
+        "size": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

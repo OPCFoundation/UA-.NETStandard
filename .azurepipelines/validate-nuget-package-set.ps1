@@ -18,6 +18,9 @@ param(
 
     [string]$ExpectedVersion,
 
+    # Optional companion only; the existing v1 archives remain byte-for-byte compatible.
+    [string]$MetadataPath,
+
     [switch]$RequireDebug,
 
     [switch]$VerifySignatures
@@ -61,6 +64,18 @@ function Get-PackageIdentity {
         return [pscustomobject]@{
             Id = [string]$metadata.id
             Version = [string]$metadata.version
+            Scopes = [ordered]@{
+                tfms = @($archive.Entries.FullName | ForEach-Object {
+                    if ($_ -match '^(?:lib|ref)/([^/]+)/') { $Matches[1] }
+                } | Sort-Object -Unique)
+                rids = @($archive.Entries.FullName | ForEach-Object {
+                    if ($_ -match '^runtimes/([^/]+)/') { $Matches[1] }
+                } | Sort-Object -Unique)
+                roslyn = @($archive.Entries.FullName | ForEach-Object {
+                    if ($_ -match '/(roslyn[0-9.]+)/') { $Matches[1] }
+                } | Sort-Object -Unique)
+                platforms = @()
+            }
         }
     }
     finally {
@@ -80,6 +95,7 @@ if ($packages.Count -eq 0) {
 }
 
 $archives = @()
+$metadataRecords = @()
 foreach ($package in $packages) {
     $identity = Get-PackageIdentity -Package $package
     $type = if ($package.Name.EndsWith(
@@ -104,6 +120,17 @@ foreach ($package in $packages) {
         type = $type
         file = $package.Name
         sha256 = (Get-FileHash -LiteralPath $package.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+    $metadataRecords += [ordered]@{
+        kind = if ($type -eq 'symbols') { 'nuget-symbols' } else { 'nuget-package' }
+        id = $identity.Id
+        version = $identity.Version
+        configuration = if ($identity.Id.EndsWith('.Debug', [StringComparison]::OrdinalIgnoreCase)) {
+            'Debug'
+        } else { 'Release' }
+        digest = 'sha256:' + $archives[-1].sha256
+        scopes = $identity.Scopes
+        size = $package.Length
     }
 }
 
@@ -167,6 +194,19 @@ $manifest = [ordered]@{
 }
 $manifest | ConvertTo-Json -Depth 5 |
     Set-Content -LiteralPath $ManifestPath -Encoding utf8NoBOM
+
+if ($MetadataPath) {
+    $metadataDirectory = Split-Path -Parent $MetadataPath
+    if ($metadataDirectory) {
+        New-Item -ItemType Directory -Force -Path $metadataDirectory | Out-Null
+    }
+    [ordered]@{
+        schemaVersion = 1
+        scopeSource = 'archive-layout-only'
+        signatureVerification = if ($VerifySignatures) { 'nupkg-only' } else { 'not-performed' }
+        artifacts = $metadataRecords
+    } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $MetadataPath -Encoding utf8NoBOM
+}
 
 Write-Host (
     "Validated $($manifest.packageCount) package(s), " +

@@ -477,6 +477,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                     EndpointUrl = endpointUrl,
                     SourceNamespaceUri = FlatTagServerOptions.SourceANamespaceUri,
                     ApplicationName = "FlatTagAlarmSource" + id,
+                    IncludeUnsecurePolicyNone = true,
                     InstanceName = "SourceA",
                     PkiRoot = Path.Combine(root, "Server", "pki"),
                     Values = new FlatTagValues { Cavitation = false }

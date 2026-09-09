@@ -28,18 +28,24 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.CommandLine;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Opc.Ua;
+using Opc.Ua.Configuration;
 using Opc.Ua.PubSub.Adapter;
 using Opc.Ua.PubSub.Adapter.DependencyInjection;
+using Opc.Ua.PubSub.Adapter.Session;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.Samples;
 
 namespace Quickstarts.ConsoleReferencePubSubClient
 {
@@ -82,9 +88,39 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             rootCommand.Subcommands.Add(BuildSubscriberCommand(code => exitCode = code));
             rootCommand.Subcommands.Add(BuildExternalCommand(code => exitCode = code));
 
+            // In System.CommandLine 2.0.11, help skips validation, but retains unmatched tokens.
             ParseResult parse = rootCommand.Parse(args);
-            await parse.InvokeAsync().ConfigureAwait(false);
-            return exitCode;
+            // The shared helper checks root options. This executable also owns typed subcommand options.
+            foreach (Option option in parse.CommandResult.Command.Options)
+            {
+                if (option is not Option<bool>)
+                {
+                    continue;
+                }
+                foreach (string argument in args)
+                {
+                    int separator = argument.IndexOfAny(['=', ':']);
+                    if (separator >= 0 &&
+                        argument[..separator] == option.Name &&
+                        !bool.TryParse(argument[(separator + 1)..], out _))
+                    {
+                        await Console.Error.WriteLineAsync(
+                            $"{option.Name} expects true or false. Use --help for valid options.")
+                            .ConfigureAwait(false);
+                        return 1;
+                    }
+                }
+            }
+            if (parse.UnmatchedTokens.Count != 0)
+            {
+                await Console.Error.WriteLineAsync(
+                    $"Unrecognized command or argument: {string.Join(", ", parse.UnmatchedTokens)}. " +
+                    "Use --help for valid options; boolean values must be true or false.").ConfigureAwait(false);
+                return 1;
+            }
+            int invocationExitCode = await SampleCommandLine.InvokeAsync(
+                rootCommand, args, Console.Out, Console.Error).ConfigureAwait(false);
+            return invocationExitCode != 0 ? invocationExitCode : exitCode;
         }
 
         /// <summary>
@@ -293,6 +329,29 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 Description =
                     "Enable the external bridge hot-reload demo using appsettings.json and pubsub-config.xml."
             };
+            var validateOption = new Option<bool>("--validate-configuration")
+            {
+                Description = "Report effective adapter security options without connecting or starting PubSub."
+            };
+            var securityNoneOption = new Option<bool>("--security-none")
+            {
+                Description =
+                    "Use unsigned, unencrypted external OPC UA connections (development only). " +
+                    "Explicit false overrides configuration, including on reload.",
+                Arity = ArgumentArity.ZeroOrOne
+            };
+            var unsecuredActionsOption = new Option<bool>("--allow-unsecured-actions")
+            {
+                Description =
+                    "Accept unauthenticated PubSub actions (development only; independent of --security-none).",
+                Arity = ArgumentArity.ZeroOrOne
+            };
+            var watchConfigurationOption = new Option<bool>("--watch-configuration")
+            {
+                Description =
+                    "Keep reporting reloaded adapter options without connecting; " +
+                    "requires --hot-reload and --validate-configuration."
+            };
 
             var command = new Command(
                 "external",
@@ -303,11 +362,24 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 affinityOption,
                 endpointOption,
                 pubSubEndpointOption,
-                hotReloadOption
+                hotReloadOption,
+                validateOption,
+                securityNoneOption,
+                unsecuredActionsOption,
+                watchConfigurationOption
             };
 
             command.SetAction(async (parseResult, cancellationToken) =>
             {
+                if (parseResult.GetValue(watchConfigurationOption) &&
+                    (!parseResult.GetValue(hotReloadOption) || !parseResult.GetValue(validateOption)))
+                {
+                    await Console.Error.WriteLineAsync(
+                        "--watch-configuration requires --hot-reload and --validate-configuration.")
+                        .ConfigureAwait(false);
+                    setExitCode(2);
+                    return;
+                }
                 if (!TryParseBridgeMode(parseResult.GetValue(directionOption), out BridgeMode mode))
                 {
                     await Console.Error.WriteLineAsync(
@@ -349,6 +421,12 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     parseResult.GetValue(pubSubEndpointOption)
                     ?? ExternalServerPubSubConfiguration.DefaultPubSubEndpoint,
                     parseResult.GetValue(hotReloadOption),
+                    parseResult.GetValue(validateOption),
+                    parseResult.GetResult(securityNoneOption) is { Implicit: false }
+                        ? parseResult.GetValue(securityNoneOption) : null,
+                    parseResult.GetResult(unsecuredActionsOption) is { Implicit: false }
+                        ? parseResult.GetValue(unsecuredActionsOption) : null,
+                    parseResult.GetValue(watchConfigurationOption),
                     cancellationToken).ConfigureAwait(false));
             });
 
@@ -509,6 +587,10 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             string externalEndpoint,
             string pubSubEndpoint,
             bool hotReload,
+            bool validateConfiguration,
+            bool? securityNone,
+            bool? unsecuredActions,
+            bool watchConfiguration,
             CancellationToken cancellationToken)
         {
             HostApplicationBuilder builder = hotReload
@@ -517,6 +599,40 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 : Host.CreateApplicationBuilder();
             builder.Logging.ClearProviders();
             builder.Logging.AddConsole();
+            var overrides = new Dictionary<string, string?>();
+            if (securityNone.HasValue)
+            {
+                overrides[ExternalBridgeHostPolicy.SecurityNoneKey] = securityNone.Value.ToString();
+            }
+            if (unsecuredActions.HasValue)
+            {
+                overrides[ExternalBridgeHostPolicy.UnsecuredActionsKey] = unsecuredActions.Value.ToString();
+            }
+            builder.Configuration.AddInMemoryCollection(overrides);
+            builder.Services.AddOpcUa().AddClient(options =>
+            {
+                options.ApplicationName = "ConsoleReferencePubSubClient";
+                options.ApplicationUri = "urn:localhost:OPCFoundation:ConsoleReferencePubSubClient";
+                options.ProductUri = "urn:opcfoundation.org:ConsoleReferencePubSubClient";
+                options.PkiRoot = Path.Combine(
+                    AppContext.BaseDirectory, "pki", "Opc.Ua.PubSub.Adapter");
+                options.AutoAcceptUntrustedCertificates = false;
+                options.RejectSHA1SignedCertificates = true;
+                options.MinimumCertificateKeySize = 2048;
+            });
+            builder.Services.AddSingleton(sp => new ExternalBridgeHostPolicy(
+                sp.GetRequiredService<IConfiguration>(),
+                sp.GetRequiredService<ITelemetryContext>(),
+                sp.GetRequiredService<IOpcUaApplicationConfigurationProvider>()));
+            builder.Services.AddOptions<ServerPublisherOptions>(
+                hotReload ? ExternalPublisherOptionsName : Options.DefaultName)
+                .PostConfigure<ExternalBridgeHostPolicy>((options, policy) => policy.Apply(options.Connection));
+            builder.Services.AddOptions<ServerSubscriberOptions>(
+                hotReload ? ExternalSubscriberOptionsName : Options.DefaultName)
+                .PostConfigure<ExternalBridgeHostPolicy>((options, policy) => policy.Apply(options.Connection));
+            builder.Services.AddOptions<ServerActionResponderOptions>(
+                hotReload ? ExternalResponderOptionsName : Options.DefaultName)
+                .PostConfigure<ExternalBridgeHostPolicy>((options, policy) => policy.Apply(options));
 
             string? configFile = null;
             XmlPubSubConfigurationStore? hotReloadStore = null;
@@ -527,6 +643,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     builder,
                     mode,
                     pubSubEndpoint,
+                    validateConfiguration,
                     cancellationToken).ConfigureAwait(false);
             }
             else
@@ -534,25 +651,104 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                 ConfigureExternalBridge(builder, mode, readMode, affinity, externalEndpoint, pubSubEndpoint);
             }
 
-            IHost host = builder.Build();
+            using XmlPubSubConfigurationStore? ownedStore = hotReloadStore;
+            using IHost host = builder.Build();
             ILogger logger = host.Services
                 .GetRequiredService<ILoggerFactory>()
                 .CreateLogger("ConsoleReferencePubSubClient.External");
+            if (validateConfiguration)
+            {
+                ReportExternalBridgeOptions(host.Services, logger, mode, hotReload);
+                if (watchConfiguration)
+                {
+                    await WatchExternalBridgeOptionsAsync(host.Services, logger, mode, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                return 0;
+            }
             logger.ExternalServerPubSubBridgeStarting(mode, readMode, affinity, externalEndpoint, pubSubEndpoint);
             if (hotReload)
             {
                 logger.HotReloadEnabled(appSettingsFile, ExternalPublisherOptionsName, configFile);
             }
             logger.BridgeStarted();
+            await host.Services.GetRequiredService<IOpcUaApplicationConfigurationProvider>()
+                .GetAsync(cancellationToken).ConfigureAwait(false);
+            await host.RunAsync(cancellationToken).ConfigureAwait(false);
+            return 0;
+        }
+
+        private static void ReportExternalBridgeOptions(
+            IServiceProvider services,
+            ILogger logger,
+            BridgeMode modes,
+            bool hotReload)
+        {
+            if (modes.HasFlag(BridgeMode.Publisher))
+            {
+                ServerPublisherOptions options = services
+                    .GetRequiredService<IOptionsMonitor<ServerPublisherOptions>>()
+                    .Get(hotReload ? ExternalPublisherOptionsName : Options.DefaultName);
+                logger.BridgeSecurityOptions(
+                    "Publisher", options.Connection.SecurityMode, false,
+                    options.Connection.ApplicationConfiguration?.SecurityConfiguration.AutoAcceptUntrustedCertificates);
+            }
+            if (modes.HasFlag(BridgeMode.Subscriber))
+            {
+                ServerSubscriberOptions options = services
+                    .GetRequiredService<IOptionsMonitor<ServerSubscriberOptions>>()
+                    .Get(hotReload ? ExternalSubscriberOptionsName : Options.DefaultName);
+                logger.BridgeSecurityOptions(
+                    "Subscriber", options.Connection.SecurityMode, false,
+                    options.Connection.ApplicationConfiguration?.SecurityConfiguration.AutoAcceptUntrustedCertificates);
+            }
+            if (modes.HasFlag(BridgeMode.Responder))
+            {
+                ServerActionResponderOptions options = services
+                    .GetRequiredService<IOptionsMonitor<ServerActionResponderOptions>>()
+                    .Get(hotReload ? ExternalResponderOptionsName : Options.DefaultName);
+                logger.BridgeSecurityOptions(
+                    "Responder", options.Connection.SecurityMode, options.AllowUnsecured,
+                    options.Connection.ApplicationConfiguration?.SecurityConfiguration.AutoAcceptUntrustedCertificates);
+            }
+        }
+
+        private static async Task WatchExternalBridgeOptionsAsync(
+            IServiceProvider services,
+            ILogger logger,
+            BridgeMode modes,
+            CancellationToken cancellationToken)
+        {
+            using IDisposable? publisher = modes.HasFlag(BridgeMode.Publisher)
+                ? services.GetRequiredService<IOptionsMonitor<ServerPublisherOptions>>().OnChange(
+                    (options, _) => logger.BridgeSecurityOptions(
+                        "Publisher", options.Connection.SecurityMode, false,
+                        options.Connection.ApplicationConfiguration?.SecurityConfiguration
+                            .AutoAcceptUntrustedCertificates))
+                : null;
+            using IDisposable? subscriber = modes.HasFlag(BridgeMode.Subscriber)
+                ? services.GetRequiredService<IOptionsMonitor<ServerSubscriberOptions>>().OnChange(
+                    (options, _) => logger.BridgeSecurityOptions(
+                        "Subscriber", options.Connection.SecurityMode, false,
+                        options.Connection.ApplicationConfiguration?.SecurityConfiguration
+                            .AutoAcceptUntrustedCertificates))
+                : null;
+            using IDisposable? responder = modes.HasFlag(BridgeMode.Responder)
+                ? services.GetRequiredService<IOptionsMonitor<ServerActionResponderOptions>>().OnChange(
+                    (options, _) => logger.BridgeSecurityOptions(
+                        "Responder", options.Connection.SecurityMode, options.AllowUnsecured,
+                        options.Connection.ApplicationConfiguration?.SecurityConfiguration
+                            .AutoAcceptUntrustedCertificates))
+                : null;
+            logger.WatchingAdapterConfiguration();
             try
             {
-                await host.RunAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
             }
-            finally
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                hotReloadStore?.Dispose();
+                // Normal termination of the configuration-only watcher.
             }
-            return 0;
         }
 
         /// <summary>
@@ -591,10 +787,6 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     bridge = bridge.AddServerAsPublisher(options =>
                     {
                         options.Connection.EndpointUrl = externalEndpoint;
-                        // The demo connects unsecured for zero-config interop. A
-                        // production bridge must use SignAndEncrypt with a provisioned
-                        // application instance certificate.
-                        options.Connection.SecurityMode = MessageSecurityMode.None;
                         options.ReadMode = readMode;
                         options.Affinity = affinity;
                     });
@@ -604,7 +796,6 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     bridge = bridge.AddServerAsSubscriber(options =>
                     {
                         options.Connection.EndpointUrl = externalEndpoint;
-                        options.Connection.SecurityMode = MessageSecurityMode.None;
                     });
                 }
                 if (modes.HasFlag(BridgeMode.Responder))
@@ -612,8 +803,6 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     bridge.AddServerAsActionResponder(options =>
                     {
                         options.Connection.EndpointUrl = externalEndpoint;
-                        options.Connection.SecurityMode = MessageSecurityMode.None;
-                        options.AllowUnsecured = true;
                         // Map the "ResetCounters" action to an external method call.
                         options.MethodMap.Add(
                             "ResetCounters",
@@ -629,20 +818,28 @@ namespace Quickstarts.ConsoleReferencePubSubClient
             });
         }
 
-        private static async Task<(string ConfigFile, XmlPubSubConfigurationStore Store)> ConfigureExternalBridgeHotReloadAsync(
+        private static async Task<(string ConfigFile, XmlPubSubConfigurationStore? Store)>
+            ConfigureExternalBridgeHotReloadAsync(
             HostApplicationBuilder builder,
             BridgeMode modes,
             string pubSubEndpoint,
+            bool validateConfiguration,
             CancellationToken cancellationToken)
         {
             ITelemetryContext telemetry = DefaultTelemetry.Create(logging => logging.AddConsole());
             string configFile = Path.Combine(AppContext.BaseDirectory, "pubsub-config.xml");
-            var store = new XmlPubSubConfigurationStore(configFile, telemetry, watchForChanges: true);
+            XmlPubSubConfigurationStore? store = validateConfiguration
+                ? null
+                : new XmlPubSubConfigurationStore(configFile, telemetry, watchForChanges: true);
+            bool configured = false;
             try
             {
-                await store.SaveAsync(
-                    ExternalServerPubSubConfiguration.BuildConfiguration(modes, pubSubEndpoint),
-                    cancellationToken).ConfigureAwait(false);
+                if (store is not null)
+                {
+                    await store.SaveAsync(
+                        ExternalServerPubSubConfiguration.BuildConfiguration(modes, pubSubEndpoint),
+                        cancellationToken).ConfigureAwait(false);
+                }
 
                 builder.Services.AddOpcUa().AddPubSub(pubsub =>
                 {
@@ -659,10 +856,12 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     bridge = bridge
                         .AddUdpTransport()
                         .ConfigureApplication(app => app.WithApplicationId(
-                            "urn:opcfoundation:ConsoleReferencePubSubClient:ExternalBridge"))
-                        // WithConfigurationStore registers this externally-created singleton instance.
-                        // The sample disposes it after the host stops instead of relying on the container.
-                        .WithConfigurationStore(store);
+                            "urn:opcfoundation:ConsoleReferencePubSubClient:ExternalBridge"));
+                    // Validation uses the same options pipeline without writing or watching an XML file.
+                    bridge = store is null
+                        ? bridge.UseConfiguration(
+                            ExternalServerPubSubConfiguration.BuildConfiguration(modes, pubSubEndpoint))
+                        : bridge.WithConfigurationStore(store);
 
                     if (modes.HasFlag(BridgeMode.Publisher))
                     {
@@ -702,12 +901,15 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                         });
                 }
 
+                configured = true;
                 return (configFile, store);
             }
-            catch
+            finally
             {
-                store.Dispose();
-                throw;
+                if (!configured)
+                {
+                    store?.Dispose();
+                }
             }
         }
 
@@ -838,6 +1040,63 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     return false;
             }
         }
+    }
+
+    /// <summary>
+    /// Sample-host consent applied after binding each adapter options snapshot.
+    /// Library defaults and connection credentials are left unchanged.
+    /// </summary>
+    internal sealed class ExternalBridgeHostPolicy
+    {
+        public ExternalBridgeHostPolicy(
+            IConfiguration configuration,
+            ITelemetryContext telemetry,
+            IOpcUaApplicationConfigurationProvider applicationConfiguration)
+        {
+            m_configuration = configuration;
+            m_logger = telemetry.CreateLogger<ExternalBridgeHostPolicy>();
+            m_applicationConfiguration = applicationConfiguration;
+        }
+
+        internal void Apply(ServerConnectionOptions connection)
+        {
+            // Avoid the adapter's convenience configuration, which auto-accepts untrusted peers.
+            connection.ApplicationConfiguration ??= m_applicationConfiguration.Configuration;
+            connection.ApplicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates = false;
+            bool securityNone = m_configuration.GetValue<bool>(SecurityNoneKey);
+            if (securityNone)
+            {
+                m_logger.UnsecuredExternalConnection();
+                connection.SecurityMode = MessageSecurityMode.None;
+                connection.SecurityPolicyUri = SecurityPolicies.None;
+            }
+            else
+            {
+                connection.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+                if (connection.SecurityPolicyUri == SecurityPolicies.None)
+                {
+                    connection.SecurityPolicyUri = null;
+                }
+            }
+        }
+
+        internal void Apply(ServerActionResponderOptions options)
+        {
+            Apply(options.Connection);
+            bool allowUnsecured = m_configuration.GetValue<bool>(UnsecuredActionsKey);
+            if (allowUnsecured)
+            {
+                m_logger.UnsecuredPubSubActions();
+            }
+            options.AllowUnsecured = allowUnsecured;
+        }
+
+        internal const string SecurityNoneKey = "ExternalBridge:UseSecurityNone";
+        internal const string UnsecuredActionsKey = "ExternalBridge:AllowUnsecuredActions";
+
+        private readonly IConfiguration m_configuration;
+        private readonly ILogger m_logger;
+        private readonly IOpcUaApplicationConfigurationProvider m_applicationConfiguration;
     }
 
     /// <summary>
@@ -994,5 +1253,31 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 6, Level = LogLevel.Information,
             Message = "Bridge started. Press Ctrl-C to exit.")]
         public static partial void BridgeStarted(this ILogger logger);
+
+        [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 7, Level = LogLevel.Information,
+            Message = "{Direction}: SecurityMode={SecurityMode}; AllowUnsecuredActions={AllowUnsecuredActions}; " +
+                "AutoAcceptUntrustedCertificates={AutoAcceptUntrustedCertificates}")]
+        public static partial void BridgeSecurityOptions(
+            this ILogger logger,
+            string direction,
+            MessageSecurityMode securityMode,
+            bool allowUnsecuredActions,
+            bool? autoAcceptUntrustedCertificates);
+
+        [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 8, Level = LogLevel.Warning,
+            Message = "DEVELOPMENT ONLY: --security-none / ExternalBridge:UseSecurityNone enables " +
+                "external OPC UA messages that are not signed or encrypted. " +
+                "Use --security-none=false and provision trusted certificates outside an isolated lab.")]
+        public static partial void UnsecuredExternalConnection(this ILogger logger);
+
+        [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 9, Level = LogLevel.Warning,
+            Message = "DEVELOPMENT ONLY: --allow-unsecured-actions / ExternalBridge:AllowUnsecuredActions " +
+                "accepts unauthenticated PubSub actions that can invoke external server methods. " +
+                "Use --allow-unsecured-actions=false outside an isolated lab.")]
+        public static partial void UnsecuredPubSubActions(this ILogger logger);
+
+        [LoggerMessage(EventId = ConsoleReferencePubSubClientEventIds.Program + 10, Level = LogLevel.Information,
+            Message = "Watching adapter configuration without starting PubSub or connecting. Press Ctrl-C to exit.")]
+        public static partial void WatchingAdapterConfiguration(this ILogger logger);
     }
 }

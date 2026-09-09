@@ -23,6 +23,22 @@ For demonstration only, the sample maps anonymous users to the well-known Operat
 methods can be exercised without user-management setup. A production server should keep the Robot
 Intent command methods role-restricted and grant Operator only to authenticated operator identities.
 
+## Trust and startup configuration
+
+Provision and trust both application certificates before connecting. Untrusted client
+certificates are rejected by default; SecurityPolicy None is not exposed.
+For isolated development, `--auto-accept` (aliases `--autoaccept`, `-a`, `--insecure`)
+accepts untrusted client certificates and warns on stderr. Here `--insecure` is
+**trust-only**: other certificate checks and message security remain enabled.
+Omission or explicit `false` keeps trust enforcement; JSON/configuration cannot enable
+this sample flag. The anonymous Operator mapping does not bypass certificate trust.
+
+`--help` has no host/PKI side effects. Unknown or malformed switches fail on stderr;
+`--port` accepts 1–65535. Named options override positional `key=value` settings,
+then forwarded host arguments and normal JSON/environment configuration. Forward
+other host switches after the sample's `--`, for example
+`--auto-accept=false -- --Logging:LogLevel:Default Warning`.
+
 ## Address space
 
 The standalone Robot Intent node manager creates `Server/RobotIntent/Controllers`. The sample adds

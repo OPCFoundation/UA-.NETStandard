@@ -18,6 +18,28 @@ datasheet that the server is aligned to and that
 `tests/Opc.Ua.Di.Tests/PumpDatasheetConformanceTests.cs` asserts against,
 so document and address space cannot drift apart.
 
+## Trust and startup configuration
+
+Provision and trust both application certificates before connecting. By default the
+server rejects untrusted client certificates and does not expose SecurityPolicy None.
+For isolated development, `--auto-accept` (aliases `--autoaccept`, `-a`) accepts
+untrusted client certificates with a warning on stderr. Other certificate checks and
+message security remain enabled. Omission or explicit `false` keeps trust enforcement;
+JSON/configuration cannot implicitly enable this sample flag.
+
+`--help` exits without creating a host or PKI. Unknown or malformed sample switches
+fail on stderr. `--port` accepts 1–65535 and `--pumps` accepts 1–100.
+Named options override positional `key=value` settings, then forwarded host arguments,
+then normal JSON/environment configuration; omitted options preserve those defaults.
+Forward other host switches after the sample separator, for example:
+
+```powershell
+dotnet run --project samples\DI\PumpDeviceIntegrationServer -- --auto-accept=false -- --Logging:LogLevel:Default Warning
+```
+
+The connector's own trust flag does not configure server trust; the server must trust
+the connector certificate or be explicitly started with the development opt-in.
+
 ## The simulated device
 
 | | |

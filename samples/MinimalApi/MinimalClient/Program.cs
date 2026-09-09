@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.CommandLine;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,24 +40,43 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Alarms;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Samples;
 
-try
+Option<bool> autoAcceptOption = SampleCommandLine.CreateAutoAcceptOption("--autoaccept", "-a");
+var insecureOption = new Option<bool>("--insecure")
 {
-    (string discoveryUrl, bool insecure, bool autoAccept) = ParseArguments(args);
+    Description = "Select SecurityPolicy None (no message signing or encryption); does not trust certificates."
+};
+var discoveryUrlArgument = new Argument<string>("discovery-url")
+{
+    Description = "The OPC UA discovery endpoint URL.",
+    Arity = ArgumentArity.ZeroOrOne,
+    DefaultValueFactory = _ => "opc.tcp://localhost:62541/MinimalBoilerServer"
+};
+discoveryUrlArgument.Validators.Add(result =>
+{
+    if (!Uri.TryCreate(result.GetValueOrDefault<string>(), UriKind.Absolute, out Uri? uri) ||
+        string.IsNullOrEmpty(uri.Host))
+    {
+        result.AddError("The discovery URL must be an absolute endpoint URL, such as opc.tcp://localhost:62541.");
+    }
+});
+var command = new RootCommand("OPC UA Minimal Client: trusted certificates and SignAndEncrypt by default.")
+{
+    autoAcceptOption,
+    insecureOption,
+    discoveryUrlArgument
+};
+command.SetAction(async (result, cancellationToken) =>
+{
+    string discoveryUrl = result.GetValue(discoveryUrlArgument)!;
+    bool insecure = result.GetValue(insecureOption);
+    bool autoAccept = result.GetValue(autoAcceptOption);
 
     Console.WriteLine("OPC UA Minimal Console Client");
     Console.WriteLine("OPC UA library: {0}", Utils.GetAssemblyBuildNumber());
     Console.WriteLine($"Discovery URL: {discoveryUrl}");
-    if (insecure)
-    {
-        Console.Error.WriteLine(
-            "WARNING: --insecure selects an endpoint without message security.");
-    }
-    if (autoAccept)
-    {
-        Console.Error.WriteLine(
-            "WARNING: --auto-accept trusts untrusted server certificates.");
-    }
+    SampleCommandLine.WriteSecurityWarnings(Console.Error, autoAccept, insecure, "server", "--insecure");
     Console.WriteLine();
 
     HostApplicationBuilder builder = Host.CreateApplicationBuilder();
@@ -100,68 +120,24 @@ try
         .AddAlarms();
 
     using IHost host = builder.Build();
-    await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
+    await host.StartAsync(cancellationToken).ConfigureAwait(false);
     try
     {
-        await RunClientAsync(host.Services).ConfigureAwait(false);
+        await RunClientAsync(host.Services, cancellationToken).ConfigureAwait(false);
     }
     finally
     {
         await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
     }
-}
-catch (Exception ex)
-{
-    Console.Error.WriteLine(ex);
-    Environment.ExitCode = 1;
-}
+    return 0;
+});
 
-static (string DiscoveryUrl, bool Insecure, bool AutoAccept) ParseArguments(
-    string[] arguments)
-{
-    const string defaultDiscoveryUrl =
-        "opc.tcp://localhost:62541/MinimalBoilerServer";
-    string? discoveryUrl = null;
-    bool insecure = false;
-    bool autoAccept = false;
+return await SampleCommandLine.InvokeAsync(command, args, Console.Out, Console.Error).ConfigureAwait(false);
 
-    foreach (string argument in arguments)
-    {
-        switch (argument)
-        {
-            case "--insecure":
-                insecure = true;
-                break;
-            case "--auto-accept":
-                autoAccept = true;
-                break;
-            default:
-                if (argument.StartsWith("--", StringComparison.Ordinal))
-                {
-                    throw new ArgumentException(
-                        $"Unknown option '{argument}'.",
-                        nameof(arguments));
-                }
-                if (discoveryUrl != null)
-                {
-                    throw new ArgumentException(
-                        "Only one discovery URL can be specified.",
-                        nameof(arguments));
-                }
-                discoveryUrl = argument;
-                break;
-        }
-    }
-
-    return (discoveryUrl ?? defaultDiscoveryUrl, insecure, autoAccept);
-}
-
-static async Task RunClientAsync(IServiceProvider services)
+static async Task RunClientAsync(IServiceProvider services, CancellationToken cancellationToken)
 {
     Func<CancellationToken, Task<ManagedSession>> connect =
         services.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>();
-    CancellationToken cancellationToken = CancellationToken.None;
-
     Console.WriteLine("Discovering a matching endpoint and creating a session...");
     ManagedSession session = await connect(cancellationToken).ConfigureAwait(false);
 

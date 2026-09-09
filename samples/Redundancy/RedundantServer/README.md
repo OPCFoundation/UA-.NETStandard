@@ -4,13 +4,58 @@ This sample is a minimal Generic Host based OPC UA server that demonstrates the 
 
 The bundled configuration uses the default in-memory shared key/value store. That is useful for understanding the DI wiring and for single-process experimentation, but separate OS processes do not share memory. A real multi-process or multi-host deployment needs a shared backend for `ISharedKeyValueStore` such as Redis; that backend is intentionally deferred from this small sample.
 
+## OPC UA security and explicit lab flags
+
+The executable rejects untrusted client certificates and does not offer None
+by default. Provision a stable `HA_NODE_ID`, application certificate and
+`HA_PKI_ROOT`, then mutually trust verified client/server public certificates or
+issuing chains using the [certificate manager](../../../docs/CertificateManager.md).
+Verify self-signed fingerprints, application URIs, endpoint hostnames and
+validity out of band. Do not share private keys across distinct replica
+identities; transparent redundancy's deliberately shared logical application
+identity is the separately provisioned exception described below.
+
+| Switch / setting | Default | Scope |
+| --- | --- | --- |
+| `--auto-accept` | `false` | Accept unknown OPC UA client certificates for an isolated demonstration; other certificate checks remain in force. |
+| `--security-none` | `false` | Offer an unsigned, unencrypted OPC UA endpoint; does not relax certificate trust on secure endpoints. |
+| `HA_INSECURE` | `false` | Existing HA record-protection / gossip bootstrap opt-out only. It enables neither of the OPC UA switches above. |
+| `HA_PKI_ROOT` | per-node temporary store | Stable application/trust-store location; not an auto-accept setting. |
+
+Both switches accept `=false` and warn only when enabled. Security flags come
+from explicit sample arguments, not generic-host JSON/environment or
+`AutoAcceptUntrustedCertificates=true` assignments. There are no new OPC UA
+security environment aliases. Container entrypoints must forward the exact
+`--auto-accept` and/or `--security-none` arguments for their explicit lab modes;
+setting `HA_INSECURE=true` alone is insufficient. Docker/Compose changes are a
+separate workstream.
+
+Ordinary host keys retain generic-host configuration precedence: explicit
+sample switches override positional `key=value` and then forwarded host settings
+after a second `--`. `--help` and malformed/unknown switches do not initialize
+HA, certificates or listeners.
+
+For a single-instance unsecured lab only:
+
+```powershell
+dotnet run --project samples\Redundancy\RedundantServer\RedundantServer.csproj -- `
+  --port 62543 --security-none
+```
+
+For an encrypted lab with unknown client certificates, use `--auto-accept`
+instead; do not add `--security-none`. Neither choice provides the record
+protection or authenticated gossip required for a distributed production setup.
+
 ## Run one instance
 
 ```powershell
 dotnet run --project samples\Redundancy\RedundantServer\RedundantServer.csproj -- --port 62543
 ```
 
-Connect an OPC UA client to `opc.tcp://localhost:62543/RedundantServer` and browse to `Objects/High Availability`. The `Counter` variable is writable and is also incremented once per second while this server is leader. `ActiveReplica` shows the local active writer label.
+Connect a mutually trusted OPC UA client using `SignAndEncrypt` to
+`opc.tcp://localhost:62543/RedundantServer` and browse to `Objects/High Availability`.
+The `Counter` variable is writable and is also incremented once per second while
+this server is leader. `ActiveReplica` shows the local active writer label.
 
 The startup output shows the effective OPC UA redundancy value and the ServiceLevel subrange that clients read. For example, with `HA_NODE_ID=replica-a`:
 

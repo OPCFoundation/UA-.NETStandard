@@ -187,6 +187,14 @@ namespace Opc.Ua.OpenUsd.Connector
             // an unsecured endpoint and blanket certificate acceptance, which is only
             // appropriate for a localhost demo with self-signed certificates.
             bool insecure = options.Insecure;
+            if (insecure)
+            {
+                Console.Error.WriteLine(
+                    "WARNING: --insecure requests an unsecured endpoint (least-secure fallback if None is "
+                    + "unavailable) and accepts any server-certificate validation error, not only unknown trust. "
+                    + "This also applies to sessions opened by --federate. Use only for isolated testing; "
+                    + "this does not enable command writes.");
+            }
 
             // Command bindings (UsdToUaCommand) are opt-in and disabled by default
             // (fail-closed). --enable-commands lets the connector actuate the single
@@ -242,8 +250,6 @@ namespace Opc.Ua.OpenUsd.Connector
             {
                 // Demo-only: accept any server certificate.
                 config.CertificateManager.AcceptError = static (cert, err) => true;
-                Console.WriteLine(
-                    "WARNING: --insecure: using an unsecured endpoint and accepting any server certificate.");
             }
 
             Console.WriteLine($"Connecting to {server} ...");

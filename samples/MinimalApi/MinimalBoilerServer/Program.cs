@@ -27,18 +27,56 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.CommandLine;
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Samples;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+Option<bool> autoAcceptOption = SampleCommandLine.CreateAutoAcceptOption("--autoaccept", "-a");
+Option<string> portOption = SampleCommandLine.CreateInt32ConfigurationOption(
+    "--port", "Endpoint port (default 62541).", 1, 65535);
+Argument<string[]> configurationArgument = SampleCommandLine.CreateConfigurationArgument();
+(string[] sampleArguments, string[] forwardedArguments) = SampleCommandLine.SplitHostArguments(args);
+var command = new RootCommand("OPC UA Minimal Boiler Server: trusted certificates and secure endpoints by default.")
+{
+    autoAcceptOption,
+    portOption,
+    configurationArgument
+};
+command.Validators.Add(result =>
+{
+    if (SampleCommandLine.GetHostArgumentError(forwardedArguments) is string error)
+    {
+        result.AddError(error);
+    }
+});
+ParseResult? parsed = null;
+command.SetAction(result => parsed = result);
+int exitCode = await SampleCommandLine.InvokeAsync(
+    command, sampleArguments, Console.Out, Console.Error).ConfigureAwait(false);
+if (parsed is null)
+{
+    return exitCode;
+}
+bool autoAccept = parsed.GetValue(autoAcceptOption);
+SampleCommandLine.WriteSecurityWarnings(Console.Error, autoAccept, false, "client", string.Empty);
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(
+    SampleCommandLine.GetHostArguments(parsed, forwardedArguments, configurationArgument, portOption));
 const string applicationName = "MinimalBoilerServer";
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62541;
+int port = 62541;
+if (builder.Configuration["port"] is string configuredPort &&
+    (!int.TryParse(configuredPort, out port) || port is < 1 or > 65535))
+{
+    Console.Error.WriteLine("The configured port must be an integer between 1 and 65535. Use --help.");
+    return 1;
+}
 
 builder.Services
     .AddOpcUa()
@@ -48,7 +86,8 @@ builder.Services
         o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalBoilerServer";
         o.ProductUri = "uri:opcfoundation.org:MinimalBoilerServer";
         // Sample convenience only; never auto-accept untrusted certificates in production.
-        o.AutoAcceptUntrustedCertificates = true;
+        o.AutoAcceptUntrustedCertificates = autoAccept;
+        o.IncludeUnsecurePolicyNone = false;
         o.PkiRoot = Path.Combine(
             Path.GetTempPath(),
             "OPC Foundation",
@@ -61,3 +100,4 @@ builder.Services
     .AddNodeManager<Boiler.BoilerNodeManagerFactory>();
 
 await builder.Build().RunAsync().ConfigureAwait(false);
+return 0;

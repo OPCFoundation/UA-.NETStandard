@@ -1,0 +1,266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opcfoundation.org/schemas/ua-netstandard/release-evidence-v2.schema.json",
+  "title": "OPC UA .NET release evidence companion v2",
+  "description": "Structural validation only; identity, trust, scope and completeness require independent verification.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "source", "producer", "release", "policy",
+    "artifacts", "documents", "assurance", "assessment"
+  ],
+  "properties": {
+    "schemaVersion": {"type": "integer", "const": 2},
+    "source": {"$ref": "#/$defs/source"},
+    "producer": {"$ref": "#/$defs/producer"},
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group", "version", "channel"],
+      "properties": {
+        "group": {"enum": ["nuget", "containers", "pump"]},
+        "version": {"$ref": "#/$defs/text"},
+        "channel": {"enum": ["stable", "preview", "development"]}
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "digest", "stage"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"},
+        "version": {"$ref": "#/$defs/text"},
+        "digest": {"$ref": "#/$defs/digest"},
+        "stage": {"enum": ["pilot", "required"]}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/artifact"}
+    },
+    "documents": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/document"}
+    },
+    "assurance": {"$ref": "#/$defs/assurance"},
+    "assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "unmetControls"],
+      "properties": {
+        "status": {"enum": ["complete", "incomplete"]},
+        "unmetControls": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/control"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1},
+    "count": {"type": "integer", "minimum": 0},
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)[A-Za-z0-9._/-]*[A-Za-z0-9._-]$"
+    },
+    "strings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/text"}
+    },
+    "configuration": {"enum": ["Release", "Debug", "not-applicable"]},
+    "control": {
+      "enum": [
+        "EVIDENCE_SCHEMA", "SOURCE_IDENTITY", "PRODUCER_IDENTITY", "POLICY_IDENTITY",
+        "RELEASE_INTENT", "ARTIFACT_MEMBERSHIP", "ARTIFACT_INTEGRITY", "INVENTORY_COMPLETE",
+        "PROVENANCE_VERIFIED", "SIGNATURE_VERIFIED", "ASSURANCE_COMPLETE", "INPUT_IDENTITY",
+        "EVIDENCE_FRESHNESS", "PUBLIC_EVIDENCE_SAFE", "PRODUCER_NOT_READY", "PUBLISHER_BOUNDARY"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "actualSha", "actualRef", "trackedClean"],
+      "properties": {
+        "repository": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+        "actualSha": {"$ref": "#/$defs/sha"},
+        "actualRef": {"type": "string", "pattern": "^refs/[^\\s]+$"},
+        "trackedClean": {"type": "boolean"},
+        "eventSha": {"$ref": "#/$defs/sha"},
+        "pullRequestHeadSha": {"$ref": "#/$defs/sha"},
+        "syntheticMergeSha": {"$ref": "#/$defs/sha"}
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["system", "workflow", "definitionSha", "runId", "attempt", "job", "tools"],
+      "properties": {
+        "system": {"enum": ["github-actions", "azure-pipelines"]},
+        "workflow": {"$ref": "#/$defs/path"},
+        "definitionSha": {"$ref": "#/$defs/sha"},
+        "runId": {"$ref": "#/$defs/text"},
+        "attempt": {"type": "integer", "minimum": 1},
+        "job": {"$ref": "#/$defs/text"},
+        "startedAt": {"type": "string", "format": "date-time"},
+        "completedAt": {"type": "string", "format": "date-time"},
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "version"],
+            "properties": {
+              "id": {"$ref": "#/$defs/text"},
+              "version": {"$ref": "#/$defs/text"},
+              "digest": {"$ref": "#/$defs/digest"}
+            }
+          }
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id", "version", "configuration", "digest", "scopes"],
+      "properties": {
+        "kind": {"enum": ["nuget-package", "nuget-symbols", "oci-index", "oci-manifest"]},
+        "id": {"$ref": "#/$defs/text"},
+        "version": {"$ref": "#/$defs/text"},
+        "configuration": {"$ref": "#/$defs/configuration"},
+        "digest": {"$ref": "#/$defs/digest"},
+        "size": {"$ref": "#/$defs/count"},
+        "scopes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tfms", "rids", "roslyn", "platforms"],
+          "properties": {
+            "tfms": {"$ref": "#/$defs/strings"},
+            "rids": {"$ref": "#/$defs/strings"},
+            "roslyn": {"$ref": "#/$defs/strings"},
+            "platforms": {"$ref": "#/$defs/strings"}
+          }
+        }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id", "digest"],
+      "properties": {
+        "kind": {"enum": ["nuget-package", "nuget-symbols", "oci-index", "oci-manifest", "artifact-set", "source"]},
+        "id": {"$ref": "#/$defs/text"},
+        "digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "format", "version", "path", "digest", "subject"],
+      "properties": {
+        "type": {
+          "enum": [
+            "archive-manifest", "artifact-catalog", "policy", "profile",
+            "sbom", "inventory", "provenance", "assurance-summary", "input-manifest",
+            "source-record", "producer-record", "release-intent", "signature-verification"
+          ]
+        },
+        "format": {"enum": ["json", "CycloneDX", "SPDX", "in-toto"]},
+        "version": {"$ref": "#/$defs/text"},
+        "path": {"$ref": "#/$defs/path"},
+        "digest": {"$ref": "#/$defs/digest"},
+        "subject": {"$ref": "#/$defs/subject"}
+      }
+    },
+    "assurance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profiles", "expected", "selected", "completed", "failed", "missing",
+        "notApplicable", "jobs", "inputIdentities"
+      ],
+      "properties": {
+        "profiles": {"$ref": "#/$defs/strings"},
+        "expected": {"$ref": "#/$defs/count"},
+        "selected": {"$ref": "#/$defs/count"},
+        "completed": {"$ref": "#/$defs/count"},
+        "failed": {"$ref": "#/$defs/count"},
+        "missing": {"$ref": "#/$defs/count"},
+        "notApplicable": {"$ref": "#/$defs/count"},
+        "jobs": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/job"}
+        },
+        "inputIdentities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "kind", "path", "digest"],
+            "properties": {
+              "id": {"$ref": "#/$defs/text"},
+              "kind": {
+                "enum": [
+                  "catalog", "profile", "policy", "source-manifest", "build-graph",
+                  "target-manifest", "sanitized-corpus-manifest", "analysis-configuration"
+                ]
+              },
+              "path": {"$ref": "#/$defs/path"},
+              "digest": {"$ref": "#/$defs/digest"}
+            }
+          }
+        }
+      }
+    },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "profile", "project", "configuration", "host", "hostTfm", "libraryTfm",
+        "platform", "shard", "filter", "selected", "status", "inputIds"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"},
+        "profile": {"$ref": "#/$defs/text"},
+        "project": {"$ref": "#/$defs/path"},
+        "configuration": {"$ref": "#/$defs/configuration"},
+        "host": {"enum": ["windows", "linux", "macos"]},
+        "hostTfm": {"$ref": "#/$defs/text"},
+        "libraryTfm": {"$ref": "#/$defs/text"},
+        "platform": {"$ref": "#/$defs/text"},
+        "shard": {"$ref": "#/$defs/text"},
+        "filter": {"type": "string"},
+        "selected": {"type": "boolean"},
+        "status": {"enum": ["completed", "failed", "missing", "not-applicable"]},
+        "inputIds": {"$ref": "#/$defs/strings"},
+        "sourceSha": {"$ref": "#/$defs/sha"},
+        "producer": {"$ref": "#/$defs/producer"},
+        "resultDocument": {"$ref": "#/$defs/path"},
+        "notApplicableRule": {"enum": ["network-unsupported-tfm", "aot-unsupported-tfm"]},
+        "counts": {"$ref": "#/$defs/resultCounts"}
+      }
+    },
+    "resultCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "total": {"$ref": "#/$defs/count"},
+        "executed": {"$ref": "#/$defs/count"},
+        "passed": {"$ref": "#/$defs/count"},
+        "failed": {"$ref": "#/$defs/count"},
+        "skipped": {"$ref": "#/$defs/count"},
+        "expectedTargets": {"$ref": "#/$defs/count"},
+        "executedTargets": {"$ref": "#/$defs/count"},
+        "expectedInputs": {"$ref": "#/$defs/count"},
+        "executedInputs": {"$ref": "#/$defs/count"},
+        "analyzedProjects": {"$ref": "#/$defs/count"},
+        "findings": {"$ref": "#/$defs/count"},
+        "unresolvedFindings": {"$ref": "#/$defs/count"}
+      }
+    }
+  }
+}

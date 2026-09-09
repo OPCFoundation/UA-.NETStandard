@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opcfoundation.org/schemas/ua-netstandard/nuget-delivery-verification-v1.schema.json",
+  "title": "Scoped approved primary-signature and payload delivery verification, not release authorization",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "status", "baselineFailed", "signatureVerificationPerformed",
+    "authorDigest", "deliveredDigest", "evidenceDigest", "unmetControls"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "status": { "enum": ["artifact-delivery-verified", "incomplete"] },
+    "baselineFailed": { "type": "boolean" },
+    "signatureVerificationPerformed": { "type": "boolean" },
+    "authorDigest": { "$ref": "#/$defs/digest" },
+    "deliveredDigest": { "$ref": "#/$defs/digest" },
+    "evidenceDigest": { "$ref": "#/$defs/digest" },
+    "policyDigest": { "$ref": "#/$defs/digest" },
+    "signerDigest": { "$ref": "#/$defs/digest" },
+    "unmetControls": {
+      "type": "array", "uniqueItems": true,
+      "items": { "const": "SIGNATURE_VERIFIED" }
+    }
+  },
+  "allOf": [{
+    "if": { "properties": { "status": { "const": "artifact-delivery-verified" } } },
+    "then": {
+      "required": ["policyDigest", "signerDigest"],
+      "properties": {
+        "baselineFailed": { "const": false },
+        "signatureVerificationPerformed": { "const": true },
+        "unmetControls": { "maxItems": 0 }
+      }
+    }
+  }],
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  }
+}

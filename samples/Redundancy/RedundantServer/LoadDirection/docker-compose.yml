@@ -21,7 +21,9 @@ x-ld-server: &ld-server
     context: ../../../..
     dockerfile: samples/Redundancy/RedundantServer/Dockerfile
   image: opcua-redundant-server
-  command: ["--port", "62543"]
+  labels:
+    org.opcfoundation.sample.posture: isolated-insecure-demo
+  command: ["--port", "62543", "--auto-accept", "--security-none"]
 
 services:
   server-a:
@@ -29,6 +31,7 @@ services:
     hostname: server-a
     environment:
       HA_HOST: server-a
+      HA_INSECURE: ${HA_INSECURE:-true}
       HA_NODE_ID: replica-a
       HA_MODE: ap
       HA_CONSISTENCY: strong
@@ -47,6 +50,7 @@ services:
     hostname: server-b
     environment:
       HA_HOST: server-b
+      HA_INSECURE: ${HA_INSECURE:-true}
       HA_NODE_ID: replica-b
       HA_MODE: ap
       HA_CONSISTENCY: strong
@@ -65,6 +69,7 @@ services:
     hostname: server-c
     environment:
       HA_HOST: server-c
+      HA_INSECURE: ${HA_INSECURE:-true}
       HA_NODE_ID: replica-c
       HA_MODE: ap
       HA_CONSISTENCY: strong

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.CommandLine;
 using System.IO;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,14 +37,52 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.AI.Inference;
 using Opc.Ua.AI.Server;
 using Opc.Ua.AI.Server.Hosting;
+using Opc.Ua.Samples;
 using Opc.Ua.Server.Fluent;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+Option<bool> autoAcceptOption = SampleCommandLine.CreateAutoAcceptOption("--autoaccept", "-a");
+Option<string> portOption = SampleCommandLine.CreateInt32ConfigurationOption(
+    "--port", "Endpoint port (default 62640).", 1, 65535);
+var hostOption = new Option<string>("--host") { Description = "Endpoint host (default 0.0.0.0)." };
+Argument<string[]> configurationArgument = SampleCommandLine.CreateConfigurationArgument();
+(string[] sampleArguments, string[] forwardedArguments) = SampleCommandLine.SplitHostArguments(args);
+var command = new RootCommand("OPC UA AI Model Management Server: trusted certificates and secure endpoints.")
+{
+    autoAcceptOption,
+    portOption,
+    hostOption,
+    configurationArgument
+};
+command.Validators.Add(result =>
+{
+    if (SampleCommandLine.GetHostArgumentError(forwardedArguments) is string error)
+    {
+        result.AddError(error);
+    }
+});
+ParseResult? parsed = null;
+command.SetAction(result => parsed = result);
+int exitCode = await SampleCommandLine.InvokeAsync(
+    command, sampleArguments, Console.Out, Console.Error).ConfigureAwait(false);
+if (parsed is null)
+{
+    return exitCode;
+}
+bool autoAccept = parsed.GetValue(autoAcceptOption);
+SampleCommandLine.WriteSecurityWarnings(Console.Error, autoAccept, false, "client", string.Empty);
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(SampleCommandLine.GetHostArguments(
+    parsed, forwardedArguments, configurationArgument, portOption, hostOption));
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62640;
+int port = 62640;
+if (builder.Configuration["port"] is string configuredPort &&
+    (!int.TryParse(configuredPort, out port) || port is < 1 or > 65535))
+{
+    Console.Error.WriteLine("The configured port must be an integer between 1 and 65535. Use --help.");
+    return 1;
+}
 
 // 0.0.0.0 so the Server is reachable from outside a container. Override with
 // --host for local-only development.
@@ -64,7 +103,8 @@ builder.Services
         o.ProductUri = "uri:opcfoundation.org:ModelManagementServer";
         // Sample convenience only; never auto-accept untrusted certificates in
         // production.
-        o.AutoAcceptUntrustedCertificates = true;
+        o.AutoAcceptUntrustedCertificates = autoAccept;
+        o.IncludeUnsecurePolicyNone = false;
         o.PkiRoot = Path.Combine(AppContext.BaseDirectory, "pki");
         o.RejectSHA1Certificates = true;
         o.MinCertificateKeySize = 2048;

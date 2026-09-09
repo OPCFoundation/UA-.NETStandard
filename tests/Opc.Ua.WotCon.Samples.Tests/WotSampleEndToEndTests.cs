@@ -37,11 +37,13 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
-using NUnit.Framework;
-using Opc.Ua.Client;
-using Opc.Ua.WotCon.Client;
 using AggregationClient;
 using FlatTagServer;
+using Microsoft.Extensions.DependencyInjection;
+using NUnit.Framework;
+using Opc.Ua.Client;
+using Opc.Ua.WotCon.Bindings.OpcUa;
+using Opc.Ua.WotCon.Client;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
@@ -62,6 +64,105 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
         private const string kWotConNamespaceUri = "http://opcfoundation.org/UA/WoT-Con/";
         private const string kPumpsNamespaceUri = "http://opcfoundation.org/UA/Pumps/";
+
+        [TestCase(true, MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256)]
+        [TestCase(false, MessageSecurityMode.None, SecurityPolicies.None)]
+        public async Task UpstreamFactorySelectsConfiguredEndpointAsync(
+            bool secure, MessageSecurityMode expectedMode, string expectedPolicy)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(40));
+            await using WotSampleEnvironment environment = await WotSampleEnvironment
+                .StartAsync(timeout.Token, secure: secure).ConfigureAwait(false);
+            OpcUaWotBindingOptions binding = environment.AggregationHost.Services
+                .GetRequiredService<OpcUaWotBindingOptions>();
+            ISession session = await binding.SessionFactory!(
+                environment.ClientOptions.SourceAEndpoint, timeout.Token).ConfigureAwait(false);
+            Assert.That(session.ConfiguredEndpoint.Description.SecurityMode,
+                Is.EqualTo(expectedMode));
+            Assert.That(session.ConfiguredEndpoint.Description.SecurityPolicyUri,
+                Is.EqualTo(expectedPolicy));
+        }
+
+        [Test]
+        public async Task UnsupportedUpstreamPolicyFailsWithoutDowngradeOrReconnectLoopAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(40));
+            await using WotSampleEnvironment environment = await WotSampleEnvironment
+                .StartAsync(timeout.Token, secure: true, aggregationSecurityNone: true).ConfigureAwait(false);
+            OpcUaWotBindingOptions binding = environment.AggregationHost.Services
+                .GetRequiredService<OpcUaWotBindingOptions>();
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await binding.SessionFactory!(
+                    environment.ClientOptions.SourceAEndpoint, timeout.Token).ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+        }
+
+        [Test]
+        public async Task EncryptedRegistryManagementAuthenticatesAdministratorAndRejectsAnonymousAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+            await using WotSampleEnvironment environment = await WotSampleEnvironment
+                .StartAsync(timeout.Token, secure: true).ConfigureAwait(false);
+            await using (WotClientConnection administrator = await environment.ConnectAsync(timeout.Token)
+                .ConfigureAwait(false))
+            {
+                WotRegistryRefreshResult refresh = await administrator.Registry
+                    .RefreshAllAsync(ct: timeout.Token).ConfigureAwait(false);
+                Assert.That(refresh.HasFailures, Is.False);
+                Assert.That(administrator.Session.Identity.TokenType, Is.EqualTo(UserTokenType.UserName));
+            }
+            AggregationClientOptions anonymousOptions = environment.CreateClientOptions(environment.DocumentsDirectory);
+            anonymousOptions.IdentityProvider = null;
+            await using WotClientConnection anonymous = await WotClientConnection
+                .CreateAsync(anonymousOptions, timeout.Token).ConfigureAwait(false);
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await anonymous.Registry.RefreshAllAsync(ct: timeout.Token).ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            await using OpcUaClientConnection source = await environment.ConnectSourceAAsync(timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(source.Session.ConfiguredEndpoint.Description.SecurityMode,
+                Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+            Assert.That(source.Session.Identity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
+        }
+
+        [Test]
+        public async Task AuthenticatedUserWithoutSecurityAdminCannotManageRegistryAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(40));
+            await using WotSampleEnvironment environment = await WotSampleEnvironment
+                .StartAsync(timeout.Token, secure: true, grantSecurityAdmin: false).ConfigureAwait(false);
+            await using WotClientConnection connection = await environment.ConnectAsync(timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(connection.Session.Identity.TokenType, Is.EqualTo(UserTokenType.UserName));
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await connection.Registry.RefreshAllAsync(ct: timeout.Token).ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [Test]
+        public async Task ProvisionedPeersAggregateUsingEncryptedUpstreamConnectionsAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(4));
+            await using WotSampleEnvironment environment = await WotSampleEnvironment
+                .StartAsync(timeout.Token, secure: true).ConfigureAwait(false);
+            AggregationClientResult result = await AggregationClientRunner
+                .RunAsync(environment.ClientOptions, timeout.Token).ConfigureAwait(false);
+            Assert.That(result.Pumps, Has.Count.EqualTo(2));
+            Assert.That(result.LoadResult.Refresh!.HasFailures, Is.False);
+            foreach (WotPumpResult pump in result.Pumps)
+            {
+                Assert.That(pump.Values, Has.Count.EqualTo(15), pump.Name);
+                Assert.That(
+                    pump.Values.ToList().All(value => value.StatusCode == StatusCodes.Good),
+                    Is.True,
+                    pump.Name);
+            }
+            await using WotClientConnection connection = await environment.ConnectAsync(timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(connection.Session.ConfiguredEndpoint.Description.SecurityMode,
+                Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+            Assert.That(connection.Session.Identity.TokenType, Is.EqualTo(UserTokenType.UserName));
+        }
 
         [Test]
         public async Task RealSamplesAggregateSubscribeAndReplaceGenerationAsync()

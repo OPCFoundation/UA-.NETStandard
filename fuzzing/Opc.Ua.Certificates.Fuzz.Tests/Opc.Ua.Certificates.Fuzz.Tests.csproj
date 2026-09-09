@@ -45,23 +45,23 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Opc.Ua.Certificates.Fuzz.Corpus\Testcases.X509Cert\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\X509Cert\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\Opc.Ua.Certificates.Fuzz.Corpus\Testcases.X509CRL\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\X509CRL\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\Opc.Ua.Certificates.Fuzz.Corpus\Testcases.X509CSR\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\X509CSR\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\Opc.Ua.Certificates.Fuzz.Corpus\Testcases.PEM\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\PEM\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\Opc.Ua.Certificates.Fuzz.Corpus\Testcases.ASN1\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\ASN1\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Assets\**">

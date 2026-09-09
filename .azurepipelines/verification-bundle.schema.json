@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opcfoundation.org/schemas/ua-netstandard/verification-bundle-v1.schema.json",
+  "title": "Portable untrusted release verification proof references",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "proofs"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "proofs": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["authorityId", "recordPath", "bundlePath"],
+        "properties": {
+          "authorityId": { "type": "string", "minLength": 1 },
+          "recordPath": { "$ref": "#/$defs/path" },
+          "bundlePath": { "$ref": "#/$defs/path" }
+        }
+      }
+    },
+    "ociRequestPath": { "$ref": "#/$defs/path" },
+    "codeqlReviews": {
+      "description": "Independent signed analysis reviews created before the envelope; never hash the referencing envelope.",
+      "type": "array",
+      "maxItems": 16,
+      "items": { "$ref": "#/properties/proofs/items" }
+    },
+    "nativeNuget": {
+      "type": "array", "maxItems": 3,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["role", "authorityId", "bundlePath", "digest"],
+        "properties": {
+          "role": { "enum": ["index", "Release", "Debug"] },
+          "authorityId": { "type": "string", "minLength": 1 },
+          "bundlePath": { "$ref": "#/$defs/path" },
+          "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "indexPath": { "$ref": "#/$defs/path" }
+        },
+        "allOf": [{
+          "if": { "required": ["indexPath"] },
+          "then": { "properties": { "role": { "const": "index" } } }
+        }]
+      }
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)[A-Za-z0-9._/-]*[A-Za-z0-9._-]$"
+    }
+  }
+}

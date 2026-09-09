@@ -29,6 +29,7 @@
 
 using System;
 using Opc.Ua;
+using Opc.Ua.Identity;
 using Opc.Ua.WotCon.Client;
 
 namespace AggregationClient
@@ -65,6 +66,22 @@ namespace AggregationClient
         /// Gets or sets the isolated PKI root.
         /// </summary>
         public string? PkiRoot { get; set; }
+
+        /// <summary>
+        /// Gets or sets an explicit development-only exception for untrusted server certificates.
+        /// </summary>
+        public bool AutoAcceptUntrustedCertificates { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether to select unsecured endpoints for an isolated demonstration.
+        /// </summary>
+        public bool UseSecurityPolicyNone { get; set; }
+
+        /// <summary>
+        /// Gets or sets the authenticated identity provider used for registry management.
+        /// Secrets are resolved by the provider, not stored in these options.
+        /// </summary>
+        public IClientIdentityProvider? IdentityProvider { get; set; }
 
         /// <summary>
         /// Gets or sets the directory containing documents.json and its documents.

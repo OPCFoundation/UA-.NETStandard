@@ -28,108 +28,151 @@
  * ======================================================================*/
 
 using System;
+using System.CommandLine;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OnboardingRegistrar;
 using Opc.Ua;
 using Opc.Ua.Gds.Server.Onboarding;
+using Opc.Ua.Samples;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
 using Opc.Ua.Server.UserManagement;
-using OnboardingRegistrar;
 
-try
+Option<bool> autoAcceptOption = SampleCommandLine.CreateAutoAcceptOption();
+Argument<string[]> configurationArgument = SampleCommandLine.CreateConfigurationArgument();
+(string[] sampleArguments, string[] forwardedArguments) = SampleCommandLine.SplitHostArguments(args);
+Option<string>[] hostOptions =
+[
+    SampleCommandLine.CreateInt32ConfigurationOption("--port", "Registrar TCP port.", 1, 65535),
+    new("--pkiRoot") { Description = "Persistent application PKI root." }
+];
+var command = new RootCommand(
+    "Onboarding registrar. Pre-provision client trust; --auto-accept is controlled bootstrap consent only.")
 {
-    HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-    builder.Logging.ClearProviders();
-    builder.Logging.AddConsole();
-
-    int port = int.TryParse(builder.Configuration["port"], out int configuredPort)
-        ? configuredPort
-        : 62560;
-    string pkiRoot = builder.Configuration["pkiRoot"] ??
-        Path.Combine(
-            Path.GetTempPath(),
-            "opcua-onboarding-demo",
-            "registrar-pki");
-    string endpoint = $"opc.tcp://localhost:{port}/OnboardingRegistrar";
-    string userName = GetRequiredEnvironmentVariable("ONBOARDING_DEMO_USER");
-    string password = GetRequiredEnvironmentVariable("ONBOARDING_DEMO_PASSWORD");
-    var userDatabase = new LinqUserDatabase();
-    byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
+    autoAcceptOption, configurationArgument
+};
+foreach (Option<string> option in hostOptions)
+{
+    command.Add(option);
+}
+command.Validators.Add(result =>
+{
+    string? error = SampleCommandLine.GetHostArgumentError(forwardedArguments);
+    if (error is not null)
+    {
+        result.AddError(error);
+    }
+});
+command.SetAction(async (result, cancellationToken) =>
+{
     try
     {
-        if (!userDatabase.CreateUser(
-            userName,
-            passwordBytes,
-            [Role.AuthenticatedUser]))
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder(
+            SampleCommandLine.GetHostArguments(result, forwardedArguments, configurationArgument, hostOptions));
+        bool autoAccept = result.GetValue(autoAcceptOption);
+        SampleCommandLine.WriteSecurityWarnings(Console.Error, autoAccept, false, "client", string.Empty);
+        if (autoAccept)
         {
-            throw new InvalidOperationException(
-                "Could not create the onboarding demo administrator.");
+            Console.Error.WriteLine(
+                "WARNING: controlled bootstrap only: restrict network access and independently verify enrolling " +
+                "application identities. RegistrarAdmin and ticket authorization remain required.");
         }
-    }
-    finally
-    {
-        CryptographicOperations.ZeroMemory(passwordBytes);
-    }
-    builder.Services.AddSingleton<ITicketStore>(_ => new MemoryTicketStore());
-    builder.Services.AddSingleton<IUserDatabase>(userDatabase);
-    builder.Services.AddSingleton<IUserManagement>(services =>
-        new UserManagement(services.GetRequiredService<IUserDatabase>()));
-    builder.Services.AddSingleton<IServerStartupTask>(
-        new OnboardingReadyStartupTask(endpoint));
-    builder.Services
-        .AddOpcUa()
-        .AddServer(options =>
-        {
-            options.ApplicationName = "OnboardingRegistrar";
-            options.ApplicationUri =
-                "urn:localhost:OPCFoundation:OnboardingRegistrar";
-            options.ProductUri =
-                "uri:opcfoundation.org:UA-.NETStandard:OnboardingRegistrar";
-            options.PkiRoot = pkiRoot;
-            options.AutoAcceptUntrustedCertificates = true;
-            options.RejectSHA1Certificates = true;
-            options.MinCertificateKeySize = 2048;
-            options.IncludeSignAndEncryptPolicies = true;
-            options.IncludeUnsecurePolicyNone = false;
-            options.IncludeEccPolicies = false;
-            options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
-            {
-                TokenType = UserTokenType.Anonymous
-            });
-            options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
-            {
-                TokenType = UserTokenType.UserName
-            });
-            options.EndpointUrls.Add(endpoint);
-        })
-        .AddDefaultIdentityAuthenticators(options =>
-        {
-            options.EnableAnonymous = true;
-            options.EnableUserNamePassword = true;
-            options.EnableX509 = false;
-            options.EnableJwt = false;
-        })
-        .AddIdentityAugmenter(_ =>
-            new OnboardingRegistrarAdminAugmenter(userName))
-        .AddNodeManager<OnboardingRegistrarNodeManagerFactory>();
+        builder.Logging.ClearProviders();
+        builder.Logging.AddConsole();
 
-    using IHost host = builder.Build();
-    await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
-    await host.WaitForShutdownAsync(CancellationToken.None).ConfigureAwait(false);
-    return 0;
-}
-catch (Exception ex)
-{
-    Console.Error.WriteLine(ex);
-    return 1;
-}
+        string? portText = builder.Configuration["port"];
+        int port = 62560;
+        if (portText is not null && (!int.TryParse(portText, out port) || port is < 1 or > 65535))
+        {
+            throw new ArgumentException("port must be an integer between 1 and 65535.");
+        }
+        string pkiRoot = builder.Configuration["pkiRoot"] ??
+            Path.Combine(
+                Path.GetTempPath(),
+                "opcua-onboarding-demo",
+                "registrar-pki");
+        string endpoint = $"opc.tcp://localhost:{port}/OnboardingRegistrar";
+        string userName = GetRequiredEnvironmentVariable("ONBOARDING_DEMO_USER");
+        string password = GetRequiredEnvironmentVariable("ONBOARDING_DEMO_PASSWORD");
+        var userDatabase = new LinqUserDatabase();
+        byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
+        try
+        {
+            if (!userDatabase.CreateUser(
+                userName,
+                passwordBytes,
+                [Role.AuthenticatedUser]))
+            {
+                throw new InvalidOperationException(
+                    "Could not create the onboarding demo administrator.");
+            }
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(passwordBytes);
+        }
+        builder.Services.AddSingleton<ITicketStore>(_ => new MemoryTicketStore());
+        builder.Services.AddSingleton<IUserDatabase>(userDatabase);
+        builder.Services.AddSingleton<IUserManagement>(services =>
+            new UserManagement(services.GetRequiredService<IUserDatabase>()));
+        builder.Services.AddSingleton<IServerStartupTask>(
+            new OnboardingReadyStartupTask(endpoint));
+        builder.Services
+            .AddOpcUa()
+            .AddServer(options =>
+            {
+                options.ApplicationName = "OnboardingRegistrar";
+                options.ApplicationUri =
+                    "urn:localhost:OPCFoundation:OnboardingRegistrar";
+                options.ProductUri =
+                    "uri:opcfoundation.org:UA-.NETStandard:OnboardingRegistrar";
+                options.PkiRoot = pkiRoot;
+                options.AutoAcceptUntrustedCertificates = autoAccept;
+                options.RejectSHA1Certificates = true;
+                options.MinCertificateKeySize = 2048;
+                options.IncludeSignAndEncryptPolicies = true;
+                options.IncludeUnsecurePolicyNone = false;
+                options.IncludeEccPolicies = false;
+                options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
+                {
+                    TokenType = UserTokenType.Anonymous
+                });
+                options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
+                {
+                    TokenType = UserTokenType.UserName
+                });
+                options.EndpointUrls.Add(endpoint);
+            })
+            .AddDefaultIdentityAuthenticators(options =>
+            {
+                options.EnableAnonymous = true;
+                options.EnableUserNamePassword = true;
+                options.EnableX509 = false;
+                options.EnableJwt = false;
+            })
+            .AddIdentityAugmenter(_ =>
+                new OnboardingRegistrarAdminAugmenter(userName))
+            .AddNodeManager<OnboardingRegistrarNodeManagerFactory>();
+
+        using IHost host = builder.Build();
+        await host.RunAsync(cancellationToken).ConfigureAwait(false);
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine(ex);
+        return 1;
+    }
+});
+
+return await SampleCommandLine.InvokeAsync(
+    command, sampleArguments, Console.Out, Console.Error).ConfigureAwait(false);
 
 static string GetRequiredEnvironmentVariable(string name)
 {

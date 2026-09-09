@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System.Text.Json.Nodes;
 using System.Xml;
 using System.Xml.Linq;

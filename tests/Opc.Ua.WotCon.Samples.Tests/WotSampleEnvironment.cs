@@ -28,20 +28,30 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using NUnit.Framework;
-using Opc.Ua;
-using Opc.Ua.Client;
-using Opc.Ua.WotCon.Client;
 using AggregationClient;
 using AggregationServer;
 using FlatTagServer;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NUnit.Framework;
+using Opc.Ua.Client;
+using Opc.Ua.Configuration;
+using Opc.Ua.Identity;
+using Opc.Ua.Security.Certificates;
+using Opc.Ua.Server;
+using Opc.Ua.Server.Hosting;
+using Opc.Ua.Server.UserDatabase;
+using Opc.Ua.Server.UserManagement;
+using Opc.Ua.WotCon.Client;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
@@ -90,7 +100,11 @@ namespace Opc.Ua.WotCon.Samples.Tests
         public string DocumentsDirectory => FindDocumentsDirectory();
 
         public static async Task<WotSampleEnvironment> StartAsync(
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool secure = false,
+            bool? allowAnonymousManagement = null,
+            bool? aggregationSecurityNone = null,
+            bool grantSecurityAdmin = true)
         {
             string id = Guid.NewGuid().ToString("N");
             string root = Path.Combine(
@@ -98,6 +112,60 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 nameof(WotSampleEnvironment),
                 id);
             Directory.CreateDirectory(root);
+            var userDatabase = new LinqUserDatabase();
+            IClientIdentityProvider? identityProvider = null;
+            if (secure)
+            {
+                byte[] password = Encoding.UTF8.GetBytes(Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
+                try
+                {
+                    var secretStore = new InMemorySecretStore();
+                    var passwordId = new SecretIdentifier("wot-test-admin", secretStore.StoreType);
+                    await secretStore.SetAsync(passwordId, password, cancellationToken).ConfigureAwait(false);
+                    identityProvider = new UserNamePasswordIdentityProvider(
+                        id, new SecretRegistry(secretStore), passwordId);
+                    if (!userDatabase.CreateUser(id, password, [Role.SecurityAdmin]))
+                    {
+                        throw new InvalidOperationException("Could not create the isolated administrator.");
+                    }
+                }
+                finally
+                {
+                    CryptographicOperations.ZeroMemory(password);
+                }
+            }
+
+            void ConfigureAuthentication(IOpcUaServerBuilder server)
+            {
+                server.Services.Configure<OpcUaServerOptions>(options =>
+                {
+                    options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy { TokenType = UserTokenType.Anonymous });
+                    options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy { TokenType = UserTokenType.UserName });
+                });
+                server.AddDefaultIdentityAuthenticators(options =>
+                {
+                    options.EnableAnonymous = true;
+                    options.EnableUserNamePassword = true;
+                    options.EnableX509 = false;
+                    options.EnableJwt = false;
+                });
+                server.Services.AddSingleton<IUserDatabase>(userDatabase);
+                server.Services.AddSingleton<IUserManagement>(_ => new UserManagement(userDatabase));
+                server.ConfigureRoles(options =>
+                {
+                    if (!grantSecurityAdmin)
+                    {
+                        return;
+                    }
+                    var administrator = new RoleDefinitionOptions { Name = "SecurityAdmin" };
+                    administrator.Identities.Add(new RoleIdentityMappingOptions
+                    {
+                        CriteriaType = IdentityCriteriaType.UserName,
+                        Criteria = id
+                    });
+                    options.Roles.Add(administrator);
+                });
+            }
 
             int[] ports = TestPorts.GetFreePorts(3);
             int sourceAPort = ports[0];
@@ -160,6 +228,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 EndpointUrl = sourceAEndpoint,
                 SourceNamespaceUri = FlatTagServerOptions.SourceANamespaceUri,
                 ApplicationName = $"FlatTagServerSourceA{id}",
+                IncludeUnsecurePolicyNone = !secure,
                 InstanceName = "SourceA",
                 PkiRoot = Path.Combine(root, "SourceA", "pki"),
                 Values = sourceAValues,
@@ -170,6 +239,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 EndpointUrl = sourceBEndpoint,
                 SourceNamespaceUri = FlatTagServerOptions.SourceBNamespaceUri,
                 ApplicationName = $"FlatTagServerSourceB{id}",
+                IncludeUnsecurePolicyNone = !secure,
                 InstanceName = "SourceB",
                 PkiRoot = Path.Combine(root, "SourceB", "pki"),
                 Values = sourceBValues,
@@ -180,6 +250,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 {
                     EndpointUrl = aggregationEndpoint,
                     ApplicationName = $"AggregationServer{id}",
+                    IncludeUnsecurePolicyNone = aggregationSecurityNone ?? !secure,
+                    AllowAnonymousManagement = allowAnonymousManagement ?? !secure,
+                    ConfigureAuthentication = secure ? ConfigureAuthentication : null,
                     PkiRoot = Path.Combine(root, "Aggregation", "pki")
                 });
             var clientOptions = new AggregationClientOptions
@@ -188,10 +261,11 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 SourceAEndpoint = sourceAEndpoint,
                 SourceBEndpoint = sourceBEndpoint,
                 ApplicationName = $"AggregationClient{id}",
+                UseSecurityPolicyNone = !secure,
+                IdentityProvider = identityProvider,
                 PkiRoot = Path.Combine(root, "Client", "pki"),
                 DocumentsDirectory = FindDocumentsDirectory()
             };
-
             var environment = new WotSampleEnvironment(
                 root,
                 sourceAHost,
@@ -209,6 +283,23 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 await WaitForTcpAsync(sourceAPort, cancellationToken).ConfigureAwait(false);
                 await WaitForTcpAsync(sourceBPort, cancellationToken).ConfigureAwait(false);
                 await aggregationHost.StartAsync(cancellationToken).ConfigureAwait(false);
+                if (secure)
+                {
+                    await WaitForTcpAsync(aggregationPort, cancellationToken).ConfigureAwait(false);
+                    using IHost clientHost = AggregationClientRunner.BuildHost(clientOptions);
+                    await clientHost.Services.GetRequiredService<IOpcUaApplicationConfigurationProvider>()
+                        .GetAsync(cancellationToken).ConfigureAwait(false);
+                    await TrustPeerAsync(aggregationHost, sourceAHost, cancellationToken).ConfigureAwait(false);
+                    await TrustPeerAsync(sourceAHost, aggregationHost, cancellationToken).ConfigureAwait(false);
+                    await TrustPeerAsync(aggregationHost, sourceBHost, cancellationToken).ConfigureAwait(false);
+                    await TrustPeerAsync(sourceBHost, aggregationHost, cancellationToken).ConfigureAwait(false);
+                    await TrustPeerAsync(aggregationHost, clientHost, cancellationToken).ConfigureAwait(false);
+                    await TrustPeerAsync(clientHost, aggregationHost, cancellationToken).ConfigureAwait(false);
+                    await TrustPeerAsync(sourceAHost, clientHost, cancellationToken).ConfigureAwait(false);
+                    await TrustPeerAsync(clientHost, sourceAHost, cancellationToken).ConfigureAwait(false);
+                    await TrustPeerAsync(sourceBHost, clientHost, cancellationToken).ConfigureAwait(false);
+                    await TrustPeerAsync(clientHost, sourceBHost, cancellationToken).ConfigureAwait(false);
+                }
                 await environment.WaitForAggregationAsync(cancellationToken).ConfigureAwait(false);
                 return environment;
             }
@@ -229,8 +320,14 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 AggregationEndpoint = ClientOptions.AggregationEndpoint,
                 SourceAEndpoint = sourceAEndpoint ?? ClientOptions.SourceAEndpoint,
                 SourceBEndpoint = sourceBEndpoint ?? ClientOptions.SourceBEndpoint,
-                ApplicationName = ClientOptions.ApplicationName + Guid.NewGuid().ToString("N"),
-                PkiRoot = Path.Combine(Root, "Clients", Guid.NewGuid().ToString("N"), "pki"),
+                ApplicationName = ClientOptions.UseSecurityPolicyNone
+                    ? ClientOptions.ApplicationName + Guid.NewGuid().ToString("N")
+                    : ClientOptions.ApplicationName,
+                PkiRoot = ClientOptions.UseSecurityPolicyNone
+                    ? Path.Combine(Root, "Clients", Guid.NewGuid().ToString("N"), "pki")
+                    : ClientOptions.PkiRoot,
+                UseSecurityPolicyNone = ClientOptions.UseSecurityPolicyNone,
+                IdentityProvider = ClientOptions.IdentityProvider,
                 DocumentsDirectory = documentsDirectory
             };
         }
@@ -245,6 +342,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
         public Task<OpcUaClientConnection> ConnectSourceAAsync(
             CancellationToken cancellationToken)
         {
+            if (!ClientOptions.UseSecurityPolicyNone)
+            {
+                return ConnectSecureSourceAsync(ClientOptions.SourceAEndpoint, cancellationToken);
+            }
             return OpcUaClientConnection.CreateAsync(
                 Root,
                 ClientOptions.SourceAEndpoint,
@@ -255,6 +356,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
         public Task<OpcUaClientConnection> ConnectSourceBAsync(
             CancellationToken cancellationToken)
         {
+            if (!ClientOptions.UseSecurityPolicyNone)
+            {
+                return ConnectSecureSourceAsync(ClientOptions.SourceBEndpoint, cancellationToken);
+            }
             return OpcUaClientConnection.CreateAsync(
                 Root,
                 ClientOptions.SourceBEndpoint,
@@ -277,29 +382,95 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
         public async ValueTask DisposeAsync()
         {
-            await StopHostAsync(AggregationHost).ConfigureAwait(false);
-            await StopHostAsync(SourceBHost).ConfigureAwait(false);
-            await StopHostAsync(SourceAHost).ConfigureAwait(false);
-
-            AggregationHost.Dispose();
-            SourceBHost.Dispose();
-            SourceAHost.Dispose();
+            var failures = new List<Exception>();
+            foreach (IHost host in new[] { AggregationHost, SourceBHost, SourceAHost })
+            {
+                try
+                {
+                    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                    try
+                    {
+                        await host.StopAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        host.Dispose();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failures.Add(ex);
+                }
+            }
             if (Directory.Exists(Root))
             {
                 Directory.Delete(Root, recursive: true);
             }
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("Sample host teardown failed.", failures);
+            }
         }
 
-        private static async Task StopHostAsync(IHost host)
+        internal static async Task TrustPeerAsync(IHost trustingHost, IHost peer, CancellationToken cancellationToken)
         {
-            try
+            using Certificate publicCertificate = await GetPeerCertificateAsync(peer, cancellationToken)
+                .ConfigureAwait(false);
+            IOpcUaApplicationConfigurationProvider? provider = trustingHost.Services
+                .GetService<IOpcUaApplicationConfigurationProvider>();
+            if (provider is not null)
             {
-                await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                ICertificateManager manager = provider.Configuration.CertificateManager;
+                await using ITrustListTransaction transaction = await manager.BeginUpdateAsync(
+                    TrustListIdentifier.Peers, cancellationToken).ConfigureAwait(false);
+                await transaction.AddTrustedCertificateAsync(publicCertificate, cancellationToken)
+                    .ConfigureAwait(false);
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            else
             {
-                TestContext.Out.WriteLine("Ignoring best-effort teardown failure: {0}", ex);
+                string root = trustingHost.Services.GetRequiredService<IOptions<OpcUaServerOptions>>().Value.PkiRoot!;
+                var identifier = new CertificateStoreIdentifier(Path.Combine(root, "trusted"));
+                using ICertificateStore store = identifier.OpenStore(
+                    trustingHost.Services.GetRequiredService<ITelemetryContext>());
+                await store.AddAsync(publicCertificate, ct: cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        private Task<OpcUaClientConnection> ConnectSecureSourceAsync(
+            string endpoint, CancellationToken cancellationToken)
+        {
+            AggregationClientOptions options = CreateClientOptions(DocumentsDirectory);
+            options.AggregationEndpoint = endpoint;
+            options.IdentityProvider = null;
+            return OpcUaClientConnection.CreateAsync(options, cancellationToken);
+        }
+
+        private static async Task<Certificate> GetPeerCertificateAsync(IHost peer, CancellationToken cancellationToken)
+        {
+            IOpcUaApplicationConfigurationProvider? provider = peer.Services
+                .GetService<IOpcUaApplicationConfigurationProvider>();
+            if (provider is not null)
+            {
+                using CertificateEntry entry = provider.Configuration.CertificateManager
+                    .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256) ??
+                    throw new InvalidOperationException("The peer application certificate was not initialized.");
+                return Certificate.FromRawData(entry.Certificate.RawData);
+            }
+            string root = peer.Services.GetRequiredService<IOptions<OpcUaServerOptions>>().Value.PkiRoot!;
+            var identifier = new CertificateStoreIdentifier(root);
+            using ICertificateStore store = identifier.OpenStore(peer.Services.GetRequiredService<ITelemetryContext>());
+            using CertificateCollection certificates = await store.EnumerateAsync(cancellationToken)
+                .ConfigureAwait(false);
+            foreach (Certificate certificate in certificates)
+            {
+                using RSA? key = certificate.GetRSAPublicKey();
+                if (key is not null)
+                {
+                    return Certificate.FromRawData(certificate.RawData);
+                }
+            }
+            throw new InvalidOperationException("The peer RSA certificate was not initialized.");
         }
 
         private async Task WaitForAggregationAsync(CancellationToken cancellationToken)
@@ -392,13 +563,25 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
         public ManagedSession Session { get; }
 
-        public static async Task<OpcUaClientConnection> CreateAsync(
+        public static Task<OpcUaClientConnection> CreateAsync(
             string root,
             string endpointUrl,
             string applicationName,
             CancellationToken cancellationToken)
         {
             IHost host = BuildClientHost(root, endpointUrl, applicationName);
+            return ConnectAsync(host, cancellationToken);
+        }
+
+        public static Task<OpcUaClientConnection> CreateAsync(
+            AggregationClientOptions options,
+            CancellationToken cancellationToken)
+        {
+            return ConnectAsync(AggregationClientRunner.BuildHost(options), cancellationToken);
+        }
+
+        private static async Task<OpcUaClientConnection> ConnectAsync(IHost host, CancellationToken cancellationToken)
+        {
             try
             {
                 await host.StartAsync(cancellationToken).ConfigureAwait(false);

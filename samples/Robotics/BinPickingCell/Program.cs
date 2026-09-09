@@ -28,38 +28,115 @@
  * ======================================================================*/
 
 using System;
-using System.IO;
+using System.CommandLine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
-using Opc.Ua.Robotics.Server;
+using Opc.Ua.Samples;
 using Opc.Ua.Server;
 using Opc.Ua.Vision.OpenUsd;
-using Robotics.IntentEnabledRobot.Kinematics;
 using Robotics.IntentEnabledRobot.Simulation;
 using Vision.BinPickingCell;
 
-BinPickingCellStage stage = new();
-string stagePath = stage.Extract();
-
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+Option<bool> autoAcceptOption = SampleCommandLine.CreateAutoAcceptOption("--autoaccept", "-a", "--insecure");
+Option<string> portOption = SampleCommandLine.CreateInt32ConfigurationOption(
+    "--port", "Endpoint port (default 62855).", 1, 65535);
+var hostOption = new Option<string>("--host") { Description = "Endpoint host (default localhost)." };
+var inferenceOption = new Option<string>("--inferenceLocation")
+{
+    Description = "Inference location: OnServer (default), EdgeOffServer or OffServer."
+};
+var captureOption = new Option<string>("--captureOnStartup")
+{
+    Description = "Capture a frame at startup: true or false (default true)."
+};
+var artifactOption = new Option<string>("--artifactDirectory")
+{
+    Description = "Capture-proof output directory."
+};
+captureOption.Validators.Add(result =>
+{
+    if (!bool.TryParse(result.GetValueOrDefault<string>(), out _))
+    {
+        result.AddError("--captureOnStartup expects true or false.");
+    }
+});
+inferenceOption.Validators.Add(result =>
+{
+    if (!BinPickingCellOptions.TryParseLocation(result.GetValueOrDefault<string>(), out _))
+    {
+        result.AddError("--inferenceLocation expects OnServer, EdgeOffServer or OffServer.");
+    }
+});
+Argument<string[]> configurationArgument = SampleCommandLine.CreateConfigurationArgument();
+(string[] sampleArguments, string[] forwardedArguments) = SampleCommandLine.SplitHostArguments(args);
+var command = new RootCommand(
+    "OPC UA Bin Picking Cell: --insecure is a trust-only alias; endpoints retain message security.")
+{
+    autoAcceptOption,
+    portOption,
+    hostOption,
+    inferenceOption,
+    captureOption,
+    artifactOption,
+    configurationArgument
+};
+command.Validators.Add(result =>
+{
+    if (SampleCommandLine.GetHostArgumentError(forwardedArguments) is string error)
+    {
+        result.AddError(error);
+    }
+});
+ParseResult? parsed = null;
+command.SetAction(result => parsed = result);
+int exitCode = await SampleCommandLine.InvokeAsync(
+    command, sampleArguments, Console.Out, Console.Error).ConfigureAwait(false);
+if (parsed is null)
+{
+    return exitCode;
+}
+bool autoAccept = parsed.GetValue(autoAcceptOption);
+SampleCommandLine.WriteSecurityWarnings(Console.Error, autoAccept, false, "client", string.Empty);
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(SampleCommandLine.GetHostArguments(
+    parsed, forwardedArguments, configurationArgument,
+    portOption, hostOption, inferenceOption, captureOption, artifactOption));
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-int port = int.TryParse(builder.Configuration["port"], out int configuredPort)
-    ? configuredPort
-    : 62855;
+int port = 62855;
+if (builder.Configuration["port"] is string configuredPort &&
+    (!int.TryParse(configuredPort, out port) || port is < 1 or > 65535))
+{
+    Console.Error.WriteLine("The configured port must be an integer between 1 and 65535. Use --help.");
+    return 1;
+}
 string host = builder.Configuration["host"] is { Length: > 0 } configuredHost
     ? configuredHost
     : "localhost";
-bool captureOnStartup = !string.Equals(builder.Configuration["captureOnStartup"], "false",
-    StringComparison.OrdinalIgnoreCase);
+bool captureOnStartup = true;
+if (builder.Configuration["captureOnStartup"] is string configuredCapture &&
+    !bool.TryParse(configuredCapture, out captureOnStartup))
+{
+    Console.Error.WriteLine("The configured captureOnStartup setting must be true or false. Use --help.");
+    return 1;
+}
+if (builder.Configuration["inferenceLocation"] is string configuredInference &&
+    !BinPickingCellOptions.TryParseLocation(configuredInference, out _))
+{
+    Console.Error.WriteLine(
+        "The configured inferenceLocation must be OnServer, EdgeOffServer or OffServer. Use --help.");
+    return 1;
+}
 string? artifactDirectory = builder.Configuration["artifactDirectory"];
 BinPickingCellOptions cellOptions = BuildCellOptions(builder.Configuration);
 bool offServer = cellOptions.InferenceLocation == BinPickingInferenceLocation.EdgeOffServer;
+
+BinPickingCellStage stage = new();
+string stagePath = stage.Extract();
 
 var sensorSpec = new BinPickingSensorSpec(
     StageIdentifier: stagePath,
@@ -128,7 +205,8 @@ builder.Services
         options.ApplicationName = "BinPickingCell";
         options.ApplicationUri = "urn:localhost:OPCFoundation:BinPickingCell";
         options.ProductUri = "uri:opcfoundation.org:BinPickingCell";
-        options.AutoAcceptUntrustedCertificates = true;
+        options.AutoAcceptUntrustedCertificates = autoAccept;
+        options.IncludeUnsecurePolicyNone = false;
 
         // A rendered frame is a few hundred kilobytes and the response that carries it
         // larger still, so leave the transport room for a busier scene rather than have
@@ -174,12 +252,12 @@ builder.Services.Replace(ServiceDescriptor.Singleton(
 
 using IHost app = builder.Build();
 await app.RunAsync().ConfigureAwait(false);
+return 0;
 
 static BinPickingCellOptions BuildCellOptions(Microsoft.Extensions.Configuration.IConfiguration configuration)
 {
     string? raw = configuration["inferenceLocation"];
-    // A parse failure just means "use the OnServer default"; the out value is set for us
-    // and the caller does not need a separate error path for an unknown key.
+    // Supplied values have already been validated; an omitted setting uses OnServer.
     _ = BinPickingCellOptions.TryParseLocation(raw, out BinPickingInferenceLocation location);
     return new BinPickingCellOptions
     {

@@ -32,7 +32,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
+using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -45,7 +48,7 @@ namespace Opc.Ua.Fuzzing
         public static readonly TestcaseAsset[] GoodTestcases =
         [
             .. AssetCollection<TestcaseAsset>.CreateFromFiles(
-                TestUtils.EnumerateTestAssets("Testcases", "*.*"))
+                TestUtils.EnumerateTestAssets("Testcases", "*", requireNonEmpty: true))
         ];
 
         public static readonly TestcaseAsset[] CrashAssets =
@@ -74,12 +77,81 @@ namespace Opc.Ua.Fuzzing
 
         public delegate void LibFuzzTemplate(ReadOnlySpan<byte> span);
 
+        [OneTimeSetUp]
+        public void FreezeReplayScope()
+        {
+            foreach (FuzzTargetFunction target in CreateFuzzTargetFunctions(FuzzableCodeType))
+            {
+                m_targets.Add(Hash(Encoding.UTF8.GetBytes(target.MethodInfo.ToString())));
+            }
+            foreach ((TestcaseAsset[] assets, string category) in new[]
+            {
+                (GoodTestcases, "good"), (CrashAssets, "crash"),
+                (TimeoutAssets, "timeout"), (SlowAssets, "slow")
+            })
+            {
+                foreach (TestcaseAsset asset in assets)
+                {
+                    m_inputs.Add(GetInputId(asset.Path), (Hash(asset.Testcase), category));
+                }
+            }
+        }
+
+        [OneTimeTearDown]
+        public void WriteObservedReplay()
+        {
+            string path = Environment.GetEnvironmentVariable("OPCUA_ASSURANCE_REPLAY_PATH");
+            if (string.IsNullOrEmpty(path))
+            {
+                path = System.IO.Path.Combine(
+                    TestContext.CurrentContext.WorkDirectory,
+                    FuzzableCodeType.Assembly.GetName().Name + ".replay.xml");
+            }
+            path = System.IO.Path.GetFullPath(path);
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
+            using (XmlWriter writer = XmlWriter.Create(path, new XmlWriterSettings { Indent = true }))
+            {
+                writer.WriteStartElement("replay");
+                writer.WriteAttributeString("schemaVersion", "1");
+                writer.WriteStartElement("targets");
+                foreach (string target in m_targets.OrderBy(value => value, StringComparer.Ordinal))
+                {
+                    writer.WriteStartElement("target");
+                    writer.WriteAttributeString("id", target);
+                    writer.WriteEndElement();
+                }
+                writer.WriteEndElement();
+                writer.WriteStartElement("inputs");
+                foreach (var input in m_inputs.OrderBy(value => value.Key, StringComparer.Ordinal))
+                {
+                    writer.WriteStartElement("input");
+                    writer.WriteAttributeString("id", input.Key);
+                    writer.WriteAttributeString("digest", input.Value.Digest);
+                    writer.WriteAttributeString("category", input.Value.Category);
+                    writer.WriteEndElement();
+                }
+                writer.WriteEndElement();
+                writer.WriteStartElement("executions");
+                foreach (string execution in m_executions.OrderBy(value => value, StringComparer.Ordinal))
+                {
+                    string[] identity = execution.Split('|');
+                    writer.WriteStartElement("execution");
+                    writer.WriteAttributeString("target", identity[0]);
+                    writer.WriteAttributeString("input", identity[1]);
+                    writer.WriteEndElement();
+                }
+                writer.WriteEndElement();
+                writer.WriteEndElement();
+            }
+            TestContext.AddTestAttachment(path, "Sanitized public replay execution mappings");
+        }
+
         [Theory]
         public void FuzzGoodTestcases(
             FuzzTargetFunction fuzzableCode,
             [ValueSource(nameof(GoodTestcases))] TestcaseAsset messageEncoder)
         {
-            FuzzTarget(fuzzableCode, messageEncoder.Testcase);
+            FuzzTarget(fuzzableCode, messageEncoder.Testcase, messageEncoder.Path);
         }
 
         [Theory]
@@ -96,14 +168,11 @@ namespace Opc.Ua.Fuzzing
             {
                 try
                 {
-                    TestContext.Out.WriteLine(messageEncoder);
-                    FuzzTarget(fuzzableCode, messageEncoder.Testcase);
+                    FuzzTarget(fuzzableCode, messageEncoder.Testcase, messageEncoder.Path);
                 }
                 catch (Exception ex)
                 {
-                    failures.Add(
-                        $"asset={messageEncoder} -> {ex.GetType().Name}: {ex.Message}");
-                    TestContext.Error.WriteLine($"Failed: {messageEncoder}\n{ex}");
+                    failures.Add(ex.GetType().Name);
                 }
             }
 
@@ -133,7 +202,7 @@ namespace Opc.Ua.Fuzzing
             FuzzTargetFunction fuzzableCode,
             [ValueSource(nameof(TimeoutAssets))] TestcaseAsset messageEncoder)
         {
-            FuzzTarget(fuzzableCode, messageEncoder.Testcase);
+            FuzzTarget(fuzzableCode, messageEncoder.Testcase, messageEncoder.Path);
         }
 
         [Theory]
@@ -142,7 +211,7 @@ namespace Opc.Ua.Fuzzing
             FuzzTargetFunction fuzzableCode,
             [ValueSource(nameof(SlowAssets))] TestcaseAsset messageEncoder)
         {
-            FuzzTarget(fuzzableCode, messageEncoder.Testcase);
+            FuzzTarget(fuzzableCode, messageEncoder.Testcase, messageEncoder.Path);
         }
 
         protected static FuzzTargetFunction[] CreateFuzzTargetFunctions(Type fuzzableCodeType)
@@ -160,7 +229,7 @@ namespace Opc.Ua.Fuzzing
         {
         }
 
-        private void FuzzTarget(FuzzTargetFunction fuzzableCode, byte[] blob)
+        private void FuzzTarget(FuzzTargetFunction fuzzableCode, byte[] blob, string path = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             OnFuzzTargetSetup(telemetry);
@@ -193,6 +262,48 @@ namespace Opc.Ua.Fuzzing
 #endif
                 fuzzFunction(span);
             }
+            else
+            {
+                throw new InvalidOperationException("Unsupported fuzz target parameter type.");
+            }
+            if (path != null)
+            {
+                string target = Hash(Encoding.UTF8.GetBytes(fuzzableCode.MethodInfo.ToString()));
+                lock (m_evidenceLock)
+                {
+                    m_executions.Add(target + "|" + GetInputId(path));
+                }
+            }
         }
+
+        private static string GetInputId(string path)
+        {
+            string root = System.IO.Path.GetFullPath(TestContext.CurrentContext.TestDirectory)
+                .TrimEnd(System.IO.Path.DirectorySeparatorChar) + System.IO.Path.DirectorySeparatorChar;
+            string fullPath = System.IO.Path.GetFullPath(path);
+            if (!fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Replay input is outside the test output directory.");
+            }
+            return Hash(Encoding.UTF8.GetBytes(fullPath[root.Length..].Replace('\\', '/')));
+        }
+
+        private static string Hash(byte[] value)
+        {
+#if NET9_0_OR_GREATER
+            return "sha256:" + Convert.ToHexStringLower(SHA256.HashData(value));
+#elif NET6_0_OR_GREATER
+            return "sha256:" + Convert.ToHexString(SHA256.HashData(value)).ToLowerInvariant();
+#else
+            using var sha = SHA256.Create();
+            return "sha256:" + BitConverter.ToString(sha.ComputeHash(value))
+                .Replace("-", string.Empty, StringComparison.Ordinal).ToLowerInvariant();
+#endif
+        }
+
+        private readonly HashSet<string> m_targets = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, (string Digest, string Category)> m_inputs = new(StringComparer.Ordinal);
+        private readonly HashSet<string> m_executions = new(StringComparer.Ordinal);
+        private readonly Lock m_evidenceLock = new();
     }
 }

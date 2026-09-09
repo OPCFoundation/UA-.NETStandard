@@ -2,7 +2,7 @@ name: Build and Test .NET 10.0
 
 on:
   push:
-    branches: [ master, main, master378, develop/* ]
+    branches: [ master, main, master378, develop/*, 'release/2.*' ]
   pull_request:
     branches: [ master, main, master378, develop/* ]
     # NOTE: deliberately no `paths:` filter. A workflow that is filtered out by
@@ -70,6 +70,7 @@ jobs:
       aot_matrix: ${{ steps.list.outputs.aot_matrix }}
       gh_owns_build: ${{ steps.list.outputs.gh_owns_build }}
       relevant_changes: ${{ steps.list.outputs.relevant_changes }}
+      assurance_projects: ${{ steps.list.outputs.assurance_projects }}
     steps:
     - uses: actions/checkout@v7
       with:
@@ -79,7 +80,7 @@ jobs:
     - name: Validate migration plugin
       shell: pwsh
       run: ./.azurepipelines/validate-migration-plugin.ps1
-    - name: Enumerate tests/Opc.Ua.*.Tests projects
+    - name: Enumerate ordinary tests and explicit public replay projects
       id: list
       shell: pwsh
       env:
@@ -94,15 +95,20 @@ jobs:
         # Projects whose name is in EXCLUDE are run by other workflows
         # (AOT has its own workflow; the Stress suite is opt-in via the
         # stress-test workflow).
-        $exclude = @('Aot', 'Stress')
-        $projects = Get-ChildItem -Path tests -Directory -Filter 'Opc.Ua.*.Tests' |
-            Where-Object { Test-Path (Join-Path $_.FullName "$($_.Name).csproj") } |
-            ForEach-Object { $_.Name -replace '^Opc\.Ua\.', '' -replace '\.Tests$', '' } |
-            Where-Object { $exclude -notcontains $_ } |
-            Sort-Object
+        $selection = & ./.azurepipelines/assurance-discovery.ps1 | ConvertFrom-Json
+        $projects = $selection.projects
         $json = ConvertTo-Json -InputObject @($projects) -Compress
         Write-Host "Discovered $(@($projects).Count) project(s): $json"
         "csprojs=$json" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        $profiles = Get-Content .azurepipelines/assurance-profiles.json -Raw | ConvertFrom-Json
+        $assuranceProjects = @($profiles.profiles |
+          Where-Object { $_.id -in @('security-net10', 'fuzz-replay-net10') } |
+          ForEach-Object { $_.jobs } | ForEach-Object {
+            if ($_.project -notin $projects.path) { throw 'A selected profile project is missing.' }
+            @{ id = $_.id; project = $_.project }
+          })
+        "assurance_projects=$(ConvertTo-Json -InputObject $assuranceProjects -Compress)" |
+          Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
         # macOS is included by default on pull_request, push, and schedule events
         # so platform-specific failures are caught before merge. When dispatched
@@ -135,22 +141,10 @@ jobs:
             # on the base branch after this one was cut, which would make an
             # unrelated base-branch change look like a build-relevant change here.
             $changed = @(& git diff --name-only "$($env:BASE_SHA)...HEAD")
-            $relevantChanges = $false
-            foreach ($file in $changed) {
-                $name = [System.IO.Path]::GetFileName($file)
-                if ($name -like '*.cs' -or $name -like '*.csproj' -or
-                    # Build/config files affect compilation across TFMs, so the
-                    # all-TFM build jobs must run when they change (targets.props,
-                    # Directory.Packages.props, Directory.Build.props/targets, the
-                    # solution, and this workflow itself).
-                    $name -like '*.props' -or $name -like '*.targets' -or
-                    $name -like '*.slnx' -or $name -like '*.sln' -or
-                    $name -eq 'global.json' -or $name -ieq 'nuget.config' -or
-                    $file -eq '.github/workflows/buildandtest.yml') {
-                    $relevantChanges = $true
-                    break
-                }
-            }
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot determine changed paths.' }
+            $changed | Set-Content .assurance-changed-paths.txt
+            $selection = & ./.azurepipelines/assurance-discovery.ps1 -ChangedFilesPath .assurance-changed-paths.txt | ConvertFrom-Json
+            $relevantChanges = $selection.relevantChanges
             Write-Host "Changed files: $(@($changed).Count); build-relevant: $relevantChanges"
         }
 
@@ -159,6 +153,9 @@ jobs:
         if ($ghOwnsBuild -and $relevantChanges) {
             $testOs += 'ubuntu-latest'
             $aotMatrix += @{ os = 'ubuntu-latest'; rid = 'linux-x64' }
+            if ($env:TARGET_REF -eq 'master' -or $env:TARGET_REF -like 'release/2.*') {
+                $aotMatrix += @{ os = 'windows-2025'; rid = 'win-x64' }
+            }
         }
         if ($includeMac -and $relevantChanges) {
             $testOs += 'macOS-latest'
@@ -174,7 +171,7 @@ jobs:
 
   build-and-test:
     needs: discover
-    name: test-${{matrix.os}}-${{matrix.csproj}}
+    name: test-${{matrix.os}}-${{matrix.csproj.name}}
     runs-on: ${{ matrix.os }}
     # Bound the job well below the 360-minute default. These entries normally
     # take 3-15 minutes, so anything approaching an hour is a hang, and letting
@@ -206,9 +203,9 @@ jobs:
       OS: ${{ matrix.os }}
       DOTNET_VERSION: ${{ matrix.dotnet-version }}
       CONFIGURATION:  ${{ matrix.configuration }}
-      CSPROJ: ${{ matrix.csproj }}
-      CSPROJECT: "./tests/Opc.Ua.${{ matrix.csproj }}.Tests/Opc.Ua.${{ matrix.csproj }}.Tests.csproj"
-      TESTRESULTS: "TestResults-${{matrix.csproj}}-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}"
+      CSPROJ: ${{ matrix.csproj.name }}
+      CSPROJECT: ${{ matrix.csproj.path }}
+      TESTRESULTS: "TestResults-${{matrix.csproj.name}}-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}"
 
     steps:
     - uses: actions/checkout@v7
@@ -230,7 +227,7 @@ jobs:
     # only ever adds coverage. It is deliberately strict: if provisioning breaks,
     # the step fails here rather than silently reducing this job to a no-op.
     - name: Setup SoftHSM2
-      if: ${{ matrix.csproj == 'Security.Pkcs11' && runner.os != 'Windows' }}
+      if: ${{ matrix.csproj.name == 'Security.Pkcs11' && runner.os != 'Windows' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -294,6 +291,11 @@ jobs:
           echo "OPCUA_PKCS11_PIN=1234"
         } >> "$GITHUB_ENV"
 
+    - name: Freeze public replay inventory
+      if: ${{ startsWith(matrix.csproj.path, 'fuzzing/') }}
+      shell: pwsh
+      run: ./.azurepipelines/assurance-fuzz-inputs.ps1 -Project '${{ matrix.csproj.path }}' -OutputPath '${{ env.TESTRESULTS }}/public-inputs.json'
+
     - name: Build
       # Build in parallel with the shared compiler (both `dotnet build` defaults).
       # These were previously pinned to `-maxcpucount:1 /p:UseSharedCompilation=false`
@@ -303,6 +305,18 @@ jobs:
       # build time. Do not re-add without evidence - re-loading the ~19-assembly
       # analyzer closure for every project is expensive.
       run: dotnet build ${{ env.CSPROJECT }} --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CustomTestTarget=${{ matrix.customtesttarget }}
+
+    - name: Verify public replay input copies
+      if: ${{ startsWith(matrix.csproj.path, 'fuzzing/') }}
+      shell: pwsh
+      run: |
+        $output = Join-Path (Split-Path '${{ matrix.csproj.path }}') 'bin/Release/net10.0'
+        & ./.azurepipelines/assurance-fuzz-inputs.ps1 -Project '${{ matrix.csproj.path }}' `
+          -BuildOutput $output -OutputPath '${{ env.TESTRESULTS }}/copied-inputs.json'
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $before = Get-Content '${{ env.TESTRESULTS }}/public-inputs.json' -Raw | ConvertFrom-Json
+        $after = Get-Content '${{ env.TESTRESULTS }}/copied-inputs.json' -Raw | ConvertFrom-Json
+        if ($before.inventoryDigest -ne $after.inventoryDigest) { throw 'Replay inputs changed after selection.' }
 
     - name: Test
       # note: /p:CollectCoverage=true is only used to disable deterministic builds
@@ -317,6 +331,7 @@ jobs:
       # spend at most ~12 minutes in this step.
       timeout-minutes: 30
       run: |
+        $env:OPCUA_ASSURANCE_REPLAY_PATH = Join-Path $env:GITHUB_WORKSPACE '${{ env.TESTRESULTS }}/fuzz-replay.xml'
         $testArgs = @(
           '${{ env.CSPROJECT }}',
           '--no-build',
@@ -354,12 +369,36 @@ jobs:
           '--results-directory',
           '${{ env.TESTRESULTS }}')
 
-        if ('${{ matrix.csproj }}' -eq 'Channels.Stress')
+        if ('${{ matrix.csproj.name }}' -eq 'Channels.Stress')
         {
           $testArgs += @('--filter', '(Category=Contract|Category=Integration)&Category!=ChaosTCP&Category!=Soak')
         }
 
         dotnet test @testArgs
+
+    - name: Require executed test result proof
+      if: ${{ always() }}
+      shell: pwsh
+      run: ./.azurepipelines/assurance-results.ps1 -ResultsPath '${{ env.TESTRESULTS }}' -OutputPath '${{ env.TESTRESULTS }}/public-results.json' -Kind trx -Enforce
+
+    - name: Record sanitized profile evidence
+      if: ${{ always() }}
+      shell: pwsh
+      run: |
+        ./.azurepipelines/write-assurance-job.ps1 -Project '${{ matrix.csproj.path }}' `
+          -ResultsPath '${{ env.TESTRESULTS }}' -OutputPath 'assurance/evidence.job.json' `
+          -Workflow '.github/workflows/buildandtest.yml'
+        if (Test-Path '${{ env.TESTRESULTS }}/public-inputs.json') {
+            Copy-Item '${{ env.TESTRESULTS }}/public-inputs.json' 'assurance/public-inputs.json'
+        }
+
+    - name: Upload sanitized profile evidence
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: assurance-${{matrix.csproj.name}}-${{matrix.os}}-${{github.run_id}}-${{github.run_attempt}}-build-and-test
+        path: assurance/*.json
+        if-no-files-found: ignore
 
     - name: Stage macOS crash reports
       # Apple Crash Reporter writes .crash (legacy) and .ips (JSON, macOS 12+)
@@ -371,7 +410,7 @@ jobs:
       # unrelated host or application crash reports on shared runners.  Qualifying
       # reports from the last two hours are copied into TESTRESULTS/mac-diagnostics/
       # so the existing 'Upload test results' step picks them up automatically.
-      if: ${{ failure() && runner.os == 'macOS' }}
+      if: ${{ failure() && runner.os == 'macOS' && !startsWith(matrix.csproj.path, 'fuzzing/') }}
       shell: pwsh
       run: |
         $src = [System.IO.Path]::Combine($env:HOME, 'Library', 'Logs', 'DiagnosticReports')
@@ -398,10 +437,104 @@ jobs:
     - name: Upload test results
       uses: actions/upload-artifact@v7
       with:
-        name: dotnet-results-${{matrix.csproj}}-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}
+        name: dotnet-results-${{matrix.csproj.name}}-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}
         path: ${{ env.TESTRESULTS }}
       # Use always() to always run this step to publish test results when there are test failures
-      if: ${{ always() }}
+      if: ${{ always() && !startsWith(matrix.csproj.path, 'fuzzing/') }}
+
+    - name: Upload public replay counts and coverage only
+      if: ${{ always() && startsWith(matrix.csproj.path, 'fuzzing/') }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: dotnet-results-${{matrix.csproj.name}}-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}
+        path: |
+          ${{ env.TESTRESULTS }}/public-*.json
+          ${{ env.TESTRESULTS }}/**/*.cobertura.xml
+
+  assurance-windows:
+    name: assurance-${{ matrix.project.id }}
+    needs: discover
+    if: ${{ (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/2.')) && github.event_name != 'pull_request' && needs.discover.outputs.gh_owns_build == 'true' && needs.discover.outputs.relevant_changes == 'true' }}
+    runs-on: windows-2025
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(needs.discover.outputs.assurance_projects) }}
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.x'
+    - name: Freeze public replay inventory
+      if: ${{ startsWith(matrix.project.id, 'fuzz-') }}
+      shell: pwsh
+      run: ./.azurepipelines/assurance-fuzz-inputs.ps1 -Project '${{ matrix.project.project }}' -OutputPath '.assurance/results/public-inputs.json'
+    - name: Build selected net10 project
+      shell: pwsh
+      run: dotnet build '${{ matrix.project.project }}' -c Release -f net10.0 -p:CustomTestTarget=net10.0
+    - name: Verify copied public replay inventory
+      if: ${{ startsWith(matrix.project.id, 'fuzz-') }}
+      shell: pwsh
+      run: |
+        $output = Join-Path (Split-Path '${{ matrix.project.project }}') 'bin/Release/net10.0'
+        ./.azurepipelines/assurance-fuzz-inputs.ps1 -Project '${{ matrix.project.project }}' `
+          -BuildOutput $output -OutputPath '.assurance/results/copied-inputs.json'
+    - name: Execute selected net10 project
+      shell: pwsh
+      run: |
+        $env:OPCUA_ASSURANCE_REPLAY_PATH = Join-Path $env:GITHUB_WORKSPACE '.assurance/results/fuzz-replay.xml'
+        dotnet test '${{ matrix.project.project }}' --no-build -c Release -f net10.0 `
+          -p:CustomTestTarget=net10.0 --logger trx --results-directory '.assurance/results' `
+          --blame-hang-timeout 10m
+    - name: Record sanitized observed result
+      if: always()
+      shell: pwsh
+      run: |
+        ./.azurepipelines/write-assurance-job.ps1 -Project '${{ matrix.project.project }}' `
+          -ResultsPath '.assurance/results' -OutputPath '.assurance/public/evidence.job.json' `
+          -Workflow '.github/workflows/buildandtest.yml'
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $proof = Get-Content '.assurance/public/evidence.job.results.json' -Raw | ConvertFrom-Json
+        if ($proof.status -ne 'completed' -or
+            ($proof.kind -eq 'trx' -and $proof.counts.skipped -ne 0)) {
+            throw 'Selected profile execution was not complete.'
+        }
+    - name: Upload only sanitized profile record and proof
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: assurance-${{matrix.project.id}}-${{github.run_id}}-${{github.run_attempt}}-assurance-windows
+        path: .assurance/public/*.json
+        if-no-files-found: error
+
+  assurance-summary:
+    name: release assurance (pilot)
+    needs: [discover, build-and-test, assurance-windows, aot-test]
+    if: ${{ always() && needs.discover.result == 'success' && needs.discover.outputs.relevant_changes == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/download-artifact@v8
+      continue-on-error: true
+      with:
+        pattern: assurance-*
+        path: assurance-records
+    - name: Collect profile scope without inventing external results
+      shell: pwsh
+      run: |
+        # Local pilot summary only, not authenticated release retrieval.
+        # The publisher calls get-release-assurance.ps1 for cross-workflow checks.
+        $sha = (& git rev-parse HEAD).Trim()
+        ./.azurepipelines/collect-assurance.ps1 -RecordsPath assurance-records `
+          -OutputPath assurance-component/assurance.json -ExpectedSourceSha $sha `
+          -ExpectedRunId "$env:GITHUB_RUN_ID" -ExpectedAttempt "$env:GITHUB_RUN_ATTEMPT" `
+          -ExpectedWorkflow '.github/workflows/buildandtest.yml' -ExpectedDefinitionSha "$env:GITHUB_WORKFLOW_SHA"
+    - uses: actions/upload-artifact@v7
+      with:
+        name: assurance-component-${{github.run_id}}-${{github.run_attempt}}-assurance-summary
+        path: assurance-component/*.json
+        if-no-files-found: error
 
   # Advisory coverage check. Mirrors the Azure Pipelines 'Code coverage' stage:
   # it merges the Cobertura fragments the matrix above already collects, runs the
@@ -457,8 +590,18 @@ jobs:
       shell: pwsh
       env:
         TESTS_RESULT: ${{ needs.build-and-test.result }}
+        SELECTED_PROJECTS: ${{ needs.discover.outputs.csprojs }}
+        SELECTED_HOSTS: ${{ needs.discover.outputs.test_os }}
       run: |
         $reports = @(Get-ChildItem -Path coverage-artifacts -Recurse -File -Filter *.cobertura.xml -ErrorAction SilentlyContinue)
+        $expected = @($env:SELECTED_PROJECTS | ConvertFrom-Json).Count * @($env:SELECTED_HOSTS | ConvertFrom-Json).Count
+        $artifacts = @(Get-ChildItem -Path coverage-artifacts -Directory -Filter 'dotnet-results-*' -ErrorAction SilentlyContinue)
+        if ($artifacts.Count -ne $expected) { throw 'Expected test-job coverage artifacts are missing; coverage is incomplete.' }
+        foreach ($artifact in $artifacts) {
+            if (@(Get-ChildItem $artifact.FullName -Recurse -File -Filter *.cobertura.xml).Count -eq 0) {
+                throw 'A selected test job did not publish its relevant coverage fragment.'
+            }
+        }
         Write-Host "Found $($reports.Count) Cobertura report(s)."
         "has_reports=$(($reports.Count -gt 0).ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         if ($reports.Count -gt 0) {
@@ -594,8 +737,8 @@ jobs:
       fail-fast: false
       matrix:
         # OS + RID pairs computed by `discover`; the ubuntu entry drops out when
-        # CI_BUILD_BACKEND hands AoT to Azure Pipelines. Windows AoT is covered by
-        # the AzDO testaot stage.
+        # CI_BUILD_BACKEND hands AoT to Azure Pipelines. Current master/2.x also
+        # runs Windows for the initial assurance profile.
         include: ${{ fromJSON(needs.discover.outputs.aot_matrix) }}
 
     env:
@@ -617,25 +760,29 @@ jobs:
       shell: pwsh
       run: ./.azurepipelines/set-version.ps1
 
-    - name: Publish NativeAOT
-      run: dotnet publish ${{ env.AOTPROJECT }} --configuration ${{ env.CONFIGURATION }}
+    - name: Publish and independently observe NativeAOT execution
+      shell: pwsh
+      run: |
+        ./.azurepipelines/assurance-native.ps1 -Project '${{ env.AOTPROJECT }}' `
+          -RuntimeIdentifier '${{ matrix.rid }}' -Configuration '${{ env.CONFIGURATION }}' `
+          -WorkDirectory '.assurance/native-${{github.run_id}}-${{github.run_attempt}}-${{matrix.rid}}' `
+          -OutputPath '.assurance/native-proof.json'
+        exit $LASTEXITCODE
 
-    - name: Run NativeAOT Tests
-      run: ./tests/Opc.Ua.Aot.Tests/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests
+    - name: Record source-bound native execution proof
+      if: ${{ always() }}
+      shell: pwsh
+      run: |
+        ./.azurepipelines/write-assurance-job.ps1 -Project 'tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj' `
+          -ResultsPath '.assurance/native-proof.json' -Kind native-aot -OutputPath ./assurance/evidence.job.json `
+          -Workflow '.github/workflows/buildandtest.yml'
 
-    - name: Upload test results
+    - name: Upload sanitized native proof
+      if: ${{ always() }}
       uses: actions/upload-artifact@v7
       with:
-        name: aot-results-${{ matrix.os }}
-        path: '**/TestResults/**'
-      if: ${{ always() }}
-
-    - name: Upload HTML Test Report
-      uses: actions/upload-artifact@v7
-      with:
-        name: TestReport-aot-${{ matrix.os }}
-        path: '**/*-report.html'
-      if: ${{ always() }}
+        name: assurance-native-aot-${{github.run_id}}-${{github.run_attempt}}-aot-test-${{matrix.os}}
+        path: assurance/*.json
 
   # Full UA.slnx build across every target framework, in parallel with the unit
   # tests, split across two runners: Windows builds the .NET Framework /
@@ -763,6 +910,9 @@ jobs:
       shell: pwsh
       env:
         GH_OWNS_BUILD: ${{ needs.discover.outputs.gh_owns_build }}
+        RELEVANT_CHANGES: ${{ needs.discover.outputs.relevant_changes }}
+        TEST_MATRIX: ${{ needs.discover.outputs.test_os }}
+        AOT_MATRIX: ${{ needs.discover.outputs.aot_matrix }}
         DISCOVER_RESULT: ${{ needs.discover.result }}
         TEST_RESULT: ${{ needs.build-and-test.result }}
         AOT_RESULT: ${{ needs.aot-test.result }}
@@ -785,11 +935,17 @@ jobs:
         }
 
         $bad = @()
+        $expected = @{
+          'discover' = $true
+          'build-and-test' = $env:TEST_MATRIX -ne '[]'
+          'aot-test' = $env:AOT_MATRIX -ne '[]'
+          'build-all-tfm-windows' = $env:GH_OWNS_BUILD -eq 'true' -and $env:RELEVANT_CHANGES -eq 'true'
+          'build-all-tfm-linux' = $env:GH_OWNS_BUILD -eq 'true' -and $env:RELEVANT_CHANGES -eq 'true'
+        }
         foreach ($job in $results.GetEnumerator()) {
           Write-Host "$($job.Key): $($job.Value)"
-          # 'skipped' is a valid outcome - either the backend switch stood the
-          # job down, or its matrix was empty for this event.
-          if (@('success', 'skipped') -notcontains $job.Value) {
+          # A skipped selected job is missing execution, never a passing test.
+          if ($job.Value -ne 'success' -and -not ($job.Value -eq 'skipped' -and -not $expected[$job.Key])) {
             $bad += "$($job.Key)=$($job.Value)"
           }
         }
@@ -798,4 +954,4 @@ jobs:
           Write-Host "::error::Build and test jobs did not succeed: $($bad -join ', ')"
           exit 1
         }
-        Write-Host 'All build and test jobs succeeded or were intentionally skipped.'
+        Write-Host 'Selected baseline jobs succeeded; unselected scope is not release assurance. Coverage remains advisory.'

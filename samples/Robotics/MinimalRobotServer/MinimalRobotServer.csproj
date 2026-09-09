@@ -31,6 +31,10 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\Common\SampleCommandLine.cs" Link="SampleCommandLine.cs" />
   </ItemGroup>
   <!-- Artist-authored USD layers embedded so the server ships (and serves) its own
        twin geometry: Cell.usda (RootLayer) + robot.usda + tool.usda (References).

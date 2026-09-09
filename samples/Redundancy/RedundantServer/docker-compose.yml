@@ -30,7 +30,10 @@ x-server: &server
     context: ../../..
     dockerfile: samples/Redundancy/RedundantServer/Dockerfile
   image: opcua-redundant-server
-  command: ["--port", "62543"]
+  # Isolated demo only: OPC UA trust/None opt-ins are independent of HA_INSECURE.
+  labels:
+    org.opcfoundation.sample.posture: isolated-insecure-demo
+  command: ["--port", "62543", "--auto-accept", "--security-none"]
 
 services:
   server-a:
@@ -38,6 +41,7 @@ services:
     hostname: server-a
     environment:
       HA_HOST: server-a
+      HA_INSECURE: ${HA_INSECURE:-true}
       HA_NODE_ID: replica-a
       HA_MODE: ${HA_MODE:-aa}
       HA_CONSISTENCY: ${HA_CONSISTENCY:-eventual}
@@ -57,6 +61,7 @@ services:
     hostname: server-b
     environment:
       HA_HOST: server-b
+      HA_INSECURE: ${HA_INSECURE:-true}
       HA_NODE_ID: replica-b
       HA_MODE: ${HA_MODE:-aa}
       HA_CONSISTENCY: ${HA_CONSISTENCY:-eventual}
@@ -76,6 +81,7 @@ services:
     hostname: server-c
     environment:
       HA_HOST: server-c
+      HA_INSECURE: ${HA_INSECURE:-true}
       HA_NODE_ID: replica-c
       HA_MODE: ${HA_MODE:-aa}
       HA_CONSISTENCY: ${HA_CONSISTENCY:-eventual}

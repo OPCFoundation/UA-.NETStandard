@@ -174,6 +174,8 @@ namespace Opc.Ua.Mcp
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
 
             mcpServerBuilder
+                .WithRequestFilters(filters =>
+                    filters.AddCallToolFilter(McpHostRequestFilters.RequireExplicitUnsecuredMode))
                 .WithOpcUaMcpFilters()
                 .WithOpcUaCoreTools(toolProfile)
                 .WithOpcUaPubSubTools(toolProfile)
@@ -217,6 +219,8 @@ namespace Opc.Ua.Mcp
             }
 
             mcpServerBuilder
+                .WithRequestFilters(filters =>
+                    filters.AddCallToolFilter(McpHostRequestFilters.RequireExplicitUnsecuredMode))
                 .WithOpcUaMcpFilters()
                 .WithOpcUaCoreTools(toolProfiles)
                 .WithOpcUaPubSubTools(toolProfiles)
@@ -278,5 +282,20 @@ namespace Opc.Ua.Mcp
                 "These tools disclose symmetric channel keys and can be used to replay captured traffic. " +
                 "Ensure the MCP transport is authenticated and audited.")]
         public static partial void PcapDiagnosticsToolsEnabled(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = McpHostEventIds.Program + 1,
+            Level = LogLevel.Warning,
+            Message = "Connect explicitly requested securityMode=None: OPC UA messages will not be signed or " +
+                "encrypted. Use only for isolated testing. This does not enable certificate auto-acceptance.")]
+        public static partial void UnsecuredConnectionRequested(this ILogger logger);
+
+        [LoggerMessage(
+            EventId = McpHostEventIds.Program + 2,
+            Level = LogLevel.Warning,
+            Message = "Connect explicitly requested autoAcceptCerts=true: untrusted server certificates may be " +
+                "accepted for this connection only. Other certificate errors remain rejected. " +
+                "Use only for isolated testing; this does not select an unsecured endpoint.")]
+        public static partial void UntrustedCertificateAcceptanceRequested(this ILogger logger);
     }
 }

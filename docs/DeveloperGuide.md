@@ -221,7 +221,11 @@ logger.ReadArrayZeroDimension(index, dimensions);
 
 ### Released packages
 
-The following NuGet packages are released on a monthly cadence (with hot fixes for security issues). The `OPCFoundation` prefix is reserved, and the assemblies and packages are signed by the OPC Foundation.
+The following NuGet packages are published by the OPC Foundation. The `OPCFoundation`
+prefix is reserved, and the assemblies and packages are signed by the OPC Foundation.
+The [canonical maintenance matrix](../SECURITY.md#supported-versions) defines the
+maintained release lines and backport scope; it does not promise a fixed release
+cadence or security-patch deadline.
 
 - [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) — a convenience meta-package that pulls in everything except PubSub. Prefer referencing the individual packages below to reduce your dependency surface.
 - [OPCFoundation.NetStandard.Opc.Ua.Types](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Types/)
@@ -241,6 +245,37 @@ select *Include prerelease* in Visual Studio. No additional package source or
 credentials are required.
 
 The full set of packages the preview pipeline produces is pinned in [`.azurepipelines/expected-packages.txt`](../.azurepipelines/expected-packages.txt). `.azurepipelines/validate-source-generator-packages.ps1` fails the build when the packed output does not match it, so adding, removing or renaming a shipped package has to be done deliberately in the same pull request. That script also validates the analyzer packages: their `analyzers/dotnet/roslyn<major>.<minor>/cs` layout, that they carry their runtime closure privately, that the model generator's auto-imported `build/<PackageId>.props` is named after the package id, and — end to end — that a standalone project consuming the packed generator with a NodeSet actually gets code generated.
+
+### Release assurance and stewardship
+
+The [Release Evidence contract](ReleaseEvidence.md) defines the new engineering
+controls for current `master`/2.0 NuGet packages and designated published container
+images. Their stage is **pilot**: collect evidence and expose failed or missing
+controls as unmet, rather than treating incomplete evidence as a pass. The pilot
+does not itself prove that producers, protected publication paths or archives are
+operational. Pipeline backport to `master378`/1.5 is deferred; its
+[maintenance status](../SECURITY.md#supported-versions) is unchanged.
+
+A separate reviewed, protected graduation is necessary before the new controls
+become required for **in-scope stable releases only**. Official previews and
+rolling development builds continue to collect advisory evidence and must not be
+represented as satisfying the required stable profile. Dispatch parameters do not
+authorize graduation. Existing required signing, build, test and security checks
+remain required throughout; the pilot is not permission to bypass them.
+
+SBOMs, provenance, artifact verification, risk-to-test evidence and the maintenance
+matrix are chosen engineering practices, not additional Article 24 mandates.
+The [Security Stewardship annex](SecurityStewardship.md) explains the Foundation's
+OSS steward duties and distinguishes pending approval, ownership, platform readiness
+and exercise records from established operations.
+
+For changes affecting release evidence, identify the affected artifact group and
+source revision, actual checks/results, missing coverage and reviewed dispositions
+under the contract. Do not equate a configured job, a skipped suite or a successful
+aggregate check with proof that all applicable tests ran. Publish only reviewed,
+sanitized evidence. Route novel vulnerabilities, sensitive fuzz inputs and logs
+through [confidential intake](../SECURITY.md#reporting-a-vulnerability); do not
+attach them to public PRs or CI artifacts.
 
 ### Supported target frameworks
 
@@ -273,7 +308,13 @@ The version is declared once in `roslyn.props`.
 
 ### Versioning
 
-From **2.0** onward, package versions are produced by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) (nbgv) from the `version.json` file at the repository root. That file holds the base version (currently `2.0-preview`) and requests [SemVer 2.0](https://semver.org/) package versions (`nugetPackageVersion.semVer: 2`); nbgv derives the version height, prerelease tag, and build metadata from the git history, and `version.props` maps the computed values onto the assembly and package version properties. Stable (public-release) versions are produced only on the `main`, `master`, `develop/*`, and `release/<x.y.z>` branches — every other branch yields a prerelease build.
+From **2.0** onward, package versions are produced by [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) (nbgv) from the `version.json` file at the repository root. That file holds the base version (currently `2.0-preview`) and requests [SemVer 2.0](https://semver.org/) package versions (`nugetPackageVersion.semVer: 2`); nbgv derives the version height, prerelease tag, and build metadata from the git history, and `version.props` maps the computed values onto the assembly and package version properties.
+
+NBGV public-release configuration is not itself a stable-release classification:
+an official version containing a preview suffix is still a prerelease. The
+[Release Evidence contract](ReleaseEvidence.md) classifies the actual version and
+authorized release intent; neither a branch name nor a moving container tag such
+as `latest` establishes eligibility for a stable-release profile.
 
 > The earlier 1.x packages used a different, spec-derived scheme in which the first two digits encoded the embedded NodeSet spec version (for example `1.5.378.x` corresponds to OPC UA spec V1.05, mapped to release branches such as `release/1.4.372`). That scheme no longer applies from 2.0 onward.
 
@@ -428,8 +469,11 @@ Omit `-BaseRef` to check only the project floor, and `-SummaryPath` to skip the 
 ## Contributing and pull requests
 
 - Fork the repository (or, if you have write access, push a branch prefixed with your username) and open a pull request. You must agree to the [Contributor License Agreement](https://opcfoundation.org/license/cla/ContributorLicenseAgreementv1.0.pdf); the "I AGREE" prompt appears automatically on your first PR. See [CONTRIBUTING.md](../CONTRIBUTING.md).
+- For an undisclosed vulnerability, use [confidential intake](../SECURITY.md#reporting-a-vulnerability) instead of opening a public issue or PR. The Security WG coordinates disclosure and any public fix/tests. This also applies to obsolete APIs; no GCVE, CVE or GHSA identifier is needed.
 - Before submitting: all tests pass, code analysis is clean (no new warnings), the change keeps backward compatibility, and security implications are reviewed.
 - The pull-request template asks you to confirm the CLA, added tests/coverage, documentation, a warning-free build, that the `UA.slnx` suite passed on **.NET Framework 4.8** and **.NET 10.0**, and that CI and CodeQL are green.
+- Mark checklist items only when verified; state applicable validation and unperformed checks without exposing sensitive details. Documentation-only changes need local link and whitespace checks, not a build.
+- Release-evidence changes follow the [pilot contract](ReleaseEvidence.md); report incomplete evidence honestly and do not weaken existing required checks.
 - You can run the `opc-ua-codestyle-enforcer` agent to drive analyzer warnings to zero before opening the PR.
 
 ## Related documentation
@@ -438,3 +482,4 @@ Omit `-BaseRef` to check only the project floor, and `-SummaryPath` to skip the 
 - [Diagnostics](Diagnostics.md) — telemetry context, logging runtime, metrics, audit events, server diagnostics nodes, and packet capture.
 - [Dependency Injection](DependencyInjection.md), [Certificates](Certificates.md) / [Certificate Manager](CertificateManager.md), [NativeAOT](NativeAoT.md), [Migration Guide](MigrationGuide.md), [What's New in 2.0](WhatsNewIn2.0.md).
 - [Fuzz testing](../fuzzing/Fuzzing.md).
+- [Security policy and maintenance](../SECURITY.md), [Security Stewardship](SecurityStewardship.md), and [Release Evidence](ReleaseEvidence.md).

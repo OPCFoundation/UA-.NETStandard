@@ -77,6 +77,16 @@ namespace FlatTagServer
         public string? PkiRoot { get; set; }
 
         /// <summary>
+        /// Gets or sets an explicit development-only exception for untrusted peer certificates.
+        /// </summary>
+        public bool AutoAcceptUntrustedCertificates { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether an unsecured endpoint is offered for an isolated demonstration.
+        /// </summary>
+        public bool IncludeUnsecurePolicyNone { get; set; }
+
+        /// <summary>
         /// Gets or sets the endpoint instance name.
         /// </summary>
         public string InstanceName { get; set; } = "SourceA";

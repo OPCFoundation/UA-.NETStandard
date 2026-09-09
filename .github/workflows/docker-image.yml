@@ -18,7 +18,9 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  DOCKERSIGN: false
+  DOCKER_BUILD_RECORD_UPLOAD: 'false'
+  # Public registry response bytes verified against Docker-Content-Digest, 2026-09-08; scanner 1.12.0.
+  SBOM_SCANNER: docker.io/docker/buildkit-syft-scanner@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9
 
 jobs:
   build-and-push-image:
@@ -59,26 +61,25 @@ jobs:
       id-token: write
 
     steps:
+    - name: Initialize runner-local pilot work location
+      shell: pwsh
+      run: |
+        "EVIDENCE_WORK=$(Join-Path $env:RUNNER_TEMP 'container-evidence')" >> $env:GITHUB_ENV
+
     - uses: actions/checkout@v7
       with:
         fetch-depth: 0
 
-    - name: Set up .NET 8
+    - name: Set up .NET for versioning and evidence
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '8.x'
+        dotnet-version: |
+          8.x
+          10.x
 
     - name: Set Version
       shell: pwsh
       run: ./.azurepipelines/set-version.ps1
-
-    # Install the cosign tool except on PR
-    # https://github.com/sigstore/cosign-installer
-    - name: Install cosign
-      if: github.event_name != 'pull_request' && env.DOCKERSIGN == 'true'
-      uses: sigstore/cosign-installer@main
-      with:
-        cosign-release: 'v1.13.1'
 
     # https://github.com/docker/build-push-action
     - name: Setup Docker buildx
@@ -109,6 +110,14 @@ jobs:
         echo TAG_BRANCH=$(echo ${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_VERSION }}${{ env.IMAGE_TAG }}) >> $GITHUB_ENV
         echo TAG_LATEST=$(echo ${{ env.IMAGE_REPOSITORY }}:latest${{ env.IMAGE_TAG }}) >> $GITHUB_ENV
 
+    # This is a refusal guard, not a protected publisher or a completed promotion implementation.
+    - name: Refuse unsupported required stable publication
+      if: github.event_name != 'pull_request'
+      shell: pwsh
+      run: |
+        ./.azurepipelines/container-evidence.ps1 -Operation Preflight -Group containers `
+          -Image $env:IMAGE_NAME -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK
+
     - name: Prepare Release tags
       if: ${{ env.NBGV_PublicRelease == 'True' && env.NBGV_PrereleaseVersion == '' && env.IS_NOT_PR == 'true' }}
       run: |
@@ -133,27 +142,158 @@ jobs:
       with:
         context: .
         build-args: |
-          Version=${{ env.NBGV_Version }}
+          Version=${{ env.IMAGE_VERSION }}
           SimpleVersion=${{ env.NBGV_SimpleVersion }}
+          FileVersion=${{ env.NBGV_SimpleVersion }}
           InformationalVersion=${{ env.NBGV_AssemblyInformationalVersion }}
+          SourceRevisionId=${{ github.sha }}
+          SourceRepositoryUrl=${{ github.server_url }}/${{ github.repository }}
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.TAG_BRANCH }},${{ env.TAG_LATEST }}${{ env.TAG_RELEASE }}
         platforms: linux/amd64,linux/arm64/v8
         file: ${{ matrix.dockerfile }}
-        labels: ${{ steps.meta.outputs.labels }}
-        provenance: false
+        labels: |
+          ${{ steps.meta.outputs.labels }}
+          org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
+          org.opencontainers.image.revision=${{ github.sha }}
+          org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+        provenance: mode=min
+        sbom: generator=${{ env.SBOM_SCANNER }}
         cache-from: type=gha,scope=${{ matrix.image }}
         # setup-buildx-action@v4 installs Buildx and BuildKit versions that support ignore-error.
         cache-to: type=gha,mode=max,scope=${{ matrix.image }},ignore-error=true
 
-    # Sign the resulting Docker image digest except on PRs.
-    # https://github.com/sigstore/cosign
-    - name: Sign the published Docker image
-      if: github.event_name != 'pull_request' && env.DOCKERSIGN == 'true'
+    - name: Record immutable build identity
+      id: record
+      if: github.event_name != 'pull_request' && steps.build-and-push.outcome == 'success'
+      continue-on-error: true
+      shell: pwsh
       env:
-        COSIGN_EXPERIMENTAL: "true"
-      # This step uses the identity token to provision an ephemeral certificate
-      # against the sigstore community Fulcio instance.
+        ROOT_DIGEST: ${{ steps.build-and-push.outputs.digest }}
       run: |
-        echo Signing ${{ env.IMAGE_REPOSITORY }}@${{ steps.build-and-push.outputs.digest }}
-        echo "${{ env.IMAGE_REPOSITORY }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
+        ./.azurepipelines/container-evidence.ps1 -Operation Record -Group containers `
+          -Image $env:IMAGE_REPOSITORY -RootDigest $env:ROOT_DIGEST -Version $env:IMAGE_VERSION `
+          -Work $env:EVIDENCE_WORK -BuildState success
+
+    - name: Prepare offline OCI reader
+      if: steps.record.outcome == 'success'
+      continue-on-error: true
+      shell: pwsh
+      run: |
+        dotnet build ./tools/Opc.Ua.ReleaseEvidence/Opc.Ua.ReleaseEvidence.csproj -c Release -f net10.0 `
+          --nologo *> "$env:EVIDENCE_WORK/tool-build.log"
+        if ($LASTEXITCODE -ne 0) { Write-Warning 'OCI reader unavailable; container pilot remains incomplete.' }
+        exit $LASTEXITCODE
+
+    - name: Read back complete OCI blobs by digest
+      id: collect
+      if: steps.record.outcome == 'success'
+      continue-on-error: true
+      shell: pwsh
+      env:
+        GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        ./.azurepipelines/container-evidence.ps1 -Operation Collect -Group containers `
+          -Image $env:IMAGE_REPOSITORY -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK -BuildState success
+
+    - name: Reconcile runnable subjects and native attestations
+      id: reconcile
+      if: steps.collect.outcome == 'success'
+      continue-on-error: true
+      shell: pwsh
+      run: |
+        ./.azurepipelines/container-evidence.ps1 -Operation VerifyLocal -Group containers `
+          -Image $env:IMAGE_REPOSITORY -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK -BuildState success
+
+    - name: Install approved pilot cosign
+      id: cosign
+      if: steps.reconcile.outcome == 'success'
+      continue-on-error: true
+      uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+      with:
+        cosign-release: 'v3.1.3'
+
+    - name: Sign and verify root and runnable subjects (publisher boundary pending)
+      if: steps.cosign.outcome == 'success'
+      continue-on-error: true
+      shell: pwsh
+      env:
+        GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        ./.azurepipelines/container-evidence.ps1 -Operation Sign -Group containers `
+          -Image $env:IMAGE_REPOSITORY -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK -BuildState success
+
+    - name: Always produce sanitized per-image status
+      if: always()
+      continue-on-error: true
+      shell: pwsh
+      env:
+        BUILD_STATE: ${{ steps.build-and-push.outcome }}
+      run: |
+        $public = Join-Path $env:EVIDENCE_WORK 'public'
+        $null = New-Item -ItemType Directory -Force -Path $public
+        $status = Join-Path $public 'status.json'
+        @{
+          schemaVersion = 1; status = 'incomplete'; group = 'containers'
+          image = "ghcr.io/opcfoundation/uanetstandard/$env:IMAGE_NAME"
+          collectorState = 'unavailable'; observedSubjects = @(); observedAttestations = @()
+          unmetControls = @('PRODUCER_NOT_READY', 'PUBLISHER_BOUNDARY')
+        } | ConvertTo-Json | Set-Content -LiteralPath $status
+        $reportExit = 2
+        if (Test-Path ./.azurepipelines/container-evidence.ps1) {
+          & ./.azurepipelines/container-evidence.ps1 -Operation Status -Group containers `
+            -Image $env:IMAGE_NAME -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK `
+            -BuildState $env:BUILD_STATE -Output $status
+          $reportExit = $LASTEXITCODE
+        }
+        Write-Warning 'Container pilot is incomplete; status is not authorization or baseline success.'
+        # continue-on-error applies only to reporting, never to the baseline build/push.
+        exit $reportExit
+
+    - name: Upload sanitized status only
+      if: always()
+      continue-on-error: true
+      uses: actions/upload-artifact@v4
+      with:
+        name: container-status-${{ matrix.image }}
+        path: ${{ runner.temp }}/container-evidence/public/status.json
+        if-no-files-found: error
+
+    - name: Retain per-subject public signature bundles
+      if: github.event_name != 'pull_request' && steps.cosign.outcome == 'success'
+      continue-on-error: true
+      uses: actions/upload-artifact@v4
+      with:
+        name: container-signature-bundles-${{ matrix.image }}
+        # Explicit signature material only; never upload the work directory, native predicates or raw tool logs.
+        path: |
+          ${{ runner.temp }}/container-evidence/subject-proofs/*.bundle.json
+        if-no-files-found: error
+
+  container-group-status:
+    if: always()
+    needs: build-and-push-image
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/download-artifact@v4
+      continue-on-error: true
+      with:
+        pattern: container-status-*
+        path: ${{ runner.temp }}/container-statuses
+    - name: Reconcile catalog membership without inventing missing platforms
+      if: always()
+      shell: pwsh
+      run: |
+        ./.azurepipelines/container-evidence.ps1 -Operation Aggregate -Group containers `
+          -Inputs "${{ runner.temp }}/container-statuses" `
+          -Output "${{ runner.temp }}/artifact-group-manifest.json"
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: container-artifact-group-manifest
+        path: ${{ runner.temp }}/artifact-group-manifest.json
+        if-no-files-found: error

@@ -10,9 +10,10 @@
 >
 > Looking for the supported 1.x release? It lives on the
 > [`master378`](https://github.com/OPCFoundation/UA-.NETStandard/tree/master378)
-> branch (last release: `1.5.378`). All new feature work happens here on
-> `master`; `master378` continues to receive security and critical-bug
-> fixes for the 1.x line.
+> branch (`1.5.378.x`, latest patch). All new feature work happens here on
+> `master`, currently the 2.0 preview/development line. See the canonical
+> [security-maintenance matrix](SECURITY.md#supported-versions) for both lines;
+> `master378` remains maintained for security and critical-bug fixes.
 
 The official OPC Foundation reference implementation of OPC UA for
 .NET — a certified, cross-platform stack with client, server, PubSub,
@@ -118,7 +119,9 @@ copilot plugin install opcua-v20-migration@opcua-dotnet
 
 If you are still on 1.x and not ready to upgrade, stay on the
 [`master378`](https://github.com/OPCFoundation/UA-.NETStandard/tree/master378)
-branch — it continues to receive security and critical-bug fixes.
+line and use its latest `1.5.378.x` patch. Maintenance and backport decisions
+are described in [SECURITY.md](SECURITY.md#supported-versions); the current
+2.0 engineering-control pilot does not change 1.5 maintenance.
 
 ## 🤝 Contributing and license
 
@@ -133,7 +136,7 @@ The CLA "I AGREE" gate is presented automatically on your first PR.
 The project is licensed under the
 [OPC Foundation MIT License](LICENSE.txt). Report security
 vulnerabilities via the process documented in
-[SECURITY.md](SECURITY.md).
+[SECURITY.md](SECURITY.md), not in a public issue or pull request.
 
 ## 📚 Further reading
 
@@ -146,6 +149,10 @@ vulnerabilities via the process documented in
 - [Migration Guide](docs/MigrationGuide.md) — prescriptive
   per-version migration reference (links to
   [`docs/migrate/2.0.x/`](docs/migrate/2.0.x/README.md)).
+- [Security Stewardship](docs/SecurityStewardship.md) — OSS steward duties,
+  scoped reporting and pending operational-readiness work.
+- [Release Evidence](docs/ReleaseEvidence.md) — current-line engineering
+  evidence contract and pilot; separate from statutory steward duties.
 - [OPC UA Online Reference](https://reference.opcfoundation.org/) —
   the official OPC 10000 series specification index.
 - [Preview Nuget package feed](https://nuget.pkg.github.com/OPCFoundation/index.json) —

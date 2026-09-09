@@ -1,8 +1,9 @@
 name: Release to nuget.org
 
 # Manual promotion of the exact signed package bytes produced by a successful
-# nuget-publish.yml run on a release/* branch. The release environment provides
-# the approval boundary and NuGet trusted publishing identity.
+# nuget-publish.yml run on a release/* branch. The job uses the release environment
+# and NuGet trusted publishing identity. Environment
+# protection and all other publication authorities require administrator verification.
 #
 # One-time nuget.org trusted publishing policy:
 #   Repository Owner: OPCFoundation
@@ -26,21 +27,119 @@ on:
 permissions:
   actions: read
   contents: read
-  id-token: write
 
 concurrency:
   group: nuget-release
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Promote signed packages
+  candidate-verification:
+    name: Dormant read-only candidate verification
+    if: ${{ false }}
+    runs-on: windows-2025
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      assessment_digest: ${{ steps.verify.outputs.assessment_digest }}
+    steps:
+      - name: Checkout protected controller, never candidate code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+      - name: Setup .NET 10.0
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build protected verifier before candidate acquisition
+        shell: pwsh
+        run: dotnet build tools\Opc.Ua.ReleaseEvidence\Opc.Ua.ReleaseEvidence.csproj -c Release -f net10.0 --nologo
+      - name: Require independently provisioned read-only candidate and trust inputs
+        id: verify
+        shell: pwsh
+        run: |
+          # Acquisition namespaces, access, current roots/checkpoints and grant records remain unconfigured.
+          # Administrators must supply these outside the candidate; no dispatch parameter activates this path.
+          .\.azurepipelines\release-promotion.ps1 -Operation Verify `
+            -CandidateRoot "$env:RUNNER_TEMP\release-candidate" `
+            -Evidence "$env:RUNNER_TEMP\release-candidate\evidence\release-evidence.json" `
+            -Expected "$env:RUNNER_TEMP\release-candidate\expected.json" `
+            -VerificationBundle "$env:RUNNER_TEMP\release-candidate\verification-bundle.json" `
+            -Request "$env:RUNNER_TEMP\release-candidate\promotion-request.json" `
+            -Work "$env:RUNNER_TEMP\release-verifier" -Output "$env:RUNNER_TEMP\promotion-assessment.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $digest = 'sha256:' + (Get-FileHash "$env:RUNNER_TEMP\promotion-assessment.json" -Algorithm SHA256).Hash.ToLowerInvariant()
+          "assessment_digest=$digest" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
+      - name: Transfer immutable read-only assessment
+        uses: actions/upload-artifact@v7
+        with:
+          name: dormant-promotion-assessment-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/promotion-assessment.json
+          if-no-files-found: error
+
+  candidate-writer:
+    name: Dormant isolated official writer
+    if: ${{ false }}
+    needs: candidate-verification
     runs-on: windows-2025
     environment: release
+    concurrency:
+      group: dormant-release-official-destination
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout protected controller, never candidate code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+      - name: Setup .NET 10.0
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build protected writer before candidate acquisition
+        shell: pwsh
+        run: dotnet build tools\Opc.Ua.ReleaseEvidence\Opc.Ua.ReleaseEvidence.csproj -c Release -f net10.0 --nologo
+      - name: Acquire read-only assessment
+        uses: actions/download-artifact@v8
+        with:
+          name: dormant-promotion-assessment-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-assessment
+      - name: Reverify current authorization and exact bytes immediately before isolated writing
+        shell: pwsh
+        env:
+          ASSESSMENT_DIGEST: ${{ needs.candidate-verification.outputs.assessment_digest }}
+        run: |
+          # Candidate acquisition and real registry lease/transport require the pending administrator handoff.
+          # No registered official transport exists; neither this job nor a boolean can fabricate a grant.
+          .\.azurepipelines\release-promotion.ps1 -Operation Write `
+            -CandidateRoot "$env:RUNNER_TEMP\release-candidate" `
+            -Evidence "$env:RUNNER_TEMP\release-candidate\evidence\release-evidence.json" `
+            -Expected "$env:RUNNER_TEMP\release-candidate\expected.json" `
+            -VerificationBundle "$env:RUNNER_TEMP\release-candidate\verification-bundle.json" `
+            -Request "$env:RUNNER_TEMP\release-candidate\promotion-request.json" `
+            -Assessment "$env:RUNNER_TEMP\release-assessment\promotion-assessment.json" `
+            -AssessmentDigest $env:ASSESSMENT_DIGEST -Journal "$env:OPCUA_RELEASE_JOURNAL" `
+            -Work "$env:RUNNER_TEMP\release-writer" -Output "$env:RUNNER_TEMP\promotion-result.json"
+
+  publish:
+    name: Promote signed packages
+    if: ${{ github.repository == 'OPCFoundation/UA-.NETStandard' && github.ref == 'refs/heads/master' }}
+    runs-on: windows-2025
+    environment: release
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
 
       - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v6
@@ -79,6 +178,12 @@ jobs:
                   "Run $env:RELEASE_RUN_ID is not successful: " +
                   "status=$($run.status), conclusion=$($run.conclusion).")
           }
+          if ($run.event -cnotin @('push', 'workflow_dispatch') -or
+              $run.head_sha -cnotmatch '^[0-9a-f]{40}$' -or
+              $run.run_attempt -lt 1 -or
+              [string]$run.id -cne $env:RELEASE_RUN_ID) {
+              throw 'The selected run has an invalid event, source, attempt or run identity.'
+          }
           if (-not $run.head_branch.StartsWith(
               'release/',
               [StringComparison]::OrdinalIgnoreCase)) {
@@ -94,6 +199,8 @@ jobs:
 
           "commit=$($run.head_sha)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "branch=$($run.head_branch)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "attempt=$($run.run_attempt)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "definition=$($run.head_sha)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "artifact=opcua-packages-$env:RELEASE_RUN_ID" |
               Out-File -FilePath $env:GITHUB_OUTPUT -Append
           Write-Host (
@@ -132,6 +239,7 @@ jobs:
           ./.azurepipelines/validate-nuget-package-set.ps1 `
             -PackageDirectory promotion `
             -ManifestPath $currentPath `
+            -MetadataPath promotion\archive-metadata.json `
             -ExpectedVersion $manifest.packageVersion `
             -RequireDebug `
             -VerifySignatures
@@ -155,6 +263,34 @@ jobs:
               "Validated $($current.packageCount) exact package bytes at version " +
               "$($current.packageVersion) from run ${{ inputs.release_run_id }}.")
 
+      - name: Prepare offline evidence reader
+        shell: pwsh
+        run: |
+          .\.azurepipelines\nuget-evidence.ps1 -Operation PrepareTool `
+            -Work "$env:RUNNER_TEMP\nuget-reader" -Output promotion\reader-report.json
+
+      - name: Refresh same-source assurance for promotion
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          .\.azurepipelines\nuget-evidence.ps1 -Operation Assurance -Packages promotion `
+            -Output promotion\assurance -Work "$env:RUNNER_TEMP\nuget-release-assurance"
+
+      - name: Preflight against current controller policy
+        shell: pwsh
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.commit }}
+          SOURCE_REF: refs/heads/${{ steps.source.outputs.branch }}
+          SOURCE_RUN_ID: ${{ inputs.release_run_id }}
+          SOURCE_ATTEMPT: ${{ steps.source.outputs.attempt }}
+          SOURCE_DEFINITION_SHA: ${{ steps.source.outputs.definition }}
+        run: |
+          .\.azurepipelines\nuget-evidence.ps1 -Operation Preflight -Packages promotion `
+            -Expected promotion\evidence\producer-context.json `
+            -Destination NugetOrg -Output promotion\preflight.json `
+            -Work "$env:RUNNER_TEMP\nuget-preflight"
+
       - name: NuGet login
         if: ${{ !inputs.dry_run }}
         id: login
@@ -167,16 +303,64 @@ jobs:
         shell: pwsh
         run: |
           $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File | Sort-Object Name)
+          .\.azurepipelines\nuget-evidence.ps1 -Operation Receipt -Packages promotion `
+            -Output promotion\nugetorg-receipt.json -Destination NugetOrg
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           foreach ($package in $packages) {
+              .\.azurepipelines\nuget-evidence.ps1 -Operation Receipt -Packages promotion `
+                -Output promotion\nugetorg-receipt.json -Destination NugetOrg `
+                -File $package.Name -State attempting
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
               dotnet nuget push $package.FullName `
                 --source 'https://api.nuget.org/v3/index.json' `
                 --symbol-source 'https://api.nuget.org/v3/index.json' `
                 --api-key '${{ steps.login.outputs.NUGET_API_KEY }}' `
                 --skip-duplicate
-              if ($LASTEXITCODE -ne 0) {
+              $pushCode = $LASTEXITCODE
+              $state = if ($pushCode -eq 0) { 'push-accepted-or-duplicate' } else { 'push-failed' }
+              .\.azurepipelines\nuget-evidence.ps1 -Operation Receipt -Packages promotion `
+                -Output promotion\nugetorg-receipt.json -Destination NugetOrg `
+                -File $package.Name -State $state
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              if ($pushCode -ne 0) {
                   throw "nuget.org push failed for '$($package.Name)'."
               }
           }
+
+      - name: Verify feed delivery read-only
+        if: ${{ always() && !inputs.dry_run && hashFiles('promotion/nugetorg-receipt.json') != '' }}
+        shell: pwsh
+        run: |
+          .\.azurepipelines\nuget-evidence.ps1 -Operation VerifyFeed -Packages promotion `
+            -Destination NugetOrg -Output promotion\nugetorg-receipt.json `
+            -Work "$env:RUNNER_TEMP\nuget-feed"
+
+      - name: Attach sanitized evidence to an existing matching release
+        if: ${{ success() && !inputs.dry_run }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          .\.azurepipelines\nuget-evidence.ps1 -Operation Attach -Packages promotion `
+            -Output promotion\attachment-report.json -Work "$env:RUNNER_TEMP\nuget-attachments"
+
+      - name: Retain preflight and partial delivery receipts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuget-promotion-receipts-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            promotion/preflight.json
+            promotion/reader-report.json
+            promotion/nugetorg-receipt.json
+            promotion/nugetorg-receipt.json.events/*.json
+            promotion/nugetorg-receipt.json.evidence/*.json
+            promotion/nugetorg-receipt.json.incomplete.json
+            promotion/attachment-report.json
+            promotion/assurance/*.json
+            promotion/assurance.incomplete.json
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Summary
         if: always()

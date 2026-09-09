@@ -61,8 +61,10 @@ namespace AggregationClient
                 var sourceOptions = new AggregationClientOptions
                 {
                     AggregationEndpoint = endpoint,
-                    ApplicationName = options.ApplicationName + "." + sourceName,
-                    PkiRoot = options.PkiRoot is null ? null : Path.Combine(options.PkiRoot, sourceName)
+                    ApplicationName = options.ApplicationName,
+                    AutoAcceptUntrustedCertificates = options.AutoAcceptUntrustedCertificates,
+                    UseSecurityPolicyNone = options.UseSecurityPolicyNone,
+                    PkiRoot = options.PkiRoot
                 };
                 using IHost sourceHost = BuildHost(sourceOptions);
                 await sourceHost.StartAsync(cancellationToken).ConfigureAwait(false);

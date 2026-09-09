@@ -28,25 +28,88 @@
  * ======================================================================*/
 
 using System;
+using System.CommandLine;
 using System.IO;
-using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Samples;
 using SiteComposition;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+Option<bool> autoAcceptOption = SampleCommandLine.CreateAutoAcceptOption("--autoaccept", "-a");
+Option<string> portOption = SampleCommandLine.CreateInt32ConfigurationOption(
+    "--port", "Endpoint port (default 62544).", 1, 65535);
+var hostOption = new Option<string>("--host") { Description = "Endpoint host (default 0.0.0.0)." };
+var pumpOption = new Option<string>("--pump-server") { Description = "Subordinate pump server endpoint URL." };
+var generatorOption = new Option<string>("--generator-server")
+{
+    Description = "Subordinate generator server endpoint URL."
+};
+foreach (Option<string> endpointOption in new[] { pumpOption, generatorOption })
+{
+    endpointOption.Validators.Add(result =>
+    {
+        if (!Uri.TryCreate(result.GetValueOrDefault<string>(), UriKind.Absolute, out Uri? uri) ||
+            string.IsNullOrEmpty(uri.Host))
+        {
+            result.AddError($"{endpointOption.Name} must be an absolute endpoint URL.");
+        }
+    });
+}
+Argument<string[]> configurationArgument = SampleCommandLine.CreateConfigurationArgument();
+(string[] sampleArguments, string[] forwardedArguments) = SampleCommandLine.SplitHostArguments(args);
+var command = new RootCommand("OPC UA Site Composition Server: trusted certificates and secure endpoints.")
+{
+    autoAcceptOption,
+    portOption,
+    hostOption,
+    pumpOption,
+    generatorOption,
+    configurationArgument
+};
+command.Validators.Add(result =>
+{
+    if (SampleCommandLine.GetHostArgumentError(forwardedArguments) is string error)
+    {
+        result.AddError(error);
+    }
+});
+ParseResult? parsed = null;
+command.SetAction(result => parsed = result);
+int exitCode = await SampleCommandLine.InvokeAsync(
+    command, sampleArguments, Console.Out, Console.Error).ConfigureAwait(false);
+if (parsed is null)
+{
+    return exitCode;
+}
+bool autoAccept = parsed.GetValue(autoAcceptOption);
+SampleCommandLine.WriteSecurityWarnings(Console.Error, autoAccept, false, "client", string.Empty);
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(SampleCommandLine.GetHostArguments(
+    parsed, forwardedArguments, configurationArgument, portOption, hostOption, pumpOption, generatorOption));
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62544;
+int port = 62544;
+if (builder.Configuration["port"] is string configuredPort &&
+    (!int.TryParse(configuredPort, out port) || port is < 1 or > 65535))
+{
+    Console.Error.WriteLine("The configured port must be an integer between 1 and 65535. Use --help.");
+    return 1;
+}
 string host = builder.Configuration["host"] is { Length: > 0 } h ? h : "0.0.0.0";
 
 string pumpServer = builder.Configuration["pump-server"]
     ?? "opc.tcp://localhost:62542/PumpDeviceIntegrationServer";
 string generatorServer = builder.Configuration["generator-server"]
     ?? "opc.tcp://localhost:62543/GeneratorServer";
+if (!Uri.TryCreate(pumpServer, UriKind.Absolute, out Uri? pumpUri) || string.IsNullOrEmpty(pumpUri.Host) ||
+    !Uri.TryCreate(generatorServer, UriKind.Absolute, out Uri? generatorUri) || string.IsNullOrEmpty(generatorUri.Host))
+{
+    Console.Error.WriteLine(
+        "The configured pump-server and generator-server must be absolute endpoint URLs. Use --help.");
+    return 1;
+}
 
 builder.Services.Configure<SiteCompositionOptions>(options =>
 {
@@ -62,7 +125,8 @@ builder.Services
         o.ApplicationUri = "urn:localhost:OPCFoundation:SiteCompositionServer";
         o.ProductUri = "uri:opcfoundation.org:SiteCompositionServer";
         // Sample convenience only; never auto-accept untrusted certificates in production.
-        o.AutoAcceptUntrustedCertificates = true;
+        o.AutoAcceptUntrustedCertificates = autoAccept;
+        o.IncludeUnsecurePolicyNone = false;
         o.PkiRoot = Path.Combine(AppContext.BaseDirectory, "pki");
         o.RejectSHA1Certificates = true;
         o.MinCertificateKeySize = 2048;

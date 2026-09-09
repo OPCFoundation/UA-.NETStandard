@@ -208,7 +208,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                         nodeIds[i],
                         ports[i],
                         string.Format(CultureInfo.InvariantCulture, "opc.tcp://127.0.0.1:{0}/RedundantServer", ports[i]),
-                        ["--port", ports[i].ToString(CultureInfo.InvariantCulture)],
+                        ["--port", ports[i].ToString(CultureInfo.InvariantCulture), "--security-none"],
                         environment));
                 }
 
@@ -258,7 +258,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 "solo",
                 port,
                 string.Format(CultureInfo.InvariantCulture, "opc.tcp://127.0.0.1:{0}/RedundantServer", port),
-                ["--port", port.ToString(CultureInfo.InvariantCulture)],
+                ["--port", port.ToString(CultureInfo.InvariantCulture), "--security-none"],
                 environment);
             try
             {

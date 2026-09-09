@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.CommandLine;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -37,23 +38,52 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.AI.Client;
 using Opc.Ua.Client;
+using Opc.Ua.Samples;
+
+Option<bool> autoAcceptOption = SampleCommandLine.CreateAutoAcceptOption("--autoaccept", "-a");
+var insecureOption = new Option<bool>("--insecure")
+{
+    Description = "Select SecurityPolicy None (no message security); does not trust certificates."
+};
+var endpointArgument = new Argument<string>("endpoint")
+{
+    Description = "OPC UA discovery endpoint URL.",
+    Arity = ArgumentArity.ZeroOrOne,
+    DefaultValueFactory = _ => "opc.tcp://localhost:62640/ModelManagementServer"
+};
+endpointArgument.Validators.Add(result =>
+{
+    if (!Uri.TryCreate(result.GetValueOrDefault<string>(), UriKind.Absolute, out Uri? uri) ||
+        string.IsNullOrEmpty(uri.Host))
+    {
+        result.AddError("The endpoint must be an absolute URL, such as opc.tcp://localhost:62640.");
+    }
+});
+var command = new RootCommand("OPC UA AI Model Management Client: trusted certificates and SignAndEncrypt by default.")
+{
+    autoAcceptOption,
+    insecureOption,
+    endpointArgument
+};
+ParseResult? parsed = null;
+command.SetAction(result => parsed = result);
+int exitCode = await SampleCommandLine.InvokeAsync(
+    command, args, Console.Out, Console.Error).ConfigureAwait(false);
+if (parsed is null)
+{
+    return exitCode;
+}
 
 try
 {
-    string endpoint = args.Length > 0 && !args[0].StartsWith("--", StringComparison.Ordinal)
-        ? args[0]
-        : "opc.tcp://localhost:62640/ModelManagementServer";
-
-    bool insecure = Array.IndexOf(args, "--insecure") >= 0;
+    string endpoint = parsed.GetValue(endpointArgument)!;
+    bool insecure = parsed.GetValue(insecureOption);
+    bool autoAccept = parsed.GetValue(autoAcceptOption);
 
     Console.WriteLine("OPC UA AI Model Management client");
     Console.WriteLine("Endpoint: {0}", endpoint);
 
-    if (insecure)
-    {
-        Console.Error.WriteLine(
-            "WARNING: --insecure selects an endpoint without message security.");
-    }
+    SampleCommandLine.WriteSecurityWarnings(Console.Error, autoAccept, insecure, "server", "--insecure");
 
     Console.WriteLine();
 
@@ -73,7 +103,7 @@ try
             options.PkiRoot = Path.Combine(
                 Path.GetTempPath(), "OPC Foundation", applicationName, "pki");
             // Sample convenience only; never auto-accept in production.
-            options.AutoAcceptUntrustedCertificates = true;
+            options.AutoAcceptUntrustedCertificates = autoAccept;
             options.RejectSHA1SignedCertificates = true;
             options.MinimumCertificateKeySize = 2048;
             options.Session = new ManagedSessionOptions
@@ -110,7 +140,7 @@ try
             Console.WriteLine();
 
             ITelemetryContext telemetry = host.Services.GetRequiredService<ITelemetryContext>();
-            AIScenarioRunner? runner = AIScenarioRunner.TryCreate(session, telemetry);
+            var runner = AIScenarioRunner.TryCreate(session, telemetry);
 
             if (runner is null)
             {

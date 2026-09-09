@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.CommandLine;
 using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
@@ -35,18 +36,58 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
-using Opc.Ua.Di;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Pumps;
+using Opc.Ua.Samples;
 using Opc.Ua.Server.Fluent;
 using Pumps;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+Option<bool> autoAcceptOption = SampleCommandLine.CreateAutoAcceptOption("--autoaccept", "-a");
+Option<string> portOption = SampleCommandLine.CreateInt32ConfigurationOption(
+    "--port", "Endpoint port (default 62542).", 1, 65535);
+Option<string> pumpsOption = SampleCommandLine.CreateInt32ConfigurationOption(
+    "--pumps", "Number of pumps (default 2).", 1, 100);
+var hostOption = new Option<string>("--host") { Description = "Endpoint host (default 0.0.0.0)." };
+Argument<string[]> configurationArgument = SampleCommandLine.CreateConfigurationArgument();
+(string[] sampleArguments, string[] forwardedArguments) = SampleCommandLine.SplitHostArguments(args);
+var command = new RootCommand("OPC UA Pump Device Integration Server: trusted certificates and secure endpoints.")
+{
+    autoAcceptOption,
+    portOption,
+    hostOption,
+    pumpsOption,
+    configurationArgument
+};
+command.Validators.Add(result =>
+{
+    if (SampleCommandLine.GetHostArgumentError(forwardedArguments) is string error)
+    {
+        result.AddError(error);
+    }
+});
+ParseResult? parsed = null;
+command.SetAction(result => parsed = result);
+int exitCode = await SampleCommandLine.InvokeAsync(
+    command, sampleArguments, Console.Out, Console.Error).ConfigureAwait(false);
+if (parsed is null)
+{
+    return exitCode;
+}
+bool autoAccept = parsed.GetValue(autoAcceptOption);
+SampleCommandLine.WriteSecurityWarnings(Console.Error, autoAccept, false, "client", string.Empty);
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(SampleCommandLine.GetHostArguments(
+    parsed, forwardedArguments, configurationArgument, portOption, hostOption, pumpsOption));
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62542;
+int port = 62542;
+if (builder.Configuration["port"] is string configuredPort &&
+    (!int.TryParse(configuredPort, out port) || port is < 1 or > 65535))
+{
+    Console.Error.WriteLine("The configured port must be an integer between 1 and 65535. Use --help.");
+    return 1;
+}
 
 if (!TryReadPumpCount(builder.Configuration["pumps"], out int pumpCount, out string? pumpError))
 {
@@ -59,10 +100,7 @@ if (!TryReadPumpCount(builder.Configuration["pumps"], out int pumpCount, out str
 // (e.g. "localhost" for local-only development).
 string host = builder.Configuration["host"] is { Length: > 0 } h ? h : "0.0.0.0";
 
-builder.Services.Configure<PumpDeviceIntegrationOptions>(options =>
-{
-    options.PumpCount = pumpCount;
-});
+builder.Services.Configure<PumpDeviceIntegrationOptions>(options => options.PumpCount = pumpCount);
 
 builder.Services
     .AddOpcUa()
@@ -72,7 +110,8 @@ builder.Services
         o.ApplicationUri = "urn:localhost:OPCFoundation:PumpDeviceIntegrationServer";
         o.ProductUri = "uri:opcfoundation.org:PumpDeviceIntegrationServer";
         // Sample convenience only; never auto-accept untrusted certificates in production.
-        o.AutoAcceptUntrustedCertificates = true;
+        o.AutoAcceptUntrustedCertificates = autoAccept;
+        o.IncludeUnsecurePolicyNone = false;
         o.PkiRoot = Path.Combine(AppContext.BaseDirectory, "pki");
         o.RejectSHA1Certificates = true;
         o.MinCertificateKeySize = 2048;
@@ -125,7 +164,7 @@ static bool TryReadPumpCount(string? value, out int pumpCount, out string? error
         return false;
     }
 
-    if (parsed < minPumpCount || parsed > maxPumpCount)
+    if (parsed is < minPumpCount or > maxPumpCount)
     {
         error = "Invalid --pumps value '" + value + "'. Specify an integer between " +
             minPumpCount.ToString(CultureInfo.InvariantCulture) + " and " +

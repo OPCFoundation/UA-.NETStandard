@@ -92,14 +92,19 @@ namespace Opc.Ua.Tests
     /// </summary>
     public static class TestUtils
     {
-        public static string[] EnumerateTestAssets(string folder, string searchPattern)
+        public static string[] EnumerateTestAssets(string folder, string searchPattern, bool requireNonEmpty = false)
         {
             string assetsPath = Utils.GetAbsoluteDirectoryPath(folder, true, false, false);
+            string[] files = [];
             if (assetsPath != null)
             {
-                return [.. Directory.EnumerateFiles(assetsPath, searchPattern, SearchOption.AllDirectories)];
+                files = [.. Directory.EnumerateFiles(assetsPath, searchPattern, SearchOption.AllDirectories)];
             }
-            return [];
+            if (requireNonEmpty && files.Length == 0)
+            {
+                throw new InvalidOperationException("Required good-seed inventory is missing or empty.");
+            }
+            return files;
         }
 
         public static string[] DiscoverTestcaseEncoderSuffixes(string folder)

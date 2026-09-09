@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>Fixture.Generator</id>
+    <version>2.0.0</version>
+    <authors>Fixture</authors>
+    <description>Synthetic fat generator fixture, not a shipping package.</description>
+    <license type="file">LICENSE.txt</license>
+    <dependencies>
+      <group targetFramework="net8.0">
+        <dependency id="Consumer.Choice" version="[1.0,2.0)" />
+      </group>
+      <group targetFramework="net10.0">
+        <dependency id="Consumer.Choice" version="[3.0,4.0)" />
+      </group>
+    </dependencies>
+  </metadata>
+</package>
