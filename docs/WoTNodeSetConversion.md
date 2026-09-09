@@ -232,6 +232,13 @@ instead of discarding it or guessing how to interpret its records. This does
 not bypass validation of supported content; malformed supported grammars and
 invalid archival digests remain errors.
 
+Known numeric members of a supported native record must fit their declared
+Byte, UInt16, UInt32 or Int32 representation; a sampling interval must remain
+finite. A present fractional or out-of-range integer is an error, not permission
+to restore the missing-member default. Diagnostics identify the exact node,
+model, permission or datatype-field JSON Pointer, and conversion returns no
+partial NodeSet. Defaults still apply when the member is absent.
+
 When an archival `uav:nodeSet` is present, known readable facts are checked
 against that baseline and conflicts are reported rather than overwritten.
 Routing-only enrichment does not grant permission to add or replace archived

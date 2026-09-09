@@ -282,14 +282,14 @@ namespace Opc.Ua.Wot
                 XmlSchemaUri = GetString(element, "xmlSchemaUri"),
                 Version = GetString(element, "version"),
                 ModelVersion = GetString(element, "modelVersion"),
-                RolePermissions = ReadRolePermissions(element, "rolePermissions")
+                RolePermissions = ReadRolePermissions(element, "rolePermissions", pointer, diagnostics)
             };
             if (TryGetDate(element, "publicationDate", out DateTime publicationDate))
             {
                 model.PublicationDate = publicationDate;
                 model.PublicationDateSpecified = true;
             }
-            if (TryGetUInt16(element, "accessRestrictions", out ushort accessRestrictions))
+            if (TryGetUInt16(element, "accessRestrictions", pointer, diagnostics, out ushort accessRestrictions))
             {
                 model.AccessRestrictions = accessRestrictions;
             }
@@ -302,7 +302,8 @@ namespace Opc.Ua.Wot
                 {
                     entries.Add(ReadModel(
                         item,
-                        pointer + "/requiredModels/" +
+                        pointer +
+                        "/requiredModels/" +
                         index.ToString(CultureInfo.InvariantCulture),
                         diagnostics));
                     index++;
@@ -493,21 +494,21 @@ namespace Opc.Ua.Wot
             node.Category = ReadStrings(element, "category");
             node.Documentation = GetString(element, "documentation");
             node.References = ReadReferences(element);
-            node.RolePermissions = ReadRolePermissions(element, "rolePermissions");
+            node.RolePermissions = ReadRolePermissions(element, "rolePermissions", pointer, diagnostics);
             node.Extensions = ReadXmlElements(
                 element,
                 "extensions",
                 pointer + "/extensions",
                 diagnostics);
-            if (TryGetUInt32(element, "writeMask", out uint writeMask))
+            if (TryGetUInt32(element, "writeMask", pointer, diagnostics, out uint writeMask))
             {
                 node.WriteMask = writeMask;
             }
-            if (TryGetUInt32(element, "userWriteMask", out uint userWriteMask))
+            if (TryGetUInt32(element, "userWriteMask", pointer, diagnostics, out uint userWriteMask))
             {
                 node.UserWriteMask = userWriteMask;
             }
-            if (TryGetUInt16(element, "accessRestrictions", out ushort accessRestrictions))
+            if (TryGetUInt16(element, "accessRestrictions", pointer, diagnostics, out ushort accessRestrictions))
             {
                 node.AccessRestrictions = accessRestrictions;
                 node.AccessRestrictionsSpecified = true;
@@ -532,7 +533,7 @@ namespace Opc.Ua.Wot
                     break;
                 case UAObject uaObject:
                     ReadInstance(element, uaObject);
-                    if (TryGetByte(element, "eventNotifier", out byte objectNotifier))
+                    if (TryGetByte(element, "eventNotifier", pointer, diagnostics, out byte objectNotifier))
                     {
                         uaObject.EventNotifier = objectNotifier;
                     }
@@ -544,7 +545,7 @@ namespace Opc.Ua.Wot
                 case UAView view:
                     ReadInstance(element, view);
                     view.ContainsNoLoops = GetBoolean(element, "containsNoLoops");
-                    if (TryGetByte(element, "eventNotifier", out byte viewNotifier))
+                    if (TryGetByte(element, "eventNotifier", pointer, diagnostics, out byte viewNotifier))
                     {
                         view.EventNotifier = viewNotifier;
                     }
@@ -643,22 +644,24 @@ namespace Opc.Ua.Wot
                 diagnostics);
             variable.Translation = ReadTranslations(element);
             variable.DataType = GetString(element, "dataType") ?? WotVocabulary.BaseDataType;
-            if (TryGetInt32(element, "valueRank", out int valueRank))
+            if (TryGetInt32(element, "valueRank", pointer, diagnostics, out int valueRank))
             {
                 variable.ValueRank = valueRank;
             }
             variable.ArrayDimensions = GetString(element, "arrayDimensions") ?? string.Empty;
-            if (TryGetUInt32(element, "accessLevel", out uint accessLevel))
+            if (TryGetUInt32(element, "accessLevel", pointer, diagnostics, out uint accessLevel))
             {
                 variable.AccessLevel = accessLevel;
             }
-            if (TryGetUInt32(element, "userAccessLevel", out uint userAccessLevel))
+            if (TryGetUInt32(element, "userAccessLevel", pointer, diagnostics, out uint userAccessLevel))
             {
                 variable.UserAccessLevel = userAccessLevel;
             }
             if (TryGetDouble(
                     element,
                     "minimumSamplingInterval",
+                    pointer,
+                    diagnostics,
                     out double minimumSamplingInterval))
             {
                 variable.MinimumSamplingInterval = minimumSamplingInterval;
@@ -692,7 +695,7 @@ namespace Opc.Ua.Wot
                 diagnostics);
             variableType.DataType =
                 GetString(element, "dataType") ?? WotVocabulary.BaseDataType;
-            if (TryGetInt32(element, "valueRank", out int valueRank))
+            if (TryGetInt32(element, "valueRank", pointer, diagnostics, out int valueRank))
             {
                 variableType.ValueRank = valueRank;
             }
@@ -850,12 +853,12 @@ namespace Opc.Ua.Wot
             writer.WriteEndObject();
         }
 
-        private static Opc.Ua.Export.DataTypeDefinition ReadDefinition(
+        private static Export.DataTypeDefinition ReadDefinition(
             JsonElement element,
             string pointer,
             List<WotDiagnostic> diagnostics)
         {
-            var definition = new Opc.Ua.Export.DataTypeDefinition
+            var definition = new Export.DataTypeDefinition
             {
                 Name = GetString(element, "name"),
                 SymbolicName = GetString(element, "symbolicName"),
@@ -866,11 +869,12 @@ namespace Opc.Ua.Wot
             if (element.TryGetProperty("fields", out JsonElement fields) &&
                 fields.ValueKind == JsonValueKind.Array)
             {
-                var result = new List<Opc.Ua.Export.DataTypeField>();
+                var result = new List<DataTypeField>();
                 int index = 0;
                 foreach (JsonElement item in fields.EnumerateArray())
                 {
-                    var field = new Opc.Ua.Export.DataTypeField
+                    string fieldPointer = pointer + "/fields/" + index.ToString(CultureInfo.InvariantCulture);
+                    var field = new DataTypeField
                     {
                         Name = GetString(item, "name"),
                         SymbolicName = GetString(item, "symbolicName"),
@@ -882,15 +886,15 @@ namespace Opc.Ua.Wot
                         IsOptional = GetBoolean(item, "isOptional"),
                         AllowSubTypes = GetBoolean(item, "allowSubTypes")
                     };
-                    if (TryGetInt32(item, "valueRank", out int valueRank))
+                    if (TryGetInt32(item, "valueRank", fieldPointer, diagnostics, out int valueRank))
                     {
                         field.ValueRank = valueRank;
                     }
-                    if (TryGetUInt32(item, "maxStringLength", out uint maxStringLength))
+                    if (TryGetUInt32(item, "maxStringLength", fieldPointer, diagnostics, out uint maxStringLength))
                     {
                         field.MaxStringLength = maxStringLength;
                     }
-                    if (TryGetInt32(item, "value", out int value))
+                    if (TryGetInt32(item, "value", fieldPointer, diagnostics, out int value))
                     {
                         field.Value = value;
                     }
@@ -900,9 +904,7 @@ namespace Opc.Ua.Wot
                             WotDiagnosticSeverity.Error,
                             WotDiagnosticCode.NativeProjectionInvalid,
                             "A DataType definition field is missing name.",
-                            WotLocation.FromPointer(
-                                pointer + "/fields/" +
-                                index.ToString(CultureInfo.InvariantCulture))));
+                            WotLocation.FromPointer(fieldPointer)));
                     }
                     result.Add(field);
                     index++;
@@ -1105,7 +1107,9 @@ namespace Opc.Ua.Wot
 
         private static RolePermission[]? ReadRolePermissions(
             JsonElement element,
-            string name)
+            string name,
+            string pointer,
+            List<WotDiagnostic> diagnostics)
         {
             if (!element.TryGetProperty(name, out JsonElement permissions) ||
                 permissions.ValueKind != JsonValueKind.Array)
@@ -1113,17 +1117,24 @@ namespace Opc.Ua.Wot
                 return null;
             }
             var result = new List<RolePermission>();
+            int index = 0;
             foreach (JsonElement permission in permissions.EnumerateArray())
             {
                 var rolePermission = new RolePermission
                 {
                     Value = GetString(permission, "roleId")
                 };
-                if (TryGetUInt32(permission, "permissions", out uint value))
+                string permissionPointer = pointer +
+                    "/" +
+                    EscapePointerToken(name) +
+                    "/" +
+                    index.ToString(CultureInfo.InvariantCulture);
+                if (TryGetUInt32(permission, "permissions", permissionPointer, diagnostics, out uint value))
                 {
                     rolePermission.Permissions = value;
                 }
                 result.Add(rolePermission);
+                index++;
             }
             return [.. result];
         }
@@ -1346,56 +1357,115 @@ namespace Opc.Ua.Wot
         private static bool TryGetByte(
             JsonElement element,
             string name,
+            string pointer,
+            List<WotDiagnostic> diagnostics,
             out byte value)
         {
             value = default;
-            return element.TryGetProperty(name, out JsonElement number) &&
-                number.ValueKind == JsonValueKind.Number &&
-                number.TryGetByte(out value);
+            if (!element.TryGetProperty(name, out JsonElement number))
+            {
+                return false;
+            }
+            if (number.ValueKind == JsonValueKind.Number && number.TryGetByte(out value))
+            {
+                return true;
+            }
+            ReportInvalidNumber(name, pointer, "Byte", diagnostics);
+            return false;
         }
 
         private static bool TryGetUInt16(
             JsonElement element,
             string name,
+            string pointer,
+            List<WotDiagnostic> diagnostics,
             out ushort value)
         {
             value = default;
-            return element.TryGetProperty(name, out JsonElement number) &&
-                number.ValueKind == JsonValueKind.Number &&
-                number.TryGetUInt16(out value);
+            if (!element.TryGetProperty(name, out JsonElement number))
+            {
+                return false;
+            }
+            if (number.ValueKind == JsonValueKind.Number && number.TryGetUInt16(out value))
+            {
+                return true;
+            }
+            ReportInvalidNumber(name, pointer, "UInt16", diagnostics);
+            return false;
         }
 
         private static bool TryGetUInt32(
             JsonElement element,
             string name,
+            string pointer,
+            List<WotDiagnostic> diagnostics,
             out uint value)
         {
             value = default;
-            return element.TryGetProperty(name, out JsonElement number) &&
-                number.ValueKind == JsonValueKind.Number &&
-                number.TryGetUInt32(out value);
+            if (!element.TryGetProperty(name, out JsonElement number))
+            {
+                return false;
+            }
+            if (number.ValueKind == JsonValueKind.Number && number.TryGetUInt32(out value))
+            {
+                return true;
+            }
+            ReportInvalidNumber(name, pointer, "UInt32", diagnostics);
+            return false;
         }
 
         private static bool TryGetInt32(
             JsonElement element,
             string name,
+            string pointer,
+            List<WotDiagnostic> diagnostics,
             out int value)
         {
             value = default;
-            return element.TryGetProperty(name, out JsonElement number) &&
-                number.ValueKind == JsonValueKind.Number &&
-                number.TryGetInt32(out value);
+            if (!element.TryGetProperty(name, out JsonElement number))
+            {
+                return false;
+            }
+            if (number.ValueKind == JsonValueKind.Number && number.TryGetInt32(out value))
+            {
+                return true;
+            }
+            ReportInvalidNumber(name, pointer, "Int32", diagnostics);
+            return false;
+        }
+
+        private static void ReportInvalidNumber(
+            string name, string pointer, string type, List<WotDiagnostic> diagnostics)
+        {
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.NativeProjectionInvalid,
+                $"The native member '{name}' must be representable as {type}; a present invalid value " +
+                "cannot be replaced with an absent-member default.",
+                WotLocation.FromPointer(pointer + "/" + EscapePointerToken(name))));
         }
 
         private static bool TryGetDouble(
             JsonElement element,
             string name,
+            string pointer,
+            List<WotDiagnostic> diagnostics,
             out double value)
         {
             value = default;
-            return element.TryGetProperty(name, out JsonElement number) &&
-                number.ValueKind == JsonValueKind.Number &&
-                number.TryGetDouble(out value);
+            if (!element.TryGetProperty(name, out JsonElement number))
+            {
+                return false;
+            }
+            if (number.ValueKind == JsonValueKind.Number &&
+                number.TryGetDouble(out value) &&
+                !double.IsNaN(value) &&
+                !double.IsInfinity(value))
+            {
+                return true;
+            }
+            ReportInvalidNumber(name, pointer, "a finite Double", diagnostics);
+            return false;
         }
 
         private static bool TryGetDate(
