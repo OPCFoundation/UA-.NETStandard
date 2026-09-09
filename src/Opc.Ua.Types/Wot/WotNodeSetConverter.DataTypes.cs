@@ -733,25 +733,34 @@ namespace Opc.Ua.Wot
             string name = GetElementString(definition, "uav:dataTypeName")!;
             string kind = GetElementString(definition, "@type") ?? "uav:StructureDefinition";
             bool isAbstract = GetElementBool(definition, "uav:isAbstract");
-
-            var dataType = new UADataType
+            string browseName = ToNodeSetQualifiedName(document, name, nodeSet, diagnostics, definition);
+            UADataType? root = items.Count > 0 && items[0] is UADataType candidate &&
+                candidate.NodeId is { } rootId && AreSameExpandedNodeId(rootId, identity)
+                ? candidate
+                : null;
+            if (root is not null &&
+                (NormalizeArchivedBrowseName(root.BrowseName) != NormalizeArchivedBrowseName(browseName) ||
+                    root.Definition is not null ||
+                    (document.RootElement.TryGetProperty("uav:isAbstract", out _) && root.IsAbstract != isAbstract)))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    $"The DataType definition '{name}' conflicts with the root owning '{identity}'.",
+                    new WotLocation(nodeId: identity)));
+                return;
+            }
+            var dataType = root ?? new UADataType
             {
                 NodeId = identity,
-                BrowseName = ToNodeSetQualifiedName(document, name, nodeSet, diagnostics),
-                IsAbstract = isAbstract
+                BrowseName = browseName
             };
+            dataType.IsAbstract = isAbstract;
             ApplyDataTypeText(dataType, definition, GetDeclaredLocale(document));
 
-            var references = new List<Reference>
-            {
-                new()
-                {
-                    ReferenceType = "HasSubtype",
-                    IsForward = false,
-                    Value = ResolveBaseDataType(
-                        document, definition, kind, identities, nodeSet, diagnostics)
-                }
-            };
+            var references = new List<Reference>(dataType.References ?? []);
+            SetSuperType(references, ResolveBaseDataType(
+                document, definition, kind, identities, nodeSet, diagnostics));
 
             dataType.Definition = string.Equals(kind, "uav:SimpleDataType", StringComparison.Ordinal)
                 ? null
@@ -797,7 +806,10 @@ namespace Opc.Ua.Wot
             }
 
             dataType.References = [.. references];
-            items.Add(dataType);
+            if (root is null)
+            {
+                items.Add(dataType);
+            }
         }
 
         /// <summary>
