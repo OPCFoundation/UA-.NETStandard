@@ -406,6 +406,10 @@ The customization extensions below are methods on `IOpcUaServerBuilder`
 in `Microsoft.Extensions.DependencyInjection`; they return the same builder.
 They use the existing server and dependency-injection dependencies.
 
+Adopting these hooks is optional. Existing direct server construction and
+subclass-based customization remain supported; upgrading does not require
+switching to dependency injection.
+
 ### Server metadata
 
 `ConfigureServerProperties(Action<Opc.Ua.ServerProperties>)` configures
