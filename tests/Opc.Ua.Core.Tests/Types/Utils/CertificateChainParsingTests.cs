@@ -168,12 +168,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
         [TestCase(false)]
         [TestCase(true)]
-        public void ParseCertificateChainBlobPropagatesMemoryManagerProgrammingError(bool useAsnParser)
+        public void ParseCertificateChainBlobWrapsMemoryManagerProgrammingError(bool useAsnParser)
         {
             using var memory = new ThrowingMemoryManager();
             long createdBefore = Certificate.InstancesCreated;
             long disposedBefore = Certificate.InstancesDisposed;
-            InvalidOperationException? caught = Assert.Throws<InvalidOperationException>(() =>
+            ServiceResultException? caught = Assert.Throws<ServiceResultException>(() =>
             {
                 using CertificateCollection chain = Utils.ParseCertificateChainBlob(
                     memory.Input, telemetry: null, useAsnParser: useAsnParser);
@@ -181,8 +181,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(caught, Is.SameAs(memory.Failure),
-                    "A programmer exception must not be reclassified as malformed certificate data.");
+                // This public API is called on untrusted wire data and its callers catch
+                // ServiceResultException, so every failure is wrapped. The original cause is
+                // preserved as the inner exception so a programmer error stays diagnosable.
+                Assert.That(caught!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadCertificateInvalid));
+                Assert.That(caught.InnerException, Is.SameAs(memory.Failure));
                 Assert.That(memory.SpanAccessCount, Is.EqualTo(1));
                 Assert.That(Certificate.InstancesCreated - createdBefore, Is.Zero);
                 Assert.That(Certificate.InstancesDisposed - disposedBefore, Is.Zero);
@@ -198,7 +201,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             long createdBefore = Certificate.InstancesCreated;
             long disposedBefore = Certificate.InstancesDisposed;
 
-            InvalidOperationException? exception = Assert.Throws<InvalidOperationException>(() =>
+            ServiceResultException? exception = Assert.Throws<ServiceResultException>(() =>
             {
                 using CertificateCollection chain = Utils.ParseCertificateChainBlob(
                     memory.Input, telemetry: null, useAsnParser: useAsnParser);
@@ -206,7 +209,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(exception, Is.SameAs(memory.Failure));
+                Assert.That(exception!.InnerException, Is.SameAs(memory.Failure));
+                // The already-parsed prefix must still be disposed on the failure path.
                 Assert.That(Certificate.InstancesCreated - createdBefore, Is.EqualTo(1));
                 Assert.That(Certificate.InstancesDisposed - disposedBefore, Is.EqualTo(1));
                 Assert.That(memory.SpanAccessCount, Is.GreaterThan(1));

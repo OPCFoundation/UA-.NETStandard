@@ -1882,8 +1882,12 @@ namespace Opc.Ua
                 certificateChain = null;
                 return result;
             }
-            catch (Exception e) when (e is CryptographicException or AsnContentException)
+            catch (Exception e)
             {
+                // Deliberately broad: this is a public API called on untrusted wire data
+                // (TcpListenerChannel, X509IdentityTokenHandler, ServerPushConfigurationClient),
+                // and malformed DER surfaces as different exception types per platform and TFM.
+                // Callers catch ServiceResultException, so anything escaping raw would break them.
                 throw new ServiceResultException(
                     StatusCodes.BadCertificateInvalid,
                     "Could not parse DER encoded form of a X509 certificate.",
