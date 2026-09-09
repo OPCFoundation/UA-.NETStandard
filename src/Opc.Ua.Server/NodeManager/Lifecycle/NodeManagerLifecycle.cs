@@ -3628,7 +3628,9 @@ namespace Opc.Ua.Server
         /// retirement instead invalidates owned monitored items before detachment; neither
         /// policy deletes the client's subscription.
         /// </summary>
-        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="InvalidOperationException">
+        /// The retired generation still has undrained requests or active monitored items when detachment is attempted.
+        /// </exception>
         private async ValueTask<bool> CleanupRetiredNodeManagerAsync(
             IServerInternal server,
             IDynamicNodeManagerHost host,

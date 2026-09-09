@@ -72,6 +72,10 @@ namespace Opc.Ua.WotCon.Server
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             Registry = registry ?? throw new ArgumentNullException(nameof(registry));
             Coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+            m_wotConNamespaceIndex = WotConModelPartition.GetRequiredNamespaceIndex(
+                server.NamespaceUris, Namespaces.WotCon);
+            m_xRegistryNamespaceIndex = WotConModelPartition.GetRequiredNamespaceIndex(
+                server.NamespaceUris, XRegistryWellKnown.XRegistryNamespaceUri);
             Coordinator.StrictBindings = options.StrictBindings;
             Coordinator.RetirementPolicy = options.RetirementPolicy;
             Coordinator.ServerNamespaceUris = server.NamespaceUris;
@@ -82,9 +86,6 @@ namespace Opc.Ua.WotCon.Server
             // model type cannot resolve.
             Coordinator.UseAddressSpace(new AddressSpaceWotNodeResolver(server));
             m_projection = new WotRegistryProjection(this, Registry, m_options);
-            m_wotConNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(Namespaces.WotCon);
-            m_xRegistryNamespaceIndex =
-                (ushort)server.NamespaceUris.GetIndex(XRegistryWellKnown.XRegistryNamespaceUri);
             m_reconcileQueue = new WotRegistryReconcileQueue(SafeReconcileAsync);
         }
 

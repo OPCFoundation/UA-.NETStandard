@@ -122,7 +122,12 @@ namespace Opc.Ua.Server
             {
                 m_drivingOperation.Value = depth;
             }
-            NodeAdded?.Invoke(node);
+            if (!m_predefinedNodes.TryGetValue(node.NodeId, out NodeState? activeNode))
+            {
+                throw new InvalidOperationException(
+                    $"The add pipeline completed without registering node '{node.NodeId}'.");
+            }
+            NodeAdded?.Invoke(activeNode);
         }
 
         /// <inheritdoc/>

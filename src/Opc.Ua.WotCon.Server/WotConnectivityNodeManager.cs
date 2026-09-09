@@ -74,8 +74,10 @@ namespace Opc.Ua.WotCon.Server
                   Namespaces.WotCon)
         {
             m_options = options;
-            AssetNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(options.AssetNamespaceUri);
-            WotConNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(Namespaces.WotCon);
+            AssetNamespaceIndex = WotConModelPartition.GetRequiredNamespaceIndex(
+                server.NamespaceUris, options.AssetNamespaceUri);
+            WotConNamespaceIndex = WotConModelPartition.GetRequiredNamespaceIndex(
+                server.NamespaceUris, Namespaces.WotCon);
 
             // counter identifiers: assets are (re)discovered at runtime and
             // reuse browse names across generations.
