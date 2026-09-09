@@ -5,11 +5,11 @@
 The Reverse Connect option consists of the following elements:
 
 * Updated C# Stack that supports the *ReverseHello* message for Client and Server;
-* Updated server library which supports
+* Updated server library which supports:
   * Server-initiated connections through *ReverseConnectServer*, used automatically by the regular dependency-injection server.
-  * Extended configuration parameters to setup the client location and timeouts.
-  * an API extension in the *ReverseConnectServer* to programmatically control client connections.
-* Updated client library which support to
+  * Extended configuration parameters to set up the client location and timeouts.
+  * An API extension in the *ReverseConnectServer* to programmatically control client connections.
+* Updated client library which supports:
   * Configure a client endpoint to accept *ReverseHello* messages using a *ReverseConnectManager*.
   * A client API extension to allow applications to register for reverse connections either by callback or by waiting for the *ReverseHello* message for a specific server endpoint and application Uri combination. An optional filter for server Uris or endpoint Urls can be applied to allow multiple clients to use the same endpoint.
 * The C# [Console Reference Server](../samples/Reference/ConsoleReferenceServer) with reverse connect support in the configuration xml.
