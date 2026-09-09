@@ -88,7 +88,7 @@ namespace Opc.Ua.Client.Tests.UserManagement
                 0,
                 TimestampsToReturn.Neither,
                 It.Is<ArrayOf<ReadValueId>>(ids =>
-                    ids.Count == 1 && ids[0].NodeId == s_usersId && ids[0].AttributeId == Attributes.Value),
+                    ids.Count == 1 && ids[0].NodeId == s_propertyId && ids[0].AttributeId == Attributes.Value),
                 It.IsAny<CancellationToken>()), Times.Once);
         }
 
@@ -124,6 +124,58 @@ namespace Opc.Ua.Client.Tests.UserManagement
                     .EqualTo(StatusCodes.BadUserAccessDenied)).ConfigureAwait(false);
         }
 
+        [Test]
+        public async Task ReadPasswordLengthReturnsServerRangeAsync()
+        {
+            Mock<ISession> session = CreateSession(new DataValue(Variant.FromStructure(new Range(128, 8))));
+            var client = new UserManagementClient(session.Object);
+
+            Range range = await client.ReadPasswordLengthAsync().ConfigureAwait(false);
+
+            Assert.That(range, Is.Not.Null);
+            Assert.That(range.High, Is.EqualTo(128));
+            Assert.That(range.Low, Is.EqualTo(8));
+            session.Verify(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                It.IsAny<RequestHeader>(),
+                It.Is<ArrayOf<BrowsePath>>(paths =>
+                    paths.Count == 1 &&
+                    paths[0].StartingNode == new NodeId(Objects.UserManagement) &&
+                    paths[0].RelativePath.Elements.Count == 1 &&
+                    paths[0].RelativePath.Elements[0].TargetName == new QualifiedName(BrowseNames.PasswordLength)),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReadPasswordLengthReturnsDefaultForMissingStructureAsync(bool unrelatedValue)
+        {
+            Variant value = unrelatedValue ? Variant.From(42) : default;
+            Mock<ISession> session = CreateSession(new DataValue(value));
+            var client = new UserManagementClient(session.Object);
+
+            Range range = await client.ReadPasswordLengthAsync().ConfigureAwait(false);
+
+            Assert.That(range, Is.Not.Null);
+            Assert.That(range.High, Is.Zero);
+            Assert.That(range.Low, Is.Zero);
+        }
+
+        [Test]
+        public async Task ReadPasswordLengthPreservesBadReadStatusAsync()
+        {
+            Mock<ISession> session = CreateSession(DataValue.FromStatusCode(StatusCodes.BadUserAccessDenied));
+            var client = new UserManagementClient(session.Object);
+
+            await Assert.ThatAsync(
+                async () =>
+                {
+                    await client.ReadPasswordLengthAsync().ConfigureAwait(false);
+                },
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadUserAccessDenied)).ConfigureAwait(false);
+        }
+
         private static Mock<ISession> CreateSession(in DataValue value)
         {
             var session = new Mock<ISession>(MockBehavior.Loose);
@@ -145,7 +197,7 @@ namespace Opc.Ua.Client.Tests.UserManagement
                             [
                                 new BrowsePathTarget
                                 {
-                                    TargetId = new ExpandedNodeId(s_usersId),
+                                    TargetId = new ExpandedNodeId(s_propertyId),
                                     RemainingPathIndex = uint.MaxValue
                                 }
                             ]
@@ -163,6 +215,6 @@ namespace Opc.Ua.Client.Tests.UserManagement
             return session;
         }
 
-        private static readonly NodeId s_usersId = new("UserManagement.Users", 1);
+        private static readonly NodeId s_propertyId = new("UserManagement.Property", 1);
     }
 }

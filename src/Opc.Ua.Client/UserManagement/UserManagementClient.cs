@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -221,9 +221,7 @@ namespace Opc.Ua.Client.UserManagement
         {
             Variant value = await ReadPropertyAsync(
                 BrowseNames.PasswordLength, cancellationToken).ConfigureAwait(false);
-#pragma warning disable CS8600 // Variant.TryGetStructure returns null on miss; we check the bool.
-            if (value.TryGetStructure(out Range range) && range != null)
-#pragma warning restore CS8600
+            if (value.TryGetStructure<Range>(out Range? range) && range != null)
             {
                 return range;
             }
