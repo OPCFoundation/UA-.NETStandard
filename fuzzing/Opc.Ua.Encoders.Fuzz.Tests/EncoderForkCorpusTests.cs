@@ -634,7 +634,7 @@ namespace Opc.Ua.Fuzzing
             // Challenge the existing oracles on derived output, not on translated or mutated corpus input.
             Assert.That(
                 () => FuzzableCode.FuzzJsonEncoderIndempotentCore(encoded + " ", source, options),
-                Throws.TypeOf<InvalidOperationException>()
+                Throws.TypeOf<EncodingFidelityException>()
                     .With.Message.EqualTo($"Idempotent JSON encoding failed. Type={messageName}."));
             switch (third)
             {
@@ -654,7 +654,7 @@ namespace Opc.Ua.Fuzzing
             Assert.That(Utils.IsEqual(source, third), Is.False);
             Assert.That(
                 () => FuzzableCode.FuzzJsonEncoderIndempotentCore(encoded, third, options),
-                Throws.TypeOf<InvalidOperationException>()
+                Throws.TypeOf<EncodingFidelityException>()
                     .With.Message.EqualTo($"JSON semantic round-trip failed. Type={messageName}, Mode={mode}."));
             AssertOriginalMessage(source, wire, messageName);
         }

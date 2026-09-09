@@ -20,4 +20,7 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
   </ItemGroup>
   <Import Project="..\OneFuzz\OneFuzz.targets" Condition="'$(OneFuzz)' == 'true'" />
+  <ItemGroup>
+    <Compile Include="..\Common\Fuzz\EncodingFidelityException.cs" Link="EncodingFidelityException.cs" />
+  </ItemGroup>
 </Project>

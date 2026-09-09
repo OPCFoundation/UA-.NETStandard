@@ -224,7 +224,7 @@ namespace Opc.Ua.Fuzzing
             if (firstGenerationNormalized &&
                 !IsExpectedJsonSemanticLoss(encodeable, encodeable2, options, context))
             {
-                throw new InvalidOperationException(
+                throw new EncodingFidelityException(
                     $"JSON semantic round-trip failed. Type={encodeableTypeName}, Mode={options.Name}.");
             }
 
@@ -234,7 +234,7 @@ namespace Opc.Ua.Fuzzing
                     !(firstGenerationNormalized &&
                         IsStableFromSecondGeneration(serialized2, encodeable3, options, context)))
                 {
-                    throw new InvalidOperationException(
+                    throw new EncodingFidelityException(
                         Utils.Format("Idempotent JSON encoding failed. Type={0}.", encodeableTypeName));
                 }
             }
@@ -242,7 +242,7 @@ namespace Opc.Ua.Fuzzing
             if (!Utils.IsEqual(encodeable2, encodeable3) &&
                 !IsExpectedJsonSemanticLoss(encodeable2, encodeable3, options, context))
             {
-                throw new InvalidOperationException(Utils.Format(
+                throw new EncodingFidelityException(Utils.Format(
                     "Idempotent JSON 3rd gen decoding failed. Type={0}.",
                     encodeableTypeName));
             }
@@ -293,9 +293,23 @@ namespace Opc.Ua.Fuzzing
             NodeId typeId = decoder.ReadNodeId("UaTypeId");
             if (typeId != ExpandedNodeId.ToNodeId(encodeable.TypeId, context.NamespaceUris))
             {
-                throw new InvalidOperationException("JSON message type changed during encoding.");
+                throw new EncodingFidelityException("JSON message type changed during encoding.");
             }
-            return decoder.ReadEncodeable<IEncodeable>("UaBody", encodeable.TypeId);
+
+            try
+            {
+                return decoder.ReadEncodeable<IEncodeable>("UaBody", encodeable.TypeId);
+            }
+            catch (ServiceResultException exception)
+            {
+                // The payload here is the encoder's own output, not attacker controlled bytes,
+                // so a decoding error is a fidelity finding rather than a robustness one: the
+                // stack produced a representation it cannot read back. Classifying it here
+                // keeps genuine decoder failures on real input reported as robustness bugs.
+                throw new EncodingFidelityException(
+                    $"Re-decoding the encoded message failed. Type={encodeable.GetType().Name}.",
+                    exception);
+            }
         }
 
         internal static string RestoreJsonArtifacts(
@@ -399,7 +413,8 @@ namespace Opc.Ua.Fuzzing
 
             if (value is QualifiedName qualifiedName)
             {
-                return qualifiedName.NamespaceIndex != 0 && qualifiedName.Name == null;
+                return (qualifiedName.NamespaceIndex != 0 && qualifiedName.Name == null) ||
+                    !SurvivesQualifiedNameTextForm(qualifiedName, context);
             }
 
             if (value is DataValue dataValue)
@@ -463,6 +478,28 @@ namespace Opc.Ua.Fuzzing
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// The textual QualifiedName form is "&lt;namespace index&gt;:&lt;name&gt;", which is
+        /// only unambiguous while the name itself carries no separator and parses back. A name
+        /// that does not survive that form cannot be represented in the JSON string form at
+        /// all, so the value is unencodable rather than lost by the decoder. Deciding this by
+        /// actually formatting and re-parsing keeps the rule tied to the real encoder output
+        /// instead of a hand maintained list of forbidden characters.
+        /// </summary>
+        private static bool SurvivesQualifiedNameTextForm(
+            QualifiedName value,
+            IServiceMessageContext context)
+        {
+            try
+            {
+                return QualifiedName.Parse(context, value.Format(context), false).Equals(value);
+            }
+            catch (ServiceResultException)
+            {
+                return false;
+            }
         }
 
         private static bool IsJsonEquivalent(
@@ -1076,7 +1113,7 @@ namespace Opc.Ua.Fuzzing
         {
             if (encoded.ValueKind != metadata.ValueKind)
             {
-                throw new InvalidOperationException("RawData JSON changed the payload shape.");
+                throw new EncodingFidelityException("RawData JSON changed the payload shape.");
             }
 
             switch (encoded.ValueKind)
@@ -1098,7 +1135,7 @@ namespace Opc.Ua.Fuzzing
                             // Anywhere else an unknown field is still a real corruption.
                             if (!metadataOmitsArtifactFields)
                             {
-                                throw new InvalidOperationException(
+                                throw new EncodingFidelityException(
                                     $"Unexpected RawData JSON field '{property.Name}'.");
                             }
                             property.WriteTo(writer);
@@ -1115,7 +1152,7 @@ namespace Opc.Ua.Fuzzing
                             if (property.Name is not ("UaType" or "UaTypeId" or "Symbol" or
                                 "SwitchField" or "EncodingMask"))
                             {
-                                throw new InvalidOperationException($"RawData JSON lost field '{property.Name}'.");
+                                throw new EncodingFidelityException($"RawData JSON lost field '{property.Name}'.");
                             }
                             if (property.Name is "UaType" or "UaTypeId" or "Symbol")
                             {
@@ -1128,7 +1165,7 @@ namespace Opc.Ua.Fuzzing
                 case JsonValueKind.Array:
                     if (encoded.GetArrayLength() != metadata.GetArrayLength())
                     {
-                        throw new InvalidOperationException("RawData JSON changed an array length.");
+                        throw new EncodingFidelityException("RawData JSON changed an array length.");
                     }
                     writer.WriteStartArray();
                     for (int i = 0; i < encoded.GetArrayLength(); i++)

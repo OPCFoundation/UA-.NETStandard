@@ -90,24 +90,24 @@
     ],
     "regressionAssets": [
       {
-        "path": "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
-        "forkPath": "Fuzzing/Encoders/Fuzz.Tests/Assets/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
+        "path": "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/Repo/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
+        "forkPath": "Fuzzing/Encoders/Fuzz.Tests/Assets/Repo/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
         "bytes": 119,
         "sha256": "296dbb7b062ae15d36eb8fe0e4820a6ee172f4d1063f868c4119aba8a1011608",
         "forkSha256": "296dbb7b062ae15d36eb8fe0e4820a6ee172f4d1063f868c4119aba8a1011608",
         "comparison": "SHA-256 and size compared read-only; identical, no import needed."
       },
       {
-        "path": "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
-        "forkPath": "Fuzzing/Encoders/Fuzz.Tests/Assets/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
+        "path": "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/Repo/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
+        "forkPath": "Fuzzing/Encoders/Fuzz.Tests/Assets/Repo/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
         "bytes": 2238,
         "sha256": "359675f59389549a30fa440ccb21fcc7fb58ae120540e8e5165f8f325a42bcc9",
         "forkSha256": "359675f59389549a30fa440ccb21fcc7fb58ae120540e8e5165f8f325a42bcc9",
         "comparison": "SHA-256 and size compared read-only; identical, no import needed."
       },
       {
-        "path": "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/timeout-8b790a0680444b262058a1d24d01822a91e8af06",
-        "forkPath": "Fuzzing/Encoders/Fuzz.Tests/Assets/timeout-8b790a0680444b262058a1d24d01822a91e8af06",
+        "path": "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/Repo/timeout-8b790a0680444b262058a1d24d01822a91e8af06",
+        "forkPath": "Fuzzing/Encoders/Fuzz.Tests/Assets/Repo/timeout-8b790a0680444b262058a1d24d01822a91e8af06",
         "bytes": 3853,
         "sha256": "dec7b53e100cfb67aaf67602843c404400731ac3a17ef6063f2331cc132f9cb1",
         "forkSha256": "dec7b53e100cfb67aaf67602843c404400731ac3a17ef6063f2331cc132f9cb1",
@@ -876,9 +876,9 @@
           "corpus": [
             "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Binary",
             "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Binary",
-            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
-            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
-            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/timeout-8b790a0680444b262058a1d24d01822a91e8af06"
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/Repo/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/Repo/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/Repo/timeout-8b790a0680444b262058a1d24d01822a91e8af06"
           ],
           "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
           "adapter": "Contiguous initial binary decode followed by canonical binary re-encoding.",
@@ -921,9 +921,9 @@
           "corpus": [
             "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Binary",
             "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Binary",
-            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
-            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
-            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/timeout-8b790a0680444b262058a1d24d01822a91e8af06"
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/Repo/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/Repo/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/Repo/timeout-8b790a0680444b262058a1d24d01822a91e8af06"
           ],
           "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
           "adapter": "64-byte ArraySegmentStream decodes throughout canonical binary byte/value round-trips.",
@@ -1049,9 +1049,9 @@
           "corpus": [
             "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Json",
             "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Json",
-            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
-            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
-            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/timeout-8b790a0680444b262058a1d24d01822a91e8af06"
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/Repo/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/Repo/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/Repo/timeout-8b790a0680444b262058a1d24d01822a91e8af06"
           ],
           "dictionaries": ["fuzzing/Dictionaries/json.dict"],
           "adapter": "UTF-8 span or AFL string -> JSON decode -> canonical Verbose JSON round-trip.",
@@ -1098,9 +1098,9 @@
           "corpus": [
             "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Xml",
             "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Xml",
-            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
-            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
-            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/timeout-8b790a0680444b262058a1d24d01822a91e8af06"
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/Repo/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/Repo/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/Repo/timeout-8b790a0680444b262058a1d24d01822a91e8af06"
           ],
           "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
           "adapter": "XML input -> canonical XML re-encoding and decoded message comparison.",

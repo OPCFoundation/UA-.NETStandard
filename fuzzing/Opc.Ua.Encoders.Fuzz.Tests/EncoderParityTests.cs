@@ -479,7 +479,7 @@ namespace Opc.Ua.Fuzzing
         {
             Assert.That(
                 () => FuzzableCode.RestoreJsonArtifacts(serialized, k_artifactSchema, FuzzableCode.MessageContext),
-                Throws.TypeOf<InvalidOperationException>().With.Message.Contains(failure));
+                Throws.TypeOf<EncodingFidelityException>().With.Message.Contains(failure));
         }
 
         [TestCaseSource(nameof(JsonModeCases))]
@@ -503,7 +503,7 @@ namespace Opc.Ua.Fuzzing
             Assert.That(Utils.IsEqual(original, decoded), Is.False);
             Assert.That(
                 () => FuzzableCode.FuzzJsonEncoderIndempotentCore(corrupted, original, options),
-                Throws.TypeOf<InvalidOperationException>().With.Message.Contains("JSON semantic round-trip failed"));
+                Throws.TypeOf<EncodingFidelityException>().With.Message.Contains("JSON semantic round-trip failed"));
         }
 
         [TestCaseSource(nameof(JsonModeCases))]
@@ -520,7 +520,7 @@ namespace Opc.Ua.Fuzzing
             string failure = options.SuppressArtifacts ? "array length" : "JSON semantic round-trip failed";
             Assert.That(
                 () => FuzzableCode.FuzzJsonEncoderIndempotentCore(payload.ToJsonString(), original, options),
-                Throws.TypeOf<InvalidOperationException>().With.Message.Contains(failure));
+                Throws.TypeOf<EncodingFidelityException>().With.Message.Contains(failure));
         }
 
         [TestCaseSource(nameof(JsonModeCases))]
@@ -541,7 +541,7 @@ namespace Opc.Ua.Fuzzing
             Assert.That(FuzzableCode.EncodeJsonMessage(decoded, options), Is.EqualTo(canonical));
             Assert.That(
                 () => FuzzableCode.FuzzJsonEncoderIndempotentCore(nonCanonical, original, options),
-                Throws.TypeOf<InvalidOperationException>().With.Message.Contains("Idempotent JSON encoding failed"));
+                Throws.TypeOf<EncodingFidelityException>().With.Message.Contains("Idempotent JSON encoding failed"));
         }
 
         [TestCaseSource(nameof(JsonModeCases))]
@@ -555,11 +555,11 @@ namespace Opc.Ua.Fuzzing
 
             Assert.That(
                 () => FuzzableCode.DecodeJsonWithMetadata(corrupted, original, options, FuzzableCode.MessageContext),
-                Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(
+                Throws.TypeOf<EncodingFidelityException>().With.Message.EqualTo(
                     "JSON message type changed during encoding."));
             Assert.That(
                 () => FuzzableCode.FuzzJsonEncoderIndempotentCore(corrupted, original, options),
-                Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(
+                Throws.TypeOf<EncodingFidelityException>().With.Message.EqualTo(
                     "JSON message type changed during encoding."));
         }
 

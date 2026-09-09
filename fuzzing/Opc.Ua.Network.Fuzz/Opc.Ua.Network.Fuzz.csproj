@@ -32,4 +32,7 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Core.Diagnostics\Opc.Ua.Core.Diagnostics.csproj" />
   </ItemGroup>
   <Import Project="..\OneFuzz\OneFuzz.targets" Condition="'$(OneFuzz)' == 'true'" />
+  <ItemGroup>
+    <Compile Include="..\Common\Fuzz\EncodingFidelityException.cs" Link="EncodingFidelityException.cs" />
+  </ItemGroup>
 </Project>

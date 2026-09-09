@@ -130,6 +130,7 @@ namespace Opc.Ua.Fuzzing
             string path = Path.Combine(
                 AppContext.BaseDirectory,
                 "Assets",
+                "Repo",
                 "crash-b80bc430b8d713aaa78b02877f62c2aa8bb30dbc");
             byte[] input = File.ReadAllBytes(path);
 

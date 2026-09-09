@@ -441,7 +441,11 @@ namespace Opc.Ua
 
                         break;
                     case 's':
-                        if (!string.IsNullOrWhiteSpace(idText))
+                        // An empty string identifier is what the formatter writes for a NodeId
+                        // whose identifier is empty, so rejecting it would leave the stack
+                        // unable to parse its own "ns=<index>;s=" output. Whitespace only
+                        // identifiers stay rejected, as pinned by ParseWithContextStringWhitespaceIdentifier.
+                        if (idText.Length == 0 || !string.IsNullOrWhiteSpace(idText))
                         {
                             value = new NodeId(idText, (ushort)namespaceIndex);
                             return true;

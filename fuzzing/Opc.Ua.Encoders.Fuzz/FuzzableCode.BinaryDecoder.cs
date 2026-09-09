@@ -170,13 +170,13 @@ namespace Opc.Ua.Fuzzing
             string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
             if (serialized2 == null || !serialized.SequenceEqual(serialized2))
             {
-                throw new InvalidOperationException(
+                throw new EncodingFidelityException(
                     Utils.Format("Idempotent encoding failed. Type={0}.", encodeableTypeName));
             }
 
             if (!Utils.IsEqual(encodeable2, encodeable3))
             {
-                throw new InvalidOperationException(Utils.Format(
+                throw new EncodingFidelityException(Utils.Format(
                     "Idempotent 3rd gen decoding failed. Type={0}.",
                     encodeableTypeName));
             }
