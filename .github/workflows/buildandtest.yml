@@ -776,6 +776,10 @@ jobs:
     timeout-minutes: 60
     steps:
     - uses: actions/checkout@v7
+      with:
+        # Full history: Nerdbank.GitVersioning refuses to compute a version from
+        # a shallow clone, which fails the build before any test runs.
+        fetch-depth: 0
     - uses: actions/setup-dotnet@v6
       with:
         dotnet-version: 10.0.x
@@ -825,6 +829,10 @@ jobs:
           framework: net48
     steps:
     - uses: actions/checkout@v7
+      with:
+        # Full history: Nerdbank.GitVersioning refuses to compute a version from
+        # a shallow clone, which fails the build before any test runs.
+        fetch-depth: 0
     - uses: actions/setup-dotnet@v6
       with:
         dotnet-version: |
