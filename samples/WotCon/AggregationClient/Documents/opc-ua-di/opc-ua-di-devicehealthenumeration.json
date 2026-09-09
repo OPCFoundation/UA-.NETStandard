@@ -12,18 +12,32 @@
     "tm:ThingModel",
     "uav:dataType"
   ],
+  "links": [
+    {
+      "href": "i=29",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "properties": {
     "EnumStrings": {
       "@type": "uav:variable",
+      "items": {},
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=6244",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
       "readOnly": true,
       "title": "EnumStrings",
+      "type": "array",
       "uav:arrayDimensions": [
         5
       ],

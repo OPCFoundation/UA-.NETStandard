@@ -14,10 +14,35 @@
   ],
   "links": [
     {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1006",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:<ProfileIdentifier>",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6596",
+        "uav:modellingRule": "MandatoryPlaceholder"
+      },
+      "uav:refId": "i=47"
+    },
+    {
       "href": "nsu=http://opcfoundation.org/UA/DI/;i=6248",
       "rel": "ns1:ConnectsTo",
       "uav:refId": "nsu=http://opcfoundation.org/UA/DI/;i=6030",
       "uav:refName": "<CPIdentifier>"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=6388",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:Lock",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6294",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=58",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
     }
   ],
   "title": "NetworkType",
@@ -331,10 +356,6 @@
       ],
       "uav:isOptionSet": true
     }
-  ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/DI/;i=6596",
-    "nsu=http://opcfoundation.org/UA/DI/;i=6294"
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6247",
   "uav:nodes": {

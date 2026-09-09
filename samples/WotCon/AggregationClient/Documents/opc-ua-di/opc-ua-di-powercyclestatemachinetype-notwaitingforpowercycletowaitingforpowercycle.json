@@ -45,6 +45,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=303",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -60,6 +65,9 @@
   "title": "NotWaitingForPowerCycleToWaitingForPowerCycle",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:NotWaitingForPowerCycleToWaitingForPowerCycle",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/DI/;i=285"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",

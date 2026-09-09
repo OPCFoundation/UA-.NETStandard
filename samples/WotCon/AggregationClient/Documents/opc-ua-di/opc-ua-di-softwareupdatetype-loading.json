@@ -23,6 +23,9 @@
   "title": "Loading",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:Loading",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/DI/;i=1"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",

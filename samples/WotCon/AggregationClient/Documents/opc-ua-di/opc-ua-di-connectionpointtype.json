@@ -14,10 +14,36 @@
   ],
   "links": [
     {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1005",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:NetworkAddress",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6354",
+        "uav:modellingRule": "Mandatory"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1006",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:<ProfileIdentifier>",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6499",
+        "uav:modellingRule": "MandatoryPlaceholder"
+      },
+      "uav:refId": "i=47"
+    },
+    {
       "href": "nsu=http://opcfoundation.org/UA/DI/;i=6599",
       "rel": "ns1:ConnectsTo",
       "uav:refId": "nsu=http://opcfoundation.org/UA/DI/;i=6030",
       "uav:refName": "<NetworkIdentifier>"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1001",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45",
+      "uav:refName": "TopologyElementType"
     }
   ],
   "title": "ConnectionPointType",
@@ -332,11 +358,8 @@
       "uav:isOptionSet": true
     }
   ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/DI/;i=6354",
-    "nsu=http://opcfoundation.org/UA/DI/;i=6499"
-  ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6308",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

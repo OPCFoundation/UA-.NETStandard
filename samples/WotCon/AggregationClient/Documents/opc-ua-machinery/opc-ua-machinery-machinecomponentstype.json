@@ -15,14 +15,36 @@
     "uav:objectType"
   ],
   "description": "Contains all identifiable components of a machine",
+  "links": [
+    {
+      "href": "i=58",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:<Component>",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=5002",
+        "uav:modellingRule": "OptionalPlaceholder"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=58",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "properties": {
     "DefaultInstanceBrowseName": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "The default BrowseName for instances of the type.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1006",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -35,9 +57,6 @@
   "title": "MachineComponentsType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:MachineComponentsType",
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/Machinery/;i=5002"
-  ],
   "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=1006",
   "uav:nodes": {
     "@type": "uav:NodeModel",

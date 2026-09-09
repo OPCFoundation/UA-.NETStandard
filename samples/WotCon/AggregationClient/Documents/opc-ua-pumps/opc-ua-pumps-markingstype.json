@@ -15,6 +15,23 @@
     "uav:objectType"
   ],
   "description": "Safety instructions for safe use, e.g. temperature and pressure resistance, electrostatic charge, high voltage, radioactivity, explosive protection.",
+  "links": [
+    {
+      "href": "i=11575",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:<Marking>",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5019",
+        "uav:modellingRule": "OptionalPlaceholder"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=61",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "title": "MarkingsType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:MarkingsType",
@@ -1539,9 +1556,6 @@
       "uav:structureType": "StructureWithOptionalFields",
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5017"
     }
-  ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5019"
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1002",
   "uav:nodes": {

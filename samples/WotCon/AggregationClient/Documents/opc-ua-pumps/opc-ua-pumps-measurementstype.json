@@ -14,9 +14,26 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1055",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:<Vibration>",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5228",
+        "uav:modellingRule": "OptionalPlaceholder"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1005",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "properties": {
     "AmbientHumidity": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured ambient humidity",
       "links": [
@@ -37,7 +54,7 @@
       "unit": "%"
     },
     "AmbientTemperature": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured ambient temperature",
       "links": [
@@ -58,7 +75,7 @@
       "unit": "K"
     },
     "AxialLoadOfPumpRotor": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured residual thrust acting through the shaft derived from hydraulic or mechanical forces",
       "links": [
@@ -79,7 +96,7 @@
       "unit": "N"
     },
     "AxialRotorPosition": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured position of the axial rotor in bearing.",
       "links": [
@@ -98,7 +115,7 @@
       "uav:modellingRule": "Optional"
     },
     "BackPressure": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured back pressure of the pump",
       "links": [
@@ -119,7 +136,7 @@
       "unit": "Pa"
     },
     "BearingTemperature": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured temperature of the bearing",
       "links": [
@@ -140,7 +157,7 @@
       "unit": "K"
     },
     "ClearanceFlow": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured clearance flow between the housing and the impeller",
       "links": [
@@ -161,7 +178,7 @@
       "unit": "m³/s"
     },
     "CoolantTemperature": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured temperature of the coolant.",
       "links": [
@@ -182,11 +199,16 @@
       "unit": "K"
     },
     "Definition": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11265",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -202,11 +224,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_10": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12647",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -222,11 +249,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_11": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12649",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -242,11 +274,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_12": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12651",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -262,11 +299,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_13": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12653",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -282,11 +324,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_14": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12655",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -302,11 +349,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_15": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12657",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -322,11 +374,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_16": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12659",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -342,11 +399,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_17": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12661",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -362,11 +424,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_18": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12663",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -382,11 +449,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_19": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12667",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -402,11 +474,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_2": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9515",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -422,11 +499,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_20": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12665",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -442,11 +524,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_21": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12669",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -462,11 +549,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_22": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12671",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -482,11 +574,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_23": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12673",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -502,11 +599,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_24": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12675",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -522,11 +624,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_25": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12677",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -542,11 +649,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_26": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12679",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -562,11 +674,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_27": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12681",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -582,11 +699,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_28": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12683",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -602,11 +724,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_29": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12685",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -622,11 +749,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_3": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11127",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -642,11 +774,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_30": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12687",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -662,11 +799,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_31": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12689",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -682,11 +824,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_32": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12691",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -702,11 +849,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_33": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12693",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -722,11 +874,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_34": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12695",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -742,11 +899,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_35": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12697",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -762,11 +924,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_36": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12699",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -782,11 +949,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_37": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12701",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -802,11 +974,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_38": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12703",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -822,11 +999,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_39": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12705",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -842,11 +1024,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_4": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11859",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -862,11 +1049,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_40": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12707",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -882,11 +1074,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_41": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12709",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -902,11 +1099,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_42": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12711",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -922,11 +1124,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_43": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12713",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -942,11 +1149,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_44": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12715",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -962,11 +1174,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_45": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12717",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -982,11 +1199,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_46": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12719",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1002,11 +1224,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_47": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12721",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1022,11 +1249,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_48": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12723",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1042,11 +1274,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_49": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12725",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1062,11 +1299,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_5": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12637",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1082,11 +1324,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_50": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12727",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1102,11 +1349,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_6": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12639",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1122,11 +1374,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_7": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12641",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1142,11 +1399,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_8": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12643",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1162,11 +1424,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_9": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12645",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1182,7 +1449,7 @@
       "uav:modellingRule": "Optional"
     },
     "Density": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured density of the fluid",
       "links": [
@@ -1203,7 +1470,7 @@
       "unit": "kg/m³"
     },
     "DifferentialPressure": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Determined (actual) gain in total pressure between the pump inlet and pump outlet",
       "links": [
@@ -1224,7 +1491,7 @@
       "unit": "Pa"
     },
     "DynamicViscosity": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured kinematic viscosity of the fluid",
       "links": [
@@ -1245,11 +1512,16 @@
       "unit": "Pa·m³/s"
     },
     "EURange": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11265",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1264,11 +1536,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_10": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12647",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1283,11 +1560,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_11": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12649",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1302,11 +1584,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_12": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12651",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1321,11 +1608,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_13": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12653",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1340,11 +1632,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_14": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12655",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1359,11 +1656,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_15": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12657",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1378,11 +1680,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_16": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12659",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1397,11 +1704,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_17": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12661",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1416,11 +1728,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_18": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12663",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1435,11 +1752,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_19": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12667",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1454,11 +1776,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_2": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9515",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1473,11 +1800,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_20": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12665",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1492,11 +1824,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_21": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12669",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1511,11 +1848,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_22": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12671",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1530,11 +1872,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_23": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12673",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1549,11 +1896,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_24": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12675",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1568,11 +1920,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_25": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12677",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1587,11 +1944,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_26": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12679",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1606,11 +1968,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_27": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12681",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1625,11 +1992,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_28": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12683",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1644,11 +2016,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_29": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12685",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1663,11 +2040,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_3": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11127",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1682,11 +2064,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_30": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12687",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1701,11 +2088,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_31": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12689",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1720,11 +2112,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_32": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12691",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1739,11 +2136,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_33": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12693",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1758,11 +2160,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_34": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12695",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1777,11 +2184,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_35": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12697",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1796,11 +2208,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_36": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12699",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1815,11 +2232,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_37": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12701",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1834,11 +2256,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_38": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12703",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1853,11 +2280,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_39": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12705",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1872,11 +2304,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_4": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11859",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1891,11 +2328,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_40": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12707",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1910,11 +2352,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_41": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12709",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1929,11 +2376,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_42": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12711",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1948,11 +2400,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_43": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12713",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1967,11 +2424,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_44": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12715",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1986,11 +2448,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_45": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12717",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2005,11 +2472,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_46": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12719",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2024,11 +2496,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_47": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12721",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2043,11 +2520,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_48": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12723",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2062,11 +2544,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_49": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12725",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2081,11 +2568,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_5": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12637",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2100,11 +2592,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_50": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12727",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2119,11 +2616,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_6": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12639",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2138,11 +2640,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_7": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12641",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2157,11 +2664,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_8": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12643",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2176,11 +2688,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_9": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12645",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2195,7 +2712,7 @@
       "uav:modellingRule": "Optional"
     },
     "ElectronicTemperature": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured temperature of the electronic",
       "links": [
@@ -2216,11 +2733,16 @@
       "unit": "K"
     },
     "EngineeringUnits": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11265",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2242,11 +2764,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_10": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12647",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2268,11 +2795,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_11": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12649",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2294,11 +2826,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_12": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12651",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2320,11 +2857,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_13": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12653",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2346,11 +2888,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_14": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12655",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2372,11 +2919,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_15": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12657",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2398,11 +2950,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_16": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12659",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2424,11 +2981,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_17": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12661",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2450,11 +3012,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_18": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12663",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2476,11 +3043,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_19": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12667",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2502,11 +3074,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_2": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9515",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2528,11 +3105,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_20": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12665",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2554,11 +3136,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_21": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12669",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2580,11 +3167,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_22": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12671",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2606,11 +3198,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_23": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12673",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2632,11 +3229,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_24": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12675",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2658,11 +3260,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_25": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12677",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2684,11 +3291,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_26": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12679",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2710,11 +3322,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_27": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12681",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2736,11 +3353,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_28": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12683",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2755,11 +3377,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_29": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12685",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2781,11 +3408,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_3": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11127",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2807,11 +3439,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_30": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12687",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2833,11 +3470,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_31": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12689",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2859,11 +3501,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_32": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12691",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2885,11 +3532,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_33": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12693",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2911,11 +3563,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_34": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12695",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2937,11 +3594,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_35": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12697",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2963,11 +3625,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_36": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12699",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -2989,11 +3656,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_37": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12701",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3015,11 +3687,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_38": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12703",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3041,11 +3718,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_39": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12705",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3067,11 +3749,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_4": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11859",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3086,11 +3773,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_40": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12707",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3112,11 +3804,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_41": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12709",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3138,11 +3835,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_42": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12711",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3164,11 +3866,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_43": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12713",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3190,11 +3897,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_44": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12715",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3216,11 +3928,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_45": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12717",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3242,11 +3959,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_46": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12719",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3268,11 +3990,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_47": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12721",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3294,11 +4021,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_48": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12723",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3320,11 +4052,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_49": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12725",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3346,11 +4083,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_5": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12637",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3372,11 +4114,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_50": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12727",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3398,11 +4145,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_6": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12639",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3424,11 +4176,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_7": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12641",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3450,11 +4207,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_8": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12643",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3476,11 +4238,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_9": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12645",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3502,7 +4269,7 @@
       "uav:modellingRule": "Optional"
     },
     "FluidTemperature": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured internal temperature of pump fluid.",
       "links": [
@@ -3523,7 +4290,7 @@
       "unit": "K"
     },
     "HousingTemperature": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured temperature of the housing",
       "links": [
@@ -3544,7 +4311,7 @@
       "unit": "K"
     },
     "HydraulicEfficiency": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Determined proportion of pump available power input, Pa, which is delivered as pump power output, Pu, after satisfying the losses resulting from friction due to the relative motion of internal surfaces and internal leakage",
       "links": [
@@ -3565,7 +4332,7 @@
       "unit": "%"
     },
     "InletPressureOfTheInstallation": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured pressure at the inlet area of the installation.",
       "links": [
@@ -3586,7 +4353,7 @@
       "unit": "Pa"
     },
     "InstallationTotalHead": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Determined difference between the total head at the outlet side of the installation and the total head at the inlet side of the installation",
       "links": [
@@ -3607,13 +4374,18 @@
       "unit": "m"
     },
     "KindOfQuantity": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "relative humidity",
       "description": "Quotient of partial pressure of water vapor and partial pressure at its saturation",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11265",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3629,13 +4401,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_10": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12647",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3651,13 +4428,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_11": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "dynamic viscosity",
       "description": "For laminar flows, proportionality constant between shear stress in a fluid moving with a velocity and gradient perpendicular to the plane of shear",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12649",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3673,13 +4455,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_12": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "temperature",
       "description": "Quantity representing a temperature value",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12651",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3695,13 +4482,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_13": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "temperature",
       "description": "Quantity representing a temperature value",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12653",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3717,13 +4509,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_14": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "temperature",
       "description": "Quantity representing a temperature value",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12655",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3739,13 +4536,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_15": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "ratio",
       "description": "Quotient of two numbers or two quantities of the same kind",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12657",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3761,13 +4563,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_16": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12659",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3783,13 +4590,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_17": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "length",
       "description": "Linear extent in space between any two points",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12661",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3805,13 +4617,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_18": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "kinematic viscosity",
       "description": "Quotient of dynamic viscosity and mass density of a fluid",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12663",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3827,13 +4644,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_19": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "volume flow rate",
       "description": "Scalar quantity characterizing the total flow through the two-dimensional domain A with the normal vector of a flowing fluid with velocity as an integral",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12667",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3849,13 +4671,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_2": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "temperature",
       "description": "Quantity representing a temperature value",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9515",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3871,13 +4698,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_20": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "length",
       "description": "Linear extent in space between any two points",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12665",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3893,13 +4725,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_21": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "volume",
       "description": "Extent of a three dimensional geometrical shape",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12669",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3915,13 +4752,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_22": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12671",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3937,13 +4779,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_23": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "mass flow",
       "description": "Vector quantity characterizing a flowing fluid by the product of its local mass density and local velocity",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12673",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3959,13 +4806,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_24": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "velocity",
       "description": "Vector quantity giving the rate of change of a position vector",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12675",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -3981,13 +4833,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_25": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "ratio",
       "description": "Quotient of two numbers or two quantities of the same kind",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12677",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4003,13 +4860,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_26": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12679",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4025,13 +4887,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_27": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "length",
       "description": "Linear extent in space between any two points",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12681",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4047,13 +4914,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_28": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "rational number",
       "description": "Element of a set of mathematical entities that includes all integers and other entities, each defined as the quotient of two integers, such that the division is defined for any two entities, except zero as a divisor",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12683",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4069,13 +4941,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_29": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12685",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4091,13 +4968,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_3": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "force",
       "description": "Vector quantity describing interaction between bodies or particles",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11127",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4113,13 +4995,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_30": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "ratio",
       "description": "Quotient of two numbers or two quantities of the same kind",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12687",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4135,13 +5022,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_31": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "power",
       "description": "Derivative with respect to time t of energy E being transferred or transformed",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12689",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4157,13 +5049,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_32": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12691",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4179,13 +5076,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_33": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "ratio",
       "description": "Quotient of two numbers or two quantities of the same kind",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12693",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4201,13 +5103,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_34": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "relative humidity",
       "description": "Quotient of partial pressure of water vapor and partial pressure at its saturation",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12695",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4223,13 +5130,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_35": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "mechanical power",
       "description": "Scalar product of force acting to a body and its velocity",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12697",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4245,13 +5157,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_36": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "mechanical power",
       "description": "Scalar product of force acting to a body and its velocity",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12699",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4267,13 +5184,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_37": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "temperature",
       "description": "Quantity representing a temperature value",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12701",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4289,13 +5211,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_38": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "length",
       "description": "Linear extent in space between any two points",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12703",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4311,13 +5238,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_39": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "force",
       "description": "Vector quantity describing interaction between bodies or particles",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12705",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4333,13 +5265,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_4": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "rational number",
       "description": "Element of a set of mathematical entities that includes all integers and other entities, each defined as the quotient of two integers, such that the division is defined for any two entities, except zero as a divisor",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11859",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4355,13 +5292,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_40": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "energy",
       "description": "Ability of a system to do work",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12707",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4377,13 +5319,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_41": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "sound level",
       "description": "Logarithm of the ratio of a given sound pressure to the reference sound pressure of 20 μPa, the sound pressure being obtained with a standard frequency weighting and with a standard exponential time weighting. Sound level in decibels is twenty times the logarithm to the base ten of that ratio",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12709",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4399,13 +5346,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_42": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "power",
       "description": "Derivative with respect to time t of energy E being transferred or transformed",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12711",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4421,13 +5373,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_43": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "sound level",
       "description": "Logarithm of the ratio of a given sound pressure to the reference sound pressure of 20 μPa, the sound pressure being obtained with a standard frequency weighting and with a standard exponential time weighting. Sound level in decibels is twenty times the logarithm to the base ten of that ratio",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12713",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4443,13 +5400,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_44": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12715",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4465,13 +5427,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_45": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "sound level",
       "description": "Logarithm of the ratio of a given sound pressure to the reference sound pressure of 20 μPa, the sound pressure being obtained with a standard frequency weighting and with a standard exponential time weighting. Sound level in decibels is twenty times the logarithm to the base ten of that ratio",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12717",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4487,13 +5454,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_46": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "frequency",
       "description": "Inverse of one cycle of a periodic event",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12719",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4509,13 +5481,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_47": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "volume flow rate",
       "description": "Scalar quantity characterizing the total flow through the two-dimensional domain A with the normal vector of a flowing fluid with velocity as an integral",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12721",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4531,13 +5508,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_48": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "length",
       "description": "Linear extent in space between any two points",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12723",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4553,13 +5535,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_49": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "length",
       "description": "Linear extent in space between any two points",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12725",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4575,13 +5562,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_5": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12637",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4597,13 +5589,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_50": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "ratio",
       "description": "Quotient of two numbers or two quantities of the same kind.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12727",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4619,13 +5616,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_6": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "temperature",
       "description": "Quantity representing a temperature value",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12639",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4641,13 +5643,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_7": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "volume flow rate",
       "description": "Scalar quantity characterizing the total flow through the two-dimensional domain A with the normal vector of a flowing fluid with velocity as an integral",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12641",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4663,13 +5670,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_8": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "temperature",
       "description": "Quantity representing a temperature value",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12643",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4685,13 +5697,18 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_9": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "density",
       "description": "Quantity representing the spatial distribution of mass of a continuous material",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=12645",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -4707,7 +5724,7 @@
       "uav:modellingRule": "Optional"
     },
     "KinematicViscosity": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured dynamic viscosity of the fluid",
       "links": [
@@ -4728,7 +5745,7 @@
       "unit": "m²/s"
     },
     "LeakageRateOfFlow": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured rate of flow leaking from shaft seals",
       "links": [
@@ -4749,7 +5766,7 @@
       "unit": "m³/s"
     },
     "Level": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured level",
       "links": [
@@ -4770,7 +5787,7 @@
       "unit": "m"
     },
     "LubricatingOilConsumption": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured oil consumption of the lubricating system",
       "links": [
@@ -4791,7 +5808,7 @@
       "unit": "m³"
     },
     "LubricatingOilPressure": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured oil pressure of the lubrication system",
       "links": [
@@ -4812,7 +5829,7 @@
       "unit": "Pa"
     },
     "MassFlow": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measure mass flow from the outlet area of the pump",
       "links": [
@@ -4833,7 +5850,7 @@
       "unit": "kg/s"
     },
     "MeanVelocityAtThroat": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured rate of flow passing through the exit from the volute divided by the throat area",
       "links": [
@@ -4854,7 +5871,7 @@
       "unit": "m/s"
     },
     "MechanicalEfficiency": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Determined proportion of the pump power input, P, available after satisfying the mechanical power losses, PJ, ab, at given operating conditions",
       "links": [
@@ -4875,7 +5892,7 @@
       "unit": "%"
     },
     "NetPositiveInletPressure": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Total pressure (including velocity pressure) at the pump inlet connection less the liquid vapor pressure at the present temperature of the liquid",
       "links": [
@@ -4896,7 +5913,7 @@
       "unit": "Pa"
     },
     "NetPositiveSuctionHead": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Amount of the absolute value of the total head above the head, equivalent to the vapor pressure of the liquid at the particular temperature, with reference to the NPSH datum plane",
       "links": [
@@ -4917,7 +5934,7 @@
       "unit": "m"
     },
     "NumberOfStarts": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Total number of starts",
       "links": [
@@ -4936,7 +5953,7 @@
       "uav:modellingRule": "Optional"
     },
     "OutletPressureOfTheInstallation": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured pressure at the outlet area of the installation.",
       "links": [
@@ -4957,7 +5974,7 @@
       "unit": "Pa"
     },
     "OverallEfficiency": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Determined proportion of the driver power input, Pmot, delivered as pump power output, Pu",
       "links": [
@@ -4978,7 +5995,7 @@
       "unit": "%"
     },
     "PowerLossDueToInternalLeakage": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Determined power loss due clearance flows",
       "links": [
@@ -4999,7 +6016,7 @@
       "unit": "W"
     },
     "ProcessPressure": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured process pressure of the pump",
       "links": [
@@ -5020,7 +6037,7 @@
       "unit": "Pa"
     },
     "PumpEfficiency": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Determined proportion of the pump power input, P, delivered as pump power output, Pu, at given operating conditions",
       "links": [
@@ -5041,7 +6058,7 @@
       "unit": "%"
     },
     "PumpHumidity": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured humidity inside the pump",
       "links": [
@@ -5062,7 +6079,7 @@
       "unit": "%"
     },
     "PumpPowerInput": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured power transmitted to the pump by its driver",
       "links": [
@@ -5083,7 +6100,7 @@
       "unit": "W"
     },
     "PumpPowerOutput": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured useful mechanical power transferred to the fluid during its passage through the pump",
       "links": [
@@ -5104,7 +6121,7 @@
       "unit": "W"
     },
     "PumpTemperature": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured temperature of the pump",
       "links": [
@@ -5125,7 +6142,7 @@
       "unit": "K"
     },
     "PumpTotalHead": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Determined difference between the total head at the outlet side of the pump and the total head at the inlet side of the pump",
       "links": [
@@ -5146,7 +6163,7 @@
       "unit": "m"
     },
     "RadialLoadOfPumpRotor": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured residual force acting at right angles to the line of the shaft and derived from hydraulic forces",
       "links": [
@@ -5167,7 +6184,7 @@
       "unit": "N"
     },
     "SoundEnergy": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Determined integral of the sound power, P, over a stated time interval of duration T (starting at t1 and ending at t2)",
       "links": [
@@ -5188,7 +6205,7 @@
       "unit": "J"
     },
     "SoundEnergyLevel": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Determined ten times the logarithm to the base 10 of the ratio of the sound energy, J, to a reference value, J0, expressed in decibels",
       "links": [
@@ -5209,7 +6226,7 @@
       "unit": "dB"
     },
     "SoundPower": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Determined through a surface, product of the sound pressure, p, and the component of the particle velocity, un, at a point on the surface in the direction normal to the surface, integrated over that surface",
       "links": [
@@ -5230,7 +6247,7 @@
       "unit": "W"
     },
     "SoundPowerLevel": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Determined ten times the logarithm to the base 10 of the ratio of the sound power of a source, P, to a reference value, P0, expressed in decibels",
       "links": [
@@ -5251,7 +6268,7 @@
       "unit": "dB"
     },
     "SoundPressure": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured difference between instantaneous pressure and static pressure",
       "links": [
@@ -5272,7 +6289,7 @@
       "unit": "Pa"
     },
     "SoundPressureLevel": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Determined ten times logarithm to the base 10 of the ratio of the square of the sound pressure, p, to the square of a reference value, p0, expressed in decibels",
       "links": [
@@ -5293,7 +6310,7 @@
       "unit": "dB"
     },
     "Speed": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured number of rotations or movements made by the shaft, coupling or impeller in a given time",
       "links": [
@@ -5314,7 +6331,7 @@
       "unit": "s⁻¹"
     },
     "Throughput": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Measured throughput of the vacuum pump",
       "links": [
@@ -5335,7 +6352,7 @@
       "unit": "Pa·m³/s"
     },
     "TotalHeadAtInletAreaOfTheInstallation": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Determined total head at the inlet area of the installation, which corresponds to the sum of geodetic head, pressure head and velocity head",
       "links": [
@@ -5356,7 +6373,7 @@
       "unit": "m"
     },
     "TotalHeadAtOutletAreaOfTheInstallation": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Determined total head at the outlet area of the installation, which corresponds to the sum of geodetic head, pressure head and velocity head",
       "links": [
@@ -5377,7 +6394,7 @@
       "unit": "m"
     },
     "VolumetricEfficiency": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "Determined ratio of the actual delivered volume at maximum pressure to the geometric displacement volume",
       "links": [
@@ -6922,9 +7939,6 @@
       "uav:structureType": "StructureWithOptionalFields",
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5017"
     }
-  ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5228"
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1054",
   "uav:nodes": {

@@ -240,6 +240,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=5238",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -257,6 +262,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=5238",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -274,6 +284,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=5238",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -291,6 +306,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=5238",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -308,6 +328,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=5238",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -323,6 +348,9 @@
   "title": "<Marking>",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:<Marking>",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/Pumps/;i=5163"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3008",

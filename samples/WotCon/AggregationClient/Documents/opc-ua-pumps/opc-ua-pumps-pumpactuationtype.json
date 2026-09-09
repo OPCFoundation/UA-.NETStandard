@@ -14,9 +14,107 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1031",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:CleanValveRequest",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5078",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1031",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:FlushValveRequest",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5076",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1031",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:GasDilValveRequest",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5079",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1031",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:InletValveRequest",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5074",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1031",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:OutletValveRequest",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5075",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1025",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45",
+      "uav:refName": "ActuationType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1032",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:PumpKick",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5082",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1031",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:PumpStandByRequest",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5080",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1031",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:PurgeValveRequest",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5077",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1031",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:VentValveRequest",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5081",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    }
+  ],
   "properties": {
     "ActualControlMode": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property describes the actual control mode of the pump.",
       "links": [
         {
@@ -33,7 +131,7 @@
       "uav:modellingRule": "Optional"
     },
     "ActualOperationMode": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property describes the actual operation mode of the pump.",
       "links": [
         {
@@ -50,7 +148,7 @@
       "uav:modellingRule": "Optional"
     },
     "ControlInversion": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property offers the inversion of the selected control mode in operation mode AutoControl. A \"True\" status means that the control mode inversion is activated and a \"False\" status means that the control mode inversion is deactivated.",
       "links": [
         {
@@ -67,11 +165,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8754",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -87,11 +190,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_2": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8750",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -107,11 +215,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_3": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8756",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -127,11 +240,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_4": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8762",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -147,11 +265,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_5": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8759",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -167,11 +290,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_6": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8751",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -187,11 +315,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_7": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8755",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -207,11 +340,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_8": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8749",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -227,7 +365,7 @@
       "uav:modellingRule": "Optional"
     },
     "Enable": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property activates of the control function.",
       "links": [
         {
@@ -244,7 +382,7 @@
       "uav:modellingRule": "Optional"
     },
     "ExternalSignal": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property offers the activation of an external electrical interface serving the setpoint of the control function by selecting the kind of electrical (analogue) signal.",
       "links": [
         {
@@ -261,11 +399,16 @@
       "uav:modellingRule": "Optional"
     },
     "FalseState": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8756",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -280,11 +423,16 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_2": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8762",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -299,11 +447,16 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_3": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8759",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -318,11 +471,16 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_4": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8751",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -337,7 +495,7 @@
       "uav:modellingRule": "Mandatory"
     },
     "ReverseRotatingDirection": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property indicates the inversion of the standard rotating direction.",
       "links": [
         {
@@ -355,7 +513,7 @@
       "uav:modellingRule": "Optional"
     },
     "SetControlMode": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property describes the desired control mode of the pump.",
       "links": [
         {
@@ -371,7 +529,7 @@
       "uav:modellingRule": "Optional"
     },
     "SetOperationMode": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property describes the desired operation mode of the pump.",
       "links": [
         {
@@ -387,11 +545,16 @@
       "uav:modellingRule": "Optional"
     },
     "TrueState": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8756",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -406,11 +569,16 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_2": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8762",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -425,11 +593,16 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_3": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8759",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -444,11 +617,16 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_4": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8751",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1987,17 +2165,6 @@
       "uav:structureType": "StructureWithOptionalFields",
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5017"
     }
-  ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5078",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5076",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5079",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5074",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5075",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5082",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5080",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5077",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5081"
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1028",
   "uav:nodes": {

@@ -61,6 +61,9 @@
   "title": "SupervisionProcessFluid",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns2:SupervisionProcessFluid",
+  "uav:componentOf": [
+    "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Events"
+  ],
   "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Events.SupervisionProcessFluid",
   "uav:nodes": {
     "@type": "uav:NodeModel",

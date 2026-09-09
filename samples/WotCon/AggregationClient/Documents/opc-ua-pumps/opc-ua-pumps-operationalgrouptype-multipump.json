@@ -30,6 +30,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11010",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -50,6 +55,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11020",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -70,6 +80,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11021",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -90,6 +105,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11011",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -110,6 +130,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11012",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -130,6 +155,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11013",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -150,6 +180,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11014",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -170,6 +205,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11016",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -190,6 +230,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11017",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -210,6 +255,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11018",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -230,6 +280,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11019",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -247,6 +302,9 @@
     "DistributionPriority": {
       "@type": "uav:variable",
       "description": "This property describes in ascending order the priority of pumps in addition operation mode.",
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=2365",
@@ -255,7 +313,7 @@
       ],
       "observable": true,
       "title": "DistributionPriority",
-      "type": "string",
+      "type": "array",
       "uav:arrayDimensions": [
         0
       ],
@@ -287,6 +345,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11014",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -306,6 +369,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=11014",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -345,6 +413,7 @@
     "ExchangeTime": {
       "@type": "uav:variable",
       "description": "This property specifies the determination of the absolute time for the next exchange of the pump, if operator specific Pump Exchange Mode is activated.",
+      "format": "date-time",
       "links": [
         {
           "href": "i=2365",
@@ -353,6 +422,7 @@
       ],
       "observable": true,
       "title": "ExchangeTime",
+      "type": "string",
       "uav:browseName": "ns1:ExchangeTime",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=11013",
       "uav:mapToType": "i=13",
@@ -430,6 +500,9 @@
     "PumpCollectiveIDs": {
       "@type": "uav:variable",
       "description": "This element identifies the pumps within the pump system",
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=2365",
@@ -438,7 +511,7 @@
       ],
       "observable": true,
       "title": "PumpCollectiveIDs",
-      "type": "string",
+      "type": "array",
       "uav:arrayDimensions": [
         0
       ],
@@ -467,6 +540,9 @@
     "RedundantPumpIDs": {
       "@type": "uav:variable",
       "description": "This property identifies the actual redundant pumps within the pump system",
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=2365",
@@ -475,7 +551,7 @@
       ],
       "observable": true,
       "title": "RedundantPumpIDs",
-      "type": "string",
+      "type": "array",
       "uav:arrayDimensions": [
         0
       ],
@@ -489,6 +565,9 @@
   "title": "MultiPump",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:MultiPump",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/Pumps/;i=1053"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3008",

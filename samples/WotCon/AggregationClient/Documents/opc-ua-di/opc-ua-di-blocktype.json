@@ -12,13 +12,26 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1001",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45",
+      "uav:refName": "TopologyElementType"
+    }
+  ],
   "properties": {
     "ActualMode": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=1003",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -30,16 +43,23 @@
       "uav:modellingRule": "Optional"
     },
     "NormalMode": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
+      "items": {},
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=1003",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
       "readOnly": true,
       "title": "NormalMode",
+      "type": "array",
       "uav:arrayDimensions": [
         0
       ],
@@ -50,16 +70,23 @@
       "uav:valueRank": 1
     },
     "PermittedMode": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
+      "items": {},
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=1003",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
       "readOnly": true,
       "title": "PermittedMode",
+      "type": "array",
       "uav:arrayDimensions": [
         0
       ],
@@ -70,11 +97,16 @@
       "uav:valueRank": 1
     },
     "RevisionCounter": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=1003",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -87,16 +119,23 @@
       "uav:modellingRule": "Optional"
     },
     "TargetMode": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
+      "items": {},
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=1003",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
       "readOnly": true,
       "title": "TargetMode",
+      "type": "array",
       "uav:arrayDimensions": [
         0
       ],
@@ -420,6 +459,7 @@
     }
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=1003",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

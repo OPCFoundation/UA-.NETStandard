@@ -14,6 +14,223 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:Acceleration",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5084",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:CleanValveOpen",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5085",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:Deceleration",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5103",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:FlushValveOpen",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5086",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:GasDilValveOpen",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5087",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:InletValveOpen",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5088",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:NoRotation",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5089",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:OutletValveOpen",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5090",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:ProcessIsActive",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5091",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:PumpActivation",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5092",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:PumpDirection",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5093",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:PumpOperation",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5094",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:PumpPowerMax",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5095",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:PumpSpeedMax",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5096",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:PumpSpeedMin",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5097",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:PurgeValveOpen",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5098",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:RatedSpeed",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5099",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1005",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:StandBy",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5083",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:StandBySpeed",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5100",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:TargetSpeed",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5101",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1030",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:VentValveOpen",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5102",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    }
+  ],
   "title": "SignalsType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:SignalsType",
@@ -1538,29 +1755,6 @@
       "uav:structureType": "StructureWithOptionalFields",
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5017"
     }
-  ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5084",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5085",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5103",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5086",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5087",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5088",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5089",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5090",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5091",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5092",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5093",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5094",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5095",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5096",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5097",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5098",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5099",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5083",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5100",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5101",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5102"
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1033",
   "uav:nodes": {

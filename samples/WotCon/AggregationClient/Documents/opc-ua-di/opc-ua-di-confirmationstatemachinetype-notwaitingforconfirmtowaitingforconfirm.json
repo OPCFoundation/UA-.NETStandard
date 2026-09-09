@@ -45,6 +45,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=327",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -60,6 +65,9 @@
   "title": "NotWaitingForConfirmToWaitingForConfirm",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:NotWaitingForConfirmToWaitingForConfirm",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/DI/;i=307"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",

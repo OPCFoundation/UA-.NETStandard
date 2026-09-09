@@ -26,6 +26,9 @@
   "title": "Maintenance",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns4:Maintenance",
+  "uav:componentOf": [
+    "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2"
+  ],
   "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Maintenance",
   "uav:nodes": {
     "@type": "uav:NodeModel",

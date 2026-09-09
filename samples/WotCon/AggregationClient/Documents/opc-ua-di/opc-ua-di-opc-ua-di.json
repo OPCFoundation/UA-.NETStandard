@@ -23,6 +23,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=6435",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -57,6 +62,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=6435",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -122,6 +132,9 @@
   "title": "Opc.Ua.Di",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:Opc.Ua.Di",
+  "uav:componentOf": [
+    "i=93"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",

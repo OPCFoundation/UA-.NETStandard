@@ -194,6 +194,9 @@
   "title": "FileSystem",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "FileSystem",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/DI/;i=192"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",

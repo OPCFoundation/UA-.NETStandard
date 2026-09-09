@@ -23,6 +23,11 @@
   "title": "<ProfileIdentifier>",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:<ProfileIdentifier>",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/DI/;i=6308",
+    "nsu=http://opcfoundation.org/UA/DI/;i=6571",
+    "nsu=http://opcfoundation.org/UA/DI/;i=6248"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",

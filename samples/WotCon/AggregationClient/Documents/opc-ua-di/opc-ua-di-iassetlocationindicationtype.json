@@ -43,13 +43,25 @@
       "uav:modellingRule": "Mandatory"
     }
   },
+  "links": [
+    {
+      "href": "i=17602",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "properties": {
     "IsIndicating": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=118",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -62,11 +74,16 @@
       "uav:modellingRule": "Mandatory"
     },
     "SupportedIndicationTypes": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=118",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -78,11 +95,16 @@
       "uav:modellingRule": "Optional"
     },
     "UsedIndicationType": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=118",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -407,6 +429,7 @@
     }
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=118",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

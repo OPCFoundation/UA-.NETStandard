@@ -21,9 +21,52 @@
       "uav:modellingRule": "Mandatory"
     }
   },
+  "links": [
+    {
+      "href": "i=2309",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:NotWaitingForConfirm",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=323"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=2307",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:WaitingForConfirm",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=325"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=2310",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:NotWaitingForConfirmToWaitingForConfirm",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=327"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=2310",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:WaitingForConfirmToNotWaitingForConfirm",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=329"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=2771",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "properties": {
     "ConfirmationTimeout": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=63",
@@ -350,12 +393,6 @@
       ],
       "uav:isOptionSet": true
     }
-  ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/DI/;i=323",
-    "nsu=http://opcfoundation.org/UA/DI/;i=325",
-    "nsu=http://opcfoundation.org/UA/DI/;i=327",
-    "nsu=http://opcfoundation.org/UA/DI/;i=329"
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=307",
   "uav:nodes": {

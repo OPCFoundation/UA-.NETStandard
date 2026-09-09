@@ -27,16 +27,27 @@
       "rel": "ua:HasInterface",
       "uav:refId": "i=17603",
       "uav:refName": "IMachineVendorNameplateType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45",
+      "uav:refName": "MachineryItemIdentificationType"
     }
   ],
   "properties": {
     "DefaultInstanceBrowseName": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "The default BrowseName for instances of the type.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1012",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -47,12 +58,17 @@
       "uav:mapToType": "i=20"
     },
     "Location": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "To be used by end users to store the location of the machine in a scheme specific to the end user. Servers shall support at least 60 Unicode characters for the clients writing this value, this means clients can expect to be able to write strings with a length of 60 Unicode characters into that field.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1012",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -64,12 +80,17 @@
       "uav:modellingRule": "Optional"
     },
     "ProductInstanceUri": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "A globally unique resource identifier provided by the manufacturer of the machine",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1012",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,

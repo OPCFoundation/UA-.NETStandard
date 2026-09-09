@@ -17,6 +17,11 @@
   "description": "Interface containing information of the identification of a machine set by the customer",
   "links": [
     {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=15048",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    },
+    {
       "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1012",
       "rel": "ua:InterfaceOf",
       "uav:refId": "i=17603",
@@ -25,12 +30,17 @@
   ],
   "properties": {
     "Location": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "To be used by end users to store the location of the machine in a scheme specific to the end user Servers shall support at least 60 Unicode characters for the clients writing this value, this means clients can expect to be able to write strings with a length of 60 Unicode characters into that field.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1011",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -46,6 +56,7 @@
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:IMachineTagNameplateType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=1011",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

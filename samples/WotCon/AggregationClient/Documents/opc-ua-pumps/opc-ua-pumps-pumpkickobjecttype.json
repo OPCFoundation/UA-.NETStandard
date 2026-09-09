@@ -14,13 +14,26 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1031",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45",
+      "uav:refName": "DiscreteOutputObjectType"
+    }
+  ],
   "properties": {
     "Definition": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8829",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -36,11 +49,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_2": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8830",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -56,11 +74,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_3": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8831",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -76,11 +99,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8831",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -95,11 +123,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=8831",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -121,7 +154,7 @@
       "uav:modellingRule": "Mandatory"
     },
     "PumpKickMode": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property describes the pump kick mode of the pump.",
       "links": [
         {
@@ -137,7 +170,7 @@
       "uav:modellingRule": "Optional"
     },
     "PumpKickTime": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property determines the absolute time of a pump kick, if Pump Kick Mode is operator specific. The time for the next pump kick results of the sum of Pump Kick Time and Pump Kick Time Difference",
       "links": [
         {
@@ -154,7 +187,7 @@
       "uav:modellingRule": "Optional"
     },
     "PumpKickTimeDifference": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": 0,
       "description": "This property determines the interval time of a pump kick, if Pump Kick Mode is operator specific. The time for the next pump kick results of the sum of Pump Kick Time and Pump Kick Time Difference",
       "links": [

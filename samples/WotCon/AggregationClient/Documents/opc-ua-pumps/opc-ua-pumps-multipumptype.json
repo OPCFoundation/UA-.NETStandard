@@ -14,13 +14,25 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1005",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "properties": {
     "Definition": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9251",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -36,11 +48,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_10": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9260",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -56,11 +73,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_11": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9261",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -76,11 +98,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_2": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9252",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -96,11 +123,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_3": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9253",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -116,11 +148,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_4": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9254",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -136,11 +173,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_5": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9255",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -156,11 +198,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_6": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9256",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -176,11 +223,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_7": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9257",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -196,11 +248,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_8": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9258",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -216,11 +273,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_9": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9259",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -236,8 +298,11 @@
       "uav:modellingRule": "Optional"
     },
     "DistributionPriority": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property describes in ascending order the priority of pumps in addition operation mode.",
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=2365",
@@ -246,7 +311,7 @@
       ],
       "observable": true,
       "title": "DistributionPriority",
-      "type": "string",
+      "type": "array",
       "uav:arrayDimensions": [
         0
       ],
@@ -257,7 +322,7 @@
       "uav:valueRank": 1
     },
     "DistributionType": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property describes the share of operation time of different pumps of the pump system in addition operation mode.",
       "links": [
         {
@@ -273,11 +338,16 @@
       "uav:modellingRule": "Optional"
     },
     "EURange": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9255",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -292,11 +362,16 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9255",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -318,7 +393,7 @@
       "uav:modellingRule": "Mandatory"
     },
     "ExchangeMode": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property specifies the exchange mode of the pump",
       "links": [
         {
@@ -334,8 +409,9 @@
       "uav:modellingRule": "Optional"
     },
     "ExchangeTime": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property specifies the determination of the absolute time for the next exchange of the pump, if operator specific Pump Exchange Mode is activated.",
+      "format": "date-time",
       "links": [
         {
           "href": "i=2365",
@@ -344,13 +420,14 @@
       ],
       "observable": true,
       "title": "ExchangeTime",
+      "type": "string",
       "uav:browseName": "ns1:ExchangeTime",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9254",
       "uav:mapToType": "i=13",
       "uav:modellingRule": "Optional"
     },
     "ExchangeTimeDifference": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property specifies the determination of the time for the next exchange of the pump relative to ExchangeTime, if operator specific Pump Exchange Mode is activated.",
       "links": [
         {
@@ -369,7 +446,7 @@
       "unit": "s"
     },
     "MaximumNumberOfPumpsInOperation": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property specifies the maximum number of pumps in operation. The difference between NumberOfPumps and MaximumNumberOfPumpsInOperation identifies the redundant pumps.",
       "links": [
         {
@@ -386,7 +463,7 @@
       "uav:modellingRule": "Optional"
     },
     "MultiPumpOperationMode": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property specifies the actual multi pump operation mode. In redundant operation mode a pump fulfils the process function of another pump. Addition operation mode characterizes the supplementary fulfilling of the process function. The mixed mode characterizes both operation tasks.",
       "links": [
         {
@@ -402,7 +479,7 @@
       "uav:modellingRule": "Optional"
     },
     "NumberOfPumps": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property identifies the number of pumps in multi pump management",
       "links": [
         {
@@ -419,8 +496,11 @@
       "uav:modellingRule": "Optional"
     },
     "PumpCollectiveIDs": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This element identifies the pumps within the pump system",
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=2365",
@@ -429,7 +509,7 @@
       ],
       "observable": true,
       "title": "PumpCollectiveIDs",
-      "type": "string",
+      "type": "array",
       "uav:arrayDimensions": [
         0
       ],
@@ -440,7 +520,7 @@
       "uav:valueRank": 1
     },
     "PumpRole": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property identifies the role rsp. task of the pump within the multi pump management.",
       "links": [
         {
@@ -456,8 +536,11 @@
       "uav:modellingRule": "Optional"
     },
     "RedundantPumpIDs": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property identifies the actual redundant pumps within the pump system",
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=2365",
@@ -466,7 +549,7 @@
       ],
       "observable": true,
       "title": "RedundantPumpIDs",
-      "type": "string",
+      "type": "array",
       "uav:arrayDimensions": [
         0
       ],

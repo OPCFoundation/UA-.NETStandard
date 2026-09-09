@@ -14,6 +14,54 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1042",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:Design",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5111",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1048",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:Implementation",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5112",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1049",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:Measurements",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5113",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1035",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45",
+      "uav:refName": "PortType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1044",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:SystemRequirements",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5114",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    }
+  ],
   "title": "OutletConnectionPortType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:OutletConnectionPortType",
@@ -1538,12 +1586,6 @@
       "uav:structureType": "StructureWithOptionalFields",
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5017"
     }
-  ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5111",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5112",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5113",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5114"
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1037",
   "uav:nodes": {

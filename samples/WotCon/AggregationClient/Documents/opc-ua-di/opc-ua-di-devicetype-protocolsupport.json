@@ -23,6 +23,7 @@
   "properties": {
     "<ProtocolSupportIdentifier>": {
       "@type": "uav:variable",
+      "contentEncoding": "base64",
       "links": [
         {
           "href": "i=63",
@@ -32,6 +33,7 @@
       "observable": true,
       "readOnly": true,
       "title": "<ProtocolSupportIdentifier>",
+      "type": "string",
       "uav:browseName": "ns1:<ProtocolSupportIdentifier>",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6214",
       "uav:mapToType": "i=15",
@@ -41,6 +43,9 @@
   "title": "ProtocolSupport",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:ProtocolSupport",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/DI/;i=1002"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",

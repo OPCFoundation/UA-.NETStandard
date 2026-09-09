@@ -14,13 +14,37 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1005",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1047",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "InletConnectionImplementationType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1048",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "OutletConnectionImplementationType"
+    }
+  ],
   "properties": {
     "Definition": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9389",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -36,7 +60,7 @@
       "uav:modellingRule": "Optional"
     },
     "NominalSize": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "An alphanumeric designation of size for components of a pipework system, which is used for reference purposes. It comprises the letters DN followed by a dimensionless whole number which is indirectly related to the physical size, in millimeters, of the bore or outside diameter of the end connections.",
       "links": [
         {
@@ -1579,6 +1603,7 @@
     }
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1046",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

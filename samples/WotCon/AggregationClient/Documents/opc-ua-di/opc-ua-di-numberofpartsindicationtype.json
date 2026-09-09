@@ -13,6 +13,14 @@
     "uav:objectType"
   ],
   "description": "Indicates the total number of parts that have been produced or can still be produced.",
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=473",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45",
+      "uav:refName": "BaseLifetimeIndicationType"
+    }
+  ],
   "title": "NumberOfPartsIndicationType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:NumberOfPartsIndicationType",
@@ -326,6 +334,7 @@
     }
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=475",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

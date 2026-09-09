@@ -12,9 +12,49 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=212",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:CurrentVersion",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=139",
+        "uav:modellingRule": "Mandatory"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=15744",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:FileTransfer",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=140",
+        "uav:modellingRule": "Mandatory"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=135",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45",
+      "uav:refName": "SoftwareLoadingType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=153",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "DirectLoadingType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=171",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "CachedLoadingType"
+    }
+  ],
   "properties": {
     "ErrorMessage": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=63",
@@ -30,11 +70,16 @@
       "uav:modellingRule": "Mandatory"
     },
     "WriteBlockSize": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=137",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -359,11 +404,8 @@
       "uav:isOptionSet": true
     }
   ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/DI/;i=139",
-    "nsu=http://opcfoundation.org/UA/DI/;i=140"
-  ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=137",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

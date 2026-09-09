@@ -13,11 +13,19 @@
     {
       "href": "i=68",
       "rel": "ua:HasTypeDefinition"
+    },
+    {
+      "href": "i=2268",
+      "rel": "ua:PropertyOf",
+      "uav:refId": "i=46"
     }
   ],
   "title": "MaxInactiveLockTime",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:MaxInactiveLockTime",
+  "uav:componentOf": [
+    "i=2268"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",

@@ -12,6 +12,14 @@
     "tm:ThingModel",
     "uav:dataType"
   ],
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=6522",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45",
+      "uav:refName": "FetchResultDataType"
+    }
+  ],
   "title": "TransferResultDataDataType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:TransferResultDataDataType",

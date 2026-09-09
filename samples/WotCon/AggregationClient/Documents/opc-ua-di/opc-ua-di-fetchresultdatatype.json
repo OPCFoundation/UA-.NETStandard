@@ -12,6 +12,25 @@
     "tm:ThingModel",
     "uav:dataType"
   ],
+  "links": [
+    {
+      "href": "i=22",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=15888",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "TransferResultErrorDataType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=15889",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "TransferResultDataDataType"
+    }
+  ],
   "title": "FetchResultDataType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:FetchResultDataType",
@@ -325,6 +344,7 @@
     }
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6522",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

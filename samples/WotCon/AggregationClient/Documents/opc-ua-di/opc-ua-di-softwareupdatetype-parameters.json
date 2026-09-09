@@ -161,6 +161,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=122",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -175,6 +180,9 @@
   "title": "Parameters",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:Parameters",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/DI/;i=1"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",

@@ -14,6 +14,34 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1043",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:Design",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5115",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1035",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45",
+      "uav:refName": "PortType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1051",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:Measurements",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5116",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    }
+  ],
   "title": "DrivePortType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:DrivePortType",
@@ -1538,10 +1566,6 @@
       "uav:structureType": "StructureWithOptionalFields",
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5017"
     }
-  ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5115",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5116"
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1038",
   "uav:nodes": {

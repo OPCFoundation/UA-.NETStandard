@@ -92,6 +92,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational.Measurements.DifferentialPressure",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -110,6 +115,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational.Measurements.FluidTemperature",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -128,6 +138,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational.Measurements.BearingTemperature",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -146,6 +161,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational.Measurements.PumpPowerInput",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -164,6 +184,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational.Measurements.MassFlow",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -182,6 +207,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational.Measurements.PumpEfficiency",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -200,6 +230,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational.Measurements.Level",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -218,6 +253,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational.Measurements.DifferentialPressure",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -243,6 +283,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational.Measurements.FluidTemperature",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -268,6 +313,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational.Measurements.BearingTemperature",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -293,6 +343,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational.Measurements.PumpPowerInput",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -318,6 +373,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational.Measurements.MassFlow",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -343,6 +403,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational.Measurements.PumpEfficiency",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -368,6 +433,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational.Measurements.Level",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -579,6 +649,9 @@
   "title": "Measurements",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns2:Measurements",
+  "uav:componentOf": [
+    "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational"
+  ],
   "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational.Measurements",
   "uav:nodes": {
     "@type": "uav:NodeModel",

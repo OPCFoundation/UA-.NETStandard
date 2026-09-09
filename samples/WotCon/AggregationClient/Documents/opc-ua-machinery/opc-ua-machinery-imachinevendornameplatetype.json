@@ -17,6 +17,12 @@
   "description": "Interface containing identification and nameplate information for a machine provided by the machine vendor",
   "links": [
     {
+      "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1003",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45",
+      "uav:refName": "IMachineryItemVendorNameplateType"
+    },
+    {
       "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1012",
       "rel": "ua:InterfaceOf",
       "uav:refId": "i=17603",
@@ -25,12 +31,17 @@
   ],
   "properties": {
     "ProductInstanceUri": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "A globally unique resource identifier provided by the manufacturer of the machine",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1010",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -47,6 +58,7 @@
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:IMachineVendorNameplateType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=1010",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

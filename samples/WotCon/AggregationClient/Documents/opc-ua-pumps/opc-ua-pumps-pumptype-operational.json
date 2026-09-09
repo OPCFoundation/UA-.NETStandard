@@ -26,6 +26,9 @@
   "title": "Operational",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns3:Operational",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/Pumps/;i=1052"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3008",

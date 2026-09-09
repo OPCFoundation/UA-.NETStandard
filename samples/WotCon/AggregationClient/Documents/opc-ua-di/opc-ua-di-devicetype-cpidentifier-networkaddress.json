@@ -23,6 +23,9 @@
   "title": "NetworkAddress",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:NetworkAddress",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/DI/;i=6571"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",

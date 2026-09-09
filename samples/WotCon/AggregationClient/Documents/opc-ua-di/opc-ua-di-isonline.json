@@ -12,6 +12,13 @@
     "tm:ThingModel",
     "uav:referenceType"
   ],
+  "links": [
+    {
+      "href": "i=44",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "title": "IsOnline",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:IsOnline",

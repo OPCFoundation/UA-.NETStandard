@@ -23,6 +23,7 @@
   "properties": {
     "<DocumentIdentifier>": {
       "@type": "uav:variable",
+      "contentEncoding": "base64",
       "links": [
         {
           "href": "i=63",
@@ -32,6 +33,7 @@
       "observable": true,
       "readOnly": true,
       "title": "<DocumentIdentifier>",
+      "type": "string",
       "uav:browseName": "ns1:<DocumentIdentifier>",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15058",
       "uav:mapToType": "i=15",
@@ -41,6 +43,9 @@
   "title": "Documentation",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:Documentation",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/DI/;i=15054"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",

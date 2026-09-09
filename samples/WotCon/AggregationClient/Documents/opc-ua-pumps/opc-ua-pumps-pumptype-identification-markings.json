@@ -26,6 +26,9 @@
   "title": "Markings",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:Markings",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/Pumps/;i=5120"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3008",

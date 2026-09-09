@@ -23,6 +23,9 @@
   "title": "<ObjectIdentifier>",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:<ObjectIdentifier>",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/DI/;i=1004"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",

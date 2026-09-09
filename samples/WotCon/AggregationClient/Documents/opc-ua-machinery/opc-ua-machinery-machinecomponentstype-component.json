@@ -32,6 +32,9 @@
   "title": "<Component>",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:<Component>",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/Machinery/;i=1006"
+  ],
   "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=5002",
   "uav:nodes": {
     "@type": "uav:NodeModel",

@@ -12,6 +12,13 @@
     "tm:ThingModel",
     "uav:dataType"
   ],
+  "links": [
+    {
+      "href": "i=22",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "title": "ParameterResultDataType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:ParameterResultDataType",

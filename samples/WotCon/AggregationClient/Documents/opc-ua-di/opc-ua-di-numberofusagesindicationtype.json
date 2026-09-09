@@ -13,6 +13,14 @@
     "uav:objectType"
   ],
   "description": "Indicates counting the process steps the entity has been used or can still be used for (for example usages of a punching tool).",
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=473",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45",
+      "uav:refName": "BaseLifetimeIndicationType"
+    }
+  ],
   "title": "NumberOfUsagesIndicationType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:NumberOfUsagesIndicationType",
@@ -326,6 +334,7 @@
     }
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=476",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

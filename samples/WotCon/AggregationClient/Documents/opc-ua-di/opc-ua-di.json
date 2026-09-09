@@ -22,6 +22,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=15001",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -33,15 +38,22 @@
     },
     "DefaultRolePermissions": {
       "@type": "uav:variable",
+      "items": {},
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=15001",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
       "readOnly": true,
       "title": "DefaultRolePermissions",
+      "type": "array",
       "uav:arrayDimensions": [
         0
       ],
@@ -52,15 +64,22 @@
     },
     "DefaultUserRolePermissions": {
       "@type": "uav:variable",
+      "items": {},
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=15001",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
       "readOnly": true,
       "title": "DefaultUserRolePermissions",
+      "type": "array",
       "uav:arrayDimensions": [
         0
       ],
@@ -76,6 +95,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=15001",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -93,6 +117,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=15001",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -105,15 +134,22 @@
     },
     "NamespacePublicationDate": {
       "@type": "uav:variable",
+      "format": "date-time",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=15001",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
       "readOnly": true,
       "title": "NamespacePublicationDate",
+      "type": "string",
       "uav:browseName": "NamespacePublicationDate",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15004",
       "uav:mapToType": "i=13"
@@ -125,6 +161,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=15001",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -142,6 +183,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=15001",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -154,15 +200,22 @@
     },
     "StaticNodeIdTypes": {
       "@type": "uav:variable",
+      "items": {},
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=15001",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
       "readOnly": true,
       "title": "StaticNodeIdTypes",
+      "type": "array",
       "uav:arrayDimensions": [
         0
       ],
@@ -173,15 +226,22 @@
     },
     "StaticNumericNodeIdRange": {
       "@type": "uav:variable",
+      "items": {},
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=15001",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
       "readOnly": true,
       "title": "StaticNumericNodeIdRange",
+      "type": "array",
       "uav:arrayDimensions": [
         0
       ],
@@ -197,6 +257,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=15001",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -211,6 +276,9 @@
   "title": "http://opcfoundation.org/UA/DI/",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:http://opcfoundation.org/UA/DI/",
+  "uav:componentOf": [
+    "i=11715"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",

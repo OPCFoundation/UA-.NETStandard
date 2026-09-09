@@ -419,6 +419,8 @@
   },
   {
     "dependsOn": [
+      "opc-ua-di--cpidentifier",
+      "opc-ua-di-connectionpointtype",
       "opc-ua-di-devicetype--cpidentifier",
       "opc-ua-di-protocoltype"
     ],
@@ -768,6 +770,7 @@
   },
   {
     "dependsOn": [
+      "opc-ua-di--networkidentifier",
       "opc-ua-di-networktype",
       "opc-ua-di-protocoltype"
     ],

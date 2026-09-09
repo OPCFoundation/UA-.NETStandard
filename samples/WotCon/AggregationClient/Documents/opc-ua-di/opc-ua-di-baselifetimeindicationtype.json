@@ -13,6 +13,49 @@
     "uav:objectType"
   ],
   "description": "Base indication type not further defining a semantic",
+  "links": [
+    {
+      "href": "i=58",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=474",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "TimeIndicationType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=475",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "NumberOfPartsIndicationType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=476",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "NumberOfUsagesIndicationType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=477",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "LengthIndicationType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=478",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "DiameterIndicationType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=479",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "SubstanceVolumeIndicationType"
+    }
+  ],
   "title": "BaseLifetimeIndicationType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:BaseLifetimeIndicationType",
@@ -326,6 +369,7 @@
     }
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=473",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

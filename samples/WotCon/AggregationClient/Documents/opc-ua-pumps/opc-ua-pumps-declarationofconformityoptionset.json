@@ -15,18 +15,32 @@
     "uav:dataType"
   ],
   "description": "defines flags for directives on the basis of which conformity was determined",
+  "links": [
+    {
+      "href": "i=12755",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "properties": {
     "OptionSetValues": {
       "@type": "uav:variable",
+      "items": {},
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=3019",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
       "readOnly": true,
       "title": "OptionSetValues",
+      "type": "array",
       "uav:arrayDimensions": [
         8
       ],

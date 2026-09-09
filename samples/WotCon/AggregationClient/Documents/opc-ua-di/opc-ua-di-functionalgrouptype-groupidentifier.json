@@ -41,6 +41,9 @@
   "title": "<GroupIdentifier>",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:<GroupIdentifier>",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/DI/;i=1005"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",

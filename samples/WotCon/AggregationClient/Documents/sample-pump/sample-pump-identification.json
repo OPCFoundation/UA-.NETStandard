@@ -39,6 +39,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Identification",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -65,6 +70,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Identification",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -92,6 +102,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Identification",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -113,6 +128,9 @@
   "title": "Identification",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns4:Identification",
+  "uav:componentOf": [
+    "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1"
+  ],
   "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Identification",
   "uav:nodes": {
     "@type": "uav:NodeModel",

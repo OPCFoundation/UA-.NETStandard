@@ -23,7 +23,10 @@
             "uav:valueRank": -1
           },
           "PatchIdentifiers": {
-            "type": "string",
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
             "uav:arrayDimensions": [
               0
             ],
@@ -69,6 +72,34 @@
       "uav:modellingRule": "Mandatory"
     }
   },
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=212",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:PendingVersion",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=187",
+        "uav:modellingRule": "Mandatory"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=212",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:FallbackVersion",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=188",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=137",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45",
+      "uav:refName": "PackageLoadingType"
+    }
+  ],
   "title": "CachedLoadingType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:CachedLoadingType",
@@ -380,10 +411,6 @@
       ],
       "uav:isOptionSet": true
     }
-  ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/DI/;i=187",
-    "nsu=http://opcfoundation.org/UA/DI/;i=188"
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=171",
   "uav:nodes": {

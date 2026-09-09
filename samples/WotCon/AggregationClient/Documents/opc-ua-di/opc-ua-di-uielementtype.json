@@ -12,6 +12,13 @@
     "tm:ThingModel",
     "uav:variableType"
   ],
+  "links": [
+    {
+      "href": "i=63",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "title": "UIElementType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:UIElementType",
@@ -325,6 +332,7 @@
     }
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6246",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

@@ -15,18 +15,32 @@
     "uav:dataType"
   ],
   "description": "defines flags for the category of explosion zones for devices",
+  "links": [
+    {
+      "href": "i=12755",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "properties": {
     "OptionSetValues": {
       "@type": "uav:variable",
+      "items": {},
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=3015",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
       "readOnly": true,
       "title": "OptionSetValues",
+      "type": "array",
       "uav:arrayDimensions": [
         6
       ],

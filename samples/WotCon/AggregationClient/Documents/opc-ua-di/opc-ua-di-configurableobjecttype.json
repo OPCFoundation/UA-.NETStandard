@@ -12,6 +12,33 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "i=61",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:SupportedTypes",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=5004",
+        "uav:modellingRule": "Mandatory"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=58",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:<ObjectIdentifier>",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6026",
+        "uav:modellingRule": "OptionalPlaceholder"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=58",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "title": "ConfigurableObjectType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:ConfigurableObjectType",
@@ -323,10 +350,6 @@
       ],
       "uav:isOptionSet": true
     }
-  ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/DI/;i=5004",
-    "nsu=http://opcfoundation.org/UA/DI/;i=6026"
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=1004",
   "uav:nodes": {

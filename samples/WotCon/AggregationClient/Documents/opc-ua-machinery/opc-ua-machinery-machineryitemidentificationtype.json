@@ -26,17 +26,39 @@
       "href": "nsu=http://opcfoundation.org/UA/DI/;i=15048",
       "rel": "ua:HasInterface",
       "uav:refId": "i=17603"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1005",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1012",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "MachineIdentificationType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1005",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "MachineryComponentIdentificationType"
     }
   ],
   "properties": {
     "AssetId": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "const": "\n      ",
       "description": "To be used by end users to store a unique identification in the context of their overall application. Servers shall support at least 40 Unicode characters for the clients writing this value, this means clients can expect to be able to write strings with a length of 40 Unicode characters into that field.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -48,12 +70,17 @@
       "uav:modellingRule": "Optional"
     },
     "ComponentName": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "To be used by end users to store a human-readable localized text for the MachineryItem. The minimum number of locales supported for this property shall be two. Servers shall support at least 40 Unicode characters for the clients writing the text part of each locale, this means clients can expect to be able to write texts with a length of 40 Unicode characters into that field.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -64,12 +91,17 @@
       "uav:modellingRule": "Optional"
     },
     "DeviceClass": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "Indicates in which domain or for what purpose the MachineryItem is used.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -82,12 +114,17 @@
       "uav:modellingRule": "Optional"
     },
     "HardwareRevision": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "A string representation of the revision level of the hardware of a MachineryItem. Hardware is physical equipment, as opposed to programs, procedures, rules and associated documentation. Many machines will not provide such information due to the modular and configurable nature of the machine.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -100,29 +137,41 @@
       "uav:modellingRule": "Optional"
     },
     "InitialOperationDate": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "The date, when the MachineryItem was switched on the first time after it has left the manufacturer plant.",
+      "format": "date-time",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
       "readOnly": true,
       "title": "InitialOperationDate",
+      "type": "string",
       "uav:browseName": "ns1:InitialOperationDate",
       "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=6006",
       "uav:mapToType": "i=13",
       "uav:modellingRule": "Optional"
     },
     "Manufacturer": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "A human-readable, localized name of the manufacturer of the MachineryItem.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -134,12 +183,17 @@
       "uav:modellingRule": "Mandatory"
     },
     "ManufacturerUri": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "A globally unique identifier of the manufacturer of the MachineryItem.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -152,12 +206,17 @@
       "uav:modellingRule": "Optional"
     },
     "Model": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "A human-readable, localized name of the model of the MachineryItem.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -169,12 +228,17 @@
       "uav:modellingRule": "Optional"
     },
     "MonthOfConstruction": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "The month in which the manufacturing process of the MachineryItem has been completed. It shall be a number between 1 and 12, representing the month from January to December.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -187,12 +251,17 @@
       "uav:modellingRule": "Optional"
     },
     "ProductCode": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "A machine-readable string of the model of the MachineryItem, that might include options like the hardware configuration of the model. This information might be provided by the ERP system of the vendor. For example, it can be used as order information.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -205,12 +274,17 @@
       "uav:modellingRule": "Optional"
     },
     "ProductInstanceUri": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "A globally unique resource identifier provided by the manufacturer of the MachineryItem.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -223,12 +297,17 @@
       "uav:modellingRule": "Optional"
     },
     "SerialNumber": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "A string containing a unique production number of the manufacturer of the MachineryItem. The global uniqueness of the serial number is only given in the context of the manufacturer, and potentially the model. The value shall not change during the life-cycle of the MachineryItem.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -241,12 +320,17 @@
       "uav:modellingRule": "Mandatory"
     },
     "SoftwareRevision": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "A string representation of the revision level of a MachineryItem. In most cases, MachineryItems consist of several software components. In that case, information about the software components might be provided as additional information in the address space, including individual revision information. In that case, this property is either not provided or provides an overall software revision level. The value might change during the life-cycle of a MachineryItem.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -259,12 +343,17 @@
       "uav:modellingRule": "Optional"
     },
     "YearOfConstruction": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "The year (Gregorian calendar) in which the manufacturing process of the MachineryItem has been completed. It shall be a four-digit number and never change during the life-cycle of a MachineryItem.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -281,6 +370,7 @@
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:MachineryItemIdentificationType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=1004",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

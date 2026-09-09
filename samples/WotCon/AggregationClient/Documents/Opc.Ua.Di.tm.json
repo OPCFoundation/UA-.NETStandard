@@ -12,6 +12,81 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "i=58",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:ParameterSet",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=5002",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=58",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:MethodSet",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=5003",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1005",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:<GroupIdentifier>",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6567",
+        "uav:modellingRule": "OptionalPlaceholder"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1005",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:Identification",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6014",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=6388",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:Lock",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6161",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=58",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=15063",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "ComponentType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1003",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "BlockType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=6308",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "ConnectionPointType"
+    }
+  ],
   "title": "OPC UA Device Integration",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:TopologyElementType",
@@ -324,14 +399,8 @@
       "uav:isOptionSet": true
     }
   ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/DI/;i=5002",
-    "nsu=http://opcfoundation.org/UA/DI/;i=5003",
-    "nsu=http://opcfoundation.org/UA/DI/;i=6567",
-    "nsu=http://opcfoundation.org/UA/DI/;i=6014",
-    "nsu=http://opcfoundation.org/UA/DI/;i=6161"
-  ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=1001",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

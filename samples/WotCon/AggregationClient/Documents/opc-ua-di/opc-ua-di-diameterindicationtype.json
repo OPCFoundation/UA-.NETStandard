@@ -13,6 +13,14 @@
     "uav:objectType"
   ],
   "description": "Indicates the abraded diameter, for example of a drill.",
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=473",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45",
+      "uav:refName": "BaseLifetimeIndicationType"
+    }
+  ],
   "title": "DiameterIndicationType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:DiameterIndicationType",
@@ -326,6 +334,7 @@
     }
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=478",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

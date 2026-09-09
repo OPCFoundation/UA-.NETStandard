@@ -14,6 +14,43 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1038",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:<Drive>",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5104",
+        "uav:modellingRule": "OptionalPlaceholder"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1036",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:<InletConnection>",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5105",
+        "uav:modellingRule": "OptionalPlaceholder"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1037",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:<OutletConnection>",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5106",
+        "uav:modellingRule": "OptionalPlaceholder"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1005",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "title": "PortsGroupType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:PortsGroupType",
@@ -1538,11 +1575,6 @@
       "uav:structureType": "StructureWithOptionalFields",
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5017"
     }
-  ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5104",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5105",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5106"
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1034",
   "uav:nodes": {

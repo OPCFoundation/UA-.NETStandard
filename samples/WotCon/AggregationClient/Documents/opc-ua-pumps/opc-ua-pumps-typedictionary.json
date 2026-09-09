@@ -77,6 +77,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=6002",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -142,6 +147,9 @@
   "title": "TypeDictionary",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:TypeDictionary",
+  "uav:componentOf": [
+    "i=93"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3008",

@@ -12,6 +12,69 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "i=61",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:DeviceTypeImage",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15055",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=61",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:Documentation",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15057",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=61",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:DocumentationFiles",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=27",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=61",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:ProtocolSupport",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15059",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=61",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:ImageSet",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15061",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=17602",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1002",
+      "rel": "ua:InterfaceOf",
+      "uav:refId": "i=17603",
+      "uav:refName": "DeviceType"
+    }
+  ],
   "title": "ISupportInfoType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:ISupportInfoType",
@@ -324,14 +387,8 @@
       "uav:isOptionSet": true
     }
   ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/DI/;i=15055",
-    "nsu=http://opcfoundation.org/UA/DI/;i=15057",
-    "nsu=http://opcfoundation.org/UA/DI/;i=27",
-    "nsu=http://opcfoundation.org/UA/DI/;i=15059",
-    "nsu=http://opcfoundation.org/UA/DI/;i=15061"
-  ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15054",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

@@ -52,6 +52,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=41",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -69,6 +74,9 @@
   "title": "Installation",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:Installation",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/DI/;i=1"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",

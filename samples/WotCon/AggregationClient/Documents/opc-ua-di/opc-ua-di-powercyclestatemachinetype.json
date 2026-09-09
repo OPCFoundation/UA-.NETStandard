@@ -12,6 +12,49 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "i=2309",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:NotWaitingForPowerCycle",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=299"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=2307",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:WaitingForPowerCycle",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=301"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=2310",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:NotWaitingForPowerCycleToWaitingForPowerCycle",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=303"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=2310",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:WaitingForPowerCycleToNotWaitingForPowerCycle",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=305"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=2771",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "title": "PowerCycleStateMachineType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:PowerCycleStateMachineType",
@@ -323,12 +366,6 @@
       ],
       "uav:isOptionSet": true
     }
-  ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/DI/;i=299",
-    "nsu=http://opcfoundation.org/UA/DI/;i=301",
-    "nsu=http://opcfoundation.org/UA/DI/;i=303",
-    "nsu=http://opcfoundation.org/UA/DI/;i=305"
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=285",
   "uav:nodes": {

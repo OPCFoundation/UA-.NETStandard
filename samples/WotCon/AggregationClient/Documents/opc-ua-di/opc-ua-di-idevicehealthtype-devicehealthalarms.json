@@ -23,6 +23,9 @@
   "title": "DeviceHealthAlarms",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:DeviceHealthAlarms",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/DI/;i=15051"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",

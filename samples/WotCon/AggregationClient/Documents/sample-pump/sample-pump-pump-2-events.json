@@ -26,6 +26,9 @@
   "title": "Events",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns2:Events",
+  "uav:componentOf": [
+    "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2"
+  ],
   "uav:hasComponent": [
     "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Events.SupervisionProcessFluid",
     "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Events.SupervisionPumpOperation"

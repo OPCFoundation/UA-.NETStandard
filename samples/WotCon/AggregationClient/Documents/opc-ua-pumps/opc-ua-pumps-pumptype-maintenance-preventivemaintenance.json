@@ -49,6 +49,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=10952",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -69,6 +74,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=10953",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -89,6 +99,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=10954",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -109,6 +124,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=10955",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -129,6 +149,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=10956",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -149,6 +174,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=10957",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -169,6 +199,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=10958",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -189,6 +224,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=10952",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -208,6 +248,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=10958",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -227,6 +272,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=10952",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -253,6 +303,11 @@
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=10958",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -276,6 +331,7 @@
     "InstallationDate": {
       "@type": "uav:variable",
       "description": "This attribute identifies the date when the device was last inspected.",
+      "format": "date-time",
       "links": [
         {
           "href": "i=2365",
@@ -284,6 +340,7 @@
       ],
       "observable": true,
       "title": "InstallationDate",
+      "type": "string",
       "uav:browseName": "ns1:InstallationDate",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=10953",
       "uav:mapToType": "i=13",
@@ -292,6 +349,7 @@
     "LastInspectionDate": {
       "@type": "uav:variable",
       "description": "This attribute identifies the date when the device is scheduled for the next inspection.",
+      "format": "date-time",
       "links": [
         {
           "href": "i=2365",
@@ -300,6 +358,7 @@
       ],
       "observable": true,
       "title": "LastInspectionDate",
+      "type": "string",
       "uav:browseName": "ns1:LastInspectionDate",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=10954",
       "uav:mapToType": "i=13",
@@ -308,6 +367,7 @@
     "LastServicingDate": {
       "@type": "uav:variable",
       "description": "This attribute identifies the date when the device is scheduled for the next servicing.",
+      "format": "date-time",
       "links": [
         {
           "href": "i=2365",
@@ -316,6 +376,7 @@
       ],
       "observable": true,
       "title": "LastServicingDate",
+      "type": "string",
       "uav:browseName": "ns1:LastServicingDate",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=10955",
       "uav:mapToType": "i=13",
@@ -324,6 +385,7 @@
     "NextInspectionDate": {
       "@type": "uav:variable",
       "description": "This attribute identifies the date when the device was last serviced.",
+      "format": "date-time",
       "links": [
         {
           "href": "i=2365",
@@ -332,6 +394,7 @@
       ],
       "observable": true,
       "title": "NextInspectionDate",
+      "type": "string",
       "uav:browseName": "ns1:NextInspectionDate",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=10956",
       "uav:mapToType": "i=13",
@@ -340,6 +403,7 @@
     "NextServicingDate": {
       "@type": "uav:variable",
       "description": "Part of maintenance time when preventive maintenance is carried out on an item, including technical, logistic and internal administrative delays",
+      "format": "date-time",
       "links": [
         {
           "href": "i=2365",
@@ -348,6 +412,7 @@
       ],
       "observable": true,
       "title": "NextServicingDate",
+      "type": "string",
       "uav:browseName": "ns1:NextServicingDate",
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=10957",
       "uav:mapToType": "i=13",
@@ -376,6 +441,9 @@
   "title": "PreventiveMaintenance",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:PreventiveMaintenance",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/Pumps/;i=5121"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3008",

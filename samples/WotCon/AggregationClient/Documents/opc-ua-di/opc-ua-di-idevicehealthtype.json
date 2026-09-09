@@ -12,9 +12,32 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "i=61",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:DeviceHealthAlarms",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15053",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=17602",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1002",
+      "rel": "ua:InterfaceOf",
+      "uav:refId": "i=17603",
+      "uav:refName": "DeviceType"
+    }
+  ],
   "properties": {
     "DeviceHealth": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=63",
@@ -342,10 +365,8 @@
       "uav:isOptionSet": true
     }
   ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/DI/;i=15053"
-  ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15051",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

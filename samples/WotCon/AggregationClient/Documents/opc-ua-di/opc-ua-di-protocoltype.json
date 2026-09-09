@@ -12,6 +12,13 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "i=58",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "title": "ProtocolType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:ProtocolType",

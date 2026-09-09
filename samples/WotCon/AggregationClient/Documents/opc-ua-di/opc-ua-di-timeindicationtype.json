@@ -13,6 +13,14 @@
     "uav:objectType"
   ],
   "description": "Indicates the time the entity has been in use or can still be used",
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=473",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45",
+      "uav:refName": "BaseLifetimeIndicationType"
+    }
+  ],
   "title": "TimeIndicationType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:TimeIndicationType",
@@ -326,6 +334,7 @@
     }
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=474",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

@@ -61,6 +61,9 @@
   "title": "SupervisionPumpOperation",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns2:SupervisionPumpOperation",
+  "uav:componentOf": [
+    "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Events"
+  ],
   "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.Events.SupervisionPumpOperation",
   "uav:nodes": {
     "@type": "uav:NodeModel",

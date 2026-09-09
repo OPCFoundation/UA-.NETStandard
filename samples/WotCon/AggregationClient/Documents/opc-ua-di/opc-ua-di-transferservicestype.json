@@ -133,6 +133,13 @@
       "uav:modellingRule": "Mandatory"
     }
   },
+  "links": [
+    {
+      "href": "i=58",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "title": "TransferServicesType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:TransferServicesType",

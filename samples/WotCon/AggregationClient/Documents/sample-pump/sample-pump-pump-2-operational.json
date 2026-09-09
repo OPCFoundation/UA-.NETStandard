@@ -26,6 +26,9 @@
   "title": "Operational",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns4:Operational",
+  "uav:componentOf": [
+    "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2"
+  ],
   "uav:hasComponent": [
     "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump2.Operational.Measurements"
   ],

@@ -16,6 +16,11 @@
   ],
   "links": [
     {
+      "href": "nsu=http://opcfoundation.org/UA/Machinery/;i=1010",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    },
+    {
       "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1005",
       "rel": "ua:InterfaceOf",
       "uav:refId": "i=17603",
@@ -24,12 +29,17 @@
   ],
   "properties": {
     "ArticleNumber": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "Alphanumeric character sequence identifying a manufactured, non-configurable product.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -42,12 +52,17 @@
       "uav:modellingRule": "Optional"
     },
     "CountryOfOrigin": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "Country in which the product is manufactured.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -59,12 +74,17 @@
       "uav:modellingRule": "Optional"
     },
     "DayOfConstruction": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "The optional DayOfConstrucition provides the day of the month in which the manufacturing process of the machine has been completed. It shall be a number and never change during the life-cycle of a machine.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -77,12 +97,17 @@
       "uav:modellingRule": "Optional"
     },
     "FabricationNumber": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "Alphanumeric character sequence assigned to a fabricated product, which allows the date, time and circumstances of fabrication to be traced.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -95,12 +120,17 @@
       "uav:modellingRule": "Optional"
     },
     "GTINCode": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "Bar code number that identifies the device based on the Global Trade Item Number system.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -113,12 +143,17 @@
       "uav:modellingRule": "Optional"
     },
     "NationalStockNumber": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "13-digit numeric code, identifying all 'standardized material items of supply' as recognized by the United States Department of Defense.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -131,12 +166,17 @@
       "uav:modellingRule": "Optional"
     },
     "OrderProductCode": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "Unique combination of numbers and letters used to order the device.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -149,12 +189,17 @@
       "uav:modellingRule": "Optional"
     },
     "PhysicalAddress": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "Physical address of the manufacturer.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -165,12 +210,17 @@
       "uav:modellingRule": "Optional"
     },
     "Supplier": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "Name of the supplier or vendor of a device.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -183,12 +233,17 @@
       "uav:modellingRule": "Optional"
     },
     "TypeOfProduct": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "Characterization of the device based on its usage, operation principle, and its fabricated form.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -1727,6 +1782,7 @@
     }
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1004",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

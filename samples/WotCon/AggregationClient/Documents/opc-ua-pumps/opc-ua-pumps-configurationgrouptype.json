@@ -14,6 +14,43 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1005",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1020",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:Design",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5064",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1023",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:Implementation",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5065",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1022",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:SystemRequirements",
+        "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=5066",
+        "uav:modellingRule": "Optional"
+      },
+      "uav:refId": "i=47"
+    }
+  ],
   "title": "ConfigurationGroupType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:ConfigurationGroupType",
@@ -1538,11 +1575,6 @@
       "uav:structureType": "StructureWithOptionalFields",
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5017"
     }
-  ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5064",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5065",
-    "nsu=http://opcfoundation.org/UA/Pumps/;i=5066"
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1024",
   "uav:nodes": {

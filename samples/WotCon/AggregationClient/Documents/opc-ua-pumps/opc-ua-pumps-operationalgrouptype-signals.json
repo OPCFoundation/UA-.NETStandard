@@ -26,6 +26,9 @@
   "title": "Signals",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:Signals",
+  "uav:componentOf": [
+    "nsu=http://opcfoundation.org/UA/Pumps/;i=1053"
+  ],
   "uav:dataTypeDefinitions": [
     {
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3008",

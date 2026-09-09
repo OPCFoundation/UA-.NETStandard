@@ -14,9 +14,34 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "i=58",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1038",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "DrivePortType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1036",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "InletConnectionPortType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1037",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "OutletConnectionPortType"
+    }
+  ],
   "properties": {
     "Category": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "The category property describes the Port type. The value of this attribute is user-defined. Only ports with the same category value are allowed to be connected.",
       "links": [
         {
@@ -33,11 +58,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9246",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -53,11 +83,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_2": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9245",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -73,11 +108,16 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_3": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9247",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -93,7 +133,7 @@
       "uav:modellingRule": "Optional"
     },
     "Direction": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "Ports with the direction “In” can only be connected to ports with the direction “Out” or “InOut” and ports with the direction “Out” can only be connected with ports with the direction “In” or “InOut”. Ports with the direction “InOut” can be connected to Ports of arbitrary direction.",
       "links": [
         {
@@ -109,7 +149,7 @@
       "uav:modellingRule": "Optional"
     },
     "IdCarrier": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "This property contains the ID of the asset to which the port is assigned.",
       "links": [
         {
@@ -1652,6 +1692,7 @@
     }
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1035",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

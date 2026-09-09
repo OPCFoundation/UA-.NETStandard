@@ -18,6 +18,12 @@
       "href": "i=85",
       "rel": "ua:OrganizedBy",
       "uav:refId": "i=35"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=15034",
+      "rel": "ua:Organizes",
+      "uav:refId": "i=35",
+      "uav:refName": "DeviceFeatures"
     }
   ],
   "title": "DeviceSet",

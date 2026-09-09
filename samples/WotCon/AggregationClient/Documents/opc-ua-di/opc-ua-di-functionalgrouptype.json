@@ -12,9 +12,26 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1005",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:<GroupIdentifier>",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=6027",
+        "uav:modellingRule": "OptionalPlaceholder"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=61",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "properties": {
     "UIElement": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "nsu=http://opcfoundation.org/UA/DI/;i=6246",
@@ -341,9 +358,6 @@
       ],
       "uav:isOptionSet": true
     }
-  ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/DI/;i=6027"
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=1005",
   "uav:nodes": {

@@ -18,6 +18,8 @@
       "input": {
         "properties": {
           "NodeIds": {
+            "items": {},
+            "type": "array",
             "uav:arrayDimensions": [
               0
             ],
@@ -58,6 +60,8 @@
       "input": {
         "properties": {
           "NodeIds": {
+            "items": {},
+            "type": "array",
             "uav:arrayDimensions": [
               0
             ],
@@ -101,6 +105,24 @@
       "uav:modellingRule": "Optional"
     }
   },
+  "links": [
+    {
+      "href": "i=13353",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "FileSystem",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=194",
+        "uav:modellingRule": "Mandatory"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=135",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45",
+      "uav:refName": "SoftwareLoadingType"
+    }
+  ],
   "title": "FileSystemLoadingType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:FileSystemLoadingType",
@@ -412,9 +434,6 @@
       ],
       "uav:isOptionSet": true
     }
-  ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/DI/;i=194"
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=192",
   "uav:nodes": {

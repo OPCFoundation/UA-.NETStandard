@@ -12,6 +12,19 @@
     "tm:ThingModel",
     "uav:referenceType"
   ],
+  "links": [
+    {
+      "href": "i=32",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=6467",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "ConnectsToParent"
+    }
+  ],
   "title": "ConnectsTo",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:ConnectsTo",

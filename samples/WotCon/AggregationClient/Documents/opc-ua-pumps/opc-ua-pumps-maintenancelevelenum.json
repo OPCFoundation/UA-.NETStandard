@@ -15,18 +15,32 @@
     "uav:dataType"
   ],
   "description": "defines maintenance levels for the pump",
+  "links": [
+    {
+      "href": "i=29",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "properties": {
     "EnumValues": {
       "@type": "uav:variable",
+      "items": {},
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=3004",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
       "readOnly": true,
       "title": "EnumValues",
+      "type": "array",
       "uav:arrayDimensions": [
         5
       ],

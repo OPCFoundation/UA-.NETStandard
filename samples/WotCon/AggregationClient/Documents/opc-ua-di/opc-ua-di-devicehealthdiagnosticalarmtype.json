@@ -12,6 +12,37 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "i=18347",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=15292",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "FailureAlarmType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=15441",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "CheckFunctionAlarmType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=15590",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "OffSpecAlarmType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=15739",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "MaintenanceRequiredAlarmType"
+    }
+  ],
   "title": "DeviceHealthDiagnosticAlarmType",
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:DeviceHealthDiagnosticAlarmType",
@@ -325,6 +356,7 @@
     }
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15143",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

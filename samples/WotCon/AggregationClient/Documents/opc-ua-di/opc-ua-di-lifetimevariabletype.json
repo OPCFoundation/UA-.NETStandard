@@ -13,14 +13,26 @@
     "uav:variableType"
   ],
   "description": "Remaining lifetime",
+  "links": [
+    {
+      "href": "i=17497",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "properties": {
     "Indication": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "Indication gives an indication of what is actually measured / represented by the Value of the Variable and the StartValue and LimitValue.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=468",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -32,12 +44,17 @@
       "uav:modellingRule": "Optional"
     },
     "LimitValue": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "LimitValue indicates when the end of lifetime has been reached.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=468",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -49,12 +66,17 @@
       "uav:modellingRule": "Mandatory"
     },
     "StartValue": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "StartValue indicates the initial value, when there is still the full lifetime left.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=468",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -66,12 +88,17 @@
       "uav:modellingRule": "Mandatory"
     },
     "WarningValues": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "WarningValues indicates one or more levels when the end of lifetime is reached soon and can be used to inform the user when reached.",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/DI/;i=468",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,

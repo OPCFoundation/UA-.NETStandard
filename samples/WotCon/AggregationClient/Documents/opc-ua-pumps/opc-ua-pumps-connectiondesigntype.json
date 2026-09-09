@@ -14,13 +14,37 @@
     "tm:ThingModel",
     "uav:objectType"
   ],
+  "links": [
+    {
+      "href": "nsu=http://opcfoundation.org/UA/DI/;i=1005",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1041",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "InletConnectionDesignType"
+    },
+    {
+      "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=1042",
+      "rel": "ua:HasSubtype",
+      "uav:refId": "i=45",
+      "uav:refName": "OutletConnectionDesignType"
+    }
+  ],
   "properties": {
     "Definition": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=68",
           "rel": "ua:HasTypeDefinition"
+        },
+        {
+          "href": "nsu=http://opcfoundation.org/UA/Pumps/;i=9275",
+          "rel": "ua:PropertyOf",
+          "uav:refId": "i=46"
         }
       ],
       "observable": true,
@@ -36,7 +60,7 @@
       "uav:modellingRule": "Optional"
     },
     "NominalPressure": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "description": "Alphanumeric parameter for reference purposes, referring to a combination of mechanical and dimensional properties of a component of a piping system. It comprises the letters PN followed by a dimensionless number.",
       "links": [
         {
@@ -1580,6 +1604,7 @@
     }
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1040",
+  "uav:isAbstract": true,
   "uav:nodes": {
     "@type": "uav:NodeModel",
     "aliases": [

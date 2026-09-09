@@ -18,6 +18,8 @@
       "input": {
         "properties": {
           "NodeIds": {
+            "items": {},
+            "type": "array",
             "uav:arrayDimensions": [
               0
             ],
@@ -54,7 +56,10 @@
             "uav:valueRank": -1
           },
           "PatchIdentifiers": {
-            "type": "string",
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
             "uav:arrayDimensions": [
               0
             ],
@@ -101,9 +106,79 @@
       "uav:modellingRule": "Optional"
     }
   },
+  "links": [
+    {
+      "href": "i=2309",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:Idle",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=271"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=2307",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:Installing",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=273"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=2307",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:Error",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=275"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=2310",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:IdleToInstalling",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=277"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=2310",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:InstallingToIdle",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=279"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=2310",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:InstallingToError",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=281"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=2310",
+      "rel": "ua:HasComponent",
+      "uav:declaration": {
+        "uav:browseName": "ns1:ErrorToIdle",
+        "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=283"
+      },
+      "uav:refId": "i=47"
+    },
+    {
+      "href": "i=2771",
+      "rel": "ua:HasSupertype",
+      "uav:refId": "i=45"
+    }
+  ],
   "properties": {
     "InstallationDelay": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=63",
@@ -119,7 +194,7 @@
       "uav:modellingRule": "Optional"
     },
     "PercentComplete": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "links": [
         {
           "href": "i=63",
@@ -447,15 +522,6 @@
       ],
       "uav:isOptionSet": true
     }
-  ],
-  "uav:hasComponent": [
-    "nsu=http://opcfoundation.org/UA/DI/;i=271",
-    "nsu=http://opcfoundation.org/UA/DI/;i=273",
-    "nsu=http://opcfoundation.org/UA/DI/;i=275",
-    "nsu=http://opcfoundation.org/UA/DI/;i=277",
-    "nsu=http://opcfoundation.org/UA/DI/;i=279",
-    "nsu=http://opcfoundation.org/UA/DI/;i=281",
-    "nsu=http://opcfoundation.org/UA/DI/;i=283"
   ],
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=249",
   "uav:nodes": {
