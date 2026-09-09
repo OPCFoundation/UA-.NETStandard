@@ -37,6 +37,7 @@ using Opc.Ua;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Hosting;
 
@@ -144,9 +145,9 @@ namespace RedundantServer
     }
 
     /// <summary>
-    /// Minimal <see cref="AsyncCustomNodeManager"/> address space that participates in distributed replication.
+    /// Minimal <see cref="FluentNodeManagerBase"/> address space that participates in distributed replication.
     /// </summary>
-    public sealed class HaSampleNodeManager : AsyncCustomNodeManager
+    public sealed class HaSampleNodeManager : FluentNodeManagerBase
     {
         private readonly ILeaderElection m_leaderElection;
         private readonly HaSampleReplicaInfo m_replicaInfo;
@@ -155,8 +156,8 @@ namespace RedundantServer
         private readonly CancellationTokenSource m_simulationCts = new();
         private readonly Lock m_updateLock = new();
         private static readonly TimeSpan s_valueFreshness = TimeSpan.FromSeconds(10);
-        private BaseDataVariableState? m_counter;
-        private BaseDataVariableState? m_activeReplica;
+        private BaseVariableState? m_counter;
+        private BaseVariableState? m_activeReplica;
         private BaseObjectState? m_historyEvents;
         private Task? m_simulationTask;
         private int m_counterValue;
@@ -190,22 +191,48 @@ namespace RedundantServer
             m_historian = historian;
         }
 
+        /// <summary>
+        /// Mints the browse name as the identifier.
+        /// </summary>
+        /// <remarks>
+        /// The sample's identifiers are part of its contract: the redundant
+        /// client addresses <c>ns=N;s=Counter</c> directly, so a staged node
+        /// keeps its browse name as its identifier rather than taking the
+        /// hashed one the default factory would mint. An identifier a caller
+        /// already chose here is kept, on the same terms as that factory.
+        /// </remarks>
+        public override NodeId New(ISystemContext context, NodeState node)
+        {
+            ushort namespaceIndex = NamespaceIndexes[0];
+            if (node is not null &&
+                !node.NodeId.IsNull &&
+                (node.NodeId.NamespaceIndex == namespaceIndex ||
+                    node is not BaseInstanceState { Parent: not null }))
+            {
+                return node.NodeId;
+            }
+
+            string? browseName = node?.BrowseName.Name;
+            return string.IsNullOrEmpty(browseName)
+                ? base.New(context, node!)
+                : new NodeId(browseName!, namespaceIndex);
+        }
+
         /// <inheritdoc/>
         public override async ValueTask CreateAddressSpaceAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
-            if (!externalReferences.TryGetValue(ObjectIds.ObjectsFolder, out IList<IReference>? references))
-            {
-                externalReferences[ObjectIds.ObjectsFolder] = references = [];
-            }
+            NodeManagerBuilder builder = CreateFluentBuilder(NamespaceIndexes[0]);
 
-            ushort namespaceIndex = NamespaceIndexes[0];
-            FolderState folder = CreateFolder(null, namespaceIndex, "HighAvailability", "High Availability");
-            folder.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
-            references.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, folder.NodeId));
+            // Unparented, so the staged folder organises itself under the
+            // Objects folder; the manager used to add that reference and its
+            // externalReferences counterpart by hand.
+            INodeBuilder<FolderState> folder = builder.AddFolder("HighAvailability");
+            folder.Node.DisplayName = new LocalizedText("en", "High Availability");
+            NodeId folderId = folder.Node.NodeId;
 
-            m_counter = CreateVariable(folder, namespaceIndex, "Counter", DataTypeIds.Int32, Variant.From(0));
+            m_counter = AddSampleVariable<int>(builder, folderId, "Counter", Variant.From(0));
             if (m_valueCache != null)
             {
                 // Opt the Counter's read/write callbacks into the distributed
@@ -221,26 +248,16 @@ namespace RedundantServer
                     _ => new ValueTask<DataValue>(ReadLocalCounter()));
             }
 
-            m_activeReplica = CreateVariable(
-                folder,
-                namespaceIndex,
+            m_activeReplica = AddSampleVariable<string>(
+                builder,
+                folderId,
                 "ActiveReplica",
-                DataTypeIds.String,
                 Variant.From("unknown"));
 
-            m_historyEvents = new BaseObjectState(folder)
-            {
-                SymbolicName = "HistoryEvents",
-                ReferenceTypeId = ReferenceTypeIds.Organizes,
-                TypeDefinitionId = ObjectTypeIds.BaseObjectType,
-                NodeId = new NodeId("HistoryEvents", namespaceIndex),
-                BrowseName = new QualifiedName("HistoryEvents", namespaceIndex),
-                DisplayName = new LocalizedText("en", "History Events"),
-                WriteMask = AttributeWriteMask.None,
-                UserWriteMask = AttributeWriteMask.None,
-                EventNotifier = EventNotifiers.SubscribeToEvents
-            };
-            folder.AddChild(m_historyEvents);
+            m_historyEvents = builder.AddObject("HistoryEvents", folderId).Node;
+            m_historyEvents.ReferenceTypeId = ReferenceTypeIds.Organizes;
+            m_historyEvents.DisplayName = new LocalizedText("en", "History Events");
+            m_historyEvents.EventNotifier = EventNotifiers.SubscribeToEvents;
 
             if (m_historian != null)
             {
@@ -264,7 +281,13 @@ namespace RedundantServer
                     cancellationToken: cancellationToken).ConfigureAwait(false);
             }
 
-            await AddPredefinedNodeAsync(SystemContext, folder, cancellationToken).ConfigureAwait(false);
+            // Registering the staged subtree and re-running the reverse
+            // reference pass is what publishes the folder's inverse Organizes
+            // reference into externalReferences[ObjectsFolder].
+            await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
+            await CompleteConfigureAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
+            await SealConfigurationAsync(builder, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -284,53 +307,36 @@ namespace RedundantServer
             return m_historian ?? base.GetHistorianProvider(node);
         }
 
-        private static FolderState CreateFolder(NodeState? parent, ushort namespaceIndex, string path, string name)
-        {
-            var folder = new FolderState(parent)
-            {
-                SymbolicName = name,
-                ReferenceTypeId = ReferenceTypeIds.Organizes,
-                TypeDefinitionId = ObjectTypeIds.FolderType,
-                NodeId = new NodeId(path, namespaceIndex),
-                BrowseName = new QualifiedName(path, namespaceIndex),
-                DisplayName = new LocalizedText("en", name),
-                WriteMask = AttributeWriteMask.None,
-                UserWriteMask = AttributeWriteMask.None,
-                EventNotifier = EventNotifiers.None
-            };
-
-            parent?.AddChild(folder);
-            return folder;
-        }
-
-        private static BaseDataVariableState CreateVariable(
-            NodeState parent,
-            ushort namespaceIndex,
+        /// <summary>
+        /// Stages one writable sample variable under the sample folder.
+        /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR type the variable carries; the staged node takes its DataType
+        /// and ValueRank from it.
+        /// </typeparam>
+        /// <param name="builder">The fluent builder staging the subtree.</param>
+        /// <param name="parentId">The folder the variable hangs off.</param>
+        /// <param name="name">Browse name of the variable.</param>
+        /// <param name="initialValue">The value a client reads before the
+        /// simulation has produced one.</param>
+        private static BaseVariableState AddSampleVariable<TValue>(
+            NodeManagerBuilder builder,
+            NodeId parentId,
             string name,
-            NodeId dataType,
             Variant initialValue)
         {
-            var variable = new BaseDataVariableState(parent)
-            {
-                SymbolicName = name,
-                ReferenceTypeId = ReferenceTypeIds.Organizes,
-                TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
-                NodeId = new NodeId(name, namespaceIndex),
-                BrowseName = new QualifiedName(name, namespaceIndex),
-                DisplayName = new LocalizedText("en", name),
-                WriteMask = AttributeWriteMask.None,
-                UserWriteMask = AttributeWriteMask.None,
-                DataType = dataType,
-                ValueRank = ValueRanks.Scalar,
-                AccessLevel = AccessLevels.CurrentReadOrWrite,
-                UserAccessLevel = AccessLevels.CurrentReadOrWrite,
-                Historizing = false,
-                Value = initialValue,
-                StatusCode = StatusCodes.Good,
-                Timestamp = DateTime.UtcNow
-            };
+            BaseVariableState variable = builder
+                .AddVariable<TValue>(name, parentId)
+                .Writable()
+                .Node;
 
-            parent.AddChild(variable);
+            // The sample organises its variables rather than componentising
+            // them, which is the shape the redundant client browses.
+            variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
+            variable.DisplayName = new LocalizedText("en", name);
+            variable.Value = initialValue;
+            variable.StatusCode = StatusCodes.Good;
+            variable.Timestamp = DateTime.UtcNow;
             return variable;
         }
 
@@ -399,7 +405,7 @@ namespace RedundantServer
 
         private async Task UpdateCounterAsync(CancellationToken cancellationToken)
         {
-            BaseDataVariableState? counter = m_counter;
+            BaseVariableState? counter = m_counter;
             if (counter == null)
             {
                 return;
@@ -472,7 +478,7 @@ namespace RedundantServer
         }
 
         private async Task<bool> ArchiveCounterAsync(
-            BaseDataVariableState counter,
+            BaseVariableState counter,
             DataValue sample,
             CancellationToken cancellationToken)
         {
@@ -525,7 +531,7 @@ namespace RedundantServer
 
         private async Task SeedCounterFromCacheAsync(CancellationToken cancellationToken)
         {
-            BaseDataVariableState? counter = m_counter;
+            BaseVariableState? counter = m_counter;
             if (m_valueCache == null || counter == null)
             {
                 return;
@@ -564,7 +570,7 @@ namespace RedundantServer
 
         private void UpdateActiveReplica(string value)
         {
-            BaseDataVariableState? activeReplica = m_activeReplica;
+            BaseVariableState? activeReplica = m_activeReplica;
             if (activeReplica == null)
             {
                 return;
