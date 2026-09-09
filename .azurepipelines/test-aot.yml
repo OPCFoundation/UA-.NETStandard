@@ -47,7 +47,7 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
-      arguments: -FileName Opc.Ua.Aot.Tests.csproj -AgentTable ${{ parameters.agents }}
+      arguments: -FileName Opc.Ua.Aot.Tests*.csproj -AgentTable ${{ parameters.agents }}
 - job: testaot${{ parameters.jobnamesuffix }}
   displayName: AoT Tests
   dependsOn: testaotprep${{ parameters.jobnamesuffix }}
@@ -98,7 +98,7 @@ jobs:
       pwsh: true
       targetType: filePath
       filePath: ./.azurepipelines/write-assurance-job.ps1
-      arguments: -Project "tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj" -ResultsPath "$(Build.SourcesDirectory)/.assurance/aot-public-$(System.JobId)/native-proof.json" -Kind native-aot -OutputPath "$(Build.SourcesDirectory)/.assurance/aot-public-$(System.JobId)/evidence.job.json" -Workflow azure-pipelines.yml -Configuration "${{ parameters.configuration }}"
+      arguments: -Project "$(file)" -ResultsPath "$(Build.SourcesDirectory)/.assurance/aot-public-$(System.JobId)/native-proof.json" -Kind native-aot -OutputPath "$(Build.SourcesDirectory)/.assurance/aot-public-$(System.JobId)/evidence.job.json" -Workflow azure-pipelines.yml -Configuration "${{ parameters.configuration }}"
   - task: PublishPipelineArtifact@1
     displayName: Publish sanitized native proof only
     condition: succeededOrFailed()

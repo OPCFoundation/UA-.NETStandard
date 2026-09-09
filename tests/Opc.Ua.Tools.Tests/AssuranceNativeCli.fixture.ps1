@@ -17,7 +17,7 @@ if ($args[0] -eq 'publish') {
     $output = $args[$index + 1]
     if (Test-Path -LiteralPath $output) { exit 15 }
     $null = New-Item -ItemType Directory -Path $output
-    Copy-Item -LiteralPath $fixture.apphost -Destination (Join-Path $output 'Opc.Ua.Aot.Tests.exe')
+    Copy-Item -LiteralPath $fixture.apphost -Destination (Join-Path $output "$($fixture.assemblyName).exe")
     exit 0
 }
 if ($args[0] -eq 'msbuild') {
@@ -25,6 +25,7 @@ if ($args[0] -eq 'msbuild') {
         Properties = @{
             PublishAot = 'true'; Configuration = 'Release'; TargetFramework = 'net10.0'
             RuntimeIdentifier = $fixture.rid; NETCoreSdkVersion = '10.0.303'; ProjectAssetsFile = $fixture.assets
+            AssemblyName = $fixture.assemblyName
         }
     } | ConvertTo-Json -Depth 10
     exit 0

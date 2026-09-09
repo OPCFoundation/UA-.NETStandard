@@ -70,7 +70,7 @@ foreach (string key in new[]
     "HA_NODE_ID", "HA_HOST", "HA_APPLICATION_URI", "HA_SUBJECT_NAME", "HA_PKI_ROOT", "HA_MODE",
     "REDUNDANCY_MODE", "HA_RECORD_KEY", "HA_INSECURE", "HA_FAST_RECONNECT", "HA_CONSISTENCY",
     "HA_BALANCING_URL", "HA_GOSSIP_PORT", "HA_PEER_DISCOVERY", "HA_SERVICE_NAME", "HA_REDUNDANT_PEERS",
-    "HA_GOSSIP_PEERS", "HA_LOCAL_ADDRESS", "HA_RAFT_ID", "HA_RAFT_PEERS", "HA_RAFT_MEMBERS", "HA_RAFT_BIND",
+    "HA_GOSSIP_PEERS", "HA_LOCAL_ADDRESS", "HA_RAFT_ID", "HA_RAFT_PEERS", "HA_RAFT_MEMBERS", "HA_RAFT_BIND", "HA_HISTORIAN",
     "peerServerUris"
 })
 {
@@ -163,6 +163,28 @@ command.SetAction(async (result, cancellationToken) =>
     // unlike the default in-memory store, which is private to each container.
     string consistency = (builder.Configuration["HA_CONSISTENCY"] ?? "eventual").Trim().ToLowerInvariant();
     bool useStrongConsistency = consistency is "strong";
+    bool enableDistributedHistorian = bool.TryParse(
+        builder.Configuration["HA_HISTORIAN"],
+        out bool configuredHistorian)
+            ? configuredHistorian
+            : useStrongConsistency && !activeActive;
+    if (enableDistributedHistorian)
+    {
+        if (activeActive || !useStrongConsistency)
+        {
+            Console.Error.WriteLine(
+                "The distributed historian supports only a strongly consistent active/passive topology. " +
+                "Set HA_MODE=ap and HA_CONSISTENCY=strong, or disable HA_HISTORIAN.");
+            return 1;
+        }
+        if (recordKey == null)
+        {
+            Console.Error.WriteLine(
+                "The distributed historian requires protected shared records. Set HA_RECORD_KEY to the same " +
+                "base64 32-byte key on every replica; HA_INSECURE cannot be used with HA_HISTORIAN.");
+            return 1;
+        }
+    }
 
     // Optional GetEndpoints load direction: when HA_BALANCING_URL is set, a GetEndpoints
     // request on that (virtual/load-balancer) discovery URL is answered with the best
@@ -313,6 +335,20 @@ command.SetAction(async (result, cancellationToken) =>
                 s.EnableFastReconnect = enableFastReconnect);
     }
 
+    if (enableDistributedHistorian)
+    {
+        ua.UseDistributedHistorian(options =>
+        {
+            // Small pages and a short fence make portable continuations and failover visible in the sample.
+            options.MaxValuesPerPage = 2;
+            options.WriterFenceLeaseDuration = TimeSpan.FromSeconds(5);
+            options.Capabilities = options.Capabilities with
+            {
+                EventTypes = [ObjectTypeIds.BaseEventType]
+            };
+        });
+    }
+
     ua.AddServerRedundancy(r =>
     {
         r.Mode = redundancyMode;
@@ -364,7 +400,7 @@ command.SetAction(async (result, cancellationToken) =>
         ? ServiceLevels.Maximum
         : GetDisplayedServiceLevel(activeActive, redundancyMode);
     Console.WriteLine(
-        "HA sample node '{0}' listening at {1}; HA_MODE={2}; REDUNDANCY_MODE={3}; ServiceLevel={4} ({5}).",
+        "HA sample node '{0}' configured for {1}; HA_MODE={2}; REDUNDANCY_MODE={3}; ServiceLevel={4} ({5}).",
         nodeId,
         endpointUrl,
         haMode,
@@ -382,6 +418,8 @@ command.SetAction(async (result, cancellationToken) =>
     }
     Console.WriteLine("RequestServerStateChange is enabled for administrator-driven Maintenance/NoData failover.");
 
+    builder.Services.AddSingleton<IServerStartupTask>(
+        static _ => new HaSampleSimulationStartupTask());
     await builder.Build().RunAsync(cancellationToken).ConfigureAwait(false);
     return 0;
 });

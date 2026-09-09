@@ -70,8 +70,60 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public ValueTask QueueAsync(SubscriptionAcknowledgement ack,
             CancellationToken ct = default)
         {
-            QueuedAcks.Add(ack);
+            lock (m_lock)
+            {
+                QueuedAcks.Add(ack);
+            }
             return OnQueueAsync?.Invoke(ack, ct) ?? default;
+        }
+
+        /// <summary>
+        /// Waits until at least <paramref name="count"/> acknowledgements have
+        /// been queued. The processor under test dispatches a notification
+        /// before it queues the acknowledgement for it, so a test that only
+        /// waits for the dispatch races the enqueue that follows it.
+        /// </summary>
+        /// <param name="count">
+        /// The number of queued acknowledgements to wait for.
+        /// </param>
+        /// <param name="timeoutMs">How long to wait before giving up.</param>
+        /// <exception cref="TimeoutException">
+        /// The acknowledgements did not arrive in time. Failing here rather
+        /// than returning quietly keeps the diagnosis at the right level: a
+        /// caller that went on to assert the count would only report the
+        /// mismatch, which cannot distinguish an acknowledgement that was
+        /// never queued from one that merely arrived late - and if that
+        /// assertion is ever loosened, a silent return would hide the race
+        /// this helper exists to close.
+        /// </exception>
+        public async Task WaitForQueuedAckAsync(int count, int timeoutMs = 5000)
+        {
+            const int kPollIntervalMs = 10;
+            TimeSpan timeout = TimeSpan.FromMilliseconds(timeoutMs);
+            long start = TimeProvider.System.GetTimestamp();
+            while (true)
+            {
+                int queued;
+                lock (m_lock)
+                {
+                    queued = QueuedAcks.Count;
+                }
+                if (queued >= count)
+                {
+                    return;
+                }
+                // Measure against a monotonic clock rather than accumulating
+                // the poll interval: Task.Delay routinely overshoots, so
+                // counting the requested interval silently stretches the
+                // effective timeout well past what the caller asked for.
+                if (TimeProvider.System.GetElapsedTime(start) >= timeout)
+                {
+                    throw new TimeoutException(
+                        $"Expected at least {count} queued acknowledgement(s) within " +
+                        $"{timeout.TotalSeconds:0.##}s but only {queued} arrived.");
+                }
+                await Task.Delay(kPollIntervalMs).ConfigureAwait(false);
+            }
         }
 
         public ValueTask CompleteAsync(IMessageProcessor subscription,
@@ -101,8 +153,11 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public int DropPendingForSubscription(uint subscriptionId)
         {
             DroppedSubscriptions.Add(subscriptionId);
-            return QueuedAcks.RemoveAll(
-                ack => ack.SubscriptionId == subscriptionId);
+            lock (m_lock)
+            {
+                return QueuedAcks.RemoveAll(
+                    ack => ack.SubscriptionId == subscriptionId);
+            }
         }
 
         public void Update()
@@ -117,5 +172,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// pooled-notification reuse walk.
         /// </summary>
         public bool PoolNotifications { get; set; }
+
+        private readonly Lock m_lock = new();
     }
 }

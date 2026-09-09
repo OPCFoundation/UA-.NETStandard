@@ -72,6 +72,14 @@ namespace Opc.Ua.SourceGeneration
         public bool GenerateFactory { get; init; } = true;
 
         /// <summary>
+        /// Whether to emit the public
+        /// <c>(IServerInternal, ApplicationConfiguration)</c> constructor.
+        /// Defaults to <c>true</c>. The protected constructor that takes
+        /// the namespace URI array is emitted either way.
+        /// </summary>
+        public bool GenerateDefaultConstructor { get; init; } = true;
+
+        /// <summary>
         /// Additional namespace URIs (beyond the model namespace) that
         /// the generated constructor reports to the base node manager,
         /// e.g. a separate instance namespace. <c>null</c> when the

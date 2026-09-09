@@ -50,12 +50,13 @@ try {
     $evaluation = & dotnet msbuild $projectFile -nologo "-p:Configuration=$Configuration" `
         -p:CustomTestTarget=net10.0 "-p:RuntimeIdentifier=$RuntimeIdentifier" -p:PublishAot=true `
         "-p:PublishDir=$publish" `
-        -getProperty:PublishAot,Configuration,TargetFramework,RuntimeIdentifier,NETCoreSdkVersion,ProjectAssetsFile
+        -getProperty:PublishAot,Configuration,TargetFramework,RuntimeIdentifier,AssemblyName,NETCoreSdkVersion,ProjectAssetsFile
     if ($LASTEXITCODE -ne 0) { throw 'NATIVE_EVALUATION_FAILED' }
     $properties = ($evaluation -join "`n" | ConvertFrom-Json).Properties
     if ($properties.PublishAot -cne 'true' -or $properties.TargetFramework -cne 'net10.0' -or
         $properties.RuntimeIdentifier -cne $RuntimeIdentifier -or $properties.Configuration -cne $Configuration -or
-        $properties.NETCoreSdkVersion -cnotmatch '^10\.[0-9]+\.[0-9]+$') { throw 'NATIVE_EVALUATION_MISMATCH' }
+        $properties.NETCoreSdkVersion -cnotmatch '^10\.[0-9]+\.[0-9]+$' -or
+        $properties.AssemblyName -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._-]+$') { throw 'NATIVE_EVALUATION_MISMATCH' }
     $assets = Get-Content -LiteralPath $properties.ProjectAssetsFile -Raw | ConvertFrom-Json -AsHashtable
     $compiler = @($assets.libraries.Keys | Where-Object { $_ -match "^runtime\.$RuntimeIdentifier\.microsoft\.dotnet\.ilcompiler/" })
     if ($compiler.Count -ne 1) { throw 'NATIVE_COMPILER_IDENTITY_MISSING' }
@@ -68,7 +69,7 @@ try {
         }
     )
     if ($compilerFiles.Count -ne 1) { throw 'NATIVE_COMPILER_IDENTITY_MISSING' }
-    $exeName = if ($IsWindows) { 'Opc.Ua.Aot.Tests.exe' } else { 'Opc.Ua.Aot.Tests' }
+    $exeName = if ($IsWindows) { "$($properties.AssemblyName).exe" } else { $properties.AssemblyName }
     $exe = Join-Path $publish $exeName
     $image = if ($RuntimeIdentifier -eq 'win-x64' -and $IsWindows) { Get-AssuranceNativeImage $exe } else { $null }
     $producedDigest = 'sha256:' + (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()

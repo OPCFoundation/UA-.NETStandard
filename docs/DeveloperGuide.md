@@ -351,7 +351,7 @@ The fast test stages fan every `*.Tests.csproj` out across matrix jobs and filte
 | `LongRunning` categories in mainline projects | `Test long-running tiers` stage, Schedule/Manual only |
 | `Opc.Ua.Subscriptions.Durable.Tests` | `Test long-running tiers` stage, Schedule/Manual only |
 | `Opc.Ua.Stress.Tests` | [`.github/workflows/stress-test.yml`](../.github/workflows/stress-test.yml), opt-in |
-| `Opc.Ua.Aot.Tests` | `Test Native AoT` stage |
+| `Opc.Ua.Aot.Tests` and the `.Historian` / `.Mcp` companions | `Test Native AoT` stage |
 
 Because the individual matrix jobs are generated (and are skipped outright when Azure Pipelines owns them, or when a pull request touches no build-relevant files), branch protection requires the aggregate **`build-and-test summary`** check rather than any individual job — see [Required checks and coverage](#required-checks-and-coverage). That job runs on every pull request — the workflow deliberately carries no `paths:` filter, because a workflow filtered out by `paths` never reports its checks and a required check that never reports blocks the pull request forever. The path allow-list is applied inside the `discover` job instead, and the summary treats an intentionally skipped job as success.
 

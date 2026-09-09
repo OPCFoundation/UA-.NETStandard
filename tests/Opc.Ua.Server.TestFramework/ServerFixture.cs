@@ -30,6 +30,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -58,6 +59,13 @@ namespace Opc.Ua.Server.TestFramework
         public int MaxChannelCount { get; set; } = 10;
         public int ReverseConnectTimeout { get; set; }
         public bool AllNodeManagers { get; set; }
+
+        /// <summary>
+        /// Whether the fixture's server refuses to mint a NodeId it already
+        /// gave a different browse path. On by default, so a test run
+        /// exercises the check whatever configuration the stack was built in.
+        /// </summary>
+        public bool DetectNodeIdCollisions { get; set; } = true;
 
         public int TraceMasks { get; set; } =
             Utils.TraceMasks.Error |
@@ -359,10 +367,23 @@ namespace Opc.Ua.Server.TestFramework
                 {
                     await InternalStartServerAsync(testPort).ConfigureAwait(false);
                 }
-                catch (ServiceResultException sre)
-                    when (serverStartRetries > 0 &&
-                        sre.StatusCode == StatusCodes.BadNoCommunication)
+                catch (Exception ex)
+                    when (serverStartRetries > 0 && ServerFixtureUtils.IsPortUnavailable(ex))
                 {
+                    serverStartRetries--;
+                    testPort = UnsecureRandom.Shared.Next(
+                        ServerFixtureUtils.MinTestPort,
+                        ServerFixtureUtils.MaxTestPort);
+                    retryStartServer = true;
+                }
+                catch (Exception ex)
+                    when (serverStartRetries > 0 && IsAddressAlreadyInUse(ex))
+                {
+                    // The TCP listener reports a taken port as BadNoCommunication,
+                    // which the clause above retries. The HTTPS listener does not: it
+                    // lets Kestrel's IOException out verbatim, so without this the
+                    // retry designed for exactly this case never runs and the whole
+                    // fixture fails on a port race it was built to survive.
                     serverStartRetries--;
                     testPort = UnsecureRandom.Shared.Next(
                         ServerFixtureUtils.MinTestPort,
@@ -398,6 +419,15 @@ namespace Opc.Ua.Server.TestFramework
             T server = m_factory(m_telemetry);
             server.TransportBindings = TransportBindingRegistry
                 ?? TestTransportBindings.WithAllSchemes();
+            if (server is StandardServer nodeIdCollisionServer)
+            {
+                // On for every test server whatever configuration the stack
+                // was built in. Off is the release default, so leaving it
+                // alone would mean a release test run never exercises the
+                // check and a collision would surface as a silently replaced
+                // node instead of a failing test.
+                nodeIdCollisionServer.DetectNodeIdCollisions = DetectNodeIdCollisions;
+            }
             if (AllNodeManagers && server is StandardServer standardServer)
             {
                 Quickstarts.Servers.Utils.AddDefaultNodeManagers(standardServer);
@@ -579,6 +609,43 @@ namespace Opc.Ua.Server.TestFramework
             {
                 serverManager.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Gets whether a start failure was a taken port, anywhere in its chain.
+        /// </summary>
+        /// <remarks>
+        /// The listener that failed decides the shape: TCP raises a
+        /// <see cref="ServiceResultException"/>, while Kestrel wraps a
+        /// <see cref="SocketException"/> in an <c>AddressInUseException</c> inside an
+        /// <see cref="IOException"/>. Only the socket error at the bottom is common to
+        /// both, so that is what this looks for.
+        /// </remarks>
+        private static bool IsAddressAlreadyInUse(Exception exception)
+        {
+            for (Exception current = exception;
+                current is not null;
+                current = current.InnerException)
+            {
+                if (current is SocketException socket &&
+                    socket.SocketErrorCode == SocketError.AddressAlreadyInUse)
+                {
+                    return true;
+                }
+
+                if (current is AggregateException aggregate)
+                {
+                    foreach (Exception inner in aggregate.InnerExceptions)
+                    {
+                        if (IsAddressAlreadyInUse(inner))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
         }
 
         private static readonly TimeSpan s_teardownTimeout = TimeSpan.FromSeconds(5);

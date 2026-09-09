@@ -9,9 +9,15 @@ $savedFixture = $env:ASSURANCE_NATIVE_FIXTURE
 try {
     $apphost = (Get-Command dotnet -CommandType Application).Source
     $rid = if ($Scenario -eq 'process-crash') { 'linux-x64' } else { 'win-x64' }
+    $assemblyName = switch ($Scenario) {
+        'historian-apphost' { 'Opc.Ua.Aot.Tests.Historian' }
+        'mcp-apphost' { 'Opc.Ua.Aot.Tests.Mcp' }
+        default { 'Opc.Ua.Aot.Tests' }
+    }
+    $project = "tests\$assemblyName\$assemblyName.csproj"
     $env:ASSURANCE_NATIVE_FIXTURE = Join-Path $fixture 'fixture.json'
     $assets = Join-Path $fixture 'assets.json'
-    @{ scenario = $Scenario; apphost = $apphost; assets = $assets; rid = $rid } |
+    @{ scenario = $Scenario; apphost = $apphost; assets = $assets; rid = $rid; assemblyName = $assemblyName } |
         ConvertTo-Json | Set-Content -LiteralPath $env:ASSURANCE_NATIVE_FIXTURE
     @{
         libraries = @{ "runtime.$rid.Microsoft.DotNet.ILCompiler/10.0.11" = @{ path = 'compiler' } }
@@ -32,12 +38,14 @@ try {
     $work = Join-Path $fixture 'work'
     $output = Join-Path $fixture 'proof.json'
     & pwsh -NoProfile -File (Join-Path $root '.azurepipelines\assurance-native.ps1') `
-        -Project 'tests\Opc.Ua.Aot.Tests\Opc.Ua.Aot.Tests.csproj' -RuntimeIdentifier $rid `
+        -Project $project -RuntimeIdentifier $rid `
         -WorkDirectory $work -OutputPath $output -NoRestore -TimeoutSeconds 5
     if ($LASTEXITCODE -eq 0) { throw 'Invalid native producer unexpectedly succeeded.' }
     $proof = Get-Content -LiteralPath $output -Raw | ConvertFrom-Json
     $reason = switch ($Scenario) {
         'apphost' { 'NATIVE_AOT_HEADER_MISSING' }
+        'historian-apphost' { 'NATIVE_AOT_HEADER_MISSING' }
+        'mcp-apphost' { 'NATIVE_AOT_HEADER_MISSING' }
         'publish-failure' { 'NATIVE_PUBLISH_FAILED' }
         'compiler-missing' { 'NATIVE_COMPILER_IDENTITY_MISSING' }
         'process-crash' { 'NATIVE_CRASHED_BEFORE_REPORT' }
@@ -48,7 +56,7 @@ try {
     }
     $original = (Get-FileHash -LiteralPath $output).Hash
     & pwsh -NoProfile -File (Join-Path $root '.azurepipelines\assurance-native.ps1') `
-        -Project 'tests\Opc.Ua.Aot.Tests\Opc.Ua.Aot.Tests.csproj' -RuntimeIdentifier $rid `
+        -Project $project -RuntimeIdentifier $rid `
         -WorkDirectory $work -OutputPath $output -NoRestore -TimeoutSeconds 5 2>$null
     if ($LASTEXITCODE -eq 0 -or (Get-FileHash -LiteralPath $output).Hash -cne $original) {
         throw 'Reused native work directory was not rejected without overwriting evidence.'

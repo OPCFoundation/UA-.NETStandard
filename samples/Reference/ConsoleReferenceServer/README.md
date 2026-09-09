@@ -55,6 +55,30 @@ dotnet ConsoleReferenceServer.dll --provision
 Custom XML security/trust settings remain an administrator responsibility; `--autoaccept` controls
 the host's existing untrusted-certificate callback, not every certificate-manager setting.
 
+## Historical Access
+
+The reference server starts with an in-memory Part 11 historian. Its historized
+scalar nodes expose raw, modified, at-time, aggregate, annotation, and update
+operations together with populated `HistoricalDataConfigurationType`
+companions. `CTT/Historical_KeyValuePairs` demonstrates generic
+StructuredHistoryData with two `KeyValuePair` entries at one timestamp. The
+`CTT` notifier exposes historical event read/write bits, a
+`HistoricalEventConfigurationType` companion, and seeded event history.
+Writes to the two event-trigger variables report events; live forwarding
+completes before the historian snapshots them into its bounded asynchronous
+capture queue.
+
+Run the matching client workflow against a secured endpoint with provisioned
+certificate trust. For an isolated lab, the trust-only opt-in is:
+
+```bash
+dotnet ConsoleReferenceClient.dll --historian --autoaccept \
+  opc.tcp://localhost:62541/Quickstarts/ReferenceServer
+```
+
+See [`docs/HistoricalAccess.md`](../../../docs/HistoricalAccess.md) for the
+provider contracts, status semantics, and custom storage examples.
+
 ## Reverse Connect
 
 The OPC UA reverse connect feature allows an OPC UA server to initiate the connection to a client, rather than the traditional model where clients connect to servers. This is particularly useful in scenarios where the server is behind a firewall or NAT, making it difficult for clients to directly connect to it.

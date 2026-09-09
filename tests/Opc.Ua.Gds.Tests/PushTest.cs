@@ -240,7 +240,7 @@ namespace Opc.Ua.Gds.Tests
             string customBasePath = Path.Combine(Path.GetTempPath(), "OPC", "GDS", "CA", "custom");
             var customGroup = new CertificateGroupConfiguration
             {
-                Id = "MyCustomGroup",
+                Id = kCustomGroupId,
                 CertificateTypes = ["RsaSha256ApplicationCertificateType"],
                 SubjectName = "CN=GDS Custom CA, O=OPC Foundation",
                 BaseStorePath = customBasePath,
@@ -472,17 +472,20 @@ namespace Opc.Ua.Gds.Tests
                 .ReadTrustListAsync(groupId, TrustListMasks.None).ConfigureAwait(false);
             emptyTrustList.SpecifiedLists = (uint)TrustListMasks.All;
 
+            // The GDS hosts the groups of its own Directory non-transactionally,
+            // so CloseAndUpdate writes the stores straight away and reports that
+            // no ApplyChanges is needed. Reading the list back is what proves the
+            // write landed; calling ApplyChanges here would stage nothing and
+            // return Bad_NothingToDo.
             bool applyChangesRequired = await m_pushClient.PushClient
                 .UpdateTrustListAsync(groupId, emptyTrustList, 0).ConfigureAwait(false);
-            Assert.That(applyChangesRequired, Is.True);
-            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
+            Assert.That(applyChangesRequired, Is.False);
             TrustListDataType expectEmptyTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
             Assert.That(Utils.IsEqual(expectEmptyTrustList, emptyTrustList), Is.True);
 
             applyChangesRequired = await m_pushClient.PushClient
                 .UpdateTrustListAsync(groupId, fullTrustList, 0).ConfigureAwait(false);
-            Assert.That(applyChangesRequired, Is.True);
-            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
+            Assert.That(applyChangesRequired, Is.False);
             TrustListDataType expectFullTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
             Assert.That(Utils.IsEqual(expectFullTrustList, fullTrustList), Is.True);
         }
@@ -501,9 +504,12 @@ namespace Opc.Ua.Gds.Tests
             NodeId groupId = await GetCustomGroupIdAsync().ConfigureAwait(false);
 
             TrustListDataType beforeTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
+
+            // Non-transactional group: AddCertificate/RemoveCertificate write the
+            // store as they are called, so there is nothing for ApplyChanges to
+            // commit afterwards.
             await m_pushClient.PushClient.AddCertificateAsync(groupId, trustedCert, true).ConfigureAwait(false);
             await m_pushClient.PushClient.AddCertificateAsync(groupId, issuerCert, false).ConfigureAwait(false);
-            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
 
             TrustListDataType afterAddTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
             Assert.That(
@@ -516,12 +522,17 @@ namespace Opc.Ua.Gds.Tests
 
             await m_pushClient.PushClient.RemoveCertificateAsync(groupId, trustedCert.Thumbprint, true).ConfigureAwait(false);
             await m_pushClient.PushClient.RemoveCertificateAsync(groupId, issuerCert.Thumbprint, false).ConfigureAwait(false);
-            await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
 
             TrustListDataType afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
             Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.True);
         }
 
+        /// <summary>
+        /// Resolves the GDS certificate group this fixture adds through
+        /// configuration, by browse name. The group must be reachable by
+        /// browsing its folder, not just by <c>GetCertificateGroups</c>
+        /// (OPC 10000-12 §7.8.2), which is what this lookup also asserts.
+        /// </summary>
         private async Task<NodeId> GetCustomGroupIdAsync()
         {
             List<ReferenceDescription> groups = await FindChildrenByTypeDefinitionRecursiveAsync(
@@ -529,7 +540,17 @@ namespace Opc.Ua.Gds.Tests
                 OpcUa.ObjectTypeIds.CertificateGroupType)
                 .ConfigureAwait(false);
 
-            return ExpandedNodeId.ToNodeId(groups[3].NodeId, m_pushClient.PushClient.Session.NamespaceUris);
+            ReferenceDescription customGroup = groups
+                .Find(group => group.BrowseName.Name == kCustomGroupId);
+
+            Assert.That(
+                customGroup,
+                Is.Not.Null,
+                $"The '{kCustomGroupId}' certificate group must be browseable below the Objects folder.");
+
+            return ExpandedNodeId.ToNodeId(
+                customGroup.NodeId,
+                m_pushClient.PushClient.Session.NamespaceUris);
         }
 
         [Test]
@@ -1215,9 +1236,31 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(certificateTypeIds.Count, Is.EqualTo(certificates.Count));
             Assert.That(certificateTypeIds.ToList(), Is.EqualTo(expectedCertificateTypeIds.ToList()));
             Assert.That(certificates.ToList(), Is.EqualTo(expectedCertificates.ToList()));
-            Assert.That(certificates[0].IsEmpty, Is.False);
-            using var x509 = Certificate.FromRawData(certificates[0]);
-            Assert.That(x509, Is.Not.Null);
+
+            // GetCertificates returns parallel arrays: one certificate per
+            // certificate type the group is configured for (OPC 10000-12
+            // §7.8.4). Check every pair rather than whichever entry happens
+            // to come back first, and report the type that failed.
+            Assert.That(
+                certificates.Count,
+                Is.GreaterThan(0),
+                "The DefaultApplicationGroup must report at least one certificate.");
+
+            List<NodeId> returnedTypeIds = certificateTypeIds.ToList();
+            List<ByteString> returnedCertificates = certificates.ToList();
+            for (int i = 0; i < returnedCertificates.Count; i++)
+            {
+                Assert.That(
+                    returnedCertificates[i].IsEmpty,
+                    Is.False,
+                    $"No certificate was returned for type {returnedTypeIds[i]}.");
+
+                using Certificate x509 = Certificate.FromRawData(returnedCertificates[i]);
+                Assert.That(
+                    x509,
+                    Is.Not.Null,
+                    $"The certificate for type {returnedTypeIds[i]} did not parse.");
+            }
         }
 
         /// <summary>
@@ -2095,6 +2138,12 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private const int kRandomStart = 1;
+
+        /// <summary>
+        /// Id of the extra certificate group this fixture configures on the
+        /// GDS, and the browse name its group node carries.
+        /// </summary>
+        private const string kCustomGroupId = "MyCustomGroup";
         private RandomSource m_randomSource;
         private ITelemetryContext m_telemetry;
         private GlobalDiscoveryTestServer m_server;

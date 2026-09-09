@@ -233,6 +233,8 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("publish-failure")]
         [TestCase("compiler-missing")]
         [TestCase("process-crash")]
+        [TestCase("historian-apphost")]
+        [TestCase("mcp-apphost")]
         [Platform("Win")]
         public async Task NativeProducerRejectsSubstitutionAndFailedExecutionAsync(string scenario)
         {

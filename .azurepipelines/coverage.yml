@@ -71,6 +71,29 @@ stages:
     # against its base branch, which a shallow clone cannot do.
     - checkout: self
       fetchDepth: 0
+    # The hosted Ubuntu image ships tens of GB of Android SDK / GHC / Swift /
+    # CodeQL toolchains that nothing in this job uses, and the run publishes a
+    # coverage artifact per test matrix entry across every framework stage.
+    # On the nightly (which adds the long-running tiers) the download filled
+    # the disk and the job died with "No space left on device" - first in
+    # 'Download code coverage', then in 'Install ReportGenerator tool'.
+    # Reclaim the unused toolchains before anything writes to the agent.
+    # /usr/share/dotnet is deliberately left alone: it is the agent's own SDK
+    # and removing it before UseDotNet@2 has provisioned the tool cache would
+    # leave the job without a working 'dotnet'.
+    - script: |
+        set -uo pipefail
+        echo "Free space before cleanup:"
+        df -h /
+        sudo rm -rf /usr/local/lib/android /opt/ghc /usr/local/.ghcup \
+          /usr/share/swift /opt/hostedtoolcache/CodeQL || true
+        echo "Free space after cleanup:"
+        df -h /
+      displayName: 'Free agent disk space'
+      # Best effort: the image layout changes over time, and a stale path must
+      # not fail the job. If it reclaimed nothing the download step fails as
+      # loudly as it did before.
+      continueOnError: true
     - task: UseDotNet@2
       displayName: 'Install .NET 10.0'
       inputs:
@@ -97,6 +120,16 @@ stages:
           $artifacts = @(Get-ChildItem -Path $source -Directory -ErrorAction SilentlyContinue)
           $reports = @(Get-ChildItem -Path $source -Recurse -File -Filter *.cobertura.xml -ErrorAction SilentlyContinue)
           Write-Host "Downloaded $($reports.Count) Cobertura report(s) from $($artifacts.Count) test job(s)."
+
+          # Pipeline artifact names must be unique within a build, so re-running
+          # this stage on an existing build fails to publish with "Artifact
+          # coverage-report already exists". Qualify the name on a retry only,
+          # so the first (normal) attempt keeps publishing 'coverage-report'.
+          $attempt = 0
+          if (-not [int]::TryParse($env:SYSTEM_STAGEATTEMPT, [ref] $attempt)) { $attempt = 1 }
+          $suffix = if ($attempt -gt 1) { "-attempt$attempt" } else { '' }
+          Write-Host "##vso[task.setvariable variable=ARTIFACT_SUFFIX;isOutput=true]$suffix"
+
           $found = $reports.Count -gt 0
           Write-Host "##vso[task.setvariable variable=HAS_REPORTS;isOutput=true]$($found.ToString().ToLowerInvariant())"
           foreach ($artifact in $artifacts) {
@@ -161,7 +194,11 @@ stages:
       continueOnError: true
       inputs:
         targetPath: '$(Build.SourcesDirectory)/CodeCoverage'
-        artifact: 'coverage-report'
+        # Artifact names are unique per build, so re-running the stage on an
+        # existing build fails with "Artifact coverage-report already exists".
+        # reportProbe computes an empty suffix on the first attempt, so the
+        # published name only diverges from 'coverage-report' on a retry.
+        artifact: 'coverage-report$(reportProbe.ARTIFACT_SUFFIX)'
     - ${{ if parameters.publishCoverage }}:
       - task: PublishCodeCoverageResults@2
         displayName: 'Publish code coverage'
@@ -206,6 +243,14 @@ stages:
             SLUG=$(printf '%s' "$REPO_URI" | sed -E 's#^.*://[^/]+/##; s#\.git$##')
           fi
           echo "Uploading coverage for slug '$SLUG' at commit '$SHA'."
+          # Reporting only: a codecov.io rejection (an unactivated repository or
+          # a stale CODECOV_TOKEN both surface as "Repository not found") must
+          # not colour the run. continueOnError below already keeps it from
+          # failing the build, but it still logs a warning, which turned every
+          # master build partiallySucceeded and hid genuine warnings. Swallow
+          # the uploader's exit code and report it as plain log output instead;
+          # the coverage verdict comes from the gate below, not from codecov.
+          set +e
           ./codecov upload-process \
             --disable-search \
             --file "$REPORT_LOCATION" \
@@ -213,6 +258,11 @@ stages:
             --git-service github \
             --slug "$SLUG" \
             --sha "$SHA"
+          rc=$?
+          set -e
+          if [ $rc -ne 0 ]; then
+            echo "codecov.io upload failed with exit code $rc; coverage reporting is best-effort and the run is unaffected."
+          fi
         # continueOnError: reporting must never be able to fail the run. The
         # verdict comes from the gate below, not from codecov.io being
         # reachable.

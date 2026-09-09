@@ -95,6 +95,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private RequestHeader m_requestHeader;
         private SecureChannelContext m_secureChannelContext;
         private ILogger m_logger;
+        private HashSet<Guid> m_startupRegistrationIds;
 
         /// <summary>
         /// Shared by every Session the fixture activates. A subscription transfer between
@@ -124,6 +125,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
             m_logger = NUnitTelemetryContext.Create().CreateLogger<NodeManagerLifecycleTests>();
+            m_startupRegistrationIds = [];
+            m_server.NodeManagerLifecycle.Registrations.ForEach(
+                registration => m_startupRegistrationIds.Add(registration.Id));
 
             (m_requestHeader, m_secureChannelContext) = await m_server
                 .CreateAndActivateSessionAsync(
@@ -191,6 +195,88 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A custom-routed NodeManager may return a null namespace list. The
+        /// lifecycle handle must preserve that shape rather than rejecting a
+        /// manager the master routing layer accepts.
+        /// </summary>
+        [Test]
+        public void NodeManagerRegistrationAllowsNullNamespaceUris()
+        {
+            var nodeManager = new Mock<IAsyncNodeManager>();
+            nodeManager.Setup(manager => manager.NamespaceUris).Returns((IEnumerable<string>)null);
+
+            var registration = new NodeManagerRegistration(
+                Guid.NewGuid(),
+                1,
+                nodeManager.Object);
+
+            Assert.That(registration.NamespaceUris.IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// A custom-routed manager with no namespace list must keep its place in
+        /// the master manager list across reload and removal.
+        /// </summary>
+        [Test]
+        public async Task NullNamespaceNodeManagerCanReloadAndRemoveAsync()
+        {
+            Mock<IAsyncNodeManager> originalManager =
+                CreateLifecycleNodeManager(namespaceUri: null);
+            originalManager
+                .As<INodeManagerReloadParticipant>()
+                .Setup(participant => participant.PrepareReloadAsync(
+                    It.IsAny<IAsyncNodeManager>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<LocalReference>>([]));
+            var originalFactory = new Mock<IAsyncNodeManagerFactory>();
+            originalFactory
+                .Setup(factory => factory.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(originalManager.Object);
+
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
+                .AddAsync(originalFactory.Object, null)
+                .ConfigureAwait(false);
+
+            Mock<IAsyncNodeManager> replacementManager =
+                CreateLifecycleNodeManager(namespaceUri: null);
+            var replacementFactory = new Mock<IAsyncNodeManagerFactory>();
+            replacementFactory
+                .Setup(factory => factory.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(replacementManager.Object);
+
+            NodeManagerRegistration replacement = await m_server.NodeManagerLifecycle
+                .ReloadAsync(original, replacementFactory.Object, null)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(original.NamespaceUris.IsNull, Is.True);
+                Assert.That(replacement.NamespaceUris.IsNull, Is.True);
+                Assert.That(replacement.Id, Is.EqualTo(original.Id));
+                Assert.That(replacement.Generation, Is.EqualTo(2));
+                Assert.That(
+                    m_server.CurrentInstance.NodeManager.AsyncNodeManagers.Contains(
+                        replacementManager.Object),
+                    Is.True);
+            });
+
+            await m_server.NodeManagerLifecycle
+                .RemoveAsync(replacement, null)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                m_server.CurrentInstance.NodeManager.AsyncNodeManagers.Contains(
+                    replacementManager.Object),
+                Is.False);
+        }
+
+        /// <summary>
         /// Each read of <see cref="INodeManagerLifecycle.Registrations"/> must return a
         /// fresh, independently backed <see cref="ArrayOf{T}"/> snapshot (earlier snapshots
         /// are frozen and unaffected by later Add calls), while the contained
@@ -206,19 +292,28 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             ArrayOf<NodeManagerRegistration> snapshotAfterFirstAdd =
                 m_server.NodeManagerLifecycle.Registrations;
-            Assert.That(snapshotAfterFirstAdd.Count, Is.EqualTo(1));
+            Assert.That(
+                snapshotAfterFirstAdd.Count,
+                Is.EqualTo(m_startupRegistrationIds.Count + 1));
 
             NodeManagerRegistration second = await m_server.NodeManagerLifecycle
                 .AddRuntimeNodeSetAsync(CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue), null)
                 .ConfigureAwait(false);
 
             // The earlier snapshot variable must remain frozen at its original contents.
-            Assert.That(snapshotAfterFirstAdd.Count, Is.EqualTo(1));
-            Assert.That(snapshotAfterFirstAdd[0].Id, Is.EqualTo(first.Id));
+            Assert.That(
+                snapshotAfterFirstAdd.Count,
+                Is.EqualTo(m_startupRegistrationIds.Count + 1));
+            Assert.That(
+                snapshotAfterFirstAdd.Find(registration =>
+                    registration.Id == first.Id),
+                Is.SameAs(first));
 
             ArrayOf<NodeManagerRegistration> snapshotAfterSecondAdd =
                 m_server.NodeManagerLifecycle.Registrations;
-            Assert.That(snapshotAfterSecondAdd.Count, Is.EqualTo(2));
+            Assert.That(
+                snapshotAfterSecondAdd.Count,
+                Is.EqualTo(m_startupRegistrationIds.Count + 2));
 
             // Two independent reads of Registrations return distinct ArrayOf snapshots that
             // nonetheless share the same underlying NodeManagerRegistration instances.
@@ -245,7 +340,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             ArrayOf<NodeManagerRegistration> registrationsAfterSnapshotReads =
                 m_server.NodeManagerLifecycle.Registrations;
-            Assert.That(registrationsAfterSnapshotReads.Count, Is.EqualTo(2));
+            Assert.That(
+                registrationsAfterSnapshotReads.Count,
+                Is.EqualTo(m_startupRegistrationIds.Count + 2));
             Assert.That(
                 registrationsAfterSnapshotReads.Find(r => r.Id == first.Id),
                 Is.Not.Null);
@@ -4517,7 +4614,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Times.Once);
             replacementDisposable.Verify(manager => manager.Dispose(), Times.Once);
             ownerDisposable.Verify(manager => manager.Dispose(), Times.Once);
-            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+            Assert.That(GetNonStartupRegistrations(), Is.Empty);
         }
 
         /// <summary>
@@ -4609,7 +4706,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(master.NamespaceManagers.ContainsKey(namespaceIndex), Is.False);
 
                 ArrayOf<NodeManagerRegistration> registrations =
-                    m_server.NodeManagerLifecycle.Registrations;
+                    GetNonStartupRegistrations();
                 Assert.That(registrations.Count, Is.EqualTo(1));
                 Assert.That(registrations[0], Is.SameAs(registration));
                 Assert.That(registrations[0].Id, Is.EqualTo(registration.Id));
@@ -4631,7 +4728,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(master.NamespaceManagers.ContainsKey(namespaceIndex), Is.False);
 
             ArrayOf<NodeManagerRegistration> registrationsAfterFailure =
-                m_server.NodeManagerLifecycle.Registrations;
+                GetNonStartupRegistrations();
             Assert.That(registrationsAfterFailure.Count, Is.EqualTo(1));
             Assert.That(registrationsAfterFailure[0], Is.SameAs(registration));
             Assert.That(registrationsAfterFailure[0].Id, Is.EqualTo(registration.Id));
@@ -4643,6 +4740,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.SameAs(nodeManager.Object));
             nodeManager.Verify(
                 m => m.DeleteAddressSpaceAsync(CancellationToken.None),
+                Times.Once);
+            nodeManagerAsDisposable.Verify(d => d.Dispose(), Times.Never);
+            Assert.That(
+                async () => await m_server.NodeManagerLifecycle
+                    .AddAsync(factory.Object, null)
+                    .ConfigureAwait(false),
+                Throws.TypeOf<NodeManagerAlreadyRegisteredException>());
+            nodeManager.Verify(
+                manager => manager.CreateAddressSpaceAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                    It.IsAny<CancellationToken>()),
                 Times.Once);
             nodeManagerAsDisposable.Verify(d => d.Dispose(), Times.Never);
 
@@ -4658,7 +4766,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<IServerInternal>(),
                     It.IsAny<ApplicationConfiguration>(),
                     It.IsAny<CancellationToken>()),
-                Times.Once);
+                Times.Exactly(2));
             nodeManagerAsDisposable.Verify(d => d.Dispose(), Times.Once);
 
             ArrayOf<NodeManagerRegistration> registrationsAfterRetry =
@@ -4823,10 +4931,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     manager.AllEventsUnsubscribeCount;
                 Assert.That(unsubscribeCountAfterFailure, Is.EqualTo(1));
                 Assert.That(
-                    m_server.NodeManagerLifecycle.Registrations,
+                    GetNonStartupRegistrations(),
                     Has.Count.EqualTo(1));
                 Assert.That(
-                    m_server.NodeManagerLifecycle.Registrations[0],
+                    GetNonStartupRegistrations()[0],
                     Is.SameAs(registration));
                 Assert.That(
                     master.AsyncNodeManagers.Any(candidate =>
@@ -4847,7 +4955,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     manager.AllEventsUnsubscribeCount,
                     Is.EqualTo(unsubscribeCountAfterFailure),
                     "A removal retry must not repeat all-events unsubscription.");
-                Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+                Assert.That(GetNonStartupRegistrations(), Is.Empty);
                 Assert.That(
                     master.AsyncNodeManagers.Any(candidate =>
                         ReferenceEquals(candidate, manager)),
@@ -4914,7 +5022,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(failureMessages, Does.Contain(CreateFailure));
             Assert.That(failureMessages, Does.Contain(DeleteFailure));
             Assert.That(failureMessages, Does.Contain(DisposeFailure));
-            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+            Assert.That(GetNonStartupRegistrations(), Is.Empty);
 
             var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
             Assert.That(
@@ -4968,9 +5076,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .AddAsync(factory.Object, null)
                 .ConfigureAwait(false);
 
+            Mock<IAsyncNodeManager> peerManager =
+                CreateLifecycleNodeManager(NamespaceUri);
+            var peerFactory = new Mock<IAsyncNodeManagerFactory>();
+            peerFactory
+                .Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(peerManager.Object);
+            NodeManagerRegistration peerRegistration =
+                await m_server.NodeManagerLifecycle
+                    .AddAsync(peerFactory.Object, null)
+                    .ConfigureAwait(false);
+
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
             int namespaceIndex = server.NamespaceUris.GetIndex(NamespaceUri);
+            int managerPosition = IndexOfReference(
+                master.AsyncNodeManagers,
+                nodeManager.Object);
+            int routePosition = IndexOfReference(
+                master.NamespaceManagers[namespaceIndex],
+                nodeManager.Object);
             failSessionClosing = true;
 
             Assert.That(
@@ -4981,11 +5109,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .With.Message.EqualTo(ExpectedMessage));
 
             Assert.That(
-                m_server.NodeManagerLifecycle.Registrations,
-                Has.Count.EqualTo(1));
+                GetNonStartupRegistrations(),
+                Has.Count.EqualTo(2));
             Assert.That(
-                m_server.NodeManagerLifecycle.Registrations[0],
+                GetNonStartupRegistrations().Find(candidate =>
+                    candidate.Id == registration.Id),
                 Is.SameAs(registration));
+            Assert.That(
+                IndexOfReference(master.AsyncNodeManagers, nodeManager.Object),
+                Is.EqualTo(managerPosition));
+            Assert.That(
+                IndexOfReference(
+                    master.NamespaceManagers[namespaceIndex],
+                    nodeManager.Object),
+                Is.EqualTo(routePosition));
             Assert.That(
                 master.AsyncNodeManagers.Count(manager =>
                     ReferenceEquals(manager, nodeManager.Object)),
@@ -5006,17 +5143,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .RemoveAsync(registration, null)
                 .ConfigureAwait(false);
 
-            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
             Assert.That(
                 master.AsyncNodeManagers.Any(manager =>
                     ReferenceEquals(manager, nodeManager.Object)),
                 Is.False);
-            Assert.That(master.NamespaceManagers.ContainsKey(namespaceIndex), Is.False);
+            Assert.That(
+                master.NamespaceManagers[namespaceIndex].Any(manager =>
+                    ReferenceEquals(manager, peerManager.Object)),
+                Is.True);
             nodeManager.Verify(
                 manager => manager.DeleteAddressSpaceAsync(
                     CancellationToken.None),
                 Times.Once);
             disposable.Verify(manager => manager.Dispose(), Times.Once);
+
+            await m_server.NodeManagerLifecycle
+                .RemoveAsync(peerRegistration, null)
+                .ConfigureAwait(false);
+            Assert.That(GetNonStartupRegistrations(), Is.Empty);
+            Assert.That(master.NamespaceManagers.ContainsKey(namespaceIndex), Is.False);
         }
 
         [Test]
@@ -5088,7 +5233,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(exception.Registration.Generation, Is.EqualTo(original.Generation + 1));
 
             ArrayOf<NodeManagerRegistration> registrations =
-                m_server.NodeManagerLifecycle.Registrations;
+                GetNonStartupRegistrations();
             Assert.That(registrations, Has.Count.EqualTo(1));
             NodeManagerRegistration replacement = registrations[0];
             Assert.That(replacement.Id, Is.EqualTo(original.Id));
@@ -5132,7 +5277,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     CancellationToken.None),
                 Times.Once);
             replacementDisposable.Verify(manager => manager.Dispose(), Times.Once);
-            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+            Assert.That(GetNonStartupRegistrations(), Is.Empty);
             Assert.That(master.NamespaceManagers.ContainsKey(namespaceIndex), Is.False);
         }
 
@@ -5271,7 +5416,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Times.Once);
             retainedDisposable.Verify(manager => manager.Dispose(), Times.Once);
             ownerDisposable.Verify(manager => manager.Dispose(), Times.Once);
-            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+            Assert.That(GetNonStartupRegistrations(), Is.Empty);
         }
 
         [Test]
@@ -5462,7 +5607,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Times.Once);
             replacementDisposable.Verify(manager => manager.Dispose(), Times.Once);
             ownerDisposable.Verify(manager => manager.Dispose(), Times.Once);
-            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+            Assert.That(GetNonStartupRegistrations(), Is.Empty);
         }
 
         [Test]
@@ -6095,7 +6240,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     CancellationToken.None),
                 Times.Once);
             Assert.That(
-                m_server.NodeManagerLifecycle.Registrations,
+                GetNonStartupRegistrations(),
                 Is.Empty);
             return Task.CompletedTask;
         }
@@ -7330,6 +7475,33 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return value.WrappedValue.GetUInt32();
         }
 
+        private ArrayOf<NodeManagerRegistration> GetNonStartupRegistrations()
+        {
+            var registrations = new List<NodeManagerRegistration>();
+            m_server.NodeManagerLifecycle.Registrations.ForEach(registration =>
+            {
+                if (!m_startupRegistrationIds.Contains(registration.Id))
+                {
+                    registrations.Add(registration);
+                }
+            });
+            return new ArrayOf<NodeManagerRegistration>(registrations.ToArray());
+        }
+
+        private static int IndexOfReference(
+            IReadOnlyList<IAsyncNodeManager> managers,
+            IAsyncNodeManager target)
+        {
+            for (int ii = 0; ii < managers.Count; ii++)
+            {
+                if (ReferenceEquals(managers[ii], target))
+                {
+                    return ii;
+                }
+            }
+            return -1;
+        }
+
         /// <summary>
         /// Counts the entries in an <see cref="ArrayOf{T}"/> that satisfy the predicate.
         /// </summary>
@@ -7352,9 +7524,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var nodeManager = new Mock<IAsyncNodeManager>();
             var syncNodeManager = new Mock<INodeManager>();
-            nodeManager
-                .Setup(manager => manager.NamespaceUris)
-                .Returns([namespaceUri]);
+            if (namespaceUri is null)
+            {
+                nodeManager
+                    .Setup(manager => manager.NamespaceUris)
+                    .Returns((IEnumerable<string>)null);
+            }
+            else
+            {
+                nodeManager
+                    .Setup(manager => manager.NamespaceUris)
+                    .Returns([namespaceUri]);
+            }
             nodeManager
                 .Setup(manager => manager.SyncNodeManager)
                 .Returns(syncNodeManager.Object);

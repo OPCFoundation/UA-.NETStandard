@@ -647,6 +647,7 @@ namespace Opc.Ua.SourceGeneration
             EmitPassThroughProperty(writer, "global::Opc.Ua.ISystemContext", "Context");
             EmitPassThroughProperty(writer, "global::Opc.Ua.Server.IAsyncNodeManager", "NodeManager");
             EmitPassThroughProperty(writer, "global::Opc.Ua.Server.Fluent.IFluentDispatcher", "Dispatcher");
+            EmitPassThroughProperty(writer, "ushort", "DefaultNamespaceIndex");
 
             writer.WriteLine();
             writer.WriteLine("    /// <inheritdoc/>");

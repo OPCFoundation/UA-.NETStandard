@@ -1079,13 +1079,79 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(
                 generated,
                 Does.Match(
-                    @": base\(server, configuration, [^)]*""http://test\.org/UA/CrossModel/Types/Instance""\)"),
-                "the generated constructor must append the additional namespace URI to the base call");
+                    @"DefaultNamespaceUris\(\)[\s\S]{0,200}" +
+                    @"""http://test\.org/UA/CrossModel/Types/Instance"""),
+                "the manager's namespace set must include the additional namespace URI");
+            Assert.That(
+                generated,
+                Does.Match(
+                    @": base\([\s\S]{0,300}namespaceUris \?\? DefaultNamespaceUris\(\)\)"),
+                "the constructor must report that set to the base manager");
             Assert.That(
                 generated,
                 Does.Match(
                     @"NamespacesUris[\s\S]{0,200}""http://test\.org/UA/CrossModel/Types/Instance"""),
                 "the generated factory must advertise the additional namespace URI");
+        }
+
+        /// <summary>
+        /// A manager that needs collaborators beyond a server and a
+        /// configuration suppresses the two-argument constructor, so that
+        /// no caller can build it half-initialized, and chains to the
+        /// protected one from a constructor of its own.
+        /// </summary>
+        [Theory]
+        public void NodeManagerWithoutDefaultConstructorOmitsTheTwoArgumentForm(
+            LanguageVersion languageVersion)
+        {
+            const string bindingSource =
+                """
+                namespace Opc.Ua.Server.Fluent
+                {
+                public sealed class NodeManagerAttribute : global::System.Attribute
+                {
+                public string NamespaceUri { get; set; }
+                public string Design { get; set; }
+                public bool GenerateFactory { get; set; }
+                public bool GenerateDefaultConstructor { get; set; }
+                public string[] AdditionalNamespaceUris { get; set; }
+                }
+                }
+                namespace CrossModelConsumer
+                {
+                [global::Opc.Ua.Server.Fluent.NodeManager(
+                    NamespaceUri = "http://test.org/UA/CrossModel/Types",
+                    GenerateFactory = false,
+                    GenerateDefaultConstructor = false)]
+                public partial class TypesNodeManager
+                {
+                }
+                }
+                """;
+            (ImmutableArray<Diagnostic> diagnostics, GeneratorDriverRunResult runResult) =
+                RunMixedModelGenerator(languageVersion, bindingSource);
+
+            Assert.That(
+                diagnostics.Where(d => d.Id == "MODELGEN010"),
+                Is.Empty,
+                "the binding must still match");
+
+            string generated = string.Join(
+                "\n",
+                runResult.Results[0].GeneratedSources.Select(s => s.SourceText.ToString()));
+
+            Assert.That(
+                generated,
+                Does.Not.Contain(": this(server, configuration, null)"),
+                "the two-argument constructor must be suppressed");
+            Assert.That(
+                generated,
+                Does.Match(@"protected\s+TypesNodeManager\("),
+                "the namespace-set constructor must remain, as the one to chain to");
+            Assert.That(
+                generated,
+                Does.Not.Match(@"class\s+TypesNodeManagerFactory"),
+                "GenerateFactory=false must still suppress the factory");
         }
 
         [Theory]

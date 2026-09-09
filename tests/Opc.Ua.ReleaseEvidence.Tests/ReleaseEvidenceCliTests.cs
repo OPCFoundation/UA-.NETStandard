@@ -297,6 +297,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 JsonNode manifest = JsonNode.Parse(
                     await File.ReadAllTextAsync(Fixture("v1.json")).ConfigureAwait(false))!;
                 manifest["commit"] = context["source"]!["actualSha"]!.DeepClone();
+                manifest["ref"] = context["source"]!["actualRef"]!.DeepClone();
                 manifest["packageCount"] = 1;
                 manifest["archives"] = JsonNode.Parse($$"""
                     [{"id":"Fixture.Generator","version":"2.0.0","type":"package",
@@ -1124,6 +1125,13 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             (int gitCode, string sha) = await ExecuteAsync("git", "rev-parse", "HEAD").ConfigureAwait(false);
             Assert.That(gitCode, Is.Zero);
             expected["source"]!["actualSha"] = sha.Trim();
+            (int refCode, string references) = await ExecuteAsync(
+                "git", "for-each-ref", "--points-at", sha.Trim(), "--format=%(refname)").ConfigureAwait(false);
+            Assert.That(refCode, Is.Zero);
+            string[] checkoutRefs = references.Split(
+                '\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            Assert.That(checkoutRefs, Is.Not.Empty, "Capture fixtures require a named ref for the actual checkout.");
+            expected["source"]!["actualRef"] = checkoutRefs[0];
             (_, string status) = await ExecuteAsync("git", "status", "--porcelain", "--untracked-files=no")
                 .ConfigureAwait(false);
             expected["source"]!["trackedClean"] = string.IsNullOrWhiteSpace(status);

@@ -109,6 +109,32 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             });
         }
 
+        [TestCase("aa", "strong", "strongly consistent active/passive topology")]
+        [TestCase("ap", "eventual", "strongly consistent active/passive topology")]
+        [TestCase("ap", "strong", "requires protected shared records")]
+        public async Task HistorianOptionRetainsUpstreamTopologyAndProtectionGuardsAsync(
+            string mode, string consistency, string expectedError)
+        {
+            string root = Path.Combine(Path.GetTempPath(), "RedundantServerOptionsTests", Guid.NewGuid().ToString("N"));
+            await using var process = new SampleAppProcess(
+                "historian-options", Path.Combine("Redundancy", "RedundantServer"), "RedundantServer",
+                ["--HA_HISTORIAN=true", "--auto-accept=false", "--security-none=false"],
+                new Dictionary<string, string?>
+                {
+                    ["HA_PKI_ROOT"] = root,
+                    ["HA_MODE"] = mode,
+                    ["HA_CONSISTENCY"] = consistency,
+                    ["HA_INSECURE"] = "true",
+                    ["HA_RECORD_KEY"] = null
+                });
+            Assert.That(await process.WaitForExitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false), Is.True);
+            Assert.That(process.ExitCode, Is.EqualTo(1));
+            Assert.That(process.ContainsLine(expectedError), Is.True);
+            Assert.That(process.ContainsLine("WARNING: --auto-accept"), Is.False);
+            Assert.That(process.ContainsLine("WARNING: --security-none"), Is.False);
+            Assert.That(Directory.Exists(root), Is.False);
+        }
+
         [Test]
         public void BuildFastDemoAllocatesDistinctUdpPortsPerCall()
         {

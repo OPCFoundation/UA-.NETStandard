@@ -36,6 +36,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Alarms;
+using Opc.Ua.Server.Fluent;
 using Quickstarts.Servers;
 
 namespace Alarms
@@ -74,7 +75,7 @@ namespace Alarms
     /// <summary>
     /// A node manager for a server that exposes several variables.
     /// </summary>
-    public class AlarmNodeManager : AsyncCustomNodeManager
+    public class AlarmNodeManager : FluentNodeManagerBase
     {
         /// <summary>
         /// Initializes the node manager.
@@ -99,6 +100,12 @@ namespace Alarms
         {
             if (disposing)
             {
+                // The simulation lease owns the timer and releases it from
+                // DeleteAddressSpaceAsync, which MasterNodeManager.ShutdownAsync
+                // calls before disposing its managers. This stays as the backstop
+                // for the direct-construction path, where nothing deletes the
+                // address space first. DisposeTimer nulls the field, so running
+                // on both paths is harmless.
                 DisposeTimer();
                 m_suppressionEngine?.Dispose();
                 m_suppressionEngine = null;
@@ -106,23 +113,6 @@ namespace Alarms
                 m_logger.DisposedAlarmNodeManager();
             }
             base.Dispose(disposing);
-        }
-
-        /// <summary>
-        /// Creates the NodeId for the specified node.
-        /// </summary>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState instance &&
-                instance.Parent != null &&
-                instance.Parent.NodeId.TryGetValue(out string id))
-            {
-                return new NodeId(
-                    id + "_" + instance.SymbolicName,
-                    instance.Parent.NodeId.NamespaceIndex);
-            }
-
-            return node.NodeId;
         }
 
         /// <summary>
@@ -483,13 +473,55 @@ namespace Alarms
                 startBranchMethod = null;
                 endMethod = null;
 
-                StartTimer();
-                m_allowEntry = true;
             }
             catch (Exception e)
             {
                 m_logger.ErrorCreatingAddressSpace(e);
             }
+
+            // Deliberately outside the catch above. That catch swallows everything so a
+            // sample server still comes up with a partial address space, which is a
+            // reasonable trade for node construction and the wrong one for sealing: a
+            // swallowed seal failure would leave a manager that looks built but has
+            // activated none of its behaviors.
+            //
+            // The simulation timer is a resource with a lifetime, so it is attached as a
+            // manager-scoped behavior instead of being started by hand. Sealing activates
+            // it, and the lease returned here is what stops it again — released in
+            // reverse order with every other behavior when the address space is deleted,
+            // rather than depending on Dispose remembering to.
+            NodeManagerBuilder builder = CreateFluentBuilder(NamespaceIndex);
+            builder.Attach((_, _) =>
+            {
+                StartTimer();
+                m_allowEntry = true;
+                return new ValueTask<IAsyncDisposable?>(new SimulationLease(this));
+            });
+
+            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Owns the alarm simulation timer for as long as the address space lives.
+        /// </summary>
+        private sealed class SimulationLease : IAsyncDisposable
+        {
+            public SimulationLease(AlarmNodeManager owner)
+            {
+                m_owner = owner;
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                // Disposing the timer is the stop: no further callback is scheduled.
+                // m_allowEntry is not touched here — it is a reentrancy guard that every
+                // pass re-arms on its way out, so clearing it would neither stop a pass
+                // already running nor stay cleared.
+                m_owner.DisposeTimer();
+                return default;
+            }
+
+            private readonly AlarmNodeManager m_owner;
         }
 
         /// <summary>

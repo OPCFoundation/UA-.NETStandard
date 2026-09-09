@@ -160,7 +160,8 @@ jobs:
         if ($includeMac -and $relevantChanges) {
             $testOs += 'macOS-latest'
             $aotMatrix += @{ os = 'macos-15-intel'; rid = 'osx-x64'  }
-            $aotMatrix += @{ os = 'macos-latest'; rid = 'osx-arm64' }
+            # ARM64 NativeAOT hits Apple's "too many large addends" linker assertion.
+            # Re-enable macos-latest/osx-arm64 once dotnet/runtime#132171 ships; see #4443.
         }
         Write-Host "Event=$($env:EVENT_NAME); include_macos=$includeMac"
         Write-Host "test_os=$($testOs -join ', ')"
@@ -743,6 +744,12 @@ jobs:
 
     env:
       AOTPROJECT: './tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj'
+      # Companion NativeAOT test executable that hosts the distributed shared
+      # historian round-trip scenario. It is kept out of the monolithic
+      # Opc.Ua.Aot.Tests binary to bound the native linker's input. Every
+      # binary is published and run on every AOT platform.
+      AOTPROJECT_HISTORIAN: './tests/Opc.Ua.Aot.Tests.Historian/Opc.Ua.Aot.Tests.Historian.csproj'
+      AOTPROJECT_MCP: './tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj'
       DOTNET_VERSION: '10.0.x'
       CONFIGURATION: 'Release'
 
@@ -776,6 +783,24 @@ jobs:
         ./.azurepipelines/write-assurance-job.ps1 -Project 'tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj' `
           -ResultsPath '.assurance/native-proof.json' -Kind native-aot -OutputPath ./assurance/evidence.job.json `
           -Workflow '.github/workflows/buildandtest.yml'
+
+    - name: Publish and independently observe NativeAOT execution (Historian)
+      shell: pwsh
+      run: |
+        ./.azurepipelines/assurance-native.ps1 -Project '${{ env.AOTPROJECT_HISTORIAN }}' `
+          -RuntimeIdentifier '${{ matrix.rid }}' -Configuration '${{ env.CONFIGURATION }}' `
+          -WorkDirectory '.assurance/native-historian-${{github.run_id}}-${{github.run_attempt}}-${{matrix.rid}}' `
+          -OutputPath '.assurance/native-historian-proof.json'
+        exit $LASTEXITCODE
+
+    - name: Publish and independently observe NativeAOT execution (MCP)
+      shell: pwsh
+      run: |
+        ./.azurepipelines/assurance-native.ps1 -Project '${{ env.AOTPROJECT_MCP }}' `
+          -RuntimeIdentifier '${{ matrix.rid }}' -Configuration '${{ env.CONFIGURATION }}' `
+          -WorkDirectory '.assurance/native-mcp-${{github.run_id}}-${{github.run_attempt}}-${{matrix.rid}}' `
+          -OutputPath '.assurance/native-mcp-proof.json'
+        exit $LASTEXITCODE
 
     - name: Upload sanitized native proof
       if: ${{ always() }}

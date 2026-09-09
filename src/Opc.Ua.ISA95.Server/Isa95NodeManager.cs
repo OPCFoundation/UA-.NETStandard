@@ -69,30 +69,12 @@ namespace Opc.Ua.ISA95.Server
             m_configurators = configurators ?? [];
             m_options.Validate();
             RegisterEncodeables(server.Factory);
-            SystemContext.NodeIdFactory = this;
         }
 
         public FolderState? Root { get; private set; }
 
         public ushort InstanceNamespaceIndex =>
             (ushort)Server.NamespaceUris.GetIndex(m_options.InstanceNamespaceUri);
-
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (!node.NodeId.IsNull)
-            {
-                return node.NodeId;
-            }
-            if (node is BaseInstanceState instance && instance.Parent != null)
-            {
-                string parent = instance.Parent.NodeId.IdentifierAsString;
-                string name = instance.BrowseName.Name ?? instance.SymbolicName ?? "Node";
-                return new NodeId($"{parent}_{name}", InstanceNamespaceIndex);
-            }
-            return new NodeId(
-                $"ISA95_{Interlocked.Increment(ref m_nextNodeId)}",
-                InstanceNamespaceIndex);
-        }
 
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
             ISystemContext context,
@@ -125,11 +107,11 @@ namespace Opc.Ua.ISA95.Server
             await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
             await CompleteConfigureAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
-            builder.Seal();
+            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
             await ConfigureCommonModelAsync(Root, cancellationToken).ConfigureAwait(false);
-            ConfigureCatalogChanges();
+            await ConfigureCatalogChangesAsync(cancellationToken).ConfigureAwait(false);
             await RefreshJobOrderListsAsync(cancellationToken).ConfigureAwait(false);
-            ConfigureStatusEvents();
+            await ConfigureStatusEventsAsync(cancellationToken).ConfigureAwait(false);
         }
 
         public override async ValueTask DeleteAddressSpaceAsync(
@@ -1030,7 +1012,8 @@ namespace Opc.Ua.ISA95.Server
                     StringComparison.Ordinal);
         }
 
-        private void ConfigureStatusEvents()
+        private async ValueTask ConfigureStatusEventsAsync(
+            CancellationToken cancellationToken)
         {
             if (m_v2ResponseProvider == null || m_providers.JobStatusSourceV2 == null)
             {
@@ -1043,19 +1026,25 @@ namespace Opc.Ua.ISA95.Server
                 .Publish(
                     CreateStatusEventsAsync,
                     new EventPublishOptions { AlwaysOn = true });
-            builder.Seal();
+
+            // Sealing activates this pass's behaviors and completes the root-notifier
+            // registration the Publish above staged, so it has to be awaited.
+            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        private void ConfigureCatalogChanges()
+        private ValueTask ConfigureCatalogChangesAsync(
+            CancellationToken cancellationToken)
         {
+            _ = cancellationToken;
             if (m_providers.JobOrderCatalog == null ||
                 m_providers.JobOrderCatalogChangeSource == null)
             {
-                return;
+                return default;
             }
             m_catalogChangesTask = ProcessCatalogChangesAsync(
                 m_providers.JobOrderCatalogChangeSource,
                 m_catalogChangesCts.Token);
+            return default;
         }
 
         private void CancelCatalogChanges()
@@ -1303,7 +1292,6 @@ namespace Opc.Ua.ISA95.Server
         private int m_catalogChangesDisposed;
         private long m_jobOrderAppliedGeneration;
         private long m_jobOrderRefreshGeneration;
-        private long m_nextNodeId;
     }
 
     internal static partial class Isa95NodeManagerLog

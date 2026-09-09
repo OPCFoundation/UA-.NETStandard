@@ -44,11 +44,17 @@ using Opc.Ua.Server.Historian.InMemory;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies history dispatch results, timestamp rules, annotation operations, and single-use continuation paging.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
     public class HistorianDispatcherTests
     {
+        /// <summary>
+        /// Verifies that paged raw-history reads use continuation points only once.
+        /// </summary>
         [Test]
         public async Task PagedRawReadUsesSingleUseContinuationPointsAsync()
         {
@@ -129,6 +135,270 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(staleResult.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a continuation persistence failure is reported on the affected node.
+        /// </summary>
+        [Test]
+        public async Task ContinuationPersistenceFailureIsReturnedPerNodeAsync()
+        {
+            var continuationPoints = new Mock<ISessionContinuationPoints>();
+            continuationPoints
+                .Setup(points => points.SaveHistoryAsync(
+                    It.IsAny<IHistoryContinuationPoint>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(
+                    StatusCodes.BadUnexpectedError));
+            HarnessFixture h = new(continuationPoints.Object);
+            NodeId nodeId = h.SeedSamples(3);
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("PagedVar"),
+                AccessLevel = AccessLevels.HistoryRead,
+                Historizing = true
+            };
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext,
+                h.Provider,
+                variable,
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId
+                },
+                new ReadRawModifiedDetails
+                {
+                    StartTime = HarnessFixture.BaseTime,
+                    EndTime = HarnessFixture.BaseTime.AddMinutes(5),
+                    NumValuesPerNode = 1
+                },
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(
+                result.StatusCode,
+                Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that asynchronous release disposes a custom history continuation.
+        /// </summary>
+        [Test]
+        public async Task AsyncReleaseDisposesCustomHistoryContinuationAsync()
+        {
+            var id = Guid.NewGuid();
+            var continuation = new Mock<IHistoryContinuationPoint>();
+            continuation.SetupGet(point => point.Id).Returns(id);
+            var continuationPoints = new Mock<ISessionContinuationPoints>();
+            continuationPoints
+                .Setup(points => points.RestoreHistoryAsync(
+                    It.IsAny<ByteString>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IHistoryContinuationPoint?>(
+                    continuation.Object));
+            HarnessFixture h = new(continuationPoints.Object);
+
+            ServiceResult result = await HistorianDispatcher
+                .ReleaseContinuationPointAsync(
+                    h.SystemContext,
+                    new HistoryReadValueId
+                    {
+                        ContinuationPoint = ByteString.From(id.ToByteArray())
+                    },
+                    CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            continuation.Verify(point => point.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that open-ended annotation reads begin at the specified timestamp.
+        /// </summary>
+        [Test]
+        public async Task OpenEndedAnnotationReadStartsAtSpecifiedTimeAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            var nodeId = new NodeId("annotation-open-ended", 1);
+            h.Provider.Register(nodeId);
+            HistorianOperationContext context =
+                HarnessFixture.CreateContext(h.SystemContext);
+            await h.Provider.InsertAnnotationsAsync(
+                context,
+                nodeId,
+                [
+                    new Annotation
+                    {
+                        AnnotationTime = HarnessFixture.BaseTime.AddSeconds(-10),
+                        Message = "before"
+                    },
+                    new Annotation
+                    {
+                        AnnotationTime = HarnessFixture.BaseTime.AddSeconds(10),
+                        Message = "after"
+                    }
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher
+                .DispatchAnnotationReadAsync(
+                    h.SystemContext,
+                    h.Provider,
+                    new BaseDataVariableState(null)
+                    {
+                        NodeId = nodeId
+                    },
+                    new HistoryReadValueId
+                    {
+                        NodeId = new NodeId("Annotations", 1)
+                    },
+                    new ReadRawModifiedDetails
+                    {
+                        StartTime = HarnessFixture.BaseTime,
+                        EndTime = DateTimeUtc.MinValue,
+                        NumValuesPerNode = 1
+                    },
+                    TimestampsToReturn.Source,
+                    result,
+                    CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(
+                result.HistoryData.TryGetValue(out HistoryData? data),
+                Is.True);
+            Assert.That(data, Is.Not.Null);
+            Assert.That(data!.DataValues, Has.Count.EqualTo(1));
+            Assert.That(
+                data.DataValues[0].WrappedValue.TryGetValue(
+                    out ExtensionObject encoded),
+                Is.True);
+            Assert.That(encoded.TryGetValue(out Annotation? annotation), Is.True);
+            Assert.That(annotation, Is.Not.Null);
+            Assert.That(annotation!.Message, Is.EqualTo("after"));
+        }
+
+        /// <summary>
+        /// Verifies that open-ended event reads begin at the specified timestamp.
+        /// </summary>
+        [Test]
+        public async Task OpenEndedEventReadStartsAtSpecifiedTimeAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            var nodeId = new NodeId("event-open-ended", 1);
+            h.Provider.Register(
+                nodeId,
+                HistorianNodeCapabilities.EventReadWrite with
+                {
+                    EventTypes = [ObjectTypeIds.BaseEventType]
+                });
+            HistorianOperationContext context =
+                HarnessFixture.CreateContext(h.SystemContext);
+            await h.Provider.InsertEventsAsync(
+                context,
+                nodeId,
+                [
+                    CreateEventRecord(
+                        ByteString.From([1]),
+                        HarnessFixture.BaseTime.AddSeconds(-10),
+                        "before"),
+                    CreateEventRecord(
+                        ByteString.From([2]),
+                        HarnessFixture.BaseTime.AddSeconds(10),
+                        "after")
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+            var filter = new EventFilter();
+            filter.AddSelectClause(
+                ObjectTypeIds.BaseEventType,
+                BrowseNames.Message,
+                Attributes.Value);
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchEventReadAsync(
+                h.SystemContext,
+                h.Provider,
+                new BaseObjectState(null)
+                {
+                    NodeId = nodeId,
+                    EventNotifier = EventNotifiers.HistoryRead
+                },
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId
+                },
+                new ReadEventDetails
+                {
+                    StartTime = HarnessFixture.BaseTime,
+                    EndTime = DateTimeUtc.MinValue,
+                    NumValuesPerNode = 1,
+                    Filter = filter
+                },
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(
+                result.HistoryData.TryGetValue(out HistoryEvent? historyEvent),
+                Is.True);
+            Assert.That(historyEvent, Is.Not.Null);
+            Assert.That(historyEvent!.Events, Has.Count.EqualTo(1));
+            Assert.That(
+                historyEvent.Events[0].EventFields[0].TryGetValue(
+                    out LocalizedText message),
+                Is.True);
+            Assert.That(message.Text, Is.EqualTo("after"));
+        }
+
+        /// <summary>
+        /// Verifies that requesting unsupported server timestamps produces BadTimestampNotSupported on the node result.
+        /// </summary>
+        [Test]
+        public async Task UnsupportedServerTimestampReturnsRequiredStatusAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            var nodeId = new NodeId("source-timestamps-only", 1);
+            h.Provider.Register(
+                nodeId,
+                HistorianNodeCapabilities.ReadOnly with
+                {
+                    ServerTimestampSupported = false
+                });
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchRawReadAsync(
+                h.SystemContext,
+                h.Provider,
+                new BaseDataVariableState(null)
+                {
+                    NodeId = nodeId
+                },
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId
+                },
+                new ReadRawModifiedDetails
+                {
+                    StartTime = HarnessFixture.BaseTime,
+                    EndTime = HarnessFixture.BaseTime.AddMinutes(1)
+                },
+                TimestampsToReturn.Both,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(
+                result.StatusCode,
+                Is.EqualTo(StatusCodes.BadTimestampNotSupported));
+        }
+
+        /// <summary>
+        /// Verifies that a raw-history request with one specified time selects the required read direction.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public async Task RawReadWithOneSpecifiedTimeUsesRequiredDirectionAsync(bool startOnly)
@@ -179,6 +449,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that equal-time raw-history reads with bounds return the exact value and end bound.
+        /// </summary>
         [TestCase(1, 1)]
         [TestCase(2, 2)]
         public async Task EqualTimeRawReadWithBoundsReturnsExactAndEndBoundAsync(
@@ -230,6 +503,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that one-sided bounded reads add a missing-bound marker after archive exhaustion.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public async Task OneSidedRawReadWithBoundsAddsMissingBoundaryWhenArchiveIsExhaustedAsync(
@@ -279,6 +555,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that modified-history reads reject ReturnBounds with BadInvalidArgument.
+        /// </summary>
         [Test]
         public async Task ModifiedReadWithReturnBoundsReturnsBadInvalidArgumentAsync()
         {
@@ -320,6 +599,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a nonfinal raw-history page returns Good status and a continuation point.
+        /// </summary>
         [Test]
         public async Task RawReadWithMoreDataReturnsGoodStatusAndContinuationPointAsync()
         {
@@ -368,6 +650,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 "A read with more data available must return a ContinuationPoint.");
         }
 
+        /// <summary>
+        /// Verifies that raw-history reads over an empty interval return GoodNoData.
+        /// </summary>
         [Test]
         public async Task RawReadOfEmptyIntervalReturnsGoodNoDataAsync()
         {
@@ -417,6 +702,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a raw-history index range on a scalar returns BadIndexRangeNoData.
+        /// </summary>
         [Test]
         public async Task RawReadWithIndexRangeOnScalarReturnsBadIndexRangeNoDataAsync()
         {
@@ -467,6 +755,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that an unknown raw-history continuation returns BadContinuationPointInvalid.
+        /// </summary>
         [Test]
         public async Task RawReadWithUnknownContinuationPointReturnsBadContinuationPointInvalidAsync()
         {
@@ -514,6 +805,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
         }
 
+        /// <summary>
+        /// Verifies that the final raw-history page does not expose a continuation point.
+        /// </summary>
         [Test]
         public async Task PagedRawReadFinalPageHasNoContinuationPointAsync()
         {
@@ -583,12 +877,16 @@ namespace Opc.Ua.Server.Tests.Historian
                 "The final page of a paged raw read must not return a ContinuationPoint.");
         }
 
+        /// <summary>
+        /// Verifies that annotation update dispatch inserts and deletes annotations.
+        /// </summary>
         [Test]
         public async Task AnnotationUpdateDispatchInsertsAndDeletesAsync()
         {
             HarnessFixture h = CreateHarness();
             var parentNodeId = new NodeId("parent.var", 1);
             h.Provider.Register(parentNodeId);
+            h.Provider.SetCapabilities(parentNodeId, HistorianNodeCapabilities.ReadWrite);
 
             var parent = new BaseDataVariableState(null)
             {
@@ -654,6 +952,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(StatusCode.IsGood(removeResult.OperationResults[0]), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that annotation read dispatch returns stored annotations.
+        /// </summary>
         [Test]
         public async Task AnnotationReadDispatchReturnsAnnotationsAsync()
         {
@@ -721,25 +1022,47 @@ namespace Opc.Ua.Server.Tests.Historian
             return new HarnessFixture();
         }
 
+        private static HistorianEventRecord CreateEventRecord(
+            ByteString eventId,
+            DateTimeUtc timestamp,
+            string message)
+        {
+            return new HistorianEventRecord(
+                eventId,
+                ObjectTypeIds.BaseEventType,
+                timestamp,
+                new Dictionary<string, Variant>(StringComparer.Ordinal)
+                {
+                    [BrowseNames.EventId] = new Variant(eventId),
+                    [BrowseNames.EventType] = new Variant(
+                        ObjectTypeIds.BaseEventType),
+                    [BrowseNames.Time] = new Variant(timestamp),
+                    [BrowseNames.Message] = new Variant(
+                        new LocalizedText(message))
+                }.ToArrayOf());
+        }
+
         private sealed class HarnessFixture
         {
             public static readonly DateTime BaseTime = new(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-            public HarnessFixture()
+            public HarnessFixture(
+                ISessionContinuationPoints? continuationPoints = null)
             {
                 Provider = new InMemoryHistorianProvider();
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
-                m_continuationStore = [];
 
                 var mockSession = new Mock<ISession>();
 
                 // The real holder, not a stand-in dictionary: the dispatcher then meets the
                 // same eviction and disposal rules a live session applies.
-                var continuationPoints = new SessionContinuationPoints(
-                    () => NodeId.Null, maxBrowse: 10, maxHistory: 10, store: null);
+                continuationPoints ??= new SessionContinuationPoints(
+                    () => NodeId.Null,
+                    maxBrowse: 10,
+                    maxHistory: 10,
+                    store: null);
                 mockSession.Setup(s => s.ContinuationPoints).Returns(continuationPoints);
-
 
                 var mockServer = new Mock<IServerInternal>();
                 mockServer.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
@@ -788,8 +1111,6 @@ namespace Opc.Ua.Server.Tests.Historian
                     null,
                     HistoryUpdateType.Insert);
             }
-
-            private readonly Dictionary<Guid, IHistoryContinuationPoint> m_continuationStore;
         }
     }
 }
