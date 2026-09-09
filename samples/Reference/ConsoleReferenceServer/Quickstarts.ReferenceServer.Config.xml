@@ -264,9 +264,9 @@
     <MaxQueryContinuationPoints>10</MaxQueryContinuationPoints>
     <MaxHistoryContinuationPoints>100</MaxHistoryContinuationPoints>
     <MaxRequestAge>600000</MaxRequestAge>
-    <MinPublishingInterval>50</MinPublishingInterval>
+    <MinPublishingInterval>1</MinPublishingInterval>
     <MaxPublishingInterval>3600000</MaxPublishingInterval>
-    <PublishingResolution>50</PublishingResolution>
+    <PublishingResolution>1</PublishingResolution>
     <MaxSubscriptionLifetime>3600000</MaxSubscriptionLifetime>
     <MaxMessageQueueSize>100</MaxMessageQueueSize>
     <MaxNotificationQueueSize>100</MaxNotificationQueueSize>
@@ -277,9 +277,14 @@
     <MinSupportedSamplingInterval>0</MinSupportedSamplingInterval>
     <AvailableSamplingRates>
       <SamplingRateGroup>
-        <Start>5</Start>
-        <Increment>5</Increment>
-        <Count>20</Count>
+        <Start>1</Start>
+        <Increment>1</Increment>
+        <Count>10</Count>
+      </SamplingRateGroup>
+      <SamplingRateGroup>
+        <Start>10</Start>
+        <Increment>10</Increment>
+        <Count>9</Count>
       </SamplingRateGroup>
       <SamplingRateGroup>
         <Start>100</Start>
