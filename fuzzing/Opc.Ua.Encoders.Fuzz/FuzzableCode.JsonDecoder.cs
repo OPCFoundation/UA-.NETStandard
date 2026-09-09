@@ -473,6 +473,12 @@ namespace Opc.Ua.Fuzzing
                     options);
             }
 
+            if (left is QualifiedName leftQualifiedName &&
+                right is QualifiedName rightQualifiedName)
+            {
+                return IsJsonEquivalentQualifiedName(leftQualifiedName, rightQualifiedName);
+            }
+
             if (IsArrayOf(type))
             {
                 return IsJsonEquivalentArrayOf(left, right, type, seen, options);
@@ -576,6 +582,11 @@ namespace Opc.Ua.Fuzzing
             return left.TryGetValue(out IEncodeable leftEncodeable) &&
                 right.TryGetValue(out IEncodeable rightEncodeable) &&
                 IsJsonEquivalent(leftEncodeable, rightEncodeable, seen, options);
+        }
+
+        private static bool IsJsonEquivalentQualifiedName(QualifiedName left, QualifiedName right)
+        {
+            return left.Equals(right) || (left.IsNull && right.IsNull);
         }
 
         private static bool HasJsonUnencodableArrayOf(

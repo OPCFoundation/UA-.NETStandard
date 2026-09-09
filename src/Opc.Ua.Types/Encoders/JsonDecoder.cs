@@ -1494,7 +1494,7 @@ namespace Opc.Ua
                         {
                             symbolicId = -1;
                         }
-                        else if (!TryGetInt32FromElement(elem, out symbolicId))
+                        else if (!TryGetDiagnosticInfoIndexFromElement(elem, out symbolicId))
                         {
                             goto default;
                         }
@@ -1504,7 +1504,7 @@ namespace Opc.Ua
                         {
                             namespaceUri = -1;
                         }
-                        else if (!TryGetInt32FromElement(elem, out namespaceUri))
+                        else if (!TryGetDiagnosticInfoIndexFromElement(elem, out namespaceUri))
                         {
                             goto default;
                         }
@@ -1514,7 +1514,7 @@ namespace Opc.Ua
                         {
                             locale = -1;
                         }
-                        else if (!TryGetInt32FromElement(elem, out locale))
+                        else if (!TryGetDiagnosticInfoIndexFromElement(elem, out locale))
                         {
                             goto default;
                         }
@@ -1524,7 +1524,7 @@ namespace Opc.Ua
                         {
                             localizedText = -1;
                         }
-                        else if (!TryGetInt32FromElement(elem, out localizedText))
+                        else if (!TryGetDiagnosticInfoIndexFromElement(elem, out localizedText))
                         {
                             goto default;
                         }
@@ -2319,6 +2319,17 @@ namespace Opc.Ua
                 return true;
             }
             values = default;
+            return false;
+        }
+
+        private bool TryGetDiagnosticInfoIndexFromElement(JsonElement element, out int value)
+        {
+            if (TryGetInt32FromElement(element, out value) && value >= -1)
+            {
+                return true;
+            }
+
+            value = -1;
             return false;
         }
 

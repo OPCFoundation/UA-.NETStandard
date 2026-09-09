@@ -2086,22 +2086,22 @@ namespace Opc.Ua
                 // read the fields of the diagnostic info structure.
                 if ((encodingByte & (byte)DiagnosticInfoEncodingBits.SymbolicId) != 0)
                 {
-                    value.SymbolicId = SafeReadInt32();
+                    value.SymbolicId = ReadDiagnosticInfoIndex(nameof(DiagnosticInfo.SymbolicId));
                 }
 
                 if ((encodingByte & (byte)DiagnosticInfoEncodingBits.NamespaceUri) != 0)
                 {
-                    value.NamespaceUri = SafeReadInt32();
+                    value.NamespaceUri = ReadDiagnosticInfoIndex(nameof(DiagnosticInfo.NamespaceUri));
                 }
 
                 if ((encodingByte & (byte)DiagnosticInfoEncodingBits.Locale) != 0)
                 {
-                    value.Locale = SafeReadInt32();
+                    value.Locale = ReadDiagnosticInfoIndex(nameof(DiagnosticInfo.Locale));
                 }
 
                 if ((encodingByte & (byte)DiagnosticInfoEncodingBits.LocalizedText) != 0)
                 {
-                    value.LocalizedText = SafeReadInt32();
+                    value.LocalizedText = ReadDiagnosticInfoIndex(nameof(DiagnosticInfo.LocalizedText));
                 }
 
                 if ((encodingByte & (byte)DiagnosticInfoEncodingBits.AdditionalInfo) != 0)
@@ -2126,6 +2126,21 @@ namespace Opc.Ua
             {
                 m_nestingLevel--;
             }
+        }
+
+        private int ReadDiagnosticInfoIndex(string fieldName)
+        {
+            int value = SafeReadInt32();
+            if (value < -1)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "The DiagnosticInfo {0} index is invalid: {1}.",
+                    fieldName,
+                    value);
+            }
+
+            return value;
         }
 
         /// <summary>

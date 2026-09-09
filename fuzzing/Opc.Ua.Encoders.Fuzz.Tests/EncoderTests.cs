@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using NUnit.Framework;
 
 namespace Opc.Ua.Fuzzing
@@ -64,6 +65,20 @@ namespace Opc.Ua.Fuzzing
                 ArrayDimensions = default
             };
 
+            Assert.DoesNotThrow(
+                () => FuzzableCode.FuzzJsonRoundTripCore(node, JsonEncoderOptions.Verbose));
+        }
+
+        [Test]
+        public void JsonSemanticOracleAllowsNullQualifiedNameCanonicalization()
+        {
+            var node = new VariableNode
+            {
+                BrowseName = new QualifiedName(string.Empty)
+            };
+
+            Assert.That(node.BrowseName.IsNull, Is.True);
+            Assert.That(node.BrowseName.Equals(QualifiedName.Null), Is.False);
             Assert.DoesNotThrow(
                 () => FuzzableCode.FuzzJsonRoundTripCore(node, JsonEncoderOptions.Verbose));
         }
@@ -107,6 +122,27 @@ namespace Opc.Ua.Fuzzing
 
             Assert.DoesNotThrow(
                 () => FuzzableCode.FuzzJsonRoundTripCore(response, JsonEncoderOptions.Verbose));
+        }
+
+        [Test]
+        public void BinaryJsonEncoderCrashAssetRejectsInvalidDiagnosticInfoIndex()
+        {
+            string path = Path.Combine(
+                AppContext.BaseDirectory,
+                "Assets",
+                "crash-b80bc430b8d713aaa78b02877f62c2aa8bb30dbc");
+            byte[] input = File.ReadAllBytes(path);
+
+            ServiceResultException ex;
+            using (var stream = new MemoryStream(input, writable: false))
+            {
+                ex = Assert.Throws<ServiceResultException>(
+                    () => FuzzableCode.FuzzBinaryDecoderCore(stream, throwAll: true));
+            }
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.Message, Does.Contain(nameof(DiagnosticInfo.NamespaceUri)));
+            Assert.DoesNotThrow(() => FuzzableCode.LibfuzzBinaryJsonEncoderCompact(input));
         }
 
         [TestCase(typeof(ReadRequest))]

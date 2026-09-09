@@ -552,6 +552,32 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.Null);
         }
 
+        [TestCase(nameof(DiagnosticInfo.SymbolicId))]
+        [TestCase(nameof(DiagnosticInfo.NamespaceUri))]
+        [TestCase(nameof(DiagnosticInfo.Locale))]
+        [TestCase(nameof(DiagnosticInfo.LocalizedText))]
+        public void ReadDiagnosticInfoWithInvalidNegativeStringTableIndexReturnsNull(string fieldName)
+        {
+            using JsonDecoder reader = NewDecoder(Body($$"""{ "{{fieldName}}": -2 }"""));
+            DiagnosticInfo result = reader.ReadDiagnosticInfo(JsonProperties.Value);
+
+            Assert.That(result, Is.Null);
+        }
+
+        [TestCase(nameof(DiagnosticInfo.SymbolicId))]
+        [TestCase(nameof(DiagnosticInfo.NamespaceUri))]
+        [TestCase(nameof(DiagnosticInfo.Locale))]
+        [TestCase(nameof(DiagnosticInfo.LocalizedText))]
+        public void ReadDiagnosticInfoWithInvalidNegativeStringTableIndexThrowsWhenStrict(string fieldName)
+        {
+            using JsonDecoder reader = NewDecoder(Body($$"""{ "{{fieldName}}": -2 }"""), strict: true);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => reader.ReadDiagnosticInfo(JsonProperties.Value));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
         [Test]
         public void ReadDoubleArrayWithBadStringValue()
         {
