@@ -161,10 +161,10 @@ become the owning model merely because it occurs first.
 | `uav:decimalPlaces` (Section 6.4) | **Default** / **Fails** | Absent: no rounding is recorded. Malformed (not an integer greater than or equal to zero; `2.0` is rejected as a non-integer literal): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
 | `titles` / `descriptions` (Section 9.1.1) | **Default** / **Fails** | Absent: the singular member materializes one `LocalizedText` using its effective language. Present: every plural entry is authoritative. The singular member repeats the default-locale entry when present; otherwise it repeats the code-point-first language entry and uses a node-local language-neutral override. A missing default locale is valid. A missing singular member, an inconsistent fallback, or an incorrectly language-tagged fallback produces `InvalidLocalizedText`. |
 | `uav:semanticId` (Section 6.7) | **Default** / **Fails** | Absent: no semantic reference is recorded. Malformed (not an absolute IRI with a scheme): `NonAbsoluteIri` error. Present and valid: preserved via residue. |
-| `uav:metadata` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque; carried verbatim through residue, never validated and never a reason to reject the document (Section 6.7). |
-| `uav:propertyConfiguration` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque per-affordance configuration; carried verbatim through residue and never validated. |
-| `uav:actionConfiguration` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque per-affordance configuration; carried verbatim through residue and never validated. |
-| `uav:eventConfiguration` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque per-affordance configuration; carried verbatim through residue and never validated. |
+| `uav:metadata` (Section 6.7) | **Default** / **Fails** | Absent: nothing is recorded. Present: retained through residue, subject to the [opaque-object bounds](#opaque-object-bounds). |
+| `uav:propertyConfiguration` (Section 6.7) | **Default** / **Fails** | Absent: nothing is recorded. Present: opaque per-affordance configuration subject to the [opaque-object bounds](#opaque-object-bounds). |
+| `uav:actionConfiguration` (Section 6.7) | **Default** / **Fails** | Absent: nothing is recorded. Present: opaque per-affordance configuration subject to the [opaque-object bounds](#opaque-object-bounds). |
+| `uav:eventConfiguration` (Section 6.7) | **Default** / **Fails** | Absent: nothing is recorded. Present: opaque per-affordance configuration subject to the [opaque-object bounds](#opaque-object-bounds). |
 | `uav:includeInherited` (Section 6.8) | **Default** / **Fails** | Absent: no inheritance-span flag is recorded. Malformed (non-boolean): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
 | `uav:additionalProperties` (Section 6.8) | **Default** / **Fails** | Absent: no open-content flag is recorded. Malformed (non-boolean): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
 | `uav:browsePathAnchor` (Section 5.1.4) | **Default** / **Fails** | Absent: a relative `uav:browsePath` resolves against the nearest enclosing `uav:id`. Malformed (not an ExpandedNodeId): `ValidationError` error; the session-local `ns=<index>` form is reported `NonPortableIdentity` (an error unless `AllowNonPortableIdentifiers` is set). Present and valid: preserved via residue. |
@@ -549,19 +549,24 @@ handles them in one direction with full round-trip fidelity:
   that also carries `uav:browseName` round-trips under that browse name's
   local part rather than its original map key.
 
-The opaque terms `uav:metadata`, `uav:propertyConfiguration`,
-`uav:actionConfiguration` and `uav:eventConfiguration` are never read and
-never cause rejection; they are carried verbatim. Their **shape** is
-checked, because a consumer that must carry a value unchanged and must
-not reject it is otherwise obliged to carry an unbounded, unattributable
-value (Section 6.6): every top-level key is an absolute IRI or a compact
-IRI whose prefix the document's `@context` binds, and the object stays
-within 65 536 octets in the **compact received form** of Annex G.4 (see
+### Opaque-object bounds
+
+Structural validation of `uav:metadata`, `uav:propertyConfiguration`,
+`uav:actionConfiguration` and `uav:eventConfiguration` checks the object
+shape and its limits, separately from their business values. Each object stays
+within 65 536 UTF-8 octets in the **compact received form** of Annex G.4 (see
 [Preservation digests and the two things that can be measured](#preservation-digests-and-the-two-things-that-can-be-measured)),
-32 levels of nesting and 256 top-level keys. Revision 1.0 stated no key
-rule, so a document whose keys are not namespaced is **preserved** and
-reported as deprecated rather than rejected; strict conformance (below)
-turns the same finding into an error.
+32 nested containers and 256 top-level keys. The outer object counts as one
+container; each nested object or array adds a level, while scalar leaves add none.
+Exact limits are accepted. Shape or limit violations are errors in every
+consumer mode and vocabulary revision, including unknown revisions.
+
+Authored top-level keys name their owner with an absolute IRI or a compact IRI
+whose prefix the document's `@context` binds. Revision 1.0 stated no key rule:
+consumers preserve legacy keys and report a warning, even with strict conformance.
+`AuthoringValidation = true`, rather than consumer strictness, makes the
+deprecated key spelling an error. That compatibility allowance never relaxes
+the structural bounds.
 
 ## Conformance claims and strict mode (Sections 4.1, 6.1, 6.6 and 11)
 

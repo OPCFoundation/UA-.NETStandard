@@ -623,11 +623,11 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void UnnamespacedOpaqueKeyWarnsPermissivelyAndFailsStrictly()
+        public void UnnamespacedOpaqueKeyWarnsForConsumersAndFailsAuthoring()
         {
             WotConversionResult<UANodeSet> permissive = Convert("\"uav:metadata\":{\"revision\":3}");
-            WotConversionResult<UANodeSet> strict =
-                Convert("\"uav:metadata\":{\"revision\":3}", Strict());
+            WotConversionResult<UANodeSet> authoring =
+                Convert("\"uav:metadata\":{\"revision\":3}", Authoring());
 
             Assert.Multiple(() =>
             {
@@ -639,11 +639,11 @@ namespace Opc.Ua.Types.Tests.Wot
                     Is.True,
                     Describe(permissive));
                 Assert.That(
-                    strict.Diagnostics.Any(d =>
+                    authoring.Diagnostics.Any(d =>
                         d.Code == WotDiagnosticCode.OpaqueObjectInvalid &&
                         d.Severity == WotDiagnosticSeverity.Error),
                     Is.True,
-                    Describe(strict));
+                    Describe(authoring));
             });
         }
 
