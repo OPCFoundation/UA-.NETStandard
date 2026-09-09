@@ -356,6 +356,15 @@ implementation keeps them apart. Two of them are digests; the third is a size.
   bytes measure the same number. The depth and key-count bounds are measured
   over the parsed value, where formatting cannot matter.
 
+When rebuilding a document, opaque residue values are written from their retained
+raw JSON after normal residue conflict checks. This preserves member-name and
+string escapes, number spellings, member and array order, and whitespace inside
+each value. Equal JSON values at different locations keep their own spellings,
+including values carried through arrays or attached to regenerated links.
+The surrounding document may be formatted independently. Combined document-depth
+limits still apply, and another residue entry cannot be silently hidden by a raw
+value. These guarantees apply whether or not a native preservation envelope is requested.
+
 ### Unmapped reference vocabulary is residue
 
 The Binding vocabulary does not define `uav:capability`,

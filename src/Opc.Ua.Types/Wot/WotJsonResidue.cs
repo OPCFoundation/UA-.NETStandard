@@ -66,6 +66,8 @@ namespace Opc.Ua.Wot
             public string? LinkRefName { get; init; }
         }
 
+        private readonly record struct RawValue(string Json, JsonNode Snapshot);
+
         public static void Replace(
             UANodeSet nodeSet,
             WotDocument document,
@@ -225,6 +227,7 @@ namespace Opc.Ua.Wot
                 return generatedJson;
             }
 
+            var rawValues = new Dictionary<JsonNode, RawValue>();
             foreach (Entry entry in entries)
             {
                 JsonNode? value;
@@ -257,52 +260,31 @@ namespace Opc.Ua.Wot
                         WotLocation.FromPointer(entry.Pointer)));
                     continue;
                 }
-                if (entry.LinkRel is not null)
-                {
-                    ApplyLinkEntry(root, entry, value, diagnostics);
-                }
-                else
-                {
-                    ApplyEntry(root, entry.Pointer, value, diagnostics);
-                }
+                JsonNode? applied = entry.LinkRel is not null
+                    ? ApplyLinkEntry(root, entry, value, diagnostics)
+                    : ApplyEntry(root, entry.Pointer, value, diagnostics);
+                using JsonDocument original = JsonDocument.Parse(
+                    entry.Json, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
+                bool opaque = WotBindingConformance.OpaqueMembers.Contains(ParsePointer(entry.Pointer)[^1]) ||
+                    (entry.Pointer == "/uav:nodes" &&
+                        WotNativeProjection.HasUnsupportedProfile(original.RootElement));
+                CaptureRawValues(applied, value, original.RootElement, opaque, rawValues);
             }
 
             try
             {
-                byte[] json = Encoding.UTF8.GetBytes(root.ToJsonString(
-                    new JsonSerializerOptions
-                    {
-                        WriteIndented = true,
-                        MaxDepth = options.MaxJsonDepth
-                    }));
-                Entry? native = entries.Find(entry => entry.Pointer == "/uav:nodes");
-                if (native is null)
-                {
-                    return json;
-                }
-                using JsonDocument parsed = JsonDocument.Parse(
-                    json, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
                 using var output = new MemoryStream();
-                using (var writer = new Utf8JsonWriter(output))
+                using (var writer = new Utf8JsonWriter(output, new JsonWriterOptions
                 {
-                    writer.WriteStartObject();
-                    foreach (JsonProperty property in parsed.RootElement.EnumerateObject())
-                    {
-                        if (property.NameEquals("uav:nodes") &&
-                            WotNativeProjection.HasUnsupportedProfile(property.Value))
-                        {
-                            writer.WritePropertyName(property.Name);
-                            // Entry parsing above already enforces the configured JSON depth.
-                            writer.WriteRawValue(native.Json, skipInputValidation: true);
-                        }
-                        else
-                        {
-                            property.WriteTo(writer);
-                        }
-                    }
-                    writer.WriteEndObject();
+                    Indented = true
+                }))
+                {
+                    WriteWithRawValues(writer, root, string.Empty, rawValues, diagnostics);
                 }
-                return output.ToArray();
+                byte[] json = output.ToArray();
+                using JsonDocument validated = JsonDocument.Parse(
+                    json, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
+                return json;
             }
             catch (Exception ex) when (ex is JsonException or InvalidOperationException)
             {
@@ -311,6 +293,104 @@ namespace Opc.Ua.Wot
                     WotDiagnosticCode.ResidueInvalid,
                     $"The WoT residue exceeds the configured JSON depth: {ex.Message}"));
                 return generatedJson;
+            }
+        }
+
+        private static void CaptureRawValues(
+            JsonNode? target,
+            JsonNode? source,
+            JsonElement original,
+            bool opaque,
+            Dictionary<JsonNode, RawValue> rawValues)
+        {
+            if (target is null || source is null)
+            {
+                return;
+            }
+            if (opaque)
+            {
+                if (JsonEquals(target, source))
+                {
+                    rawValues[target] = new RawValue(original.GetRawText(), target.DeepClone());
+                }
+                return;
+            }
+            if (original.ValueKind == JsonValueKind.Object && target is JsonObject targetObject &&
+                source is JsonObject sourceObject)
+            {
+                foreach (JsonProperty property in original.EnumerateObject())
+                {
+                    CaptureRawValues(
+                        targetObject[property.Name], sourceObject[property.Name], property.Value,
+                        WotBindingConformance.OpaqueMembers.Contains(property.Name), rawValues);
+                }
+            }
+            else if (original.ValueKind == JsonValueKind.Array && target is JsonArray targetArray &&
+                source is JsonArray sourceArray)
+            {
+                int index = 0;
+                foreach (JsonElement item in original.EnumerateArray())
+                {
+                    if (index >= targetArray.Count || index >= sourceArray.Count)
+                    {
+                        break;
+                    }
+                    CaptureRawValues(targetArray[index], sourceArray[index], item, false, rawValues);
+                    index++;
+                }
+            }
+        }
+
+        private static void WriteWithRawValues(
+            Utf8JsonWriter writer,
+            JsonNode? node,
+            string pointer,
+            Dictionary<JsonNode, RawValue> rawValues,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (node is null)
+            {
+                writer.WriteNullValue();
+                return;
+            }
+            if (rawValues.TryGetValue(node, out RawValue raw))
+            {
+                if (JsonNode.DeepEquals(node, raw.Snapshot))
+                {
+                    // The complete output is parsed below to enforce combined nesting depth.
+                    writer.WriteRawValue(raw.Json, skipInputValidation: true);
+                    return;
+                }
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ResidueConflict,
+                    "An opaque residue value was changed by another residue entry.",
+                    WotLocation.FromPointer(pointer)));
+            }
+            if (node is JsonObject objectValue)
+            {
+                writer.WriteStartObject();
+                foreach (KeyValuePair<string, JsonNode?> property in objectValue)
+                {
+                    writer.WritePropertyName(property.Key);
+                    WriteWithRawValues(writer, property.Value, pointer + "/" + Escape(property.Key),
+                        rawValues, diagnostics);
+                }
+                writer.WriteEndObject();
+            }
+            else if (node is JsonArray array)
+            {
+                writer.WriteStartArray();
+                for (int index = 0; index < array.Count; index++)
+                {
+                    WriteWithRawValues(writer, array[index],
+                        pointer + "/" + index.ToString(CultureInfo.InvariantCulture), rawValues, diagnostics);
+                }
+                writer.WriteEndArray();
+            }
+            else
+            {
+                node.WriteTo(writer);
             }
         }
 
@@ -971,7 +1051,7 @@ namespace Opc.Ua.Wot
                     }
                     hasExtras = true;
                     writer.WritePropertyName(property.Name);
-                    property.Value.WriteTo(writer);
+                    writer.WriteRawValue(property.Value.GetRawText(), skipInputValidation: true);
                 }
                 writer.WriteEndObject();
             }
@@ -1349,7 +1429,7 @@ namespace Opc.Ua.Wot
                     StringComparison.Ordinal);
         }
 
-        private static void ApplyEntry(
+        private static JsonNode? ApplyEntry(
             JsonNode root,
             string pointer,
             JsonNode? value,
@@ -1368,7 +1448,7 @@ namespace Opc.Ua.Wot
                     WotDiagnosticCode.ResidueInvalid,
                     "The document root cannot be a residue target.",
                     WotLocation.FromPointer(pointer)));
-                return;
+                return null;
             }
 
             JsonNode current = root;
@@ -1405,7 +1485,7 @@ namespace Opc.Ua.Wot
                         WotDiagnosticCode.ResidueInvalid,
                         $"Residue parent '{pointer}' does not resolve.",
                         WotLocation.FromPointer(pointer)));
-                    return;
+                    return null;
                 }
             }
 
@@ -1418,7 +1498,7 @@ namespace Opc.Ua.Wot
                             tokens[0] is "properties" or "actions" or "events")))
                 {
                     ApplyTypeAnnotations(targetObject, value, pointer, diagnostics);
-                    return;
+                    return targetObject[leaf];
                 }
                 JsonNode? existing = targetObject[leaf];
                 if (existing is not null)
@@ -1431,7 +1511,7 @@ namespace Opc.Ua.Wot
                         // disagreeing with it (WoT Binding Sections 4.1 and
                         // 10.2).
                         targetObject[leaf] = value;
-                        return;
+                        return value;
                     }
                     if (!JsonEquals(existing, value))
                     {
@@ -1441,18 +1521,19 @@ namespace Opc.Ua.Wot
                             $"Residue at '{pointer}' conflicts with a value " +
                             "reconstructed from OPC UA model facts.",
                             WotLocation.FromPointer(pointer)));
+                        return null;
                     }
-                    return;
+                    return existing;
                 }
                 targetObject[leaf] = value;
-                return;
+                return value;
             }
             if (current is JsonArray targetArray)
             {
                 if (string.Equals(leaf, "-", StringComparison.Ordinal))
                 {
                     targetArray.Add(value);
-                    return;
+                    return value;
                 }
                 if (int.TryParse(
                     leaf,
@@ -1477,8 +1558,9 @@ namespace Opc.Ua.Wot
                             WotDiagnosticCode.ResidueConflict,
                             $"Residue at '{pointer}' conflicts with an existing array item.",
                             WotLocation.FromPointer(pointer)));
+                        return null;
                     }
-                    return;
+                    return targetArray[index];
                 }
             }
             diagnostics.Add(new WotDiagnostic(
@@ -1486,6 +1568,7 @@ namespace Opc.Ua.Wot
                 WotDiagnosticCode.ResidueInvalid,
                 $"Residue target '{pointer}' is invalid.",
                 WotLocation.FromPointer(pointer)));
+            return null;
         }
 
         private static void ApplyTypeAnnotations(
@@ -1604,7 +1687,7 @@ namespace Opc.Ua.Wot
                 '/', prefix.Length, pointer.Length - prefix.Length - suffix.Length) < 0;
         }
 
-        private static void ApplyLinkEntry(
+        private static JsonObject? ApplyLinkEntry(
             JsonNode root,
             Entry entry,
             JsonNode? value,
@@ -1617,7 +1700,7 @@ namespace Opc.Ua.Wot
                     WotDiagnosticCode.ResidueInvalid,
                     "A link residue selector requires an object value.",
                     WotLocation.FromPointer(entry.Pointer)));
-                return;
+                return null;
             }
 
             string[] tokens = ParsePointer(entry.Pointer);
@@ -1628,7 +1711,7 @@ namespace Opc.Ua.Wot
                     WotDiagnosticCode.ResidueInvalid,
                     "A link residue selector must address a links array.",
                     WotLocation.FromPointer(entry.Pointer)));
-                return;
+                return null;
             }
             JsonNode owner = rootObject;
             for (int index = 0; index < tokens.Length - 2; index++)
@@ -1640,7 +1723,7 @@ namespace Opc.Ua.Wot
                         WotDiagnosticCode.ResidueInvalid,
                         "The owning node of a link residue selector does not exist.",
                         WotLocation.FromPointer(entry.Pointer)));
-                    return;
+                    return null;
                 }
                 owner = child;
             }
@@ -1651,7 +1734,7 @@ namespace Opc.Ua.Wot
                     WotDiagnosticCode.ResidueInvalid,
                     "A link residue selector requires an object owner.",
                     WotLocation.FromPointer(entry.Pointer)));
-                return;
+                return null;
             }
 
             JsonArray links;
@@ -1671,7 +1754,7 @@ namespace Opc.Ua.Wot
                     WotDiagnosticCode.ResidueConflict,
                     "Link residue conflicts with a non-array links member.",
                     WotLocation.FromPointer(entry.Pointer.Substring(0, entry.Pointer.Length - 2))));
-                return;
+                return null;
             }
 
             JsonObject? target = FindLink(links, entry, requireExactRel: true);
@@ -1725,6 +1808,7 @@ namespace Opc.Ua.Wot
                 }
                 target[property.Key] = CloneNode(property.Value);
             }
+            return target;
         }
 
         private static JsonObject? FindLink(
