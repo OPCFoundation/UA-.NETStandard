@@ -262,6 +262,11 @@ namespace Opc.Ua
         /// Event identifier offset for historian event capture messages.
         /// </summary>
         public const int HistorianEventCapture = 570;
+
+        /// <summary>
+        /// Event identifier offset for fluent node manager messages.
+        /// </summary>
+        public const int FluentNodeManager = 590;
     }
 
     /// <summary>

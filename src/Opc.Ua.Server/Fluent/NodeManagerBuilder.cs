@@ -188,9 +188,9 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        /// Activates everything the <c>Configure</c> pass registered:
-        /// completes the registrations it could not finish synchronously,
-        /// then starts the simulation loops.
+        /// Activates everything the <c>Configure</c> pass registered: the node
+        /// behaviors — which start the simulation loops as one of their own — and
+        /// then the registrations that could not finish synchronously.
         /// </summary>
         /// <remarks>
         /// <para>
@@ -211,13 +211,23 @@ namespace Opc.Ua.Server.Fluent
         internal async ValueTask CompleteSealAsync(
             CancellationToken cancellationToken = default)
         {
+            // Behaviors go first, and the simulation loops start from inside that pass
+            // as a manager-scoped behavior. An attach callback may itself call Publish
+            // with RegisterAsRootNotifier, which only stages the notifier; the drain
+            // below snapshots and clears that queue, so activating after it would
+            // discard the registration without a word.
+            if (FluentOwner != null)
+            {
+                await FluentOwner
+                    .ActivateNodeBehaviorsFromSealAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
             if (EventSources != null)
             {
                 await EventSources.CompleteRegistrationsAsync(cancellationToken)
                     .ConfigureAwait(false);
             }
-
-            Simulations?.Start();
         }
 
         /// <inheritdoc/>
@@ -459,6 +469,129 @@ namespace Opc.Ua.Server.Fluent
             var registration = new VirtualNodeRegistration(this, predicate, resolver);
             m_virtualNodes.Add(registration);
             return registration;
+        }
+
+        /// <summary>
+        /// Registers the manager-scoped behavior that releases the simulation loops,
+        /// once per builder.
+        /// </summary>
+        internal void EnsureSimulationLifecycleRegistered()
+        {
+            SimulationRegistry? registry = Simulations;
+            if (registry == null)
+            {
+                return;
+            }
+
+            lock (m_nodeAttachmentsLock)
+            {
+                if (m_simulationLifecycleRegistered)
+                {
+                    return;
+                }
+                m_simulationLifecycleRegistered = true;
+                m_nodeAttachments.Add(
+                    NodeAttachRegistration.ForManager(
+                        static (_, _, _, state) =>
+                        {
+                            // Start belongs here rather than at the end of the seal:
+                            // manager-scoped behaviors activate after every node
+                            // behavior, so the first tick cannot now precede the
+                            // wiring of the nodes it drives.
+                            var simulations = (SimulationRegistry)state;
+                            simulations.Start();
+                            return new ValueTask<IAsyncDisposable?>(
+                                new SimulationLifetime(simulations));
+                        },
+                        registry));
+            }
+        }
+
+        /// <summary>
+        /// Registers the manager-scoped behavior that releases the event sources,
+        /// once per builder.
+        /// </summary>
+        internal void EnsureEventSourceLifecycleRegistered()
+        {
+            EventSourceRegistry? registry = EventSources;
+            if (registry == null)
+            {
+                return;
+            }
+
+            lock (m_nodeAttachmentsLock)
+            {
+                if (m_eventSourceLifecycleRegistered)
+                {
+                    return;
+                }
+                m_eventSourceLifecycleRegistered = true;
+                m_nodeAttachments.Add(
+                    NodeAttachRegistration.ForManager(
+                        static (_, _, _, state) => new ValueTask<IAsyncDisposable?>(
+                            new EventSourceLifetime((EventSourceRegistry)state)),
+                        registry));
+            }
+        }
+
+        /// <summary>
+        /// Registers the manager-scoped behavior that releases the monitored sources,
+        /// once per builder.
+        /// </summary>
+        internal void EnsureMonitoredSourceLifecycleRegistered()
+        {
+            MonitoredSourceRegistry? registry = MonitoredSources;
+            if (registry == null)
+            {
+                return;
+            }
+
+            lock (m_nodeAttachmentsLock)
+            {
+                if (m_monitoredSourceLifecycleRegistered)
+                {
+                    return;
+                }
+                m_monitoredSourceLifecycleRegistered = true;
+                m_nodeAttachments.Add(
+                    NodeAttachRegistration.ForManager(
+                        static (_, _, _, state) => new ValueTask<IAsyncDisposable?>(
+                            new MonitoredSourceLifetime((MonitoredSourceRegistry)state)),
+                        registry));
+            }
+        }
+
+        /// <summary>
+        /// Records a pending behavior registration.
+        /// </summary>
+        internal void RegisterNodeAttachment(NodeAttachRegistration registration)
+        {
+            ThrowIfSealed();
+            lock (m_nodeAttachmentsLock)
+            {
+                m_nodeAttachments.Add(registration);
+            }
+        }
+
+        /// <summary>
+        /// Takes the pending behavior registrations, leaving none behind.
+        /// </summary>
+        /// <remarks>
+        /// The owning node manager drains once per activation pass. Draining rather
+        /// than reading keeps a second pass from re-activating what the first owns.
+        /// </remarks>
+        internal List<NodeAttachRegistration> DrainNodeAttachments()
+        {
+            lock (m_nodeAttachmentsLock)
+            {
+                if (m_nodeAttachments.Count == 0)
+                {
+                    return [];
+                }
+                var drained = new List<NodeAttachRegistration>(m_nodeAttachments);
+                m_nodeAttachments.Clear();
+                return drained;
+            }
         }
 
         internal NodeHandle? CreateVirtualNodeHandle(NodeId nodeId)
@@ -1588,6 +1721,11 @@ namespace Opc.Ua.Server.Fluent
         private readonly Dictionary<NodeId, NodeLifecycleHandler> m_nodeAdded = [];
         private readonly Dictionary<NodeId, NodeLifecycleHandler> m_nodeRemoved = [];
         private readonly List<VirtualNodeRegistration> m_virtualNodes = [];
+        private readonly List<NodeAttachRegistration> m_nodeAttachments = [];
+        private readonly Lock m_nodeAttachmentsLock = new();
+        private bool m_simulationLifecycleRegistered;
+        private bool m_eventSourceLifecycleRegistered;
+        private bool m_monitoredSourceLifecycleRegistered;
         private MonitoredItemsBatchHandler? m_monitoredItemsCreated;
         private MonitoredItemsBatchHandler? m_monitoredItemsDeleted;
         private readonly HashSet<NodeState> m_configuredNodes = new(
