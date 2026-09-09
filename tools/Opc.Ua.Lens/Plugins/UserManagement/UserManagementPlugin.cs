@@ -84,7 +84,9 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
     [ObservableProperty]
     private string m_passwordRestrictionsText = "(unknown — connect and refresh)";
 
-    /// <summary>Users currently reported by the server.</summary>
+    /// <summary>
+    /// Users currently reported by the server.
+    /// </summary>
     public ObservableCollection<UserVm> Users { get; } = new();
 
     public UserManagementPlugin(PluginHost host)
@@ -98,8 +100,6 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
         // which the workspace delivers on open and on every connection transition.
         // The document owns no fire-and-forget work in its constructor.
     }
-
-    // ----- IPlugin -----
 
     public PluginKind Kind => PluginKind.UserManagement;
 
@@ -154,8 +154,6 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
         await RefreshCoreAsync(cancellationToken).ConfigureAwait(true);
     }
 
-    // ----- Commands -----
-
     /// <summary>
     /// Read the server's user list and password-restrictions text,
     /// repopulating <see cref="Users"/> and
@@ -174,7 +172,7 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
 
         try
         {
-            IReadOnlyList<UserManagementUser> users = await client
+            ArrayOf<UserManagementUser> users = await client
                 .ListUsersAsync(cancellationToken)
                 .ConfigureAwait(false);
 
@@ -217,7 +215,9 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>Show <see cref="AddUserDialog"/> and dispatch AddUser on OK.</summary>
+    /// <summary>
+    /// Show <see cref="AddUserDialog"/> and dispatch AddUser on OK.
+    /// </summary>
     [RelayCommand]
     public async Task AddUserAsync()
     {
@@ -255,7 +255,9 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>Show <see cref="ModifyUserDialog"/> for the given user and dispatch ModifyUser.</summary>
+    /// <summary>
+    /// Show <see cref="ModifyUserDialog"/> for the given user and dispatch ModifyUser.
+    /// </summary>
     [RelayCommand]
     public async Task ModifyUserAsync(UserVm? user)
     {
@@ -388,8 +390,6 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
             Status = $"● Change password failed: {ex.Message}";
         }
     }
-
-    // ----- Helpers -----
 
     /// <summary>
     /// Build a <see cref="UserManagementClient"/> bound to the current
