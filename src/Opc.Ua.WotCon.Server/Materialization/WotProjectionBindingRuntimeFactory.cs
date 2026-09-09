@@ -80,6 +80,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_conditionFactory = conditionFactory ?? throw new ArgumentNullException(nameof(conditionFactory));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             WotBindingBounds.EnsurePositive(options.MaxQueuedEvents, nameof(options.MaxQueuedEvents));
+            WotBindingBounds.EnsurePositive(options.MaxQueuedPropertyValues, nameof(options.MaxQueuedPropertyValues));
             WotBindingBounds.EnsurePositive(options.MaxEventRoutes, nameof(options.MaxEventRoutes));
         }
 

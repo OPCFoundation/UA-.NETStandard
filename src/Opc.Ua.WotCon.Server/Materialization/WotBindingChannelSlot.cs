@@ -52,10 +52,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <summary>
         /// Initializes a new channel slot for a compiled form.
         /// </summary>
-        public WotBindingChannelSlot(WotCompiledForm form, IWotBindingChannelFactory channelFactory)
+        public WotBindingChannelSlot(
+            WotCompiledForm form,
+            IWotBindingChannelFactory channelFactory,
+            CancellationToken generationToken = default)
         {
             m_form = form ?? throw new ArgumentNullException(nameof(form));
             m_channelFactory = channelFactory ?? throw new ArgumentNullException(nameof(channelFactory));
+            m_generationToken = generationToken;
         }
 
         /// <summary>
@@ -63,7 +67,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// itself is not bound to any single caller's cancellation token — it
         /// is a generation-scoped resource shared by every reader/writer wired
         /// against the same compiled form, so one caller cancelling must not
-        /// tear down the open for concurrent callers.
+        /// tear down the open for concurrent callers. The generation's own
+        /// cancellation does cancel that shared open.
         /// </summary>
         /// <exception cref="ObjectDisposedException">
         /// The slot has already been disposed, or is disposed concurrently
@@ -121,7 +126,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private Task<IWotBindingChannel> OpenAsync()
         {
-            return m_channelFactory.OpenChannelAsync(m_form, CancellationToken.None).AsTask();
+            return m_channelFactory.OpenChannelAsync(m_form, m_generationToken).AsTask();
         }
 
         private async ValueTask<IWotBindingChannel> WaitAsync(
@@ -146,6 +151,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private readonly WotCompiledForm m_form;
         private readonly IWotBindingChannelFactory m_channelFactory;
+        private readonly CancellationToken m_generationToken;
         private readonly Lock m_gate = new();
         private Task<IWotBindingChannel>? m_channelTask;
         private bool m_disposed;

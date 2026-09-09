@@ -893,10 +893,11 @@ namespace Opc.Ua.Server.Fluent
 
             if (handle?.Node is { } source)
             {
-                await MonitoredSources.OnCreatedAsync(
+                await MonitoredSources.OnAttachedAsync(
                     context,
                     source,
-                    monitoredItem).ConfigureAwait(false);
+                    monitoredItem,
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -915,10 +916,11 @@ namespace Opc.Ua.Server.Fluent
 
             if (handle?.Node is { } source)
             {
-                await MonitoredSources.OnDeletedAsync(
+                await MonitoredSources.OnDetachedAsync(
                     context,
                     source,
-                    monitoredItem).ConfigureAwait(false);
+                    monitoredItem,
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 

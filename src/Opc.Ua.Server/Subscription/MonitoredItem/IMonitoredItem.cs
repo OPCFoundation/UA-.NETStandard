@@ -383,5 +383,12 @@ namespace Opc.Ua.Server
         /// If this bit is set the Events bit must be set too.
         /// </remarks>
         public const int AllEvents = 0x4;
+
+        /// <summary>
+        /// An external source supplies data-change values instead of Node reads.
+        /// The DataChange bit must also be set. Stores preserve this acquisition
+        /// mode with the other monitored-item type bits across restart.
+        /// </summary>
+        public const int ExternalValueSource = 0x8;
     }
 }

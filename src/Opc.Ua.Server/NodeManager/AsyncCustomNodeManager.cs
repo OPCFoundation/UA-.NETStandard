@@ -522,6 +522,10 @@ namespace Opc.Ua.Server
                     return validationResult;
                 }
 
+                if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.ExternalValueSource) != 0)
+                {
+                    return ServiceResult.Good;
+                }
                 DateTime utcNow = ((Server as ITimeProviderProvider)?.TimeProvider ??
                     TimeProvider.System).GetUtcNow().UtcDateTime;
                 var initialValue = new DataValue(
@@ -667,6 +671,8 @@ namespace Opc.Ua.Server
                 }
 
                 bool isEvent = (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
+                bool externalValues =
+                    (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.ExternalValueSource) != 0;
                 DataValue initialValue = default;
                 ServiceResult readResult = ServiceResult.Good;
                 if (isEvent)
@@ -688,21 +694,24 @@ namespace Opc.Ua.Server
                         return validationResult;
                     }
 
-                    initialValue = new DataValue(
-                        Variant.Null,
-                        StatusCodes.BadWaitingForInitialData,
-                        DateTimeUtc.MinValue,
-                        ((Server as ITimeProviderProvider)?.TimeProvider ??
-                            TimeProvider.System).GetUtcNow().UtcDateTime);
-                    readResult = handle.Node.ReadAttribute(
-                        context,
-                        sampledMonitoredItem.AttributeId,
-                        sampledMonitoredItem.IndexRange,
-                        sampledMonitoredItem.DataEncoding,
-                        ref initialValue);
-                    if (IsFatalInitialReadError(readResult))
+                    if (!externalValues)
                     {
-                        return readResult;
+                        initialValue = new DataValue(
+                            Variant.Null,
+                            StatusCodes.BadWaitingForInitialData,
+                            DateTimeUtc.MinValue,
+                            ((Server as ITimeProviderProvider)?.TimeProvider ??
+                                TimeProvider.System).GetUtcNow().UtcDateTime);
+                        readResult = handle.Node.ReadAttribute(
+                            context,
+                            sampledMonitoredItem.AttributeId,
+                            sampledMonitoredItem.IndexRange,
+                            sampledMonitoredItem.DataEncoding,
+                            ref initialValue);
+                        if (IsFatalInitialReadError(readResult))
+                        {
+                            return readResult;
+                        }
                     }
                 }
 
@@ -712,12 +721,13 @@ namespace Opc.Ua.Server
                     sampledMonitoredItem,
                     AddNodeToComponentCache,
                     RemoveNodeFromComponentCache);
-                if (ServiceResult.IsGood(result) && changed && !isEvent)
+                if (ServiceResult.IsGood(result) && changed && !isEvent && !externalValues)
                 {
                     sampledMonitoredItem.QueueValue(initialValue, readResult, true);
                 }
                 else if (ServiceResult.IsGood(result) &&
                     changed &&
+                    isEvent &&
                     handle.MonitoredNode is not null)
                 {
                     try
@@ -6991,6 +7001,20 @@ namespace Opc.Ua.Server
             }
 
             monitoredItem = dataChangeMonitoredItem;
+
+            if (decision.QueueInitialValue &&
+                dataChangeMonitoredItem is MonitoredItem { UsesExternalValueSource: true })
+            {
+                try
+                {
+                    _ = m_monitoredItemManager.DeleteMonitoredItem(context, dataChangeMonitoredItem, handle);
+                }
+                finally
+                {
+                    dataChangeMonitoredItem.Dispose();
+                }
+                return (StatusCodes.BadConfigurationError, filterResult, null);
+            }
 
             // report the initial value.
             ServiceResult error = ServiceResult.Good;

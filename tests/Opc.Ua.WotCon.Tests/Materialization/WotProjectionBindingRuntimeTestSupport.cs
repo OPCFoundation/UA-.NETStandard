@@ -53,10 +53,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public void SetChannel(WotCompiledForm form, IWotBindingChannel channel)
         {
-            m_openers[form] = () => new ValueTask<IWotBindingChannel>(channel);
+            m_openers[form] = _ => new ValueTask<IWotBindingChannel>(channel);
         }
 
         public void SetOpener(WotCompiledForm form, Func<ValueTask<IWotBindingChannel>> opener)
+        {
+            m_openers[form] = _ => opener();
+        }
+
+        public void SetOpener(
+            WotCompiledForm form, Func<CancellationToken, ValueTask<IWotBindingChannel>> opener)
         {
             m_openers[form] = opener;
         }
@@ -66,14 +72,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             OpenCount++;
             OpenedForms.Add(form);
-            if (m_openers.TryGetValue(form, out Func<ValueTask<IWotBindingChannel>>? opener))
+            if (m_openers.TryGetValue(form, out Func<CancellationToken, ValueTask<IWotBindingChannel>>? opener))
             {
-                return opener();
+                return opener(cancellationToken);
             }
             throw new InvalidOperationException($"No fake channel configured for form '{form.AffordanceName}'.");
         }
 
-        private readonly Dictionary<WotCompiledForm, Func<ValueTask<IWotBindingChannel>>> m_openers = [];
+        private readonly Dictionary<WotCompiledForm, Func<CancellationToken, ValueTask<IWotBindingChannel>>> m_openers =
+            [];
     }
 
     /// <summary>
@@ -96,6 +103,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         public Func<Action<WotNotification>, CancellationToken, ValueTask<IWotSubscription>>? OnSubscribeEvent { get; set; }
 
+        public Func<Action<WotNotification>, CancellationToken, ValueTask<IWotSubscription>>? OnObserve { get; set; }
+
         public Func<ValueTask>? OnDispose { get; set; }
 
         public int ReadCount { get; private set; }
@@ -105,6 +114,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public int InvokeCount { get; private set; }
 
         public int SubscribeEventCount { get; private set; }
+
+        public int ObserveCount { get; private set; }
 
         public int DisposeCount { get; private set; }
 
@@ -133,7 +144,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public ValueTask<IWotSubscription> ObserveAsync(
             Action<WotNotification> onNotification, CancellationToken cancellationToken = default)
         {
-            throw new NotSupportedException();
+            ObserveCount++;
+            return OnObserve?.Invoke(onNotification, cancellationToken) ?? throw new NotSupportedException();
         }
 
         public ValueTask<IWotSubscription> SubscribeEventAsync(

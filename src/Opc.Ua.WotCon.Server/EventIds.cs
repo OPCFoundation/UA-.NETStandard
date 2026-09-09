@@ -48,5 +48,7 @@ namespace Opc.Ua
         public const int WotConnectivityNodeManager = 50;
         public const int WotRegistryNodeManager = 60;
         public const int WotProjectionViewNodeManager = 70;
+        public const int WotObservedPropertySource = 80;
+        public const int WotStructuredPropertyObservation = 90;
     }
 }

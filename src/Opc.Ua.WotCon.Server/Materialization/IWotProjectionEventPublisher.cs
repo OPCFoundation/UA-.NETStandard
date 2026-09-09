@@ -99,6 +99,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public int MaxQueuedEvents { get; init; } = 1024;
 
         /// <summary>
+        /// Gets the maximum pending observation updates per projected variable.
+        /// Overflow faults the source instead of silently discarding values.
+        /// </summary>
+        public int MaxQueuedPropertyValues { get; init; } = 1024;
+
+        /// <summary>
         /// Gets the maximum retained occurrence routes per event declaration.
         /// An evicted occurrence fails subsequent actions with BadEventIdUnknown.
         /// </summary>

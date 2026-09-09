@@ -146,13 +146,13 @@ Once a closure's forms are materialized as NodeSet2 content, `LifecycleWotProjec
   * Both terms resolve the exact node and validate its `DataType` equals the declared target type.
   * Missing, malformed, ambiguous, wrong-node-class or type-mismatch mappings fail activation with a deterministic `ServiceResultException` status (`BadNodeIdInvalid` / `BadNodeIdUnknown` / `BadBrowseNameDuplicated` / `BadTypeMismatch`); every portable NodeId parse failure — including one the parser itself raises as a `ServiceResultException` — is wrapped as `BadNodeIdInvalid` naming the offending term (`uav:mapToNodeId` / `uav:mapToType`) rather than surfacing the parser's own exception shape.
 * `IWotProjectionBindingRuntimeFactory` (default `WotProjectionBindingRuntimeFactory`) groups the closure's target-mapped, executable compiled forms by resolved target variable and returns a `WotProjectionBindingRuntime` — the `IAsyncDisposable` the NodeSet generation owns:
-  * A **direct** target (`uav:mapToNodeId` and/or `uav:mapToType` alone) wires the executable `readproperty`/`writeproperty` forms as full async `OnRead`/`OnWrite` handlers that preserve the source `StatusCode` and `SourceTimestamp`; local monitored items sample the same read handler, so no second observe bridge is created for an `observeproperty` form on the same target.
+  * A **direct** target (`uav:mapToNodeId` and/or `uav:mapToType` alone) wires the executable `readproperty`/`writeproperty` forms as full async `OnRead`/`OnWrite` handlers that preserve the source `StatusCode` and `SourceTimestamp`. An observe-only property or a separately authored `observeproperty` form uses a shared source subscription, not the read handler. Only a combined read/observe form from the same source document retains read-sampling compatibility.
   * A **structured** target (`uav:mapToType` + `uav:mapByFieldPath`) composes the value by reading every mapped field concurrently, building nested structures via `IEncodeableFactory` / `IStructure` / `IDataTypeDefinitionSource` (no reflection); writes extract and write each mapped field concurrently from the incoming structure. A Bad field fails the whole operation; Uncertain reads retain their usable values. The composed result preserves the first non-default status at the highest severity and uses the oldest non-`MinValue` `SourceTimestamp` across the fields. Direct and structured writes preserve successful subcodes such as `GoodClamped`.
-  * Alternative forms on one property select the first executable form per operation in authored order, before grouping direct or structured targets. A failed operation is not retried against another source and writes do not fan out. Distinct properties independently claiming the same target/field remain conflicting declarations, as do mixed direct/field mappings and unsupported target operations. Everything else about a structured target that depends on its structure type being registered — the encodeable type lookup, root instance validation, and `uav:mapByFieldPath` path resolution (empty segments, unknown fields, array-valued or non-structure intermediate fields) — is deferred to the first structured read or write instead of failing activation, because `RuntimeNodeSetOptions.ConfigureAsync` runs before `NodeManagerLifecycle.RefreshComplexTypesAsync` registers the server's custom structure types. Resolution is retried, uncached, on every first use until it succeeds against the (by-then-populated) `IEncodeableFactory` instance; a still-unresolved first use returns a deterministic `BadConfigurationError` read/write status instead of throwing out of the request pipeline.
-  * Channels are opened lazily and cached one-per-compiled-form for the generation; concurrent first use opens once, and a failed open is evicted so a later call can retry. Every successfully opened channel is disposed with the generation; disposal failures are aggregated. A channel open racing with, or started after, generation disposal never leaks: disposal marks the slot disposed under its lock so no later open can start, and still awaits and disposes a channel whose open was already in flight.
+  * Alternative forms on one property select the first executable form per operation in authored order, before grouping direct or structured targets. A failed operation is not retried against another source and writes do not fan out. Distinct properties independently claiming the same target/field for the same operation remain conflicting declarations, including duplicate observation mappings. Mixed direct/field mappings and unsupported target operations also fail. Everything else about a structured target that depends on its structure type being registered — the encodeable type lookup, root instance validation, and `uav:mapByFieldPath` path resolution (empty segments, unknown fields, array-valued or non-structure intermediate fields) — is deferred to the first structured read, write, or observation startup, because `RuntimeNodeSetOptions.ConfigureAsync` runs before `NodeManagerLifecycle.RefreshComplexTypesAsync` registers the server's custom structure types. Failed resolution is not cached; an unresolved use reports `BadConfigurationError`.
+  * Channels are opened lazily and cached one-per-compiled-form for the generation; concurrent first use opens once, and a failed open is evicted so a later call can retry. Cancelling one reader does not cancel a shared open. Cancelling the generation does cancel that open and pending observation startup. Every successfully acquired channel or subscription remains owned until its asynchronous cleanup completes; disposal failures are aggregated.
 * Both abstractions are always available via direct construction (no DI container required) and are registered through `AddWotRegistryServer` using `TryAdd*` so a host application can supply its own implementation.
 
-Property reads translate namespace-bearing values using `WotReadResult.Context`, including individual structured fields, before exposing them in the local AddressSpace. Contextual property writes use the same URI-based mapper in the opposite direction. Unknown remote namespaces fail without extending a Server's session table. A channel without contextual support can still exchange namespace-independent values, but cannot silently accept local namespace indexes; opaque ExtensionObjects that cannot be translated as decoded structures also fail explicitly.
+Property reads translate namespace-bearing values using `WotReadResult.Context`, including individual structured fields, before exposing them in the local AddressSpace. Observations use `WotNotification.Context`, or its `NamespaceUris` table for older channels that provide only namespace authority. The OPC UA adapter supplies a complete source-context snapshot for data changes as well as events. Contextual property writes use the same URI-based mapper in the opposite direction. Unknown remote namespaces fail without extending a Server's session table. A channel without contextual support can still exchange namespace-independent values, but cannot silently accept local namespace indexes; opaque ExtensionObjects that cannot be translated as decoded structures also fail explicitly.
 
 The OPC UA property channel forwards native `IndexRange` values on Read and Write and resolves requested data-encoding QualifiedNames in the source namespace table. The runtime does not apply a native range twice. For channels without this capability, it applies the Core read range/data-encoding helper locally and rejects indexed writes with `BadWriteNotSupported` before calling Write. It does not emulate an indexed write with an unsafe read-modify-write. An index range on a composed structured write is likewise rejected before writing its fields.
 
@@ -765,17 +765,76 @@ opcUa
 
 ### Monitoring and local sampling
 
-For a target-mapped variable, the generic projection runtime wires executable `readproperty` and `writeproperty` forms to async `OnRead` and `OnWrite` handlers. Local OPC UA monitored items sample that same read handler. An `observeproperty` entry does not create a second upstream observe bridge for target mapping, so a binding must provide a reliable and bounded read operation even when its native protocol also supports push observation.
+For a target-mapped or ordinary projected variable, `readproperty` and
+`writeproperty` retain their own async handlers. An observe-only property, or an
+`observeproperty` form distinct from its read form, uses `IWotBindingChannel.ObserveAsync`.
+It does not require or fabricate an upstream read operation. A combined
+read/observe form in the same document keeps the existing read-sampling path;
+equal JSON Pointers in different documents do not establish that equivalence.
 
-Outside target mapping, callers can use `IWotBindingChannel.ObserveAsync` or `SubscribeEventAsync` directly. The returned `IWotSubscription` owns the native subscription or polling loop and must stop it in `DisposeAsync`.
+Active Value monitored items share one observation subscription per selected
+source. `Sampling` and `Reporting` modes keep it active; `Disabled` does not.
+Monitoring metadata such as DisplayName does not start it or prevent its release.
+The first active Value subscriber starts the source and the last releases it.
+New or re-enabled subscribers can receive its cached observation. Callbacks from
+a stopped source cannot publish into its successor.
+
+Compatible Core `ReloadRuntimeNodeSetAsync` handoff retains monitored-item
+identity and registers those items with the replacement observation source
+before reconciling subscriber counts. It does not inject a Node/cache read as
+the resumed value. Graceful `ShadowReloadAsync` intentionally keeps existing
+subscribers on the retiring source until they drain; replacement preparation
+failure leaves the current source active.
+
+Delivery checks each subscriber's current Read permissions and applies its own
+IndexRange and data encoding without changing the shared complete value.
+Usable Uncertain values, source timestamps and successful subcodes are retained.
+Where no read form exists, a local Read returns the observation cache, initially
+`BadWaitingForInitialData`; where a read form exists, that Read still invokes
+the separately selected read source.
+
+Startup failures produce a Bad observation status rather than switching to
+polling. `WotProjectionBindingRuntimeOptions.MaxQueuedPropertyValues` bounds
+pending delivery per variable (default 1024). Overflow reports
+`BadResourceUnavailable` and releases the source instead of silently dropping
+values. A source can be retried after all Value subscribers deactivate and one
+reactivates. Last-subscriber shutdown cancels a pending source startup before
+waiting for its release. It does not cancel a generation-wide shared channel
+open; generation cancellation still does. The generation owns pending opens, subscriptions and delivery work
+through cancellation and asynchronous disposal.
+
+The bound is configurable through the same direct-construction or injected
+runtime factory:
+
+```csharp
+var runtimeFactory = new WotProjectionBindingRuntimeFactory(
+    channelFactory,
+    resolver: null,
+    new WotProjectionEventPublisher(),
+    new WotProjectionConditionFactory(),
+    new WotProjectionBindingRuntimeOptions
+    {
+        MaxQueuedPropertyValues = 256
+    });
+```
+
+Direct channel consumers can also use `IWotBindingChannel.ObserveAsync` or `SubscribeEventAsync`. The returned `IWotSubscription` owns the native subscription or polling loop and must stop it in `DisposeAsync`.
 
 ### Structured target mapping
 
 Direct mapping reads or writes the whole target value. Structured mapping groups forms by target variable and field path. Reads run all mapped field reads concurrently, build nested `IStructure` instances without reflection, and return one `ExtensionObject`. Writes extract each mapped field and run the field writes concurrently.
 
-The runtime rejects a target that mixes direct and field mappings, duplicate read mappings for the same field, duplicate write mappings for the same field, and target-mapped operations other than read, write, or observe. A failed field fails the entire structured operation. A successful structured read preserves a non-default Good status when present and uses the oldest available source timestamp.
+The runtime rejects a target that mixes direct and field mappings, duplicate mappings for the same field and operation, and target-mapped operations other than read, write, or observe. A failed field fails the entire structured operation. Uncertain values remain usable. The composed status is the first non-default status at the highest severity, with the oldest available source timestamp.
 
-Structure type and field-path resolution is delayed until first structured use because runtime NodeSet configuration completes before custom encodeable types are registered in the shared factory. Failed resolution is not cached; later operations retry. Until resolution succeeds, the read or write returns `BadConfigurationError`.
+When an aggregate has a distinct or observe-only field source, every selected
+observation field uses its actual observe channel. The aggregate waits for all
+observed fields before reporting a usable complete value, retaining
+`BadWaitingForInitialData` while a field is missing. Subsequent updates use the
+other fields' latest observations, not unrelated read forms. A partial startup
+failure releases all field subscriptions already acquired. A new startup does
+not reuse values or callbacks from the failed set.
+
+Structure type and field-path resolution is delayed until first structured use because runtime NodeSet configuration completes before custom encodeable types are registered in the shared factory. Failed resolution is not cached; later operations retry. Until resolution succeeds, the read, write, or observation reports `BadConfigurationError`. The registered type must expose the existing `IStructure` and datatype-definition contracts; merely being an `IEncodeable` is not sufficient for field navigation.
 
 ### Status and error mapping
 
@@ -1152,7 +1211,7 @@ Conditionally exclude executor source on older TFMs rather than reducing the bas
 - [ ] Make channels, subscriptions, and in-flight activation safe under asynchronous disposal.
 - [ ] Register direct-construction and DI/fluent paths.
 - [ ] Add planner, diagnostics, executor, concurrency, disposal, and security tests.
-- [ ] Test local monitored-item sampling when the binding is used through target mapping.
+- [ ] Test same-form read sampling and distinct/observe-only source subscriptions, including last-subscriber cleanup.
 - [ ] Test direct and structured mappings when the protocol is intended for aggregation.
 - [ ] Verify all supported TFMs, `net10.0` trimming/AOT behavior, package contents, and README accuracy.
 
@@ -1173,6 +1232,7 @@ Conditionally exclude executor source on older TFMs rather than reducing the bas
 | Disposal | Never-opened channel, successfully opened channel, failed open, in-flight open racing disposal, subscription partial-construction failure, repeated disposal. |
 | Target mapping | Affordance-level direct mapping, `nsu=` mapping, forms-level rejection, action/event rejection, field path requires type, direct/field conflict, duplicate field direction. |
 | Structured mapping | Nested fields, unknown field, non-structure intermediate, array-valued intermediate, one failed field, status/timestamp aggregation. |
+| Property observation | Shared Value subscribers, metadata-only subscribers, mode changes, stale callbacks, source context, per-item ranges/encoding, permission changes, startup/overflow failures, generation cancellation, complete field aggregation. |
 | Materialization | Strict rejection, non-strict degradation, successful activation, failed shadow replacement retaining old generation, old monitored-item drain. |
 | Packaging | Full base TFM matrix, executor source absent before `net8.0`, MQTT separate package, package README and dependency graph. |
 | AOT/trimming | `net10.0` analyzer-clean build and NativeAOT publish/run smoke test for the concrete executor path. |

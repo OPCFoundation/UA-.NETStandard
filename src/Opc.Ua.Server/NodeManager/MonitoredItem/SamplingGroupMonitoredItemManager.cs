@@ -323,7 +323,8 @@ namespace Opc.Ua.Server
 
             // need to provide an immediate update after enabling.
             if (previousMode == MonitoringMode.Disabled &&
-                monitoringMode != MonitoringMode.Disabled)
+                monitoringMode != MonitoringMode.Disabled &&
+                monitoredItem is not MonitoredItem { UsesExternalValueSource: true })
             {
                 var initialValue = new DataValue(
                     Variant.Null,

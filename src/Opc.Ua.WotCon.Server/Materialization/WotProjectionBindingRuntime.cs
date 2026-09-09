@@ -134,6 +134,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         group = new VariableGroup(variable);
                         groups.Add(variable.NodeId, group);
                     }
+                    m_formOwners.TryAdd(form, plan);
                     group.Entries.Add(form);
                 }
             }
@@ -169,6 +170,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 errors = [ex];
+            }
+            foreach (WotObservedPropertySource source in m_observedProperties)
+            {
+                try
+                {
+                    await source.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    (errors ??= []).Add(ex);
+                }
             }
             foreach (WotProjectedEventSource source in m_eventSources)
             {
@@ -245,13 +257,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             WotCompiledForm? read = null;
             WotCompiledForm? write = null;
+            WotCompiledForm? observe = null;
             foreach (WotCompiledForm entry in group.Entries)
             {
                 switch (entry.Operation)
                 {
                     case WoTBindingCapabilityEnum.ObserveProperty:
-                        // Local monitored items sample the async read handler;
-                        // no separate observe bridge is created.
+                        if (observe is not null)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadConfigurationError,
+                                "Target '{0}' has more than one observeproperty target mapping.",
+                                group.Variable.NodeId);
+                        }
+                        observe = entry;
                         continue;
                     case WoTBindingCapabilityEnum.ReadProperty:
                         if (read is not null)
@@ -284,6 +303,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 nodeBuilder.OnWrite(BuildDirectWriteHandler(GetOrCreateSlot(write)));
             }
+            if (observe is not null && (read is null || !SharesAuthoredForm(read, observe)))
+            {
+                m_observedProperties.Add(new WotObservedPropertySource(
+                    nodeBuilder, GetOrCreateSlot(observe), read is not null,
+                    m_options.MaxQueuedPropertyValues, m_generationToken));
+            }
         }
 
         /// <summary>
@@ -305,12 +330,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             var readByPath = new Dictionary<string, WotCompiledForm>(StringComparer.Ordinal);
             var writeByPath = new Dictionary<string, WotCompiledForm>(StringComparer.Ordinal);
+            var observeByPath = new Dictionary<string, WotCompiledForm>(StringComparer.Ordinal);
             foreach (WotCompiledForm entry in group.Entries)
             {
                 string fieldPath = entry.TargetMapping.FieldPath ?? string.Empty;
                 switch (entry.Operation)
                 {
                     case WoTBindingCapabilityEnum.ObserveProperty:
+                        if (observeByPath.ContainsKey(fieldPath))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadConfigurationError,
+                                "Target '{0}' field '{1}' has more than one observeproperty mapping.",
+                                targetNodeId,
+                                fieldPath);
+                        }
+                        observeByPath.Add(fieldPath, entry);
                         continue;
                     case WoTBindingCapabilityEnum.ReadProperty:
                         if (readByPath.ContainsKey(fieldPath))
@@ -360,13 +395,40 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 nodeBuilder.OnWrite(BuildStructuredWriteHandler(state));
             }
+            if (observeByPath.Any(pair => !readByPath.TryGetValue(pair.Key, out WotCompiledForm? read) ||
+                !SharesAuthoredForm(read, pair.Value)))
+            {
+                List<(string Path, WotBindingChannelSlot Slot)> observeSlots = [.. observeByPath
+                    .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                    .Select(pair => (pair.Key, GetOrCreateSlot(pair.Value)))];
+                var observed = new WotStructuredGroupState(
+                    m_builder.Context.EncodeableFactory,
+                    m_builder.Context.NamespaceUris,
+                    group.Variable.DataType,
+                    targetNodeId,
+                    observeSlots,
+                    []);
+                m_observedProperties.Add(new WotObservedPropertySource(
+                    nodeBuilder,
+                    (notification, token) => WotStructuredPropertyObservation.StartAsync(
+                        observed, m_builder.Context, notification, token),
+                    readSlots.Count > 0,
+                    m_options.MaxQueuedPropertyValues,
+                    m_generationToken));
+            }
+        }
+
+        private bool SharesAuthoredForm(WotCompiledForm first, WotCompiledForm second)
+        {
+            return first.JsonPointer == second.JsonPointer &&
+                ReferenceEquals(m_formOwners[first], m_formOwners[second]);
         }
 
         private WotBindingChannelSlot GetOrCreateSlot(WotCompiledForm form)
         {
             if (!m_slots.TryGetValue(form, out WotBindingChannelSlot? slot))
             {
-                slot = new WotBindingChannelSlot(form, m_channelFactory);
+                slot = new WotBindingChannelSlot(form, m_channelFactory, m_generationToken);
                 m_slots.Add(form, slot);
             }
             return slot;
@@ -545,7 +607,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// non-<see cref="DateTimeUtc.MinValue"/> source
         /// timestamp across the fields (or now, if none carried one).
         /// </summary>
-        private static (StatusCode Status, DateTimeUtc Timestamp) AggregateFieldMetadata(
+        internal static (StatusCode Status, DateTimeUtc Timestamp) AggregateFieldMetadata(
             (WotFieldPathPlan Plan, WotReadResult Result)[] results)
         {
             StatusCode status = StatusCodes.Good;
@@ -680,7 +742,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly INodeManagerBuilder m_builder;
         private readonly IWotBindingChannelFactory m_channelFactory;
         private readonly IWotTargetVariableResolver m_resolver;
+        private readonly Dictionary<WotCompiledForm, WotBindingPlan> m_formOwners = [];
         private readonly Dictionary<WotCompiledForm, WotBindingChannelSlot> m_slots = [];
+        private readonly List<WotObservedPropertySource> m_observedProperties = [];
         private readonly IWotProjectionEventPublisher m_eventPublisher;
         private readonly IWotProjectionConditionFactory m_conditionFactory;
         private readonly WotProjectionBindingRuntimeOptions m_options;

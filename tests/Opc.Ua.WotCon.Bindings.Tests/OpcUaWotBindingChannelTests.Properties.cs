@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -171,6 +172,40 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
         [TestCase(false)]
         [TestCase(true)]
+        public async Task PropertyObservationRetainsSourceNamespaceContext(bool qualifiedName)
+        {
+            string nodeName = qualifiedName ? "Scalar_Static_QualifiedName" : "Scalar_Static_NodeId";
+            WotBindingPlan plan = CreatePropertyPlan(
+                "nsu=" + ReferenceServerNamespace + ";s=" + nodeName, """{ "type": "string" }""");
+            WotCompiledForm write = plan.CompiledForms.Single(
+                form => form.Operation == WoTBindingCapabilityEnum.WriteProperty);
+            WotCompiledForm observe = plan.CompiledForms.Single(
+                form => form.Operation == WoTBindingCapabilityEnum.ObserveProperty);
+            await using IWotBindingChannel writer = await m_registry.OpenChannelAsync(write).ConfigureAwait(false);
+            await using IWotBindingChannel observer = await m_registry.OpenChannelAsync(observe).ConfigureAwait(false);
+            ushort sourceIndex = checked((ushort)m_session.NamespaceUris.GetIndex(ReferenceServerNamespace));
+            Variant sourceValue = qualifiedName
+                ? new Variant(new QualifiedName("ObservedSensor", sourceIndex))
+                : new Variant(new NodeId("ObservedSensor", sourceIndex));
+            WotWriteResult initialized = await writer.WriteAsync(new DataValue(sourceValue)).ConfigureAwait(false);
+            Assert.That(initialized.Status, Is.EqualTo(StatusCodes.Good));
+            var received = new TaskCompletionSource<WotNotification>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            await using IWotSubscription subscription = await observer.ObserveAsync(
+                notification => received.TrySetResult(notification)).ConfigureAwait(false);
+            WotNotification result = await received.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+            Assert.That(result.Value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.Value.WrappedValue, Is.EqualTo(sourceValue));
+            Assert.That(result.Context, Is.Not.Null);
+            Assert.That(result.Context!.NamespaceUris.GetString(sourceIndex), Is.EqualTo(ReferenceServerNamespace));
+            Assert.That(result.Context.NamespaceUris, Is.Not.SameAs(m_session.NamespaceUris));
+            Assert.That(result.NamespaceUris[sourceIndex], Is.EqualTo(ReferenceServerNamespace));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
         public async Task PropertyWriteTranslatesCallerNamespaceBeforeWriting(bool qualifiedName)
         {
             string nodeName = qualifiedName ? "Scalar_Static_QualifiedName" : "Scalar_Static_NodeId";
@@ -226,7 +261,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             };
         }
 
-        private WotBindingPlan CreatePropertyPlan(string nodeId, string schema)
+        private WotBindingPlan CreatePropertyPlan(
+            string nodeId, [StringSyntax(StringSyntaxAttribute.Json)] string schema)
         {
             string href = new UriBuilder("opc.tcp", "localhost", m_serverFixture.Port).Uri.AbsoluteUri;
             string document = $$"""
@@ -240,7 +276,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                       {{schema.Trim()[1..^1]}},
                       "forms": [
                         { "href": "{{href}}?id={{Uri.EscapeDataString(nodeId)}}",
-                          "op": [ "readproperty", "writeproperty" ] }
+                          "op": [ "readproperty", "writeproperty", "observeproperty" ] }
                       ]
                     }
                   }

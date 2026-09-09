@@ -111,6 +111,36 @@ namespace Opc.Ua.Server.Fluent
             return registration?.OnCreatedAsync(context, source, monitoredItem) ?? default;
         }
 
+        public async ValueTask OnAttachedAsync(
+            ISystemContext context,
+            NodeState source,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            MonitoredSourceRegistration? registration = Find(source.NodeId, out _);
+            if (registration is not null)
+            {
+                await registration.NotifyAttachedAsync(context, source, monitoredItem, cancellationToken)
+                    .ConfigureAwait(false);
+                await registration.OnCreatedAsync(context, source, monitoredItem).ConfigureAwait(false);
+            }
+        }
+
+        public async ValueTask OnDetachedAsync(
+            ISystemContext context,
+            NodeState source,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            MonitoredSourceRegistration? registration = Find(source.NodeId, out _);
+            if (registration is not null)
+            {
+                await registration.NotifyDetachedAsync(context, source, monitoredItem, cancellationToken)
+                    .ConfigureAwait(false);
+                await OnDeletedAsync(context, source, monitoredItem).ConfigureAwait(false);
+            }
+        }
+
         public ValueTask OnModifiedAsync(
             ISystemContext context,
             NodeState source,
@@ -309,7 +339,7 @@ namespace Opc.Ua.Server.Fluent
             m_updateLock = new SemaphoreSlim(1, 1);
         }
 
-        public void SetFirstSubscriber(MonitoredSourceLifecycleHandler handler)
+        public void SetFirstSubscriber(MonitoredSourceLifecycleHandler handler, uint? attributeId = null)
         {
             if (handler == null)
             {
@@ -319,10 +349,45 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw CreateDuplicate("OnFirstSubscriber");
             }
+            SetAttributeId(attributeId);
             m_firstSubscriber = handler;
         }
 
-        public void SetLastSubscriber(MonitoredSourceLifecycleHandler handler)
+        public void AddAttachedHandler(MonitoredItemAttachmentHandler handler)
+        {
+            m_attachedHandlers.Add(handler ?? throw new ArgumentNullException(nameof(handler)));
+        }
+
+        public void AddDetachedHandler(MonitoredItemAttachmentHandler handler)
+        {
+            m_detachedHandlers.Add(handler ?? throw new ArgumentNullException(nameof(handler)));
+        }
+
+        public async ValueTask NotifyAttachedAsync(
+            ISystemContext context,
+            NodeState source,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            foreach (MonitoredItemAttachmentHandler handler in m_attachedHandlers)
+            {
+                await handler(context, source, monitoredItem, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        public async ValueTask NotifyDetachedAsync(
+            ISystemContext context,
+            NodeState source,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            foreach (MonitoredItemAttachmentHandler handler in m_detachedHandlers)
+            {
+                await handler(context, source, monitoredItem, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        public void SetLastSubscriber(MonitoredSourceLifecycleHandler handler, uint? attributeId = null)
         {
             if (handler == null)
             {
@@ -332,6 +397,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw CreateDuplicate("OnLastSubscriber");
             }
+            SetAttributeId(attributeId);
             m_lastSubscriber = handler;
         }
 
@@ -366,6 +432,9 @@ namespace Opc.Ua.Server.Fluent
             {
                 m_firstSubscriber = m_firstSubscriber,
                 m_lastSubscriber = m_lastSubscriber,
+                m_attributeId = m_attributeId,
+                m_attachedHandlers = [.. m_attachedHandlers],
+                m_detachedHandlers = [.. m_detachedHandlers],
                 m_minimumPeriod = m_minimumPeriod,
                 m_poller = m_poller?.Clone()
             };
@@ -516,7 +585,7 @@ namespace Opc.Ua.Server.Fluent
 
                     bool wasActive = HasActiveItems();
                     TimeSpan previousPeriod = GetEffectivePeriod();
-                    if (remove)
+                    if (remove || (m_attributeId.HasValue && monitoredItem.AttributeId != m_attributeId.Value))
                     {
                         m_items.Remove(monitoredItem.Id);
                     }
@@ -863,6 +932,22 @@ namespace Opc.Ua.Server.Fluent
                 feature);
         }
 
+        private void SetAttributeId(uint? attributeId)
+        {
+            if (attributeId is < Attributes.NodeId or > Attributes.AccessLevelEx)
+            {
+                throw new ArgumentOutOfRangeException(nameof(attributeId));
+            }
+            if ((m_firstSubscriber is not null || m_lastSubscriber is not null) && m_attributeId != attributeId)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "Node '{0}' first and last subscriber handlers select different attributes.",
+                    FormatNodeId(m_nodeId));
+            }
+            m_attributeId = attributeId;
+        }
+
         private static string FormatNodeId(NodeId nodeId)
         {
             return nodeId.IsNull ? "(virtual family)" : nodeId.ToString();
@@ -880,6 +965,9 @@ namespace Opc.Ua.Server.Fluent
         private readonly Dictionary<uint, TrackedItem> m_items = [];
         private MonitoredSourceLifecycleHandler? m_firstSubscriber;
         private MonitoredSourceLifecycleHandler? m_lastSubscriber;
+        private uint? m_attributeId;
+        private List<MonitoredItemAttachmentHandler> m_attachedHandlers = [];
+        private List<MonitoredItemAttachmentHandler> m_detachedHandlers = [];
         private IMonitoredValuePoller? m_poller;
         private TimeSpan m_minimumPeriod;
         private NodeState? m_desiredSource;

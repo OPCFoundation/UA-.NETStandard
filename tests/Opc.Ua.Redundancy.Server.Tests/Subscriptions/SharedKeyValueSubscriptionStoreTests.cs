@@ -113,6 +113,29 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task StoreAndRestorePreservesExternalValueSourceAcquisitionMode()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore active = CreateStore(kv);
+            SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+            StoredSubscription expected = NewSubscription(106, 16);
+            var expectedItem = (StoredMonitoredItem)expected.MonitoredItems.Single();
+            expectedItem.TypeMask = MonitoredItemTypeMask.DataChange | MonitoredItemTypeMask.ExternalValueSource;
+            expectedItem.SourceSamplingInterval = 0;
+
+            bool stored = await active.StoreSubscriptionsAsync([expected]).ConfigureAwait(false);
+            RestoreSubscriptionResult result = await backup.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(stored, Is.True);
+            Assert.That(result.Success, Is.True);
+            var actual = (StoredMonitoredItem)result.Subscriptions!.Single().MonitoredItems.Single();
+            Assert.That(actual.TypeMask,
+                Is.EqualTo(MonitoredItemTypeMask.DataChange | MonitoredItemTypeMask.ExternalValueSource));
+            Assert.That(actual.SourceSamplingInterval, Is.Zero);
+            AssertMonitoredItem(actual, expectedItem);
+        }
+
+        [Test]
         public async Task StoreAndRestoreRoundTripsFilteredRetainConditionIdsAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();

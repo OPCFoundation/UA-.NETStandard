@@ -809,19 +809,56 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
-        public async Task ObserveOnlyDoesNotWireASeparateBridge()
+        public async Task CombinedReadObserveFormKeepsReadSamplingWithoutAnotherSource()
         {
             var h = new WotProjectionBindingRuntimeTestHarness();
-            WotCompiledForm form = WotProjectionBindingRuntimeTestHarness.Form(
+            WotCompiledForm read = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty,
+                new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText));
+            WotCompiledForm observe = WotProjectionBindingRuntimeTestHarness.Form(
                 WoTBindingCapabilityEnum.ObserveProperty,
                 new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText));
-
+            var channel = new FakeWotBindingChannel(read)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(StatusCodes.Good, new DataValue(new Variant(42))))
+            };
+            h.ChannelFactory.SetChannel(read, channel);
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(
-                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(form)]).ConfigureAwait(false);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(read, observe)]).ConfigureAwait(false);
+            (ServiceResult result, DataValue value) = await h.ScalarVar.ReadAttributeAsync(
+                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
 
-            Assert.That(h.ScalarVar.OnReadValueAsync, Is.Null);
-            Assert.That(h.ScalarVar.OnWriteValueAsync, Is.Null);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(value.WrappedValue.TryGetValue(out int number), Is.True);
+            Assert.That(number, Is.EqualTo(42));
+            Assert.That(channel.ReadCount, Is.EqualTo(1));
+            Assert.That(channel.ObserveCount, Is.Zero);
+            Assert.That(h.ChannelFactory.OpenCount, Is.EqualTo(1));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DistinctDeclarationsCannotObserveTheSameTarget(bool structured)
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            WotTargetMappingDescriptor mapping = structured
+                ? new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "A")
+                : new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText);
+            WotCompiledForm first = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ObserveProperty, mapping, affordanceName: "first");
+            WotCompiledForm second = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ObserveProperty, mapping, affordanceName: "second");
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(first, second)])
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(error.Message, Does.Contain("more than one observeproperty"));
             Assert.That(h.ChannelFactory.OpenCount, Is.Zero);
         }
 

@@ -133,8 +133,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 Attributes.Value,
                 filter: null,
                 queueSize: 1,
-                translate: static (_, notificationValue) => notificationValue is MonitoredItemNotification change
-                    ? new WotNotification(change.Value)
+                translate: (_, notificationValue) => notificationValue is MonitoredItemNotification change
+                    ? new WotNotification(change.Value).WithContext(CreateSourceContext())
                     : null,
                 onNotification,
                 cancellationToken);

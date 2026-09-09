@@ -221,6 +221,43 @@ namespace Opc.Ua.Server
         /// Whether the item belongs to a durable subscription.
         /// </summary>
         public bool CreateDurable { get; }
+
+        /// <summary>
+        /// Creates a standard monitored item whose values are supplied by its
+        /// external source rather than by reading the monitored Node.
+        /// </summary>
+        /// <remarks>
+        /// The source must queue its initial value and resume delivery when the
+        /// item is re-enabled. Node changes and sampling groups do not read the
+        /// Node's value on behalf of this item. Use this factory with
+        /// <see cref="MonitoredItemCreateDecision.Use"/> and
+        /// <c>queueInitialValue: false</c>.
+        /// </remarks>
+        public MonitoredItem CreatePushMonitoredItem()
+        {
+            return new MonitoredItem(
+                Server,
+                NodeManager,
+                Handle,
+                SubscriptionId,
+                MonitoredItemId,
+                Request.ItemToMonitor,
+                DiagnosticsMasks,
+                TimestampsToReturn,
+                Request.MonitoringMode,
+                Request.RequestedParameters.ClientHandle,
+                Filter,
+                Filter,
+                EuRange,
+                SamplingInterval,
+                QueueSize,
+                Request.RequestedParameters.DiscardOldest,
+                sourceSamplingInterval: 0,
+                CreateDurable)
+            {
+                UsesExternalValueSource = true
+            };
+        }
     }
 
     /// <summary>

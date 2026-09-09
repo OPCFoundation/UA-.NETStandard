@@ -2272,7 +2272,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    if (item.TypeMask == MonitoredItemTypeMask.DataChange)
+                    if ((item.TypeMask & MonitoredItemTypeMask.DataChange) != 0)
                     {
                         if (item.QueueSize > 1 || item.IsDurable)
                         {

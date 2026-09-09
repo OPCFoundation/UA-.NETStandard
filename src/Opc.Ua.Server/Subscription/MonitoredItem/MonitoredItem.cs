@@ -435,7 +435,7 @@ namespace Opc.Ua.Server
         /// Predefined bits are defined by the MonitoredItemTypeMasks class.
         /// NodeManagers may use the remaining bits.
         /// </remarks>
-        public int MonitoredItemType { get; }
+        public int MonitoredItemType { get; private init; }
 
         /// <summary>
         /// Returns true if the item is ready to publish.
@@ -827,6 +827,14 @@ namespace Opc.Ua.Server
         /// </summary>
         public bool AlwaysReportUpdates { get; set; }
 
+        internal bool UsesExternalValueSource
+        {
+            get => (MonitoredItemType & MonitoredItemTypeMask.ExternalValueSource) != 0;
+            init => MonitoredItemType = value
+                ? MonitoredItemType | MonitoredItemTypeMask.ExternalValueSource
+                : MonitoredItemType & ~MonitoredItemTypeMask.ExternalValueSource;
+        }
+
         /// <summary>
         /// Returns a description of the item being monitored.
         /// </summary>
@@ -1120,7 +1128,9 @@ namespace Opc.Ua.Server
                 }
 
                 // check monitoring mode.
-                if (MonitoringMode == MonitoringMode.Disabled)
+                if (m_isDisposed ||
+                    MonitoringMode == MonitoringMode.Disabled ||
+                    (UsesExternalValueSource && (m_isDeleted || m_isDetached) && !IsBadNodeIdUnknown(value, error)))
                 {
                     return;
                 }
@@ -2118,7 +2128,7 @@ namespace Opc.Ua.Server
                     // check if queuing is disabled.
                     if (QueueSize == 0)
                     {
-                        if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                        if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                         {
                             QueueSize = 1;
                         }
@@ -2130,7 +2140,7 @@ namespace Opc.Ua.Server
                     }
 
                     // create data queue.
-                    if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                    if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                     {
                         if (QueueSize <= 1)
                         {
@@ -2198,7 +2208,7 @@ namespace Opc.Ua.Server
                     // check if queuing is disabled.
                     if (QueueSize == 0)
                     {
-                        if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                        if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                         {
                             QueueSize = 1;
                         }
@@ -2210,7 +2220,7 @@ namespace Opc.Ua.Server
                     }
 
                     // create data queue.
-                    if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                    if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                     {
                         if (QueueSize <= 1)
                         {

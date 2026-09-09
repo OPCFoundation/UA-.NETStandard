@@ -442,6 +442,10 @@ namespace Opc.Ua.Server
             foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
             {
                 IDataChangeMonitoredItem2 item = kvp.Value;
+                if (item is MonitoredItem { UsesExternalValueSource: true })
+                {
+                    continue;
+                }
                 bool isValueAttribute = item.AttributeId == Attributes.Value;
                 if (isValueAttribute && (changes & NodeStateChangeMasks.Value) == 0)
                 {
@@ -694,6 +698,10 @@ namespace Opc.Ua.Server
             foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
             {
                 IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
+                if (monitoredItem is MonitoredItem { UsesExternalValueSource: true })
+                {
+                    continue;
+                }
                 OperationContext operationContext;
                 ISystemContext contextToUse;
 
@@ -760,6 +768,10 @@ namespace Opc.Ua.Server
             IDataChangeMonitoredItem2 monitoredItem,
             CancellationToken cancellationToken = default)
         {
+            if (monitoredItem is MonitoredItem { UsesExternalValueSource: true })
+            {
+                return;
+            }
             var value = new DataValue(
                 Variant.Null,
                 StatusCodes.Good,
