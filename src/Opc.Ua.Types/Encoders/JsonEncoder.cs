@@ -1346,7 +1346,13 @@ namespace Opc.Ua
             ExpandedNodeId typeId = encodeable?.TypeId ?? value.TypeId;
             var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
 
-            if (localTypeId.IsNull && !typeId.IsNull)
+            // A TypeId whose namespace is not in the local table cannot be written as a JSON
+            // NodeId. That is normal for a client encoding a server type it has not mapped, and
+            // the writers below already omit UaTypeId in that case. It is only unencodable when
+            // there is no body either, because then the envelope would collapse to {} and the
+            // type identity would be lost entirely.
+            if (localTypeId.IsNull && !typeId.IsNull &&
+                value.Encoding == ExtensionObjectEncoding.None && encodeable == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingError,
