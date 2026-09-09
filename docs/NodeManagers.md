@@ -1200,12 +1200,12 @@ discovered while the server is up — so the same fluent wiring recipe
 applies to statically declared and runtime-created nodes alike:
 
 ```csharp
-private void ConfigureService(MyServiceState service)
+private async Task ConfigureServiceAsync(MyServiceState service)
 {
     NodeManagerBuilder builder = CreateFluentBuilder(namespaceIndex);
     builder.Node(service.DoSomething!)
            .OnReadRolePermissions(GrantSelfAdmin);
-    builder.Seal();
+    await builder.SealAsync().ConfigureAwait(false);
 }
 ```
 
