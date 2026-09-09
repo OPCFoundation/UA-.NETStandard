@@ -51,6 +51,66 @@ namespace Opc.Ua.Core.Tests.Stack.State
     public class NodeStateCollectionConcurrencyTests
     {
         [Test]
+        public async Task AtomicReferenceMutationPublishesExactlyOneWinnerPerKeyAsync()
+        {
+            var node = new BaseObjectState(null);
+            const int k_count = 128;
+            const int k_workers = 8;
+            int addedCallbacks = 0;
+            int removedCallbacks = 0;
+            node.OnReferenceAdded = (_, _, _, _) => Interlocked.Increment(ref addedCallbacks);
+            node.OnReferenceRemoved = (_, _, _, _) => Interlocked.Increment(ref removedCallbacks);
+            var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var workers = new Task[k_workers];
+            for (int worker = 0; worker < workers.Length; worker++)
+            {
+                workers[worker] = Task.Run(async () =>
+                {
+                    await start.Task.ConfigureAwait(false);
+                    for (uint index = 1; index <= k_count; index++)
+                    {
+                        node.AddReferenceIfMissing(ReferenceTypeIds.HasComponent, false, new NodeId(index, 1));
+                        Assert.That(node.ReferenceExists(
+                            ReferenceTypeIds.HasComponent, false, new NodeId(index, 1)), Is.True);
+                    }
+                });
+            }
+            start.SetResult(true);
+            await Task.WhenAll(workers).WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            var snapshot = new List<IReference>();
+            node.GetReferences(null, snapshot);
+            Assert.That(snapshot, Has.Count.EqualTo(k_count));
+            Assert.That(addedCallbacks, Is.EqualTo(k_count));
+            for (int worker = 0; worker < workers.Length; worker++)
+            {
+                workers[worker] = Task.Run(() =>
+                {
+                    for (uint index = 1; index <= k_count; index++)
+                    {
+                        node.RemoveReference(ReferenceTypeIds.HasComponent, false, new NodeId(index, 1));
+                    }
+                });
+            }
+            await Task.WhenAll(workers).WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            var current = new List<IReference>();
+            node.GetReferences(null, current);
+            Assert.That(current, Is.Empty);
+            Assert.That(removedCallbacks, Is.EqualTo(k_count));
+            Assert.That(snapshot, Has.Count.EqualTo(k_count));
+            var targets = new HashSet<ExpandedNodeId>();
+            foreach (IReference reference in snapshot)
+            {
+                Assert.That(reference.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasComponent));
+                Assert.That(reference.IsInverse, Is.False);
+                Assert.That(targets.Add(reference.TargetId), Is.True);
+            }
+            for (uint index = 1; index <= k_count; index++)
+            {
+                Assert.That(targets, Does.Contain(new ExpandedNodeId(new NodeId(index, 1))));
+            }
+        }
+
+        [Test]
         [CancelAfter(10000)]
         public void NodeStateReferencesCollectionConcurrencyTest(
             CancellationToken cancellationToken)

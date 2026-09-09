@@ -221,7 +221,7 @@ namespace Opc.Ua.Client.UserManagement
         {
             Variant value = await ReadPropertyAsync(
                 BrowseNames.PasswordLength, cancellationToken).ConfigureAwait(false);
-            if (value.TryGetStructure<Range>(out Range? range) && range != null)
+            if (value.TryGetStructure<Range>(out Range? range) && range is not null)
             {
                 return range;
             }

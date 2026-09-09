@@ -266,6 +266,12 @@ namespace Opc.Ua
             m_inner.NamespaceIdx = namespaceIndex;
         }
 
+        private NodeId(object? identifier, Inner inner)
+        {
+            m_identifier = identifier;
+            m_inner = inner;
+        }
+
         /// <summary>
         /// Creates a new NodeId from a long-form text representation, resolving
         /// the namespace URI against the supplied <see cref="NamespaceTable"/>.
@@ -1814,6 +1820,31 @@ namespace Opc.Ua
         /// C# 15 union types.
         /// </summary>
         public bool HasValue => !IsNull;
+
+        /// <summary>
+        /// Borrows the identifier reference and complete unmanaged state for lossless internal storage.
+        /// </summary>
+        /// <remarks>
+        /// This method must never be made public. It exists only for <see cref="Variant"/>
+        /// storage, and the internal representation may change.
+        /// </remarks>
+        internal void GetRawState(out object? identifier, out Inner inner)
+        {
+            identifier = m_identifier;
+            inner = m_inner;
+        }
+
+        /// <summary>
+        /// Restores the identifier reference and complete unmanaged state without recomputing it.
+        /// </summary>
+        /// <remarks>
+        /// This method must never be made public. It exists only for <see cref="Variant"/>
+        /// storage, and the internal representation may change.
+        /// </remarks>
+        internal static NodeId SetRawState(object? identifier, Inner inner)
+        {
+            return new NodeId(identifier, inner);
+        }
 
         /// <summary>
         /// Get namespace index for id or throw if not found.
