@@ -339,12 +339,13 @@ namespace Opc.Ua.Types.Tests.Wot
             "\"uav:dataTypeName\":\"demo:B\",\"uav:binaryEncodingId\":\"nsu=http://x/;s=Shared\"}]",
             "ambiguous to decode")]
         [TestCase(
-            "a default naming a fourth encoding",
+            "a default disagreeing with the explicit Binary encoding",
             "\"uav:dataTypeDefinitions\":[" +
             "{\"@id\":\"urn:t#A\",\"@type\":\"uav:StructureDefinition\"," +
             "\"uav:dataTypeName\":\"demo:A\"," +
+            "\"uav:binaryEncodingId\":\"nsu=http://x/;s=Binary\"," +
             "\"uav:defaultEncodingId\":\"nsu=http://x/;s=Elsewhere\"}]",
-            "none of the three")]
+            "does not identify its Default Binary encoding")]
         [TestCase(
             "two enumeration fields on one value",
             "\"uav:dataTypeDefinitions\":[" +

@@ -65,7 +65,12 @@ namespace Opc.Ua.Wot
         /// difference between "this model does not define that" and "this
         /// model defines that, but it is not a ReferenceType".
         /// </remarks>
-        ReferenceType
+        ReferenceType,
+
+        /// <summary>
+        /// A DataType used by a value schema or Structure field.
+        /// </summary>
+        DataType
     }
 
     /// <summary>
@@ -332,7 +337,7 @@ namespace Opc.Ua.Wot
     /// existing document projects to.
     /// </remarks>
     public sealed class WotCompositeNodeResolver
-        : IWotNodeResolver, IWotReferenceTypeResolver, IWotTypeDeclarationResolver
+        : IWotNodeResolver, IWotReferenceTypeResolver, IWotTypeDeclarationResolver, IWotDataTypeDefinitionResolver
     {
         /// <summary>
         /// Initializes a composite over the supplied resolvers, in order.
@@ -467,6 +472,31 @@ namespace Opc.Ua.Wot
             }
 
             return null;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<ArrayOf<WotDataTypeDefinitionSource>> ResolveDataTypeDefinitionsAsync(
+            string graphId,
+            CancellationToken cancellationToken = default)
+        {
+            if (graphId is null)
+            {
+                throw new ArgumentNullException(nameof(graphId));
+            }
+            foreach (IWotNodeResolver resolver in m_resolvers)
+            {
+                if (resolver is not IWotDataTypeDefinitionResolver definitions)
+                {
+                    continue;
+                }
+                ArrayOf<WotDataTypeDefinitionSource> matches = await definitions
+                    .ResolveDataTypeDefinitionsAsync(graphId, cancellationToken).ConfigureAwait(false);
+                if (matches.Count != 0)
+                {
+                    return matches;
+                }
+            }
+            return ArrayOf<WotDataTypeDefinitionSource>.Empty;
         }
 
         /// <summary>

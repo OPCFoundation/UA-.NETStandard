@@ -90,6 +90,20 @@ namespace Opc.Ua.Export
         }
 
         /// <summary>
+        /// Resolves a base-namespace DataType named by its BrowseName.
+        /// </summary>
+        public static bool TryGetDataTypeNodeId(string? browseName, out string nodeId)
+        {
+            if (browseName is not null &&
+                s_dataTypeNameToNodeId.TryGetValue(browseName, out nodeId!))
+            {
+                return true;
+            }
+            nodeId = string.Empty;
+            return false;
+        }
+
+        /// <summary>
         /// Resolves a base-namespace ReferenceType named by its BrowseName.
         /// </summary>
         public static bool TryGetReferenceTypeNodeId(string? browseName, out string nodeId)

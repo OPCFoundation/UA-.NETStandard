@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 
 namespace Opc.Ua.Wot
 {
@@ -72,6 +73,27 @@ namespace Opc.Ua.Wot
             if (document is null)
             {
                 throw new ArgumentNullException(nameof(document));
+            }
+            foreach (JsonElement definition in WotNodeSetConverter.ReadDataTypeDefinitionOccurrences(
+                document.RootElement))
+            {
+                if (WotNodeSetConverter.IsReferenceOnlyDefinition(definition) ||
+                    !definition.TryGetProperty("@id", out JsonElement identity) ||
+                    identity.ValueKind != JsonValueKind.String)
+                {
+                    continue;
+                }
+                string graphId = identity.GetString()!;
+                if (!m_dataTypes.TryGetValue(graphId, out List<WotDataTypeDefinitionSource>? sources))
+                {
+                    sources = [];
+                    m_dataTypes.Add(graphId, sources);
+                }
+                if (!sources.Exists(source => ReferenceEquals(source.Document, document) &&
+                    source.Definition.Equals(definition)))
+                {
+                    sources.Add(new WotDataTypeDefinitionSource(document, definition));
+                }
             }
             if (!WotNodeSetConverter.TryDescribeProjectedType(
                     document, out _, out _, out string typeNodeId) ||
@@ -139,6 +161,20 @@ namespace Opc.Ua.Wot
                 };
             }
             return BuildEffective(typeNodeId, entry);
+        }
+
+        /// <summary>
+        /// Gets complete DataType definitions for a graph identity, retaining their owning contexts.
+        /// </summary>
+        public ArrayOf<WotDataTypeDefinitionSource> ResolveDataTypeDefinitions(string graphId)
+        {
+            if (graphId is null)
+            {
+                throw new ArgumentNullException(nameof(graphId));
+            }
+            return m_dataTypes.TryGetValue(graphId, out List<WotDataTypeDefinitionSource>? sources)
+                ? sources.ToArrayOf()
+                : ArrayOf<WotDataTypeDefinitionSource>.Empty;
         }
 
         /// <summary>
@@ -268,5 +304,7 @@ namespace Opc.Ua.Wot
 
         private readonly Dictionary<string, Entry> m_types = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> m_aliases = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, List<WotDataTypeDefinitionSource>> m_dataTypes =
+            new(StringComparer.Ordinal);
     }
 }

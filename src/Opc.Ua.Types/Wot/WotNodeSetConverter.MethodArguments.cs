@@ -532,16 +532,17 @@ namespace Opc.Ua.Wot
             string rootLocal,
             List<UANode> items,
             List<Reference> methodReferences,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            DataTypeDefinitionContext dataTypes)
         {
             SynthesizeArgumentVariable(
                 document, nodeSet, action, InputMember, InputArgumentsBrowseName,
                 DefaultInputArgumentName, affordanceKey, methodNodeId, methodLocal,
-                rootLocal, items, methodReferences, diagnostics);
+                rootLocal, items, methodReferences, diagnostics, dataTypes);
             SynthesizeArgumentVariable(
                 document, nodeSet, action, OutputMember, OutputArgumentsBrowseName,
                 DefaultOutputArgumentName, affordanceKey, methodNodeId, methodLocal,
-                rootLocal, items, methodReferences, diagnostics);
+                rootLocal, items, methodReferences, diagnostics, dataTypes);
         }
 
         /// <summary>
@@ -561,7 +562,8 @@ namespace Opc.Ua.Wot
             string rootLocal,
             List<UANode> items,
             List<Reference> methodReferences,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            DataTypeDefinitionContext dataTypes)
         {
             WotArgumentShape shape = AnalyzeArgumentSchema(action, member);
             string pointer = "/actions/" + EscapeJsonPointerToken(affordanceKey) + "/" + member;
@@ -597,7 +599,7 @@ namespace Opc.Ua.Wot
             {
                 arguments.Add(ReadArgument(
                     document, schema, ReadArgumentName(schema, defaultName),
-                    nodeSet, diagnostics));
+                    nodeSet, diagnostics, dataTypes));
             }
             else
             {
@@ -605,7 +607,7 @@ namespace Opc.Ua.Wot
                 foreach (string name in shape.Members)
                 {
                     arguments.Add(ReadArgument(
-                        document, properties.GetProperty(name), name, nodeSet, diagnostics));
+                        document, properties.GetProperty(name), name, nodeSet, diagnostics, dataTypes));
                 }
             }
 
@@ -792,11 +794,12 @@ namespace Opc.Ua.Wot
             JsonElement schema,
             string name,
             UANodeSet nodeSet,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            DataTypeDefinitionContext dataTypes)
         {
             return new WotMethodArgument(
                 name,
-                MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics),
+                MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics, dataTypes),
                 GetElementInt32(schema, "uav:valueRank") ?? -1,
                 ReadArrayDimensions(schema, name, diagnostics),
                 ReadDescription(schema, GetDeclaredLocale(document)));

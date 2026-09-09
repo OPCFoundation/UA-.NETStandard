@@ -1621,7 +1621,8 @@ namespace Opc.Ua.Wot
             List<UANode> items,
             List<Reference> eventReferences,
             List<WotDiagnostic> diagnostics,
-            WotEventSelectionCatalog? eventSelections = null)
+            WotEventSelectionCatalog? eventSelections = null,
+            DataTypeDefinitionContext? dataTypes = null)
         {
             System.Text.Json.JsonDocument? linked = null;
             try
@@ -1650,7 +1651,7 @@ namespace Opc.Ua.Wot
                 SynthesizeEventFieldMembers(
                     document, nodeSet, eventAffordance, data, properties, key,
                     superTypeNodeId, eventNodeId, eventLocal, rootLocal, items,
-                    eventReferences, diagnostics);
+                    eventReferences, diagnostics, dataTypes);
             }
             finally
             {
@@ -1672,7 +1673,8 @@ namespace Opc.Ua.Wot
             string rootLocal,
             List<UANode> items,
             List<Reference> eventReferences,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            DataTypeDefinitionContext? dataTypes)
         {
             bool isCondition = HasNonEmptyString(eventAffordance, ConditionTypeTerm) ||
                 HasNonEmptyString(eventAffordance, ConditionTypeIdTerm);
@@ -1721,7 +1723,7 @@ namespace Opc.Ua.Wot
                 SynthesizeEventField(
                     document, nodeSet, eventAffordance, member.Value, local,
                     required.Contains(member.Name) || required.Contains(local),
-                    eventNodeId, eventLocal, rootLocal, items, eventReferences, diagnostics);
+                    eventNodeId, eventLocal, rootLocal, items, eventReferences, diagnostics, dataTypes);
             }
         }
 
@@ -1746,7 +1748,8 @@ namespace Opc.Ua.Wot
             string rootLocal,
             List<UANode> items,
             List<Reference> eventReferences,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            DataTypeDefinitionContext? dataTypes)
         {
             string? authoredNodeId = GetElementString(schema, "uav:id");
             string nodeId = authoredNodeId is null
@@ -1762,7 +1765,7 @@ namespace Opc.Ua.Wot
                     : ToNodeSetQualifiedName(document, authoredBrowseName, nodeSet, diagnostics, schema),
                 DisplayName = ReadTitle(schema, GetDeclaredLocale(document), local),
                 ParentNodeId = eventNodeId,
-                DataType = MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics),
+                DataType = MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics, dataTypes),
                 ValueRank = GetElementInt32(schema, "uav:valueRank") ?? -1,
                 ArrayDimensions = ReadArrayDimensions(schema, local, diagnostics),
                 AccessLevel = AccessLevelCurrentRead,

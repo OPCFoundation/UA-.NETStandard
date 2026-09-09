@@ -343,7 +343,7 @@ namespace Opc.Ua.Wot
                             BuildIndex(nodeSet),
                             defaultLocale);
                     }
-                    WriteDataTypeDefinitions(writer, nodeSet, defaultLocale);
+                    WriteDataTypeDefinitions(writer, nodeSet, defaultLocale, documentHref is null ? null : root);
                     WriteAffordances(
                         writer, nodeSet, root, diagnostics, options, defaultLocale, parentHref,
                         TypeDefinitionHref(root, nodeSet), eventTypeHrefs, documentHref);
@@ -771,7 +771,8 @@ namespace Opc.Ua.Wot
                         typedComponentLinks.Add(new TypedComponentLink(
                             componentType, templateRel, templateRefId, string.Empty)
                         {
-                            Declaration = (declarationId, declarationName, GetBaselineModellingRule(component, nodeSet))
+                            Declaration =
+                                (declarationId, declarationName, GetBaselineModellingRule(component, nodeSet))
                         });
                         continue;
                     }

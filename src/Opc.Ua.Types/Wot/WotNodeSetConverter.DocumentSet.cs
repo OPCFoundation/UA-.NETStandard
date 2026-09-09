@@ -836,6 +836,21 @@ namespace Opc.Ua.Wot
 
             public UANodeSet? ArchiveContext { get; set; }
 
+            public DataTypeDefinitionContext? DataTypes { get; set; }
+
+            public ArrayOf<WotDocument> DataTypeOwners
+            {
+                get
+                {
+                    var owners = new List<WotDocument>();
+                    foreach (WotDocumentSetEntry entry in m_documents.Entries)
+                    {
+                        owners.Add(entry.Document);
+                    }
+                    return owners.ToArrayOf();
+                }
+            }
+
             public ValueTask<WotResolverResult> ResolveThingAsync(
                 string reference,
                 WotResolutionContext context,
