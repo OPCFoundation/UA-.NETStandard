@@ -770,6 +770,27 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ReadExtensionObjectWithOnlyTypeIdPreservesBodylessExtensionObject()
+        {
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaTypeId": "i=1"}"""));
+            ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
+            Assert.That(result, Is.EqualTo(new ExtensionObject(new NodeId(1))));
+        }
+
+        [Test]
+        public void ReadExtensionObjectWithRegisteredTypeIdPreservesEncodeableBody()
+        {
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaTypeId": "i=296"}"""));
+            ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.TryGetValue(out Argument argument), Is.True);
+                Assert.That(argument, Is.Not.Null);
+            });
+        }
+
+        [Test]
         public void ReadExtensionObjectWhenEncodingIsEmptyBinary()
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaEncoding": 1, "UaBody": [] }"""));

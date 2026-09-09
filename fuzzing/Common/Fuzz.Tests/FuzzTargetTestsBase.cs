@@ -29,10 +29,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -128,21 +130,26 @@ namespace Opc.Ua.Fuzzing
         }
 
         [Theory]
-        [CancelAfter(1000)]
-        public void FuzzTimeoutAssets(
+        public async Task FuzzTimeoutAssetsAsync(
             FuzzTargetFunction fuzzableCode,
             [ValueSource(nameof(TimeoutAssets))] TestcaseAsset messageEncoder)
         {
-            FuzzTarget(fuzzableCode, messageEncoder.Testcase);
+            await ReplayWithWatchdogAsync(fuzzableCode, messageEncoder.Testcase).ConfigureAwait(false);
         }
 
         [Theory]
-        [CancelAfter(1000)]
-        public void FuzzSlowAssets(
+        public async Task FuzzSlowAssetsAsync(
             FuzzTargetFunction fuzzableCode,
             [ValueSource(nameof(SlowAssets))] TestcaseAsset messageEncoder)
         {
-            FuzzTarget(fuzzableCode, messageEncoder.Testcase);
+            await ReplayWithWatchdogAsync(fuzzableCode, messageEncoder.Testcase).ConfigureAwait(false);
+        }
+
+        [Test]
+        public void RequiredCorpusAndTargetsArePresent()
+        {
+            Assert.That(GoodTestcases, Is.Not.Empty, "Required fuzz corpus was not copied to the test output.");
+            Assert.That(CreateFuzzTargetFunctions(FuzzableCodeType), Is.Not.Empty);
         }
 
         protected static FuzzTargetFunction[] CreateFuzzTargetFunctions(Type fuzzableCodeType)
@@ -151,13 +158,53 @@ namespace Opc.Ua.Fuzzing
             [
                 .. fuzzableCodeType
                     .GetMethods(BindingFlags.Static | BindingFlags.Public)
-                    .Where(f => f.GetParameters().Length == 1)
+                    .Where(f => f.ReturnType == typeof(void) &&
+                        !f.ContainsGenericParameters &&
+                        f.GetParameters().Length == 1 &&
+                        (f.GetParameters()[0].ParameterType == typeof(Stream) ||
+                         f.GetParameters()[0].ParameterType == typeof(string) ||
+                         f.GetParameters()[0].ParameterType == typeof(ReadOnlySpan<byte>)))
                     .Select(f => new FuzzTargetFunction(f))
             ];
         }
 
         protected virtual void OnFuzzTargetSetup(ITelemetryContext telemetry)
         {
+        }
+
+        private async Task ReplayWithWatchdogAsync(FuzzTargetFunction target, byte[] data)
+        {
+            string file = Path.Combine(Path.GetTempPath(), $"opcua-fuzz-{Guid.NewGuid():N}.bin");
+            File.WriteAllBytes(file, data);
+            try
+            {
+                string assembly = FuzzableCodeType.Assembly.Location;
+#if NETFRAMEWORK
+                string executable = assembly;
+                string arguments = string.Empty;
+#else
+                string executable = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet";
+                string arguments = $"\"{assembly}\" ";
+#endif
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = executable,
+                    Arguments = $"{arguments}--fuzz-replay {target.MethodInfo.Name} \"{file}\"",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                    WorkingDirectory = AppContext.BaseDirectory
+                };
+                (int exitCode, bool timedOut, string standardOutput, string standardError) =
+                    await FuzzProcessWatchdog.RunAsync(startInfo, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                Assert.That(timedOut, Is.False, $"Replay exceeded the process budget: {target.MethodInfo.Name}");
+                Assert.That(exitCode, Is.Zero, standardOutput + Environment.NewLine + standardError);
+            }
+            finally
+            {
+                File.Delete(file);
+            }
         }
 
         private void FuzzTarget(FuzzTargetFunction fuzzableCode, byte[] blob)
@@ -192,6 +239,10 @@ namespace Opc.Ua.Fuzzing
                     .CreateDelegate(typeof(LibFuzzTemplate));
 #endif
                 fuzzFunction(span);
+            }
+            else
+            {
+                throw new InvalidOperationException("Unsupported fuzz target signature.");
             }
         }
     }

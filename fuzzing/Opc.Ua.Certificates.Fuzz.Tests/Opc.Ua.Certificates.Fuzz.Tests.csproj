@@ -5,12 +5,14 @@
     <AssemblyName>Opc.Ua.Certificates.Fuzz.Tests</AssemblyName>
     <RootNamespace>Certificates.Fuzz.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
+    <StartupObject>Opc.Ua.Fuzzing.FuzzReplayProgram</StartupObject>
   </PropertyGroup>
   <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
     <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Opc.Ua.Certificates.Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
+    <Compile Include="..\Opc.Ua.Certificates.Fuzz\FuzzableCode.Certificates.cs" Link="FuzzableCode.Certificates.cs" />
     <Compile Include="..\Opc.Ua.Certificates.Fuzz\FuzzableCode.X509CRL.cs" Link="FuzzableCode.X509CRL.cs" />
     <Compile Include="..\Opc.Ua.Certificates.Fuzz\FuzzableCode.X509Extensions.cs" Link="FuzzableCode.X509Extensions.cs" />
     <Compile Include="..\Opc.Ua.Certificates.Fuzz\FuzzableCode.PEMReader.cs" Link="FuzzableCode.PEMReader.cs" />
@@ -18,6 +20,8 @@
     <Compile Include="..\Opc.Ua.Certificates.Fuzz\FuzzableCode.AsnUtils.cs" Link="FuzzableCode.AsnUtils.cs" />
     <Compile Include="..\Common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
     <Compile Include="..\Common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />
+    <Compile Include="..\Opc.Ua.Certificates.Fuzz.Tools\Certificates.Testcases.cs" Link="Certificates.Testcases.cs" />
+    <Compile Include="..\Opc.Ua.Certificates.Fuzz.Tools\Certificates.Parity.Testcases.cs" Link="Certificates.Parity.Testcases.cs" />
     <Compile Include="..\Common\Fuzz.Tests\*.cs" Link="Fuzz.Tests\%(FileName)%(Extension)" />
   </ItemGroup>
   <ItemGroup>

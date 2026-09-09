@@ -54,24 +54,8 @@ namespace Opc.Ua.Fuzzing
         /// <param name="stream">The stdin stream from the afl-fuzz process.</param>
         public static void AflfuzzBinaryEncoder(Stream stream)
         {
-            IEncodeable encodeable = null;
-            using (MemoryStream memoryStream = PrepareArraySegmentStream(stream))
-            {
-                try
-                {
-                    encodeable = FuzzBinaryDecoderCore(memoryStream);
-                }
-                catch
-                {
-                    return;
-                }
-            }
-
-            // encode the fuzzed object and see if it crashes
-            if (encodeable != null)
-            {
-                _ = BinaryEncoder.EncodeMessage(encodeable, MessageContext);
-            }
+            using MemoryStream memoryStream = PrepareArraySegmentStream(stream);
+            FuzzBinaryEncoderCore(memoryStream, false, true);
         }
 
         /// <summary>
@@ -80,23 +64,8 @@ namespace Opc.Ua.Fuzzing
         /// <param name="stream">The stdin stream from the afl-fuzz process.</param>
         public static void AflfuzzBinaryEncoderIndempotent(Stream stream)
         {
-            IEncodeable encodeable = null;
-            byte[] serialized = null;
-            using (MemoryStream memoryStream = PrepareArraySegmentStream(stream))
-            {
-                try
-                {
-                    encodeable = FuzzBinaryDecoderCore(memoryStream, true);
-                    serialized = BinaryEncoder.EncodeMessage(encodeable, MessageContext);
-                }
-                catch
-                {
-                    return;
-                }
-            }
-
-            // reencode the fuzzed input and see if they are idempotent
-            FuzzBinaryEncoderIndempotentCore(serialized, encodeable);
+            using MemoryStream memoryStream = PrepareArraySegmentStream(stream);
+            FuzzBinaryEncoderCore(memoryStream, true, true);
         }
 
         /// <summary>
@@ -113,24 +82,8 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         public static void LibfuzzBinaryEncoder(ReadOnlySpan<byte> input)
         {
-            IEncodeable encodeable = null;
-            using (var memoryStream = new MemoryStream(input.ToArray()))
-            {
-                try
-                {
-                    encodeable = FuzzBinaryDecoderCore(memoryStream, true);
-                }
-                catch
-                {
-                    return;
-                }
-            }
-
-            // encode the fuzzed object and see if it crashes
-            if (encodeable != null)
-            {
-                _ = BinaryEncoder.EncodeMessage(encodeable, MessageContext);
-            }
+            using var memoryStream = new MemoryStream(input.ToArray());
+            FuzzBinaryEncoderCore(memoryStream, false, false);
         }
 
         /// <summary>
@@ -138,23 +91,35 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         public static void LibfuzzBinaryEncoderIndempotent(ReadOnlySpan<byte> input)
         {
-            IEncodeable encodeable = null;
-            byte[] serialized = null;
-            using (var memoryStream = new MemoryStream(input.ToArray()))
-            {
-                try
-                {
-                    encodeable = FuzzBinaryDecoderCore(memoryStream, true);
-                    serialized = BinaryEncoder.EncodeMessage(encodeable, MessageContext);
-                }
-                catch
-                {
-                    return;
-                }
-            }
+            using var memoryStream = new MemoryStream(input.ToArray());
+            FuzzBinaryEncoderCore(memoryStream, true, false);
+        }
 
-            // reencode the fuzzed input and see if they are idempotent
-            FuzzBinaryEncoderIndempotentCore(serialized, encodeable);
+        /// <summary>
+        /// Decodes binary input across non-contiguous buffer boundaries.
+        /// </summary>
+        public static void LibfuzzBinaryDecoderSegmented(ReadOnlySpan<byte> input)
+        {
+            using MemoryStream stream = PrepareArraySegmentStream(input);
+            _ = FuzzBinaryDecoderCore(stream);
+        }
+
+        /// <summary>
+        /// Re-encodes binary input decoded from non-contiguous buffers.
+        /// </summary>
+        public static void LibfuzzBinaryEncoderSegmented(ReadOnlySpan<byte> input)
+        {
+            using MemoryStream stream = PrepareArraySegmentStream(input);
+            FuzzBinaryEncoderCore(stream, false, true);
+        }
+
+        /// <summary>
+        /// Checks canonical binary bytes and values using segmented decodes throughout.
+        /// </summary>
+        public static void LibfuzzBinaryEncoderIndempotentSegmented(ReadOnlySpan<byte> input)
+        {
+            using MemoryStream stream = PrepareArraySegmentStream(input);
+            FuzzBinaryEncoderCore(stream, true, true);
         }
 
         /// <summary>
@@ -170,15 +135,9 @@ namespace Opc.Ua.Fuzzing
                 using var decoder = new BinaryDecoder(stream, MessageContext);
                 return decoder.DecodeMessage<IEncodeable>();
             }
-            catch (ServiceResultException sre)
+            catch (ServiceResultException sre) when (!throwAll && IsExpectedDecodingError(sre))
             {
-                if (!throwAll &&
-                    (sre.StatusCode == StatusCodes.BadDecodingError ||
-                        sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded))
-                {
-                    return null;
-                }
-                throw;
+                return null;
             }
         }
 
@@ -189,18 +148,23 @@ namespace Opc.Ua.Fuzzing
         /// <exception cref="InvalidOperationException"></exception>
         internal static void FuzzBinaryEncoderIndempotentCore(
             byte[] serialized,
-            IEncodeable encodeable)
+            IEncodeable encodeable,
+            bool segmented = false)
         {
             if (serialized == null || encodeable == null)
             {
                 return;
             }
 
-            using var memoryStream = new MemoryStream(serialized);
+            using MemoryStream memoryStream = segmented
+                ? PrepareArraySegmentStream(serialized)
+                : new MemoryStream(serialized);
             IEncodeable encodeable2 = FuzzBinaryDecoderCore(memoryStream, true);
             byte[] serialized2 = BinaryEncoder.EncodeMessage(encodeable2, MessageContext);
 
-            using var memoryStream2 = new MemoryStream(serialized2);
+            using MemoryStream memoryStream2 = segmented
+                ? PrepareArraySegmentStream(serialized2)
+                : new MemoryStream(serialized2);
             IEncodeable encodeable3 = FuzzBinaryDecoderCore(memoryStream2, true);
 
             string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
@@ -215,6 +179,19 @@ namespace Opc.Ua.Fuzzing
                 throw new InvalidOperationException(Utils.Format(
                     "Idempotent 3rd gen decoding failed. Type={0}.",
                     encodeableTypeName));
+            }
+        }
+
+        private static void FuzzBinaryEncoderCore(MemoryStream stream, bool idempotent, bool segmented)
+        {
+            IEncodeable encodeable = FuzzBinaryDecoderCore(stream);
+            if (encodeable != null)
+            {
+                byte[] serialized = BinaryEncoder.EncodeMessage(encodeable, MessageContext);
+                if (idempotent)
+                {
+                    FuzzBinaryEncoderIndempotentCore(serialized, encodeable, segmented);
+                }
             }
         }
     }

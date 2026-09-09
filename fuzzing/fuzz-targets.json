@@ -1,0 +1,1962 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "stackCommit": "7411654c8d0f2bc58571c33dd0040696afd26595",
+    "forkCommit": "b5553f36b0f709a39efadaf49e5f2b687e4e35a7",
+    "capturedDate": "2026-09-08",
+    "forkAccess": "Read-only reference; neither the fork worktree nor its cloud state is modified.",
+    "forkInventory": {
+      "localCallbacks": 28,
+      "oneFuzzRegistrations": 13,
+      "trackedSeedFiles": 18,
+      "localSignatures": { "Stream": 12, "string": 2, "ReadOnlySpan<byte>": 14 },
+      "corpusGroups": [
+        { "format": "Binary", "files": 4 },
+        { "format": "Json", "files": 4 },
+        { "format": "Xml", "files": 4 },
+        { "format": "Certificates", "files": 3 },
+        { "format": "CRLs", "files": 3 }
+      ],
+      "crlIdempotence": "Two local callbacks only; absent from all 13 baseline OneFuzz registrations."
+    },
+    "stackInventory": [
+      { "area": "Encoders", "libFuzzer": 40, "afl": 40, "continuous": 40, "trackedSeedFiles": 53 },
+      { "area": "Certificates", "libFuzzer": 10, "afl": 10, "continuous": 10, "trackedSeedFiles": 21 },
+      { "area": "Network", "libFuzzer": 12, "afl": 10, "continuous": 10, "trackedSeedFiles": 31 },
+      { "area": "PubSub", "libFuzzer": 3, "afl": 3, "continuous": 3, "trackedSeedFiles": 0 }
+    ],
+    "replay": {
+      "evidence": "Pre-change baseline summary.json; source revision and worktree were unchanged.",
+      "sdk": "10.0.303",
+      "os": "Windows",
+      "architecture": "Not recorded in the baseline summary.",
+      "targetFramework": "net10.0",
+      "configuration": "Release",
+      "runner": "VSTest",
+      "testFramework": "NUnit",
+      "noRestore": true,
+      "analyzersDisabled": false,
+      "total": 5359,
+      "passed": 5359,
+      "failed": 0,
+      "skipped": 0,
+      "areas": [
+        { "id": "Encoders", "total": 4569, "passed": 4569, "failed": 0, "skipped": 0 },
+        { "id": "Certificates", "total": 460, "passed": 460, "failed": 0, "skipped": 0 },
+        { "id": "Network", "total": 330, "passed": 330, "failed": 0, "skipped": 0 }
+      ],
+      "pubSub": "Not run: the pinned baseline had no integrated PubSub replay project.",
+      "interpretation": "Passing replay counts are not positive-path, fuzz-campaign or comparable coverage evidence."
+    },
+    "forkReplay": {
+      "environment": "alternate-public-source",
+      "explicitPackageSource": "https://api.nuget.org/v3/index.json",
+      "sdk": "10.0.303",
+      "targetFramework": "net10.0",
+      "configuration": "Release",
+      "runner": "VSTest",
+      "testFramework": "NUnit",
+      "executed": 902,
+      "passed": 902,
+      "failed": 0,
+      "skipped": 0,
+      "trxSha256": "22e66c0a5136f95409ef45dd60b528f5278ccb3ea0143d341ef2deeed9c1f55f",
+      "coverageSha256": "1f6e6d4461e05d08d16d902a0197287c73925bb8f3d996b51558e03e1bcf2171",
+      "sourceAndExistingOutputsUnchanged": true,
+      "normalSourceResult": "Restore returned NU1301/HTTP 401; explicit public-source restore kept declared versions.",
+      "interpretation": "Executable baseline only; not a same-input candidate comparison or an internal canary."
+    },
+    "dictionaryComparison": [
+      {
+        "path": "fuzzing/Dictionaries/json.dict",
+        "forkPath": "Fuzzing/dictionaries/json.dict",
+        "sha256": "0520a1ac0356fc6f5ddc4f87f4c29341dd7ef4b811c8d0b1c32c809f1295fe59",
+        "forkSha256": "0520a1ac0356fc6f5ddc4f87f4c29341dd7ef4b811c8d0b1c32c809f1295fe59",
+        "stackTokens": 59,
+        "forkTokens": 59,
+        "missingForkTokens": 0,
+        "comparison": "Parsed token values compared read-only, ignoring labels/comments; identical token sets."
+      },
+      {
+        "path": "fuzzing/Dictionaries/xml.dict",
+        "forkPath": "Fuzzing/dictionaries/xml.dict",
+        "sha256": "0e502dd42877f698d0b1f9d9ed76c4e814e34b997afdb1d66de57e5948587ad8",
+        "forkSha256": "0e502dd42877f698d0b1f9d9ed76c4e814e34b997afdb1d66de57e5948587ad8",
+        "stackTokens": 69,
+        "forkTokens": 69,
+        "missingForkTokens": 0,
+        "comparison": "Parsed token values compared read-only, ignoring labels/comments; identical token sets."
+      }
+    ],
+    "regressionAssets": [
+      {
+        "path": "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
+        "forkPath": "Fuzzing/Encoders/Fuzz.Tests/Assets/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
+        "bytes": 119,
+        "sha256": "296dbb7b062ae15d36eb8fe0e4820a6ee172f4d1063f868c4119aba8a1011608",
+        "forkSha256": "296dbb7b062ae15d36eb8fe0e4820a6ee172f4d1063f868c4119aba8a1011608",
+        "comparison": "SHA-256 and size compared read-only; identical, no import needed."
+      },
+      {
+        "path": "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
+        "forkPath": "Fuzzing/Encoders/Fuzz.Tests/Assets/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
+        "bytes": 2238,
+        "sha256": "359675f59389549a30fa440ccb21fcc7fb58ae120540e8e5165f8f325a42bcc9",
+        "forkSha256": "359675f59389549a30fa440ccb21fcc7fb58ae120540e8e5165f8f325a42bcc9",
+        "comparison": "SHA-256 and size compared read-only; identical, no import needed."
+      },
+      {
+        "path": "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/timeout-8b790a0680444b262058a1d24d01822a91e8af06",
+        "forkPath": "Fuzzing/Encoders/Fuzz.Tests/Assets/timeout-8b790a0680444b262058a1d24d01822a91e8af06",
+        "bytes": 3853,
+        "sha256": "dec7b53e100cfb67aaf67602843c404400731ac3a17ef6063f2331cc132f9cb1",
+        "forkSha256": "dec7b53e100cfb67aaf67602843c404400731ac3a17ef6063f2331cc132f9cb1",
+        "comparison": "SHA-256 and size compared read-only; identical, no import needed."
+      }
+    ]
+  },
+  "execution": {
+    "mappingMeaning": "Mapped means a source behavior has registered counterparts, not that measured parity is proven.",
+    "pathBase": "Repo-relative input paths resolve under the checkout for static checks or under the published drop.",
+    "localEngines": ["libFuzzer", "AFL"],
+    "modernReplayFrameworks": ["net8.0", "net9.0", "net10.0"],
+    "legacyReplay": { "framework": "net48", "areas": ["Encoders", "Certificates"] },
+    "oneFuzz": {
+      "configVersion": 3,
+      "fuzzerType": "libfuzzerDotNet",
+      "targetFramework": "net10.0",
+      "workerOS": "azurelinux3",
+      "minAvailableMemoryMB": 100,
+      "fuzzerTimeoutInSeconds": 120,
+      "publicDropValidationRequiresProfile": false,
+      "serviceConfigurationRequiresApprovedProfile": true,
+      "canaryStatus": "blocked",
+      "dropLayout": "Flat DLL closure; preserve relative input paths and reject conflicting duplicate hashes.",
+      "dropResolution": "Published validation must not use checkout or NuGet fallback for application dependencies.",
+      "instrumentation": "Service-owned and unverified; do not pre-instrument the submission drop.",
+      "configuration": "No approved profile/access supplied; do not emit final service config or placeholder owners.",
+      "publicDropValidation": "Validate uninstrumented callbacks locally without internal service configuration."
+    },
+    "operationalPilots": [
+      {
+        "target": "Network.TcpChunkHeader",
+        "classification": "operational-only",
+        "summarySha256": "3909ed421685a39832ee9b31fa2b38f11745863e474bbb75b09ca47718533175",
+        "corpus": ["fuzzing/Opc.Ua.Network.Fuzz.Corpus/Testcases.Tcp"],
+        "usesDeclaredTargetCorpus": false,
+        "totalExecutions": 1000,
+        "initializationExecutions": 6,
+        "mutationSeed": 1,
+        "seedFiles": 5,
+        "instrumentedProductionModules": 8,
+        "feedbackFeatures": { "initial": 13, "final": 17 },
+        "exitCode": 0,
+        "findings": 0,
+        "interpretation": "Operational only; not declared-corpus replay, positive-path proof or mapped coverage."
+      }
+    ],
+    "resourcePolicy": "Preserve target input bounds; watchdogs and campaign budgets are runner-owned.",
+    "messageContextPolicy": "Use consistent registered contexts, not the fork's mixed GlobalContext.",
+    "certificateCorpusPolicy": "Generate certificate/chain/CRL inputs externally; require actual files in the drop.",
+    "networkScope": "Offline parsing and reassembly with SecurityPolicy None; no live replay or crypto-profile claim."
+  },
+  "oracles": [
+    {
+      "id": "decode",
+      "description": "Malformed-input probe accepting the core's normal rejections; no semantic equality assertion."
+    },
+    {
+      "id": "encode",
+      "description": "Decode accepted input and encode it; successful encoding alone is not semantic equivalence."
+    },
+    {
+      "id": "binary-canonical",
+      "description": "Canonical second/third-generation binary bytes and decoded message values must agree."
+    },
+    {
+      "id": "json-canonical",
+      "description": "Canonical verbose JSON and second/third-generation decoded message values must agree."
+    },
+    {
+      "id": "xml-canonical",
+      "description": "Canonical XML text and second/third-generation decoded message values must agree."
+    },
+    {
+      "id": "uuid-roundtrip",
+      "description": "Successfully parsed UUID equals the UUID parsed from its formatted representation."
+    },
+    {
+      "id": "cross-format-canonical",
+      "description": "Typed destination decode preserves message values and canonical re-encoded bytes."
+    },
+    {
+      "id": "raw-data-canonical",
+      "description": "Restore only type artifacts from metadata; assert semantic values and canonical RawData bytes."
+    },
+    {
+      "id": "certificate-load",
+      "description": "No private keys; DER reload bytes/subject/issuer/serial/dates must agree; dispose every result."
+    },
+    {
+      "id": "certificate-chain",
+      "description": "Ordered DER chain byte round-trip; inspect and dispose results of the selected parser."
+    },
+    {
+      "id": "crl-tbs-encode",
+      "description": "Signed CRL -> TBS builder encoding with the original inner AlgorithmIdentifier."
+    },
+    {
+      "id": "crl-tbs-canonical",
+      "description": "Canonical TBS bytes, issuer/hash/updates, revocation order and extension OID/critical/raw data."
+    },
+    {
+      "id": "network-parser",
+      "description": "Exercise bounded offline parsing/reassembly under existing rejection filters; not live replay."
+    },
+    {
+      "id": "pubsub-json",
+      "description": "Exercise the real metadata-backed JSON parser without blocking an asynchronous API."
+    },
+    {
+      "id": "pubsub-uadp",
+      "description": "Exercise the real UADP parser with a bounded input and explicit decoding context."
+    },
+    {
+      "id": "pubsub-chunk-reassembly",
+      "description": "Ordered/reversed payload equality, completion boundaries, duplicate handling and cleared state."
+    }
+  ],
+  "evidenceGaps": [
+    {
+      "id": "cloud-corpus",
+      "status": "unavailable",
+      "description": "No authorized snapshot handoff supplied; 18 checked-in seeds do not inventory cloud inputs."
+    },
+    {
+      "id": "internal-canary",
+      "status": "blocked",
+      "description": "Internal profile/access not supplied; canary and coverage parity remain unproven."
+    },
+    {
+      "id": "mapped-production-coverage",
+      "status": "unverified",
+      "description": "Comparable per-behavior production coverage is unavailable; counts cannot prove parity."
+    },
+    {
+      "id": "legacy-json-options",
+      "status": "partial",
+      "description": "Current-option callbacks do not establish legacy wire, namespace or default-value parity."
+    },
+    {
+      "id": "external-regression-archive",
+      "status": "unavailable",
+      "description": "No external regression archive available; only three checked-in reproducers were compared."
+    },
+    {
+      "id": "bounded-instrumented-campaigns",
+      "status": "unverified",
+      "description": "Only a script/driver pilot is recorded; all-target bounded campaigns remain unverified."
+    },
+    {
+      "id": "generated-corpus-materialization",
+      "status": "unverified",
+      "description": "Generated certificate/chain/CRL inputs require runtime materialization and replay evidence."
+    }
+  ],
+  "forkRequirements": [
+    {
+      "id": "fork.local.AflfuzzBinaryDecoder",
+      "origin": "local",
+      "method": "AflfuzzBinaryDecoder",
+      "signature": "Stream",
+      "adapter": "AFL Stream copied into 64-byte ArraySegmentStream segments.",
+      "behavior": "Binary message decoding on noncontiguous buffers.",
+      "oracle": "No unexpected decoding exception.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.BinaryDecoderSegmented"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.LibfuzzBinaryDecoder",
+      "origin": "local",
+      "method": "LibfuzzBinaryDecoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Contiguous MemoryStream over a copy of the span.",
+      "behavior": "Binary message decoding; distinct from the fork's segmented AFL/OneFuzz adapters.",
+      "oracle": "No unexpected decoding exception.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.BinaryDecoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.AflfuzzBinaryEncoder",
+      "origin": "local",
+      "method": "AflfuzzBinaryEncoder",
+      "signature": "Stream",
+      "adapter": "AFL Stream copied into 64-byte ArraySegmentStream segments.",
+      "behavior": "Decode a binary message from segmented input, then encode it.",
+      "oracle": "No unexpected encoding exception for accepted input.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.BinaryEncoderSegmented"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.LibfuzzBinaryEncoder",
+      "origin": "local",
+      "method": "LibfuzzBinaryEncoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Contiguous MemoryStream over a copy of the span.",
+      "behavior": "Decode a binary message, then encode it.",
+      "oracle": "No unexpected encoding exception for accepted input.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.BinaryEncoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.AflfuzzBinaryEncoderIndempotent",
+      "origin": "local",
+      "method": "AflfuzzBinaryEncoderIndempotent",
+      "signature": "Stream",
+      "adapter": "AFL Stream copied into 64-byte ArraySegmentStream segments.",
+      "behavior": "Canonical binary round-trip after a segmented initial decode.",
+      "oracle": "Byte equality plus decoded field equality after canonicalization.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.BinaryEncoderIdempotentSegmented"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.LibfuzzBinaryEncoderIndempotent",
+      "origin": "local",
+      "method": "LibfuzzBinaryEncoderIndempotent",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Contiguous MemoryStream over a copy of the span.",
+      "behavior": "Canonical binary round-trip after a contiguous initial decode.",
+      "oracle": "Byte equality plus decoded field equality after canonicalization.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.BinaryEncoderIdempotent"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.AflfuzzJsonDecoder",
+      "origin": "local",
+      "method": "AflfuzzJsonDecoder",
+      "signature": "string",
+      "adapter": "AFL UTF-8 string adapter.",
+      "behavior": "JSON message decoding.",
+      "oracle": "No unexpected decoding exception.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.JsonDecoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.LibfuzzJsonDecoder",
+      "origin": "local",
+      "method": "LibfuzzJsonDecoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "UTF-8 decode of the span before JSON decoding.",
+      "behavior": "JSON message decoding.",
+      "oracle": "No unexpected decoding exception.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.JsonDecoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.AflfuzzJsonEncoder",
+      "origin": "local",
+      "method": "AflfuzzJsonEncoder",
+      "signature": "string",
+      "adapter": "AFL UTF-8 string adapter.",
+      "behavior": "JSON input -> Compact, Verbose, Reversible and NonReversible, including legacy option changes.",
+      "oracle": "Post-encode decode discards its result and accepts normal rejections; crash-only, not equality.",
+      "mappingStatus": "partial",
+      "targets": [
+        "Encoders.JsonEncoder",
+        "Encoders.JsonEncoderCompact",
+        "Encoders.JsonEncoderRawData",
+        "Encoders.JsonEncoderLegacyReversible",
+        "Encoders.JsonEncoderLegacyNonReversible"
+      ],
+      "gaps": ["legacy-json-options"]
+    },
+    {
+      "id": "fork.local.LibfuzzJsonEncoder",
+      "origin": "local",
+      "method": "LibfuzzJsonEncoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "UTF-8 decode of the span before JSON decoding.",
+      "behavior": "JSON input -> Compact, Verbose, Reversible and NonReversible, including legacy option changes.",
+      "oracle": "Post-encode decode discards its result and accepts normal rejections; crash-only, not equality.",
+      "mappingStatus": "partial",
+      "targets": [
+        "Encoders.JsonEncoder",
+        "Encoders.JsonEncoderCompact",
+        "Encoders.JsonEncoderRawData",
+        "Encoders.JsonEncoderLegacyReversible",
+        "Encoders.JsonEncoderLegacyNonReversible"
+      ],
+      "gaps": ["legacy-json-options"]
+    },
+    {
+      "id": "fork.local.AflfuzzBinaryJsonEncoder",
+      "origin": "local",
+      "method": "AflfuzzBinaryJsonEncoder",
+      "signature": "Stream",
+      "adapter": "AFL Stream passed to the binary core without an explicit segmented adapter.",
+      "behavior": "Binary input -> all four legacy JSON modes and their option changes.",
+      "oracle": "Post-encode decode is crash-only and does not require successful decoding or semantic equality.",
+      "mappingStatus": "partial",
+      "targets": [
+        "Encoders.BinaryJsonEncoderVerbose",
+        "Encoders.BinaryJsonEncoderCompact",
+        "Encoders.BinaryJsonEncoderRawData",
+        "Encoders.BinaryJsonEncoderLegacyReversible",
+        "Encoders.BinaryJsonEncoderLegacyNonReversible"
+      ],
+      "gaps": ["legacy-json-options"]
+    },
+    {
+      "id": "fork.local.LibfuzzBinaryJsonEncoder",
+      "origin": "local",
+      "method": "LibfuzzBinaryJsonEncoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Contiguous MemoryStream over the binary span.",
+      "behavior": "Binary input -> all four legacy JSON modes and their option changes.",
+      "oracle": "Post-encode decode is crash-only and does not require successful decoding or semantic equality.",
+      "mappingStatus": "partial",
+      "targets": [
+        "Encoders.BinaryJsonEncoderVerbose",
+        "Encoders.BinaryJsonEncoderCompact",
+        "Encoders.BinaryJsonEncoderRawData",
+        "Encoders.BinaryJsonEncoderLegacyReversible",
+        "Encoders.BinaryJsonEncoderLegacyNonReversible"
+      ],
+      "gaps": ["legacy-json-options"]
+    },
+    {
+      "id": "fork.local.AflfuzzXmlDecoder",
+      "origin": "local",
+      "method": "AflfuzzXmlDecoder",
+      "signature": "Stream",
+      "adapter": "AFL Stream -> XmlReader.",
+      "behavior": "XML message decoding with the fork's local-name-only type lookup.",
+      "oracle": "No unexpected exception; unknown types and normal malformed XML rejections are accepted.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.XmlDecoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.LibfuzzXmlDecoder",
+      "origin": "local",
+      "method": "LibfuzzXmlDecoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Contiguous MemoryStream -> XmlReader.",
+      "behavior": "XML message decoding.",
+      "oracle": "No unexpected exception; normal malformed XML rejections are accepted.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.XmlDecoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.AflfuzzXmlEncoder",
+      "origin": "local",
+      "method": "AflfuzzXmlEncoder",
+      "signature": "Stream",
+      "adapter": "AFL Stream -> XML decode -> reversible JsonEncoder, not XmlEncoder.",
+      "behavior": "Mislabeled XML-to-JSON conversion; map explicitly, not as XML re-encoding.",
+      "oracle": "No unexpected JSON encoding exception for accepted XML input.",
+      "mappingStatus": "partial",
+      "targets": ["Encoders.XmlJsonEncoderLegacyReversible"],
+      "gaps": ["legacy-json-options"]
+    },
+    {
+      "id": "fork.local.LibfuzzXmlEncoder",
+      "origin": "local",
+      "method": "LibfuzzXmlEncoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Contiguous MemoryStream -> XML decode -> XmlEncoder.",
+      "behavior": "Actual XML re-encoding; unlike the fork's AFL method with the same suffix.",
+      "oracle": "No unexpected XML encoding exception for accepted input.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.XmlEncoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.AflfuzzCertificateDecoder",
+      "origin": "local",
+      "method": "AflfuzzCertificateDecoder",
+      "signature": "Stream",
+      "adapter": "AFL Stream copied to certificate bytes.",
+      "behavior": "Standalone DER certificate loading, not merely ASN.1 blob parsing or PEM import.",
+      "oracle": "Only CryptographicException is an expected loader rejection in the fork.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.CertificateDecoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.LibfuzzCertificateDecoder",
+      "origin": "local",
+      "method": "LibfuzzCertificateDecoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Span passed to the standalone certificate loader core.",
+      "behavior": "Standalone DER certificate loading.",
+      "oracle": "Only CryptographicException is an expected loader rejection in the fork.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.CertificateDecoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.AflfuzzCertificateChainDecoder",
+      "origin": "local",
+      "method": "AflfuzzCertificateChainDecoder",
+      "signature": "Stream",
+      "adapter": "AFL Stream copied to chain bytes; useAsn1Parser=false.",
+      "behavior": "Certificate-chain decoding through the default platform parser.",
+      "oracle": "Only BadCertificateInvalid is an expected chain rejection in the fork.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.CertificateChainDecoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.LibfuzzCertificateChainDecoder",
+      "origin": "local",
+      "method": "LibfuzzCertificateChainDecoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Span -> chain core; useAsn1Parser=false.",
+      "behavior": "Certificate-chain decoding through the default platform parser.",
+      "oracle": "Only BadCertificateInvalid is an expected chain rejection in the fork.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.CertificateChainDecoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.AflfuzzCertificateChainDecoderCustom",
+      "origin": "local",
+      "method": "AflfuzzCertificateChainDecoderCustom",
+      "signature": "Stream",
+      "adapter": "AFL Stream copied to chain bytes; useAsn1Parser=true.",
+      "behavior": "Certificate-chain decoding through the forced ASN.1 parser, distinct from the default path.",
+      "oracle": "Only BadCertificateInvalid is an expected chain rejection in the fork.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.CertificateChainDecoderCustom"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.LibfuzzCertificateChainDecoderCustom",
+      "origin": "local",
+      "method": "LibfuzzCertificateChainDecoderCustom",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Span -> chain core; useAsn1Parser=true.",
+      "behavior": "Certificate-chain decoding through the forced ASN.1 parser.",
+      "oracle": "Only BadCertificateInvalid is an expected chain rejection in the fork.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.CertificateChainDecoderCustom"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.AflfuzzCRLDecoder",
+      "origin": "local",
+      "method": "AflfuzzCRLDecoder",
+      "signature": "Stream",
+      "adapter": "AFL Stream -> signed CRL bytes; ignoreSignature=false.",
+      "behavior": "Signed CRL decoding and issuer access.",
+      "oracle": "Only CryptographicException is an expected CRL rejection in the fork.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.X509CRL"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.LibfuzzCRLDecoder",
+      "origin": "local",
+      "method": "LibfuzzCRLDecoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Span -> signed CRL core; ignoreSignature=false.",
+      "behavior": "Signed CRL decoding and issuer access.",
+      "oracle": "Only CryptographicException is an expected CRL rejection in the fork.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.X509CRL"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.AflfuzzCRLEncoder",
+      "origin": "local",
+      "method": "AflfuzzCRLEncoder",
+      "signature": "Stream",
+      "adapter": "AFL Stream -> signed CRL -> builder encoding.",
+      "behavior": "Decode a signed CRL and encode its to-be-signed body through the production builder.",
+      "oracle": "No unexpected encoding exception for accepted input.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.CrlEncoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.LibfuzzCRLEncoder",
+      "origin": "local",
+      "method": "LibfuzzCRLEncoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Span -> signed CRL -> builder encoding.",
+      "behavior": "Decode a signed CRL and encode its to-be-signed body through the production builder.",
+      "oracle": "No unexpected encoding exception for accepted input.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.CrlEncoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.AflfuzzCRLEncoderIndempotent",
+      "origin": "local",
+      "method": "AflfuzzCRLEncoderIndempotent",
+      "signature": "Stream",
+      "adapter": "AFL Stream -> signed CRL -> canonical unsigned TBS round-trip.",
+      "behavior": "CRL idempotence is local-only in the fork; expose its counterpart to continuous publication too.",
+      "oracle": "TBS byte equality plus issuer, ThisUpdate and NextUpdate equality.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.CrlEncoderIdempotent"],
+      "gaps": []
+    },
+    {
+      "id": "fork.local.LibfuzzCRLEncoderIndempotent",
+      "origin": "local",
+      "method": "LibfuzzCRLEncoderIndempotent",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Span -> signed CRL -> canonical unsigned TBS round-trip.",
+      "behavior": "Local-only fork CRL idempotence; no matching baseline OneFuzz registration exists.",
+      "oracle": "TBS byte equality plus issuer, ThisUpdate and NextUpdate equality.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.CrlEncoderIdempotent"],
+      "gaps": []
+    },
+    {
+      "id": "fork.onefuzz.FuzzBinaryDecoder",
+      "origin": "onefuzz",
+      "method": "FuzzBinaryDecoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Span copied into 64-byte ArraySegmentStream segments, not a contiguous MemoryStream.",
+      "behavior": "Binary decoding on segmented buffers.",
+      "oracle": "No unexpected decoding exception.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.BinaryDecoderSegmented"],
+      "gaps": []
+    },
+    {
+      "id": "fork.onefuzz.FuzzBinaryEncoder",
+      "origin": "onefuzz",
+      "method": "FuzzBinaryEncoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Span -> 64-byte ArraySegmentStream -> binary decode -> encode.",
+      "behavior": "Segmented binary conversion; use a consistent context rather than the fork's mixed GlobalContext.",
+      "oracle": "No unexpected encoding exception for accepted input.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.BinaryEncoderSegmented"],
+      "gaps": []
+    },
+    {
+      "id": "fork.onefuzz.FuzzBinaryEncoderIndempotent",
+      "origin": "onefuzz",
+      "method": "FuzzBinaryEncoderIndempotent",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Span -> 64-byte ArraySegmentStream for the first decode -> canonical binary round-trip.",
+      "behavior": "Segmented initial decode followed by binary idempotence.",
+      "oracle": "Byte equality plus decoded field equality after canonicalization.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.BinaryEncoderIdempotentSegmented"],
+      "gaps": []
+    },
+    {
+      "id": "fork.onefuzz.FuzzJsonDecoder",
+      "origin": "onefuzz",
+      "method": "FuzzJsonDecoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "UTF-8 decode of the span before JSON decoding.",
+      "behavior": "JSON message decoding using the JSON dictionary.",
+      "oracle": "No unexpected decoding exception.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.JsonDecoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.onefuzz.FuzzJsonEncoder",
+      "origin": "onefuzz",
+      "method": "FuzzJsonEncoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "UTF-8 span -> JSON message -> all four legacy JSON modes.",
+      "behavior": "Compact, Verbose, Reversible and NonReversible with distinct default-value and namespace options.",
+      "oracle": "Post-encode decode is crash-only, accepts normal rejections and discards the result.",
+      "mappingStatus": "partial",
+      "targets": [
+        "Encoders.JsonEncoder",
+        "Encoders.JsonEncoderCompact",
+        "Encoders.JsonEncoderRawData",
+        "Encoders.JsonEncoderLegacyReversible",
+        "Encoders.JsonEncoderLegacyNonReversible"
+      ],
+      "gaps": ["legacy-json-options"]
+    },
+    {
+      "id": "fork.onefuzz.FuzzBinaryJsonEncoder",
+      "origin": "onefuzz",
+      "method": "FuzzBinaryJsonEncoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Contiguous MemoryStream over the binary span -> all four legacy JSON modes.",
+      "behavior": "Binary-to-JSON conversion across distinct encoding modes and option behaviors.",
+      "oracle": "Post-encode decode is crash-only, accepts normal rejections and discards the result.",
+      "mappingStatus": "partial",
+      "targets": [
+        "Encoders.BinaryJsonEncoderVerbose",
+        "Encoders.BinaryJsonEncoderCompact",
+        "Encoders.BinaryJsonEncoderRawData",
+        "Encoders.BinaryJsonEncoderLegacyReversible",
+        "Encoders.BinaryJsonEncoderLegacyNonReversible"
+      ],
+      "gaps": ["legacy-json-options"]
+    },
+    {
+      "id": "fork.onefuzz.FuzzXmlDecoder",
+      "origin": "onefuzz",
+      "method": "FuzzXmlDecoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Contiguous MemoryStream -> XmlReader.",
+      "behavior": "XML message decoding using the XML dictionary.",
+      "oracle": "No unexpected exception; ordinary malformed XML rejections are accepted.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.XmlDecoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.onefuzz.FuzzXmlEncoder",
+      "origin": "onefuzz",
+      "method": "FuzzXmlEncoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Contiguous MemoryStream -> XML decode -> XmlEncoder.",
+      "behavior": "Actual XML re-encoding, not the XML-to-JSON behavior of local AflfuzzXmlEncoder.",
+      "oracle": "No unexpected XML encoding exception for accepted input.",
+      "mappingStatus": "mapped",
+      "targets": ["Encoders.XmlEncoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.onefuzz.FuzzCertificateDecoder",
+      "origin": "onefuzz",
+      "method": "FuzzCertificateDecoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Span -> standalone certificate loader.",
+      "behavior": "Standalone DER certificate loading, distinct from ASN.1-only parsing.",
+      "oracle": "Only CryptographicException is an expected loader rejection in the fork.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.CertificateDecoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.onefuzz.FuzzCertificateChainDecoder",
+      "origin": "onefuzz",
+      "method": "FuzzCertificateChainDecoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Span -> chain core; useAsn1Parser=false.",
+      "behavior": "Default platform certificate-chain parser.",
+      "oracle": "Only BadCertificateInvalid is an expected chain rejection in the fork.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.CertificateChainDecoder"],
+      "gaps": []
+    },
+    {
+      "id": "fork.onefuzz.FuzzCertificateChainDecoderCustom",
+      "origin": "onefuzz",
+      "method": "FuzzCertificateChainDecoderCustom",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Span -> chain core; useAsn1Parser=true.",
+      "behavior": "Forced ASN.1 certificate-chain parser, independently registered from the default path.",
+      "oracle": "Only BadCertificateInvalid is an expected chain rejection in the fork.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.CertificateChainDecoderCustom"],
+      "gaps": []
+    },
+    {
+      "id": "fork.onefuzz.FuzzCRLDecoder",
+      "origin": "onefuzz",
+      "method": "FuzzCRLDecoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Span -> signed CRL core; ignoreSignature=false.",
+      "behavior": "Signed CRL decoding and issuer access.",
+      "oracle": "Only CryptographicException is an expected CRL rejection in the fork.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.X509CRL"],
+      "gaps": []
+    },
+    {
+      "id": "fork.onefuzz.FuzzCRLEncoder",
+      "origin": "onefuzz",
+      "method": "FuzzCRLEncoder",
+      "signature": "ReadOnlySpan<byte>",
+      "adapter": "Span -> signed CRL -> builder encoding.",
+      "behavior": "CRL TBS encoding only; the fork has no OneFuzz registration for CRL idempotence.",
+      "oracle": "No unexpected encoding exception for accepted input.",
+      "mappingStatus": "mapped",
+      "targets": ["Certificates.CrlEncoder"],
+      "gaps": []
+    }
+  ],
+  "excludedTargets": [
+    {
+      "id": "Network.MockServerReplay",
+      "area": "Network",
+      "method": "LibfuzzMockServerReplay",
+      "classification": "lifecycle-only",
+      "disposition": "excluded",
+      "reason": "The baseline callback only constructed/disposed a replay object; it never invoked StartAsync.",
+      "replacement": "Awaited, isolated replay lifecycle tests; excluded from continuous fuzzing, not lost or missing."
+    },
+    {
+      "id": "Network.MockClientReplay",
+      "area": "Network",
+      "method": "LibfuzzMockClientReplay",
+      "classification": "lifecycle-only",
+      "disposition": "excluded",
+      "reason": "The baseline callback only constructed/disposed a replay object; it never invoked RunAsync.",
+      "replacement": "Awaited, isolated replay lifecycle tests; excluded from continuous fuzzing, not lost or missing."
+    }
+  ],
+  "corpusGenerators": [
+    {
+      "id": "Certificates.Generated",
+      "project": "fuzzing/Opc.Ua.Certificates.Fuzz.Tools/Opc.Ua.Certificates.Fuzz.Tools.csproj",
+      "arguments": ["--testcases", "--output", "{outputRoot}/Testcases"],
+      "outputs": [
+        {
+          "path": "fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.X509Cert",
+          "directory": "Testcases.X509Cert"
+        },
+        {
+          "path": "fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.X509Chain",
+          "directory": "Testcases.X509Chain"
+        },
+        {
+          "path": "fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.X509CRL",
+          "directory": "Testcases.X509CRL"
+        }
+      ]
+    }
+  ],
+  "areas": [
+    {
+      "id": "Encoders",
+      "project": "fuzzing/Opc.Ua.Encoders.Fuzz/Opc.Ua.Encoders.Fuzz.csproj",
+      "assembly": "Opc.Ua.Encoders.Fuzz",
+      "type": "Opc.Ua.Fuzzing.FuzzableCode",
+      "targets": [
+        {
+          "id": "Encoders.BinaryDecoder",
+          "method": "LibfuzzBinaryDecoder",
+          "aflMethods": [],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Binary",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Binary"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "Contiguous MemoryStream over binary input; segmented callbacks are registered separately.",
+          "oracle": "decode",
+          "forkRequirements": ["fork.local.LibfuzzBinaryDecoder"],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.BinaryEncoder",
+          "method": "LibfuzzBinaryEncoder",
+          "aflMethods": [],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Binary",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Binary"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "Contiguous binary message input -> BinaryEncoder.",
+          "oracle": "encode",
+          "forkRequirements": ["fork.local.LibfuzzBinaryEncoder"],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.BinaryEncoderIdempotent",
+          "method": "LibfuzzBinaryEncoderIndempotent",
+          "aflMethods": [],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Binary",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Binary",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/timeout-8b790a0680444b262058a1d24d01822a91e8af06"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "Contiguous initial binary decode followed by canonical binary re-encoding.",
+          "oracle": "binary-canonical",
+          "forkRequirements": ["fork.local.LibfuzzBinaryEncoderIndempotent"],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.BinaryDecoderSegmented",
+          "method": "LibfuzzBinaryDecoderSegmented",
+          "aflMethods": ["AflfuzzBinaryDecoder"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Binary",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Binary"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "Span or AFL Stream -> 64-byte ArraySegmentStream segments -> BinaryDecoder.",
+          "oracle": "decode",
+          "forkRequirements": ["fork.local.AflfuzzBinaryDecoder", "fork.onefuzz.FuzzBinaryDecoder"],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.BinaryEncoderSegmented",
+          "method": "LibfuzzBinaryEncoderSegmented",
+          "aflMethods": ["AflfuzzBinaryEncoder"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Binary",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Binary"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "Span or AFL Stream -> 64-byte ArraySegmentStream initial decode -> BinaryEncoder.",
+          "oracle": "encode",
+          "forkRequirements": ["fork.local.AflfuzzBinaryEncoder", "fork.onefuzz.FuzzBinaryEncoder"],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.BinaryEncoderIdempotentSegmented",
+          "method": "LibfuzzBinaryEncoderIndempotentSegmented",
+          "aflMethods": ["AflfuzzBinaryEncoderIndempotent"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Binary",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Binary",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/timeout-8b790a0680444b262058a1d24d01822a91e8af06"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "64-byte ArraySegmentStream decodes throughout canonical binary byte/value round-trips.",
+          "oracle": "binary-canonical",
+          "forkRequirements": [
+            "fork.local.AflfuzzBinaryEncoderIndempotent",
+            "fork.onefuzz.FuzzBinaryEncoderIndempotent"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.JsonDecoder",
+          "method": "LibfuzzJsonDecoder",
+          "aflMethods": ["AflfuzzJsonDecoder"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Json",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Json"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/json.dict"],
+          "adapter": "UTF-8 span or AFL string -> JSON message decoder.",
+          "oracle": "decode",
+          "forkRequirements": [
+            "fork.local.AflfuzzJsonDecoder",
+            "fork.local.LibfuzzJsonDecoder",
+            "fork.onefuzz.FuzzJsonDecoder"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.JsonEncoder",
+          "method": "LibfuzzJsonEncoder",
+          "aflMethods": ["AflfuzzJsonEncoder"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Json",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Json"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/json.dict"],
+          "adapter": "UTF-8 span or AFL string -> JSON decode -> Verbose JSON encoding.",
+          "oracle": "json-canonical",
+          "forkRequirements": [
+            "fork.local.AflfuzzJsonEncoder",
+            "fork.local.LibfuzzJsonEncoder",
+            "fork.onefuzz.FuzzJsonEncoder"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.JsonEncoderCompact",
+          "method": "LibfuzzJsonEncoderCompact",
+          "aflMethods": ["AflfuzzJsonEncoderCompact"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Json",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Json"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/json.dict"],
+          "adapter": "UTF-8 span or AFL string -> JSON decode -> Compact JSON encoding.",
+          "oracle": "cross-format-canonical",
+          "forkRequirements": [
+            "fork.local.AflfuzzJsonEncoder",
+            "fork.local.LibfuzzJsonEncoder",
+            "fork.onefuzz.FuzzJsonEncoder"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.JsonEncoderRawData",
+          "method": "LibfuzzJsonEncoderRawData",
+          "aflMethods": ["AflfuzzJsonEncoderRawData"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Json",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Json"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/json.dict"],
+          "adapter": "UTF-8 span or AFL string -> metadata-backed RawData JSON round-trip.",
+          "oracle": "raw-data-canonical",
+          "forkRequirements": [
+            "fork.local.AflfuzzJsonEncoder",
+            "fork.local.LibfuzzJsonEncoder",
+            "fork.onefuzz.FuzzJsonEncoder"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.JsonEncoderLegacyReversible",
+          "method": "LibfuzzJsonEncoderLegacyReversible",
+          "aflMethods": ["AflfuzzJsonEncoderLegacyReversible"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Json",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Json"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/json.dict"],
+          "adapter": "JSON -> Compact, IgnoreDefaultValues=false, ForceNamespaceUri=false; legacy mapping partial.",
+          "oracle": "cross-format-canonical",
+          "forkRequirements": [
+            "fork.local.AflfuzzJsonEncoder",
+            "fork.local.LibfuzzJsonEncoder",
+            "fork.onefuzz.FuzzJsonEncoder"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.JsonEncoderLegacyNonReversible",
+          "method": "LibfuzzJsonEncoderLegacyNonReversible",
+          "aflMethods": ["AflfuzzJsonEncoderLegacyNonReversible"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Json",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Json"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/json.dict"],
+          "adapter": "JSON -> metadata-backed RawData option mapping; retired legacy wire forms are not reproduced.",
+          "oracle": "raw-data-canonical",
+          "forkRequirements": [
+            "fork.local.AflfuzzJsonEncoder",
+            "fork.local.LibfuzzJsonEncoder",
+            "fork.onefuzz.FuzzJsonEncoder"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.JsonEncoderIdempotent",
+          "method": "LibfuzzJsonEncoderIndempotent",
+          "aflMethods": ["AflfuzzJsonEncoderIndempotent"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Json",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Json",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/timeout-8b790a0680444b262058a1d24d01822a91e8af06"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/json.dict"],
+          "adapter": "UTF-8 span or AFL string -> JSON decode -> canonical Verbose JSON round-trip.",
+          "oracle": "json-canonical",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.XmlDecoder",
+          "method": "LibfuzzXmlDecoder",
+          "aflMethods": ["AflfuzzXmlDecoder"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Xml",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Xml"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
+          "adapter": "Contiguous span-backed MemoryStream or AFL Stream -> XML message decoder.",
+          "oracle": "decode",
+          "forkRequirements": [
+            "fork.local.AflfuzzXmlDecoder",
+            "fork.local.LibfuzzXmlDecoder",
+            "fork.onefuzz.FuzzXmlDecoder"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.XmlEncoder",
+          "method": "LibfuzzXmlEncoder",
+          "aflMethods": ["AflfuzzXmlEncoder"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Xml",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Xml"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
+          "adapter": "XML input -> XmlEncoder for both engines; fork AFL XML-to-JSON is mapped separately.",
+          "oracle": "encode",
+          "forkRequirements": ["fork.local.LibfuzzXmlEncoder", "fork.onefuzz.FuzzXmlEncoder"],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.XmlEncoderIdempotent",
+          "method": "LibfuzzXmlEncoderIndempotent",
+          "aflMethods": ["AflfuzzXmlEncoderIndempotent"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Xml",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Xml",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/crash-0483107a22caf892cff4f795c96ab14c581a8f55",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/slow-unit-0cd8a7ed364195b9e9aa896391d10ab4f3d693a1",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/timeout-8b790a0680444b262058a1d24d01822a91e8af06"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
+          "adapter": "XML input -> canonical XML re-encoding and decoded message comparison.",
+          "oracle": "xml-canonical",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.BinaryJsonEncoderVerbose",
+          "method": "LibfuzzBinaryJsonEncoder",
+          "aflMethods": ["AflfuzzBinaryJsonEncoder"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Binary",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Binary"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "Binary -> Verbose JSON; libFuzzer contiguous, AFL 64-byte ArraySegmentStream.",
+          "oracle": "cross-format-canonical",
+          "forkRequirements": [
+            "fork.local.AflfuzzBinaryJsonEncoder",
+            "fork.local.LibfuzzBinaryJsonEncoder",
+            "fork.onefuzz.FuzzBinaryJsonEncoder"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.BinaryJsonEncoderCompact",
+          "method": "LibfuzzBinaryJsonEncoderCompact",
+          "aflMethods": ["AflfuzzBinaryJsonEncoderCompact"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Binary",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Binary"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "Binary -> Compact JSON; libFuzzer contiguous, AFL 64-byte ArraySegmentStream.",
+          "oracle": "cross-format-canonical",
+          "forkRequirements": [
+            "fork.local.AflfuzzBinaryJsonEncoder",
+            "fork.local.LibfuzzBinaryJsonEncoder",
+            "fork.onefuzz.FuzzBinaryJsonEncoder"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.BinaryJsonEncoderRawData",
+          "method": "LibfuzzBinaryJsonEncoderRawData",
+          "aflMethods": ["AflfuzzBinaryJsonEncoderRawData"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Binary",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Binary"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "Binary -> metadata-backed RawData JSON; libFuzzer contiguous, AFL 64-byte segments.",
+          "oracle": "raw-data-canonical",
+          "forkRequirements": [
+            "fork.local.AflfuzzBinaryJsonEncoder",
+            "fork.local.LibfuzzBinaryJsonEncoder",
+            "fork.onefuzz.FuzzBinaryJsonEncoder"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.BinaryJsonEncoderLegacyReversible",
+          "method": "LibfuzzBinaryJsonEncoderLegacyReversible",
+          "aflMethods": ["AflfuzzBinaryJsonEncoderLegacyReversible"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Binary",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Binary"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "Binary -> Compact/default-value/namespace-index mapping; exact legacy behavior remains partial.",
+          "oracle": "cross-format-canonical",
+          "forkRequirements": [
+            "fork.local.AflfuzzBinaryJsonEncoder",
+            "fork.local.LibfuzzBinaryJsonEncoder",
+            "fork.onefuzz.FuzzBinaryJsonEncoder"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.BinaryJsonEncoderLegacyNonReversible",
+          "method": "LibfuzzBinaryJsonEncoderLegacyNonReversible",
+          "aflMethods": ["AflfuzzBinaryJsonEncoderLegacyNonReversible"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Binary",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Binary"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "Binary -> metadata-backed RawData option mapping; exact legacy wire behavior remains partial.",
+          "oracle": "raw-data-canonical",
+          "forkRequirements": [
+            "fork.local.AflfuzzBinaryJsonEncoder",
+            "fork.local.LibfuzzBinaryJsonEncoder",
+            "fork.onefuzz.FuzzBinaryJsonEncoder"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.XmlJsonEncoder",
+          "method": "LibfuzzXmlJsonEncoder",
+          "aflMethods": ["AflfuzzXmlJsonEncoder"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Xml",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Xml"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
+          "adapter": "Span-backed MemoryStream or AFL Stream -> XML decode -> Verbose JSON.",
+          "oracle": "cross-format-canonical",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.XmlJsonEncoderCompact",
+          "method": "LibfuzzXmlJsonEncoderCompact",
+          "aflMethods": ["AflfuzzXmlJsonEncoderCompact"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Xml",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Xml"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
+          "adapter": "Span-backed MemoryStream or AFL Stream -> XML decode -> Compact JSON.",
+          "oracle": "cross-format-canonical",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.XmlJsonEncoderRawData",
+          "method": "LibfuzzXmlJsonEncoderRawData",
+          "aflMethods": ["AflfuzzXmlJsonEncoderRawData"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Xml",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Xml"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
+          "adapter": "Span-backed MemoryStream or AFL Stream -> XML decode -> metadata-backed RawData JSON.",
+          "oracle": "raw-data-canonical",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.XmlJsonEncoderLegacyReversible",
+          "method": "LibfuzzXmlJsonEncoderLegacyReversible",
+          "aflMethods": ["AflfuzzXmlJsonEncoderLegacyReversible"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Xml",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Xml"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
+          "adapter": "Explicit XML-to-JSON Reversible option mapping; not the fork's misleading XML encoder label.",
+          "oracle": "cross-format-canonical",
+          "forkRequirements": ["fork.local.AflfuzzXmlEncoder"],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.XmlJsonEncoderLegacyNonReversible",
+          "method": "LibfuzzXmlJsonEncoderLegacyNonReversible",
+          "aflMethods": ["AflfuzzXmlJsonEncoderLegacyNonReversible"],
+          "corpus": [
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Xml",
+            "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets/ForkMessages/Xml"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
+          "adapter": "XML -> metadata-backed RawData option mapping; exact legacy wire behavior remains partial.",
+          "oracle": "raw-data-canonical",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.NodeIdBinary",
+          "method": "LibfuzzNodeIdBinary",
+          "aflMethods": ["AflfuzzNodeIdBinary"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "ReadNodeId binary field; libFuzzer contiguous, AFL 64-byte ArraySegmentStream.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.NodeIdJson",
+          "method": "LibfuzzNodeIdJson",
+          "aflMethods": ["AflfuzzNodeIdJson"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/json.dict"],
+          "adapter": "UTF-8 span or AFL string -> JSON ReadNodeId field.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.NodeIdXml",
+          "method": "LibfuzzNodeIdXml",
+          "aflMethods": ["AflfuzzNodeIdXml"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
+          "adapter": "Span-backed MemoryStream or AFL Stream -> XML ReadNodeId field.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.ExpandedNodeIdBinary",
+          "method": "LibfuzzExpandedNodeIdBinary",
+          "aflMethods": ["AflfuzzExpandedNodeIdBinary"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "ReadExpandedNodeId binary field; libFuzzer contiguous, AFL 64-byte ArraySegmentStream.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.ExpandedNodeIdJson",
+          "method": "LibfuzzExpandedNodeIdJson",
+          "aflMethods": ["AflfuzzExpandedNodeIdJson"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/json.dict"],
+          "adapter": "UTF-8 span or AFL string -> JSON ReadExpandedNodeId field.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.ExpandedNodeIdXml",
+          "method": "LibfuzzExpandedNodeIdXml",
+          "aflMethods": ["AflfuzzExpandedNodeIdXml"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
+          "adapter": "Span-backed MemoryStream or AFL Stream -> XML ReadExpandedNodeId field.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.VariantBinary",
+          "method": "LibfuzzVariantBinary",
+          "aflMethods": ["AflfuzzVariantBinary"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "ReadVariant binary field; libFuzzer contiguous, AFL 64-byte ArraySegmentStream.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.VariantJson",
+          "method": "LibfuzzVariantJson",
+          "aflMethods": ["AflfuzzVariantJson"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/json.dict"],
+          "adapter": "UTF-8 span or AFL string -> JSON ReadVariant field.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.VariantXml",
+          "method": "LibfuzzVariantXml",
+          "aflMethods": ["AflfuzzVariantXml"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
+          "adapter": "Span-backed MemoryStream or AFL Stream -> XML ReadVariant field.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.ExtensionObjectBinary",
+          "method": "LibfuzzExtensionObjectBinary",
+          "aflMethods": ["AflfuzzExtensionObjectBinary"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "ReadExtensionObject binary field; libFuzzer contiguous, AFL 64-byte ArraySegmentStream.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.ExtensionObjectJson",
+          "method": "LibfuzzExtensionObjectJson",
+          "aflMethods": ["AflfuzzExtensionObjectJson"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/json.dict"],
+          "adapter": "UTF-8 span or AFL string -> JSON ReadExtensionObject field.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.ExtensionObjectXml",
+          "method": "LibfuzzExtensionObjectXml",
+          "aflMethods": ["AflfuzzExtensionObjectXml"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
+          "adapter": "Span-backed MemoryStream or AFL Stream -> XML ReadExtensionObject field.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.DataValueBinary",
+          "method": "LibfuzzDataValueBinary",
+          "aflMethods": ["AflfuzzDataValueBinary"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "ReadDataValue binary field; libFuzzer contiguous, AFL 64-byte ArraySegmentStream.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.DataValueJson",
+          "method": "LibfuzzDataValueJson",
+          "aflMethods": ["AflfuzzDataValueJson"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/json.dict"],
+          "adapter": "UTF-8 span or AFL string -> JSON ReadDataValue field.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.DataValueXml",
+          "method": "LibfuzzDataValueXml",
+          "aflMethods": ["AflfuzzDataValueXml"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
+          "adapter": "Span-backed MemoryStream or AFL Stream -> XML ReadDataValue field.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.DiagnosticInfoBinary",
+          "method": "LibfuzzDiagnosticInfoBinary",
+          "aflMethods": ["AflfuzzDiagnosticInfoBinary"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "ReadDiagnosticInfo binary field; libFuzzer contiguous, AFL 64-byte ArraySegmentStream.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.DiagnosticInfoJson",
+          "method": "LibfuzzDiagnosticInfoJson",
+          "aflMethods": ["AflfuzzDiagnosticInfoJson"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/json.dict"],
+          "adapter": "UTF-8 span or AFL string -> JSON ReadDiagnosticInfo field.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.DiagnosticInfoXml",
+          "method": "LibfuzzDiagnosticInfoXml",
+          "aflMethods": ["AflfuzzDiagnosticInfoXml"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
+          "adapter": "Span-backed MemoryStream or AFL Stream -> XML ReadDiagnosticInfo field.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.QualifiedNameBinary",
+          "method": "LibfuzzQualifiedNameBinary",
+          "aflMethods": ["AflfuzzQualifiedNameBinary"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "ReadQualifiedName binary field; libFuzzer contiguous, AFL 64-byte ArraySegmentStream.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.QualifiedNameJson",
+          "method": "LibfuzzQualifiedNameJson",
+          "aflMethods": ["AflfuzzQualifiedNameJson"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/json.dict"],
+          "adapter": "UTF-8 span or AFL string -> JSON ReadQualifiedName field.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.QualifiedNameXml",
+          "method": "LibfuzzQualifiedNameXml",
+          "aflMethods": ["AflfuzzQualifiedNameXml"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
+          "adapter": "Span-backed MemoryStream or AFL Stream -> XML ReadQualifiedName field.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.LocalizedTextBinary",
+          "method": "LibfuzzLocalizedTextBinary",
+          "aflMethods": ["AflfuzzLocalizedTextBinary"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "ReadLocalizedText binary field; libFuzzer contiguous, AFL 64-byte ArraySegmentStream.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.LocalizedTextJson",
+          "method": "LibfuzzLocalizedTextJson",
+          "aflMethods": ["AflfuzzLocalizedTextJson"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/json.dict"],
+          "adapter": "UTF-8 span or AFL string -> JSON ReadLocalizedText field.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.LocalizedTextXml",
+          "method": "LibfuzzLocalizedTextXml",
+          "aflMethods": ["AflfuzzLocalizedTextXml"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.BuiltInTypes"],
+          "dictionaries": ["fuzzing/Dictionaries/xml.dict"],
+          "adapter": "Span-backed MemoryStream or AFL Stream -> XML ReadLocalizedText field.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.NodeIdParse",
+          "method": "LibfuzzNodeIdParse",
+          "aflMethods": ["AflfuzzNodeIdParse"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Parsers"],
+          "dictionaries": ["fuzzing/Dictionaries/nodeid.dict"],
+          "adapter": "UTF-8 span or AFL string -> NodeId.Parse.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.ExpandedNodeIdParse",
+          "method": "LibfuzzExpandedNodeIdParse",
+          "aflMethods": ["AflfuzzExpandedNodeIdParse"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Parsers"],
+          "dictionaries": ["fuzzing/Dictionaries/nodeid.dict"],
+          "adapter": "UTF-8 span or AFL string -> ExpandedNodeId.Parse.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.RelativePathFormatterParse",
+          "method": "LibfuzzRelativePathFormatterParse",
+          "aflMethods": ["AflfuzzRelativePathFormatterParse"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Parsers"],
+          "dictionaries": ["fuzzing/Dictionaries/nodeid.dict"],
+          "adapter": "UTF-8 span or AFL string -> RelativePathFormatter.Parse.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.QualifiedNameParse",
+          "method": "LibfuzzQualifiedNameParse",
+          "aflMethods": ["AflfuzzQualifiedNameParse"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Parsers"],
+          "dictionaries": ["fuzzing/Dictionaries/nodeid.dict"],
+          "adapter": "UTF-8 span or AFL string -> QualifiedName.Parse.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.NumericRangeParse",
+          "method": "LibfuzzNumericRangeParse",
+          "aflMethods": ["AflfuzzNumericRangeParse"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Parsers"],
+          "dictionaries": [],
+          "adapter": "UTF-8 span or AFL string -> NumericRange.Parse.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Encoders.UuidRoundTrip",
+          "method": "LibfuzzUuidRoundTrip",
+          "aflMethods": ["AflfuzzUuidRoundTrip"],
+          "corpus": ["fuzzing/Opc.Ua.Encoders.Fuzz.Corpus/Testcases.Parsers"],
+          "dictionaries": [],
+          "adapter": "UTF-8 span or AFL string -> Uuid parse/format/parse.",
+          "oracle": "uuid-roundtrip",
+          "forkRequirements": [],
+          "classification": "continuous"
+        }
+      ]
+    },
+    {
+      "id": "Certificates",
+      "project": "fuzzing/Opc.Ua.Certificates.Fuzz/Opc.Ua.Certificates.Fuzz.csproj",
+      "assembly": "Opc.Ua.Certificates.Fuzz",
+      "type": "Opc.Ua.Fuzzing.FuzzableCode",
+      "targets": [
+        {
+          "id": "Certificates.CertificateDecoder",
+          "method": "LibfuzzCertificateDecoder",
+          "aflMethods": ["AflfuzzCertificateDecoder"],
+          "corpus": ["fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.X509Cert"],
+          "dictionaries": ["fuzzing/Dictionaries/asn1.dict"],
+          "adapter": "Span or AFL Stream -> Certificate.FromRawData -> DER reload with field equality.",
+          "oracle": "certificate-load",
+          "forkRequirements": [
+            "fork.local.AflfuzzCertificateDecoder",
+            "fork.local.LibfuzzCertificateDecoder",
+            "fork.onefuzz.FuzzCertificateDecoder"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Certificates.CertificateChainDecoder",
+          "method": "LibfuzzCertificateChainDecoder",
+          "aflMethods": ["AflfuzzCertificateChainDecoder"],
+          "corpus": ["fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.X509Chain"],
+          "dictionaries": ["fuzzing/Dictionaries/asn1.dict"],
+          "adapter": "Span/Stream -> default chain parser; preserve ordered DER bytes and dispose every certificate.",
+          "oracle": "certificate-chain",
+          "forkRequirements": [
+            "fork.local.AflfuzzCertificateChainDecoder",
+            "fork.local.LibfuzzCertificateChainDecoder",
+            "fork.onefuzz.FuzzCertificateChainDecoder"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Certificates.CertificateChainDecoderCustom",
+          "method": "LibfuzzCertificateChainDecoderCustom",
+          "aflMethods": ["AflfuzzCertificateChainDecoderCustom"],
+          "corpus": ["fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.X509Chain"],
+          "dictionaries": ["fuzzing/Dictionaries/asn1.dict"],
+          "adapter": "Span/Stream -> forced ASN.1 chain parser; preserve ordered DER bytes and dispose certificates.",
+          "oracle": "certificate-chain",
+          "forkRequirements": [
+            "fork.local.AflfuzzCertificateChainDecoderCustom",
+            "fork.local.LibfuzzCertificateChainDecoderCustom",
+            "fork.onefuzz.FuzzCertificateChainDecoderCustom"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Certificates.CrlEncoder",
+          "method": "LibfuzzCRLEncoder",
+          "aflMethods": ["AflfuzzCRLEncoder"],
+          "corpus": ["fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.X509CRL"],
+          "dictionaries": ["fuzzing/Dictionaries/asn1.dict"],
+          "adapter": "Signed CRL input -> TBS builder encoding with the original inner AlgorithmIdentifier.",
+          "oracle": "crl-tbs-encode",
+          "forkRequirements": [
+            "fork.local.AflfuzzCRLEncoder",
+            "fork.local.LibfuzzCRLEncoder",
+            "fork.onefuzz.FuzzCRLEncoder"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Certificates.CrlEncoderIdempotent",
+          "method": "LibfuzzCRLEncoderIndempotent",
+          "aflMethods": ["AflfuzzCRLEncoderIndempotent"],
+          "corpus": ["fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.X509CRL"],
+          "dictionaries": ["fuzzing/Dictionaries/asn1.dict"],
+          "adapter": "Signed CRL -> encode/decode canonical TBS with original algorithm; no public signature bypass.",
+          "oracle": "crl-tbs-canonical",
+          "forkRequirements": [
+            "fork.local.AflfuzzCRLEncoderIndempotent",
+            "fork.local.LibfuzzCRLEncoderIndempotent"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Certificates.X509CRL",
+          "method": "LibfuzzX509CRL",
+          "aflMethods": ["AflfuzzX509CRL"],
+          "corpus": ["fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.X509CRL"],
+          "dictionaries": ["fuzzing/Dictionaries/asn1.dict"],
+          "adapter": "Span or copied AFL Stream -> signed X509CRL decoding and property traversal.",
+          "oracle": "decode",
+          "forkRequirements": [
+            "fork.local.AflfuzzCRLDecoder",
+            "fork.local.LibfuzzCRLDecoder",
+            "fork.onefuzz.FuzzCRLDecoder"
+          ],
+          "classification": "continuous"
+        },
+        {
+          "id": "Certificates.X509SubjectAltNameExtension",
+          "method": "LibfuzzX509SubjectAltNameExtension",
+          "aflMethods": ["AflfuzzX509SubjectAltNameExtension"],
+          "corpus": ["fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.ASN1"],
+          "dictionaries": ["fuzzing/Dictionaries/asn1.dict"],
+          "adapter": "Span or copied AFL Stream -> subject alternative name extension decoder.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Certificates.X509AuthorityKeyIdentifierExtension",
+          "method": "LibfuzzX509AuthorityKeyIdentifierExtension",
+          "aflMethods": ["AflfuzzX509AuthorityKeyIdentifierExtension"],
+          "corpus": ["fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.ASN1"],
+          "dictionaries": ["fuzzing/Dictionaries/asn1.dict"],
+          "adapter": "Span or copied AFL Stream -> authority key identifier extension decoder.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Certificates.X509CrlNumberExtension",
+          "method": "LibfuzzX509CrlNumberExtension",
+          "aflMethods": ["AflfuzzX509CrlNumberExtension"],
+          "corpus": ["fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.ASN1"],
+          "dictionaries": ["fuzzing/Dictionaries/asn1.dict"],
+          "adapter": "Span or copied AFL Stream -> CRL number extension decoder.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Certificates.PemImportCertificate",
+          "method": "LibfuzzPemImportCertificate",
+          "aflMethods": ["AflfuzzPemImportCertificate"],
+          "corpus": ["fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.PEM"],
+          "dictionaries": [],
+          "adapter": "UTF-8 span or AFL string -> PEM certificate import; not standalone DER loading.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Certificates.PemImportPrivateKey",
+          "method": "LibfuzzPemImportPrivateKey",
+          "aflMethods": ["AflfuzzPemImportPrivateKey"],
+          "corpus": ["fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.PEM"],
+          "dictionaries": [],
+          "adapter": "UTF-8 span or AFL string -> RSA PEM private-key import.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Certificates.Pkcs10CertificationRequest",
+          "method": "LibfuzzPkcs10CertificationRequest",
+          "aflMethods": ["AflfuzzPkcs10CertificationRequest"],
+          "corpus": ["fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.X509CSR"],
+          "dictionaries": ["fuzzing/Dictionaries/asn1.dict"],
+          "adapter": "Span or copied AFL Stream -> PKCS#10 request parsing and signature verification.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Certificates.AsnUtilsX509Blob",
+          "method": "LibfuzzAsnUtilsX509Blob",
+          "aflMethods": ["AflfuzzAsnUtilsX509Blob"],
+          "corpus": ["fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.X509Cert"],
+          "dictionaries": ["fuzzing/Dictionaries/asn1.dict"],
+          "adapter": "Span or copied AFL Stream -> ASN.1 X509 blob parsing, distinct from certificate loading.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Certificates.AsnReaderSequence",
+          "method": "LibfuzzAsnReaderSequence",
+          "aflMethods": ["AflfuzzAsnReaderSequence"],
+          "corpus": ["fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.ASN1"],
+          "dictionaries": ["fuzzing/Dictionaries/asn1.dict"],
+          "adapter": "Span or copied AFL Stream -> DER sequence reader.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Certificates.AsnReaderInteger",
+          "method": "LibfuzzAsnReaderInteger",
+          "aflMethods": ["AflfuzzAsnReaderInteger"],
+          "corpus": ["fuzzing/Opc.Ua.Certificates.Fuzz.Corpus/Testcases.ASN1"],
+          "dictionaries": ["fuzzing/Dictionaries/asn1.dict"],
+          "adapter": "Span or copied AFL Stream -> DER integer reader.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        }
+      ]
+    },
+    {
+      "id": "Network",
+      "project": "fuzzing/Opc.Ua.Network.Fuzz/Opc.Ua.Network.Fuzz.csproj",
+      "assembly": "Opc.Ua.Network.Fuzz",
+      "type": "Opc.Ua.Fuzzing.FuzzableCode",
+      "targets": [
+        {
+          "id": "Network.OpcUaFrameParser",
+          "method": "LibfuzzOpcUaFrameParser",
+          "aflMethods": ["AflfuzzOpcUaFrameParser"],
+          "corpus": ["fuzzing/Opc.Ua.Network.Fuzz.Corpus/Testcases.Chunks"],
+          "dictionaries": ["fuzzing/Dictionaries/uasc.dict"],
+          "adapter": "Input capped to 1 MiB -> synthetic TCP flow segment -> OPC UA frame parser.",
+          "oracle": "network-parser",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Network.TcpStreamReassembler",
+          "method": "LibfuzzTcpStreamReassembler",
+          "aflMethods": ["AflfuzzTcpStreamReassembler"],
+          "corpus": ["fuzzing/Opc.Ua.Network.Fuzz.Corpus/Testcases.Tcp"],
+          "dictionaries": ["fuzzing/Dictionaries/tcp.dict"],
+          "adapter": "Bounded Ethernet record plus generated loopback HEL frame -> TCP stream reassembler.",
+          "oracle": "network-parser",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Network.OfflineSecureChannelReadChunk",
+          "method": "LibfuzzOfflineSecureChannelReadChunk",
+          "aflMethods": ["AflfuzzOfflineSecureChannelReadChunk"],
+          "corpus": ["fuzzing/Opc.Ua.Network.Fuzz.Corpus/Testcases.Chunks"],
+          "dictionaries": ["fuzzing/Dictionaries/uasc.dict"],
+          "adapter": "UA-SC chunk or synthesized short OPN -> offline channel with SecurityPolicy None.",
+          "oracle": "network-parser",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Network.ServiceCallReassembler",
+          "method": "LibfuzzServiceCallReassembler",
+          "aflMethods": ["AflfuzzServiceCallReassembler"],
+          "corpus": ["fuzzing/Opc.Ua.Network.Fuzz.Corpus/Testcases.Chunks"],
+          "dictionaries": ["fuzzing/Dictionaries/uasc.dict"],
+          "adapter": "At most 16 alternating-direction chunks -> offline service-call reassembly; SecurityPolicy None.",
+          "oracle": "network-parser",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Network.TcpChunkHeader",
+          "method": "LibfuzzTcpChunkHeader",
+          "aflMethods": ["AflfuzzTcpChunkHeader"],
+          "corpus": ["fuzzing/Opc.Ua.Network.Fuzz.Corpus/Testcases.Chunks"],
+          "dictionaries": ["fuzzing/Dictionaries/uasc.dict"],
+          "adapter": "Span or capped AFL Stream -> TcpMessageParsers.TryParseChunkHeader.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Network.HelloMessage",
+          "method": "LibfuzzHelloMessage",
+          "aflMethods": ["AflfuzzHelloMessage"],
+          "corpus": ["fuzzing/Opc.Ua.Network.Fuzz.Corpus/Testcases.Tcp.Hello"],
+          "dictionaries": ["fuzzing/Dictionaries/tcp.dict"],
+          "adapter": "Transport message body capped to 1 MiB -> ReadHelloMessage.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Network.AcknowledgeMessage",
+          "method": "LibfuzzAcknowledgeMessage",
+          "aflMethods": ["AflfuzzAcknowledgeMessage"],
+          "corpus": ["fuzzing/Opc.Ua.Network.Fuzz.Corpus/Testcases.Tcp.Ack"],
+          "dictionaries": ["fuzzing/Dictionaries/tcp.dict"],
+          "adapter": "Transport message body capped to 1 MiB -> ReadAcknowledgeMessage.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Network.ErrorMessage",
+          "method": "LibfuzzErrorMessage",
+          "aflMethods": ["AflfuzzErrorMessage"],
+          "corpus": ["fuzzing/Opc.Ua.Network.Fuzz.Corpus/Testcases.Tcp.Err"],
+          "dictionaries": ["fuzzing/Dictionaries/tcp.dict"],
+          "adapter": "Transport message body capped to 1 MiB -> ReadErrorMessage.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Network.ReverseHelloMessage",
+          "method": "LibfuzzReverseHelloMessage",
+          "aflMethods": ["AflfuzzReverseHelloMessage"],
+          "corpus": ["fuzzing/Opc.Ua.Network.Fuzz.Corpus/Testcases.Tcp.Rhe"],
+          "dictionaries": ["fuzzing/Dictionaries/tcp.dict"],
+          "adapter": "Transport message body capped to 1 MiB -> ReadReverseHelloMessage.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "Network.AsymmetricMessageHeader",
+          "method": "LibfuzzAsymmetricMessageHeader",
+          "aflMethods": ["AflfuzzAsymmetricMessageHeader"],
+          "corpus": ["fuzzing/Opc.Ua.Network.Fuzz.Corpus/Testcases.Tcp.AsymHdr"],
+          "dictionaries": ["fuzzing/Dictionaries/uasc.dict"],
+          "adapter": "Asymmetric message header capped to 1 MiB -> ReadAsymmetricMessageHeader.",
+          "oracle": "decode",
+          "forkRequirements": [],
+          "classification": "continuous"
+        }
+      ]
+    },
+    {
+      "id": "PubSub",
+      "project": "fuzzing/Opc.Ua.PubSub.Fuzz/Opc.Ua.PubSub.Fuzz.csproj",
+      "assembly": "Opc.Ua.PubSub.Fuzz",
+      "type": "Opc.Ua.Fuzzing.FuzzableCode",
+      "targets": [
+        {
+          "id": "PubSub.JsonDecode",
+          "method": "LibfuzzPubSubJsonDecode",
+          "aflMethods": ["AflfuzzPubSubJsonDecode"],
+          "corpus": ["fuzzing/Opc.Ua.PubSub.Fuzz.Corpus/Testcases.Json"],
+          "dictionaries": ["fuzzing/Dictionaries/json.dict"],
+          "adapter": "1 MiB UTF-8 span/AFL Stream cap; metadata-backed synchronous PubSub JSON decoding.",
+          "oracle": "pubsub-json",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "PubSub.UadpNetworkMessageDecode",
+          "method": "LibfuzzUadpNetworkMessageDecode",
+          "aflMethods": ["AflfuzzUadpNetworkMessageDecode"],
+          "corpus": ["fuzzing/Opc.Ua.PubSub.Fuzz.Corpus/Testcases.Uadp"],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "1 MiB span/AFL Stream cap; metadata-backed UADP decoding with a deterministic clock.",
+          "oracle": "pubsub-uadp",
+          "forkRequirements": [],
+          "classification": "continuous"
+        },
+        {
+          "id": "PubSub.UadpChunkReassembly",
+          "method": "LibfuzzUadpChunkReassembly",
+          "aflMethods": ["AflfuzzUadpChunkReassembly"],
+          "corpus": [
+            "fuzzing/Opc.Ua.PubSub.Fuzz.Corpus/Testcases.Chunks",
+            "fuzzing/Opc.Ua.PubSub.Fuzz.Corpus/Testcases.Uadp"
+          ],
+          "dictionaries": ["fuzzing/Dictionaries/binary.dict"],
+          "adapter": "1 MiB cap; raw chunk probe and ordered/reversed reassembly with duplicates and a fixed clock.",
+          "oracle": "pubsub-chunk-reassembly",
+          "forkRequirements": [],
+          "classification": "continuous"
+        }
+      ]
+    }
+  ]
+}

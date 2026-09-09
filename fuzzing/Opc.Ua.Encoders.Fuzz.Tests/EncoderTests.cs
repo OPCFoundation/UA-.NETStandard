@@ -52,5 +52,79 @@ namespace Opc.Ua.Fuzzing
             Assert.That(firstContext, Is.SameAs(secondContext));
             Assert.That(firstContext.Factory, Is.Not.Null);
         }
+
+        [Test]
+        public void JsonSemanticOracleAllowsNodeNullCollectionCanonicalization()
+        {
+            var node = new VariableNode
+            {
+                RolePermissions = default,
+                UserRolePermissions = default,
+                References = default,
+                ArrayDimensions = default
+            };
+
+            Assert.DoesNotThrow(
+                () => FuzzableCode.FuzzJsonRoundTripCore(node, JsonEncoderOptions.Verbose));
+        }
+
+        [Test]
+        public void JsonRoundTripAllowsUnencodableQualifiedNameRejection()
+        {
+            var request = new ReadRequest
+            {
+                NodesToRead =
+                [
+                    new ReadValueId
+                    {
+                        NodeId = new NodeId(1000),
+                        AttributeId = Attributes.Value,
+                        DataEncoding = new QualifiedName(null, ushort.MaxValue)
+                    }
+                ]
+            };
+
+            Assert.DoesNotThrow(
+                () => FuzzableCode.FuzzJsonRoundTripCore(request, JsonEncoderOptions.Verbose));
+        }
+
+        [Test]
+        public void JsonRoundTripAllowsUnencodableDataValuePicosecondsRejection()
+        {
+            var response = new ReadResponse
+            {
+                Results =
+                [
+                    new DataValue(
+                        Variant.From("value"),
+                        StatusCodes.Good,
+                        DateTimeUtc.MinValue,
+                        DateTimeUtc.MinValue,
+                        sourcePicoseconds: 0,
+                        serverPicoseconds: 1)
+                ]
+            };
+
+            Assert.DoesNotThrow(
+                () => FuzzableCode.FuzzJsonRoundTripCore(response, JsonEncoderOptions.Verbose));
+        }
+
+        [TestCase(typeof(ReadRequest))]
+        [TestCase(typeof(ReadResponse))]
+        [TestCase(typeof(WriteRequest))]
+        [TestCase(typeof(PublishResponse))]
+        [TestCase(typeof(ThreeDVector))]
+        public void GeneratedProtocolCoverageMatchesTheBuildMode(Type type)
+        {
+#if OPCUA_FUZZING_COVERAGE
+            const bool excluded = false;
+#else
+            const bool excluded = true;
+#endif
+            Assert.That(
+                type.IsDefined(typeof(System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute), false),
+                Is.EqualTo(excluded),
+                "FuzzCoverage must affect the generated production types, not only the test assembly.");
+        }
     }
 }

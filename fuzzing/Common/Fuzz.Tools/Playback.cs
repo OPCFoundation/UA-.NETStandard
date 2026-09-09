@@ -31,7 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using Microsoft.Extensions.Logging;
+using System.Linq;
 using static Opc.Ua.Fuzzing.FuzzMethods;
 
 namespace Opc.Ua.Fuzzing
@@ -46,80 +46,71 @@ namespace Opc.Ua.Fuzzing
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public static void Run(string directoryPath, bool stackTrace, ITelemetryContext telemetry)
         {
-            string path = Path.GetDirectoryName(directoryPath);
-            string searchPattern = Path.GetFileName(directoryPath);
-            List<Delegate> libFuzzMethods = FindFuzzMethods(typeof(LibFuzzSpan));
-            ILogger logger = telemetry.CreateLogger("Opc.Ua.Fuzzing.Playback");
+            Run(directoryPath, stackTrace, telemetry, null);
+        }
 
-            IEnumerable<string> crashFiles;
-            try
+        /// <summary>
+        /// Replays a required input set, optionally against a single named target.
+        /// </summary>
+        public static void Run(
+            string directoryPath,
+            bool stackTrace,
+            ITelemetryContext telemetry,
+            string target)
+        {
+            _ = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+            string fullPath;
+            string[] files;
+            if (Directory.Exists(directoryPath))
             {
-                crashFiles = Directory.EnumerateFiles(path, searchPattern);
+                fullPath = Path.GetFullPath(directoryPath);
+                files = Directory.GetFiles(fullPath, "*", SearchOption.AllDirectories);
             }
-            catch (Exception e)
+            else
             {
-                if (logger.IsEnabled(LogLevel.Information))
-                {
-                    logger.LogInformation(e, "Directory not found: {FilePath}", path);
-                }
-                return;
+                // .NET Framework rejects wildcards in GetFullPath, so normalize only the parent.
+                string parent = Path.GetDirectoryName(directoryPath);
+                parent = Path.GetFullPath(string.IsNullOrEmpty(parent) ? "." : parent);
+                string pattern = Path.GetFileName(directoryPath);
+                fullPath = Path.Combine(parent, pattern);
+                files = Directory.GetFiles(parent, pattern);
             }
-
-            foreach (string crashFile in crashFiles)
+            if (files.Length == 0)
             {
-                if (logger.IsEnabled(LogLevel.Information))
+                throw new InvalidOperationException($"Replay input contains no files: {fullPath}");
+            }
+            List<Delegate> methods = string.IsNullOrEmpty(target)
+                ? FindFuzzMethods(typeof(LibFuzzSpan))
+                : [FindFuzzMethod(Console.Error, target)
+                    ?? throw new ArgumentException($"Unknown fuzz target: {target}", nameof(target))];
+            if (methods.Count == 0)
+            {
+                throw new InvalidOperationException("No supported fuzz targets were discovered.");
+            }
+            var failures = new List<Exception>();
+            foreach (string file in files.OrderBy(file => file, StringComparer.Ordinal))
+            {
+                byte[] data = File.ReadAllBytes(file);
+                foreach (Delegate method in methods)
                 {
-                    logger.LogInformation("### Crash data {FilePath:20} ###", Path.GetFileName(crashFile));
-                }
-                byte[] crashData = File.ReadAllBytes(crashFile);
-
-                foreach (Delegate method in libFuzzMethods)
-                {
-                    if (method is LibFuzzSpan libFuzzMethod)
+                    var stopwatch = Stopwatch.StartNew();
+                    try
                     {
-                        var stopWatch = new Stopwatch();
-                        try
-                        {
-                            stopWatch.Start();
-                            libFuzzMethod(crashData);
-                            stopWatch.Stop();
-                            if (logger.IsEnabled(LogLevel.Information))
-                            {
-                                logger.LogInformation(
-                                    "Target: {Name:30} Elapsed: {Elapsed}ms",
-                                    libFuzzMethod.Method.Name,
-                                    stopWatch.ElapsedMilliseconds
-                                );
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            stopWatch.Stop();
-                            if (logger.IsEnabled(LogLevel.Information))
-                            {
-                                logger.LogInformation(
-                                    "Target: {Name:30} Elapsed: {Elapsed}ms",
-                                    libFuzzMethod.Method.Name,
-                                    stopWatch.ElapsedMilliseconds
-                                );
-                            }
-                            if (logger.IsEnabled(LogLevel.Information))
-                            {
-                                if (stackTrace)
-                                {
-                                    logger.LogInformation(ex, "{Name}", ex.GetType().Name);
-                                }
-                                else
-                                {
-                                    logger.LogInformation(
-                                        "{Name}:{ErrorMessage}",
-                                        ex.GetType().Name,
-                                        ex.Message);
-                                }
-                            }
-                        }
+                        Replay(method, data);
                     }
+                    catch (Exception exception)
+                    {
+                        // Continue collecting diagnostics, then fail the entire replay.
+                        failures.Add(new InvalidOperationException(
+                            $"Target {method.Method.Name}, input {file}", exception));
+                        Console.Error.WriteLine(stackTrace ? exception.ToString() : exception.Message);
+                    }
+                    Console.WriteLine($"{method.Method.Name}: {file} ({stopwatch.ElapsedMilliseconds} ms)");
                 }
+            }
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("One or more fuzz inputs failed replay.", failures);
             }
         }
     }

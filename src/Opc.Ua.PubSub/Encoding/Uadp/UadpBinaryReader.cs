@@ -330,7 +330,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 result = decoder.ReadVariant(null);
                 read = decoder.Position;
             }
-            m_position += read;
+            AdvanceDecoded(read);
             return result;
         }
 
@@ -355,7 +355,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 result = decoder.ReadDataValue(null);
                 read = decoder.Position;
             }
-            m_position += read;
+            AdvanceDecoded(read);
             return result;
         }
 
@@ -439,7 +439,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     : ReadRawArrayCore(decoder, builtInType);
                 read = decoder.Position;
             }
-            m_position += read;
+            AdvanceDecoded(read);
             return result;
         }
 
@@ -767,12 +767,23 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         private readonly void EnsureRemaining(int byteCount)
         {
-            if (Remaining < byteCount)
+            if (byteCount < 0 || Remaining < byteCount)
             {
                 throw new ArgumentException(
                     $"Padded RawData payload is truncated: need {byteCount} bytes, " +
                     $"have {Remaining}.");
             }
+        }
+
+        private void AdvanceDecoded(int byteCount)
+        {
+            if (byteCount < 0 || byteCount > Remaining)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "Decoded value length exceeds remaining UADP payload.");
+            }
+            m_position += byteCount;
         }
 
         private static float ReadFloatLittleEndian(byte[] buffer, int offset)

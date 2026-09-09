@@ -9,6 +9,7 @@
     <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
     <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.BinaryDecoder.cs" Link="FuzzableCode.BinaryDecoder.cs" />
     <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.BuiltInTypes.cs" Link="FuzzableCode.BuiltInTypes.cs" />
+    <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.Conversions.cs" Link="FuzzableCode.Conversions.cs" />
     <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.JsonDecoder.cs" Link="FuzzableCode.JsonDecoder.cs" />
     <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.Parsers.cs" Link="FuzzableCode.Parsers.cs" />
     <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.XmlDecoder.cs" Link="FuzzableCode.XmlDecoder.cs" />

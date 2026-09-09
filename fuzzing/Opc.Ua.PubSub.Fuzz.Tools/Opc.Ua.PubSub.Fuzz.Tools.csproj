@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == '' AND ('$(CustomTestTarget)' == 'netstandard2.0' OR '$(CustomTestTarget)' == 'netstandard2.1')">net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <AssemblyName>Opc.Ua.PubSub.Fuzz.Tools</AssemblyName>
+    <RootNamespace>PubSub.Fuzz.Tools</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Opc.Ua.PubSub.Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
+    <Compile Include="..\Opc.Ua.PubSub.Fuzz\FuzzableCode.Json.cs" Link="FuzzableCode.Json.cs" />
+    <Compile Include="..\Opc.Ua.PubSub.Fuzz\FuzzableCode.Uadp.cs" Link="FuzzableCode.Uadp.cs" />
+    <Compile Include="..\Opc.Ua.PubSub.Fuzz\Properties\AssemblyInfo.cs" Link="Properties\AssemblyInfo.cs" />
+    <Compile Include="..\Common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
+    <Compile Include="..\Common\Fuzz.Tools\Program.cs" Link="Program.cs" />
+    <Compile Include="..\Common\Fuzz.Tools\Playback.cs" Link="Playback.cs" />
+    <Compile Include="..\Common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />
+    <Compile Include="..\Common\Fuzz.Tools\Logging.cs" Link="Logging.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SharpFuzz" />
+    <PackageReference Include="System.CommandLine" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Expressions" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="Serilog.Sinks.Debug" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
+  </ItemGroup>
+</Project>

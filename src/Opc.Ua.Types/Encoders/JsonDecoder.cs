@@ -1916,10 +1916,15 @@ namespace Opc.Ua
                                     break;
                                 case 0: // default
                                 case 3: // json
-                                    if (!typeId.IsNull && // if artifacts were suppressed (rawdata mode)
+                                    IEncodeableType? activator = null;
+                                    bool registeredType =
+                                        !typeId.IsNull &&
                                         Context.Factory.TryGetEncodeableType(
                                             typeId,
-                                            out IEncodeableType? activator))
+                                            out activator);
+                                    if (!typeId.IsNull && // if artifacts were suppressed (rawdata mode)
+                                        registeredType &&
+                                        activator != null)
                                     {
                                         IEncodeable encodeable = activator.CreateInstance() ??
                                             throw ServiceResultException.Create(
@@ -1950,6 +1955,15 @@ namespace Opc.Ua
                                             }
                                         }
                                     }
+                                    if (!registeredType &&
+                                        !artifactsSuppressed &&
+                                        !typeId.IsNull &&
+                                        uaBody.ValueKind == JsonValueKind.Undefined &&
+                                        IsBodylessExtensionObject(element))
+                                    {
+                                        value = new ExtensionObject(typeId);
+                                        return true;
+                                    }
                                     // Wrap the raw json inside an extension object
                                     if (!m_options.ParseStrict &&
                                         uaBody.ValueKind != JsonValueKind.Undefined)
@@ -1974,6 +1988,20 @@ namespace Opc.Ua
                     value = ExtensionObject.Null;
                     return false;
             }
+        }
+
+        private static bool IsBodylessExtensionObject(JsonElement element)
+        {
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                if (property.Name != JsonProperties.UaTypeId &&
+                    property.Name != JsonProperties.UaEncoding)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -3779,16 +3807,12 @@ namespace Opc.Ua
                 }
                 catch (ArgumentException ex)
                 {
-                    // MatrixOf<T>(values, dimensions) deliberately throws
-                    // ArgumentException for wire dimensions that are inconsistent
-                    // with the value payload (a length mismatch or an
-                    // Int32-overflowing product). Convert to the standard decoder
-                    // rejection channel so callers treat it as malformed input.
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         ex,
-                        "Invalid variant matrix dimensions ({0}).",
-                        typeInfo);
+                        "Invalid variant matrix dimensions ({0}): {1}",
+                        typeInfo,
+                        ex.Message);
                 }
                 finally
                 {

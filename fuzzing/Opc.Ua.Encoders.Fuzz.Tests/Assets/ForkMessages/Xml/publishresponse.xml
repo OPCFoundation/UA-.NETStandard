@@ -1,0 +1,281 @@
+<PublishResponse xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+  <ResponseHeader>
+    <Timestamp>2025-04-01T16:03:31.884721Z</Timestamp>
+    <RequestHandle>42</RequestHandle>
+    <ServiceResult>
+      <Code>0</Code>
+    </ServiceResult>
+    <StringTable>
+      <String>No error occurred</String>
+    </StringTable>
+  </ResponseHeader>
+  <SubscriptionId>1234</SubscriptionId>
+  <AvailableSequenceNumbers>
+    <UInt32>1</UInt32>
+    <UInt32>2</UInt32>
+    <UInt32>3</UInt32>
+    <UInt32>4</UInt32>
+  </AvailableSequenceNumbers>
+  <MoreNotifications>true</MoreNotifications>
+  <NotificationMessage>
+    <SequenceNumber>123456</SequenceNumber>
+    <PublishTime>2025-04-01T16:03:31.8846442Z</PublishTime>
+    <NotificationData>
+      <ExtensionObject>
+        <TypeId>
+          <Identifier>i=810</Identifier>
+        </TypeId>
+        <Body>
+          <DataChangeNotification>
+            <MonitoredItems>
+              <Opc.Ua.MonitoredItemNotificationStruct xmlns="">
+                <ClientHandle xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">122</ClientHandle>
+                <Value xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                  <Value>
+                    <Value>
+                      <String>Hello World</String>
+                    </Value>
+                  </Value>
+                  <StatusCode>
+                    <Code>0</Code>
+                  </StatusCode>
+                  <SourceTimestamp>2025-04-01T16:04:31.8846442Z</SourceTimestamp>
+                  <SourcePicoseconds>10</SourcePicoseconds>
+                  <ServerTimestamp>2025-04-01T16:03:31.8846442Z</ServerTimestamp>
+                  <ServerPicoseconds>100</ServerPicoseconds>
+                </Value>
+              </Opc.Ua.MonitoredItemNotificationStruct>
+              <Opc.Ua.MonitoredItemNotificationStruct xmlns="">
+                <ClientHandle xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">123</ClientHandle>
+                <Value xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                  <Value>
+                    <Value>
+                      <Matrix>
+                        <Elements>
+                          <ListOfUInt32>
+                            <UInt32>1</UInt32>
+                            <UInt32>2</UInt32>
+                            <UInt32>3</UInt32>
+                            <UInt32>4</UInt32>
+                            <UInt32>11</UInt32>
+                            <UInt32>22</UInt32>
+                            <UInt32>33</UInt32>
+                            <UInt32>44</UInt32>
+                          </ListOfUInt32>
+                        </Elements>
+                        <Dimensions>
+                          <Int32>2</Int32>
+                          <Int32>2</Int32>
+                          <Int32>2</Int32>
+                        </Dimensions>
+                      </Matrix>
+                    </Value>
+                  </Value>
+                  <StatusCode>
+                    <Code>0</Code>
+                  </StatusCode>
+                  <SourceTimestamp>2025-04-01T16:03:32.8846442Z</SourceTimestamp>
+                  <SourcePicoseconds>10</SourcePicoseconds>
+                  <ServerTimestamp>2025-04-01T16:03:31.8846442Z</ServerTimestamp>
+                  <ServerPicoseconds>100</ServerPicoseconds>
+                </Value>
+              </Opc.Ua.MonitoredItemNotificationStruct>
+              <Opc.Ua.MonitoredItemNotificationStruct xmlns="">
+                <ClientHandle xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">124</ClientHandle>
+                <Value xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                  <Value>
+                    <Value>
+                      <NodeId>
+                        <Identifier>i=1000</Identifier>
+                      </NodeId>
+                    </Value>
+                  </Value>
+                  <StatusCode>
+                    <Code>0</Code>
+                  </StatusCode>
+                  <SourceTimestamp>2025-04-02T16:03:31.8846442Z</SourceTimestamp>
+                  <SourcePicoseconds>0</SourcePicoseconds>
+                  <ServerTimestamp>2025-04-01T16:03:31.8846442Z</ServerTimestamp>
+                  <ServerPicoseconds>0</ServerPicoseconds>
+                </Value>
+              </Opc.Ua.MonitoredItemNotificationStruct>
+              <Opc.Ua.MonitoredItemNotificationStruct xmlns="">
+                <ClientHandle xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">125</ClientHandle>
+                <Value xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                  <Value>
+                    <Value>
+                      <NodeId>
+                        <Identifier>i=1000</Identifier>
+                      </NodeId>
+                    </Value>
+                  </Value>
+                  <StatusCode>
+                    <Code>0</Code>
+                  </StatusCode>
+                  <SourceTimestamp>0001-01-01T00:00:00</SourceTimestamp>
+                  <SourcePicoseconds>0</SourcePicoseconds>
+                  <ServerTimestamp>0001-01-01T00:00:00</ServerTimestamp>
+                  <ServerPicoseconds>0</ServerPicoseconds>
+                </Value>
+              </Opc.Ua.MonitoredItemNotificationStruct>
+              <Opc.Ua.MonitoredItemNotificationStruct xmlns="">
+                <ClientHandle xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">125</ClientHandle>
+                <Value xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                  <Value>
+                    <Value>
+                      <Boolean>true</Boolean>
+                    </Value>
+                  </Value>
+                  <StatusCode>
+                    <Code>0</Code>
+                  </StatusCode>
+                  <SourceTimestamp>0001-01-01T00:00:00</SourceTimestamp>
+                  <SourcePicoseconds>0</SourcePicoseconds>
+                  <ServerTimestamp>0001-01-01T00:00:00</ServerTimestamp>
+                  <ServerPicoseconds>0</ServerPicoseconds>
+                </Value>
+              </Opc.Ua.MonitoredItemNotificationStruct>
+              <Opc.Ua.MonitoredItemNotificationStruct xmlns="">
+                <ClientHandle xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">126</ClientHandle>
+                <Value xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                  <Value>
+                    <Value>
+                      <Byte>123</Byte>
+                    </Value>
+                  </Value>
+                  <StatusCode>
+                    <Code>0</Code>
+                  </StatusCode>
+                  <SourceTimestamp>0001-01-01T00:00:00</SourceTimestamp>
+                  <SourcePicoseconds>0</SourcePicoseconds>
+                  <ServerTimestamp>0001-01-01T00:00:00</ServerTimestamp>
+                  <ServerPicoseconds>0</ServerPicoseconds>
+                </Value>
+              </Opc.Ua.MonitoredItemNotificationStruct>
+              <Opc.Ua.MonitoredItemNotificationStruct xmlns="">
+                <ClientHandle xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">127</ClientHandle>
+                <Value xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                  <Value>
+                    <Value>
+                      <Float>123.123</Float>
+                    </Value>
+                  </Value>
+                  <StatusCode>
+                    <Code>0</Code>
+                  </StatusCode>
+                  <SourceTimestamp>0001-01-01T00:00:00</SourceTimestamp>
+                  <SourcePicoseconds>0</SourcePicoseconds>
+                  <ServerTimestamp>0001-01-01T00:00:00</ServerTimestamp>
+                  <ServerPicoseconds>0</ServerPicoseconds>
+                </Value>
+              </Opc.Ua.MonitoredItemNotificationStruct>
+              <Opc.Ua.MonitoredItemNotificationStruct xmlns="">
+                <ClientHandle xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">128</ClientHandle>
+                <Value xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                  <Value>
+                    <Value>
+                      <Double>12301232.123</Double>
+                    </Value>
+                  </Value>
+                  <StatusCode>
+                    <Code>0</Code>
+                  </StatusCode>
+                  <SourceTimestamp>0001-01-01T00:00:00</SourceTimestamp>
+                  <SourcePicoseconds>10</SourcePicoseconds>
+                  <ServerTimestamp>2025-04-01T16:03:31.8846442Z</ServerTimestamp>
+                  <ServerPicoseconds>100</ServerPicoseconds>
+                </Value>
+              </Opc.Ua.MonitoredItemNotificationStruct>
+              <Opc.Ua.MonitoredItemNotificationStruct xmlns="">
+                <ClientHandle xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">129</ClientHandle>
+                <Value xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                  <Value>
+                    <Value>
+                      <Int64>-123012321234123</Int64>
+                    </Value>
+                  </Value>
+                  <StatusCode>
+                    <Code>0</Code>
+                  </StatusCode>
+                  <SourceTimestamp>0001-01-01T00:00:00</SourceTimestamp>
+                  <SourcePicoseconds>10</SourcePicoseconds>
+                  <ServerTimestamp>2025-04-01T16:03:31.8846442Z</ServerTimestamp>
+                  <ServerPicoseconds>100</ServerPicoseconds>
+                </Value>
+              </Opc.Ua.MonitoredItemNotificationStruct>
+              <Opc.Ua.MonitoredItemNotificationStruct xmlns="">
+                <ClientHandle xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">130</ClientHandle>
+                <Value xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                  <Value>
+                    <Value>
+                      <UInt64>123012321234123</UInt64>
+                    </Value>
+                  </Value>
+                  <StatusCode>
+                    <Code>0</Code>
+                  </StatusCode>
+                  <SourceTimestamp>0001-01-01T00:00:00</SourceTimestamp>
+                  <SourcePicoseconds>10</SourcePicoseconds>
+                  <ServerTimestamp>2025-04-01T16:03:31.8846442Z</ServerTimestamp>
+                  <ServerPicoseconds>100</ServerPicoseconds>
+                </Value>
+              </Opc.Ua.MonitoredItemNotificationStruct>
+              <Opc.Ua.MonitoredItemNotificationStruct xmlns="">
+                <ClientHandle xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">131</ClientHandle>
+                <Value xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                  <Value>
+                    <Value>
+                      <ListOfUInt32>
+                        <UInt32>1</UInt32>
+                        <UInt32>2</UInt32>
+                        <UInt32>3</UInt32>
+                        <UInt32>4</UInt32>
+                        <UInt32>5</UInt32>
+                        <UInt32>6</UInt32>
+                        <UInt32>7</UInt32>
+                        <UInt32>8</UInt32>
+                        <UInt32>9</UInt32>
+                        <UInt32>0</UInt32>
+                      </ListOfUInt32>
+                    </Value>
+                  </Value>
+                  <StatusCode>
+                    <Code>0</Code>
+                  </StatusCode>
+                  <SourceTimestamp>0001-01-01T00:00:00</SourceTimestamp>
+                  <SourcePicoseconds>10</SourcePicoseconds>
+                  <ServerTimestamp>2025-04-01T16:03:31.8846442Z</ServerTimestamp>
+                  <ServerPicoseconds>100</ServerPicoseconds>
+                </Value>
+              </Opc.Ua.MonitoredItemNotificationStruct>
+            </MonitoredItems>
+            <DiagnosticInfos p7:nil="true" xmlns:p7="http://www.w3.org/2001/XMLSchema-instance" />
+          </DataChangeNotification>
+        </Body>
+      </ExtensionObject>
+    </NotificationData>
+  </NotificationMessage>
+  <Results />
+  <DiagnosticInfos>
+    <DiagnosticInfo>
+      <SymbolicId>-1</SymbolicId>
+      <NamespaceUri>-1</NamespaceUri>
+      <Locale>-1</Locale>
+      <LocalizedText>-1</LocalizedText>
+      <AdditionalInfo>Hello World</AdditionalInfo>
+      <InnerStatusCode>
+        <Code>2148925440</Code>
+      </InnerStatusCode>
+      <InnerDiagnosticInfo>
+        <SymbolicId>-1</SymbolicId>
+        <NamespaceUri>-1</NamespaceUri>
+        <Locale>-1</Locale>
+        <LocalizedText>-1</LocalizedText>
+        <AdditionalInfo>Hello World</AdditionalInfo>
+        <InnerStatusCode>
+          <Code>2150891520</Code>
+        </InnerStatusCode>
+      </InnerDiagnosticInfo>
+    </DiagnosticInfo>
+  </DiagnosticInfos>
+</PublishResponse>

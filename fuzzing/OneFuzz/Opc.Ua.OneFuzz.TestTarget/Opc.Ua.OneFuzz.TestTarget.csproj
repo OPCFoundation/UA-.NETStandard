@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <AssemblyName>Opc.Ua.OneFuzz.TestTarget</AssemblyName>
+    <AssemblyName Condition="'$(ContractDependencyOnly)' == 'true'">Opc.Ua.OneFuzz.TestDependency</AssemblyName>
+    <RootNamespace>Opc.Ua.OneFuzz.TestTarget</RootNamespace>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <GenerateDependencyFile>true</GenerateDependencyFile>
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+  <!--
+    Synthetic contract fixture, NEVER a service target. The tests publish this
+    project's dependency-only mode into a separate SDK artifacts directory, then
+    publish the callbacks against that real BCL-only companion DLL. A normal
+    solution build includes the helper source directly and needs no preparatory
+    files, generated source, packages, or third project.
+  -->
+  <ItemGroup>
+    <Compile Include="ContractCallbacks.cs" Condition="'$(ContractDependencyOnly)' != 'true'" />
+    <Compile Include="CallbackLookalikes.cs" Condition="'$(ContractDependencyOnly)' != 'true'" />
+    <Compile Include="FixtureDependency.cs"
+             Condition="'$(ContractDependencyOnly)' == 'true' or '$(ContractDependencyPath)' == ''" />
+    <Reference Include="Opc.Ua.OneFuzz.TestDependency"
+               Condition="'$(ContractDependencyOnly)' != 'true' and '$(ContractDependencyPath)' != ''">
+      <HintPath>$(ContractDependencyPath)</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <AssemblyAttribute Include="System.CLSCompliantAttribute">
+      <_Parameter1>true</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+</Project>

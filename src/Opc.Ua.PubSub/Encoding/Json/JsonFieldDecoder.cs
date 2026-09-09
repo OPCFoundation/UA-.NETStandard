@@ -69,24 +69,54 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonEncodingMode detectedMode,
             IServiceMessageContext context)
         {
+            // The public contract still surfaces malformed payloads to the caller.
+            _ = TryDecodeFields(
+                payload, metaData, detectedMode, context, tolerant: false, out ArrayOf<DataSetField> fields);
+            return fields;
+        }
+
+        internal static bool TryDecodeFields(
+            JsonElement payload,
+            DataSetMetaDataType? metaData,
+            JsonEncodingMode detectedMode,
+            IServiceMessageContext context,
+            out ArrayOf<DataSetField> fields)
+        {
+            return TryDecodeFields(payload, metaData, detectedMode, context, tolerant: true, out fields);
+        }
+
+        private static bool TryDecodeFields(
+            JsonElement payload,
+            DataSetMetaDataType? metaData,
+            JsonEncodingMode detectedMode,
+            IServiceMessageContext context,
+            bool tolerant,
+            out ArrayOf<DataSetField> fields)
+        {
+            fields = [];
             if (context is null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
             if (payload.ValueKind is not JsonValueKind.Object)
             {
-                return [];
+                return true;
             }
-            var fields = new List<DataSetField>(payload.GetArrayLengthSafe());
+            var decodedFields = new List<DataSetField>(payload.GetArrayLengthSafe());
             int index = 0;
             foreach (JsonProperty property in payload.EnumerateObject())
             {
                 FieldMetaData? fmd = ResolveMetaData(metaData, property.Name, index);
-                DataSetField field = DecodeOne(property, fmd, detectedMode, context);
-                fields.Add(field);
+                DataSetField? field = DecodeOne(property, fmd, detectedMode, context, tolerant);
+                if (field is null)
+                {
+                    return false;
+                }
+                decodedFields.Add(field);
                 index++;
             }
-            return fields;
+            fields = decodedFields;
+            return true;
         }
 
         /// <summary>
@@ -97,17 +127,22 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="metaData">Optional matching field metadata.</param>
         /// <param name="detectedMode">Detected encoding mode.</param>
         /// <param name="context">Stack message context.</param>
+        /// <param name="tolerant">Whether malformed values reject instead of throwing.</param>
         /// <returns>Decoded field.</returns>
-        private static DataSetField DecodeOne(
+        private static DataSetField? DecodeOne(
             JsonProperty property,
             FieldMetaData? metaData,
             JsonEncodingMode detectedMode,
-            IServiceMessageContext context)
+            IServiceMessageContext context,
+            bool tolerant)
         {
             JsonElement value = property.Value;
             if (LooksLikeDataValue(value))
             {
-                DataValue dv = JsonVariantDecoder.DecodeDataValue(value, context);
+                if (!TryDecodeDataValue(value, context, tolerant, out DataValue dv))
+                {
+                    return null;
+                }
                 return new DataSetField
                 {
                     Name = property.Name,
@@ -128,17 +163,68 @@ namespace Opc.Ua.PubSub.Encoding.Json
             PubSubFieldEncoding encoding = JsonVariantEncoder.WrapsInVariantEnvelope(detectedMode)
                 ? PubSubFieldEncoding.Variant
                 : PubSubFieldEncoding.RawData;
-            Variant variant = JsonVariantDecoder.DecodeVariant(
-                value,
-                detectedMode,
-                typeInfo,
-                context);
+            if (!TryDecodeVariant(value, detectedMode, typeInfo, context, tolerant, out Variant variant))
+            {
+                return null;
+            }
             return new DataSetField
             {
                 Name = property.Name,
                 Value = variant,
                 Encoding = encoding
             };
+        }
+
+        private static bool TryDecodeVariant(
+            JsonElement value,
+            JsonEncodingMode detectedMode,
+            TypeInfo? typeInfo,
+            IServiceMessageContext context,
+            bool tolerant,
+            out Variant variant)
+        {
+            try
+            {
+                variant = JsonVariantDecoder.DecodeVariant(
+                    value,
+                    detectedMode,
+                    typeInfo,
+                    context);
+                return true;
+            }
+            catch (ServiceResultException ex) when (tolerant && ex.StatusCode == StatusCodes.BadDecodingError)
+            {
+                variant = Variant.Null;
+                return false;
+            }
+            catch (JsonException) when (tolerant)
+            {
+                variant = Variant.Null;
+                return false;
+            }
+        }
+
+        private static bool TryDecodeDataValue(
+            JsonElement value,
+            IServiceMessageContext context,
+            bool tolerant,
+            out DataValue dataValue)
+        {
+            try
+            {
+                dataValue = JsonVariantDecoder.DecodeDataValue(value, context);
+                return true;
+            }
+            catch (ServiceResultException ex) when (tolerant && ex.StatusCode == StatusCodes.BadDecodingError)
+            {
+                dataValue = DataValue.Null;
+                return false;
+            }
+            catch (JsonException) when (tolerant)
+            {
+                dataValue = DataValue.Null;
+                return false;
+            }
         }
 
         /// <summary>
@@ -194,23 +280,33 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return false;
             }
+            bool hasVariantMembers = false;
+            bool hasDataValueMembers = false;
             foreach (JsonProperty member in value.EnumerateObject())
             {
                 switch (member.Name)
                 {
                     case "Value":
+                        break;
+                    case "UaType":
+                    case "Dimensions":
+                        hasVariantMembers = true;
+                        break;
                     case "Status":
                     case "StatusCode":
                     case "SourceTimestamp":
                     case "SourcePicoseconds":
                     case "ServerTimestamp":
                     case "ServerPicoseconds":
-                        continue;
+                        hasDataValueMembers = true;
+                        break;
                     default:
                         return false;
                 }
             }
-            return true;
+            // A bare inline Variant is indistinguishable from a Good DataValue
+            // without timestamps. Preserve its existing Variant classification.
+            return !hasVariantMembers || hasDataValueMembers;
         }
 
         /// <summary>

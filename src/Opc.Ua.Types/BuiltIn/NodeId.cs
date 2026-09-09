@@ -408,7 +408,7 @@ namespace Opc.Ua
                     namespaceIndex = ns;
 
                     if (options?.NamespaceMappings != null &&
-                        options?.NamespaceMappings.Length < ns)
+                        ns < options.NamespaceMappings.Length)
                     {
                         namespaceIndex = options.NamespaceMappings[ns];
                     }

@@ -282,6 +282,7 @@ namespace Opc.Ua.Security.Certificates
                                     crlExtensionList.Add(extension);
                                 }
                             }
+                            optReader.ThrowIfNotEmpty();
                             CrlExtensions = crlExtensionList;
                         }
                     }
@@ -304,14 +305,21 @@ namespace Opc.Ua.Security.Certificates
         /// <exception cref="AsnContentException"></exception>
         private static DateTime ReadTime(AsnReader asnReader, bool optional)
         {
+            if (optional && !asnReader.HasData)
+            {
+                return DateTime.MinValue;
+            }
+
             // determine if the time is UTC or GeneralizedTime time
             Asn1Tag timeTag = asnReader.PeekTag();
             if (timeTag.TagValue == Asn1Tag.UtcTime.TagValue)
             {
+                ValidateUtcTimeContent(asnReader.PeekContentBytes().Span);
                 return asnReader.ReadUtcTime().UtcDateTime;
             }
             else if (timeTag.TagValue == Asn1Tag.GeneralizedTime.TagValue)
             {
+                ValidateGeneralizedTimeContent(asnReader.PeekContentBytes().Span);
                 return asnReader.ReadGeneralizedTime().UtcDateTime;
             }
             else if (optional)
@@ -321,6 +329,72 @@ namespace Opc.Ua.Security.Certificates
             else
             {
                 throw new AsnContentException("The CRL contains an invalid time tag.");
+            }
+        }
+
+        private static void ValidateUtcTimeContent(ReadOnlySpan<byte> content)
+        {
+            const int utcTimeLength = 13;
+
+            if (content.Length != utcTimeLength || content[12] != (byte)'Z')
+            {
+                throw new AsnContentException("The CRL UTCTime value must use YYMMDDHHMMSSZ form.");
+            }
+
+            int year = ReadDecimalDigits(content, offset: 0, digitCount: 2);
+            ValidateTimeFields(
+                year >= 50 ? 1900 + year : 2000 + year,
+                ReadDecimalDigits(content, offset: 2, digitCount: 2),
+                ReadDecimalDigits(content, offset: 4, digitCount: 2),
+                ReadDecimalDigits(content, offset: 6, digitCount: 2),
+                ReadDecimalDigits(content, offset: 8, digitCount: 2),
+                ReadDecimalDigits(content, offset: 10, digitCount: 2));
+        }
+
+        private static void ValidateGeneralizedTimeContent(ReadOnlySpan<byte> content)
+        {
+            const int generalizedTimeLength = 15;
+
+            if (content.Length != generalizedTimeLength || content[14] != (byte)'Z')
+            {
+                throw new AsnContentException("The CRL GeneralizedTime value must use YYYYMMDDHHMMSSZ form.");
+            }
+
+            ValidateTimeFields(
+                ReadDecimalDigits(content, offset: 0, digitCount: 4),
+                ReadDecimalDigits(content, offset: 4, digitCount: 2),
+                ReadDecimalDigits(content, offset: 6, digitCount: 2),
+                ReadDecimalDigits(content, offset: 8, digitCount: 2),
+                ReadDecimalDigits(content, offset: 10, digitCount: 2),
+                ReadDecimalDigits(content, offset: 12, digitCount: 2));
+        }
+
+        private static int ReadDecimalDigits(ReadOnlySpan<byte> content, int offset, int digitCount)
+        {
+            int value = 0;
+            for (int index = 0; index < digitCount; index++)
+            {
+                byte digit = (byte)(content[offset + index] - (byte)'0');
+                if (digit > 9)
+                {
+                    throw new AsnContentException("The CRL time value contains a non-decimal character.");
+                }
+                value = (value * 10) + digit;
+            }
+            return value;
+        }
+
+        private static void ValidateTimeFields(int year, int month, int day, int hour, int minute, int second)
+        {
+            if (year is < 1 or > 9999 ||
+                month is < 1 or > 12 ||
+                day < 1 ||
+                day > DateTime.DaysInMonth(year, month) ||
+                hour > 23 ||
+                minute > 59 ||
+                second > 59)
+            {
+                throw new AsnContentException("The CRL time value is invalid.");
             }
         }
 
