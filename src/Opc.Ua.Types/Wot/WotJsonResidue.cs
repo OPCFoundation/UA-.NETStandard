@@ -339,6 +339,8 @@ namespace Opc.Ua.Wot
                         CaptureLinks(property.Value, pointer, entries);
                         break;
                     case "@type":
+                        CaptureTypeAnnotations(root, pointer, entries);
+                        break;
                     case "title":
                     case "description":
                     case "uav:browseName":
@@ -540,6 +542,8 @@ namespace Opc.Ua.Wot
                     switch (property.Name)
                     {
                         case "@type":
+                            CaptureTypeAnnotations(affordance.Value, affordancePointer + "/@type", entries);
+                            break;
                         case "title":
                         case "description":
                         case "uav:browseName":
@@ -974,6 +978,36 @@ namespace Opc.Ua.Wot
             return Encoding.UTF8.GetString(stream.ToArray());
         }
 
+        private static void CaptureTypeAnnotations(JsonElement owner, string pointer, List<Entry> entries)
+        {
+            var annotations = new List<string>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string token in WotDocument.ReadStringTokens(owner, "@type"))
+            {
+                if (token != WotVocabulary.ThingModelType &&
+                    !WotNodeSetConverter.IsNodeClassAnnotation(token) &&
+                    seen.Add(token))
+                {
+                    annotations.Add(token);
+                }
+            }
+            if (annotations.Count == 0)
+            {
+                return;
+            }
+            using var output = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(output))
+            {
+                writer.WriteStartArray();
+                foreach (string annotation in annotations)
+                {
+                    writer.WriteStringValue(annotation);
+                }
+                writer.WriteEndArray();
+            }
+            entries.Add(new Entry { Pointer = pointer, Json = Encoding.UTF8.GetString(output.ToArray()) });
+        }
+
         /// <summary>
         /// Gets whether a link's <c>rel</c> is one the readable mapping already
         /// expresses, so it need not be preserved as residue.
@@ -1378,6 +1412,14 @@ namespace Opc.Ua.Wot
             string leaf = tokens[^1];
             if (current is JsonObject targetObject)
             {
+                if (leaf == "@type" &&
+                    (tokens.Length == 1 ||
+                        (tokens.Length == 3 &&
+                            tokens[0] is "properties" or "actions" or "events")))
+                {
+                    ApplyTypeAnnotations(targetObject, value, pointer, diagnostics);
+                    return;
+                }
                 JsonNode? existing = targetObject[leaf];
                 if (existing is not null)
                 {
@@ -1444,6 +1486,75 @@ namespace Opc.Ua.Wot
                 WotDiagnosticCode.ResidueInvalid,
                 $"Residue target '{pointer}' is invalid.",
                 WotLocation.FromPointer(pointer)));
+        }
+
+        private static void ApplyTypeAnnotations(
+            JsonObject owner, JsonNode? value, string pointer, List<WotDiagnostic> diagnostics)
+        {
+            var existing = new List<string>();
+            var annotations = new List<string>();
+            if (!ReadTypeTokens(owner["@type"], existing) || !ReadTypeTokens(value, annotations) || annotations.Count == 0)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ResidueInvalid,
+                    "Semantic type residue requires string tokens.",
+                    WotLocation.FromPointer(pointer)));
+                return;
+            }
+            foreach (string token in annotations)
+            {
+                if ((token == WotVocabulary.ThingModelType || WotNodeSetConverter.IsNodeClassAnnotation(token)) &&
+                    !existing.Contains(token))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.ResidueConflict,
+                        "Semantic type residue cannot introduce a document kind or NodeClass annotation.",
+                        WotLocation.FromPointer(pointer)));
+                    return;
+                }
+            }
+            var seen = new HashSet<string>(existing, StringComparer.Ordinal);
+            var combined = new JsonArray();
+            foreach (string token in existing)
+            {
+                combined.Add(token);
+            }
+            foreach (string token in annotations)
+            {
+                if (seen.Add(token))
+                {
+                    combined.Add(token);
+                }
+            }
+            owner["@type"] = combined;
+        }
+
+        private static bool ReadTypeTokens(JsonNode? value, List<string> tokens)
+        {
+            if (value is null)
+            {
+                return true;
+            }
+            if (value is JsonValue scalar && scalar.TryGetValue(out string? token) && token is not null)
+            {
+                tokens.Add(token);
+                return true;
+            }
+            if (value is JsonArray array)
+            {
+                foreach (JsonNode? item in array)
+                {
+                    if (item is not JsonValue element || !element.TryGetValue(out string? text) || text is null)
+                    {
+                        return false;
+                    }
+                    tokens.Add(text);
+                }
+                return true;
+            }
+            return false;
         }
 
         /// <summary>

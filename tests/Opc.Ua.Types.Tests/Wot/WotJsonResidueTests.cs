@@ -50,6 +50,56 @@ namespace Opc.Ua.Types.Tests.Wot
     {
         private const string s_ns = WotNodeSetConverter.VocabularyNamespace;
 
+        [TestCase(WotNodeSetPreservationMode.Never)]
+        [TestCase(WotNodeSetPreservationMode.Always)]
+        public void PropertyLinkResidueRemainsOnItsPropertyInsteadOfCreatingARootTypeLink(
+            WotNodeSetPreservationMode preservation)
+        {
+            const string json = """
+                {
+                  "@context": [
+                    "https://www.w3.org/2022/wot/td/v1.1",
+                    {
+                      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+                      "ua": "http://opcfoundation.org/UA/",
+                      "device": "urn:link-owner#",
+                      "vendor": "urn:vendor#"
+                    }
+                  ],
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "title": "Device",
+                  "uav:browseName": "device:Device",
+                  "properties": {
+                    "Value": {
+                      "type": "number", "uav:mapToType": "i=11", "uav:browseName": "device:Value",
+                      "links": [{
+                        "rel": "ua:HasTypeDefinition", "href": "nsu=http://opcfoundation.org/UA/;i=68",
+                        "vendor:note": "belongs to Value"
+                      }]
+                    }
+                  }
+                }
+                """;
+            UANodeSet nodes = WotNodeSetConverter.ToNodeSet(Encoding.UTF8.GetBytes(json));
+            var options = new WotNodeSetConverterOptions { PreservationMode = preservation };
+            for (int iteration = 0; iteration < 2; iteration++)
+            {
+                using WotDocument restored = WotNodeSetConverter.FromNodeSet(nodes, options: options);
+                JsonElement property = restored.RootElement.GetProperty("properties").GetProperty("Value");
+                JsonElement[] annotated = property.GetProperty("links").EnumerateArray()
+                    .Where(link => link.TryGetProperty("vendor:note", out _)).ToArray();
+                Assert.That(annotated, Has.Length.EqualTo(1));
+                Assert.That(annotated[0].GetProperty("vendor:note").GetString(), Is.EqualTo("belongs to Value"));
+                Assert.That(annotated[0].GetProperty("rel").GetString(), Is.EqualTo("ua:HasTypeDefinition"));
+                if (restored.RootElement.TryGetProperty("links", out JsonElement rootLinks))
+                {
+                    Assert.That(rootLinks.EnumerateArray().Any(link => link.TryGetProperty("vendor:note", out _)),
+                        Is.False);
+                }
+                nodes = WotNodeSetConverter.ToNodeSet(restored, options);
+            }
+        }
+
         [Test]
         public void ApplyWithNullExtensionsReturnsOriginalBytes()
         {

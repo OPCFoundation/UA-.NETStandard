@@ -120,6 +120,11 @@ namespace Opc.Ua.Wot
             "uav:dataType"
         ];
 
+        internal static bool IsNodeClassAnnotation(string token)
+        {
+            return Array.IndexOf(s_nodeClassAnnotations, token) >= 0;
+        }
+
         /// <summary>
         /// Reports an <c>@type</c> that carries more than one NodeClass
         /// annotation (WoT Binding Sections 5.2 and 7).
@@ -144,7 +149,7 @@ namespace Opc.Ua.Wot
             string? first = null;
             foreach (string token in EnumerateTypeTokens(types))
             {
-                if (Array.IndexOf(s_nodeClassAnnotations, token) < 0)
+                if (!IsNodeClassAnnotation(token))
                 {
                     continue;
                 }

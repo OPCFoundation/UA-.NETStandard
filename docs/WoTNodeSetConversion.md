@@ -232,6 +232,13 @@ instead of discarding it or guessing how to interpret its records. This does
 not bypass validation of supported content; malformed supported grammars and
 invalid archival digests remain errors.
 
+Non-model `@type` annotations on the root, properties, actions and events are
+retained as residue and merged with the regenerated type markers. Repeated
+annotations are not duplicated, their authored order and carrying context are
+retained, and residue cannot introduce a contradictory NodeClass or document
+kind. An affordance link's residue stays on that affordance's own link; it does
+not create an annotated relationship on the document root.
+
 Known numeric members of a supported native record must fit their declared
 Byte, UInt16, UInt32 or Int32 representation; a sampling interval must remain
 finite. A present fractional or out-of-range integer is an error, not permission
