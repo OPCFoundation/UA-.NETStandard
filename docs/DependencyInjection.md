@@ -503,6 +503,10 @@ Tasks run sequentially in registration order, once after the server has
 started. An exception or cancellation aborts hosted startup and triggers
 server cleanup; subsequent tasks do not run.
 
+`StopAsync` waits for execution cleanup even after a host shutdown timeout,
+so the host does not dispose dependencies that the server is still using.
+Slow cleanup can therefore outlast that timeout.
+
 Use injected services for application dependencies and the existing typed
 node-manager lookup for server subsystems. For example, inside a task:
 

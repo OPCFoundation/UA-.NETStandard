@@ -121,6 +121,26 @@ namespace Opc.Ua.Server.Hosting
             m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
+        /// <summary>
+        /// Waits for server cleanup before the host disposes its injected services.
+        /// </summary>
+        public override async Task StopAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await base.StopAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (ExecuteTask is { } execution)
+                {
+                    // Keep dependencies alive through cleanup; execution failures remain on ExecuteTask,
+                    // matching BackgroundService.StopAsync rather than rethrowing them during shutdown.
+                    await Task.WhenAny(execution).ConfigureAwait(false);
+                }
+            }
+        }
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             try

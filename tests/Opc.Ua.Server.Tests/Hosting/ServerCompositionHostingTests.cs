@@ -705,6 +705,56 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
+        public async Task CancelledHostStopWaitsForServerCleanupAsync()
+        {
+            var stoppingEntered = NewSignal<bool>();
+            var releaseCleanup = NewSignal<bool>();
+            HostedFixture fixture = HostedFixture.Create();
+            await using var cleanup = fixture.ConfigureAwait(false);
+            fixture.Transport.Listener.Setup(listener => listener.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    stoppingEntered.TrySetResult(true);
+                    return new ValueTask(releaseCleanup.Task);
+                });
+            await fixture.StartAsync().ConfigureAwait(false);
+            IHostedService hostedService = fixture.Services.GetServices<IHostedService>().Single();
+            using var expiredDeadline = new CancellationTokenSource();
+            expiredDeadline.Cancel();
+
+            Task stopping = hostedService.StopAsync(expiredDeadline.Token);
+            try
+            {
+                await AwaitBoundedAsync(stoppingEntered.Task).ConfigureAwait(false);
+                Assert.That(fixture.ExecuteTask.IsCompleted, Is.False);
+                Assert.That(stopping.IsCompleted, Is.False,
+                    "The host must not dispose injected services while server cleanup still uses them.");
+            }
+            finally
+            {
+                releaseCleanup.TrySetResult(true);
+                await AwaitBoundedAsync(fixture.ExecuteTask).ConfigureAwait(false);
+                await stopping.ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task CancelledStartupCanStopWithoutExecutingServerAsync()
+        {
+            HostedFixture fixture = HostedFixture.Create();
+            await using var cleanup = fixture.ConfigureAwait(false);
+            IHostedService hostedService = fixture.Services.GetServices<IHostedService>().Single();
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            await hostedService.StartAsync(cancellation.Token).ConfigureAwait(false);
+            await AwaitBoundedAsync(hostedService.StopAsync(CancellationToken.None)).ConfigureAwait(false);
+
+            Assert.That(fixture.ExecuteTask.IsCanceled, Is.True);
+            Assert.That(fixture.Transport.Server, Is.Null);
+        }
+
+        [Test]
         public async Task UsernameInstanceAndCertificateFactoryForwardIdentityThroughLiveRegistryAsync()
         {
             byte[] password = Encoding.UTF8.GetBytes(Guid.NewGuid().ToString("N"));
