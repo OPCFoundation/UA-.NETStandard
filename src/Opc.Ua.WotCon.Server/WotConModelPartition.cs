@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Opc.Ua.XRegistry;
 
 namespace Opc.Ua.WotCon.Server
@@ -69,6 +70,29 @@ namespace Opc.Ua.WotCon.Server
         }
 
         /// <summary>
+        /// Resolves an already registered namespace without wrapping missing or out-of-range indexes.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="namespaceUris"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException">
+        /// The namespace is missing or its index cannot be represented by a NodeId.
+        /// </exception>
+        public static ushort GetRequiredNamespaceIndex(NamespaceTable namespaceUris, string namespaceUri)
+        {
+            if (namespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(namespaceUris));
+            }
+            int index = namespaceUris.GetIndex(namespaceUri);
+            if (index is < 0 or > ushort.MaxValue)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    $"Namespace '{namespaceUri}' must be registered at a valid OPC UA namespace index.");
+            }
+            return (ushort)index;
+        }
+
+        /// <summary>
         /// Removes the additive registry nodes, retaining only the incorporated
         /// OPC 10100-1 v1.02 surface for the legacy asset manager to own.
         /// </summary>
@@ -107,21 +131,31 @@ namespace Opc.Ua.WotCon.Server
 
         private static ushort ModelNamespaceIndex(ISystemContext context)
         {
-            return (ushort)context.NamespaceUris.GetIndex(Namespaces.WotCon);
+            return GetRequiredNamespaceIndex(context.NamespaceUris, Namespaces.WotCon);
+        }
+
+        internal static bool IsRegistryNode(NodeId nodeId, ushort modelNs)
+        {
+            return nodeId.NamespaceIndex == modelNs &&
+                nodeId.TryGetValue(out uint id) &&
+                id >= FirstRegistryNodeId;
+        }
+
+        internal static bool IsLegacyNode(NodeId nodeId, ushort modelNs)
+        {
+            return nodeId.NamespaceIndex == modelNs &&
+                nodeId.TryGetValue(out uint id) &&
+                id < FirstRegistryNodeId;
         }
 
         private static bool IsRegistryNode(NodeState node, ushort modelNs)
         {
-            return node.NodeId.NamespaceIndex == modelNs &&
-                node.NodeId.TryGetValue(out uint id) &&
-                id >= FirstRegistryNodeId;
+            return IsRegistryNode(node.NodeId, modelNs);
         }
 
         private static bool IsLegacyNode(NodeState node, ushort modelNs)
         {
-            return node.NodeId.NamespaceIndex == modelNs &&
-                node.NodeId.TryGetValue(out uint id) &&
-                id < FirstRegistryNodeId;
+            return IsLegacyNode(node.NodeId, modelNs);
         }
     }
 }
