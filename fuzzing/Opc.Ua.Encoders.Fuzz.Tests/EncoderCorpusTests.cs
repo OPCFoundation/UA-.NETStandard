@@ -161,9 +161,28 @@ namespace Opc.Ua.Fuzzing
             await source.CopyToAsync(buffer).ConfigureAwait(false);
             ByteString actual = ByteString.From(buffer.ToArray());
 
-            Assert.That(actual, Is.EqualTo(EncodeSeed(seedName, wire)));
+            // XmlWriter indents with Environment.NewLine, so generated XML is CRLF on
+            // Windows and LF on Linux. The corpus is stored byte-for-byte (see
+            // .gitattributes), so compare XML with newlines normalized while binary and
+            // JSON stay exact.
+            if (wire == "Xml")
+            {
+                Assert.That(
+                    NormalizeNewlines(actual),
+                    Is.EqualTo(NormalizeNewlines(EncodeSeed(seedName, wire))));
+            }
+            else
+            {
+                Assert.That(actual, Is.EqualTo(EncodeSeed(seedName, wire)));
+            }
             IEncodeable decoded = EncoderTestMessages.Decode(actual.Span, wire);
             EncoderTestMessages.AssertPopulated(decoded);
+        }
+
+        private static string NormalizeNewlines(ByteString value)
+        {
+            return Encoding.UTF8.GetString(value.Span.ToArray())
+                .Replace("\r\n", "\n", StringComparison.Ordinal);
         }
 
         private static IEnumerable<TestCaseData> DeterministicEncodingCases()
