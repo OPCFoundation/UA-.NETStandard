@@ -632,7 +632,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void Publish_RegisterAsRootNotifier_AddsToRootNotifierSet()
+        public async Task Publish_RegisterAsRootNotifier_AddsToRootNotifierSetOnSealAsync()
         {
             using TestablePublishManager manager = CreateManager();
             BaseObjectState notifier = MakeNotifier(manager, "Root");
@@ -642,7 +642,66 @@ namespace Opc.Ua.Server.Tests.Fluent
                 (_, _, ct) => EmptyStream(ct),
                 new EventPublishOptions { RegisterAsRootNotifier = true });
 
+            // Registration runs inside the synchronous Configure pass, which
+            // cannot await the manager's monitored-item semaphore, so the
+            // root-notifier registration is staged rather than performed.
+            Assert.That(
+                manager.RootNotifiers,
+                Does.Not.ContainKey(notifier.NodeId),
+                "Root-notifier registration must be deferred to the seal.");
+
+            await manager.EventSources.CompleteRegistrationsAsync()
+                .ConfigureAwait(false);
+
             Assert.That(manager.RootNotifiers, Contains.Key(notifier.NodeId));
+        }
+
+        [Test]
+        public async Task Publish_RegisterAsRootNotifier_CancelledDrainStaysStagedAsync()
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = MakeNotifier(manager, "RootCancelled");
+
+            manager.EventSources.Register(
+                notifier,
+                (_, _, ct) => EmptyStream(ct),
+                new EventPublishOptions { RegisterAsRootNotifier = true });
+
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            // Cancelling the seal is not a configuration error, so it must not
+            // be wrapped as one.
+            Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await manager.EventSources
+                    .CompleteRegistrationsAsync(cts.Token).ConfigureAwait(false));
+            Assert.That(manager.RootNotifiers, Does.Not.ContainKey(notifier.NodeId));
+
+            // The registration stayed staged, so a later seal still completes it.
+            await manager.EventSources.CompleteRegistrationsAsync()
+                .ConfigureAwait(false);
+
+            Assert.That(manager.RootNotifiers, Contains.Key(notifier.NodeId));
+        }
+
+        [Test]
+        public async Task Publish_RegisterAsRootNotifier_IsDrainedOnlyOnceAsync()
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = MakeNotifier(manager, "RootOnce");
+
+            manager.EventSources.Register(
+                notifier,
+                (_, _, ct) => EmptyStream(ct),
+                new EventPublishOptions { RegisterAsRootNotifier = true });
+
+            await manager.EventSources.CompleteRegistrationsAsync()
+                .ConfigureAwait(false);
+            await manager.EventSources.CompleteRegistrationsAsync()
+                .ConfigureAwait(false);
+
+            Assert.That(manager.RootNotifiers, Contains.Key(notifier.NodeId));
+            Assert.That(manager.RootNotifiers, Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -713,7 +772,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var builder = new NodeManagerBuilder(
                 manager.SystemContext,
-                nodeManager: Mock.Of<IAsyncNodeManager>(),
+                nodeManager: FluentTestNodeManager.Create(kNs),
                 defaultNamespaceIndex: kNs,
                 rootResolver: q => roots.TryGetValue(q, out NodeState n) ? n : null,
                 nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null,
@@ -753,7 +812,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var builder = new NodeManagerBuilder(
                 manager.SystemContext,
-                nodeManager: Mock.Of<IAsyncNodeManager>(),
+                nodeManager: FluentTestNodeManager.Create(kNs),
                 defaultNamespaceIndex: kNs,
                 rootResolver: q => roots.TryGetValue(q, out NodeState n) ? n : null,
                 nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null,
@@ -1157,6 +1216,20 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
 
             public new NodeIdDictionary<NodeState> RootNotifiers => base.RootNotifiers;
+
+            /// <summary>
+            /// Honours the cancellation token before the base implementation
+            /// registers anything, so a test can drive the cancelled path of
+            /// <c>EventSourceRegistry.CompleteRegistrationsAsync</c>
+            /// deterministically rather than racing the framework.
+            /// </summary>
+            protected override ValueTask AddRootNotifierAsync(
+                NodeState notifier,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return base.AddRootNotifierAsync(notifier, cancellationToken);
+            }
 
             public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
 

@@ -41,6 +41,9 @@
   - [What the generator produces](#what-the-generator-produces)
   - [Opting in](#opting-in)
     - [Per-class opt-in via [NodeManager] (recommended)](#per-class-opt-in-via-nodemanager-recommended)
+      - [Taking over the constructor and the namespace order](#taking-over-the-constructor-and-the-namespace-order)
+      - [Asynchronous startup before Configure](#asynchronous-startup-before-configure)
+      - [Binding to a model a referenced assembly supplies](#binding-to-a-model-a-referenced-assembly-supplies)
     - [Project-wide opt-in via MSBuild property (legacy)](#project-wide-opt-in-via-msbuild-property-legacy)
   - [Wiring callbacks: the Configure partial](#wiring-callbacks-the-configure-partial)
     - [Addressing modes](#addressing-modes)
@@ -341,12 +344,50 @@ does so through the continuation point's `BrowserContext`, `CustomNodeManager2` 
 around the iteration. A derived browser must not add locking of its own; `NodeBrowser` no longer
 exposes one to inherit (see [migration](migrate/2.0.x/node-states.md)).
 
-Two rules follow for node types that customise browsing:
+An **`INodeBrowser` is iterated through `NextAsync`** by the async server paths. `Next()` and
+`NextAsync(CancellationToken)` drain the same sequence, and the default `NextAsync` simply wraps
+`Next()`, so a browser that only overrides `Next()` works unchanged. `AsyncCustomNodeManager`
+drives both `BrowseAsync` and `TranslateBrowsePathAsync` through `NextAsync`, which gives a
+browser whose references come from I/O — an aggregating server that browses another server, a
+device, a file system — a place to `await` instead of holding a request worker on a blocking
+call. Creation stays synchronous: `OnCreateBrowser` and `CreateBrowser` build the browser under
+the node's browse lock, so the fetch happens lazily on the first `NextAsync`, not in the
+constructor.
+
+```csharp
+public sealed class RemoteBrowser : NodeBrowser
+{
+    public override async ValueTask<IReference?> NextAsync(CancellationToken cancellationToken)
+    {
+        // In-memory references first, exactly as the base class hands them out.
+        IReference? reference = base.Next();
+        if (reference != null)
+        {
+            return reference;
+        }
+
+        m_remote ??= await m_session.BrowseAsync(..., cancellationToken).ConfigureAwait(false);
+        return m_remote.Count > 0 ? m_remote.Dequeue() : null;
+    }
+
+    // Synchronous consumers still exist (the nodeset exporter, CustomNodeManager2);
+    // bridge them rather than duplicating the fetch.
+    public override IReference? Next()
+    {
+        return NextAsync(CancellationToken.None).AsTask().GetAwaiter().GetResult();
+    }
+}
+```
+
+Three rules follow for node types that customise browsing:
 
 * An override of `PopulateBrowser` runs with the node's browse lock held. Keep it to in-memory
   work — the lock is held for its duration, so blocking on I/O there stalls every other browse of
   that node. A browser that has to reach an underlying system does that lazily in its own
-  `Next()`, outside every node lock, as `DirectoryBrowser` does for the file-system provider.
+  `NextAsync`, outside every node lock, as `DirectoryBrowser` does for the file-system provider.
+* A browser that overrides `NextAsync` also overrides `Next()`, because the base `Next()` only
+  sees the in-memory references. Bridging `Next()` to `NextAsync` is the usual shape; the async
+  server never calls it, so the blocking only ever happens on a synchronous caller's own thread.
 * An override of `CreateBrowser` that builds its own browser instead of delegating to
   `base.CreateBrowser` must fill it through `PopulateBrowserSynchronized`. Calling
   `PopulateBrowser` directly leaves construction unserialized against other browses of the same
@@ -378,7 +419,9 @@ set of models genuinely has to change without restarting the server.
 
 `AddNodeManager` and `AddRuntimeNodeSet` register a factory on `IOpcUaServerBuilder`. The factory is
 created before the server starts, and the server builds its address space from all registered
-factories while it starts.
+factories while it starts. Once startup succeeds, each application NodeManager appears as a
+[generation-1 entry](#registration-generations) in `INodeManagerLifecycle.Registrations`. The built-in diagnostics,
+configuration, and core NodeManagers are not exposed there.
 
 ```csharp
 services.AddOpcUa()
@@ -404,6 +447,20 @@ services.AddOpcUa()
             .Configure(node => node.UnderObjectsFolder());
     });
 ```
+
+### Registration generations
+
+A **generation** identifies one published NodeManager instance within a logical registration.
+`NodeManagerRegistration.Id` stays the same across reloads; `Generation` numbers the successive
+instances. Startup adoption and `AddAsync` both create the first instance with `Generation = 1`,
+hence **generation 1**. The first committed reload creates **generation 2**, the next creates
+**generation 3**, and so on. All [reload modes](#reload-modes) use this numbering; it is independent
+of the information model's version and namespace index.
+
+After a reload, use the newly returned registration handle for further lifecycle operations.
+The previous handle is stale even if a shadow reload keeps its old NodeManager alive for existing
+Clients. Adding a new registration starts at generation 1 with a new `Id`, rather than continuing
+the numbering of a removed registration.
 
 ### Runtime registration
 
@@ -433,8 +490,10 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 ```
 
 Each add returns an immutable `NodeManagerRegistration`. Reload returns the next generation and
-invalidates the previous handle. Only registrations created by the lifecycle provider can be
-reloaded or removed; startup, diagnostics, and core NodeManagers are protected.
+invalidates the previous handle. `Registrations` also contains application NodeManagers that were
+composed before startup, so a control-plane component can discover their generation-1 handles and
+remove them or, when the current manager implements `INodeManagerReloadParticipant`, reload them.
+Diagnostics, configuration, and core NodeManagers remain protected and absent from the collection.
 
 `INodeManagerLifecycle` is a host control-plane API. Do not invoke reload or removal from inside an
 OPC UA service or Method callback: teardown waits for the requests that already captured the retired
@@ -784,20 +843,32 @@ namespace (legacy MSBuild mode) or the user class's namespace
     `new NodeStateCollection().Add{Ns}(context)` wrapped in a
     `ValueTask<NodeStateCollection>`.
   - `CreateAddressSpaceAsync` `await`s `base.CreateAddressSpaceAsync`,
-    then builds a fluent `INodeManagerBuilder`, invokes
-    `Configure(builder)`, `await`s `CompleteConfigureAsync` (re-running
-    the reverse-reference pass so nodes created inside `Configure`
-    publish their references to nodes owned by other managers — e.g. an
-    inverse `Organizes` to the ns=0 `Objects` folder — into the
-    `externalReferences` dictionary), calls `builder.Seal()`, and
-    replays `NotifyNodeAdded` for every predefined node so per-node
-    lifecycle hooks fire deterministically.
+    then builds a fluent `INodeManagerBuilder`, `await`s
+    `ConfigureAsync(builder, ct)` (the awaitable wiring seam — see
+    below), invokes `Configure(builder)`, `await`s
+    `CompleteConfigureAsync` (re-running the reverse-reference pass so
+    nodes created inside `Configure` publish their references to nodes
+    owned by other managers — e.g. an inverse `Organizes` to the ns=0
+    `Objects` folder — into the `externalReferences` dictionary), and
+    `await`s `SealConfigurationAsync(builder, ct)` — which seals the
+    builder, replays `NotifyNodeAdded` for every predefined node so
+    per-node lifecycle hooks fire deterministically, and only then
+    completes the registrations `Configure` could not await and starts
+    the simulations.
   - `AddPredefinedNodeAsync` / `RemovePredefinedNodeAsync` overrides
     forward to base and then dispatch the lifecycle notification.
   - `OnMonitoredItemCreated` (still synchronous on the base) dispatches
     the per-node hook.
   - Declares `partial void Configure(INodeManagerBuilder builder);` for
-    user wiring.
+    synchronous user wiring, and inherits
+    `protected virtual ValueTask ConfigureAsync(INodeManagerBuilder builder, CancellationToken cancellationToken)`
+    from `FluentNodeManagerBase` for wiring that has to `await`
+    (materialising instances, reading a store). `ConfigureAsync` runs
+    first, so the nodes it creates exist by the time `Configure` wires
+    callbacks against them. The hook is a `virtual` method rather than a
+    second `partial` because a partial method can be optional
+    (`partial void`) or awaitable (extended partial, must be
+    implemented) — not both. Use either or both.
   - Implements `INodeSetImportFactoryProvider` by delegating to the
     model's generated `{Ns}NodeSetImportFactoryProvider`, so a NodeSet2
     document imported through `builder.Import` materialises this model's
@@ -819,6 +890,46 @@ namespace (legacy MSBuild mode) or the user class's namespace
 `AddNodeManager` on `StandardServer` has overloads for both
 `INodeManagerFactory` and `IAsyncNodeManagerFactory`; the generated
 async factory binds to the latter automatically.
+
+#### The generated activation pipeline
+
+The order the generated `CreateAddressSpaceAsync` runs in is part of the
+contract — the ordering test in `NodeManagerGeneratorTests` pins it — so
+it is worth seeing whole:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant M as Generated NodeManager
+    participant U as Your partial or override
+    participant B as NodeManagerBuilder
+
+    M->>M: await base.CreateAddressSpaceAsync
+    Note over M: LoadPredefinedNodesAsync has<br/>populated PredefinedNodes
+    M->>B: construct, then AttachToBuilder
+
+    M->>U: await ConfigureAsync(builder, ct)
+    Note over U: the awaitable seam — materialise<br/>instances, read a store, await I/O
+    M->>U: Configure(builder), Configure(typedBuilder)
+    Note over U: synchronous wiring, against nodes<br/>ConfigureAsync has already created
+
+    M->>M: await RegisterAuthoredNodesAsync(builder, ct)
+    Note over M: staged nodes reach the address space
+    M->>M: await CompleteConfigureAsync(externalReferences, ct)
+    Note over M: reverse-reference pass, so authored nodes<br/>publish edges to other managers
+
+    Note over M,B: await SealConfigurationAsync(builder, ct)
+    M->>B: SealGraphAuthoring
+    Note over B: no further authoring, nothing activated yet
+    M->>U: replay NotifyNodeAdded for every predefined node
+    M->>B: CompleteSealAsync
+    Note over B: drain staged root notifiers,<br/>then start the simulations
+```
+
+Both ends of the seal matter. Sealing before the replay stops an
+`OnNodeAdded` handler from authoring nodes nothing would register any
+more; activating after it keeps a simulated value change from preceding
+the `OnNodeAdded` handler of its own node.
 
 ### Opting in
 
@@ -894,6 +1005,102 @@ or constants from a referenced assembly. A constant emitted by another
 generator in the **same compilation** is not available. Such an
 expression reports `MODELGEN035` at the offending argument instead of
 silently dropping the namespace from the generated manager and factory.
+
+##### Taking over the constructor and the namespace order
+
+The generator emits two constructors:
+
+```csharp
+public MyDeviceNodeManager(IServerInternal server, ApplicationConfiguration configuration)
+    : this(server, configuration, null) { }
+
+protected MyDeviceNodeManager(
+    IServerInternal server,
+    ApplicationConfiguration configuration,
+    string[]? namespaceUris)
+    : base(server, configuration, namespaceUris ?? DefaultNamespaceUris()) { … }
+```
+
+Chain to the protected one from a constructor of your own when the
+manager needs collaborators the generated signature does not carry, or
+when it owns a different set of namespaces. `DefaultNamespaceUris()`
+returns the attribute's set, model namespace first.
+
+The order decides which namespace becomes `NamespaceIndexes[0]` and
+therefore the manager's own `NamespaceIndex` — the one a browse path
+without an explicit `ns=` prefix resolves in, and the one
+`CreateFluentBuilder` defaults to. It does **not** decide where runtime
+NodeIds are minted: that is the NodeId factory's
+`DefaultNamespaceIndex`, so a manager whose instances belong in a
+namespace of its own points the factory at that namespace and leaves the
+order alone. See
+[Which namespace](NodeIdAssignment.md#which-namespace).
+
+```csharp
+[NodeManager(
+    NamespaceUri = Namespaces.MyModel,
+    AdditionalNamespaceUris = ["urn:my:instances"],
+    GenerateDefaultConstructor = false,
+    GenerateFactory = false)]
+public partial class MyDeviceNodeManager
+{
+    private readonly IMyDatabase m_database;
+
+    public MyDeviceNodeManager(
+        IServerInternal server,
+        ApplicationConfiguration configuration,
+        IMyDatabase database)
+        // null adopts DefaultNamespaceUris(): the model namespace first
+        : this(server, configuration, null)
+    {
+        m_database = database;
+
+        // the records this manager creates are its own instances, so they
+        // are minted next to the model rather than into it
+        NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(
+            (ushort)server.NamespaceUris.GetIndex("urn:my:instances"));
+    }
+}
+```
+
+`GenerateDefaultConstructor = false` suppresses the public two-argument
+form so callers cannot build the manager without its collaborators. The
+generated factory constructs the manager through exactly that form, so a
+manager that suppresses it — and does not declare a replacement with the
+same signature — must set `GenerateFactory = false` too.
+
+##### Binding to a model a referenced assembly supplies
+
+A `[NodeManager]` normally lives in the project that emits the model.
+That is impossible when the model belongs to a package which cannot
+reference `Opc.Ua.Server` — a model-only assembly shared with clients,
+for example. Point the attribute at the model anyway: add its design as
+`AdditionalFiles` in the server-side project, and the generator emits
+the manager and its fluent surface there while the model types keep
+coming from the reference.
+
+```xml
+<!-- MyServer.csproj — the model itself lives in MyModel.csproj -->
+<ItemGroup>
+  <ProjectReference Include="..\MyModel\MyModel.csproj" />
+  <AdditionalFiles Include="..\MyModel\Design\MyModel.xml" />
+  <AdditionalFiles Include="..\MyModel\Design\MyModel.csv" />
+</ItemGroup>
+```
+
+Nothing else is needed — no `ModelSourceGeneratorFluentAccessorsOnly`.
+Without a binding, a design that a reference already supplies stays
+skipped, exactly as before, so this cannot start duplicating types by
+accident.
+
+Two conditions apply, both reported as `MODELGEN014` when unmet: the
+referenced assembly must publish the model under the same C# prefix, and
+it must not already contain generated fluent accessors (a model-only
+assembly built with `ModelSourceGeneratorOmitFluentApi` does not). The
+project-wide `ModelSourceGeneratorGenerateNodeManager` switch is not a
+substitute here and is still rejected in accessors-only builds: it would
+emit conventionally named managers into the referenced model's own C#
+namespace for every design in the project.
 
 #### Project-wide opt-in via MSBuild property (legacy)
 
@@ -972,6 +1179,7 @@ different namespace.
 | `Node(NodeId id)` / `Node<TState>(NodeId id)` | Absolute NodeId | You own the id (e.g. generated `Variables.*`) |
 | `NodeFromTypeId(NodeId typeId)` / `NodeFromTypeId<TState>(NodeId typeId)` | `BaseInstanceState.TypeDefinitionId` | Singleton instance of a well-known type |
 | `NodeFromTypeId(NodeId typeId, QualifiedName browseName)` | TypeDefinitionId + BrowseName | Multi-instance types — pick one |
+| `Node<TState>(TState node)` | Nothing — takes the node as given | You already hold the `NodeState` (see below) |
 
 `NodeFromTypeId` walks every predefined node owned by this manager
 (and their sub-trees) at Configure-time. Error matrix:
@@ -984,6 +1192,23 @@ different namespace.
   `browseName`).
 * `BadTypeMismatch` — typed overload's `TState` cast fails.
 
+`Node<TState>(TState node)` is the one addressing mode that does not
+consult the predefined-node graph. Use it for nodes that appear *after*
+`Configure` has run — a service object a host contributes at runtime, a
+subtree replaced in `AddBehaviourToPredefinedNodeAsync`, a device
+discovered while the server is up — so the same fluent wiring recipe
+applies to statically declared and runtime-created nodes alike:
+
+```csharp
+private async Task ConfigureServiceAsync(MyServiceState service)
+{
+    NodeManagerBuilder builder = CreateFluentBuilder(namespaceIndex);
+    builder.Node(service.DoSomething!)
+           .OnReadRolePermissions(GrantSelfAdmin);
+    await builder.SealAsync().ConfigureAwait(false);
+}
+```
+
 The builder exposes:
 
 | Method | Wires |
@@ -991,6 +1216,7 @@ The builder exposes:
 | `OnRead` / `OnReadAsync` | `BaseVariableState.OnReadValue` |
 | `OnWrite` / `OnWriteAsync` | `BaseVariableState.OnWriteValue` |
 | `OnCall` / `OnCallAsync` | `MethodState.OnCallMethod*` |
+| `OnReadRolePermissions` / `OnReadUserRolePermissions` | `NodeState.OnRead*RolePermissions` — compute the permission set per request (e.g. grant a caller a role on its own record) |
 | `OnNodeAdded` / `OnNodeRemoved` | Lifecycle dispatch from `NotifyNodeAdded` |
 | `OnEvent`, `OnConditionRefresh`, `OnHistoryRead`, `OnHistoryUpdate` | Node or manager-level dispatch keyed by `NodeId` |
 | `OnCreateMonitoredItem`, `OnMonitoredItemCreated`, `OnMonitoredItemModified`, `OnMonitoredItemDeleted`, `OnMonitoringModeChanged` | Data-change monitored-item creation and lifecycle |

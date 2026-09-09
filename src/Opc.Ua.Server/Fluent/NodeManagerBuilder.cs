@@ -48,9 +48,9 @@ namespace Opc.Ua.Server.Fluent
     /// All wiring happens during the user's <c>Configure</c> delegate, which
     /// runs once per manager activation immediately after
     /// <c>LoadPredefinedNodes</c> populates the address space. After
-    /// <see cref="Seal"/> is called the builder rejects further <c>Node(...)</c>
-    /// calls; the dispatcher remains live and fields per-node lookups during
-    /// runtime.
+    /// <see cref="SealAsync"/> is awaited the builder rejects further
+    /// <c>Node(...)</c> calls; the dispatcher remains live and fields per-node
+    /// lookups during runtime.
     /// </para>
     /// <para>
     /// Threading: <c>Configure</c> runs synchronously on the thread that
@@ -120,6 +120,9 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <inheritdoc/>
+        public ushort DefaultNamespaceIndex => m_defaultNamespaceIndex;
+
+        /// <inheritdoc/>
         public ISystemContext Context { get; }
 
         /// <inheritdoc/>
@@ -130,25 +133,44 @@ namespace Opc.Ua.Server.Fluent
 
         /// <summary>
         /// Marks the builder as no longer accepting new <c>Node(...)</c>
-        /// lookups. Existing per-node builders remain functional but the
-        /// generator-emitted manager calls this once <c>Configure</c>
-        /// returns to fail-fast on stray late wiring attempts.
+        /// lookups and runs the asynchronous completion work that the
+        /// wiring staged during <c>Configure</c>. Existing per-node
+        /// builders remain functional but the generator-emitted manager
+        /// awaits this once <c>Configure</c> returns to fail-fast on stray
+        /// late wiring attempts.
         /// </summary>
-        public void Seal()
+        /// <remarks>
+        /// <para>
+        /// Sealing is the single point where registrations that could not
+        /// complete inside the synchronous <c>Configure</c> pass get their
+        /// turn to await: root-notifier registration for
+        /// <c>Publish(...)</c> sources, and the simulation loops. Because
+        /// every seal site awaits this method, a registration is free to
+        /// stage asynchronous activation work rather than blocking on it
+        /// from <c>Configure</c>.
+        /// </para>
+        /// <para>
+        /// The method is idempotent — sealing an already-sealed builder
+        /// only drains work that was staged in the meantime.
+        /// </para>
+        /// </remarks>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public ValueTask SealAsync(CancellationToken cancellationToken = default)
         {
             SealGraphAuthoring();
-            StartSimulations();
+            return CompleteSealAsync(cancellationToken);
         }
 
         /// <summary>
         /// Closes the builder for further wiring and node authoring without
-        /// starting the simulations yet.
+        /// activating anything yet.
         /// </summary>
         /// <remarks>
-        /// A manager which replays <c>NotifyNodeAdded</c> after sealing seals
-        /// first - so a lifecycle handler cannot author nodes that nothing
-        /// would register any more - and starts the simulations only once the
-        /// replay is done, so no simulated value change can precede the
+        /// The first half of sealing. A manager which replays
+        /// <c>NotifyNodeAdded</c> after sealing seals first - so a lifecycle
+        /// handler cannot author nodes that nothing would register any more -
+        /// and calls <see cref="CompleteSealAsync"/> only once the replay is
+        /// done, so no simulated value change can precede the
         /// <c>OnNodeAdded</c> handler for its own node.
         /// </remarks>
         internal void SealGraphAuthoring()
@@ -166,11 +188,46 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        /// Starts the simulations registered during the <c>Configure</c> pass.
+        /// Activates everything the <c>Configure</c> pass registered: the node
+        /// behaviors — which start the simulation loops as one of their own — and
+        /// then the registrations that could not finish synchronously.
         /// </summary>
-        internal void StartSimulations()
+        /// <remarks>
+        /// <para>
+        /// The second half of sealing, split from
+        /// <see cref="SealGraphAuthoring"/> so a manager can replay
+        /// <c>NotifyNodeAdded</c> between the two — see
+        /// <see cref="FluentNodeManagerBase.SealConfigurationAsync"/>.
+        /// </para>
+        /// <para>
+        /// Activation is deliberately a single step. Starting the simulations
+        /// without draining the staged registrations would leave a builder
+        /// half-activated: root-notifier registration for <c>Publish(...)</c>
+        /// sources has to await the manager's monitored-item semaphore, which
+        /// <c>Configure</c> cannot do, so it is drained here and nowhere else.
+        /// </para>
+        /// </remarks>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        internal async ValueTask CompleteSealAsync(
+            CancellationToken cancellationToken = default)
         {
-            Simulations?.Start();
+            // Behaviors go first, and the simulation loops start from inside that pass
+            // as a manager-scoped behavior. An attach callback may itself call Publish
+            // with RegisterAsRootNotifier, which only stages the notifier; the drain
+            // below snapshots and clears that queue, so activating after it would
+            // discard the registration without a word.
+            if (FluentOwner != null)
+            {
+                await FluentOwner
+                    .ActivateNodeBehaviorsFromSealAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            if (EventSources != null)
+            {
+                await EventSources.CompleteRegistrationsAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <inheritdoc/>
@@ -412,6 +469,129 @@ namespace Opc.Ua.Server.Fluent
             var registration = new VirtualNodeRegistration(this, predicate, resolver);
             m_virtualNodes.Add(registration);
             return registration;
+        }
+
+        /// <summary>
+        /// Registers the manager-scoped behavior that releases the simulation loops,
+        /// once per builder.
+        /// </summary>
+        internal void EnsureSimulationLifecycleRegistered()
+        {
+            SimulationRegistry? registry = Simulations;
+            if (registry == null)
+            {
+                return;
+            }
+
+            lock (m_nodeAttachmentsLock)
+            {
+                if (m_simulationLifecycleRegistered)
+                {
+                    return;
+                }
+                m_simulationLifecycleRegistered = true;
+                m_nodeAttachments.Add(
+                    NodeAttachRegistration.ForManager(
+                        static (_, _, _, state) =>
+                        {
+                            // Start belongs here rather than at the end of the seal:
+                            // manager-scoped behaviors activate after every node
+                            // behavior, so the first tick cannot now precede the
+                            // wiring of the nodes it drives.
+                            var simulations = (SimulationRegistry)state;
+                            simulations.Start();
+                            return new ValueTask<IAsyncDisposable?>(
+                                new SimulationLifetime(simulations));
+                        },
+                        registry));
+            }
+        }
+
+        /// <summary>
+        /// Registers the manager-scoped behavior that releases the event sources,
+        /// once per builder.
+        /// </summary>
+        internal void EnsureEventSourceLifecycleRegistered()
+        {
+            EventSourceRegistry? registry = EventSources;
+            if (registry == null)
+            {
+                return;
+            }
+
+            lock (m_nodeAttachmentsLock)
+            {
+                if (m_eventSourceLifecycleRegistered)
+                {
+                    return;
+                }
+                m_eventSourceLifecycleRegistered = true;
+                m_nodeAttachments.Add(
+                    NodeAttachRegistration.ForManager(
+                        static (_, _, _, state) => new ValueTask<IAsyncDisposable?>(
+                            new EventSourceLifetime((EventSourceRegistry)state)),
+                        registry));
+            }
+        }
+
+        /// <summary>
+        /// Registers the manager-scoped behavior that releases the monitored sources,
+        /// once per builder.
+        /// </summary>
+        internal void EnsureMonitoredSourceLifecycleRegistered()
+        {
+            MonitoredSourceRegistry? registry = MonitoredSources;
+            if (registry == null)
+            {
+                return;
+            }
+
+            lock (m_nodeAttachmentsLock)
+            {
+                if (m_monitoredSourceLifecycleRegistered)
+                {
+                    return;
+                }
+                m_monitoredSourceLifecycleRegistered = true;
+                m_nodeAttachments.Add(
+                    NodeAttachRegistration.ForManager(
+                        static (_, _, _, state) => new ValueTask<IAsyncDisposable?>(
+                            new MonitoredSourceLifetime((MonitoredSourceRegistry)state)),
+                        registry));
+            }
+        }
+
+        /// <summary>
+        /// Records a pending behavior registration.
+        /// </summary>
+        internal void RegisterNodeAttachment(NodeAttachRegistration registration)
+        {
+            ThrowIfSealed();
+            lock (m_nodeAttachmentsLock)
+            {
+                m_nodeAttachments.Add(registration);
+            }
+        }
+
+        /// <summary>
+        /// Takes the pending behavior registrations, leaving none behind.
+        /// </summary>
+        /// <remarks>
+        /// The owning node manager drains once per activation pass. Draining rather
+        /// than reading keeps a second pass from re-activating what the first owns.
+        /// </remarks>
+        internal List<NodeAttachRegistration> DrainNodeAttachments()
+        {
+            lock (m_nodeAttachmentsLock)
+            {
+                if (m_nodeAttachments.Count == 0)
+                {
+                    return [];
+                }
+                var drained = new List<NodeAttachRegistration>(m_nodeAttachments);
+                m_nodeAttachments.Clear();
+                return drained;
+            }
         }
 
         internal NodeHandle? CreateVirtualNodeHandle(NodeId nodeId)
@@ -1541,6 +1721,11 @@ namespace Opc.Ua.Server.Fluent
         private readonly Dictionary<NodeId, NodeLifecycleHandler> m_nodeAdded = [];
         private readonly Dictionary<NodeId, NodeLifecycleHandler> m_nodeRemoved = [];
         private readonly List<VirtualNodeRegistration> m_virtualNodes = [];
+        private readonly List<NodeAttachRegistration> m_nodeAttachments = [];
+        private readonly Lock m_nodeAttachmentsLock = new();
+        private bool m_simulationLifecycleRegistered;
+        private bool m_eventSourceLifecycleRegistered;
+        private bool m_monitoredSourceLifecycleRegistered;
         private MonitoredItemsBatchHandler? m_monitoredItemsCreated;
         private MonitoredItemsBatchHandler? m_monitoredItemsDeleted;
         private readonly HashSet<NodeState> m_configuredNodes = new(

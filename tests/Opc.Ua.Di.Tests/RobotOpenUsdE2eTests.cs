@@ -887,8 +887,22 @@ namespace Opc.Ua.Di.Tests
                 double median = deviations[deviations.Count / 2];
                 Assert.That(median, Is.LessThan(0.05),
                     $"A carried workpiece sat {median:F3} m from its gripper (worst {worst:F3} m).");
-                Assert.That(worst, Is.LessThan(0.20),
-                    $"A carried workpiece sat {worst:F3} m from its gripper.");
+
+                // A high percentile rather than the absolute worst case. The
+                // straddle above is bounded by how long the sampler was starved
+                // between the two notifications, which a loaded CI agent can
+                // stretch well past a publish period - a single unlucky sample
+                // reached 0.213 m and failed a 0.20 m worst-case bound on an
+                // otherwise healthy run. The defect this guards is systematic:
+                // it puts *every* sample 0.25 m to 0.49 m out while the robot
+                // drives, so it fails the 95th percentile just as surely, while
+                // one starved sample no longer can.
+                double p95 = deviations[Math.Min(
+                    deviations.Count - 1,
+                    (int)Math.Ceiling(deviations.Count * 0.95) - 1)];
+                Assert.That(p95, Is.LessThan(0.20),
+                    $"A carried workpiece sat {p95:F3} m from its gripper at the 95th " +
+                    $"percentile of {deviations.Count} samples (worst {worst:F3} m).");
             }
             finally
             {

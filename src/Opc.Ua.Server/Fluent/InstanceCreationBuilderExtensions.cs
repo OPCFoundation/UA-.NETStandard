@@ -131,10 +131,7 @@ namespace Opc.Ua.Server.Fluent
             instance.DisplayName = new LocalizedText(symbolicName);
             instance.ReferenceTypeId = ReferenceTypeIds.HasComponent;
 
-            string parentIdentifier = parent.Node.NodeId.IdentifierAsString;
-            instance.NodeId = new NodeId(
-                $"{parentIdentifier}_{symbolicName}",
-                parent.Node.NodeId.NamespaceIndex);
+            FluentNodeRegistration.AssignNodeId(parent.Builder, instance);
 
             if (!typeDefinitionId.IsNull)
 

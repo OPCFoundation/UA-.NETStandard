@@ -53,6 +53,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
     [Category("ClientRedundancy")]
     public sealed class RaftLeaderElectionTests
     {
+        /// <summary>
+        /// Verifies that a single-node consensus group elects itself leader.
+        /// </summary>
         [Test]
         public async Task SingleNodeElectionBecomesLeaderAsync()
         {
@@ -71,6 +74,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(transitions, Is.EqualTo([true]));
         }
 
+        /// <summary>
+        /// Verifies that starting leader election repeatedly is idempotent.
+        /// </summary>
         [Test]
         public async Task StartIsIdempotentAsync()
         {
@@ -84,6 +90,25 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(acquired, Is.True, "a second Start must not disturb established leadership");
         }
 
+        /// <summary>
+        /// Verifies that acquiring leadership starts consensus without forcing an election campaign.
+        /// </summary>
+        [Test]
+        public async Task AcquireStartsConsensusWithoutForcingCampaignAsync()
+        {
+            await using var consensus = new RecordingConsensus();
+            await using var election = new RaftLeaderElection(consensus);
+
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
+
+            Assert.That(acquired, Is.True);
+            Assert.That(consensus.StartCount, Is.EqualTo(1));
+            Assert.That(consensus.CampaignCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies that a consensus follower is not reported as leader.
+        /// </summary>
         [Test]
         public async Task FollowerIsNotLeaderAsync()
         {
@@ -100,6 +125,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(election2.IsLeader, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that the election abstraction follows consensus leadership changes after failover.
+        /// </summary>
         [Test]
         public async Task ElectionFollowsConsensusFailoverAsync()
         {
@@ -122,12 +150,18 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(node2Transitions, Is.EqualTo([true]));
         }
 
+        /// <summary>
+        /// Verifies that leader election construction rejects a null consensus instance.
+        /// </summary>
         [Test]
         public void NullConsensusConstructorThrows()
         {
             Assert.That(() => new RaftLeaderElection(null!), Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that disposing leader election repeatedly is safe.
+        /// </summary>
         [Test]
         public async Task DisposeIsIdempotentAsync()
         {
@@ -139,6 +173,9 @@ namespace Opc.Ua.Client.Redundancy.Tests
             await consensus.DisposeAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that a consensus start failure is logged without escaping the election start operation.
+        /// </summary>
         [Test]
         public async Task StartLogsAndSwallowsStartFailureAsync()
         {
@@ -183,6 +220,50 @@ namespace Opc.Ua.Client.Redundancy.Tests
 
             public ValueTask CampaignAsync(CancellationToken ct = default)
             {
+                return default;
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                m_committed.Writer.TryComplete();
+                return default;
+            }
+
+            private readonly Channel<ReadOnlyMemory<byte>> m_committed =
+                Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
+        }
+
+        private sealed class RecordingConsensus : IRaftConsensus
+        {
+            public bool IsLeader => StartCount != 0;
+
+            public int StartCount { get; private set; }
+
+            public int CampaignCount { get; private set; }
+
+            public event Action<bool>? LeadershipChanged
+            {
+                add { }
+                remove { }
+            }
+
+            public ChannelReader<ReadOnlyMemory<byte>> Committed => m_committed.Reader;
+
+            public ValueTask StartAsync(CancellationToken ct = default)
+            {
+                ct.ThrowIfCancellationRequested();
+                StartCount++;
+                return default;
+            }
+
+            public ValueTask ProposeAsync(ReadOnlyMemory<byte> command, CancellationToken ct = default)
+            {
+                return default;
+            }
+
+            public ValueTask CampaignAsync(CancellationToken ct = default)
+            {
+                CampaignCount++;
                 return default;
             }
 

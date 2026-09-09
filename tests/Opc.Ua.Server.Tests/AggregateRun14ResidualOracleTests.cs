@@ -72,7 +72,12 @@ namespace Opc.Ua.Server.Tests
             return s_baseTime.AddMilliseconds(seconds * 1000.0);
         }
 
-        // Linear ramp: value v at t = v*10 s + 1.234 s, all Good (mirrors the run-14 seed).
+        /// <summary>
+        /// Linear ramp: value v at t = v*10 s + 1.234 s, all Good (mirrors the run-14 seed).
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="count"></param>
+        /// <returns></returns>
         private static List<DataValue> CreateRamp(BuiltInType type, int count = 40)
         {
             var raw = new List<DataValue>(count + 1);
@@ -90,6 +95,9 @@ namespace Opc.Ua.Server.Tests
             return raw;
         }
 
+        /// <summary>
+        /// Verifies that direct and live floating-point sloped interpolation match the exact Part 13 ramp values.
+        /// </summary>
         [TestCase("Interpolative", 50.0, 4.8766)]
         [TestCase("StartBound", 50.0, 4.8766)]
         [TestCase("EndBound", 50.0, 7.2566)]
@@ -126,6 +134,9 @@ namespace Opc.Ua.Server.Tests
                 "live value");
         }
 
+        /// <summary>
+        /// Verifies that integer interpolation rounds the calculated value to the nearest integer with Good status.
+        /// </summary>
         [TestCase("Interpolative", 50.0, 5)]
         [TestCase("StartBound", 50.0, 5)]
         [TestCase("Interpolative", 57.234, 6)]
@@ -153,6 +164,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(direct[0].StatusCode.CodeBits, Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// Verifies that an all-Good ramp yields full Good duration and percentage, zero Bad duration, and Good worst
+        /// quality.
+        /// </summary>
         [Test]
         public async Task AllGoodRampStatusAggregatesAreFullyGoodAsync()
         {
@@ -190,6 +205,10 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that synthetic BadBoundNotFound markers neither affect aggregate input nor appear in processed
+        /// results.
+        /// </summary>
         [TestCase("DurationGood")]
         [TestCase("PercentGood")]
         [TestCase("WorstQuality2")]
@@ -411,13 +430,13 @@ namespace Opc.Ua.Server.Tests
 
                 var nodeId = new NodeId($"run14-aggregate-{Guid.NewGuid():N}", 1);
                 Provider.Register(nodeId);
-                IList<StatusCode> insertResults = await Provider.InsertAsync(
+                HistorianUpdateOutcome<DataValue> insertOutcome = await Provider.InsertAsync(
                     CreateContext(),
                     nodeId,
                     rawValues,
                     CancellationToken.None).ConfigureAwait(false);
-                Assert.That(insertResults, Has.Count.EqualTo(rawValues.Count));
-                Assert.That(insertResults, Has.All.Matches<StatusCode>(StatusCode.IsGood));
+                Assert.That(insertOutcome.OperationResults, Has.Count.EqualTo(rawValues.Count));
+                Assert.That(insertOutcome.OperationResults.ToArray(), Has.All.Matches<StatusCode>(StatusCode.IsGood));
 
                 var node = new BaseDataVariableState(null)
                 {

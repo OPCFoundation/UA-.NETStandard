@@ -58,6 +58,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
     {
         private const ushort NamespaceIndex = 1;
 
+        /// <summary>
+        /// Verifies that startup wires address-space synchronization and seeds opted-in node managers.
+        /// </summary>
         [Test]
         public async Task WiresSynchronizerAndSeedsOptedInNodeManagerAsync()
         {
@@ -119,6 +122,66 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await task.DisposeAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that startup excludes replica-local built-in address spaces from replication.
+        /// </summary>
+        [Test]
+        public async Task DoesNotReplicateReplicaLocalBuiltInAddressSpacesAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+            var systemContext = new SystemContext(telemetry)
+            {
+                NamespaceUris = messageContext.NamespaceUris,
+                ServerUris = messageContext.ServerUris,
+                EncodeableFactory = messageContext.Factory
+            };
+            var addressSpace = new DictionaryAddressSpace(systemContext);
+            await addressSpace.AddOrUpdateNodeAsync(new BaseObjectState(null)
+            {
+                NodeId = ObjectIds.Server,
+                BrowseName = new QualifiedName(BrowseNames.Server),
+                DisplayName = new LocalizedText("Server")
+            }).ConfigureAwait(false);
+            var diagnosticsNodeManager = new Mock<IDiagnosticsNodeManager>();
+            Mock<ILocalAddressSpaceSource> diagnosticsSource =
+                diagnosticsNodeManager.As<ILocalAddressSpaceSource>();
+            diagnosticsSource
+                .Setup(value => value.CreateLocalAddressSpace())
+                .Returns(addressSpace);
+            var coreNodeManager = new Mock<ICoreNodeManager>();
+            Mock<ILocalAddressSpaceSource> coreSource =
+                coreNodeManager.As<ILocalAddressSpaceSource>();
+            coreSource
+                .Setup(value => value.CreateLocalAddressSpace())
+                .Returns(addressSpace);
+            var server = new Mock<IServerInternal>();
+            server.Setup(value => value.Telemetry).Returns(telemetry);
+            server.Setup(value => value.MessageContext).Returns(messageContext);
+            server.Setup(value => value.NamespaceUris).Returns(messageContext.NamespaceUris);
+            server.Setup(value => value.DefaultSystemContext).Returns(new ServerSystemContext(server.Object));
+            server
+                .Setup(value => value.FindNodeManagers<ILocalAddressSpaceSource>())
+                .Returns([diagnosticsSource.Object, coreSource.Object]);
+            using var keyValueStore = new InMemorySharedKeyValueStore();
+            await using var startup = new DistributedAddressSpaceStartupTask(
+                keyValueStore,
+                new StaticLeaderElection(true));
+
+            await startup.OnServerStartedAsync(server.Object).ConfigureAwait(false);
+
+            using var store = new InMemoryNodeStateStore(keyValueStore, messageContext);
+            Assert.That(
+                await store.TryGetNodeAsync(ObjectIds.Server).ConfigureAwait(false),
+                Is.Null,
+                "Replica-local core, diagnostics, and configuration nodes must never enter the shared address space.");
+            diagnosticsSource.Verify(value => value.CreateLocalAddressSpace(), Times.Never);
+            coreSource.Verify(value => value.CreateLocalAddressSpace(), Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that the distributed address-space startup task rejects null constructor dependencies.
+        /// </summary>
         [Test]
         public void ConstructorThrowsOnNullArguments()
         {

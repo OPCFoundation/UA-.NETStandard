@@ -201,6 +201,10 @@ namespace Opc.Ua.Server.Fluent
             TValue last = sample(context);
             updater.SetValue(last);
 
+            // Reaches the registry directly rather than through Simulation(...), so it
+            // has to register the lifecycle behavior itself — that behavior is what
+            // starts the loops and releases them again.
+            concrete.EnsureSimulationLifecycleRegistered();
             concrete.Simulations!
                 .NewSimulation(interval)
                 .OnTick((ctx, _) =>

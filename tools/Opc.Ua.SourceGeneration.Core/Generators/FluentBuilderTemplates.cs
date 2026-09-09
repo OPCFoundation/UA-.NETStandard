@@ -54,7 +54,12 @@ namespace Opc.Ua.SourceGeneration
             #pragma warning disable IDE0008 // Use explicit type
             #pragma warning disable IDE1006 // Naming rule violation
 
-            #nullable enable
+            // Annotations only, matching the shared header. A bare
+            // '#nullable enable' would switch the nullable *warnings* back
+            // on that the header turned off, and the typed method wrappers
+            // would then report CS8600 on every `out T` of a structure
+            // argument in a project that builds warnings as errors.
+            #nullable enable annotations
 
             [assembly: global::Opc.Ua.ModelFluentAccessorProviderAttribute(
                 "{{Tokens.ModelUri}}",

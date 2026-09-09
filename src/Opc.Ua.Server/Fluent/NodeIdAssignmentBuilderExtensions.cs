@@ -32,45 +32,53 @@ using System;
 namespace Opc.Ua.Server.Fluent
 {
     /// <summary>
-    /// Fluent extensions on <see cref="NodeManagerBuilder"/> that let
-    /// hand-written managers express the standard
-    /// <c>CreateFluentBuilder(ns).Configure(Configure).Seal()</c>
-    /// pipeline as a single chained expression rather than an
-    /// imperative four-step block.
+    /// Selects how the NodeManager behind a fluent builder mints NodeIds.
     /// </summary>
-    public static class FluentNodeManagerBuilderExtensions
+    public static class NodeIdAssignmentBuilderExtensions
     {
         /// <summary>
-        /// Invokes the supplied <paramref name="configure"/> delegate
-        /// with this <paramref name="builder"/>, returning the builder
-        /// for further chaining. Equivalent to writing
-        /// <c>configure(builder); return builder;</c> at the callsite
-        /// but lets the caller compose the fluent pipeline without
-        /// breaking the chain.
+        /// Selects the identifier type that the owning NodeManager mints
+        /// NodeIds with, for this and every node created after it.
         /// </summary>
+        /// <remarks>
+        /// Call this before the nodes it should apply to - at the top of a
+        /// <c>Configure</c> delegate, typically. Nodes created earlier keep
+        /// the identifiers they were already given, so switching mode
+        /// midway leaves a graph with two identifier styles.
+        /// </remarks>
+        /// <typeparam name="TBuilder">
+        /// The builder type, so the call composes in a chain that continues
+        /// with either <see cref="NodeManagerBuilder"/> or
+        /// <see cref="INodeManagerBuilder"/> members.
+        /// </typeparam>
         /// <param name="builder">The fluent node-manager builder.</param>
-        /// <param name="configure">
-        /// The user's <c>Configure</c> partial (typically the
-        /// <c>partial void Configure(INodeManagerBuilder builder)</c>
-        /// method group on the manager).
-        /// </param>
+        /// <param name="mode">The identifier type to mint.</param>
         /// <returns>The same <paramref name="builder"/>.</returns>
         /// <exception cref="ArgumentNullException">
-        /// <paramref name="builder"/> or <paramref name="configure"/> is null.
+        /// <paramref name="builder"/> is null.
         /// </exception>
-        public static NodeManagerBuilder Configure(
-            this NodeManagerBuilder builder,
-            Action<INodeManagerBuilder> configure)
+        /// <exception cref="ServiceResultException">
+        /// Raised when the builder's NodeManager does not mint its own
+        /// NodeIds, so there is no mode to select.
+        /// </exception>
+        public static TBuilder WithNodeIdAssignment<TBuilder>(
+            this TBuilder builder,
+            NodeIdAssignmentMode mode)
+            where TBuilder : INodeManagerBuilder
         {
             if (builder == null)
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            if (configure == null)
+            if (builder.NodeManager is not AsyncCustomNodeManager manager)
             {
-                throw new ArgumentNullException(nameof(configure));
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "NodeId assignment can only be selected on a NodeManager " +
+                    "deriving from AsyncCustomNodeManager.");
             }
-            configure(builder);
+
+            manager.NodeIdFactory = manager.NodeIdFactory.WithMode(mode);
             return builder;
         }
     }

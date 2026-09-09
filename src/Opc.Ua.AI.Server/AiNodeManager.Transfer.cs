@@ -112,12 +112,10 @@ namespace Opc.Ua.AI.Server
                 string transferId = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
 
                 node = new InferenceTransferState(null);
-                node.Create(
-                    SystemContext,
-                    NodeId.Null,
+                SystemContext.CreateInstance(
+                    node,
                     new QualifiedName("Transfer_" + transferId, NamespaceIndex),
-                    new LocalizedText("Transfer " + transferId),
-                    true);
+                    new LocalizedText("Transfer " + transferId));
 
                 Child<PropertyState<string>>(node, BrowseNames.TransferId).Value = transferId;
                 Child<PropertyState<TransferStateEnum>>(node, BrowseNames.State).Value =

@@ -43,9 +43,9 @@ parameters:
 # is skipped anyway whenever the CODECOV_TOKEN secret variable is unset, which
 # is the case for pull requests from forks.
 - name: enableCodecov
-  displayName: 'Upload the merged coverage report to codecov.io (reporting only, never gates)'
+  displayName: 'Upload the merged coverage report to codecov.io from Azure (requires a valid Azure token)'
   type: boolean
-  default: true
+  default: false
 # Every stage that runs tests, consumed by the two terminal stages at the bottom
 # of this file.  It is a parameter purely so the list is written once: Azure
 # Pipelines supports no YAML anchors, and a second hand-maintained copy would
