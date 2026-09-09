@@ -234,6 +234,13 @@ a node halfway through a change.
 Analyzer `UA0027` flags `NodeBrowser.DataLock`. See
 [migrate/2.0.x/node-states.md](migrate/2.0.x/node-states.md).
 
+`INodeBrowser` also gains `NextAsync(CancellationToken)`, which the async server
+browse and translate-path loops use to iterate a browser. The default completes
+synchronously with `Next()`, so existing browsers are unaffected; a browser whose
+references come from I/O overrides `NextAsync` and awaits there instead of
+blocking inside `Next()`. Details in
+[migrate/2.0.x/node-states.md](migrate/2.0.x/node-states.md#nodebrowser-gains-an-async-iteration-seam).
+
 ## Migrating code that used ApplicationConfiguration.PropertiesLock
 
 `ApplicationConfiguration.PropertiesLock` was removed. It returned the
