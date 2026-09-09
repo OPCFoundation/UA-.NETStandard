@@ -811,11 +811,26 @@ namespace Opc.Ua.Fuzzing
             {
                 case JsonValueKind.Object:
                     writer.WriteStartObject();
+                    bool metadataOmitsArtifactFields =
+                        metadata.TryGetProperty("SwitchField", out _) ||
+                        metadata.TryGetProperty("EncodingMask", out _);
                     foreach (JsonProperty property in encoded.EnumerateObject())
                     {
                         if (!metadata.TryGetProperty(property.Name, out JsonElement fieldMetadata))
                         {
-                            throw new InvalidOperationException($"Unexpected RawData JSON field '{property.Name}'.");
+                            // Disabling SuppressArtifacts also re-enables the union SwitchField
+                            // and the optional-field EncodingMask, and a union or optional
+                            // structure encodes a different member set under the two option
+                            // sets. Only then may the payload carry a field the metadata lacks;
+                            // that is an encoder-shape difference, not a corrupted payload.
+                            // Anywhere else an unknown field is still a real corruption.
+                            if (!metadataOmitsArtifactFields)
+                            {
+                                throw new InvalidOperationException(
+                                    $"Unexpected RawData JSON field '{property.Name}'.");
+                            }
+                            property.WriteTo(writer);
+                            continue;
                         }
                         writer.WritePropertyName(property.Name);
                         RestoreJsonArtifacts(property.Value, fieldMetadata, writer);
@@ -825,11 +840,15 @@ namespace Opc.Ua.Fuzzing
                         if (!encoded.TryGetProperty(property.Name, out _))
                         {
                             // Only non-semantic artifacts come from metadata; never replace or repair payload values.
-                            if (property.Name is not ("UaType" or "UaTypeId" or "Symbol"))
+                            if (property.Name is not ("UaType" or "UaTypeId" or "Symbol" or
+                                "SwitchField" or "EncodingMask"))
                             {
                                 throw new InvalidOperationException($"RawData JSON lost field '{property.Name}'.");
                             }
-                            property.WriteTo(writer);
+                            if (property.Name is "UaType" or "UaTypeId" or "Symbol")
+                            {
+                                property.WriteTo(writer);
+                            }
                         }
                     }
                     writer.WriteEndObject();
