@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
@@ -59,12 +60,109 @@ namespace Opc.Ua.Types.Tests.State
     public class NodeStateStorageBenchmarks
     {
         /// <summary>
+        /// Gets stable case names shared with the rooted-memory fixture.
+        /// </summary>
+        public static IEnumerable<string> MemoryCases => NodeStateMemoryScenarios.All.Select(c => c.Name);
+
+        /// <summary>
+        /// Gets the explicit-reference degrees used by lookup and mutation baselines.
+        /// </summary>
+        public static IEnumerable<int> ReferenceDegrees => s_referenceDegrees;
+
+        /// <summary>
+        /// Measures matched cached/unique construction and explicit-reference degrees.
+        /// </summary>
+        [Benchmark]
+        [ArgumentsSource(nameof(MemoryCases))]
+        public NodeState ConstructPopulation(string scenario)
+        {
+            return NodeStateMemoryScenarios.Construct(NodeStateMemoryScenarios.Select(scenario), 17);
+        }
+
+        /// <summary>
+        /// Measures a last-inserted target lookup (an intentional miss at degree zero).
+        /// </summary>
+        [Benchmark]
+        [ArgumentsSource(nameof(ReferenceDegrees))]
+        public bool ReferenceHit(int degree)
+        {
+            return m_referenceNodes[degree].ReferenceExists(
+                ReferenceTypeIds.HasComponent, false, new NodeId((uint)(degree + 49999), 2));
+        }
+
+        /// <summary>
+        /// Measures a missing-target lookup against a prebuilt node.
+        /// </summary>
+        [Benchmark]
+        [ArgumentsSource(nameof(ReferenceDegrees))]
+        public bool ReferenceMiss(int degree)
+        {
+            return m_referenceNodes[degree].ReferenceExists(ReferenceTypeIds.HasComponent, false, s_missingTarget);
+        }
+
+        /// <summary>
+        /// Measures enumeration with caller-owned destination storage.
+        /// </summary>
+        [Benchmark]
+        [ArgumentsSource(nameof(ReferenceDegrees))]
+        public int EnumerateReferences(int degree)
+        {
+            m_referenceDestination.Clear();
+            m_referenceNodes[degree].GetReferences(null!, m_referenceDestination);
+            return m_referenceDestination.Count;
+        }
+
+        /// <summary>
+        /// Measures steady-state insertion/removal without accumulating references between invocations.
+        /// </summary>
+        [Benchmark]
+        [ArgumentsSource(nameof(ReferenceDegrees))]
+        public bool AddRemoveReference(int degree)
+        {
+            BaseObjectState node = m_referenceNodes[degree];
+            node.AddReference(ReferenceTypeIds.HasComponent, false, s_missingTarget);
+            return node.RemoveReference(ReferenceTypeIds.HasComponent, false, s_missingTarget);
+        }
+
+        /// <summary>
+        /// Proves the lookup/mutation benchmarks select prebuilt degrees and leave the graph unchanged.
+        /// </summary>
+        [Test]
+        public void ReferenceBenchmarksSelectDegreesAndRestoreState()
+        {
+            foreach (int degree in s_referenceDegrees)
+            {
+                Assert.That(ReferenceHit(degree), Is.EqualTo(degree > 0));
+                Assert.That(ReferenceMiss(degree), Is.False);
+                Assert.That(EnumerateReferences(degree), Is.EqualTo(degree));
+                Assert.That(AddRemoveReference(degree), Is.True);
+                Assert.That(ReferenceMiss(degree), Is.False);
+                Assert.That(EnumerateReferences(degree), Is.EqualTo(degree));
+                if (degree > 0)
+                {
+                    BaseObjectState node = m_referenceNodes[degree];
+                    var last = new NodeId((uint)(degree + 49999), 2);
+                    Assert.That(node.RemoveReference(ReferenceTypeIds.HasComponent, false, last), Is.True);
+                    Assert.That(ReferenceHit(degree), Is.False);
+                    node.AddReference(ReferenceTypeIds.HasComponent, false, last);
+                    Assert.That(ReferenceHit(degree), Is.True);
+                }
+            }
+        }
+
+        /// <summary>
         /// Warms the cached payloads and construction paths.
         /// </summary>
         [GlobalSetup]
         [OneTimeSetUp]
         public void Setup()
         {
+            foreach (int degree in s_referenceDegrees)
+            {
+                m_referenceNodes[degree] = (BaseObjectState)NodeStateMemoryScenarios.Construct(
+                    NodeStateMemoryScenarios.Select($"Object.References.0.{degree}"), 17);
+            }
+            m_referenceDestination.Capacity = 1024;
             const int k_warmupRounds = 3;
             for (int i = 0; i < k_warmupRounds; i++)
             {
@@ -288,6 +386,10 @@ namespace Opc.Ua.Types.Tests.State
         private static readonly NodeStateChangedAsyncHandler s_noopChangedAsync = NoopChangedAsync;
         private static readonly NodeValueEventHandler s_noopReadValue = NoopFullValue;
         private static readonly NodeValueEventHandler s_noopWriteValue = NoopFullValue;
+        private static readonly int[] s_referenceDegrees = [0, 1, 2, 4, 8, 16, 128, 1024];
+        private static readonly ExpandedNodeId s_missingTarget = new NodeId(99999u, 2);
+        private readonly Dictionary<int, BaseObjectState> m_referenceNodes = [];
+        private readonly List<IReference> m_referenceDestination = [];
 
         /// <summary>
         /// Configures short in-process benchmark runs.

@@ -44,7 +44,7 @@ namespace Opc.Ua.Types.Tests.State
     /// Checks callback and optional-property occupancy and emits CSV diagnostics on failure.
     /// </summary>
     /// <remarks>
-    /// Counts 10 behavior callbacks, two event backing fields, 20 base-attribute callbacks,
+    /// Counts 10 behavior callbacks, three event backing fields, 20 base-attribute callbacks,
     /// eight value callbacks, and 16 variable-attribute callbacks. Optional properties cover
     /// the inline description, three security properties, and six design-metadata properties.
     /// </remarks>
@@ -106,7 +106,7 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         /// <summary>
-        /// Fresh <see cref="BaseDataVariableState"/> with no parent — all 32 base plus
+        /// Fresh <see cref="BaseDataVariableState"/> with no parent — all 33 base plus
         /// 24 variable callback slots are null.
         /// </summary>
         [Test]
@@ -208,7 +208,7 @@ namespace Opc.Ua.Types.Tests.State
         /// Counts event subscriptions independently of the directly assigned callback fields.
         /// </summary>
         [Test]
-        public void StateChangedEventsOccupyIndependentSlotsUntilUnsubscribed()
+        public void NodeEventsOccupyIndependentSlotsUntilUnsubscribed()
         {
             var node = new BaseObjectState(null);
             Assert.That(EventBackingFieldsNonNull(node), Is.Zero);
@@ -217,9 +217,14 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(EventBackingFieldsNonNull(node), Is.EqualTo(1));
             node.StateChangedAsync += s_noopChangedAsync;
             Assert.That(EventBackingFieldsNonNull(node), Is.EqualTo(2));
+            NodeStateReportEventHandler reported = static (_, _, _) => { };
+            node.EventReported += reported;
+            Assert.That(EventBackingFieldsNonNull(node), Is.EqualTo(3));
             Assert.That(BehaviorNonNull(node), Is.Zero);
             m_rows.Add(BuildRow("EventsSubscribed", node));
 
+            node.EventReported -= reported;
+            Assert.That(EventBackingFieldsNonNull(node), Is.EqualTo(2));
             node.StateChanged -= NoopChanged;
             Assert.That(EventBackingFieldsNonNull(node), Is.EqualTo(1));
             node.StateChangedAsync -= s_noopChangedAsync;
@@ -502,8 +507,8 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         /// <summary>
-        /// Checks the event backing fields (StateChanged, StateChangedAsync) via
-        /// reflection.  Returns the count of subscribed events (0, 1, or 2).
+        /// Checks all three node event backing fields via reflection.
+        /// Returns the count of occupied event slots, not invocation-list entries.
         /// </summary>
         private static int EventBackingFieldsNonNull(NodeState n)
         {
@@ -514,6 +519,11 @@ namespace Opc.Ua.Types.Tests.State
             }
 
             if (s_stateChangedAsyncField.GetValue(n) is Delegate)
+            {
+                count++;
+            }
+
+            if (s_eventReportedField.GetValue(n) is Delegate)
             {
                 count++;
             }
@@ -761,6 +771,10 @@ namespace Opc.Ua.Types.Tests.State
         private static readonly FieldInfo s_stateChangedAsyncField =
             typeof(NodeState).GetField("StateChangedAsync", BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new MissingFieldException(typeof(NodeState).FullName, "StateChangedAsync");
+
+        private static readonly FieldInfo s_eventReportedField =
+            typeof(NodeState).GetField("EventReported", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new MissingFieldException(typeof(NodeState).FullName, "EventReported");
 
         private static readonly NodeStateChangedAsyncHandler s_noopChangedAsync = NoopChangedAsync;
         private static readonly NodeValueEventHandler s_noopReadValue = NoopFullValue;

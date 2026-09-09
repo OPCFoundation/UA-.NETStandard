@@ -177,6 +177,7 @@ namespace Opc.Ua.Types.Tests.State
         /// <summary>
         /// Releases the pre-constructed nodes.
         /// </summary>
+        /// <exception cref="TimeoutException"></exception>
         [GlobalCleanup]
         [OneTimeTearDown]
         public void TearDown()
@@ -223,7 +224,7 @@ namespace Opc.Ua.Types.Tests.State
         /// Measures the per-operation allocation cost of constructing a
         /// <see cref="BaseObjectState"/> with no parent and no further initialization.
         /// After Phase 3, exercises only the two eagerly-allocated
-        /// <see cref="System.Threading.Lock"/> instances remaining in
+        /// <see cref="Lock"/> instances remaining in
         /// <see cref="NodeState"/> (m_referencesLock and m_childrenLock).
         /// m_notifiersLock and m_browseLock are now lazily published via
         /// Volatile.Read / Interlocked.CompareExchange and are NOT allocated at
@@ -239,7 +240,7 @@ namespace Opc.Ua.Types.Tests.State
         /// <summary>
         /// Measures the per-operation allocation cost of constructing a
         /// <see cref="BaseDataVariableState"/> with no parent and no further initialization.
-        /// After Phase 3, exercises three <see cref="System.Threading.Lock"/> allocations:
+        /// After Phase 3, exercises three <see cref="Lock"/> allocations:
         /// two in <see cref="NodeState"/> (m_referencesLock, m_childrenLock) and one
         /// (<c>m_attributeLock</c>) in <see cref="BaseVariableState"/>.
         /// m_notifiersLock and m_browseLock are lazily published and NOT allocated here.
@@ -285,7 +286,7 @@ namespace Opc.Ua.Types.Tests.State
         /// <summary>
         /// Measures the cost of a paired <c>SetAreEventsMonitored(true)</c> /
         /// <c>SetAreEventsMonitored(false)</c> cycle on a node that has no children and no
-        /// notifiers.  After Phase 2 each call executes an <see cref="System.Threading.Interlocked"/>
+        /// notifiers.  After Phase 2 each call executes an <see cref="Interlocked"/>
         /// operation without acquiring any lock; the child-list and notifier-list paths are not
         /// taken (<c>includeChildren = false</c>).
         /// The net counter effect per iteration is zero, keeping invocations idempotent.
@@ -392,6 +393,8 @@ namespace Opc.Ua.Types.Tests.State
         /// Measures two browser constructions that rendezvous on persistent worker
         /// threads immediately before contending for the same warmed node's browse lock.
         /// </summary>
+        /// <exception cref="AggregateException"></exception>
+        /// <exception cref="TimeoutException"></exception>
         [Test]
         [Benchmark]
         public void CreateBrowserConcurrent()

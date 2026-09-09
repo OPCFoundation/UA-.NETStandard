@@ -439,6 +439,15 @@ namespace Opc.Ua
                     info));
         }
 
+        /// <summary>
+        /// Borrows raw text only when no locale or translation state needs to be retained.
+        /// </summary>
+        internal bool TryGetTextOnly(out string? text)
+        {
+            text = m_text;
+            return m_locale is null && m_translation is null;
+        }
+
         private readonly string? m_text;
         private readonly string? m_locale; // TODO: make union with m_translation?
         private readonly LocalizedTextFormatAndTranslation? m_translation;
