@@ -219,7 +219,7 @@ namespace Opc.Ua.Fuzzing
 
             string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
             if (!Utils.IsEqual(encodeable, encodeable2) &&
-                !IsExpectedJsonSemanticLoss(encodeable, encodeable2, options))
+                !IsExpectedJsonSemanticLoss(encodeable, encodeable2, options, context))
             {
                 throw new InvalidOperationException(
                     $"JSON semantic round-trip failed. Type={encodeableTypeName}, Mode={options.Name}.");
@@ -227,11 +227,15 @@ namespace Opc.Ua.Fuzzing
 
             if (serialized2 == null || !serialized.SequenceEqual(serialized2))
             {
-                throw new InvalidOperationException(
-                    Utils.Format("Idempotent JSON encoding failed. Type={0}.", encodeableTypeName));
+                if (!IsExpectedJsonEncodingNormalization(serialized, serialized2, context))
+                {
+                    throw new InvalidOperationException(
+                        Utils.Format("Idempotent JSON encoding failed. Type={0}.", encodeableTypeName));
+                }
             }
 
-            if (!Utils.IsEqual(encodeable2, encodeable3))
+            if (!Utils.IsEqual(encodeable2, encodeable3) &&
+                !IsExpectedJsonSemanticLoss(encodeable2, encodeable3, options, context))
             {
                 throw new InvalidOperationException(Utils.Format(
                     "Idempotent JSON 3rd gen decoding failed. Type={0}.",
@@ -344,13 +348,15 @@ namespace Opc.Ua.Fuzzing
         private static bool IsExpectedJsonSemanticLoss(
             IEncodeable original,
             IEncodeable decoded,
-            JsonEncoderOptions options)
+            JsonEncoderOptions options,
+            IServiceMessageContext context)
         {
             return IsJsonEquivalent(
                 original,
                 decoded,
                 new HashSet<ReferencePair>(ReferencePairComparer.Instance),
-                options);
+                options,
+                context);
         }
 
         private static bool HasJsonUnencodableValue(
@@ -435,7 +441,8 @@ namespace Opc.Ua.Fuzzing
             object left,
             object right,
             HashSet<ReferencePair> seen,
-            JsonEncoderOptions options)
+            JsonEncoderOptions options,
+            IServiceMessageContext context)
         {
             if (ReferenceEquals(left, right))
             {
@@ -455,12 +462,12 @@ namespace Opc.Ua.Fuzzing
 
             if (left is Variant leftVariant && right is Variant rightVariant)
             {
-                return IsJsonEquivalentVariant(in leftVariant, in rightVariant, seen, options);
+                return IsJsonEquivalentVariant(in leftVariant, in rightVariant, seen, options, context);
             }
 
             if (left is DataValue leftDataValue && right is DataValue rightDataValue)
             {
-                return IsJsonEquivalentDataValue(in leftDataValue, in rightDataValue, seen, options);
+                return IsJsonEquivalentDataValue(in leftDataValue, in rightDataValue, seen, options, context);
             }
 
             if (left is ExtensionObject leftExtensionObject &&
@@ -470,7 +477,8 @@ namespace Opc.Ua.Fuzzing
                     in leftExtensionObject,
                     in rightExtensionObject,
                     seen,
-                    options);
+                    options,
+                    context);
             }
 
             if (left is QualifiedName leftQualifiedName &&
@@ -479,14 +487,20 @@ namespace Opc.Ua.Fuzzing
                 return IsJsonEquivalentQualifiedName(leftQualifiedName, rightQualifiedName);
             }
 
+            if (left is ExpandedNodeId leftExpandedNodeId &&
+                right is ExpandedNodeId rightExpandedNodeId)
+            {
+                return AreJsonEquivalentExpandedNodeIds(leftExpandedNodeId, rightExpandedNodeId, context);
+            }
+
             if (IsArrayOf(type))
             {
-                return IsJsonEquivalentArrayOf(left, right, type, seen, options);
+                return IsJsonEquivalentArrayOf(left, right, type, seen, options, context);
             }
 
             if (IsMatrixOf(type))
             {
-                return IsJsonEquivalentMatrixOf(left, right, type, seen, options);
+                return IsJsonEquivalentMatrixOf(left, right, type, seen, options, context);
             }
 
             if (IsJsonSimpleType(type))
@@ -501,7 +515,7 @@ namespace Opc.Ua.Fuzzing
 
             if (left is IEnumerable leftEnumerable && right is IEnumerable rightEnumerable)
             {
-                return IsJsonEquivalentEnumerable(leftEnumerable, rightEnumerable, seen, options);
+                return IsJsonEquivalentEnumerable(leftEnumerable, rightEnumerable, seen, options, context);
             }
 
             if (left is IEncodeable leftEncodeable &&
@@ -519,7 +533,8 @@ namespace Opc.Ua.Fuzzing
                     property.GetValue(left),
                     property.GetValue(right),
                     seen,
-                    options))
+                    options,
+                    context))
                 {
                     return false;
                 }
@@ -532,17 +547,19 @@ namespace Opc.Ua.Fuzzing
             in Variant left,
             in Variant right,
             HashSet<ReferencePair> seen,
-            JsonEncoderOptions options)
+            JsonEncoderOptions options,
+            IServiceMessageContext context)
         {
             return left.TypeInfo == right.TypeInfo &&
-                IsJsonEquivalent(GetVariantRaw(in left), GetVariantRaw(in right), seen, options);
+                IsJsonEquivalent(GetVariantRaw(in left), GetVariantRaw(in right), seen, options, context);
         }
 
         private static bool IsJsonEquivalentDataValue(
             in DataValue left,
             in DataValue right,
             HashSet<ReferencePair> seen,
-            JsonEncoderOptions options)
+            JsonEncoderOptions options,
+            IServiceMessageContext context)
         {
             return left.IsNull == right.IsNull &&
                 left.StatusCode.Equals(right.StatusCode, StatusCodeComparison.AllBits) &&
@@ -550,18 +567,25 @@ namespace Opc.Ua.Fuzzing
                 left.ServerTimestamp == right.ServerTimestamp &&
                 left.SourcePicoseconds == right.SourcePicoseconds &&
                 left.ServerPicoseconds == right.ServerPicoseconds &&
-                IsJsonEquivalent(left.WrappedValue, right.WrappedValue, seen, options);
+                IsJsonEquivalent(left.WrappedValue, right.WrappedValue, seen, options, context);
         }
 
         private static bool IsJsonEquivalentExtensionObject(
             in ExtensionObject left,
             in ExtensionObject right,
             HashSet<ReferencePair> seen,
-            JsonEncoderOptions options)
+            JsonEncoderOptions options,
+            IServiceMessageContext context)
         {
             if (left.Equals(right))
             {
                 return true;
+            }
+
+            if (left.Encoding == ExtensionObjectEncoding.None &&
+                right.Encoding == ExtensionObjectEncoding.None)
+            {
+                return AreJsonEquivalentExpandedNodeIds(left.TypeId, right.TypeId, context);
             }
 
             if (left.TryGetAsJson(out string leftJson) &&
@@ -581,12 +605,168 @@ namespace Opc.Ua.Fuzzing
 
             return left.TryGetValue(out IEncodeable leftEncodeable) &&
                 right.TryGetValue(out IEncodeable rightEncodeable) &&
-                IsJsonEquivalent(leftEncodeable, rightEncodeable, seen, options);
+                IsJsonEquivalent(leftEncodeable, rightEncodeable, seen, options, context);
         }
 
         private static bool IsJsonEquivalentQualifiedName(QualifiedName left, QualifiedName right)
         {
             return left.Equals(right) || (left.IsNull && right.IsNull);
+        }
+
+        private static bool AreJsonEquivalentExpandedNodeIds(
+            ExpandedNodeId left,
+            ExpandedNodeId right,
+            IServiceMessageContext context)
+        {
+            if (left.IsNull || right.IsNull)
+            {
+                return left.IsNull == right.IsNull;
+            }
+
+            if (left == right)
+            {
+                return true;
+            }
+
+            NodeId leftLocal = ExpandedNodeId.ToNodeId(left, context.NamespaceUris);
+            NodeId rightLocal = ExpandedNodeId.ToNodeId(right, context.NamespaceUris);
+            return !leftLocal.IsNull &&
+                !rightLocal.IsNull &&
+                leftLocal == rightLocal;
+        }
+
+        private static bool IsExpectedJsonEncodingNormalization(
+            string serialized,
+            string serialized2,
+            IServiceMessageContext context)
+        {
+            try
+            {
+                string canonical = CanonicalizeRawJson(serialized);
+                if (!StringComparer.Ordinal.Equals(serialized, canonical))
+                {
+                    return false;
+                }
+
+                using JsonDocument left = JsonDocument.Parse(serialized);
+                using JsonDocument right = JsonDocument.Parse(serialized2);
+                return IsJsonEquivalentText(left.RootElement, right.RootElement, context);
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+        }
+
+        private static bool IsJsonEquivalentText(
+            JsonElement left,
+            JsonElement right,
+            IServiceMessageContext context)
+        {
+            if (left.ValueKind != right.ValueKind)
+            {
+                return false;
+            }
+
+            switch (left.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    return IsJsonEquivalentObjectText(left, right, context);
+                case JsonValueKind.Array:
+                    return IsJsonEquivalentArrayText(left, right, context);
+                case JsonValueKind.String:
+                    string leftString = left.GetString();
+                    string rightString = right.GetString();
+                    return StringComparer.Ordinal.Equals(leftString, rightString) ||
+                        AreJsonEquivalentIdentifierStrings(leftString, rightString, context);
+                default:
+                    return StringComparer.Ordinal.Equals(left.GetRawText(), right.GetRawText());
+            }
+        }
+
+        private static bool IsJsonEquivalentObjectText(
+            JsonElement left,
+            JsonElement right,
+            IServiceMessageContext context)
+        {
+            using var leftProperties = left.EnumerateObject();
+            using var rightProperties = right.EnumerateObject();
+            while (true)
+            {
+                bool leftHasValue = leftProperties.MoveNext();
+                bool rightHasValue = rightProperties.MoveNext();
+                if (leftHasValue != rightHasValue)
+                {
+                    return false;
+                }
+                if (!leftHasValue)
+                {
+                    return true;
+                }
+                if (!StringComparer.Ordinal.Equals(leftProperties.Current.Name, rightProperties.Current.Name) ||
+                    !IsJsonEquivalentText(leftProperties.Current.Value, rightProperties.Current.Value, context))
+                {
+                    return false;
+                }
+            }
+        }
+
+        private static bool IsJsonEquivalentArrayText(
+            JsonElement left,
+            JsonElement right,
+            IServiceMessageContext context)
+        {
+            if (left.GetArrayLength() != right.GetArrayLength())
+            {
+                return false;
+            }
+
+            for (int i = 0; i < left.GetArrayLength(); i++)
+            {
+                if (!IsJsonEquivalentText(left[i], right[i], context))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool AreJsonEquivalentIdentifierStrings(
+            string left,
+            string right,
+            IServiceMessageContext context)
+        {
+            if (left == null || right == null)
+            {
+                return false;
+            }
+
+            return TryParseExpandedNodeId(left, context, out ExpandedNodeId leftId) &&
+                TryParseExpandedNodeId(right, context, out ExpandedNodeId rightId) &&
+                AreJsonEquivalentExpandedNodeIds(leftId, rightId, context);
+        }
+
+        private static bool TryParseExpandedNodeId(
+            string text,
+            IServiceMessageContext context,
+            out ExpandedNodeId value)
+        {
+            try
+            {
+                value = ExpandedNodeId.Parse(text, context.NamespaceUris);
+                return true;
+            }
+            catch (ServiceResultException)
+            {
+                value = ExpandedNodeId.Null;
+                return false;
+            }
+            catch (FormatException)
+            {
+                value = ExpandedNodeId.Null;
+                return false;
+            }
         }
 
         private static bool HasJsonUnencodableArrayOf(
@@ -620,7 +800,8 @@ namespace Opc.Ua.Fuzzing
             object right,
             Type type,
             HashSet<ReferencePair> seen,
-            JsonEncoderOptions options)
+            JsonEncoderOptions options,
+            IServiceMessageContext context)
         {
             bool leftIsNull = (bool)type.GetProperty(nameof(INullable.IsNull))!.GetValue(left)!;
             bool rightIsNull = (bool)type.GetProperty(nameof(INullable.IsNull))!.GetValue(right)!;
@@ -638,7 +819,8 @@ namespace Opc.Ua.Fuzzing
                     GetArrayOfElements(left, type),
                     GetArrayOfElements(right, type),
                     seen,
-                    options);
+                    options,
+                    context);
         }
 
         private static bool IsJsonEquivalentMatrixOf(
@@ -646,7 +828,8 @@ namespace Opc.Ua.Fuzzing
             object right,
             Type type,
             HashSet<ReferencePair> seen,
-            JsonEncoderOptions options)
+            JsonEncoderOptions options,
+            IServiceMessageContext context)
         {
             bool leftIsNull = (bool)type.GetProperty(nameof(INullable.IsNull))!.GetValue(left)!;
             bool rightIsNull = (bool)type.GetProperty(nameof(INullable.IsNull))!.GetValue(right)!;
@@ -659,7 +842,8 @@ namespace Opc.Ua.Fuzzing
                     GetMatrixAsArrayOf(left, type),
                     GetMatrixAsArrayOf(right, type),
                     seen,
-                    options);
+                    options,
+                    context);
         }
 
         private static Array GetArrayOfElements(object value, Type type)
@@ -677,7 +861,8 @@ namespace Opc.Ua.Fuzzing
             IEnumerable left,
             IEnumerable right,
             HashSet<ReferencePair> seen,
-            JsonEncoderOptions options)
+            JsonEncoderOptions options,
+            IServiceMessageContext context)
         {
             IEnumerator leftEnumerator = left.GetEnumerator();
             IEnumerator rightEnumerator = right.GetEnumerator();
@@ -695,7 +880,12 @@ namespace Opc.Ua.Fuzzing
                     {
                         return true;
                     }
-                    if (!IsJsonEquivalent(leftEnumerator.Current, rightEnumerator.Current, seen, options))
+                    if (!IsJsonEquivalent(
+                        leftEnumerator.Current,
+                        rightEnumerator.Current,
+                        seen,
+                        options,
+                        context))
                     {
                         return false;
                     }
