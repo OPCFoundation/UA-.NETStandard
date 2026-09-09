@@ -293,6 +293,13 @@ Explicit `uav:declaration` handling is currently a converter extension to the
 advertised 1.1 vocabulary. The coordinated successor-vocabulary update is still
 required before claiming that annotation as part of strict advertised conformance.
 
+Comparisons between authored array-item schemas and the shape generated from
+DataType/rank facts use JSON value equality on every supported target, including
+.NET 8. Object-member order and equivalent decimal spellings do not create
+residue, but distinct high-precision numbers are never collapsed by floating-point
+rounding. Array order and the order of repeated properties remain significant.
+This comparison does not rewrite retained JSON or change preservation digests.
+
 ### Preservation digests and the two things that can be measured
 
 Annex G distinguishes three measurements over a JSON value, and this
