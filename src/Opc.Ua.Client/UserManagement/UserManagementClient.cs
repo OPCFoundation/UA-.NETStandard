@@ -221,9 +221,7 @@ namespace Opc.Ua.Client.UserManagement
         {
             Variant value = await ReadPropertyAsync(
                 BrowseNames.PasswordLength, cancellationToken).ConfigureAwait(false);
-#pragma warning disable CS8600 // Variant.TryGetStructure returns null on miss; we check the bool.
-            if (value.TryGetStructure(out Range range) && range != null)
-#pragma warning restore CS8600
+            if (value.TryGetStructure(out Range? range) && range is not null)
             {
                 return range;
             }
