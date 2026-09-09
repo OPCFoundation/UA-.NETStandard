@@ -819,15 +819,15 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task DisposalBoundsUnavailableServerDeletionAndStillReleasesLocalStateAsync()
         {
             var clock = new FakeTimeProvider();
-            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             CancellationToken deletionToken = default;
             m_mockSubscriptionServices.Setup(service => service.DeleteSubscriptionsAsync(
                     It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
                 .Returns((RequestHeader _, ArrayOf<uint> _, CancellationToken token) =>
                 {
                     deletionToken = token;
-                    entered.TrySetResult();
+                    entered.TrySetResult(true);
                     return new ValueTask<DeleteSubscriptionsResponse>(WaitForServerAsync(token));
                 });
             var subscription = new TestSubscription(
@@ -849,7 +849,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             finally
             {
-                release.TrySetResult();
+                release.TrySetResult(true);
                 await disposal.ConfigureAwait(false);
             }
 

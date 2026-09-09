@@ -120,7 +120,7 @@ public sealed class WriterGroupMessageSettingsTests
             group.PublishSink = (message, _) =>
             {
                 captured.Add(message);
-                return ValueTask.CompletedTask;
+                return default;
             };
             group.State.TryEnable();
             group.State.TryMarkOperational();
@@ -183,7 +183,7 @@ public sealed class WriterGroupMessageSettingsTests
             if (!raw)
             {
                 Assert.That(sink.Values[0].StatusCode, Is.EqualTo(StatusCodes.UncertainLastUsableValue),
-                    json ? System.Text.Encoding.UTF8.GetString(frame.Span) : "UADP must preserve field quality.");
+                    json ? System.Text.Encoding.UTF8.GetString(frame.ToArray()) : "UADP must preserve field quality.");
                 Assert.That(sink.Values[0].SourceTimestamp, Is.EqualTo(s_sourceTime));
             }
         }
@@ -232,7 +232,7 @@ public sealed class WriterGroupMessageSettingsTests
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return ValueTask.FromResult(new PublishedDataSetSnapshot(
+            return new ValueTask<PublishedDataSetSnapshot>(new PublishedDataSetSnapshot(
                 metaData.ConfigurationVersion,
                 [new DataSetField
                 {
@@ -253,7 +253,7 @@ public sealed class WriterGroupMessageSettingsTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             Values = [.. fields];
-            return ValueTask.CompletedTask;
+            return default;
         }
     }
 
