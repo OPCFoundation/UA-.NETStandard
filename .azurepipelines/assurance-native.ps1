@@ -31,6 +31,8 @@
 .SYNOPSIS
 Publishes and launches a fresh native test image; no local run is a release approval.
 .DESCRIPTION
+PublishAot must be enabled by the application project, not a command-global
+property that propagates to .NET Standard source-generator references.
 The initial image verifier supports .NET 10 Windows x64 only. Other RIDs still
 run their baseline tests, but retain missing native-format assurance. Raw runtime
 reports and process paths stay in the private working directory.
@@ -71,12 +73,12 @@ try {
     $runId = if ($env:GITHUB_ACTIONS -eq 'true') { $env:GITHUB_RUN_ID } else { $env:BUILD_BUILDID }
     $attempt = if ($env:GITHUB_ACTIONS -eq 'true') { $env:GITHUB_RUN_ATTEMPT } else { $env:SYSTEM_JOBATTEMPT }
     $arguments = @('publish', $projectFile, '-c', $Configuration, '-f', 'net10.0', '-r', $RuntimeIdentifier,
-        '-p:CustomTestTarget=net10.0', '-p:PublishAot=true', '-o', $publish)
+        '-p:CustomTestTarget=net10.0', '-o', $publish)
     if ($NoRestore) { $arguments += '--no-restore' }
     & dotnet @arguments
     if ($LASTEXITCODE -ne 0) { throw 'NATIVE_PUBLISH_FAILED' }
     $evaluation = & dotnet msbuild $projectFile -nologo "-p:Configuration=$Configuration" `
-        -p:CustomTestTarget=net10.0 "-p:RuntimeIdentifier=$RuntimeIdentifier" -p:PublishAot=true `
+        -p:CustomTestTarget=net10.0 "-p:RuntimeIdentifier=$RuntimeIdentifier" `
         "-p:PublishDir=$publish" `
         -getProperty:PublishAot,Configuration,TargetFramework,RuntimeIdentifier,AssemblyName,NETCoreSdkVersion,ProjectAssetsFile
     if ($LASTEXITCODE -ne 0) { throw 'NATIVE_EVALUATION_FAILED' }

@@ -118,6 +118,10 @@ if ($files.Count -gt 0) {
             $results = @($document.SelectNodes('/t:TestRun/t:Results/t:UnitTestResult', $ns))
             $actualPassed = @($results | Where-Object { $_.GetAttribute('outcome') -eq 'Passed' }).Count
             $actualSkipped = @($results | Where-Object { $_.GetAttribute('outcome') -eq 'NotExecuted' }).Count
+            # VSTest can emit NotExecuted rows while leaving its aggregate counter at zero.
+            # Reconcile those explicit rows, retaining strict no-skip enforcement where requested.
+            $skipCounterConsistent = $skipped -eq 0 -or $skipped -eq $actualSkipped
+            $skipped = [long] $actualSkipped
             $skippedNames += @($results | Where-Object { $_.GetAttribute('outcome') -eq 'NotExecuted' } |
                 ForEach-Object { $_.GetAttribute('testName') })
             $counts.total += $total
@@ -128,7 +132,7 @@ if ($files.Count -gt 0) {
             if ($total -le 0 -or $executed -le 0 -or $passed -le 0 -or
                 $failed + $other -ne 0 -or $executed -ne $passed -or
                 $total -ne $executed + $skipped -or $results.Count -ne $total -or
-                $actualPassed -ne $passed -or $actualSkipped -ne $skipped -or
+                $actualPassed -ne $passed -or -not $skipCounterConsistent -or
                 ($RequireNoSkipped -and $skipped -gt 0)) {
                 $summary.status = 'failed'
             }

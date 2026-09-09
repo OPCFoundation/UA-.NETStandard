@@ -32,13 +32,17 @@ $fixture = Get-Content -LiteralPath $env:ASSURANCE_NATIVE_FIXTURE -Raw | Convert
 $normalized = @()
 for ($index = 0; $index -lt $args.Count; $index++) {
     $argument = $args[$index]
-    if ($argument -eq '-p' -and $index + 1 -lt $args.Count) { $argument += ':' + $args[++$index] }
+    if ($argument -in @('-p', '/p', '-property', '/property', '--property') -and $index + 1 -lt $args.Count) {
+        $argument += ':' + $args[++$index]
+    }
     $normalized += $argument
 }
 $args = $normalized
+@{ command = $args[0]; arguments = $args } | ConvertTo-Json -Compress |
+    Add-Content -LiteralPath (Join-Path (Split-Path $env:ASSURANCE_NATIVE_FIXTURE) 'commands.jsonl')
 if ($args[0] -eq 'publish') {
     if ($fixture.scenario -eq 'publish-failure') { exit 12 }
-    if ('-r' -notin $args -or $fixture.rid -notin $args -or '-p:PublishAot=true' -notin $args -or
+    if ('-r' -notin $args -or $fixture.rid -notin $args -or '-p:CustomTestTarget=net10.0' -notin $args -or
         '-f' -notin $args -or 'net10.0' -notin $args -or '--no-restore' -notin $args) { exit 13 }
     $index = [Array]::IndexOf($args, '-o')
     if ($index -lt 0) { exit 14 }
@@ -51,7 +55,7 @@ if ($args[0] -eq 'publish') {
 if ($args[0] -eq 'msbuild') {
     @{
         Properties = @{
-            PublishAot = 'true'; Configuration = 'Release'; TargetFramework = 'net10.0'
+            PublishAot = $fixture.publishAot; Configuration = 'Release'; TargetFramework = 'net10.0'
             RuntimeIdentifier = $fixture.rid; NETCoreSdkVersion = '10.0.303'; ProjectAssetsFile = $fixture.assets
             AssemblyName = $fixture.assemblyName
         }

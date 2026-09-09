@@ -68,9 +68,15 @@ namespace Opc.Ua.Samples
         internal static (string[] Sample, string[] Host) SplitHostArguments(string[] arguments)
         {
             int separator = Array.IndexOf(arguments, "--");
-            return separator < 0
-                ? (arguments, [])
-                : (arguments[..separator], arguments[(separator + 1)..]);
+            if (separator < 0)
+            {
+                return (arguments, []);
+            }
+            string[] sample = new string[separator];
+            string[] host = new string[arguments.Length - separator - 1];
+            Array.Copy(arguments, 0, sample, 0, sample.Length);
+            Array.Copy(arguments, separator + 1, host, 0, host.Length);
+            return (sample, host);
         }
 
         /// <summary>

@@ -57,6 +57,14 @@ Connect a mutually trusted OPC UA client using `SignAndEncrypt` to
 The `Counter` variable is writable and is also incremented once per second while
 this server is leader. `ActiveReplica` shows the local active writer label.
 
+Both HA modes call `UseReplicaNodeIdentity` before startup. The sample's shared
+namespace occupies index 2 on every replica, while ApplicationUri and built-in
+diagnostics remain local. `FactoryAssigned/Value` and `FactoryAssigned/Target`
+are genuinely factory-created nodes, not preassigned constants; `Target` contains
+the exact NodeId of `Value`. Use the client's `--identity` scenario to cache
+their Browse results and reuse those same IDs after terminating the serving
+replica. See [Replica-consistent NodeIds](../../../docs/ReplicaNodeIdentity.md).
+
 The startup output shows the effective OPC UA redundancy value and the ServiceLevel subrange that clients read. For example, with `HA_NODE_ID=replica-a`:
 
 ```text
@@ -117,6 +125,10 @@ builder.Services
         o.EndpointUrls.Add(endpointUrl);
     })
     .AddNodeManager<HaSampleNodeManagerFactory>()
+    .UseReplicaNodeIdentity(
+        "opcfoundation-ha-sample",
+        [HaSampleNodeManagerFactory.NamespaceUri],
+        writerAssignedIds: true)
     .UseDistributedAddressSpace(d =>
     {
         // Shared backend reachable by every replica. The default is an
@@ -177,6 +189,7 @@ For Kubernetes, `UseKubernetesRaftConsensus` in `Opc.Ua.Redundancy.Kubernetes` d
 | --- | --- | --- |
 | `REDUNDANCY_MODE` | `none`, `cold`, `warm`, `hot`, `hotandmirrored`, `transparent` | Selects the `Server.ServerRedundancy.RedundancySupport` value. If unset, active/passive defaults to `hot` and active/active defaults to `hotandmirrored`. |
 | `HA_NODE_ID` | stable replica id | Used as this replica's `ApplicationUri` suffix (unless `HA_APPLICATION_URI` overrides it) and as `CurrentServerId` for transparent redundancy. |
+| `HA_REPLICA_SET` | stable shared set id | Defaults to `opcfoundation-ha-sample`. Must be identical on every replica; it is not the per-process `HA_NODE_ID`. |
 | `HA_REDUNDANT_PEERS` | `applicationUri|applicationName|discoveryUrl1+discoveryUrl2`, separated by comma or semicolon | Defines the peer `RedundantPeer` set. Non-transparent modes publish peer `ApplicationUri` values in `ServerUriArray`, advertise the `NTRS` server capability, and return these peers from `FindServers`. |
 | `peerServerUris` | comma/semicolon-separated application URIs | Legacy shorthand for `RedundantServerArray`; prefer `HA_REDUNDANT_PEERS` when clients must resolve peers through `FindServers`. |
 | `HA_MODE` | `ap`, `aa` | Chooses active/passive shared-store replication or active/active CRDT gossip. |

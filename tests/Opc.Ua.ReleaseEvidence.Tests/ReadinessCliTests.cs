@@ -65,7 +65,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             string scenario, int expectedExit, string expectedState)
         {
             string root = FindRoot();
-            string work = Directory.CreateTempSubdirectory("opcua-readiness-").FullName;
+            string work = CreateWorkspace();
             try
             {
                 JsonNode progress = JsonNode.Parse(await File.ReadAllTextAsync(
@@ -270,7 +270,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 default:
                     throw new ArgumentException("Unknown fixture.", nameof(mutation));
             }
-            string work = Directory.CreateTempSubdirectory("opcua-tabletop-").FullName;
+            string work = CreateWorkspace();
             try
             {
                 string input = Path.Combine(work, "input.json");
@@ -305,7 +305,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
 
         private static async Task<JsonObject> RunScenarioAsync(JsonObject request)
         {
-            string work = Directory.CreateTempSubdirectory("opcua-tabletop-").FullName;
+            string work = CreateWorkspace();
             try
             {
                 string input = Path.Combine(work, "input.json");
@@ -330,6 +330,12 @@ namespace Opc.Ua.ReleaseEvidence.Tests
         private static DateTimeOffset ParseTime(string value)
         {
             return DateTimeOffset.Parse(value, CultureInfo.InvariantCulture);
+        }
+
+        private static string CreateWorkspace()
+        {
+            return Directory.CreateDirectory(Path.Combine(
+                TestContext.CurrentContext.TestDirectory, ".readiness", Guid.NewGuid().ToString("N"))).FullName;
         }
 
         private static string FindRoot()

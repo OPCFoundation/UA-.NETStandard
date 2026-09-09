@@ -41,12 +41,17 @@ try {
     $skipped = 0
     $outcome = 'Completed'
     $caseOutcome = 'Passed'
+    $omittedSkipCounter = $false
+    $strictSkipped = $false
     switch ($Scenario) {
         'missing-trx' { $expected = 'missing' }
         'zero-trx' { $total = 0; $executed = 0; $passed = 0 }
         'ignored-trx' { $executed = 0; $passed = 0; $skipped = 1; $caseOutcome = 'NotExecuted' }
         'aborted-trx' { $outcome = 'Aborted' }
         'valid-trx' { $expected = 'completed' }
+        'vstest-omitted-skip-counter' { $total = 2; $omittedSkipCounter = $true; $expected = 'completed' }
+        'vstest-omitted-skip-counter-strict' { $total = 2; $omittedSkipCounter = $true; $strictSkipped = $true }
+        'vstest-contradictory-skip-counter' { $total = 2; $omittedSkipCounter = $true; $skipped = 2 }
         'inconsistent-trx' { $total = 2 }
         'missing-mtp' { $kind = 'mtp-trx'; $expected = 'missing' }
         'valid-mtp' { $kind = 'mtp-trx'; $expected = 'completed' }
@@ -68,6 +73,9 @@ try {
         $results = if ($total -gt 0) {
             "<UnitTestResult testId='case-1' outcome='$caseOutcome'><Output><StdOut>RESTRICTED_SENTINEL</StdOut></Output></UnitTestResult>"
         } else { '' }
+        if ($omittedSkipCounter) {
+            $results += "<UnitTestResult testId='case-2' testName='explicit-fixture' outcome='NotExecuted' />"
+        }
         @"
 <TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
 <Results>$results</Results><ResultSummary outcome="$outcome">
@@ -77,7 +85,7 @@ try {
     }
     $output = Join-Path $fixture 'summary.json'
     & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/assurance-results.ps1') `
-        -ResultsPath $fixture -Kind $kind -OutputPath $output -Enforce
+        -ResultsPath $fixture -Kind $kind -OutputPath $output -Enforce -RequireNoSkipped:$strictSkipped
     $code = $LASTEXITCODE
     if (-not (Test-Path $output)) { throw 'Result producer did not emit its public summary.' }
     $text = Get-Content $output -Raw
@@ -87,6 +95,10 @@ try {
     if ($text.Contains('RESTRICTED_SENTINEL') -or $text.Contains('private-rule')) { throw 'Private result leaked.' }
     if ($expected -eq 'completed' -and $kind -ne 'sarif' -and $actual.counts.executed -ne 1) {
         throw 'Executed count must come from the result document.'
+    }
+    if ($Scenario -eq 'vstest-omitted-skip-counter' -and
+        ($actual.counts.total -ne 2 -or $actual.counts.skipped -ne 1 -or $actual.counts.passed -ne 1)) {
+        throw 'Actual skipped result entries must remain visible and must never be counted as passed.'
     }
     if ($Scenario -eq 'producer-record') {
         # Synthetic CI metadata stays inside this disposable fixture. Nothing is

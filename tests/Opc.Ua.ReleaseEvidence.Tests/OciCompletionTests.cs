@@ -1462,7 +1462,8 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             private const string kSource = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
             private const string kManifestType = "application/vnd.oci.image.manifest.v1+json";
             private static readonly byte[] kPayload = [0x7f, 0x45, 0x4c, 0x46, 0x01, 0x02, 0x03, 0x04];
-            private readonly string m_work = Directory.CreateTempSubdirectory("opcua-oci-native-").FullName;
+            private readonly string m_work = Directory.CreateDirectory(Path.Combine(
+                TestContext.CurrentContext.TestDirectory, ".oci-native", Guid.NewGuid().ToString("N"))).FullName;
         }
     }
 }

@@ -105,7 +105,10 @@ namespace Opc.Ua.Mcp
                         acceptance.ValueKind == JsonValueKind.True;
                     if (useNone || autoAccept)
                     {
-                        ILogger logger = request.Services.GetRequiredService<ITelemetryContext>()
+                        IServiceProvider services = request.Services ??
+                            throw new InvalidOperationException(
+                                "MCP request services are required to audit security relaxations.");
+                        ILogger logger = services.GetRequiredService<ITelemetryContext>()
                             .CreateLogger("Opc.Ua.Mcp.Program");
                         if (useNone)
                         {

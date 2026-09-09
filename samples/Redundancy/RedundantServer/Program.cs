@@ -71,6 +71,7 @@ foreach (string key in new[]
     "REDUNDANCY_MODE", "HA_RECORD_KEY", "HA_INSECURE", "HA_FAST_RECONNECT", "HA_CONSISTENCY",
     "HA_BALANCING_URL", "HA_GOSSIP_PORT", "HA_PEER_DISCOVERY", "HA_SERVICE_NAME", "HA_REDUNDANT_PEERS",
     "HA_GOSSIP_PEERS", "HA_LOCAL_ADDRESS", "HA_RAFT_ID", "HA_RAFT_PEERS", "HA_RAFT_MEMBERS", "HA_RAFT_BIND", "HA_HISTORIAN",
+    "HA_REPLICA_SET",
     "peerServerUris"
 })
 {
@@ -333,6 +334,14 @@ command.SetAction(async (result, cancellationToken) =>
                 // Mirror session state across replicas; the standby still runs the full
                 // ActivateSession signature check on a token-reuse reconnect.
                 s.EnableFastReconnect = enableFastReconnect);
+    }
+
+    if (redundancyMode != RedundancySupport.None)
+    {
+        ua.UseReplicaNodeIdentity(
+            builder.Configuration["HA_REPLICA_SET"] ?? "opcfoundation-ha-sample",
+            [HaSampleNodeManagerFactory.NamespaceUri],
+            writerAssignedIds: !activeActive);
     }
 
     if (enableDistributedHistorian)
