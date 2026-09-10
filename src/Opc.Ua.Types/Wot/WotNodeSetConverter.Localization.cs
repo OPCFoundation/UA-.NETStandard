@@ -117,7 +117,7 @@ namespace Opc.Ua.Wot
         }
 
         private static bool LacksDefaultLocale(
-            Opc.Ua.Export.LocalizedText[]? texts, string defaultLocale)
+            Export.LocalizedText[]? texts, string defaultLocale)
         {
             List<KeyValuePair<string, string>> entries =
                 CollectLocales(texts, defaultLocale);
@@ -184,12 +184,12 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Writes a Node's <c>DisplayName</c> as <c>title</c> and, where it
-        /// carries more than one locale, <c>titles</c>.
+        /// Writes a Node's <c>DisplayName</c> as <c>title</c> and carries
+        /// non-default translations in <c>titles</c>.
         /// </summary>
         private static void WriteLocalizedTitle(
             Utf8JsonWriter writer,
-            Opc.Ua.Export.LocalizedText[]? displayName,
+            Export.LocalizedText[]? displayName,
             string defaultLocale,
             string? fallback = null)
         {
@@ -206,12 +206,12 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Writes a Node's <c>Description</c> as <c>description</c> and, where
-        /// it carries more than one locale, <c>descriptions</c>.
+        /// Writes a Node's <c>Description</c> as <c>description</c> and carries
+        /// non-default translations in <c>descriptions</c>.
         /// </summary>
         private static void WriteLocalizedDescription(
             Utf8JsonWriter writer,
-            Opc.Ua.Export.LocalizedText[]? description,
+            Export.LocalizedText[]? description,
             string defaultLocale)
         {
             WriteLocalizedMember(
@@ -231,7 +231,7 @@ namespace Opc.Ua.Wot
             Utf8JsonWriter writer,
             string singular,
             string plural,
-            Opc.Ua.Export.LocalizedText[]? texts,
+            Export.LocalizedText[]? texts,
             string defaultLocale)
         {
             List<KeyValuePair<string, string>> entries = CollectLocales(texts, defaultLocale);
@@ -239,7 +239,7 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            if (entries.Count == 1)
+            if (entries.Count == 1 && string.Equals(entries[0].Key, defaultLocale, StringComparison.Ordinal))
             {
                 writer.WriteString(singular, entries[0].Value);
                 return;
@@ -306,7 +306,7 @@ namespace Opc.Ua.Wot
         /// a plural pair would carry, so the two never disagree.
         /// </remarks>
         private static string? SelectLocalizedValue(
-            Opc.Ua.Export.LocalizedText[]? texts,
+            Export.LocalizedText[]? texts,
             string defaultLocale)
         {
             List<KeyValuePair<string, string>> entries = CollectLocales(texts, defaultLocale);
@@ -329,7 +329,7 @@ namespace Opc.Ua.Wot
         /// source order.
         /// </summary>
         private static List<KeyValuePair<string, string>> CollectLocales(
-            Opc.Ua.Export.LocalizedText[]? texts,
+            Export.LocalizedText[]? texts,
             string defaultLocale)
         {
             var entries = new List<KeyValuePair<string, string>>();
@@ -338,7 +338,7 @@ namespace Opc.Ua.Wot
                 return entries;
             }
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (Opc.Ua.Export.LocalizedText text in texts)
+            foreach (Export.LocalizedText text in texts)
             {
                 if (string.IsNullOrEmpty(text.Value))
                 {
@@ -368,7 +368,7 @@ namespace Opc.Ua.Wot
         /// alone and the Node keeps the locale-free form a NodeSet writes when
         /// it names one language.
         /// </remarks>
-        private static Opc.Ua.Export.LocalizedText[]? ReadLocalizedText(
+        private static Export.LocalizedText[]? ReadLocalizedText(
             JsonElement element,
             string singular,
             string plural,
@@ -380,7 +380,7 @@ namespace Opc.Ua.Wot
                 element.TryGetProperty(plural, out JsonElement declared) &&
                 declared.ValueKind == JsonValueKind.Object)
             {
-                var texts = new List<Opc.Ua.Export.LocalizedText>();
+                var texts = new List<Export.LocalizedText>();
                 string? leading = null;
                 foreach (JsonProperty entry in declared.EnumerateObject())
                 {
@@ -389,7 +389,7 @@ namespace Opc.Ua.Wot
                     {
                         continue;
                     }
-                    texts.Add(new Opc.Ua.Export.LocalizedText
+                    texts.Add(new Export.LocalizedText
                     {
                         Locale = entry.Name,
                         Value = entry.Value.GetString()
@@ -417,7 +417,7 @@ namespace Opc.Ua.Wot
             // writes when it names one language without saying which.
             return
             [
-                new Opc.Ua.Export.LocalizedText
+                new Export.LocalizedText
                 {
                     Locale = declaredLocale ?? string.Empty,
                     Value = singularValue
@@ -430,7 +430,7 @@ namespace Opc.Ua.Wot
         /// among a set of <c>LocalizedText</c> entries (WoT Binding
         /// Section 9.1.1 and Annex G.3).
         /// </summary>
-        private static string CodePointFirstLocale(List<Opc.Ua.Export.LocalizedText> texts)
+        private static string CodePointFirstLocale(List<Export.LocalizedText> texts)
         {
             string first = texts[0].Locale ?? string.Empty;
             for (int ii = 1; ii < texts.Count; ii++)
@@ -450,7 +450,7 @@ namespace Opc.Ua.Wot
         /// (WoT Binding Section 9.1.1).
         /// </summary>
         private static void MoveLeadingLocale(
-            List<Opc.Ua.Export.LocalizedText> texts,
+            List<Export.LocalizedText> texts,
             string locale)
         {
             for (int ii = 0; ii < texts.Count; ii++)
@@ -461,7 +461,7 @@ namespace Opc.Ua.Wot
                 }
                 if (ii > 0)
                 {
-                    Opc.Ua.Export.LocalizedText leading = texts[ii];
+                    Export.LocalizedText leading = texts[ii];
                     texts.RemoveAt(ii);
                     texts.Insert(0, leading);
                 }
@@ -472,7 +472,7 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Reads an affordance's <c>title</c> and <c>titles</c>.
         /// </summary>
-        private static Opc.Ua.Export.LocalizedText[]? ReadTitle(
+        private static Export.LocalizedText[]? ReadTitle(
             JsonElement element,
             string? declaredLocale,
             string? fallback = null)
@@ -488,7 +488,7 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Reads an affordance's <c>description</c> and <c>descriptions</c>.
         /// </summary>
-        private static Opc.Ua.Export.LocalizedText[]? ReadDescription(
+        private static Export.LocalizedText[]? ReadDescription(
             JsonElement element,
             string? declaredLocale)
         {
@@ -503,9 +503,9 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Gets the first non-empty locale a <c>LocalizedText</c> array names.
         /// </summary>
-        private static string? FirstLocale(Opc.Ua.Export.LocalizedText[]? texts)
+        private static string? FirstLocale(Export.LocalizedText[]? texts)
         {
-            foreach (Opc.Ua.Export.LocalizedText text in texts ?? [])
+            foreach (Export.LocalizedText text in texts ?? [])
             {
                 if (!string.IsNullOrEmpty(text.Locale) && !string.IsNullOrEmpty(text.Value))
                 {
@@ -636,7 +636,7 @@ namespace Opc.Ua.Wot
                         WotDiagnosticCode.InvalidLocalizedText,
                         $"The {plural} member carries no entry for the document's default " +
                         $"locale '{defaultLocale}', so the {singular} member shall equal the " +
-                        $"entry whose language tag is first in ascending Unicode code-point " +
+                        "entry whose language tag is first in ascending Unicode code-point " +
                         $"order ('{codePointFirstLocale}'). The value is a display fallback " +
                         "and asserts no locale (WoT Binding Section 9.1.1).",
                         WotLocation.FromPointer(parentPointer + "/" + singular)));

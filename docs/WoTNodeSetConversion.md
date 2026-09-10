@@ -246,10 +246,38 @@ to restore the missing-member default. Diagnostics identify the exact node,
 model, permission or datatype-field JSON Pointer, and conversion returns no
 partial NodeSet. Defaults still apply when the member is absent.
 
-When an archival `uav:nodeSet` is present, known readable facts are checked
-against that baseline and conflicts are reported rather than overwritten.
-Routing-only enrichment does not grant permission to add or replace archived
-model facts.
+Supported native `uav:nodes` records and archival `uav:nodeSet` content use the
+same selective readable-fact checks. Supplied identities, NodeClasses,
+BrowseNames, type and encoding claims, ranks, values, modelling rules,
+References and represented localized metadata must agree with the preserved
+Nodes. Conflicts report `NativeProjectionConflict` with the source pointer and
+native-form identity. Missing readable facts are not requests to synthesize
+over preserved content; forms, security and other routing-only enrichment do
+not grant permission to add or replace model facts.
+
+Identity, class and simple attribute checks read the preserved facts directly;
+they do not require generating unasserted nested readable schemas. An empty
+preserved model still rejects unmatched readable affordance and DataType
+identities. Name-only DataType claims resolve against the preserved DataTypes'
+qualified BrowseNames; an unknown or ambiguous name does not create a Node.
+Authored and regenerated names use their respective effective contexts.
+Complex facts are projected only for the requested Nodes while retaining the
+complete native context and stable generated names. Projection depth or
+affordance-budget errors are reported, not used as a partial comparison that
+can authorize success.
+
+A Condition action's `uav:actsOn` pairing does not move a locally owned Method to
+the EventType. Omitting `Comment` from an input's `required` set is compatible
+with the native signature only for an occurrence action whose native arguments
+are scalar ByteString `EventId` and scalar LocalizedText `Comment`, in that order.
+Other required arguments remain required; `uav:fieldOrder` remains ordered.
+
+For linked partitions, these checks run after the complete owned model context
+has been prepared and its headers checked, so a referenced Node in another
+partition is not mistaken for a missing Node. Final validation is not skipped.
+Symmetric References accept either stored direction; asymmetric directions
+remain significant. Native XML values and extension fragments retain their
+whitespace text, with the same DTD and external-entity restrictions.
 
 ### Generated NodeIds follow Annex G.1
 
@@ -298,10 +326,10 @@ NodeId and modelling rule; using one type twice creates two declarations, not
 two renamed copies of the type. A VariableType provider also supplies its
 DataType, ValueRank and ArrayDimensions through `WotResolvedNode`.
 
-Archival validation follows owner-to-declaration and declaration-to-TypeDefinition
+Preserved-fact validation follows owner-to-declaration and declaration-to-TypeDefinition
 references, checking the declaration's qualified name and modelling rule. It does
 not demand an owner-to-type HasComponent reference or overlay readable assertions
-onto authoritative archived Nodes.
+onto authoritative native or archived Nodes.
 
 Explicit `uav:declaration` handling is currently a converter extension to the
 advertised 1.1 vocabulary. The coordinated successor-vocabulary update is still
@@ -777,9 +805,10 @@ every locale.
 **NodeSet to WoT.** The document's default locale is the locale the root Node's
 own `DisplayName` (or `Description`) states, declared as the `@language` of the
 generated `@context`; a source that names none declares none, and Section
-9.1.1's `en` then applies. A Node with one locale writes `title` and
-`description` alone. A Node with several writes the plural `titles` and
-`descriptions` maps as well. The plural member is **authoritative**: it carries
+9.1.1's `en` then applies. A Node with only the default locale writes `title`
+and `description` alone. A Node with a non-default locale, including a singleton
+translation, writes the plural `titles` and `descriptions` maps as well.
+The plural member is **authoritative**: it carries
 every locale the source had, and the singular member is the default projection a
 consumer that knows nothing of the plural members reads. Where the plural member
 has an entry for the document's default locale the singular member is that

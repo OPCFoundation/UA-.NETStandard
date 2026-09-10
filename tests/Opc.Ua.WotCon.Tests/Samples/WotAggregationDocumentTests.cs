@@ -259,10 +259,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
                         ? WoTDocumentKindEnum.ThingModel
                         : WoTDocumentKindEnum.ThingDescription),
                     resourceId);
-                string[] dependencies = document.GetProperty("dependsOn")
-                    .EnumerateArray().Select(dependency => dependency.GetString()!).ToArray();
-                string[] logicalDependencies = LogicalDependencies(
-                    json.RootElement, resourceId, resources.Keys).ToArray();
+                string[] dependencies = [.. document.GetProperty("dependsOn")
+                    .EnumerateArray().Select(dependency => dependency.GetString()!)];
+                string[] logicalDependencies = [.. LogicalDependencies(
+                    json.RootElement, resourceId, resources.Keys)];
                 Assert.That(
                     dependencies,
                     Is.SupersetOf(logicalDependencies),
@@ -289,12 +289,15 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
 
             string[] linkedDirectories = ["opc-ua-di", "opc-ua-machinery", "opc-ua-pumps", "sample-pump"];
-            string[] expectedPaths = linkedDirectories.SelectMany(directory =>
-                Directory.EnumerateFiles(DocumentPath(directory), "*.json", SearchOption.AllDirectories)
-                    .Select(path => path[(DocumentPath(string.Empty).TrimEnd('\\', '/').Length + 1)..]
-                        .Replace('\\', '/')))
-                .Concat(s_assetProjectionDocuments)
-                .ToArray();
+            string[] expectedPaths =
+            [
+                .. linkedDirectories.SelectMany(directory =>
+                                Directory.EnumerateFiles(DocumentPath(directory), "*.json", SearchOption.AllDirectories)
+                                    .Select(path => path[(DocumentPath(string.Empty).TrimEnd('\\', '/').Length + 1)..]
+                                        .Replace('\\', '/')))
+,
+                .. s_assetProjectionDocuments
+            ];
             Assert.That(
                 selected.ToList().Select(document => document.Path),
                 Is.EquivalentTo(expectedPaths));
@@ -321,7 +324,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
             foreach (string pumpName in s_pumpAssetNames)
             {
-                using WotDocument asset = WotDocument.Parse(
+                using var asset = WotDocument.Parse(
                     File.ReadAllBytes(DocumentPath($"{pumpName}.Asset.td.json")),
                     WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
 
@@ -359,7 +362,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     resolver,
                     $"{pumpName}.Members.td.json",
                     "properties",
-                    s_propertyBindings.Select(binding => binding.Name).ToArray()).ConfigureAwait(false);
+                    [.. s_propertyBindings.Select(binding => binding.Name)]).ConfigureAwait(false);
                 await AssertProjectionMembersAsync(
                     resolver,
                     $"{pumpName}.Members.td.json",
@@ -428,7 +431,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             var selectedResources = new HashSet<string>(StringComparer.Ordinal);
             foreach ((string mapName, string[] names) in new[]
             {
-                ("properties", s_propertyBindings.Select(binding => binding.Name).ToArray()),
+                ("properties", [.. s_propertyBindings.Select(binding => binding.Name)]),
                 ("actions", s_managementMembers),
                 ("events", s_supervisionMembers)
             })
@@ -459,7 +462,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         [TestCase("Pump2")]
         public async Task ManagementProjectionsCompileWithTheirConditionEvents(string pumpName)
         {
-            ArrayOf<SampleDocument> documents = ReadManifestDocuments().ToArrayOf(document => document with
+            var documents = ReadManifestDocuments().ToArrayOf(document => document with
             {
                 Json = ByteString.From(Encoding.UTF8.GetBytes(
                     SubstituteEndpoints(Encoding.UTF8.GetString(document.Json.ToArray()))))
@@ -631,9 +634,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
         public void PumpNodeSetRootsThePumpUnderTheObjectsFolder()
         {
             UANodeSet nodeSet = ReadPumpNodeSet();
-            UANode[] roots = nodeSet.Items!.Where(node => node.References?.Any(reference =>
-                reference.ReferenceType == "i=35" && !reference.IsForward && reference.Value == "i=85")
-                == true).ToArray();
+            UANode[] roots = [.. nodeSet.Items!.Where(node => node.References?.Any(reference =>
+                reference.ReferenceType == "i=35" && !reference.IsForward && reference.Value == "i=85") ==
+                true)];
             Assert.That(
                 roots.Select(node => node.NodeId),
                 Is.EquivalentTo(s_pumpRootNodeIds));
@@ -642,7 +645,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Assert.That(root, Is.TypeOf<UAObject>(), root.NodeId);
                 Assert.That(
                     root.References!.Count(reference => reference.ReferenceType == "i=35" &&
-                        !reference.IsForward && reference.Value == "i=85"),
+                        !reference.IsForward &&
+                        reference.Value == "i=85"),
                     Is.EqualTo(1),
                     root.NodeId);
             }
@@ -722,10 +726,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Assert.That(variable.ValueRank, Is.EqualTo(-1), binding.Name);
             }
 
-            XElement manufacturer = XElement.Parse(
+            var manufacturer = XElement.Parse(
                 FindNode<UAVariable>(nodeSet, $"ns=1;s={pumpName}.Identification.Manufacturer").Value!.OuterXml);
             Assert.That(
-                manufacturer.Element(XName.Get("Text", global::Opc.Ua.Namespaces.OpcUaXsd))!.Value,
+                manufacturer.Element(XName.Get("Text", Ua.Namespaces.OpcUaXsd))!.Value,
                 Is.EqualTo("SimPump Corp"));
             Assert.That(
                 FindNode<UAVariable>(nodeSet, $"ns=1;s={pumpName}.Identification.SerialNumber").Value!.InnerText,
@@ -800,7 +804,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     name);
                 Assert.That(
                     input.References!.Count(reference => !reference.IsForward &&
-                        ResolveAlias(nodeSet, reference.ReferenceType) == "i=46" && reference.Value == nodeId),
+                        ResolveAlias(nodeSet, reference.ReferenceType) == "i=46" &&
+                        reference.Value == nodeId),
                     Is.EqualTo(1),
                     name);
                 Assert.That(ResolveAlias(nodeSet, input.DataType), Is.EqualTo("i=296"), name);
@@ -809,7 +814,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Assert.That(TypeDefinition(input), Is.EqualTo("i=68"), name);
                 XElement arguments = xml.Root!.Elements().Single(element =>
                     (string?)element.Attribute("NodeId") == nodeId + ".InputArguments");
-                XElement[] entries = arguments.Descendants(types + "Argument").ToArray();
+                XElement[] entries = [.. arguments.Descendants(types + "Argument")];
                 Assert.That(
                     entries.Select(argument => argument.Element(types + "Name")!.Value),
                     Is.EqualTo(s_conditionArgumentNames),
@@ -893,9 +898,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
         }
 
         [Test]
-        public void PumpMappingsUseBothEndpointPlaceholdersAndPortableOpcUaForms()
+        public async Task PumpMappingsUseBothEndpointPlaceholdersAndPortableOpcUaForms()
         {
             ArrayOf<SampleDocument> documents = ReadPumpDocuments();
+            await WotAggregationDocumentGenerator.ReadPumpDocumentSetAsync(documents).ConfigureAwait(false);
             var placeholders = new HashSet<string>(StringComparer.Ordinal);
             foreach (string pumpName in s_pumpAssetNames)
             {
@@ -970,9 +976,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                         "LocalizedText must not be constrained to a plain string that cannot retain its locale.");
                     UAVariable variable = FindNode<UAVariable>(
                         ReadPumpNodeSet(), $"ns=1;s={pumpName}.Identification.{name}");
-                    XElement value = XElement.Parse(variable.Value!.OuterXml);
+                    var value = XElement.Parse(variable.Value!.OuterXml);
                     Assert.That(
-                        value.Element(XName.Get("Text", global::Opc.Ua.Namespaces.OpcUaXsd))!.Value,
+                        value.Element(XName.Get("Text", Ua.Namespaces.OpcUaXsd))!.Value,
                         Is.EqualTo(expected));
                 }
                 else
@@ -1119,7 +1125,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Assert.That(definition.GetProperty("uav:id").GetString(), Is.EqualTo("i=2915"));
                 JsonElement data = definition.GetProperty("data");
                 AssertAlarmDataSchema(data, alarm);
-                string[] expectedPaths = SchemaLeafPaths(data).Select(ToEventBrowsePath).ToArray();
+                string[] expectedPaths = [.. SchemaLeafPaths(data).Select(ToEventBrowsePath)];
                 Assert.That(
                     selection.EnumerateArray().Select(clause => clause.GetProperty("uav:browsePath").GetString()),
                     Is.EquivalentTo(expectedPaths.Select(path => path.Length == 0
@@ -1156,7 +1162,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         [Test]
         public async Task PumpMappingsCompileAfterEndpointSubstitution()
         {
-            ArrayOf<SampleDocument> documents = ReadPumpDocuments()
+            var documents = ReadPumpDocuments()
                 .ToArrayOf(document => document with
                 {
                     Json = ByteString.From(Encoding.UTF8.GetBytes(
@@ -1205,10 +1211,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
             foreach (string pumpName in s_pumpAssetNames)
             {
-                WotCompiledForm[] properties = compiled.Where(form =>
+                WotCompiledForm[] properties = [.. compiled.Where(form =>
                     form.AffordanceKind == BindingAffordanceKind.Property &&
                     form.TargetMapping.TargetNodeId!.StartsWith(
-                        LocalNodeId(pumpName, string.Empty) + ".", StringComparison.Ordinal)).ToArray();
+                        LocalNodeId(pumpName, string.Empty) + ".", StringComparison.Ordinal))];
                 Assert.That(
                     properties.Where(form => form.OpToken == "readproperty")
                         .Select(form => form.TargetMapping.TargetNodeId),
@@ -1305,7 +1311,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             string mapName,
             string[] expectedMembers)
         {
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 File.ReadAllBytes(DocumentPath(fileName)),
                 WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document)
@@ -1366,7 +1372,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 }
                 if (mapName == "actions" &&
                     (member.Name.EndsWith("Acknowledge", StringComparison.Ordinal) ||
-                    member.Name.EndsWith("Confirm", StringComparison.Ordinal)))
+                        member.Name.EndsWith("Confirm", StringComparison.Ordinal)))
                 {
                     string eventName = member.Value.GetProperty("uav:actsOn").GetString()!;
                     Assert.That(eventName,
@@ -1397,7 +1403,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     .Select(affordance => affordance.Value.GetProperty("uav:id").GetString()!));
             }
             bool found = identities.Any(mentions.Contains);
-            if (!found && root.TryGetProperty("uav:browseName", out JsonElement browseName) &&
+            if (!found &&
+                root.TryGetProperty("uav:browseName", out JsonElement browseName) &&
                 root.TryGetProperty("uav:id", out JsonElement typeId) &&
                 typeId.GetString() is string portableTypeId &&
                 ExpandedNodeId.TryParse(portableTypeId, out ExpandedNodeId expanded))
@@ -1413,7 +1420,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 if (source.TryGetProperty("@context", out JsonElement context))
                 {
                     JsonElement[] contexts = context.ValueKind == JsonValueKind.Array
-                        ? context.EnumerateArray().ToArray()
+                        ? [.. context.EnumerateArray()]
                         : [context];
                     foreach (JsonElement entry in contexts.Where(entry => entry.ValueKind == JsonValueKind.Object))
                     {
@@ -1547,9 +1554,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             string mapName,
             string nodeId)
         {
-            Affordance[] matches = ReadAffordances(documents, mapName).Where(affordance =>
+            Affordance[] matches = [.. ReadAffordances(documents, mapName).Where(affordance =>
                 affordance.Value.TryGetProperty("uav:id", out JsonElement id) &&
-                id.GetString() == nodeId).ToArray();
+                id.GetString() == nodeId)];
             Assert.That(matches, Has.Length.EqualTo(1), $"{mapName}: {nodeId}");
             return matches[0];
         }
@@ -1633,14 +1640,13 @@ namespace Opc.Ua.WotCon.Tests.Samples
             using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(property.Root.GetRawText()),
                 WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
-            UANodeSet nodes = WotNodeSetConverter.ToNodeSet(
-                document, WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
+            UANodeSet nodes = WotAggregationDocumentGenerator.ReadOwnedPartition(document, property.ResourceId);
             var namespaces = new NamespaceTable();
             foreach (string uri in nodes.NamespaceUris ?? [])
             {
                 namespaces.Append(uri);
             }
-            NodeId id = ExpandedNodeId.ToNodeId(
+            var id = ExpandedNodeId.ToNodeId(
                 ExpandedNodeId.Parse(property.Value.GetProperty("uav:id").GetString()!), namespaces);
             Assert.That(
                 nodes.Items!.OfType<UAVariable>().Count(node => node.NodeId == id.ToString()),
@@ -1732,10 +1738,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
         private static XElement[] PumpXmlNodes(XDocument document, string pumpName)
         {
             string prefix = "ns=1;s=" + pumpName;
-            return document.Root!.Elements().Where(element =>
+            return [.. document.Root!.Elements().Where(element =>
                 (string?)element.Attribute("NodeId") == prefix ||
-                ((string?)element.Attribute("NodeId"))?.StartsWith(prefix + ".", StringComparison.Ordinal) == true)
-                .ToArray();
+                ((string?)element.Attribute("NodeId"))?.StartsWith(prefix + ".", StringComparison.Ordinal) == true)];
         }
 
         private static string? ResolveAlias(UANodeSet nodeSet, string? value)
@@ -1772,7 +1777,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
         private static string[] StringValues(JsonElement array)
         {
-            return array.EnumerateArray().Select(value => value.GetString()!).ToArray();
+            return [.. array.EnumerateArray().Select(value => value.GetString()!)];
         }
 
         private static T FindNode<T>(UANodeSet nodeSet, string nodeId)

@@ -89,7 +89,7 @@ namespace Opc.Ua.Wot
                             diagnostics.Add(new WotDiagnostic(
                                 WotDiagnosticSeverity.Error,
                                 WotDiagnosticCode.NodeCountExceeded,
-                                $"The NodeSet contains more than the configured " +
+                                "The NodeSet contains more than the configured " +
                                 $"{options.MaxNodeCount} native projection nodes."));
                             break;
                         }
@@ -117,7 +117,7 @@ namespace Opc.Ua.Wot
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.NativeProjectionInvalid,
-                    $"The uav:nodes member shall be an object whose @type is " +
+                    "The uav:nodes member shall be an object whose @type is " +
                     $"{ProjectionType}.",
                     WotLocation.FromPointer("/uav:nodes")));
                 return null;
@@ -185,7 +185,7 @@ namespace Opc.Ua.Wot
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
                         WotDiagnosticCode.NodeCountExceeded,
-                        $"The native projection contains more than the configured " +
+                        "The native projection contains more than the configured " +
                         $"{options.MaxNodeCount} nodes.",
                         WotLocation.FromPointer("/uav:nodes/nodes")));
                     break;
@@ -799,7 +799,7 @@ namespace Opc.Ua.Wot
 
         private static void WriteDefinition(
             Utf8JsonWriter writer,
-            Opc.Ua.Export.DataTypeDefinition definition)
+            Export.DataTypeDefinition definition)
         {
             writer.WriteStartObject();
             WriteString(writer, "name", definition.Name);
@@ -817,7 +817,7 @@ namespace Opc.Ua.Wot
             {
                 writer.WritePropertyName("fields");
                 writer.WriteStartArray();
-                foreach (Opc.Ua.Export.DataTypeField field in definition.Field)
+                foreach (DataTypeField field in definition.Field)
                 {
                     writer.WriteStartObject();
                     WriteString(writer, "name", field.Name);
@@ -944,7 +944,7 @@ namespace Opc.Ua.Wot
                         writer.WriteStartObject();
                         switch (item)
                         {
-                            case Opc.Ua.Export.LocalizedText text:
+                            case Export.LocalizedText text:
                                 writer.WriteString("kind", "text");
                                 WriteText(writer, text);
                                 break;
@@ -1142,7 +1142,7 @@ namespace Opc.Ua.Wot
         private static void WriteTexts(
             Utf8JsonWriter writer,
             string name,
-            Opc.Ua.Export.LocalizedText[]? texts)
+            Export.LocalizedText[]? texts)
         {
             if (texts is null || texts.Length == 0)
             {
@@ -1150,7 +1150,7 @@ namespace Opc.Ua.Wot
             }
             writer.WritePropertyName(name);
             writer.WriteStartArray();
-            foreach (Opc.Ua.Export.LocalizedText text in texts)
+            foreach (Export.LocalizedText text in texts)
             {
                 writer.WriteStartObject();
                 WriteText(writer, text);
@@ -1161,13 +1161,13 @@ namespace Opc.Ua.Wot
 
         private static void WriteText(
             Utf8JsonWriter writer,
-            Opc.Ua.Export.LocalizedText text)
+            Export.LocalizedText text)
         {
             WriteString(writer, "locale", text.Locale);
             WriteString(writer, "value", text.Value);
         }
 
-        private static Opc.Ua.Export.LocalizedText[]? ReadTexts(
+        private static Export.LocalizedText[]? ReadTexts(
             JsonElement element,
             string name)
         {
@@ -1176,7 +1176,7 @@ namespace Opc.Ua.Wot
             {
                 return null;
             }
-            var result = new List<Opc.Ua.Export.LocalizedText>();
+            var result = new List<Export.LocalizedText>();
             foreach (JsonElement text in texts.EnumerateArray())
             {
                 result.Add(ReadText(text));
@@ -1184,9 +1184,9 @@ namespace Opc.Ua.Wot
             return [.. result];
         }
 
-        private static Opc.Ua.Export.LocalizedText ReadText(JsonElement element)
+        private static Export.LocalizedText ReadText(JsonElement element)
         {
-            return new Opc.Ua.Export.LocalizedText
+            return new Export.LocalizedText
             {
                 Locale = GetString(element, "locale") ?? string.Empty,
                 Value = GetString(element, "value")
@@ -1273,7 +1273,7 @@ namespace Opc.Ua.Wot
             }
             try
             {
-                var document = new XmlDocument { XmlResolver = null };
+                var document = new XmlDocument { XmlResolver = null, PreserveWhitespace = true };
                 using var reader = XmlReader.Create(
                     new StringReader(xml),
                     CoreUtils.DefaultXmlReaderSettings());

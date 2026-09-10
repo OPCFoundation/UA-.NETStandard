@@ -240,7 +240,6 @@ namespace Opc.Ua.Types.Tests.Wot
                     "https://www.w3.org/2022/wot/td/v1.1",
                     { "uav": "http://opcfoundation.org/UA/WoT-Binding/" }
                   ],
-                  "@type": "tm:ThingModel",
                   "title": "Native number validation",
                   "uav:nodes": {
                     "@type": "uav:NodeModel",

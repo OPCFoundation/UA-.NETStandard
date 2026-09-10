@@ -82,6 +82,9 @@ namespace Opc.Ua.Wot
         /// same ownership and header rules as document-set conversion.
         /// The input NodeSets are not modified.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         public static WotConversionResult<UANodeSet> MergeNodeSetPartitions(
             WotDocumentSet documents,
             ArrayOf<UANodeSet> partitions,
@@ -132,6 +135,7 @@ namespace Opc.Ua.Wot
             }
             List<UANodeSet> filtered = FilterDocumentSetParts(documents, copies, options, diagnostics);
             UANodeSet merged = MergeDocumentSetParts(documents, filtered, options, diagnostics);
+            ValidateDocumentSetPreservedFacts(documents, filtered, merged, options, diagnostics);
             return new WotConversionResult<UANodeSet>(HasErrors(diagnostics) ? null : merged, diagnostics);
         }
 
@@ -209,7 +213,7 @@ namespace Opc.Ua.Wot
                         WotDiagnosticSeverity.Error,
                         WotDiagnosticCode.NativeProjectionConflict,
                         "A document root does not identify a unique source Node.",
-                        new WotLocation(reference: documents.Entries[index].Href, nodeId: id)));
+                        new WotLocation(nodeId: id, reference: documents.Entries[index].Href)));
                     return null;
                 }
                 roots.Add(id);
@@ -222,7 +226,8 @@ namespace Opc.Ua.Wot
                 }
                 UANode current = entry.Value;
                 var visited = new HashSet<string>(StringComparer.Ordinal);
-                while (current is UAInstance instance && instance.ParentNodeId is { Length: > 0 } parent &&
+                while (current is UAInstance instance &&
+                    instance.ParentNodeId is { Length: > 0 } parent &&
                     visited.Add(current.NodeId ?? string.Empty))
                 {
                     string parentId = ResolveArchivedAlias(parent, aliases);
@@ -325,7 +330,8 @@ namespace Opc.Ua.Wot
                     UANodeSet partition = partitions[index];
                     NodeSetComparisonResult comparison = ComparePartitionNodes(
                         partition, parts[index], options);
-                    bool native = !reconstructions[index].Success || !comparison.AreEquivalent ||
+                    bool native = !reconstructions[index].Success ||
+                        !comparison.AreEquivalent ||
                         (index == 0 && preserveHeader);
                     byte[] json = original.Document.Utf8Json.ToArray();
                     if (native || options.PreservationMode == WotNodeSetPreservationMode.Always)
@@ -451,10 +457,11 @@ namespace Opc.Ua.Wot
                 {
                     return [];
                 }
-                using JsonDocument encoded = JsonDocument.Parse(
+                using var encoded = JsonDocument.Parse(
                     projection, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
                 UANodeSet? restored = WotNativeProjection.Read(encoded.RootElement, options, diagnostics);
-                if (restored is null || HasErrors(diagnostics) ||
+                if (restored is null ||
+                    HasErrors(diagnostics) ||
                     !NodeSetComparer.Compare(partition, restored, options.ToComparisonOptions()).AreEquivalent)
                 {
                     diagnostics.Add(new WotDiagnostic(
@@ -506,7 +513,7 @@ namespace Opc.Ua.Wot
             IWotNodeResolver? nodeResolver,
             CancellationToken cancellationToken)
         {
-            var resolver = new DocumentSetThingResolver(documents);
+            var resolver = new DocumentSetThingResolver(documents) { DeferPreservedFactValidation = true };
             IWotNodeResolver context = ComposeSetLocalContext(documents, nodeResolver);
             var results = new List<WotConversionResult<UANodeSet>>();
             var archived = new List<UANode>();
@@ -543,6 +550,33 @@ namespace Opc.Ua.Wot
                     cancellationToken).ConfigureAwait(false));
             }
             return results;
+        }
+
+        private static void ValidateDocumentSetPreservedFacts(
+            WotDocumentSet documents,
+            List<UANodeSet> partitions,
+            UANodeSet merged,
+            WotNodeSetConverterOptions options,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (HasErrors(diagnostics))
+            {
+                return;
+            }
+            for (int index = 0; index < documents.Entries.Count; index++)
+            {
+                WotDocument document = documents.Entries[index].Document;
+                if (TakesRestorePath(document))
+                {
+                    if (document.TryGetNativeProjection(out JsonElement projection) &&
+                        !WotNativeProjection.HasUnsupportedProfile(projection))
+                    {
+                        ValidateNativeAffordanceCoverage(document, merged, diagnostics);
+                    }
+                    ValidatePreservedReadableFacts(document, partitions[index], options, diagnostics, merged);
+                }
+            }
+            ApplyIdentifierLeniency(diagnostics, options);
         }
 
         private static List<UANodeSet> FilterDocumentSetParts(
@@ -606,7 +640,8 @@ namespace Opc.Ua.Wot
                         if (owners.TryGetValue(id, out int owner))
                         {
                             external = owner != index;
-                            if (external && TakesRestorePath(documents.Entries[owner].Document) &&
+                            if (external &&
+                                TakesRestorePath(documents.Entries[owner].Document) &&
                                 !nativeNodes.Contains(
                                     ToPortableNodeId(node.NodeId, part.NamespaceUris) ?? string.Empty) &&
                                 IsDocumentSetAffordance(documents.Entries[index].Document, node, part))
@@ -618,7 +653,8 @@ namespace Opc.Ua.Wot
                         string? parent = (current as UAInstance)?.ParentNodeId;
                         foreach (Reference reference in current.References ?? [])
                         {
-                            if (parent is null && !reference.IsForward &&
+                            if (parent is null &&
+                                !reference.IsForward &&
                                 IsComponentReference(ResolveArchivedAlias(reference.ReferenceType, aliases)))
                             {
                                 parent = reference.Value;
@@ -632,7 +668,8 @@ namespace Opc.Ua.Wot
                         else
                         {
                             string parentId = ToPortableNodeId(parent, part.NamespaceUris) ?? string.Empty;
-                            if (owners.TryGetValue(parentId, out int parentOwner) && parentOwner != index &&
+                            if (owners.TryGetValue(parentId, out int parentOwner) &&
+                                parentOwner != index &&
                                 TakesRestorePath(documents.Entries[parentOwner].Document))
                             {
                                 external = true;
@@ -717,7 +754,8 @@ namespace Opc.Ua.Wot
                         "Document-set partitions do not share a coherent namespace table.",
                         new WotLocation(reference: documents.Entries[index].Href)));
                 }
-                if (index != headerIndex && TakesRestorePath(documents.Entries[index].Document) &&
+                if (index != headerIndex &&
+                    TakesRestorePath(documents.Entries[index].Document) &&
                     !NodeSetComparer.CompareEquivalent(
                         CopyDocumentSetHeader(result, extensions: false),
                         CopyDocumentSetHeader(part, extensions: false),
@@ -793,7 +831,7 @@ namespace Opc.Ua.Wot
             }
             else if (node is UADataType dataType)
             {
-                foreach (Export.DataTypeField field in dataType.Definition?.Field ?? [])
+                foreach (DataTypeField field in dataType.Definition?.Field ?? [])
                 {
                     if (field.DataType is not null)
                     {
@@ -826,10 +864,11 @@ namespace Opc.Ua.Wot
                     writer, root, nodeSet.NamespaceUris, nodeSet, BuildIndex(nodeSet), GetDocumentLocale(document));
                 writer.WriteEndObject();
             }
-            using JsonDocument expected = JsonDocument.Parse(
+            using var expected = JsonDocument.Parse(
                 output.ToArray(), new JsonDocumentOptions { MaxDepth = maxDepth });
             return expected.RootElement.TryGetProperty(DataMember, out JsonElement generated) &&
-                IsArchivedJsonSubset(data, generated) && IsArchivedJsonSubset(generated, data);
+                IsArchivedJsonSubset(data, generated) &&
+                IsArchivedJsonSubset(generated, data);
         }
     }
 }

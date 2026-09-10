@@ -95,6 +95,15 @@
     "dependsOn": [],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
+    "path": "opc-ua-di/opc-ua-di-updatebehavior.json",
+    "resourceId": "opc-ua-di-updatebehavior"
+  },
+  {
+    "dependsOn": [
+      "opc-ua-di-updatebehavior"
+    ],
+    "documentKind": "ThingModel",
+    "groupId": "thingmodels",
     "path": "opc-ua-di/opc-ua-di-cachedloadingtype.json",
     "resourceId": "opc-ua-di-cachedloadingtype"
   },
@@ -377,7 +386,9 @@
     "resourceId": "opc-ua-di-devicetopology"
   },
   {
-    "dependsOn": [],
+    "dependsOn": [
+      "opc-ua-di-devicehealthenumeration"
+    ],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
     "path": "opc-ua-di/opc-ua-di-idevicehealthtype.json",
@@ -392,6 +403,7 @@
   },
   {
     "dependsOn": [
+      "opc-ua-di-devicehealthenumeration",
       "opc-ua-di-idevicehealthtype",
       "opc-ua-di-isupportinfotype"
     ],
@@ -501,7 +513,9 @@
     "resourceId": "opc-ua-di-diameterindicationtype"
   },
   {
-    "dependsOn": [],
+    "dependsOn": [
+      "opc-ua-di-updatebehavior"
+    ],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
     "path": "opc-ua-di/opc-ua-di-directloadingtype.json",
@@ -522,7 +536,9 @@
     "resourceId": "opc-ua-di-fetchresultdatatype"
   },
   {
-    "dependsOn": [],
+    "dependsOn": [
+      "opc-ua-di-updatebehavior"
+    ],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
     "path": "opc-ua-di/opc-ua-di-filesystemloadingtype.json",
@@ -549,6 +565,15 @@
   },
   {
     "dependsOn": [],
+    "documentKind": "ThingModel",
+    "groupId": "thingmodels",
+    "path": "opc-ua-di/opc-ua-di-locationindicationtype.json",
+    "resourceId": "opc-ua-di-locationindicationtype"
+  },
+  {
+    "dependsOn": [
+      "opc-ua-di-locationindicationtype"
+    ],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
     "path": "opc-ua-di/opc-ua-di-iassetlocationindicationtype.json",
@@ -723,13 +748,6 @@
     "groupId": "thingmodels",
     "path": "opc-ua-di/opc-ua-di-lifetimevariabletype.json",
     "resourceId": "opc-ua-di-lifetimevariabletype"
-  },
-  {
-    "dependsOn": [],
-    "documentKind": "ThingModel",
-    "groupId": "thingmodels",
-    "path": "opc-ua-di/opc-ua-di-locationindicationtype.json",
-    "resourceId": "opc-ua-di-locationindicationtype"
   },
   {
     "dependsOn": [],
@@ -1014,7 +1032,9 @@
     "resourceId": "opc-ua-di-softwareclass"
   },
   {
-    "dependsOn": [],
+    "dependsOn": [
+      "opc-ua-di-softwareclass"
+    ],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
     "path": "opc-ua-di/opc-ua-di-softwarefoldertype.json",
@@ -1035,7 +1055,9 @@
     "resourceId": "opc-ua-di-softwaretype"
   },
   {
-    "dependsOn": [],
+    "dependsOn": [
+      "opc-ua-di-softwareclass"
+    ],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
     "path": "opc-ua-di/opc-ua-di-softwareupdatetype.json",
@@ -1195,14 +1217,19 @@
     "resourceId": "opc-ua-di-topologyelementtype-parameterset"
   },
   {
-    "dependsOn": [],
+    "dependsOn": [
+      "opc-ua-di-fetchresultdatatype",
+      "opc-ua-di-parameterresultdatatype"
+    ],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
     "path": "opc-ua-di/opc-ua-di-transferresultdatadatatype.json",
     "resourceId": "opc-ua-di-transferresultdatadatatype"
   },
   {
-    "dependsOn": [],
+    "dependsOn": [
+      "opc-ua-di-fetchresultdatatype"
+    ],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
     "path": "opc-ua-di/opc-ua-di-transferresulterrordatatype.json",
@@ -1223,13 +1250,6 @@
     "groupId": "thingdescriptions",
     "path": "opc-ua-di/opc-ua-di-tuning.json",
     "resourceId": "opc-ua-di-tuning"
-  },
-  {
-    "dependsOn": [],
-    "documentKind": "ThingModel",
-    "groupId": "thingmodels",
-    "path": "opc-ua-di/opc-ua-di-updatebehavior.json",
-    "resourceId": "opc-ua-di-updatebehavior"
   },
   {
     "dependsOn": [],
@@ -1364,13 +1384,59 @@
     "dependsOn": [],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
+    "path": "opc-ua-pumps/opc-ua-pumps-declarationofconformityoptionset.json",
+    "resourceId": "opc-ua-pumps-declarationofconformityoptionset"
+  },
+  {
+    "dependsOn": [],
+    "documentKind": "ThingModel",
+    "groupId": "thingmodels",
+    "path": "opc-ua-pumps/opc-ua-pumps-explosionprotectionoptionset.json",
+    "resourceId": "opc-ua-pumps-explosionprotectionoptionset"
+  },
+  {
+    "dependsOn": [],
+    "documentKind": "ThingModel",
+    "groupId": "thingmodels",
+    "path": "opc-ua-pumps/opc-ua-pumps-offeredcontrolmodesoptionset.json",
+    "resourceId": "opc-ua-pumps-offeredcontrolmodesoptionset"
+  },
+  {
+    "dependsOn": [],
+    "documentKind": "ThingModel",
+    "groupId": "thingmodels",
+    "path": "opc-ua-pumps/opc-ua-pumps-offeredfieldbusesoptionset.json",
+    "resourceId": "opc-ua-pumps-offeredfieldbusesoptionset"
+  },
+  {
+    "dependsOn": [],
+    "documentKind": "ThingModel",
+    "groupId": "thingmodels",
+    "path": "opc-ua-pumps/opc-ua-pumps-pumpclassenum.json",
+    "resourceId": "opc-ua-pumps-pumpclassenum"
+  },
+  {
+    "dependsOn": [
+      "opc-ua-pumps-declarationofconformityoptionset",
+      "opc-ua-pumps-explosionprotectionoptionset",
+      "opc-ua-pumps-offeredcontrolmodesoptionset",
+      "opc-ua-pumps-offeredfieldbusesoptionset",
+      "opc-ua-pumps-pumpclassenum"
+    ],
+    "documentKind": "ThingModel",
+    "groupId": "thingmodels",
     "path": "opc-ua-pumps/opc-ua-pumps-designtype.json",
     "resourceId": "opc-ua-pumps-designtype"
   },
   {
     "dependsOn": [
       "opc-ua-pumps-configurationgrouptype",
-      "opc-ua-pumps-designtype"
+      "opc-ua-pumps-declarationofconformityoptionset",
+      "opc-ua-pumps-designtype",
+      "opc-ua-pumps-explosionprotectionoptionset",
+      "opc-ua-pumps-offeredcontrolmodesoptionset",
+      "opc-ua-pumps-offeredfieldbusesoptionset",
+      "opc-ua-pumps-pumpclassenum"
     ],
     "documentKind": "ThingDescription",
     "groupId": "thingdescriptions",
@@ -1461,12 +1527,42 @@
     "dependsOn": [],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
+    "path": "opc-ua-pumps/opc-ua-pumps-explosionzoneoptionset.json",
+    "resourceId": "opc-ua-pumps-explosionzoneoptionset"
+  },
+  {
+    "dependsOn": [],
+    "documentKind": "ThingModel",
+    "groupId": "thingmodels",
+    "path": "opc-ua-pumps/opc-ua-pumps-fieldbusenum.json",
+    "resourceId": "opc-ua-pumps-fieldbusenum"
+  },
+  {
+    "dependsOn": [],
+    "documentKind": "ThingModel",
+    "groupId": "thingmodels",
+    "path": "opc-ua-pumps/opc-ua-pumps-operatingmodeenum.json",
+    "resourceId": "opc-ua-pumps-operatingmodeenum"
+  },
+  {
+    "dependsOn": [
+      "opc-ua-pumps",
+      "opc-ua-pumps-explosionzoneoptionset",
+      "opc-ua-pumps-fieldbusenum",
+      "opc-ua-pumps-operatingmodeenum"
+    ],
+    "documentKind": "ThingModel",
+    "groupId": "thingmodels",
     "path": "opc-ua-pumps/opc-ua-pumps-systemrequirementstype.json",
     "resourceId": "opc-ua-pumps-systemrequirementstype"
   },
   {
     "dependsOn": [
+      "opc-ua-pumps",
       "opc-ua-pumps-configurationgrouptype",
+      "opc-ua-pumps-explosionzoneoptionset",
+      "opc-ua-pumps-fieldbusenum",
+      "opc-ua-pumps-operatingmodeenum",
       "opc-ua-pumps-systemrequirementstype"
     ],
     "documentKind": "ThingDescription",
@@ -1494,13 +1590,6 @@
     "groupId": "thingmodels",
     "path": "opc-ua-pumps/opc-ua-pumps-controltype.json",
     "resourceId": "opc-ua-pumps-controltype"
-  },
-  {
-    "dependsOn": [],
-    "documentKind": "ThingModel",
-    "groupId": "thingmodels",
-    "path": "opc-ua-pumps/opc-ua-pumps-declarationofconformityoptionset.json",
-    "resourceId": "opc-ua-pumps-declarationofconformityoptionset"
   },
   {
     "dependsOn": [],
@@ -1976,25 +2065,21 @@
     "dependsOn": [],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
-    "path": "opc-ua-pumps/opc-ua-pumps-explosionprotectionoptionset.json",
-    "resourceId": "opc-ua-pumps-explosionprotectionoptionset"
+    "path": "opc-ua-pumps/opc-ua-pumps-maintenancelevelenum.json",
+    "resourceId": "opc-ua-pumps-maintenancelevelenum"
   },
   {
     "dependsOn": [],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
-    "path": "opc-ua-pumps/opc-ua-pumps-explosionzoneoptionset.json",
-    "resourceId": "opc-ua-pumps-explosionzoneoptionset"
+    "path": "opc-ua-pumps/opc-ua-pumps-stateoftheitemenum.json",
+    "resourceId": "opc-ua-pumps-stateoftheitemenum"
   },
   {
-    "dependsOn": [],
-    "documentKind": "ThingModel",
-    "groupId": "thingmodels",
-    "path": "opc-ua-pumps/opc-ua-pumps-fieldbusenum.json",
-    "resourceId": "opc-ua-pumps-fieldbusenum"
-  },
-  {
-    "dependsOn": [],
+    "dependsOn": [
+      "opc-ua-pumps-maintenancelevelenum",
+      "opc-ua-pumps-stateoftheitemenum"
+    ],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
     "path": "opc-ua-pumps/opc-ua-pumps-generalmaintenancetype.json",
@@ -2086,6 +2171,15 @@
     "dependsOn": [],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
+    "path": "opc-ua-pumps/opc-ua-pumps-physicaladdressdatatype.json",
+    "resourceId": "opc-ua-pumps-physicaladdressdatatype"
+  },
+  {
+    "dependsOn": [
+      "opc-ua-pumps-physicaladdressdatatype"
+    ],
+    "documentKind": "ThingModel",
+    "groupId": "thingmodels",
     "path": "opc-ua-pumps/opc-ua-pumps-ipumpvendornameplatetype.json",
     "resourceId": "opc-ua-pumps-ipumpvendornameplatetype"
   },
@@ -2119,7 +2213,9 @@
   {
     "dependsOn": [
       "opc-ua-pumps-generalmaintenancetype",
-      "opc-ua-pumps-maintenancegrouptype"
+      "opc-ua-pumps-maintenancegrouptype",
+      "opc-ua-pumps-maintenancelevelenum",
+      "opc-ua-pumps-stateoftheitemenum"
     ],
     "documentKind": "ThingDescription",
     "groupId": "thingdescriptions",
@@ -2142,13 +2238,6 @@
     "groupId": "thingdescriptions",
     "path": "opc-ua-pumps/opc-ua-pumps-maintenancegrouptype-preventivemaintenance.json",
     "resourceId": "opc-ua-pumps-maintenancegrouptype-preventivemaintenance"
-  },
-  {
-    "dependsOn": [],
-    "documentKind": "ThingModel",
-    "groupId": "thingmodels",
-    "path": "opc-ua-pumps/opc-ua-pumps-maintenancelevelenum.json",
-    "resourceId": "opc-ua-pumps-maintenancelevelenum"
   },
   {
     "dependsOn": [],
@@ -2201,29 +2290,20 @@
     "dependsOn": [],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
+    "path": "opc-ua-pumps/opc-ua-pumps-pumproleenum.json",
+    "resourceId": "opc-ua-pumps-pumproleenum"
+  },
+  {
+    "dependsOn": [
+      "opc-ua-pumps-distributiontypeenum",
+      "opc-ua-pumps-exchangemodeenum",
+      "opc-ua-pumps-multipumpoperationmodeenum",
+      "opc-ua-pumps-pumproleenum"
+    ],
+    "documentKind": "ThingModel",
+    "groupId": "thingmodels",
     "path": "opc-ua-pumps/opc-ua-pumps-multipumptype.json",
     "resourceId": "opc-ua-pumps-multipumptype"
-  },
-  {
-    "dependsOn": [],
-    "documentKind": "ThingModel",
-    "groupId": "thingmodels",
-    "path": "opc-ua-pumps/opc-ua-pumps-offeredcontrolmodesoptionset.json",
-    "resourceId": "opc-ua-pumps-offeredcontrolmodesoptionset"
-  },
-  {
-    "dependsOn": [],
-    "documentKind": "ThingModel",
-    "groupId": "thingmodels",
-    "path": "opc-ua-pumps/opc-ua-pumps-offeredfieldbusesoptionset.json",
-    "resourceId": "opc-ua-pumps-offeredfieldbusesoptionset"
-  },
-  {
-    "dependsOn": [],
-    "documentKind": "ThingModel",
-    "groupId": "thingmodels",
-    "path": "opc-ua-pumps/opc-ua-pumps-operatingmodeenum.json",
-    "resourceId": "opc-ua-pumps-operatingmodeenum"
   },
   {
     "dependsOn": [],
@@ -2274,8 +2354,12 @@
   },
   {
     "dependsOn": [
+      "opc-ua-pumps-distributiontypeenum",
+      "opc-ua-pumps-exchangemodeenum",
+      "opc-ua-pumps-multipumpoperationmodeenum",
       "opc-ua-pumps-multipumptype",
-      "opc-ua-pumps-operationalgrouptype"
+      "opc-ua-pumps-operationalgrouptype",
+      "opc-ua-pumps-pumproleenum"
     ],
     "documentKind": "ThingDescription",
     "groupId": "thingdescriptions",
@@ -2286,12 +2370,24 @@
     "dependsOn": [],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
+    "path": "opc-ua-pumps/opc-ua-pumps-operationmodeenum.json",
+    "resourceId": "opc-ua-pumps-operationmodeenum"
+  },
+  {
+    "dependsOn": [
+      "opc-ua-pumps",
+      "opc-ua-pumps-operationmodeenum"
+    ],
+    "documentKind": "ThingModel",
+    "groupId": "thingmodels",
     "path": "opc-ua-pumps/opc-ua-pumps-pumpactuationtype.json",
     "resourceId": "opc-ua-pumps-pumpactuationtype"
   },
   {
     "dependsOn": [
+      "opc-ua-pumps",
       "opc-ua-pumps-operationalgrouptype",
+      "opc-ua-pumps-operationmodeenum",
       "opc-ua-pumps-pumpactuationtype"
     ],
     "documentKind": "ThingDescription",
@@ -2353,12 +2449,22 @@
     "dependsOn": [],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
+    "path": "opc-ua-pumps/opc-ua-pumps-pumpkickmodeenum.json",
+    "resourceId": "opc-ua-pumps-pumpkickmodeenum"
+  },
+  {
+    "dependsOn": [
+      "opc-ua-pumps-pumpkickmodeenum"
+    ],
+    "documentKind": "ThingModel",
+    "groupId": "thingmodels",
     "path": "opc-ua-pumps/opc-ua-pumps-pumpkickobjecttype.json",
     "resourceId": "opc-ua-pumps-pumpkickobjecttype"
   },
   {
     "dependsOn": [
       "opc-ua-pumps-operationalgrouptype-pumpactuation",
+      "opc-ua-pumps-pumpkickmodeenum",
       "opc-ua-pumps-pumpkickobjecttype"
     ],
     "documentKind": "ThingDescription",
@@ -2637,13 +2743,6 @@
     "dependsOn": [],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
-    "path": "opc-ua-pumps/opc-ua-pumps-operationmodeenum.json",
-    "resourceId": "opc-ua-pumps-operationmodeenum"
-  },
-  {
-    "dependsOn": [],
-    "documentKind": "ThingModel",
-    "groupId": "thingmodels",
     "path": "opc-ua-pumps/opc-ua-pumps-outletconnectiondesigntype.json",
     "resourceId": "opc-ua-pumps-outletconnectiondesigntype"
   },
@@ -2719,13 +2818,6 @@
     "dependsOn": [],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
-    "path": "opc-ua-pumps/opc-ua-pumps-physicaladdressdatatype.json",
-    "resourceId": "opc-ua-pumps-physicaladdressdatatype"
-  },
-  {
-    "dependsOn": [],
-    "documentKind": "ThingModel",
-    "groupId": "thingmodels",
     "path": "opc-ua-pumps/opc-ua-pumps-portdirectionenum.json",
     "resourceId": "opc-ua-pumps-portdirectionenum"
   },
@@ -2739,6 +2831,7 @@
   {
     "dependsOn": [
       "opc-ua-pumps-driveporttype",
+      "opc-ua-pumps-portdirectionenum",
       "opc-ua-pumps-portsgrouptype"
     ],
     "documentKind": "ThingDescription",
@@ -2769,6 +2862,7 @@
   {
     "dependsOn": [
       "opc-ua-pumps-inletconnectionporttype",
+      "opc-ua-pumps-portdirectionenum",
       "opc-ua-pumps-portsgrouptype"
     ],
     "documentKind": "ThingDescription",
@@ -2819,6 +2913,7 @@
   {
     "dependsOn": [
       "opc-ua-pumps-outletconnectionporttype",
+      "opc-ua-pumps-portdirectionenum",
       "opc-ua-pumps-portsgrouptype"
     ],
     "documentKind": "ThingDescription",
@@ -2867,7 +2962,9 @@
     "resourceId": "opc-ua-pumps-portsgrouptype--outletconnection--systemrequirements"
   },
   {
-    "dependsOn": [],
+    "dependsOn": [
+      "opc-ua-pumps-portdirectionenum"
+    ],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
     "path": "opc-ua-pumps/opc-ua-pumps-porttype.json",
@@ -2926,6 +3023,7 @@
   {
     "dependsOn": [
       "opc-ua-pumps-pumpactuationtype",
+      "opc-ua-pumps-pumpkickmodeenum",
       "opc-ua-pumps-pumpkickobjecttype"
     ],
     "documentKind": "ThingDescription",
@@ -2964,15 +3062,9 @@
     "resourceId": "opc-ua-pumps-pumpactuationtype-ventvalverequest"
   },
   {
-    "dependsOn": [],
-    "documentKind": "ThingModel",
-    "groupId": "thingmodels",
-    "path": "opc-ua-pumps/opc-ua-pumps-pumpclassenum.json",
-    "resourceId": "opc-ua-pumps-pumpclassenum"
-  },
-  {
     "dependsOn": [
-      "opc-ua-pumps-ipumpvendornameplatetype"
+      "opc-ua-pumps-ipumpvendornameplatetype",
+      "opc-ua-pumps-physicaladdressdatatype"
     ],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
@@ -3002,20 +3094,6 @@
     "dependsOn": [],
     "documentKind": "ThingModel",
     "groupId": "thingmodels",
-    "path": "opc-ua-pumps/opc-ua-pumps-pumpkickmodeenum.json",
-    "resourceId": "opc-ua-pumps-pumpkickmodeenum"
-  },
-  {
-    "dependsOn": [],
-    "documentKind": "ThingModel",
-    "groupId": "thingmodels",
-    "path": "opc-ua-pumps/opc-ua-pumps-pumproleenum.json",
-    "resourceId": "opc-ua-pumps-pumproleenum"
-  },
-  {
-    "dependsOn": [],
-    "documentKind": "ThingModel",
-    "groupId": "thingmodels",
     "path": "opc-ua-pumps/opc-ua-pumps-pumptype.json",
     "resourceId": "opc-ua-pumps-pumptype"
   },
@@ -3031,7 +3109,12 @@
   },
   {
     "dependsOn": [
+      "opc-ua-pumps-declarationofconformityoptionset",
       "opc-ua-pumps-designtype",
+      "opc-ua-pumps-explosionprotectionoptionset",
+      "opc-ua-pumps-offeredcontrolmodesoptionset",
+      "opc-ua-pumps-offeredfieldbusesoptionset",
+      "opc-ua-pumps-pumpclassenum",
       "opc-ua-pumps-pumptype-configuration"
     ],
     "documentKind": "ThingDescription",
@@ -3114,6 +3197,10 @@
   },
   {
     "dependsOn": [
+      "opc-ua-pumps",
+      "opc-ua-pumps-explosionzoneoptionset",
+      "opc-ua-pumps-fieldbusenum",
+      "opc-ua-pumps-operatingmodeenum",
       "opc-ua-pumps-pumptype-configuration",
       "opc-ua-pumps-systemrequirementstype"
     ],
@@ -3468,6 +3555,7 @@
   },
   {
     "dependsOn": [
+      "opc-ua-pumps-physicaladdressdatatype",
       "opc-ua-pumps-pumpidentificationtype",
       "opc-ua-pumps-pumptype"
     ],
@@ -3528,7 +3616,9 @@
   {
     "dependsOn": [
       "opc-ua-pumps-generalmaintenancetype",
-      "opc-ua-pumps-pumptype-maintenance"
+      "opc-ua-pumps-maintenancelevelenum",
+      "opc-ua-pumps-pumptype-maintenance",
+      "opc-ua-pumps-stateoftheitemenum"
     ],
     "documentKind": "ThingDescription",
     "groupId": "thingdescriptions",
@@ -3597,7 +3687,11 @@
   },
   {
     "dependsOn": [
+      "opc-ua-pumps-distributiontypeenum",
+      "opc-ua-pumps-exchangemodeenum",
+      "opc-ua-pumps-multipumpoperationmodeenum",
       "opc-ua-pumps-multipumptype",
+      "opc-ua-pumps-pumproleenum",
       "opc-ua-pumps-pumptype-operational"
     ],
     "documentKind": "ThingDescription",
@@ -3607,6 +3701,8 @@
   },
   {
     "dependsOn": [
+      "opc-ua-pumps",
+      "opc-ua-pumps-operationmodeenum",
       "opc-ua-pumps-pumpactuationtype",
       "opc-ua-pumps-pumptype-operational"
     ],
@@ -3667,6 +3763,7 @@
   },
   {
     "dependsOn": [
+      "opc-ua-pumps-pumpkickmodeenum",
       "opc-ua-pumps-pumpkickobjecttype",
       "opc-ua-pumps-pumptype-operational-pumpactuation"
     ],
@@ -3948,6 +4045,7 @@
   {
     "dependsOn": [
       "opc-ua-pumps-driveporttype",
+      "opc-ua-pumps-portdirectionenum",
       "opc-ua-pumps-pumptype-ports"
     ],
     "documentKind": "ThingDescription",
@@ -3978,6 +4076,7 @@
   {
     "dependsOn": [
       "opc-ua-pumps-inletconnectionporttype",
+      "opc-ua-pumps-portdirectionenum",
       "opc-ua-pumps-pumptype-ports"
     ],
     "documentKind": "ThingDescription",
@@ -4028,6 +4127,7 @@
   {
     "dependsOn": [
       "opc-ua-pumps-outletconnectionporttype",
+      "opc-ua-pumps-portdirectionenum",
       "opc-ua-pumps-pumptype-ports"
     ],
     "documentKind": "ThingDescription",
@@ -4284,13 +4384,6 @@
     "groupId": "thingdescriptions",
     "path": "opc-ua-pumps/opc-ua-pumps-signalstype-ventvalveopen.json",
     "resourceId": "opc-ua-pumps-signalstype-ventvalveopen"
-  },
-  {
-    "dependsOn": [],
-    "documentKind": "ThingModel",
-    "groupId": "thingmodels",
-    "path": "opc-ua-pumps/opc-ua-pumps-stateoftheitemenum.json",
-    "resourceId": "opc-ua-pumps-stateoftheitemenum"
   },
   {
     "dependsOn": [

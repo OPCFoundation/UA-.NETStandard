@@ -106,7 +106,7 @@ namespace Opc.Ua.Wot
         public WotDocumentSet(string rootHref, ArrayOf<WotDocumentSetEntry> entries)
         {
             RootHref = rootHref ?? throw new ArgumentNullException(nameof(rootHref));
-            Entries = entries.IsNull ? ArrayOf<WotDocumentSetEntry>.Empty : entries;
+            Entries = entries.IsNull ? [] : entries;
         }
 
         /// <summary>
@@ -335,7 +335,8 @@ namespace Opc.Ua.Wot
             {
                 difference = await DocumentSetDifferenceAsync(
                     nodeSet, readable, resolved, nodeResolver, cancellationToken).ConfigureAwait(false);
-                if (candidate.Success && difference is null &&
+                if (candidate.Success &&
+                    difference is null &&
                     resolved.PreservationMode != WotNodeSetPreservationMode.Always)
                 {
                     keepCandidate = true;
@@ -351,7 +352,6 @@ namespace Opc.Ua.Wot
                     readable.Dispose();
                 }
             }
-
         }
 
         private static async ValueTask<string?> DocumentSetDifferenceAsync(
@@ -786,13 +786,11 @@ namespace Opc.Ua.Wot
                 documents, resolved, nodeResolver, cancellationToken).ConfigureAwait(false);
             foreach (WotConversionResult<UANodeSet> part in results)
             {
-                foreach (WotDiagnostic diagnostic in part.Diagnostics)
-                {
-                    diagnostics.Add(diagnostic);
-                }
+                diagnostics.AddRange(part.Diagnostics);
             }
             List<UANodeSet> partitions = FilterDocumentSetParts(documents, results, resolved, diagnostics);
             UANodeSet merged = MergeDocumentSetParts(documents, partitions, resolved, diagnostics);
+            ValidateDocumentSetPreservedFacts(documents, partitions, merged, resolved, diagnostics);
             return new WotConversionResult<UANodeSet>(
                 HasErrors(diagnostics) ? null : merged, diagnostics);
         }
@@ -835,6 +833,8 @@ namespace Opc.Ua.Wot
             }
 
             public UANodeSet? ArchiveContext { get; set; }
+
+            public bool DeferPreservedFactValidation { get; init; }
 
             public DataTypeDefinitionContext? DataTypes { get; set; }
 

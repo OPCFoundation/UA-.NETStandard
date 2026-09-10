@@ -109,7 +109,7 @@ namespace Opc.Ua.Wot
             string? DataType,
             int ValueRank,
             string? ArrayDimensions,
-            Opc.Ua.Export.LocalizedText[]? Description);
+            Export.LocalizedText[]? Description);
 
         /// <summary>
         /// The arguments a Method holds, in declaration order.
@@ -364,7 +364,7 @@ namespace Opc.Ua.Wot
         /// Reads an <c>Argument</c>'s Description text, keeping the locale it
         /// states (WoT Binding Section 9.1.1).
         /// </summary>
-        private static Opc.Ua.Export.LocalizedText[]? ReadArgumentDescription(
+        private static Export.LocalizedText[]? ReadArgumentDescription(
             System.Xml.XmlElement? description)
         {
             if (description is null)
@@ -379,7 +379,7 @@ namespace Opc.Ua.Wot
             System.Xml.XmlElement? locale = FindChild(description, "Locale");
             return
             [
-                new Opc.Ua.Export.LocalizedText
+                new Export.LocalizedText
                 {
                     Locale = locale?.InnerText ?? string.Empty,
                     Value = text.InnerText
@@ -494,28 +494,29 @@ namespace Opc.Ua.Wot
         /// </remarks>
         private static void WriteArgumentJsonType(Utf8JsonWriter writer, string? dataType)
         {
+            WriteOptional(writer, "type", MapReadableScalarType(dataType));
             switch (dataType)
             {
                 case WotVocabulary.ByteString:
-                    writer.WriteString("type", "string");
                     writer.WriteString("contentEncoding", WotVocabulary.Base64Encoding);
                     return;
                 case "i=13":
-                    writer.WriteString("type", "string");
                     writer.WriteString("format", "date-time");
                     return;
                 case "i=14":
-                    writer.WriteString("type", "string");
                     writer.WriteString("format", "uuid");
                     return;
                 case WotVocabulary.UriString:
-                    writer.WriteString("type", "string");
                     writer.WriteString("format", "uri");
                     return;
-                default:
-                    WriteOptional(writer, "type", MapDataTypeToJson(dataType));
-                    return;
             }
+        }
+
+        private static string? MapReadableScalarType(string? dataType)
+        {
+            return dataType is WotVocabulary.ByteString or "i=13" or "i=14" or WotVocabulary.UriString
+                ? "string"
+                : MapDataTypeToJson(dataType);
         }
 
         /// <summary>

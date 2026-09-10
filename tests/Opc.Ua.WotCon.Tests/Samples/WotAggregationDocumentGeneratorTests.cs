@@ -133,7 +133,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             ];
             ArrayOf<SampleDocument> documents = inputOrder switch
             {
-                1 => Enumerable.Reverse(input).ToArrayOf(),
+                1 => input.AsEnumerable().Reverse().ToArrayOf(),
                 2 => input.OrderBy(document => document.ResourceId, StringComparer.Ordinal).ToArrayOf(),
                 _ => input.ToArrayOf()
             };
@@ -217,7 +217,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         public void GeneratedManifestUsesIndentedLfJson()
         {
             ByteString generated = WotAggregationDocumentGenerator.GenerateManifest([CreateDocument("resource")]);
-            string expected = """
+            string expected = /*lang=json,strict*/ """
                 [
                   {
                     "dependsOn": [],
@@ -227,7 +227,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "resourceId": "resource"
                   }
                 ]
-                """.Replace("\r\n", "\n", StringComparison.Ordinal) + "\n";
+                """.Replace("\r\n", "\n", StringComparison.Ordinal) +
+                "\n";
 
             Assert.That(Encoding.UTF8.GetString(generated.ToArray()), Is.EqualTo(expected));
         }
@@ -580,7 +581,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         public void AffordanceReferenceRejectsMissingOrAmbiguousLocalDeclarations(string mapName, int declarations)
         {
             const string nodeId = "nsu=urn:local;s=Pump1.Member";
-            ArrayOf<SampleDocument> documents = Enumerable.Range(0, declarations).Select(index =>
+            var documents = Enumerable.Range(0, declarations).Select(index =>
                 CreateDocument(index == 0 ? "first" : "second", new JsonObject
                 {
                     [mapName] = new JsonObject { ["Member"] = new JsonObject { ["uav:id"] = nodeId } }
@@ -617,11 +618,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 .Where(extension => extension.Element(types + "Body")?.Element(types + "Range") is not null)];
 
             Assert.That(ranges, Is.Not.Empty, "The source must exercise XML-bodied Range values.");
-            NodeId expected = global::Opc.Ua.ObjectIds.Range_Encoding_DefaultXml;
+            NodeId expected = Ua.ObjectIds.Range_Encoding_DefaultXml;
             foreach (XElement range in ranges)
             {
                 string origin = range.Ancestors().Select(element => (string?)element.Attribute("NodeId"))
-                    .FirstOrDefault(nodeId => nodeId is not null) ?? PumpSourcePath;
+                    .FirstOrDefault(nodeId => nodeId is not null) ??
+                    PumpSourcePath;
                 XElement? identifier = range.Element(types + "TypeId")?.Element(types + "Identifier");
                 Assert.That(identifier, Is.Not.Null, origin);
                 Assert.That(NodeId.TryParse(identifier!.Value, out NodeId encodingId), Is.True, origin);
@@ -674,7 +676,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 {
                     UANode root = restored.Items!.Single(node => node.NodeId == $"ns=1;s={pumpName}");
                     Assert.That(root.References!.Any(reference => reference.ReferenceType == "i=35" &&
-                        !reference.IsForward && reference.Value == "i=85"), Is.True, pumpName);
+                        !reference.IsForward &&
+                        reference.Value == "i=85"), Is.True, pumpName);
                     Assert.That(restored.Items!.Select(node => node.NodeId),
                         Is.SupersetOf(ownedNames.Select(name => $"ns=1;s={pumpName}.{name}")), pumpName);
                 }
@@ -697,7 +700,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         public async Task BindingEnrichmentPreservesSourceDeclarationsAndPropertySchemas()
         {
             ArrayOf<SampleDocument> source = await ReadUnboundPumpDocumentsAsync().ConfigureAwait(false);
-            Dictionary<string, byte[]> originalBytes = source.ToList().ToDictionary(
+            var originalBytes = source.ToList().ToDictionary(
                 document => document.ResourceId, document => document.Json.ToArray(), StringComparer.Ordinal);
 
             ArrayOf<SampleDocument> bound = await WotAggregationDocumentGenerator
@@ -706,8 +709,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(bound.ToList().Select(document => (document.ResourceId, document.Path, document.DocumentKind)),
                 Is.EquivalentTo(source.ToList().Select(document =>
                     (document.ResourceId, document.Path, document.DocumentKind))));
-            string[] originalDeclarations = DeclarationInventory(source)
-                .OrderBy(value => value, StringComparer.Ordinal).ToArray();
+            string[] originalDeclarations = [.. DeclarationInventory(source).OrderBy(value => value, StringComparer.Ordinal)];
             Assert.That(originalDeclarations, Is.Not.Empty);
             Assert.That(DeclarationInventory(bound).OrderBy(value => value, StringComparer.Ordinal),
                 Is.EqualTo(originalDeclarations));
@@ -766,10 +768,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             ArrayOf<SampleDocument> incomplete = RemoveDeclaration(source, mapName, nodeId);
 
             await Assert.ThatAsync(
-                async () =>
-                {
-                    await WotAggregationDocumentGenerator.BindPumpDocumentsAsync(incomplete).ConfigureAwait(false);
-                },
+                () => WotAggregationDocumentGenerator.BindPumpDocumentsAsync(incomplete),
                 Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(
                     $"Expected exactly one '{mapName}' declaration for '{nodeId}'; found 0.")).ConfigureAwait(false);
         }
@@ -785,7 +784,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 pumpName, "Operational.Measurements.DifferentialPressure");
             string reference = WotAggregationDocumentGenerator.AffordanceReference(source, "properties", nodeId);
             string owner = reference[..reference.IndexOf('#', StringComparison.Ordinal)];
-            ArrayOf<SampleDocument> overlaid = source.ToArrayOf(document =>
+            var overlaid = source.ToArrayOf(document =>
             {
                 if (document.ResourceId != owner)
                 {
@@ -797,10 +796,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             });
 
             await Assert.ThatAsync(
-                async () =>
-                {
-                    await WotAggregationDocumentGenerator.BindPumpDocumentsAsync(overlaid).ConfigureAwait(false);
-                },
+                () => WotAggregationDocumentGenerator.BindPumpDocumentsAsync(overlaid),
                 Throws.TypeOf<InvalidOperationException>().With.Message.Contains(
                     owner)).ConfigureAwait(false);
         }
@@ -859,6 +855,39 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "cannot overlay undeclared Property")).ConfigureAwait(false);
         }
 
+        [Test]
+        public async Task BindingEnrichmentValidatesReadableFactsAfterResolvingPartitionOwnership()
+        {
+            UANodeSet source = WotAggregationDocumentGenerator.ReadNodeSet(PumpSourcePath);
+            ArrayOf<SampleDocument> declarations = await WotAggregationDocumentGenerator
+                .GenerateVerifiedDocumentSetAsync(source, "sample-pump").ConfigureAwait(false);
+            string nodeId = WotAggregationDocumentGenerator.LocalNodeId(
+                "Pump1", "Operational.Measurements.DifferentialPressure");
+            string reference = WotAggregationDocumentGenerator.AffordanceReference(declarations, "properties", nodeId);
+            int separator = reference.IndexOf('#', StringComparison.Ordinal);
+            string owner = reference[..separator];
+            ArrayOf<SampleDocument> contradictory = declarations.ConvertAll(document =>
+            {
+                if (document.ResourceId != owner)
+                {
+                    return document;
+                }
+                JsonObject root = JsonNode.Parse(document.Json.Span)!.AsObject();
+                JsonNode value = root;
+                foreach (string token in PointerTokens(reference[(separator + 1)..]))
+                {
+                    value = value[token]!;
+                }
+                value["uav:dataTypeId"] = "i=12";
+                return document with { Json = ByteString.From(JsonSerializer.SerializeToUtf8Bytes(root)) };
+            });
+
+            await Assert.ThatAsync(
+                () => WotAggregationDocumentGenerator.BindPumpDocumentsAsync(contradictory),
+                Throws.TypeOf<InvalidOperationException>().With.Message.Contains("readable DataType"))
+                .ConfigureAwait(false);
+        }
+
         [TestCase("Pump1", "CavitationAcknowledge", "CavitationAlarm")]
         [TestCase("Pump2", "MotorOverheatConfirm", "MotorOverheatAlarm")]
         public async Task BindingEnrichmentRejectsConditionActionsSeparatedFromTheirEvent(
@@ -877,10 +906,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 }));
 
             await Assert.ThatAsync(
-                async () =>
-                {
-                    await WotAggregationDocumentGenerator.BindPumpDocumentsAsync(separated).ConfigureAwait(false);
-                },
+                () => WotAggregationDocumentGenerator.BindPumpDocumentsAsync(separated),
                 Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(
                     $"'detached-condition' does not contain its '{eventName}' Condition event.")).ConfigureAwait(false);
         }
@@ -913,7 +939,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             string browseName,
             JsonObject? root = null)
         {
-            root ??= new JsonObject();
+            root ??= [];
             bool isType = type != "uav:object";
             root["@context"] ??= new JsonObject
             {
@@ -936,7 +962,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             string? path = null)
         {
             return new SampleDocument(resourceId, path ?? resourceId + ".json", kind,
-                ByteString.From(JsonSerializer.SerializeToUtf8Bytes(root ?? new JsonObject())));
+                ByteString.From(JsonSerializer.SerializeToUtf8Bytes(root ?? [])));
         }
 
         private static async Task<ArrayOf<SampleDocument>> ReadUnboundPumpDocumentsAsync()
@@ -992,9 +1018,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
         private static string[] PointerTokens(string pointer)
         {
-            return pointer[1..].Split('/').Select(token =>
-                token.Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal))
-                .ToArray();
+            return [.. pointer[1..].Split('/').Select(token =>
+                token.Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal))];
         }
 
         private static IEnumerable<string> DeclarationInventory(ArrayOf<SampleDocument> documents)
@@ -1023,7 +1048,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     {
                         continue;
                     }
-                    string memberPointer = pointer + "/" +
+                    string memberPointer = pointer +
+                        "/" +
                         name.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
                     if (affordance["uav:id"] is JsonNode id)
                     {
@@ -1061,10 +1087,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
         private static readonly string[] s_modelDependency = ["z-model"];
         private static readonly string[] s_logicalOrder = ["model", "owner", "view"];
         private static readonly string[] s_logicalDependencies = ["model", "owner"];
+
         private static readonly string[] s_manifestFields =
         [
             "resourceId", "path", "documentKind", "groupId", "dependsOn"
         ];
+
         private static readonly string[] s_portableDependencies = ["feeds-type", "pump-type", "reading-type"];
         private static readonly string[] s_namedDependencies = ["feeds-type", "pump-type"];
         private static readonly string[] s_pinnedReferenceDependency = ["second-reference"];

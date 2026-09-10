@@ -32,9 +32,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
@@ -172,7 +171,7 @@ namespace Opc.Ua.Wot
                 string? nativeDifference = null;
                 if (!HasErrors(nativeDiagnostics))
                 {
-                    using JsonDocument nativeDocument = JsonDocument.Parse(nativeProjection);
+                    using var nativeDocument = JsonDocument.Parse(nativeProjection);
                     var reconstructionDiagnostics = new List<WotDiagnostic>();
                     UANodeSet? reconstructed = WotNativeProjection.Read(
                         nativeDocument.RootElement,
@@ -257,7 +256,7 @@ namespace Opc.Ua.Wot
                 return new WotConversionResult<WotDocument>(null, diagnostics);
             }
 #pragma warning disable CA2000 // Ownership of the returned WotDocument transfers to the caller through the result.
-            WotDocument document = WotDocument.FromOwnedBytes(json, options);
+            var document = WotDocument.FromOwnedBytes(json, options);
 #pragma warning restore CA2000
             return new WotConversionResult<WotDocument>(document, diagnostics);
         }
@@ -274,106 +273,116 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics,
             string? parentHref = null,
             IReadOnlyDictionary<string, string>? eventTypeHrefs = null,
-            string? documentHref = null)
+            string? documentHref = null,
+            HashSet<string>? projectedNodeIds = null)
         {
             byte[]? digest = emitEnvelope ? ComputeSha256(nodeSetBytes) : null;
-            using (var output = new MemoryStream())
-            {
-                using (var writer = new Utf8JsonWriter(
-                    output,
-                    new JsonWriterOptions { Indented = true, SkipValidation = false }))
+            using var output = new MemoryStream();
+            using var writer = new Utf8JsonWriter(
+                output,
+                new JsonWriterOptions
                 {
-                    writer.WriteStartObject();
-                    string? documentLocale = SelectDocumentLocale(root);
-                    string defaultLocale = EffectiveLocale(documentLocale);
-                    WriteContext(writer, nodeSet, documentLocale);
-                    bool rootIsEventType = IsEventTypeRoot(root, nodeSet);
-                    WriteRootType(writer, root, rootIsEventType);
+                    Indented = true,
+                    SkipValidation = false,
+                    MaxDepth = options.MaxJsonDepth
+                });
+            try
+            {
+                writer.WriteStartObject();
+                string? documentLocale = SelectDocumentLocale(root);
+                string defaultLocale = EffectiveLocale(documentLocale);
+                WriteContext(writer, nodeSet, documentLocale);
+                bool rootIsEventType = IsEventTypeRoot(root, nodeSet);
+                WriteRootType(writer, root, rootIsEventType);
 
-                    // Section 4.1: a tool that generates a document against
-                    // this revision shall state which revision it emitted. A
-                    // generator, unlike a hand author, always knows.
+                // Section 4.1: a tool that generates a document against
+                // this revision shall state which revision it emitted. A
+                // generator, unlike a hand author, always knows.
+                writer.WriteString(
+                    WotBindingConformance.BindingVersionTerm,
+                    WotBindingConformance.CurrentRevision);
+                if (explicitTitle)
+                {
+                    writer.WriteString("title", resolvedTitle);
+                }
+                else
+                {
+                    WriteLocalizedTitle(
+                        writer, root?.DisplayName, defaultLocale, resolvedTitle);
+                }
+                if (!string.IsNullOrEmpty(root?.BrowseName))
+                {
                     writer.WriteString(
-                        WotBindingConformance.BindingVersionTerm,
-                        WotBindingConformance.CurrentRevision);
-                    if (explicitTitle)
+                        "uav:browseName",
+                        ToPortableQualifiedName(
+                            root!.BrowseName,
+                            nodeSet.NamespaceUris));
+                }
+                if (!string.IsNullOrEmpty(root?.NodeId))
+                {
+                    string? portableId = ToPortableNodeId(root!.NodeId, nodeSet.NamespaceUris);
+                    if (!string.IsNullOrEmpty(portableId))
                     {
-                        writer.WriteString("title", resolvedTitle);
+                        writer.WriteString("uav:id", portableId);
                     }
-                    else
-                    {
-                        WriteLocalizedTitle(
-                            writer, root?.DisplayName, defaultLocale, resolvedTitle);
-                    }
-                    if (!string.IsNullOrEmpty(root?.BrowseName))
-                    {
-                        writer.WriteString(
-                            "uav:browseName",
-                            ToPortableQualifiedName(
-                                root!.BrowseName,
-                                nodeSet.NamespaceUris));
-                    }
-                    if (!string.IsNullOrEmpty(root?.NodeId))
-                    {
-                        string? portableId = ToPortableNodeId(root!.NodeId, nodeSet.NamespaceUris);
-                        if (!string.IsNullOrEmpty(portableId))
-                        {
-                            writer.WriteString("uav:id", portableId);
-                        }
-                    }
-                    WriteReferenceTypeNames(writer, root, defaultLocale);
-                    if (root is UAType { IsAbstract: true })
-                    {
-                        writer.WriteBoolean("uav:isAbstract", true);
-                    }
-                    WriteLocalizedDescription(writer, root?.Description, defaultLocale);
-                    if (rootIsEventType && root is not null)
-                    {
-                        // The root projects an EventType Node, so this document
-                        // is the EventType definition an event affordance links
-                        // to with tm:ref: it states the complete effective field
-                        // set, in the order uav:fieldOrder gives, and a consumer
-                        // derives one select clause per leaf of it
-                        // (WoT Binding Section 6.1).
-                        WriteEventTypeDefinitionData(
-                            writer,
-                            root,
-                            nodeSet.NamespaceUris,
-                            nodeSet,
-                            BuildIndex(nodeSet),
-                            defaultLocale);
-                    }
-                    WriteDataTypeDefinitions(writer, nodeSet, defaultLocale, documentHref is null ? null : root);
-                    WriteAffordances(
-                        writer, nodeSet, root, diagnostics, options, defaultLocale, parentHref,
-                        TypeDefinitionHref(root, nodeSet), eventTypeHrefs, documentHref);
+                }
+                WriteReferenceTypeNames(writer, root, defaultLocale);
+                if (root is UAType { IsAbstract: true })
+                {
+                    writer.WriteBoolean("uav:isAbstract", true);
+                }
+                WriteLocalizedDescription(writer, root?.Description, defaultLocale);
+                if (rootIsEventType &&
+                    root is not null &&
+                    (projectedNodeIds is null || projectedNodeIds.Contains(root.NodeId ?? string.Empty)))
+                {
+                    // The root projects an EventType Node, so this document
+                    // is the EventType definition an event affordance links
+                    // to with tm:ref: it states the complete effective field
+                    // set, in the order uav:fieldOrder gives, and a consumer
+                    // derives one select clause per leaf of it
+                    // (WoT Binding Section 6.1).
+                    WriteEventTypeDefinitionData(
+                        writer,
+                        root,
+                        nodeSet.NamespaceUris,
+                        nodeSet,
+                        BuildIndex(nodeSet),
+                        defaultLocale);
+                }
+                WriteDataTypeDefinitions(writer, nodeSet, defaultLocale, documentHref is null ? null : root);
+                WriteAffordances(
+                    writer, nodeSet, root, diagnostics, options, defaultLocale, parentHref,
+                    TypeDefinitionHref(root, nodeSet), eventTypeHrefs, documentHref, projectedNodeIds);
 
-                    if (emitEnvelope)
-                    {
-                        writer.WritePropertyName("uav:nodeSet");
-                        writer.WriteStartObject();
-                        writer.WriteString("@type", WotVocabulary.EnvelopeType);
-                        writer.WriteString("contentType", WotVocabulary.NodeSetContentType);
-                        writer.WriteString("encoding", WotVocabulary.Base64Encoding);
-                        writer.WriteString("sha256", CoreUtils.ToHexString(digest!).ToLowerInvariant());
-                        writer.WriteString("data", System.Convert.ToBase64String(nodeSetBytes));
-                        writer.WriteString("profileVersion", WotVocabulary.ProfileVersion);
-                        writer.WriteEndObject();
-                    }
-
-                    if (nativeProjection is not null)
-                    {
-                        writer.WritePropertyName("uav:nodes");
-                        using (JsonDocument nativeDocument = JsonDocument.Parse(nativeProjection))
-                        {
-                            nativeDocument.RootElement.WriteTo(writer);
-                        }
-                    }
-
+                if (emitEnvelope)
+                {
+                    writer.WritePropertyName("uav:nodeSet");
+                    writer.WriteStartObject();
+                    writer.WriteString("@type", WotVocabulary.EnvelopeType);
+                    writer.WriteString("contentType", WotVocabulary.NodeSetContentType);
+                    writer.WriteString("encoding", WotVocabulary.Base64Encoding);
+                    writer.WriteString("sha256", CoreUtils.ToHexString(digest!).ToLowerInvariant());
+                    writer.WriteString("data", Convert.ToBase64String(nodeSetBytes));
+                    writer.WriteString("profileVersion", WotVocabulary.ProfileVersion);
                     writer.WriteEndObject();
                 }
-                return output.ToArray();
+
+                if (nativeProjection is not null)
+                {
+                    writer.WritePropertyName("uav:nodes");
+                    using var nativeDocument = JsonDocument.Parse(nativeProjection);
+                    nativeDocument.RootElement.WriteTo(writer);
+                }
+
+                writer.WriteEndObject();
+                writer.Flush();
             }
+            catch (InvalidOperationException exception) when (writer.CurrentDepth >= options.MaxJsonDepth)
+            {
+                throw new JsonException("The readable projection exceeds the configured JSON depth.", exception);
+            }
+            return output.ToArray();
         }
 
         private static bool IsReadableMappingComplete(
@@ -381,13 +390,13 @@ namespace Opc.Ua.Wot
             UANodeSet source,
             WotNodeSetConverterOptions options)
         {
-            using WotDocument candidate = WotDocument.Parse(json, options);
+            using var candidate = WotDocument.Parse(json, options);
             bool unsupportedProjection = candidate.TryGetNativeProjection(out JsonElement projection) &&
                 WotNativeProjection.HasUnsupportedProfile(projection);
             byte[] readable = unsupportedProjection
                 ? RemoveRootMembers(json, options, "uav:nodeSet")
                 : RemoveRootMembers(json, options, "uav:nodes", "uav:nodeSet");
-            using WotDocument document = WotDocument.Parse(readable, options);
+            using var document = WotDocument.Parse(readable, options);
             WotConversionResult<UANodeSet> result =
                 ToNodeSetResult(document, options);
             // §9.2 asks whether the readable document reproduces an equivalent
@@ -405,7 +414,7 @@ namespace Opc.Ua.Wot
             WotNodeSetConverterOptions options,
             params string[] names)
         {
-            using WotDocument document = WotDocument.Parse(json, options);
+            using var document = WotDocument.Parse(json, options);
             var excluded = new HashSet<string>(names, StringComparer.Ordinal);
             using var output = new MemoryStream();
             using (var writer = new Utf8JsonWriter(
@@ -468,7 +477,7 @@ namespace Opc.Ua.Wot
             string namespaceUri;
             if (localIndex == 0)
             {
-                namespaceUri = Opc.Ua.Types.Namespaces.OpcUa;
+                namespaceUri = Types.Namespaces.OpcUa;
             }
             else if (nodeSet.NamespaceUris is { Length: > 0 } uris &&
                 localIndex - 1 < uris.Length)
@@ -500,7 +509,7 @@ namespace Opc.Ua.Wot
                     writer.WriteString(
                         "ns" +
                         (ii + 1).ToString(
-                            System.Globalization.CultureInfo.InvariantCulture),
+                            CultureInfo.InvariantCulture),
                         nodeSet.NamespaceUris[ii]);
                 }
             }
@@ -706,7 +715,8 @@ namespace Opc.Ua.Wot
             string? parentHref = null,
             string? typeDefinitionHref = null,
             IReadOnlyDictionary<string, string>? eventTypeHrefs = null,
-            string? documentHref = null)
+            string? documentHref = null,
+            HashSet<string>? projectedNodeIds = null)
         {
             if (root is null)
             {
@@ -733,15 +743,17 @@ namespace Opc.Ua.Wot
             var componentChildren = new List<string>();
             var componentParents = new List<string>();
             var typedComponentLinks = new List<TypedComponentLink>();
-            WotReferenceTypeNames referenceTypeNames = WotReferenceTypeNames.Build(nodeSet);
+            var referenceTypeNames = WotReferenceTypeNames.Build(nodeSet);
             ArrayOf<Reference> rootReferences = referenceTypeNames.GetReferences(root);
             var affordanceIds = new HashSet<string>(StringComparer.Ordinal);
             var multipleOwnershipTargets = new HashSet<string>(StringComparer.Ordinal);
             foreach (Reference reference in rootReferences)
             {
-                if (reference.IsForward && reference.Value is not null &&
+                if (reference.IsForward &&
+                    reference.Value is not null &&
                     referenceTypeNames.IsOwnershipReference(reference.ReferenceType) &&
-                    index.TryGetValue(reference.Value, out UANode? target) && target is UAVariable or UAMethod &&
+                    index.TryGetValue(reference.Value, out UANode? target) &&
+                    target is UAVariable or UAMethod &&
                     !affordanceIds.Add(reference.Value))
                 {
                     multipleOwnershipTargets.Add(reference.Value);
@@ -760,7 +772,9 @@ namespace Opc.Ua.Wot
                     bool componentSubtype = referenceTypeNames.IsHasComponentReference(reference.ReferenceType) &&
                         !IsReferenceTypeNamed(reference.ReferenceType, "HasComponent", WotVocabulary.HasComponent);
                     index.TryGetValue(reference.Value, out UANode? component);
-                    if (reference.IsForward && root is UAObjectType && component is UAObject &&
+                    if (reference.IsForward &&
+                        root is UAObjectType &&
+                        component is UAObject &&
                         referenceTypeNames.IsHasComponentReference(reference.ReferenceType) &&
                         TypeDefinitionHref(component, nodeSet) is { } componentType &&
                         ToPortableNodeId(component.NodeId, namespaceUris) is { } declarationId &&
@@ -877,11 +891,16 @@ namespace Opc.Ua.Wot
                 }
             }
 
-            int eventBudget = Math.Max(
-                0,
-                options.MaxAffordanceCount - properties.Count - actions.Count);
+            int propertyCount = projectedNodeIds is null
+                ? properties.Count
+                : properties.Count(node => projectedNodeIds.Contains(node.NodeId ?? string.Empty));
+            int actionCount = projectedNodeIds is null
+                ? actions.Count
+                : actions.Count(node => projectedNodeIds.Contains(node.NodeId ?? string.Empty));
+            int eventBudget = Math.Max(0, options.MaxAffordanceCount - propertyCount - actionCount);
             var conditionEventKeys = new List<string>();
-            for (int ii = 0; ii < events.Count && ii < eventBudget; ii++)
+            // Selective output does not remove native events from the Method's pairing context.
+            for (int ii = 0; ii < events.Count && (projectedNodeIds is not null || ii < eventBudget); ii++)
             {
                 if (eventProjections[ii].IsCondition)
                 {
@@ -938,11 +957,16 @@ namespace Opc.Ua.Wot
                 writer.WriteStartObject();
                 for (int ii = 0; ii < properties.Count; ii++)
                 {
+                    UAVariable variable = properties[ii];
+                    if (projectedNodeIds is not null &&
+                        !projectedNodeIds.Contains(variable.NodeId ?? string.Empty))
+                    {
+                        continue;
+                    }
                     if (!CheckAffordanceBudget(ref affordanceCount, options, diagnostics))
                     {
                         break;
                     }
-                    UAVariable variable = properties[ii];
                     writer.WritePropertyName(propertyKeys[ii]);
                     nestedParents.TryGetValue(variable.NodeId ?? string.Empty, out string? owner);
                     analogFacets.TryGetValue(
@@ -961,11 +985,17 @@ namespace Opc.Ua.Wot
                 var used = new HashSet<string>(StringComparer.Ordinal);
                 foreach (UAMethod method in actions)
                 {
+                    string key = UniqueKey(LocalName(method.BrowseName), used);
+                    if (projectedNodeIds is not null &&
+                        !projectedNodeIds.Contains(method.NodeId ?? string.Empty))
+                    {
+                        continue;
+                    }
                     if (!CheckAffordanceBudget(ref affordanceCount, options, diagnostics))
                     {
                         break;
                     }
-                    writer.WritePropertyName(UniqueKey(LocalName(method.BrowseName), used));
+                    writer.WritePropertyName(key);
                     methodArguments.TryGetValue(
                         method.NodeId ?? string.Empty, out WotMethodArguments arguments);
                     conditionActions.TryGetValue(
@@ -988,6 +1018,11 @@ namespace Opc.Ua.Wot
                 writer.WriteStartObject();
                 for (int ii = 0; ii < events.Count; ii++)
                 {
+                    if (projectedNodeIds is not null &&
+                        !projectedNodeIds.Contains(events[ii].NodeId ?? string.Empty))
+                    {
+                        continue;
+                    }
                     if (!CheckAffordanceBudget(ref affordanceCount, options, diagnostics))
                     {
                         break;
@@ -1048,8 +1083,8 @@ namespace Opc.Ua.Wot
                 case "Int64":
                     if (long.TryParse(
                         value.InnerText,
-                        System.Globalization.NumberStyles.Integer,
-                        System.Globalization.CultureInfo.InvariantCulture,
+                        NumberStyles.Integer,
+                        CultureInfo.InvariantCulture,
                         out long signed))
                     {
                         writer.WriteNumber("const", signed);
@@ -1061,8 +1096,8 @@ namespace Opc.Ua.Wot
                 case "UInt64":
                     if (ulong.TryParse(
                         value.InnerText,
-                        System.Globalization.NumberStyles.Integer,
-                        System.Globalization.CultureInfo.InvariantCulture,
+                        NumberStyles.Integer,
+                        CultureInfo.InvariantCulture,
                         out ulong unsigned))
                     {
                         writer.WriteNumber("const", unsigned);
@@ -1071,10 +1106,11 @@ namespace Opc.Ua.Wot
                 case "Float":
                     if (float.TryParse(
                         value.InnerText,
-                        System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture,
+                        NumberStyles.Float,
+                        CultureInfo.InvariantCulture,
                         out float single) &&
-                        !float.IsNaN(single) && !float.IsInfinity(single))
+                        !float.IsNaN(single) &&
+                        !float.IsInfinity(single))
                     {
                         writer.WriteNumber("const", single);
                     }
@@ -1082,10 +1118,11 @@ namespace Opc.Ua.Wot
                 case "Double":
                     if (double.TryParse(
                         value.InnerText,
-                        System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture,
+                        NumberStyles.Float,
+                        CultureInfo.InvariantCulture,
                         out double number) &&
-                        !double.IsNaN(number) && !double.IsInfinity(number))
+                        !double.IsNaN(number) &&
+                        !double.IsInfinity(number))
                     {
                         WotJsonCanonicalizer.WriteNumber(writer, "const", number);
                     }
@@ -1183,7 +1220,8 @@ namespace Opc.Ua.Wot
                 string type = ResolveArchivedAlias(reference.ReferenceType, aliases);
                 if (reference.IsForward ||
                     !(referenceTypeNames?.IsOwnershipReference(type) ?? IsComponentReference(type)) ||
-                    (type == WotVocabulary.HasComponent && typeDefinition != WotVocabulary.PropertyType &&
+                    (type == WotVocabulary.HasComponent &&
+                        typeDefinition != WotVocabulary.PropertyType &&
                         ownershipCount == 1) ||
                     referenceTypeNames is null ||
                     !referenceTypeNames.TryGetRelation(
@@ -1577,7 +1615,7 @@ namespace Opc.Ua.Wot
             if (!string.IsNullOrEmpty(eventTypeHref))
             {
                 writer.WriteString(
-                    WotEventSelectClauses.TypeDefinitionReferenceTerm, eventTypeHref!);
+                    WotEventSelectClauses.TypeDefinitionReferenceTerm, eventTypeHref);
             }
 
             // Sections 13.2 and 13.3: the ConditionType the event projects and
@@ -1875,7 +1913,7 @@ namespace Opc.Ua.Wot
                     (reference.IsForward
                         ? ", so it is not written as a readable link."
                         : " for its inverse direction, so it is not written as a " +
-                        "readable link."),
+                            "readable link."),
                     new WotLocation(nodeId: root.NodeId, reference: reference.ReferenceType)));
                 return;
             }
@@ -1884,7 +1922,7 @@ namespace Opc.Ua.Wot
                 modelName,
                 refId,
                 index.TryGetValue(reference.Value!, out UANode? target) &&
-                    LocalName(target.BrowseName) is { Length: > 0 } local
+                LocalName(target.BrowseName) is { Length: > 0 } local
                     ? local
                     : string.Empty));
         }
@@ -2029,8 +2067,10 @@ namespace Opc.Ua.Wot
         private static string GenerateNodeId(UANodeSet nodeSet, ArrayOf<WotBrowsePathElement> path)
         {
             int namespaceIndex = GetOrAppendNamespaceUri(nodeSet, GeneratedNamespaceUri(nodeSet));
-            return "ns=" + namespaceIndex.ToString(CultureInfo.InvariantCulture) +
-                ";s=" + WotPortableIdentity.GenerateBrowsePath(path);
+            return "ns=" +
+                namespaceIndex.ToString(CultureInfo.InvariantCulture) +
+                ";s=" +
+                WotPortableIdentity.GenerateBrowsePath(path);
         }
 
         /// <summary>
@@ -2198,7 +2238,7 @@ namespace Opc.Ua.Wot
                     .Append(';');
             }
             NodeId.Format(
-                System.Globalization.CultureInfo.InvariantCulture,
+                CultureInfo.InvariantCulture,
                 buffer,
                 parsed.IdentifierAsString,
                 parsed.IdType,
@@ -2242,7 +2282,7 @@ namespace Opc.Ua.Wot
                 }
                 namespaceIndex = (namespaceIndex * 10) + digit;
             }
-            string name = rawBrowseName.Substring(separator + 1);
+            string name = rawBrowseName[(separator + 1)..];
             if (namespaceIndex == 0)
             {
                 return name;
@@ -2253,7 +2293,7 @@ namespace Opc.Ua.Wot
             }
             return "ns" +
                 namespaceIndex.ToString(
-                    System.Globalization.CultureInfo.InvariantCulture) +
+                    CultureInfo.InvariantCulture) +
                 ":" +
                 name;
         }
@@ -2295,18 +2335,18 @@ namespace Opc.Ua.Wot
             return builder.Length == 0 ? null : builder.ToString();
         }
 
-        private static Opc.Ua.Export.LocalizedText[] MakeText(string value)
+        private static Export.LocalizedText[] MakeText(string value)
         {
-            return [new Opc.Ua.Export.LocalizedText { Value = value }];
+            return [new Export.LocalizedText { Value = value }];
         }
 
-        private static string? FirstText(Opc.Ua.Export.LocalizedText[]? texts)
+        private static string? FirstText(Export.LocalizedText[]? texts)
         {
             if (texts is null)
             {
                 return null;
             }
-            foreach (Opc.Ua.Export.LocalizedText text in texts)
+            foreach (Export.LocalizedText text in texts)
             {
                 if (!string.IsNullOrEmpty(text.Value))
                 {
