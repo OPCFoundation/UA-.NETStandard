@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -27,8 +27,24 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Runtime.CompilerServices;
+using System.Collections.Generic;
 
-[assembly: CLSCompliant(false)]
-[assembly: InternalsVisibleTo("Opc.Ua.Server.Tests")]
+namespace Opc.Ua.Server
+{
+    /// <summary>
+    /// Implemented by a node manager or server feature which contributes
+    /// conformance units and server profiles.
+    /// </summary>
+    public interface IConformanceContributor
+    {
+        /// <summary>
+        /// Gets the supported conformance units.
+        /// </summary>
+        IReadOnlyList<QualifiedName> ConformanceUnits { get; }
+
+        /// <summary>
+        /// Gets the supported server profile URIs.
+        /// </summary>
+        IReadOnlyList<string> ServerProfiles { get; }
+    }
+}

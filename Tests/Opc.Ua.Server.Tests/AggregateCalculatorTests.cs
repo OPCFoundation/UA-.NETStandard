@@ -147,11 +147,6 @@ namespace Opc.Ua.Server.Tests
         /// Test StandardDeviationPopulation with example from OPC UA Part 13 v1.05 Section A.35
         /// Example: Values [10, 20, 30, 40, 50] should give population std dev ≈ 14.142
         /// </para>
-        /// <para>
-        /// Implementation Note: Population aggregates exclude the last value when using GetValues().
-        /// To test the spec example with 5 values, we provide 6 values where the last is a duplicate.
-        /// The implementation will use the first 5 values for the calculation.
-        /// </para>
         /// </summary>
         [Test]
         public void StandardDeviationPopulation_SpecExample()
@@ -159,8 +154,7 @@ namespace Opc.Ua.Server.Tests
             // Arrange
             var startTime = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             DateTime firstValueTime = startTime.AddMilliseconds(500);
-            // Providing 6 values where last is duplicate - implementation will use first 5
-            double[] values = [10, 20, 30, 40, 50, 50];
+            double[] values = [10, 20, 30, 40, 50];
             List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
             DateTime endTime = startTime.AddSeconds(12);
 
@@ -186,11 +180,6 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// <para>Test StandardDeviationPopulation with single value - should return 0</para>
-        /// <para>
-        /// Implementation Note: To test single value behavior with population aggregates,
-        /// we provide 2 identical values since the implementation excludes the last value.
-        /// This results in 1 value being used in the calculation, which correctly returns stddev=0.
-        /// </para>
         /// </summary>
         [Test]
         public void StandardDeviationPopulation_SingleValue_ReturnsZero()
@@ -198,8 +187,7 @@ namespace Opc.Ua.Server.Tests
             // Arrange
             var startTime = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             DateTime firstValueTime = startTime.AddMilliseconds(500);
-            // Providing 2 identical values - implementation will use first 1
-            double[] values = [42.5, 42.5];
+            double[] values = [42.5];
             List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
             DateTime endTime = startTime.AddSeconds(5);
 
@@ -348,11 +336,6 @@ namespace Opc.Ua.Server.Tests
         /// Test VariancePopulation with example from OPC UA Part 13 v1.05 Section A.37
         /// Example: Values [10, 20, 30, 40, 50] should give population variance = 200
         /// </para>
-        /// <para>
-        /// Implementation Note: Population aggregates exclude the last value when using GetValues().
-        /// To test the spec example with 5 values, we provide 6 values where the last is a duplicate.
-        /// The implementation will use the first 5 values for the calculation.
-        /// </para>
         /// </summary>
         [Test]
         public void VariancePopulation_SpecExample()
@@ -360,8 +343,7 @@ namespace Opc.Ua.Server.Tests
             // Arrange
             var startTime = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             DateTime firstValueTime = startTime.AddMilliseconds(500);
-            // Providing 6 values where last is duplicate - implementation will use first 5
-            double[] values = [10, 20, 30, 40, 50, 50];
+            double[] values = [10, 20, 30, 40, 50];
             List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
             DateTime endTime = startTime.AddSeconds(12);
 
@@ -387,11 +369,6 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// <para>Test VariancePopulation with single value - should return 0</para>
-        /// <para>
-        /// Implementation Note: To test single value behavior with population aggregates,
-        /// we provide 2 identical values since the implementation excludes the last value.
-        /// This results in 1 value being used in the calculation, which correctly returns variance=0.
-        /// </para>
         /// </summary>
         [Test]
         public void VariancePopulation_SingleValue_ReturnsZero()
@@ -399,8 +376,7 @@ namespace Opc.Ua.Server.Tests
             // Arrange
             var startTime = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             DateTime firstValueTime = startTime.AddMilliseconds(500);
-            // Providing 2 identical values - implementation will use first 1
-            double[] values = [42.5, 42.5];
+            double[] values = [42.5];
             List<DataValue> dataValues = CreateDataValues(firstValueTime, values, 2000);
             DateTime endTime = startTime.AddSeconds(5);
 
@@ -656,6 +632,28 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(sampleVariance, Is.GreaterThanOrEqualTo(populationVariance),
                 "Sample variance should be greater than or equal to population variance");
+        }
+
+        [Test]
+        public void InterpolativeReturnsValueAtIntervalStart()
+        {
+            var startTime = new DateTime(2024, 1, 1, 0, 0, 0);
+            DateTime endTime = startTime.AddMilliseconds(6000);
+            double[] values = [10, 20, 30];
+            List<DataValue> dataValues = CreateDataValues(startTime, values, 2000);
+
+            DataValue result = ComputeAggregate(
+                ObjectIds.AggregateFunction_Interpolative,
+                dataValues,
+                startTime,
+                endTime,
+                6000);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.WrappedValue.IsNull, Is.False);
+            Assert.That(
+                Convert.ToDouble(result.Value, CultureInfo.InvariantCulture),
+                Is.EqualTo(10.0).Within(0.0001));
         }
     }
 }

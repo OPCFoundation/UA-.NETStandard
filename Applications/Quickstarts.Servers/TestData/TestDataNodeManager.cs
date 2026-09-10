@@ -554,6 +554,14 @@ namespace TestData
         {
             var serverContext = context as ServerSystemContext;
 
+            if (source.ValueRank == ValueRanks.Scalar &&
+                nodeToRead.ParsedIndexRange != NumericRange.Empty)
+            {
+                result.StatusCode = StatusCodes.BadIndexRangeNoData;
+                result.ContinuationPoint = null;
+                return ServiceResult.Good;
+            }
+
             var data = new HistoryData();
 
             HistoryDataReader reader;
@@ -619,7 +627,16 @@ namespace TestData
             if (!complete)
             {
                 SaveDataReader(serverContext, reader);
-                result.StatusCode = StatusCodes.GoodMoreData;
+                result.ContinuationPoint = reader.Id.ToByteArray();
+                result.StatusCode = StatusCodes.Good;
+            }
+            else
+            {
+                Utils.SilentDispose(reader);
+                result.ContinuationPoint = null;
+                result.StatusCode = data.DataValues.Count == 0 && !details.ReturnBounds
+                    ? StatusCodes.GoodNoData
+                    : StatusCodes.Good;
             }
 
             // return the dat.
@@ -673,6 +690,55 @@ namespace TestData
         }
 
         /// <summary>
+        /// Reads processed history through the existing aggregate calculator
+        /// implementations while retaining the legacy HistoryFile layout.
+        /// </summary>
+        protected override void HistoryReadProcessed(
+            ServerSystemContext context,
+            ReadProcessedDetails details,
+            TimestampsToReturn timestampsToReturn,
+            IList<HistoryReadValueId> nodesToRead,
+            IList<HistoryReadResult> results,
+            IList<ServiceResult> errors,
+            List<NodeHandle> nodesToProcess,
+            IDictionary<NodeId, NodeState> cache)
+        {
+            for (int ii = 0; ii < nodesToProcess.Count; ii++)
+            {
+                NodeHandle handle = nodesToProcess[ii];
+                NodeState source = ValidateNode(context, handle, cache);
+
+                if (source is not BaseVariableState variable)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                ServiceResult error = GetHistoryDataSource(
+                    context,
+                    variable,
+                    out IHistoryDataSource datasource);
+                if (ServiceResult.IsBad(error))
+                {
+                    errors[handle.Index] = error;
+                    continue;
+                }
+
+                errors[handle.Index] = ProcessedHistoryAdapter.Read(
+                    context,
+                    Server,
+                    variable.NodeId,
+                    datasource,
+                    details,
+                    details.AggregateType[handle.Index],
+                    m_system.GetAnnotationTimestamps(variable),
+                    timestampsToReturn,
+                    nodesToRead[handle.Index],
+                    results[handle.Index]);
+            }
+        }
+
+        /// <summary>
         /// Releases the continuation points for history read operations.
         /// </summary>
         protected override void HistoryReleaseContinuationPoints(
@@ -695,21 +761,33 @@ namespace TestData
                 }
 
                 // only variables can have history.
-                if (source is not BaseVariableState variable)
+                if (source is not BaseVariableState)
                 {
                     errors[handle.Index] = StatusCodes.BadContinuationPointInvalid;
                     continue;
                 }
 
-                // release the continuation point.
-                errors[handle.Index] = HistoryReadRaw(
-                    context,
-                    variable,
-                    null,
-                    TimestampsToReturn.Neither,
-                    true,
-                    nodesToRead[handle.Index],
-                    new HistoryReadResult());
+                HistoryReadValueId nodeToRead = nodesToRead[handle.Index];
+                object continuation = context.OperationContext?.Session?
+                    .RestoreHistoryContinuationPoint(nodeToRead.ContinuationPoint);
+
+                if (continuation is HistoryDataReader rawReader &&
+                    rawReader.VariableId == nodeToRead.NodeId)
+                {
+                    Utils.SilentDispose(rawReader);
+                    errors[handle.Index] = ServiceResult.Good;
+                }
+                else if (continuation is ProcessedHistoryContinuationState processed &&
+                    processed.VariableId == nodeToRead.NodeId)
+                {
+                    Utils.SilentDispose(processed);
+                    errors[handle.Index] = ServiceResult.Good;
+                }
+                else
+                {
+                    Utils.SilentDispose(continuation);
+                    errors[handle.Index] = StatusCodes.BadContinuationPointInvalid;
+                }
             }
         }
 

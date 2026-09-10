@@ -146,6 +146,16 @@ namespace TestData
         }
 
         /// <summary>
+        /// Returns a request-local snapshot of annotations for a variable.
+        /// </summary>
+        internal IReadOnlyList<DateTime> GetAnnotationTimestamps(BaseVariableState variable)
+        {
+            return variable == null
+                ? Array.Empty<DateTime>()
+                : m_historyArchive.GetAnnotationTimestamps(variable.NodeId);
+        }
+
+        /// <summary>
         /// Returns a new value for the variable.
         /// </summary>
         public object ReadValue(BaseVariableState variable)

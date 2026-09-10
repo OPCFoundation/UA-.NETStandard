@@ -1190,6 +1190,320 @@ namespace Opc.Ua.Server.Tests
                 logger);
         }
 
+        [Test]
+        public void ReferenceServerPublishesHistoricalConformanceMetadata()
+        {
+            ServerCapabilitiesState capabilities = m_server.CurrentInstance.DiagnosticsNodeManager
+                .FindPredefinedNode<ServerCapabilitiesState>(
+                    ObjectIds.Server_ServerCapabilities);
+            string[] profiles = capabilities.ServerProfileArray.Value;
+            QualifiedName[] units = capabilities.ConformanceUnits.Value;
+
+            Assert.AreEqual(
+                1,
+                profiles.Count(profile =>
+                    profile == "http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022"));
+            Assert.AreEqual(
+                1,
+                profiles.Count(profile =>
+                    profile == "http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022"));
+            Assert.IsTrue(units.Any(unit => unit.Name == "Historical Access Read Raw"));
+            Assert.IsTrue(units.Any(unit => unit.Name == "Historical Access Aggregates"));
+            Assert.IsTrue(units.Any(unit => unit.Name == "Address Space Base"));
+
+            HistoryServerCapabilitiesState historyCapabilities = m_server.CurrentInstance
+                .DiagnosticsNodeManager.GetDefaultHistoryCapabilities();
+            Assert.IsTrue(historyCapabilities.AccessHistoryDataCapability.Value);
+            Assert.IsTrue(historyCapabilities.ServerTimestampSupported.Value);
+            Assert.IsFalse(historyCapabilities.AccessHistoryEventsCapability.Value);
+            Assert.IsFalse(historyCapabilities.InsertDataCapability.Value);
+            Assert.IsFalse(historyCapabilities.ReplaceDataCapability.Value);
+            Assert.IsFalse(historyCapabilities.UpdateDataCapability.Value);
+
+            ServerObjectState serverObject = m_server.CurrentInstance.DiagnosticsNodeManager
+                .FindPredefinedNode<ServerObjectState>(ObjectIds.Server);
+            Assert.IsTrue((serverObject.EventNotifier & EventNotifiers.HistoryRead) != 0);
+            Assert.IsFalse((serverObject.EventNotifier & EventNotifiers.HistoryWrite) != 0);
+
+            ReferenceNodeManager nodeManager = m_server.CurrentInstance.NodeManager.NodeManagers
+                .OfType<ReferenceNodeManager>()
+                .Single();
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            BaseVariableState int32Static = nodeManager.FindPredefinedNode<BaseVariableState>(
+                new NodeId("Scalar_Static_Int32", namespaceIndex));
+            uint expectedPermissions =
+                (uint)PermissionType.Browse |
+                (uint)PermissionType.Read |
+                (uint)PermissionType.Write |
+                (uint)PermissionType.ReadHistory |
+                (uint)PermissionType.ReadRolePermissions;
+            Assert.IsTrue(int32Static.RolePermissions.Any(permission =>
+                permission.RoleId == ObjectIds.WellKnownRole_Anonymous &&
+                permission.Permissions == expectedPermissions));
+            Assert.IsTrue(int32Static.RolePermissions.Any(permission =>
+                permission.RoleId == ObjectIds.WellKnownRole_AuthenticatedUser &&
+                permission.Permissions == expectedPermissions));
+            Assert.IsTrue(int32Static.RolePermissions.Any(permission =>
+                permission.RoleId == ObjectIds.WellKnownRole_SecurityAdmin &&
+                permission.Permissions == 0xFFFF));
+            Assert.IsTrue(int32Static.UserRolePermissions.Any(permission =>
+                permission.RoleId == ObjectIds.WellKnownRole_Anonymous &&
+                permission.Permissions == expectedPermissions));
+            Assert.IsTrue(int32Static.UserRolePermissions.Any(permission =>
+                permission.RoleId == ObjectIds.WellKnownRole_AuthenticatedUser &&
+                permission.Permissions == expectedPermissions));
+        }
+
+        [Test]
+        public void ReferenceHistoricalConfigurationsHaveUniqueInstanceNodeIds()
+        {
+            ReferenceNodeManager nodeManager = m_server.CurrentInstance.NodeManager.NodeManagers
+                .OfType<ReferenceNodeManager>()
+                .Single();
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            NodeId[] variableIds =
+            [
+                new NodeId("Scalar_Static_Int32", namespaceIndex),
+                new NodeId("Aggregates_Int32", namespaceIndex)
+            ];
+            var allConfigurationNodeIds = new HashSet<NodeId>();
+
+            foreach (NodeId variableId in variableIds)
+            {
+                BaseVariableState variable = nodeManager.FindPredefinedNode<BaseVariableState>(
+                    variableId);
+                var children = new List<BaseInstanceState>();
+                variable.GetChildren(nodeManager.SystemContext, children);
+                HistoricalDataConfigurationState configuration = children
+                    .OfType<HistoricalDataConfigurationState>()
+                    .Single();
+
+                Assert.AreNotEqual(variable.NodeId, configuration.NodeId);
+                Assert.IsFalse(configuration.Stepped.Value);
+                Assert.IsTrue(configuration.ServerTimestampSupported.Value);
+                Assert.IsNotNull(configuration.AggregateConfiguration);
+                Assert.AreNotEqual(DateTime.MinValue, configuration.StartOfArchive.Value);
+                Assert.AreEqual(
+                    configuration.StartOfArchive.Value,
+                    configuration.StartOfOnlineArchive.Value);
+                Assert.IsTrue(
+                    configuration.AggregateConfiguration.TreatUncertainAsBad.Value);
+                Assert.AreEqual(
+                    100,
+                    configuration.AggregateConfiguration.PercentDataBad.Value);
+                Assert.AreEqual(
+                    100,
+                    configuration.AggregateConfiguration.PercentDataGood.Value);
+                Assert.IsFalse(
+                    configuration.AggregateConfiguration.UseSlopedExtrapolation.Value);
+
+                var references = new List<IReference>();
+                variable.GetReferences(nodeManager.SystemContext, references);
+                Assert.IsTrue(references.Any(reference =>
+                    !reference.IsInverse &&
+                    reference.ReferenceTypeId == ReferenceTypeIds.HasHistoricalConfiguration &&
+                    ExpandedNodeId.ToNodeId(
+                        reference.TargetId,
+                        m_server.CurrentInstance.NamespaceUris) == configuration.NodeId));
+
+                references.Clear();
+                configuration.GetReferences(nodeManager.SystemContext, references);
+                Assert.IsTrue(references.Any(reference =>
+                    reference.IsInverse &&
+                    reference.ReferenceTypeId == ReferenceTypeIds.HasHistoricalConfiguration &&
+                    ExpandedNodeId.ToNodeId(
+                        reference.TargetId,
+                        m_server.CurrentInstance.NamespaceUris) == variable.NodeId));
+
+                AddInstanceNodeIds(
+                    nodeManager.SystemContext,
+                    configuration,
+                    allConfigurationNodeIds);
+            }
+        }
+
+        [Test]
+        public void ReferenceTwoDimensionalValueMatchesArrayDimensions()
+        {
+            ReferenceNodeManager nodeManager = m_server.CurrentInstance.NodeManager.NodeManagers
+                .OfType<ReferenceNodeManager>()
+                .Single();
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            BaseVariableState variable = nodeManager.FindPredefinedNode<BaseVariableState>(
+                new NodeId("Scalar_Static_Arrays2D_Int32", namespaceIndex));
+
+            Assert.AreEqual(ValueRanks.TwoDimensions, variable.ValueRank);
+            Assert.That(variable.ArrayDimensions, Is.EqualTo(new uint[] { 3, 3 }));
+            Assert.That(variable.Value, Is.AssignableTo<Array>());
+            var value = (Array)variable.Value;
+            Assert.AreEqual(2, value.Rank);
+            Assert.AreEqual(3, value.GetLength(0));
+            Assert.AreEqual(3, value.GetLength(1));
+        }
+
+        [Test]
+        public void HistoryReadRejectsNeitherAndInsufficientRawDetails()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            var nodes = new HistoryReadValueIdCollection
+            {
+                new HistoryReadValueId
+                {
+                    NodeId = new NodeId("Scalar_Static_Int32", namespaceIndex)
+                }
+            };
+            var validDetails = new ReadRawModifiedDetails
+            {
+                StartTime = DateTime.UtcNow.AddMinutes(-1),
+                EndTime = DateTime.UtcNow
+            };
+
+            ServiceResultException timestampError = NUnit.Framework.Assert
+                .ThrowsAsync<ServiceResultException>(async () =>
+                    await m_server.HistoryReadAsync(
+                        m_secureChannelContext,
+                        m_requestHeader,
+                        new ExtensionObject(validDetails),
+                        TimestampsToReturn.Neither,
+                        false,
+                        nodes,
+                        CancellationToken.None).ConfigureAwait(false));
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadTimestampsToReturnInvalid,
+                timestampError.StatusCode);
+
+            var invalidDetails = new ReadRawModifiedDetails
+            {
+                StartTime = DateTime.MinValue,
+                EndTime = DateTime.MinValue,
+                NumValuesPerNode = 0
+            };
+            ServiceResultException detailsError = NUnit.Framework.Assert
+                .ThrowsAsync<ServiceResultException>(async () =>
+                    await m_server.HistoryReadAsync(
+                        m_secureChannelContext,
+                        m_requestHeader,
+                        new ExtensionObject(invalidDetails),
+                        TimestampsToReturn.Both,
+                        false,
+                        nodes,
+                        CancellationToken.None).ConfigureAwait(false));
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadHistoryOperationInvalid,
+                detailsError.StatusCode);
+        }
+
+        [Test]
+        public async Task HistoryReadReturnsNoDataAndRejectsScalarIndexRangeAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            var nodeId = new NodeId("Scalar_Static_Int32", namespaceIndex);
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = DateTime.UtcNow.AddDays(1),
+                EndTime = DateTime.UtcNow.AddDays(2),
+                ReturnBounds = false
+            };
+            var nodes = new HistoryReadValueIdCollection
+            {
+                new HistoryReadValueId { NodeId = nodeId }
+            };
+
+            HistoryReadResponse noData = await m_server.HistoryReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                new ExtensionObject(details),
+                TimestampsToReturn.Both,
+                false,
+                nodes,
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.AreEqual((StatusCode)StatusCodes.GoodNoData, noData.Results[0].StatusCode);
+            Assert.IsTrue(noData.Results[0].ContinuationPoint == null ||
+                noData.Results[0].ContinuationPoint.Length == 0);
+            Assert.AreEqual(0, ((HistoryData)noData.Results[0].HistoryData.Body).DataValues.Count);
+
+            nodes[0].IndexRange = "0";
+            HistoryReadResponse range = await m_server.HistoryReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                new ExtensionObject(details),
+                TimestampsToReturn.Both,
+                false,
+                nodes,
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadIndexRangeNoData,
+                range.Results[0].StatusCode);
+        }
+
+        [Test]
+        public async Task RawHistoryRejectsUnknownContinuationPointAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = DateTime.UtcNow.AddMinutes(-10),
+                EndTime = DateTime.UtcNow
+            };
+            var nodes = new HistoryReadValueIdCollection
+            {
+                new HistoryReadValueId
+                {
+                    NodeId = new NodeId("Scalar_Static_Int32", namespaceIndex),
+                    ContinuationPoint = Guid.NewGuid().ToByteArray()
+                }
+            };
+
+            HistoryReadResponse response = await m_server.HistoryReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                new ExtensionObject(details),
+                TimestampsToReturn.Both,
+                false,
+                nodes,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadContinuationPointInvalid,
+                response.Results[0].StatusCode);
+        }
+
+        [Test]
+        public async Task StaticValueReadReceivesFreshServerTimestampAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            DateTime readTime = DateTime.UtcNow;
+            var nodes = new ReadValueIdCollection
+            {
+                new ReadValueId
+                {
+                    NodeId = new NodeId("Scalar_Static_Int32", namespaceIndex),
+                    AttributeId = Attributes.Value
+                }
+            };
+
+            ReadResponse response = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                0,
+                TimestampsToReturn.Both,
+                nodes,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.IsTrue(StatusCode.IsGood(response.Results[0].StatusCode));
+            Assert.GreaterOrEqual(response.Results[0].ServerTimestamp, readTime);
+            Assert.GreaterOrEqual(
+                response.Results[0].ServerTimestamp,
+                response.Results[0].SourceTimestamp);
+        }
+
         /// <summary>
         /// Test that Server object EventNotifier has HistoryRead bit set when history capabilities are enabled.
         /// </summary>
@@ -1394,9 +1708,12 @@ namespace Opc.Ua.Server.Tests
 
             logger.LogInformation("History read StatusCode: {StatusCode}", result.StatusCode);
 
-            // The result should be Good or GoodMoreData (if there are more values)
-            Assert.IsTrue(StatusCode.IsGood(result.StatusCode),
-                $"History read should succeed, but got: {result.StatusCode}");
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.Good,
+                result.StatusCode,
+                "A continuation point, not GoodMoreData, indicates that more history is available.");
+            Assert.IsNotNull(result.ContinuationPoint);
+            Assert.AreEqual(16, result.ContinuationPoint.Length);
             Assert.IsNotNull(result.HistoryData, "HistoryData should not be null");
 
             // Verify we got HistoryData back
@@ -1418,6 +1735,311 @@ namespace Opc.Ua.Server.Tests
             {
                 NUnit.Framework.Assert.Fail("HistoryData body should be of type HistoryData");
             }
+        }
+
+        /// <summary>
+        /// Verifies that one-sided raw history reads use the specified time as
+        /// the starting boundary and return values in the required direction.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task HistoryReadOneSidedTimeReturnsValuesInRequestedOrderAsync(bool startOnly)
+        {
+            var int32ValueNodeId = new NodeId(
+                TestData.Variables.Data_Dynamic_Scalar_Int32Value,
+                (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(TestData.Namespaces.TestData));
+
+            DateTime boundary = startOnly ? DateTime.UtcNow.AddHours(-1) : DateTime.UtcNow;
+            var historyReadDetails = new ReadRawModifiedDetails
+            {
+                StartTime = startOnly ? boundary : DateTime.MinValue,
+                EndTime = startOnly ? DateTime.MinValue : boundary,
+                NumValuesPerNode = 10,
+                IsReadModified = false,
+                ReturnBounds = false
+            };
+
+            var nodesToRead = new HistoryReadValueIdCollection {
+                new HistoryReadValueId {
+                    NodeId = int32ValueNodeId
+                }
+            };
+
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            HistoryReadResponse response = await m_server.HistoryReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                new ExtensionObject(historyReadDetails),
+                TimestampsToReturn.Both,
+                false,
+                nodesToRead,
+                CancellationToken.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(response.ResponseHeader, response.Results, nodesToRead);
+            Assert.AreEqual(1, response.Results.Count);
+
+            HistoryReadResult result = response.Results[0];
+            Assert.IsTrue(StatusCode.IsGood(result.StatusCode),
+                $"History read should succeed, but got: {result.StatusCode}");
+            Assert.IsTrue(result.ContinuationPoint == null || result.ContinuationPoint.Length == 0,
+                "A one-sided read limited by NumValuesPerNode should not return a continuation point.");
+            Assert.IsTrue(result.HistoryData?.Body is HistoryData,
+                "HistoryData body should be of type HistoryData.");
+
+            var historyData = (HistoryData)result.HistoryData.Body;
+            Assert.AreEqual(10, historyData.DataValues.Count);
+
+            for (int ii = 1; ii < historyData.DataValues.Count; ii++)
+            {
+                DateTime previous = historyData.DataValues[ii - 1].ServerTimestamp;
+                DateTime current = historyData.DataValues[ii].ServerTimestamp;
+                Assert.IsTrue(startOnly ? current > previous : current < previous,
+                    $"History values should be returned in {(startOnly ? "ascending" : "descending")} timestamp order.");
+            }
+        }
+
+        [Test]
+        public async Task ReferenceStaticInt32SupportsProcessedHistoryAndContinuationAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            var nodeId = new NodeId("Scalar_Static_Int32", namespaceIndex);
+
+            var attributes = new ReadValueIdCollection
+            {
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Historizing },
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.AccessLevel }
+            };
+            ReadResponse attributeResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                attributes,
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.IsTrue((bool)attributeResponse.Results[0].Value);
+            Assert.IsTrue(
+                ((byte)attributeResponse.Results[1].Value & AccessLevels.HistoryRead) != 0);
+
+            DateTime end = DateTime.UtcNow;
+            DateTime start = end.AddSeconds(-10000);
+            var details = new ReadProcessedDetails
+            {
+                StartTime = start,
+                EndTime = end,
+                ProcessingInterval = 5000,
+                AggregateType = [ObjectIds.AggregateFunction_Average],
+                AggregateConfiguration = new AggregateConfiguration
+                {
+                    UseServerCapabilitiesDefaults = true
+                }
+            };
+            var nodes = new HistoryReadValueIdCollection
+            {
+                new HistoryReadValueId { NodeId = nodeId }
+            };
+
+            HistoryReadResponse first = await m_server.HistoryReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                new ExtensionObject(details),
+                TimestampsToReturn.Both,
+                false,
+                nodes,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.IsTrue(StatusCode.IsGood(first.Results[0].StatusCode));
+            Assert.IsNotNull(first.Results[0].ContinuationPoint);
+            Assert.AreEqual(16, first.Results[0].ContinuationPoint.Length);
+            var firstPage = (HistoryData)first.Results[0].HistoryData.Body;
+            Assert.AreEqual(1000, firstPage.DataValues.Count);
+
+            nodes[0].ContinuationPoint = first.Results[0].ContinuationPoint;
+            HistoryReadResponse second = await m_server.HistoryReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                new ExtensionObject(details),
+                TimestampsToReturn.Both,
+                false,
+                nodes,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.IsTrue(StatusCode.IsGood(second.Results[0].StatusCode));
+            var secondPage = (HistoryData)second.Results[0].HistoryData.Body;
+            Assert.Greater(secondPage.DataValues.Count, 0);
+            Assert.LessOrEqual(secondPage.DataValues.Count, 1000);
+            Assert.Greater(
+                secondPage.DataValues[0].SourceTimestamp,
+                firstPage.DataValues[^1].SourceTimestamp);
+            Assert.IsTrue(
+                second.Results[0].ContinuationPoint == null ||
+                second.Results[0].ContinuationPoint.Length == 0);
+        }
+
+        [Test]
+        public async Task ReferenceProcessedContinuationIsNodeBoundAndReleasableAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            var originalNodeId = new NodeId("Scalar_Static_Int32", namespaceIndex);
+            var otherNodeId = new NodeId("Aggregates_Int32", namespaceIndex);
+            DateTime end = DateTime.UtcNow;
+            var details = new ReadProcessedDetails
+            {
+                StartTime = end.AddSeconds(-10000),
+                EndTime = end,
+                ProcessingInterval = 5000,
+                AggregateType = [ObjectIds.AggregateFunction_Average],
+                AggregateConfiguration = new AggregateConfiguration
+                {
+                    UseServerCapabilitiesDefaults = true
+                }
+            };
+
+            Task<HistoryReadResponse> ReadAsync(
+                NodeId nodeId,
+                byte[] continuationPoint,
+                bool release)
+            {
+                var nodes = new HistoryReadValueIdCollection
+                {
+                    new HistoryReadValueId
+                    {
+                        NodeId = nodeId,
+                        ContinuationPoint = continuationPoint
+                    }
+                };
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                return m_server.HistoryReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    new ExtensionObject(details),
+                    TimestampsToReturn.Both,
+                    release,
+                    nodes,
+                    CancellationToken.None);
+            }
+
+            HistoryReadResponse first = await ReadAsync(
+                originalNodeId,
+                null,
+                false).ConfigureAwait(false);
+            byte[] wrongNodeContinuationPoint = first.Results[0].ContinuationPoint;
+            Assert.That(wrongNodeContinuationPoint, Has.Length.EqualTo(16));
+
+            HistoryReadResponse wrongNode = await ReadAsync(
+                otherNodeId,
+                wrongNodeContinuationPoint,
+                false).ConfigureAwait(false);
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadContinuationPointInvalid,
+                wrongNode.Results[0].StatusCode);
+
+            HistoryReadResponse second = await ReadAsync(
+                originalNodeId,
+                null,
+                false).ConfigureAwait(false);
+            byte[] releasedContinuationPoint = second.Results[0].ContinuationPoint;
+            Assert.That(releasedContinuationPoint, Has.Length.EqualTo(16));
+
+            HistoryReadResponse released = await ReadAsync(
+                originalNodeId,
+                releasedContinuationPoint,
+                true).ConfigureAwait(false);
+            Assert.IsTrue(StatusCode.IsGood(released.Results[0].StatusCode));
+
+            HistoryReadResponse reused = await ReadAsync(
+                originalNodeId,
+                releasedContinuationPoint,
+                false).ConfigureAwait(false);
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadContinuationPointInvalid,
+                reused.Results[0].StatusCode);
+        }
+
+        [Test]
+        public async Task ReferenceStaticInt32ProcessedHistorySupportsReverseOrderAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            var nodeId = new NodeId("Scalar_Static_Int32", namespaceIndex);
+            DateTime end = DateTime.UtcNow;
+            DateTime start = end.AddSeconds(-3600);
+            var details = new ReadProcessedDetails
+            {
+                StartTime = end,
+                EndTime = start,
+                ProcessingInterval = 60000,
+                AggregateType = [ObjectIds.AggregateFunction_Minimum],
+                AggregateConfiguration = new AggregateConfiguration
+                {
+                    UseServerCapabilitiesDefaults = true
+                }
+            };
+            var nodes = new HistoryReadValueIdCollection
+            {
+                new HistoryReadValueId { NodeId = nodeId }
+            };
+
+            HistoryReadResponse response = await m_server.HistoryReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                new ExtensionObject(details),
+                TimestampsToReturn.Both,
+                false,
+                nodes,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.IsTrue(StatusCode.IsGood(response.Results[0].StatusCode));
+            var data = (HistoryData)response.Results[0].HistoryData.Body;
+            Assert.Greater(data.DataValues.Count, 1);
+            for (int ii = 1; ii < data.DataValues.Count; ii++)
+            {
+                Assert.Less(
+                    data.DataValues[ii].SourceTimestamp,
+                    data.DataValues[ii - 1].SourceTimestamp);
+            }
+        }
+
+        [Test]
+        public async Task ReferenceStaticInt32AnnotationCountUsesSidecarAsync()
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            var nodeId = new NodeId("Scalar_Static_Int32", namespaceIndex);
+            DateTime end = DateTime.UtcNow;
+            var details = new ReadProcessedDetails
+            {
+                StartTime = end.AddSeconds(-10000),
+                EndTime = end,
+                ProcessingInterval = 0,
+                AggregateType = [ObjectIds.AggregateFunction_AnnotationCount],
+                AggregateConfiguration = new AggregateConfiguration
+                {
+                    UseServerCapabilitiesDefaults = true
+                }
+            };
+            var nodes = new HistoryReadValueIdCollection
+            {
+                new HistoryReadValueId { NodeId = nodeId }
+            };
+
+            HistoryReadResponse response = await m_server.HistoryReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                new ExtensionObject(details),
+                TimestampsToReturn.Both,
+                false,
+                nodes,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.IsTrue(StatusCode.IsGood(response.Results[0].StatusCode));
+            var data = (HistoryData)response.Results[0].HistoryData.Body;
+            Assert.AreEqual(1, data.DataValues.Count);
+            Assert.AreEqual(4, data.DataValues[0].Value);
+            Assert.AreEqual(
+                AggregateBits.Calculated,
+                data.DataValues[0].StatusCode.AggregateBits);
         }
 
         /// <summary>
@@ -1463,8 +2085,34 @@ namespace Opc.Ua.Server.Tests
             Assert.IsTrue(hasEndpointWithoutAnonymous,
                 "At least one endpoint should not allow anonymous authentication in provisioning mode");
 
+            string[] profiles = server.CurrentInstance.ServerObject.ServerCapabilities
+                .ServerProfileArray.Value;
+            Assert.IsFalse(profiles.Contains(
+                "http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022"));
+            Assert.IsFalse(profiles.Contains(
+                "http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022"));
+            HistoryServerCapabilitiesState historyCapabilities = server.CurrentInstance
+                .DiagnosticsNodeManager.GetDefaultHistoryCapabilities();
+            Assert.IsFalse(historyCapabilities.AccessHistoryDataCapability.Value);
+
             // Clean up
             await fixture.StopAsync().ConfigureAwait(false);
+        }
+
+        private static void AddInstanceNodeIds(
+            ISystemContext context,
+            BaseInstanceState node,
+            ISet<NodeId> nodeIds)
+        {
+            Assert.IsNotNull(node.NodeId);
+            Assert.IsTrue(nodeIds.Add(node.NodeId), $"Duplicate instance NodeId: {node.NodeId}");
+
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                AddInstanceNodeIds(context, child, nodeIds);
+            }
         }
     }
 }

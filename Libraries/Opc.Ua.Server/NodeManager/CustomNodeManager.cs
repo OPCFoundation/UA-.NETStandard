@@ -1670,6 +1670,9 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
+                    // Capture the time immediately before reading the attribute. Values
+                    // produced by the read use their source timestamp as the server
+                    // timestamp; cached/static values receive a fresh server timestamp.
                     DateTime readTime = DateTime.UtcNow;
 
                     // read the attribute value.
@@ -1692,7 +1695,9 @@ namespace Opc.Ua.Server
                         {
                             value.SourceTimestamp = readTime;
                         }
-                        value.ServerTimestamp = value.SourceTimestamp >= readTime ? value.SourceTimestamp : readTime;
+                        value.ServerTimestamp = value.SourceTimestamp >= readTime
+                            ? value.SourceTimestamp
+                            : readTime;
                     }
                     else if (value.ServerTimestamp == DateTime.MinValue)
                     {
@@ -2514,7 +2519,7 @@ namespace Opc.Ua.Server
             }
 
             // check timestamps to return.
-            if (timestampsToReturn is < TimestampsToReturn.Source or > TimestampsToReturn.Neither)
+            if (timestampsToReturn is < TimestampsToReturn.Source or >= TimestampsToReturn.Neither)
             {
                 throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
             }
@@ -2527,7 +2532,7 @@ namespace Opc.Ua.Server
                 if (readRawModifiedDetails.StartTime == DateTime.MinValue &&
                     readRawModifiedDetails.EndTime == DateTime.MinValue)
                 {
-                    throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                    throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
                 }
 
                 // if one is null the num values must be provided.
@@ -2536,7 +2541,7 @@ namespace Opc.Ua.Server
                 {
                     if (readRawModifiedDetails.NumValuesPerNode == 0)
                     {
-                        throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                        throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
                     }
                 }
 
