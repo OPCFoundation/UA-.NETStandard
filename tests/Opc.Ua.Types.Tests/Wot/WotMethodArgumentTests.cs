@@ -61,6 +61,7 @@ namespace Opc.Ua.Types.Tests.Wot
             JsonElement input = action.GetProperty("input");
 
             Assert.That(input.GetProperty("type").GetString(), Is.EqualTo("object"));
+            Assert.That(input.GetProperty("uav:argumentLayout").GetString(), Is.EqualTo("named"));
             Assert.That(
                 Order(input),
                 Is.EqualTo(s_resetInputOrder),
@@ -83,6 +84,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(s_levelDimensions));
 
             JsonElement output = action.GetProperty("output");
+            Assert.That(output.GetProperty("uav:argumentLayout").GetString(), Is.EqualTo("named"));
             Assert.That(Order(output), Is.EqualTo(s_resetOutputOrder));
             Assert.That(
                 output.GetProperty("properties").GetProperty("Accepted")
@@ -141,7 +143,9 @@ namespace Opc.Ua.Types.Tests.Wot
             UAVariable arguments = source.Items.OfType<UAVariable>()
                 .Single(v => v.BrowseName == "InputArguments");
             arguments.Value = WotTestData.ParseValue(
-                "<uax:ListOfExtensionObject xmlns:uax=\"" + UaXsd + "\">" +
+                "<uax:ListOfExtensionObject xmlns:uax=\"" +
+                UaXsd +
+                "\">" +
                 "<uax:ExtensionObject><uax:TypeId><uax:Identifier>i=999</uax:Identifier>" +
                 "</uax:TypeId><uax:Body /></uax:ExtensionObject>" +
                 "</uax:ListOfExtensionObject>");
@@ -318,6 +322,64 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(input[0].DataType, Is.EqualTo("i=22"));
         }
 
+        [TestCase("input", "InputArguments")]
+        [TestCase("output", "OutputArguments")]
+        public void ExplicitSingleObjectLayoutDoesNotFlattenItsFields(string member, string browseName)
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"actions\":{\"run\":{\"@type\":\"uav:method\"," +
+                "\"" +
+                member +
+                "\":{\"type\":\"object\",\"uav:argumentLayout\":\"single\"," +
+                "\"uav:fieldOrder\":[\"Reason\",\"Level\"],\"properties\":{" +
+                "\"Reason\":{\"type\":\"string\"},\"Level\":{\"type\":\"integer\"}}}}}");
+
+            Assert.That(result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error), Is.Empty);
+            List<DecodedArgument> arguments = ArgumentsOf(result.Value!, browseName);
+            Assert.That(arguments, Has.Count.EqualTo(1));
+            Assert.That(arguments[0].DataType, Is.EqualTo("i=22"));
+            Assert.That(arguments[0].ValueRank, Is.EqualTo("-1"));
+        }
+
+        [TestCase("input", "InputArguments")]
+        [TestCase("output", "OutputArguments")]
+        public void ExplicitNamedLayoutUsesItsCompleteOrder(string member, string browseName)
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"actions\":{\"run\":{\"@type\":\"uav:method\"," +
+                "\"" +
+                member +
+                "\":{\"type\":\"object\",\"uav:argumentLayout\":\"named\"," +
+                "\"uav:fieldOrder\":[\"Level\",\"Reason\"],\"properties\":{" +
+                "\"Reason\":{\"type\":\"string\"},\"Level\":{\"type\":\"integer\",\"uav:mapToType\":\"i=7\"}}}}}");
+
+            Assert.That(result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error), Is.Empty);
+            List<DecodedArgument> arguments = ArgumentsOf(result.Value!, browseName);
+            Assert.That(arguments.Select(argument => argument.Name), Is.EqualTo(s_explicitInputOrder));
+            Assert.That(arguments.Select(argument => argument.DataType), Is.EqualTo(s_explicitInputTypes));
+        }
+
+        [TestCase("\"uav:argumentLayout\":\"named\",")]
+        [TestCase("\"uav:argumentLayout\":\"named\",\"uav:mapToType\":\"i=22\",\"uav:fieldOrder\":[\"Value\"],")]
+        [TestCase("\"uav:argumentLayout\":\"flattened\",\"uav:fieldOrder\":[\"Value\"],")]
+        [TestCase("\"uav:argumentLayout\":null,\"uav:fieldOrder\":[\"Value\"],")]
+        [TestCase("\"uav:argumentLayout\":1,\"uav:fieldOrder\":[\"Value\"],")]
+        [TestCase("\"uav:argumentLayout\":\"named\",\"uav:fieldOrder\":[],")]
+        [TestCase("\"uav:argumentLayout\":\"named\",\"uav:fieldOrder\":[\"Value\",\"Value\"],")]
+        public void InvalidExplicitLayoutDoesNotMaterializeAnArgumentList(string layout)
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"actions\":{\"run\":{\"@type\":\"uav:method\"," +
+                "\"input\":{\"type\":\"object\"," +
+                layout +
+                "\"properties\":{\"Value\":{\"type\":\"string\"}}}}}");
+
+            Assert.That(result.Diagnostics.Any(d =>
+                d.Severity == WotDiagnosticSeverity.Error &&
+                d.Code == WotDiagnosticCode.MethodArgumentSchemaInvalid), Is.True);
+            Assert.That(result.Value!.Items.OfType<UAVariable>().Any(v => v.BrowseName == "InputArguments"), Is.False);
+        }
+
         /// <summary>
         /// JSON object member order carries no meaning, so a two-argument
         /// schema that states none is reported rather than silently ordered by
@@ -363,7 +425,9 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<UANodeSet> result = Convert(
                 "\"actions\":{\"reset\":{\"@type\":\"uav:method\"," +
-                "\"input\":{\"type\":\"object\",\"uav:fieldOrder\":" + order + "," +
+                "\"input\":{\"type\":\"object\",\"uav:fieldOrder\":" +
+                order +
+                "," +
                 "\"properties\":{" +
                 "\"Reason\":{\"type\":\"string\"},\"Level\":{\"type\":\"integer\"}}}}}");
 
@@ -402,7 +466,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"data\":{\"type\":\"object\",\"properties\":" +
                 "{\"EventId\":{\"type\":\"string\",\"contentEncoding\":\"base64\"}}}}}," +
                 "\"actions\":{\"act\":{\"@type\":\"uav:method\"," +
-                "\"uav:conditionAction\":\"" + conditionAction + "\"," +
+                "\"uav:conditionAction\":\"" +
+                conditionAction +
+                "\"," +
                 "\"uav:actsOn\":\"highTemperature\"," +
                 "\"input\":{\"type\":\"object\",\"required\":[\"EventId\"]," +
                 "\"properties\":{" +
@@ -439,6 +505,249 @@ namespace Opc.Ua.Types.Tests.Wot
                 ? string.Empty
                 : string.Concat(result.Value.Extensions.Select(e => e.OuterXml));
             Assert.That(extensions, Does.Not.Contain("/input"));
+        }
+
+        [Test]
+        public void ExplicitNamedArgumentLayoutsAreNotRetainedAsUnmappedResidue()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"actions\":{\"reset\":{\"@type\":\"uav:method\"," +
+                "\"input\":{\"type\":\"object\",\"uav:argumentLayout\":\"named\"," +
+                "\"uav:fieldOrder\":[\"Reason\"],\"properties\":{\"Reason\":{\"type\":\"string\"}}}}}");
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            string extensions = string.Concat((result.Value!.Extensions ?? []).Select(value => value.OuterXml));
+            Assert.That(extensions, Does.Not.Contain("uav:argumentLayout"));
+            Assert.That(extensions, Does.Not.Contain("/input"));
+        }
+
+        [Test]
+        public void GeneratedArgumentLayoutsDoNotAddResidueToPreservedNativeModels()
+        {
+            UANodeSet source = CreateMethodNodeSet();
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics));
+            Assert.That((restored.Value!.Extensions ?? []).Select(value => value.OuterXml),
+                Is.EqualTo((source.Extensions ?? []).Select(value => value.OuterXml)));
+        }
+
+        [TestCase("input", false)]
+        [TestCase("input", true)]
+        [TestCase("output", false)]
+        [TestCase("output", true)]
+        public void ExplicitSingleLayoutsRetainTheWholeValueAcrossRepeatedRoundTrips(string member, bool structure)
+        {
+            string schema = structure
+                ? /*lang=json,strict*/ """
+                  {"type":"object","uav:argumentLayout":"single","uav:mapToType":"i=22",
+                   "properties":{"Value":{"type":"integer"}}}
+                  """
+                : /*lang=json,strict*/ """{"type":"number","uav:argumentLayout":"single","uav:mapToType":"i=11"}""";
+            WotConversionResult<UANodeSet> imported = Convert(
+                "\"actions\":{\"Run\":{\"@type\":\"uav:method\",\"" + member + "\":" + schema + "}}");
+            Assert.That(imported.Success, Is.True, string.Join("; ", imported.Diagnostics));
+            UANodeSet current = imported.Value!;
+            for (int iteration = 0; iteration < 2; iteration++)
+            {
+                WotConversionResult<WotDocument> exported = WotNodeSetConverter.FromNodeSetResult(current);
+                Assert.That(exported.Success, Is.True, string.Join("; ", exported.Diagnostics));
+                using WotDocument document = exported.Value!;
+                JsonElement actual = document.Actions["Run"].GetProperty(member);
+                Assert.That(actual.GetProperty("uav:argumentLayout").GetString(), Is.EqualTo("single"));
+                Assert.That(actual.GetProperty("type").GetString(), Is.EqualTo(structure ? "object" : "number"));
+                if (structure)
+                {
+                    Assert.That(actual.GetProperty("properties").EnumerateObject().Select(property => property.Name),
+                        Is.EqualTo(s_singleStructureFields));
+                }
+                WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ToNodeSetResult(document);
+                Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics));
+                current = restored.Value!;
+                List<DecodedArgument> arguments = ArgumentsOf(
+                    current, member == "input" ? "InputArguments" : "OutputArguments");
+                Assert.That(arguments, Has.Count.EqualTo(1));
+                Assert.That(arguments[0].DataType, Is.EqualTo(structure ? "i=22" : "i=11"));
+            }
+        }
+
+        [TestCase("type")]
+        [TestCase("rank")]
+        [TestCase("any-rank")]
+        [TestCase("scalar-or-array")]
+        [TestCase("count")]
+        public void PreservedSingleSchemasCannotReplaceChangedNativeArgumentFacts(string change)
+        {
+            WotConversionResult<UANodeSet> imported = Convert(
+                "\"actions\":{\"Run\":{\"@type\":\"uav:method\",\"input\":{" +
+                "\"type\":\"number\",\"uav:argumentLayout\":\"single\",\"uav:mapToType\":\"i=11\"}}}");
+            Assert.That(imported.Success, Is.True);
+            UANodeSet source = imported.Value!;
+            UAVariable variable = source.Items.OfType<UAVariable>()
+                .Single(node => node.BrowseName == "InputArguments");
+            System.Xml.XmlElement argument = variable.Value.GetElementsByTagName("Argument", UaXsd)
+                .OfType<System.Xml.XmlElement>().Single();
+            if (change == "type")
+            {
+                Child(Child(argument, "DataType"), "Identifier").InnerText = "i=12";
+            }
+            else if (change is "rank" or "any-rank" or "scalar-or-array")
+            {
+                Child(argument, "ValueRank").InnerText = change switch
+                {
+                    "any-rank" => "-2",
+                    "scalar-or-array" => "-3",
+                    _ => "1"
+                };
+            }
+            else
+            {
+                System.Xml.XmlElement extension = variable.Value.ChildNodes.OfType<System.Xml.XmlElement>().Single();
+                System.Xml.XmlNode extra = extension.CloneNode(true);
+                System.Xml.XmlElement extraArgument = ((System.Xml.XmlElement)extra)
+                    .GetElementsByTagName("Argument", UaXsd).OfType<System.Xml.XmlElement>().Single();
+                Child(extraArgument, "Name").InnerText = "Extra";
+                variable.Value.AppendChild(extra);
+                variable.ArrayDimensions = "2";
+            }
+            string expected = variable.Value.OuterXml;
+
+            WotConversionResult<WotDocument> result = WotNodeSetConverter.FromNodeSetResult(source);
+            using WotDocument document = result.Value;
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(item =>
+                item.Code == WotDiagnosticCode.ResidueConflict &&
+                item.Location?.JsonPointer == "/actions/Run/input"), Is.True, string.Join("; ", result.Diagnostics));
+            Assert.That(variable.Value.OuterXml, Is.EqualTo(expected));
+        }
+
+        [TestCase("uav:mapToType")]
+        [TestCase("uav:dataTypeId")]
+        [TestCase("uav:dataTypeName")]
+        [TestCase("default")]
+        public void EffectiveArgumentDataTypeCannotBeHiddenByEquivalentJsonNumberTypes(string spelling)
+        {
+            string annotation = spelling switch
+            {
+                "default" => string.Empty,
+                "uav:dataTypeName" => "\"uav:dataTypeName\":\"ua:Double\",",
+                _ => "\"" + spelling + "\":\"i=11\","
+            };
+            WotConversionResult<UANodeSet> imported = Convert(
+                "\"actions\":{\"Run\":{\"@type\":\"uav:method\",\"input\":{" +
+                annotation +
+                "\"type\":\"number\",\"uav:argumentLayout\":\"single\"}}}");
+            Assert.That(imported.Success, Is.True, string.Join("; ", imported.Diagnostics));
+            UANodeSet source = imported.Value!;
+            WotConversionResult<WotDocument> unchanged = WotNodeSetConverter.FromNodeSetResult(source);
+            using WotDocument unchangedDocument = unchanged.Value;
+            Assert.That(unchanged.Success, Is.True, string.Join("; ", unchanged.Diagnostics));
+            UAVariable variable = source.Items.OfType<UAVariable>()
+                .Single(node => node.BrowseName == "InputArguments");
+            System.Xml.XmlElement argument = variable.Value.GetElementsByTagName("Argument", UaXsd)
+                .OfType<System.Xml.XmlElement>().Single();
+            Assert.That(Child(Child(argument, "DataType"), "Identifier").InnerText,
+                Is.EqualTo(spelling == "default" ? "i=26" : "i=11"));
+            Child(Child(argument, "DataType"), "Identifier").InnerText = "i=10";
+
+            WotConversionResult<WotDocument> result = WotNodeSetConverter.FromNodeSetResult(source);
+            using WotDocument document = result.Value;
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(item =>
+                item.Code == WotDiagnosticCode.ResidueConflict &&
+                item.Location?.JsonPointer == "/actions/Run/input"), Is.True, string.Join("; ", result.Diagnostics));
+            Assert.That(Child(Child(argument, "DataType"), "Identifier").InnerText, Is.EqualTo("i=10"));
+        }
+
+        [Test]
+        public void SingleLayoutPreservationUsesTheConfiguredCombinedJsonDepth()
+        {
+            string annotation = "0";
+            for (int depth = 0; depth < 70; depth++)
+            {
+                annotation = "{\"value\":" + annotation + "}";
+            }
+            WotConversionResult<UANodeSet> imported = Convert(
+                "\"actions\":{\"Run\":{\"@type\":\"uav:method\",\"input\":{" +
+                "\"type\":\"number\",\"uav:argumentLayout\":\"single\",\"uav:mapToType\":\"i=11\"," +
+                "\"urn:test:annotation\":" +
+                annotation +
+                "}}}");
+            Assert.That(imported.Success, Is.True, string.Join("; ", imported.Diagnostics));
+
+            WotConversionResult<WotDocument> exported = WotNodeSetConverter.FromNodeSetResult(imported.Value!);
+            Assert.That(exported.Success, Is.True, string.Join("; ", exported.Diagnostics));
+            using WotDocument document = exported.Value!;
+            JsonElement actual = document.Actions["Run"].GetProperty("input").GetProperty("urn:test:annotation");
+            for (int depth = 0; depth < 70; depth++)
+            {
+                actual = actual.GetProperty("value");
+            }
+            Assert.That(actual.GetInt32(), Is.Zero);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SingleUnionArgumentRetainsItsAuthoredValueConstraints(bool explicitLayout)
+        {
+            string layout = explicitLayout ? "\"uav:argumentLayout\":\"single\"," : string.Empty;
+            WotConversionResult<UANodeSet> imported = Convert(
+                "\"actions\":{\"Run\":{\"@type\":\"uav:method\",\"input\":{" +
+                layout +
+                "\"type\":\"object\",\"uav:fieldOrder\":[\"Value\"]," +
+                "\"properties\":{\"Value\":{\"type\":\"number\",\"uav:mapToType\":\"i=11\"}}," +
+                "\"oneOf\":[{\"required\":[\"Value\"]}],\"uav:structureType\":\"Union\"," +
+                "\"uav:dataTypeDefinition\":{\"@id\":\"nsu=urn:test:pump;i=7100\"," +
+                "\"@type\":\"uav:StructureDefinition\",\"uav:dataTypeName\":\"pump:Command\"," +
+                "\"uav:structureType\":\"Union\",\"uav:fields\":[{" +
+                "\"@type\":\"uav:StructureField\",\"uav:fieldName\":\"Value\"," +
+                "\"uav:fieldDataTypeId\":\"i=11\",\"uav:valueRank\":-1," +
+                "\"uav:isOptional\":false,\"uav:allowSubtypes\":false}]}}}}");
+            Assert.That(imported.Success, Is.True, string.Join("; ", imported.Diagnostics));
+            IReadOnlyList<DecodedArgument> originalArguments = ArgumentsOf(imported.Value!, "InputArguments");
+            WotConversionResult<WotDocument> exported = WotNodeSetConverter.FromNodeSetResult(imported.Value!);
+            using WotDocument document = exported.Value;
+
+            Assert.That(exported.Success, Is.True, string.Join("; ", exported.Diagnostics));
+            JsonElement input = document.Actions["Run"].GetProperty("input");
+            Assert.That(input.GetProperty("oneOf").GetArrayLength(), Is.EqualTo(1));
+            Assert.That(input.GetProperty("oneOf")[0].GetProperty("required")[0].GetString(), Is.EqualTo("Value"));
+            WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ToNodeSetResult(document);
+            Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics));
+            IReadOnlyList<DecodedArgument> restoredArguments = ArgumentsOf(restored.Value!, "InputArguments");
+            Assert.That(restoredArguments, Has.Count.EqualTo(1));
+            Assert.That(restoredArguments[0].DataType, Is.EqualTo(originalArguments[0].DataType));
+            Assert.That(restoredArguments[0].ValueRank, Is.EqualTo("-1"));
+        }
+
+        [Test]
+        public void SingleLayoutReplacementReportsTheCombinedDepthLimit()
+        {
+            string annotation = "0";
+            for (int depth = 0; depth < 29; depth++)
+            {
+                annotation = "{\"value\":" + annotation + "}";
+            }
+            WotConversionResult<UANodeSet> imported = Convert(
+                "\"actions\":{\"Run\":{\"@type\":\"uav:method\",\"input\":{" +
+                "\"type\":\"number\",\"uav:argumentLayout\":\"single\",\"uav:mapToType\":\"i=11\"," +
+                "\"urn:test:annotation\":" +
+                annotation +
+                "}}}");
+            Assert.That(imported.Success, Is.True, string.Join("; ", imported.Diagnostics));
+
+            WotConversionResult<WotDocument> result = WotNodeSetConverter.FromNodeSetResult(
+                imported.Value!, options: new WotNodeSetConverterOptions { MaxJsonDepth = 32 });
+            using WotDocument document = result.Value;
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(item =>
+                item.Severity == WotDiagnosticSeverity.Error &&
+                item.Code == WotDiagnosticCode.ResidueInvalid), Is.True, string.Join("; ", result.Diagnostics));
         }
 
         private static IReadOnlyList<string> Order(JsonElement schema)
@@ -614,12 +923,16 @@ namespace Opc.Ua.Types.Tests.Wot
             string browseName,
             params string[] arguments)
         {
-            var value = WotTestData.ParseValue(
-                "<uax:ListOfExtensionObject xmlns:uax=\"" + UaXsd + "\">" +
+            System.Xml.XmlElement value = WotTestData.ParseValue(
+                "<uax:ListOfExtensionObject xmlns:uax=\"" +
+                UaXsd +
+                "\">" +
                 string.Concat(arguments.Select(a =>
                     "<uax:ExtensionObject><uax:TypeId>" +
                     "<uax:Identifier>i=297</uax:Identifier></uax:TypeId>" +
-                    "<uax:Body>" + a + "</uax:Body></uax:ExtensionObject>")) +
+                    "<uax:Body>" +
+                    a +
+                    "</uax:Body></uax:ExtensionObject>")) +
                 "</uax:ListOfExtensionObject>");
 
             return new UAVariable
@@ -685,13 +998,17 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"uav:id\":\"nsu=urn:test:pump;i=5001\"," +
                 "\"security\":\"nosec_sc\"," +
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
-                members + "}");
+                members +
+                "}");
 
-            using WotDocument document = WotDocument.Parse(json);
+            using var document = WotDocument.Parse(json);
             return WotNodeSetConverter.ToNodeSetResult(document);
         }
 
         private static readonly string[] s_resetInputOrder = ["Reason", "Level"];
+        private static readonly string[] s_explicitInputOrder = ["Level", "Reason"];
+        private static readonly string[] s_explicitInputTypes = ["i=7", "i=12"];
+        private static readonly string[] s_singleStructureFields = ["Value"];
         private static readonly string[] s_resetOutputOrder = ["Accepted"];
         private static readonly uint[] s_levelDimensions = [4];
         private static readonly string[] s_levelDimensionText = ["4"];

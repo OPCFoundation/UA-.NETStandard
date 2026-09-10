@@ -72,9 +72,10 @@ namespace Opc.Ua.Wot
             UANodeSet nodeSet,
             WotDocument document,
             WotNodeSetConverterOptions options,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            Func<JsonElement, string?>? resolvedDefinitionBinding = null)
         {
-            List<Entry> entries = Capture(document.RootElement);
+            List<Entry> entries = Capture(document, nodeSet, diagnostics, resolvedDefinitionBinding);
             var extensions = new List<System.Xml.XmlElement>();
             if (nodeSet.Extensions is not null)
             {
@@ -120,7 +121,7 @@ namespace Opc.Ua.Wot
             var retained = new List<Entry>();
             foreach (Entry entry in entries)
             {
-                using JsonDocument value = JsonDocument.Parse(
+                using var value = JsonDocument.Parse(
                     entry.Json, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
                 if (entry.Pointer == "/data" &&
                     WotNodeSetConverter.IsGeneratedEventDefinitionData(
@@ -138,7 +139,8 @@ namespace Opc.Ua.Wot
                 string? rel = entry.LinkRel ?? GetString(value.RootElement, "rel");
                 string? href = entry.LinkHref ?? GetString(value.RootElement, "href");
                 if (rel is WotNodeSetConverter.ComponentOfRel or WotNodeSetConverter.ComponentOfAliasRel &&
-                    href is not null && documents.TryGetDocument(href, out _) &&
+                    href is not null &&
+                    documents.TryGetDocument(href, out _) &&
                     IsDocumentSetParentLink(value.RootElement))
                 {
                     continue;
@@ -176,7 +178,8 @@ namespace Opc.Ua.Wot
                 {
                     continue;
                 }
-                if (member.Name != "type" || member.Value.ValueKind != JsonValueKind.String ||
+                if (member.Name != "type" ||
+                    member.Value.ValueKind != JsonValueKind.String ||
                     member.Value.GetString() != "application/td+json")
                 {
                     return false;
@@ -228,6 +231,7 @@ namespace Opc.Ua.Wot
             }
 
             var rawValues = new Dictionary<JsonNode, RawValue>();
+            using var generatedDocument = WotDocument.FromOwnedBytes(generatedJson, options);
             foreach (Entry entry in entries)
             {
                 JsonNode? value;
@@ -262,8 +266,8 @@ namespace Opc.Ua.Wot
                 }
                 JsonNode? applied = entry.LinkRel is not null
                     ? ApplyLinkEntry(root, entry, value, diagnostics)
-                    : ApplyEntry(root, entry.Pointer, value, diagnostics);
-                using JsonDocument original = JsonDocument.Parse(
+                    : ApplyEntry(root, entry.Pointer, value, diagnostics, nodeSet, generatedDocument, options);
+                using var original = JsonDocument.Parse(
                     entry.Json, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
                 bool opaque = WotBindingConformance.OpaqueMembers.Contains(ParsePointer(entry.Pointer)[^1]) ||
                     (entry.Pointer == "/uav:nodes" &&
@@ -282,7 +286,7 @@ namespace Opc.Ua.Wot
                     WriteWithRawValues(writer, root, string.Empty, rawValues, diagnostics);
                 }
                 byte[] json = output.ToArray();
-                using JsonDocument validated = JsonDocument.Parse(
+                using var validated = JsonDocument.Parse(
                     json, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
                 return json;
             }
@@ -315,7 +319,8 @@ namespace Opc.Ua.Wot
                 }
                 return;
             }
-            if (original.ValueKind == JsonValueKind.Object && target is JsonObject targetObject &&
+            if (original.ValueKind == JsonValueKind.Object &&
+                target is JsonObject targetObject &&
                 source is JsonObject sourceObject)
             {
                 foreach (JsonProperty property in original.EnumerateObject())
@@ -325,7 +330,8 @@ namespace Opc.Ua.Wot
                         WotBindingConformance.OpaqueMembers.Contains(property.Name), rawValues);
                 }
             }
-            else if (original.ValueKind == JsonValueKind.Array && target is JsonArray targetArray &&
+            else if (original.ValueKind == JsonValueKind.Array &&
+                target is JsonArray targetArray &&
                 source is JsonArray sourceArray)
             {
                 int index = 0;
@@ -394,8 +400,13 @@ namespace Opc.Ua.Wot
             }
         }
 
-        private static List<Entry> Capture(JsonElement root)
+        private static List<Entry> Capture(
+            WotDocument document,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics,
+            Func<JsonElement, string?>? resolvedDefinitionBinding)
         {
+            JsonElement root = document.RootElement;
             var entries = new List<Entry>();
             if (root.ValueKind != JsonValueKind.Object)
             {
@@ -413,7 +424,8 @@ namespace Opc.Ua.Wot
                     case "actions":
                     case "events":
                         CaptureAffordanceMap(
-                            root, property.Value, pointer, property.Name, entries);
+                            root, property.Value, pointer, property.Name, entries,
+                            resolvedDefinitionBinding ?? ResolveDefinitionBinding);
                         break;
                     case "links":
                         CaptureLinks(property.Value, pointer, entries);
@@ -484,6 +496,30 @@ namespace Opc.Ua.Wot
                 }
             }
             return entries;
+
+            string? ResolveDefinitionBinding(JsonElement definition)
+            {
+                if (GetString(definition, "uav:dataTypeName") is null &&
+                    GetString(definition, "@id") is { } identity)
+                {
+                    foreach (JsonElement candidate in WotNodeSetConverter.ReadDataTypeDefinitionOccurrences(root))
+                    {
+                        if (GetString(candidate, "@id") == identity &&
+                            GetString(candidate, "uav:dataTypeName") is not null)
+                        {
+                            definition = candidate;
+                            break;
+                        }
+                    }
+                }
+                var identities = new UANodeSet
+                {
+                    NamespaceUris = nodeSet.NamespaceUris is null ? null : (string[])nodeSet.NamespaceUris.Clone()
+                };
+                string? dataType = WotNodeSetConverter.ResolveDataTypeIdentity(
+                    document, definition, identities, diagnostics);
+                return WotNodeSetConverter.ToPortableNodeId(dataType, identities.NamespaceUris);
+            }
         }
 
         private static void CaptureContext(
@@ -596,7 +632,8 @@ namespace Opc.Ua.Wot
             JsonElement map,
             string pointer,
             string kind,
-            List<Entry> entries)
+            List<Entry> entries,
+            Func<JsonElement, string?> resolveDefinitionBinding)
         {
             if (map.ValueKind != JsonValueKind.Object)
             {
@@ -646,7 +683,8 @@ namespace Opc.Ua.Wot
                             if (!isProperty || !WotNodeSetConverter.MapsRankedJsonType(affordance.Value, property.Name))
                             {
                                 string location = affordancePointer + "/" + Escape(property.Name);
-                                if (!isProperty || property.Name != "items" ||
+                                if (!isProperty ||
+                                    property.Name != "items" ||
                                     !CaptureRankedItems(affordance.Value, property.Value, location, entries))
                                 {
                                     Add(entries, location, property.Value);
@@ -806,8 +844,18 @@ namespace Opc.Ua.Wot
                             }
                             else
                             {
-                                CaptureArgumentAnnotations(
-                                    property.Value, affordancePointer + "/" + Escape(property.Name), entries);
+                                WotConversionResult<WotMethodArgumentLayout> layout =
+                                    WotNodeSetConverter.GetMethodArgumentLayout(affordance.Value, property.Name);
+                                if (layout.Value?.Kind == WotMethodArgumentLayoutKind.Single)
+                                {
+                                    Add(entries, affordancePointer + "/" + Escape(property.Name),
+                                        property.Value, resolveDefinitionBinding);
+                                }
+                                else
+                                {
+                                    CaptureArgumentAnnotations(
+                                        property.Value, affordancePointer + "/" + Escape(property.Name), entries);
+                                }
                             }
                             break;
                         case WotNodeSetConverter.DataMember:
@@ -898,7 +946,7 @@ namespace Opc.Ua.Wot
                 return false;
             }
             using JsonDocument? generated = WotNodeSetConverter.CreateRankedJsonType(schema);
-            CaptureItemSchema(items, ItemsOf(generated is null ? default : generated.RootElement), rank - 1, pointer);
+            CaptureItemSchema(items, ItemsOf((generated?.RootElement) ?? default), rank - 1, pointer);
             return true;
 
             void CaptureItemSchema(JsonElement authored, JsonElement expected, int dimensions, string location)
@@ -920,8 +968,10 @@ namespace Opc.Ua.Wot
                     {
                         CaptureItemSchema(member.Value, ItemsOf(expected), dimensions - 1, memberPointer);
                     }
-                    else if (member.Name == "type" && dimensions > 0 &&
-                        member.Value.ValueKind == JsonValueKind.String && member.Value.GetString() == "array")
+                    else if (member.Name == "type" &&
+                        dimensions > 0 &&
+                        member.Value.ValueKind == JsonValueKind.String &&
+                        member.Value.GetString() == "array")
                     {
                         continue;
                     }
@@ -974,6 +1024,9 @@ namespace Opc.Ua.Wot
                     case "required":
                     case WotNodeSetConverter.ValueRankTerm:
                     case WotNodeSetConverter.ArrayDimensionsTerm:
+                        break;
+                    case "uav:argumentLayout" when
+                        member.Value.ValueKind == JsonValueKind.String && member.Value.GetString() == "named":
                         break;
                     case "properties" when member.Value.ValueKind == JsonValueKind.Object:
                         foreach (JsonProperty argument in member.Value.EnumerateObject())
@@ -1032,7 +1085,7 @@ namespace Opc.Ua.Wot
 
         private static string GetLinkExtras(JsonElement link, out bool hasExtras)
         {
-            using var stream = new System.IO.MemoryStream();
+            using var stream = new MemoryStream();
             using (var writer = new Utf8JsonWriter(stream))
             {
                 writer.WriteStartObject();
@@ -1113,7 +1166,7 @@ namespace Opc.Ua.Wot
                 return false;
             }
             if (rel.StartsWith("ua:", StringComparison.Ordinal) &&
-                WotVocabulary.TryResolveReferenceTypeName(rel.Substring(3), out string referenceType, out _) &&
+                WotVocabulary.TryResolveReferenceTypeName(rel[3..], out string referenceType, out _) &&
                 NodeSetStandardAliases.IsAbstractReferenceType(referenceType))
             {
                 return false;
@@ -1149,13 +1202,14 @@ namespace Opc.Ua.Wot
         private static void Add(
             List<Entry> entries,
             string pointer,
-            JsonElement value)
+            JsonElement value,
+            Func<JsonElement, string?>? resolveDefinitionBinding = null)
         {
             entries.Add(new Entry
             {
                 Pointer = pointer,
                 Json = WotBindingConformance.OpaqueMembers.Contains(ParsePointer(pointer)[^1])
-                    ? value.GetRawText() : WriteWithoutMappedTerms(value)
+                    ? value.GetRawText() : WriteWithoutMappedTerms(value, resolveDefinitionBinding)
             });
         }
 
@@ -1171,7 +1225,8 @@ namespace Opc.Ua.Wot
         /// way in rather than merely skipped at the top level. Explicit opaque
         /// members remain traversal boundaries.
         /// </remarks>
-        private static string WriteWithoutMappedTerms(JsonElement value)
+        private static string WriteWithoutMappedTerms(
+            JsonElement value, Func<JsonElement, string?>? resolveDefinitionBinding)
         {
             if (!ContainsMappedTerm(value))
             {
@@ -1180,7 +1235,7 @@ namespace Opc.Ua.Wot
             using var buffer = new MemoryStream();
             using (var writer = new Utf8JsonWriter(buffer))
             {
-                WriteStripped(writer, value);
+                WriteStripped(writer, value, resolveDefinitionBinding);
             }
             return Encoding.UTF8.GetString(buffer.ToArray());
         }
@@ -1192,7 +1247,7 @@ namespace Opc.Ua.Wot
                 case JsonValueKind.Object:
                     foreach (JsonProperty member in value.EnumerateObject())
                     {
-                        if (WotBindingConformance.OpaqueMembers.Contains(member.Name))
+                        if (WotDocument.IsSemanticBoundary(member.Name))
                         {
                             continue;
                         }
@@ -1217,12 +1272,21 @@ namespace Opc.Ua.Wot
             }
         }
 
-        private static void WriteStripped(Utf8JsonWriter writer, JsonElement value)
+        private static void WriteStripped(
+            Utf8JsonWriter writer, JsonElement value, Func<JsonElement, string?>? resolveDefinitionBinding)
         {
             switch (value.ValueKind)
             {
                 case JsonValueKind.Object:
                     writer.WriteStartObject();
+                    if (resolveDefinitionBinding is not null &&
+                        !value.TryGetProperty("uav:mapToType", out _) &&
+                        !value.TryGetProperty("uav:dataTypeId", out _) &&
+                        value.TryGetProperty("uav:dataTypeDefinition", out JsonElement definition) &&
+                        resolveDefinitionBinding(definition) is { } dataType)
+                    {
+                        writer.WriteString("uav:mapToType", dataType);
+                    }
                     foreach (JsonProperty member in value.EnumerateObject())
                     {
                         if (s_mappedNestedTerms.Contains(member.Name))
@@ -1230,13 +1294,13 @@ namespace Opc.Ua.Wot
                             continue;
                         }
                         writer.WritePropertyName(member.Name);
-                        if (WotBindingConformance.OpaqueMembers.Contains(member.Name))
+                        if (WotDocument.IsSemanticBoundary(member.Name))
                         {
                             writer.WriteRawValue(member.Value.GetRawText(), skipInputValidation: true);
                         }
                         else
                         {
-                            WriteStripped(writer, member.Value);
+                            WriteStripped(writer, member.Value, resolveDefinitionBinding);
                         }
                     }
                     writer.WriteEndObject();
@@ -1245,7 +1309,7 @@ namespace Opc.Ua.Wot
                     writer.WriteStartArray();
                     foreach (JsonElement item in value.EnumerateArray())
                     {
-                        WriteStripped(writer, item);
+                        WriteStripped(writer, item, resolveDefinitionBinding);
                     }
                     writer.WriteEndArray();
                     break;
@@ -1446,7 +1510,10 @@ namespace Opc.Ua.Wot
             JsonNode root,
             string pointer,
             JsonNode? value,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            UANodeSet nodeSet,
+            WotDocument generatedDocument,
+            WotNodeSetConverterOptions options)
         {
             string[] tokens = ParsePointer(pointer);
             // Defensive: every caller validates the pointer with IsJsonPointer
@@ -1516,6 +1583,16 @@ namespace Opc.Ua.Wot
                 JsonNode? existing = targetObject[leaf];
                 if (existing is not null)
                 {
+                    if (tokens.Length == 3 &&
+                        tokens[0] == "actions" &&
+                        leaf is WotNodeSetConverter.InputMember or WotNodeSetConverter.OutputMember &&
+                        value is JsonObject authoredSchema &&
+                        TryApplySingleArgumentSchema(
+                            root, targetObject, tokens[1], leaf, authoredSchema, nodeSet,
+                            generatedDocument, options, diagnostics))
+                    {
+                        return targetObject[leaf];
+                    }
                     if (IsGeneratedDefaultPointer(pointer))
                     {
                         // The generated value is this library's own default and
@@ -1582,6 +1659,109 @@ namespace Opc.Ua.Wot
                 $"Residue target '{pointer}' is invalid.",
                 WotLocation.FromPointer(pointer)));
             return null;
+        }
+
+        private static bool TryApplySingleArgumentSchema(
+            JsonNode root,
+            JsonObject action,
+            string actionName,
+            string member,
+            JsonObject schema,
+            UANodeSet nodeSet,
+            WotDocument generatedDocument,
+            WotNodeSetConverterOptions options,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!generatedDocument.Actions.TryGetValue(actionName, out JsonElement generatedAction))
+            {
+                return false;
+            }
+            JsonNode candidate = root.DeepClone();
+            candidate["actions"]![actionName]![member] = schema.DeepClone();
+            using WotDocument? authoredDocument = ReadArgumentSchemaCandidate(
+                candidate, "/actions/" + Escape(actionName) + "/" + member, options, diagnostics);
+            if (authoredDocument is null)
+            {
+                return false;
+            }
+            JsonElement authoredAction = authoredDocument.Actions[actionName];
+            WotConversionResult<WotMethodArgumentLayout> authored =
+                WotNodeSetConverter.GetMethodArgumentLayout(authoredAction, member);
+            WotConversionResult<WotMethodArgumentLayout> generated =
+                WotNodeSetConverter.GetMethodArgumentLayout(generatedAction, member);
+            if (!authored.Success ||
+                !generated.Success ||
+                authored.Value!.Kind != WotMethodArgumentLayoutKind.Single ||
+                generated.Value!.ArgumentCount != 1)
+            {
+                return false;
+            }
+            var identities = new UANodeSet
+            {
+                NamespaceUris = nodeSet.NamespaceUris is null ? null : (string[])nodeSet.NamespaceUris.Clone()
+            };
+            INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
+            if (!WotNodeSetConverter.PreservedArgumentSchemasMatch(
+                authoredDocument, authoredAction, generatedDocument, generatedAction,
+                member, identities, aliases, diagnostics))
+            {
+                return false;
+            }
+            JsonObject replacement = schema.DeepClone().AsObject();
+            if (generated.Value.Kind == WotMethodArgumentLayoutKind.Named &&
+                !replacement.ContainsKey("uav:browseName") &&
+                !replacement.ContainsKey("title"))
+            {
+                string name = generated.Value.FieldOrder[0];
+                string fallback = member == WotNodeSetConverter.InputMember ? "Input" : "Output";
+                if (name != fallback)
+                {
+                    replacement["uav:browseName"] = "nsu=" + WotVocabulary.OpcUaNamespace + ";" + name;
+                }
+            }
+            action[member] = replacement;
+            return true;
+        }
+
+        private static WotDocument? ReadArgumentSchemaCandidate(
+            JsonNode candidate,
+            string pointer,
+            WotNodeSetConverterOptions options,
+            List<WotDiagnostic> diagnostics)
+        {
+            using var output = new MemoryStream();
+            using var writer = new Utf8JsonWriter(
+                output, new JsonWriterOptions { MaxDepth = options.MaxJsonDepth });
+            try
+            {
+                candidate.WriteTo(writer);
+                writer.Flush();
+                if (output.Length > options.MaxJsonDocumentSize)
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error, WotDiagnosticCode.ResidueInvalid,
+                        "The restored action schema exceeds the JSON document size limit.",
+                        WotLocation.FromPointer(pointer)));
+                    return null;
+                }
+                return WotDocument.FromOwnedBytes(output.ToArray(), options);
+            }
+            catch (InvalidOperationException exception) when (writer.CurrentDepth >= options.MaxJsonDepth)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error, WotDiagnosticCode.ResidueInvalid,
+                    "The restored action schema exceeds the combined JSON depth: " + exception.Message,
+                    WotLocation.FromPointer(pointer)));
+                return null;
+            }
+            catch (JsonException exception)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error, WotDiagnosticCode.ResidueInvalid,
+                    "The restored action schema is not valid within the JSON limits: " + exception.Message,
+                    WotLocation.FromPointer(pointer)));
+                return null;
+            }
         }
 
         private static void ApplyTypeAnnotations(
@@ -1757,7 +1937,7 @@ namespace Opc.Ua.Wot
             }
             else if (linkOwner["links"] is null)
             {
-                links = new JsonArray();
+                links = [];
                 linkOwner["links"] = links;
             }
             else
@@ -1766,7 +1946,7 @@ namespace Opc.Ua.Wot
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.ResidueConflict,
                     "Link residue conflicts with a non-array links member.",
-                    WotLocation.FromPointer(entry.Pointer.Substring(0, entry.Pointer.Length - 2))));
+                    WotLocation.FromPointer(entry.Pointer[..^2])));
                 return null;
             }
 
@@ -1775,7 +1955,7 @@ namespace Opc.Ua.Wot
             target ??= FindLink(links, entry, requireExactRel: false);
             if (target is null)
             {
-                target = new JsonObject();
+                target = [];
                 SetString(target, "rel", entry.LinkRel);
                 SetString(target, "href", entry.LinkHref);
                 SetString(target, "uav:refId", entry.LinkRefId);
@@ -1878,7 +2058,7 @@ namespace Opc.Ua.Wot
             if (relation?.StartsWith("ua:", StringComparison.Ordinal) == true)
             {
                 return WotVocabulary.TryResolveReferenceTypeName(
-                    relation.Substring(3), out referenceType, out isForward);
+                    relation[3..], out referenceType, out isForward);
             }
             referenceType = string.Empty;
             isForward = true;
@@ -1978,7 +2158,7 @@ namespace Opc.Ua.Wot
             {
                 return false;
             }
-            string[] tokens = pointer.Substring(1).Split('/');
+            string[] tokens = pointer[1..].Split('/');
             if (tokens.Length >= maxDepth)
             {
                 return false;
@@ -2000,7 +2180,7 @@ namespace Opc.Ua.Wot
 
         private static string[] ParsePointer(string pointer)
         {
-            string[] tokens = pointer.Substring(1).Split('/');
+            string[] tokens = pointer[1..].Split('/');
             for (int ii = 0; ii < tokens.Length; ii++)
             {
                 tokens[ii] = ReplaceOrdinal(
@@ -2047,7 +2227,7 @@ namespace Opc.Ua.Wot
 #if NET6_0_OR_GREATER
             return SHA256.HashData(data);
 #else
-            using SHA256 sha256 = SHA256.Create();
+            using var sha256 = SHA256.Create();
             return sha256.ComputeHash(data);
 #endif
         }

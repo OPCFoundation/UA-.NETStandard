@@ -296,6 +296,20 @@ The generated `…TypeClient` proxies invoke methods through the shared `ObjectT
 
 A few non-conformant servers only bind the method handler on the instance and reject the type-declaration `MethodId` with `Bad_MethodInvalid`. To interoperate with those servers, `CallMethodAsync` transparently falls back: on `Bad_MethodInvalid` it resolves the instance `MethodId` via a `HasComponent` browse path (`TranslateBrowsePathsToNodeIds`), caches it on the proxy, and retries the call once. Conformant servers never trigger the fallback and therefore pay no extra round-trip; subsequent calls against a non-conformant server reuse the cached instance `MethodId`.
 
+WoT action bindings use a separate, single-source invocation path. An OPC UA
+form's `uav:callObjectId` identifies its source receiver independently of the
+Method target. A present invalid receiver is rejected rather than replaced by
+a fallback. Local `uav:componentOf` arrays describe model placement, not a source
+receiver; the earlier scalar form-scoped receiver spelling remains readable
+with a compatibility warning.
+
+Standard planners retain complete input/output schemas and converter-resolved
+argument layouts on the compiled payload descriptor. An ordinary native Call
+rejects a declared argument-count mismatch before sending it. Occurrence-level
+Condition actions retain the native EventId/Comment positions: an explicitly
+optional missing Comment becomes `LocalizedText.Null`, while a required missing
+Comment is rejected. This path does not retry a different form or source.
+
 ---
 
 ## 4. Persistence limits

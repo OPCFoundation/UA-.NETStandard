@@ -1114,10 +1114,6 @@ namespace Opc.Ua.Wot
                     dataTypeOwners,
                     dataTypeNames,
                     documentSet);
-            if (synthesized is not null)
-            {
-                WotJsonResidue.Replace(synthesized, document, options, diagnostics);
-            }
             return NodeSetAliasCompleter.Complete(synthesized, WotNodeSetAliases.Instance);
         }
 
@@ -1757,6 +1753,11 @@ namespace Opc.Ua.Wot
             }
             nodeSet.Items = [.. items];
             CompleteAffordanceOwnership(nodeSet, items, referenceTypeCatalog);
+            WotJsonResidue.Replace(
+                nodeSet, document, options, diagnostics,
+                definition => ToPortableNodeId(
+                    ResolveDataTypeReference(document, definition, dataTypes, nodeSet, diagnostics, definition),
+                    nodeSet.NamespaceUris));
             return nodeSet;
         }
 
@@ -4698,6 +4699,11 @@ namespace Opc.Ua.Wot
             if (selected is not null)
             {
                 return selected;
+            }
+            if (GetElementString(schema, "uav:dataTypeName") is { } dataTypeName &&
+                ResolveDataTypeName(document, dataTypeName, nodeSet, diagnostics, schema, dataTypes) is { } named)
+            {
+                return named;
             }
             if (GetElementString(schema, "type") == "array" &&
                 schema.TryGetProperty("items", out JsonElement element) &&

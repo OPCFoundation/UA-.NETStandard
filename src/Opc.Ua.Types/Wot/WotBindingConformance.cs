@@ -65,6 +65,12 @@ namespace Opc.Ua.Wot
     /// </remarks>
     public static class WotBindingConformance
     {
+        static WotBindingConformance()
+        {
+            // The vocabulary depends on both term sets having completed initialization.
+            VocabularyTerms = BuildVocabularyTerms();
+        }
+
         /// <summary>
         /// The vocabulary namespace, which never changes across revisions
         /// (WoT Binding Section 4).
@@ -317,7 +323,9 @@ namespace Opc.Ua.Wot
             {
                 CollectOpaqueMembers(
                     item,
-                    pointer + "/" + index.ToString(
+                    pointer +
+                    "/" +
+                    index.ToString(
                         System.Globalization.CultureInfo.InvariantCulture),
                     found);
                 index++;
@@ -458,6 +466,7 @@ namespace Opc.Ua.Wot
         /// <param name="claims">The names a document claims.</param>
         /// <param name="required">The name that has to be covered.</param>
         /// <returns><c>true</c> when the claims cover the required name.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static bool ClaimsSatisfy(IReadOnlyList<string> claims, string required)
         {
             if (claims is null)
@@ -487,7 +496,7 @@ namespace Opc.Ua.Wot
         {
             if (name is null || !IsConformanceName(name))
             {
-                return ArrayOf<string>.Empty;
+                return [];
             }
             if (!s_profileUnits.TryGetValue(name, out HashSet<string>? units))
             {
@@ -592,11 +601,11 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Every <c>uav:</c> IRI this revision's <c>@context</c> mints: the
-        /// terms a document spells with the prefix and the ones a scoped
-        /// context mints under a short member name (WoT Binding Section 7).
+        /// Every <c>uav:</c> IRI the implementation recognizes, including
+        /// supported Call terms and the IRIs a scoped context mints under a
+        /// short member name (WoT Binding Section 7).
         /// </summary>
-        public static ArrayOf<string> VocabularyTerms => s_vocabularyTerms;
+        public static ArrayOf<string> VocabularyTerms { get; }
 
         /// <summary>
         /// The <c>uav:</c> IRIs a scoped <c>@context</c> mints under a short
@@ -735,6 +744,7 @@ namespace Opc.Ua.Wot
                 "uav:mapToType",
                 "uav:mapToTypeName",
                 "uav:mapByFieldPath",
+                "uav:callObjectId",
                 // Section 5.7 - security schemes.
                 "uav:channelsec",
                 "uav:authentication",
@@ -794,6 +804,7 @@ namespace Opc.Ua.Wot
                 "uav:structureType",
                 "uav:fields",
                 "uav:fieldOrder",
+                "uav:argumentLayout",
                 "uav:fieldName",
                 "uav:fieldDataTypeDefinition",
                 "uav:fieldDataTypeName",
@@ -834,7 +845,5 @@ namespace Opc.Ua.Wot
             };
 
         private static readonly HashSet<string> s_scopedTerms = BuildSet(ScopedTerms);
-
-        private static readonly ArrayOf<string> s_vocabularyTerms = BuildVocabularyTerms();
     }
 }

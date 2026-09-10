@@ -73,10 +73,12 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(type.Definition.Field[0].DataType, Is.EqualTo("i=11"));
             Assert.That(type.References!.Any(reference =>
                 reference.ReferenceType is "HasSubtype" or "i=45" &&
-                !reference.IsForward && reference.Value == "i=22"), Is.True);
+                !reference.IsForward &&
+                reference.Value == "i=22"), Is.True);
             Assert.That(type.References!.Any(reference =>
                 reference.ReferenceType is "Organizes" or "i=35" &&
-                reference.IsForward && reference.Value == "i=85"), Is.True);
+                reference.IsForward &&
+                reference.Value == "i=85"), Is.True);
         }
 
         [TestCase("uav:dataTypeId")]
@@ -171,7 +173,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string actualId = WotTestData.LocalNodeId(source, typeId);
             UADataType type = source.Items!.OfType<UADataType>().Single();
             Assert.That(type.NodeId, Is.EqualTo(actualId));
-            UAObject[] encodings = source.Items!.OfType<UAObject>().ToArray();
+            UAObject[] encodings = [.. source.Items!.OfType<UAObject>()];
             Assert.That(encodings, Has.Length.EqualTo(3));
             foreach (UAObject encoding in encodings)
             {
@@ -179,7 +181,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(encoding.References!.Single(reference =>
                     reference.ReferenceType == "HasEncoding" && !reference.IsForward).Value, Is.EqualTo(actualId));
                 Assert.That(type.References!.Any(reference =>
-                    reference.ReferenceType == "HasEncoding" && reference.IsForward &&
+                    reference.ReferenceType == "HasEncoding" &&
+                    reference.IsForward &&
                     reference.Value == encoding.NodeId), Is.True);
             }
             Assert.That(source.Items!.Any(node => node.NodeId == "ns=1;s=DataTypes/Reading"), Is.False);
@@ -191,7 +194,8 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ToNodeSetResult(archived);
             Assert.That(restored.Success, Is.True, Describe(restored));
             Assert.That(WotTestData.Serialize(restored.Value!), Is.EqualTo(expected),
-                "Before: " + string.Concat(source.Extensions?.Select(extension => extension.OuterXml) ?? []) +
+                "Before: " +
+                string.Concat(source.Extensions?.Select(extension => extension.OuterXml) ?? []) +
                 "; after: " +
                 string.Concat(restored.Value!.Extensions?.Select(extension => extension.OuterXml) ?? []));
             Assert.That(WotTestData.Serialize(source), Is.EqualTo(expected));
@@ -333,8 +337,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Success, Is.EqualTo(valid), Describe(result));
             if (valid)
             {
-                string[] expected = definition["uav:defaultEncodings"]!.AsArray()
-                    .Select(value => "Default " + value!.GetValue<string>()).ToArray();
+                string[] expected = [.. definition["uav:defaultEncodings"]!.AsArray().Select(value => "Default " + value!.GetValue<string>())];
                 Assert.That(result.Value!.Items!.OfType<UAObject>().Select(node => node.BrowseName),
                     Is.EquivalentTo(expected));
             }
@@ -383,7 +386,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             JsonObject definition = Structure("nsu=urn:test:datatype-closure;i=3000");
             definition["uav:isAbstract"] = true;
-            definition["uav:defaultEncodings"] = binary ? new JsonArray("Binary") : new JsonArray();
+            definition["uav:defaultEncodings"] = binary ? new JsonArray("Binary") : [];
             using WotDocument document = Parse(Document(definition));
 
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
@@ -536,7 +539,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(nodeSet.Items!.OfType<UAVariable>().Single().DataType, Is.EqualTo(expectedId));
                 UADataType type = nodeSet.Items!.OfType<UADataType>().Single();
                 Assert.That(type.NodeId, Is.EqualTo(expectedId));
-                QualifiedName name = QualifiedName.Parse(type.BrowseName!);
+                var name = QualifiedName.Parse(type.BrowseName!);
                 Assert.That(name.Name, Is.EqualTo("Reading"));
                 Assert.That(nodeSet.NamespaceUris![name.NamespaceIndex - 1], Is.EqualTo("urn:test:datatype-closure"));
                 Assert.That(nodeSet.Items!.OfType<UAObject>().All(encoding =>
@@ -598,7 +601,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Success, Is.EqualTo(nestedAvailable), Describe(result));
             if (nestedAvailable)
             {
-                UADataType[] types = result.Value!.Items!.OfType<UADataType>().ToArray();
+                UADataType[] types = [.. result.Value!.Items!.OfType<UADataType>()];
                 Assert.That(types, Has.Length.EqualTo(2));
                 Assert.That(types.Single(type => type.NodeId == "ns=1;i=3000").Definition!.Field![0].DataType,
                     Is.EqualTo("ns=1;i=3001"));
@@ -672,7 +675,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(result.Success, Is.True, Describe(result));
             UANodeSet nodeSet = result.Value!;
-            UAVariable[] consumers = nodeSet.Items!.OfType<UAVariable>().ToArray();
+            UAVariable[] consumers = [.. nodeSet.Items!.OfType<UAVariable>()];
             Assert.That(consumers, Has.Length.EqualTo(2));
             Assert.That(consumers.Select(consumer => consumer.DataType),
                 Is.All.EqualTo("ns=1;s=DataTypes/Reading"));
@@ -730,7 +733,8 @@ namespace Opc.Ua.Types.Tests.Wot
                     Is.EqualTo(consumer.ParentNodeId));
                 Assert.That(nodeSet.Items!.OfType<UAObjectType>().Single(node =>
                     node.NodeId == consumer.ParentNodeId).References!.Any(reference =>
-                        reference.ReferenceType == "HasProperty" && reference.IsForward &&
+                        reference.ReferenceType == "HasProperty" &&
+                        reference.IsForward &&
                         reference.Value == consumer.NodeId), Is.True);
             }
             else
@@ -744,7 +748,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(consumer.BrowseName,
                     Is.EqualTo(location == "input" ? "InputArguments" : "OutputArguments"));
                 Assert.That(method.References!.Any(reference =>
-                    reference.ReferenceType == "HasProperty" && reference.IsForward &&
+                    reference.ReferenceType == "HasProperty" &&
+                    reference.IsForward &&
                     reference.Value == consumer.NodeId), Is.True);
             }
             UADataType type = nodeSet.Items!.OfType<UADataType>().Single();
@@ -791,17 +796,17 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(result.Success, Is.True, Describe(result));
             UANodeSet nodeSet = result.Value!;
-            UADataType[] types = nodeSet.Items!.OfType<UADataType>().ToArray();
+            UADataType[] types = [.. nodeSet.Items!.OfType<UADataType>()];
             Assert.That(types, Has.Length.EqualTo(2));
             Assert.That(types.Single(type => type.NodeId == "ns=1;i=3001").Definition!.Field![0].DataType,
                 Is.EqualTo("ns=1;i=3000"));
-            UAVariable[] variables = nodeSet.Items!.OfType<UAVariable>().ToArray();
+            UAVariable[] variables = [.. nodeSet.Items!.OfType<UAVariable>()];
             Assert.That(variables.Where(variable => variable.DataType != "i=296")
                 .Select(variable => variable.DataType), Is.All.EqualTo("ns=1;i=3000"));
             XNamespace ua = "http://opcfoundation.org/UA/2008/02/Types.xsd";
-            XElement[] arguments = variables.Where(variable => variable.DataType == "i=296")
+            XElement[] arguments = [.. variables.Where(variable => variable.DataType == "i=296")
                 .Select(variable => XElement.Parse(variable.Value!.OuterXml)
-                    .Descendants(ua + "Argument").Single()).ToArray();
+                    .Descendants(ua + "Argument").Single())];
             Assert.That(arguments, Has.Length.EqualTo(2));
             Assert.That(arguments.Select(argument => argument.Element(ua + "DataType")!
                 .Element(ua + "Identifier")!.Value), Is.All.EqualTo("ns=1;i=3000"));
@@ -848,7 +853,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Success, Is.True, Describe(result));
             UANodeSet nodeSet = result.Value!;
             Assert.That(nodeSet.Items!.OfType<UAVariable>().Single().DataType, Is.EqualTo("ns=1;i=3000"));
-            UADataType[] types = nodeSet.Items!.OfType<UADataType>().ToArray();
+            UADataType[] types = [.. nodeSet.Items!.OfType<UADataType>()];
             UADataType outerType = types.Single(type => type.NodeId == "ns=1;i=3000");
             Assert.That(outerType.BrowseName, Is.EqualTo("1:Reading"));
             Assert.That(outerType.Definition!.Name, Is.EqualTo("1:Reading"));
@@ -858,6 +863,50 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(innerType.Definition.Field![0].DataType, Is.EqualTo("i=11"));
             Assert.That(readingDocument.Utf8Json.ToArray(), Is.EqualTo(originalSource));
             WotNodeSetImportTests.AssertImportable(nodeSet, "typed transitive DTD callback");
+        }
+
+        [TestCase("input")]
+        [TestCase("output")]
+        public async Task SingleArgumentRetainsItsExternallyResolvedDefinitionBindingAsync(string member)
+        {
+            using WotDocument definitionDocument = Parse(Document(
+                Structure("nsu=urn:test:datatype-closure;i=3000")));
+            JsonObject root = Consumer("urn:dtd:Reading");
+            JsonNode schema = root["properties"]!["Payload"]!.DeepClone();
+            root.Remove("properties");
+            root["actions"] = new JsonObject
+            {
+                ["Exchange"] = new JsonObject { [member] = schema }
+            };
+            using WotDocument consumer = Parse(root);
+            var resolver = new Mock<IWotNodeResolver>();
+            Mock<IWotDataTypeDefinitionResolver> definitions = resolver.As<IWotDataTypeDefinitionResolver>();
+            definitions.Setup(provider => provider.ResolveDataTypeDefinitionsAsync(
+                "urn:dtd:Reading", It.IsAny<CancellationToken>())).Returns(
+                    new ValueTask<ArrayOf<WotDataTypeDefinitionSource>>(new ArrayOf<WotDataTypeDefinitionSource>(
+                    [
+                        new(definitionDocument,
+                            definitionDocument.RootElement.GetProperty("uav:dataTypeDefinitions")[0])
+                    ])));
+
+            WotConversionResult<UANodeSet> imported = await WotNodeSetConverter.ToNodeSetResultAsync(
+                consumer, null, null, null, resolver.Object).ConfigureAwait(false);
+
+            Assert.That(imported.Success, Is.True, Describe(imported));
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(imported.Value!);
+            JsonElement argumentSchema = document.Actions["Exchange"].GetProperty(member);
+            Assert.That(argumentSchema.GetProperty("uav:mapToType").GetString(),
+                Is.EqualTo("nsu=urn:test:datatype-closure;i=3000"));
+            WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ToNodeSetResult(document);
+            Assert.That(restored.Success, Is.True, Describe(restored));
+            XNamespace ua = Namespaces.OpcUaXsd;
+            UAVariable arguments = restored.Value!.Items!.OfType<UAVariable>()
+                .Single(variable => variable.BrowseName == (member == "input" ? "InputArguments" : "OutputArguments"));
+            XElement argument = XElement.Parse(arguments.Value!.OuterXml).Descendants(ua + "Argument").Single();
+            Assert.That(argument.Element(ua + "DataType")!.Element(ua + "Identifier")!.Value,
+                Is.EqualTo("ns=1;i=3000"));
+            definitions.Verify(provider => provider.ResolveDataTypeDefinitionsAsync(
+                "urn:dtd:Reading", It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [TestCase(false)]
@@ -1017,8 +1066,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 reference.ReferenceType == "HasSubtype" && !reference.IsForward).Value, Is.EqualTo("i=22"));
             Assert.That(type.References!.Any(reference =>
                 reference.ReferenceType is "Organizes" or "i=35" &&
-                reference.IsForward && reference.Value == "i=85"), Is.True);
-            UAObject[] encodings = nodeSet.Items!.OfType<UAObject>().ToArray();
+                reference.IsForward &&
+                reference.Value == "i=85"), Is.True);
+            UAObject[] encodings = [.. nodeSet.Items!.OfType<UAObject>()];
             Assert.That(encodings.Select(encoding => encoding.BrowseName), Is.EquivalentTo(s_binaryJsonNames));
             foreach (UAObject encoding in encodings)
             {
@@ -1026,7 +1076,8 @@ namespace Opc.Ua.Types.Tests.Wot
                     reference.ReferenceType == "HasEncoding" && !reference.IsForward).Value,
                     Is.EqualTo("ns=1;s=DataTypes/Reading"));
                 Assert.That(type.References!.Any(reference =>
-                    reference.ReferenceType == "HasEncoding" && reference.IsForward &&
+                    reference.ReferenceType == "HasEncoding" &&
+                    reference.IsForward &&
                     reference.Value == encoding.NodeId), Is.True);
             }
             WotNodeSetImportTests.AssertImportable(nodeSet, "inferred live DataType root");
@@ -1060,7 +1111,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("\"ua:Double\"")]
         [TestCase("\"standard:Double\"")]
         [TestCase("\"nsu=http://opcfoundation.org/UA/;Double\"")]
-        [TestCase("{\"uav:dataTypeName\":\"standard:Double\"}")]
+        [TestCase(/*lang=json,strict*/ "{\"uav:dataTypeName\":\"standard:Double\"}")]
         public void QualifiedBaseTypeNamesResolveInTheirCarryingDefinition(string baseReference)
         {
             JsonObject definition = Structure("nsu=urn:test:datatype-closure;i=3000");

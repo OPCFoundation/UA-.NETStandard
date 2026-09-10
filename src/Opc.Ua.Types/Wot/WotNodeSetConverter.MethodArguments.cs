@@ -148,6 +148,50 @@ namespace Opc.Ua.Wot
             IReadOnlyList<string> Members);
 
         /// <summary>
+        /// Resolves an action's input or output DataSchema into native argument
+        /// positions without performing transport I/O or materializing Nodes.
+        /// </summary>
+        /// <param name="action">The resolved action affordance.</param>
+        /// <param name="member">Either <c>input</c> or <c>output</c>.</param>
+        /// <returns>The immutable layout and any argument-mapping diagnostic.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public static WotConversionResult<WotMethodArgumentLayout> GetMethodArgumentLayout(
+            JsonElement action,
+            string member)
+        {
+            if (member is not (InputMember or OutputMember))
+            {
+                throw new ArgumentOutOfRangeException(nameof(member));
+            }
+            WotArgumentShape shape = action.ValueKind == JsonValueKind.Object
+                ? AnalyzeArgumentSchema(action, member)
+                : new WotArgumentShape(WotArgumentShapeKind.Invalid, []);
+            if (shape.Kind is WotArgumentShapeKind.Invalid or WotArgumentShapeKind.AmbiguousOrder)
+            {
+                return new WotConversionResult<WotMethodArgumentLayout>(
+                    null,
+                    [
+                        new WotDiagnostic(
+                            WotDiagnosticSeverity.Error,
+                            shape.Kind == WotArgumentShapeKind.AmbiguousOrder
+                                ? WotDiagnosticCode.MethodArgumentOrderAmbiguous
+                                : WotDiagnosticCode.MethodArgumentSchemaInvalid,
+                            $"The action's {member} schema does not declare an unambiguous native argument layout.",
+                            WotLocation.FromPointer("/" + member))
+                    ]);
+            }
+            action.TryGetProperty(member, out JsonElement schema);
+            WotMethodArgumentLayoutKind kind = shape.Kind switch
+            {
+                WotArgumentShapeKind.Single => WotMethodArgumentLayoutKind.Single,
+                WotArgumentShapeKind.Members => WotMethodArgumentLayoutKind.Named,
+                _ => WotMethodArgumentLayoutKind.None
+            };
+            return new WotConversionResult<WotMethodArgumentLayout>(
+                new WotMethodArgumentLayout(kind, schema, [.. shape.Members]), []);
+        }
+
+        /// <summary>
         /// Gets whether the converter maps an action member onto Argument
         /// values, which is what decides whether preservation must also carry
         /// it.
@@ -425,6 +469,7 @@ namespace Opc.Ua.Wot
             writer.WritePropertyName(member);
             writer.WriteStartObject();
             writer.WriteString("type", "object");
+            writer.WriteString("uav:argumentLayout", "named");
 
             writer.WritePropertyName("uav:fieldOrder");
             writer.WriteStartArray();
@@ -680,6 +725,35 @@ namespace Opc.Ua.Wot
             {
                 return new WotArgumentShape(WotArgumentShapeKind.Invalid, []);
             }
+            if (schema.TryGetProperty("uav:argumentLayout", out JsonElement layout))
+            {
+                if (layout.ValueKind != JsonValueKind.String ||
+                    layout.GetString() is not ("single" or "named"))
+                {
+                    return new WotArgumentShape(WotArgumentShapeKind.Invalid, []);
+                }
+                if (layout.GetString() == "single")
+                {
+                    return new WotArgumentShape(WotArgumentShapeKind.Single, []);
+                }
+                if (NamesDataType(schema) ||
+                    GetElementString(schema, "type") != "object" ||
+                    !schema.TryGetProperty("properties", out JsonElement namedProperties) ||
+                    namedProperties.ValueKind != JsonValueKind.Object ||
+                    !schema.TryGetProperty("uav:fieldOrder", out JsonElement namedOrder))
+                {
+                    return new WotArgumentShape(WotArgumentShapeKind.Invalid, []);
+                }
+                var names = new List<string>();
+                foreach (JsonProperty property in namedProperties.EnumerateObject())
+                {
+                    names.Add(property.Name);
+                }
+                WotArgumentShape named = AnalyzeFieldOrder(namedOrder, namedProperties, names);
+                return named.Kind == WotArgumentShapeKind.Members && named.Members.Count == 0
+                    ? new WotArgumentShape(WotArgumentShapeKind.None, [])
+                    : named;
+            }
             if (NamesDataType(schema))
             {
                 return new WotArgumentShape(WotArgumentShapeKind.Single, []);
@@ -796,7 +870,7 @@ namespace Opc.Ua.Wot
             string name,
             UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics,
-            DataTypeDefinitionContext dataTypes)
+            DataTypeDefinitionContext? dataTypes)
         {
             return new WotMethodArgument(
                 name,

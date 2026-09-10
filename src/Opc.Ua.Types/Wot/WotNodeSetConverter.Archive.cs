@@ -586,14 +586,11 @@ namespace Opc.Ua.Wot
                     case InputMember:
                     case OutputMember:
                         if (regenerated.ValueKind == JsonValueKind.Object &&
-                            regenerated.TryGetProperty(member.Name, out JsonElement expectedArguments))
+                            regenerated.TryGetProperty(member.Name, out _))
                         {
-                            if (!IsArchivedJsonSubset(
-                                member.Value, expectedArguments, document, identities, aliases, diagnostics,
-                                optionalRequiredField: member.Name == InputMember &&
-                                    AllowsOptionalPreservedConditionComment(authored, regenerated)
-                                        ? CommentField : null,
-                                expectedDocument: regeneratedDocument))
+                            if (!PreservedArgumentSchemasMatch(
+                                document, authored, regeneratedDocument ?? document, regenerated,
+                                member.Name, identities, aliases, diagnostics))
                             {
                                 ReportArchiveConflict(location, member.Name, diagnostics);
                             }
@@ -672,6 +669,91 @@ namespace Opc.Ua.Wot
                 GetElementString(comment, "uav:mapToType") == "i=21" &&
                 GetElementInt32(eventId, ValueRankTerm) == ScalarValueRank &&
                 GetElementInt32(comment, ValueRankTerm) == ScalarValueRank;
+        }
+
+        internal static bool PreservedArgumentSchemasMatch(
+            WotDocument authoredDocument,
+            JsonElement authoredAction,
+            WotDocument generatedDocument,
+            JsonElement generatedAction,
+            string member,
+            UANodeSet identities,
+            INodeSetAliasResolver aliases,
+            List<WotDiagnostic> diagnostics)
+        {
+            WotConversionResult<WotMethodArgumentLayout> authored =
+                GetMethodArgumentLayout(authoredAction, member);
+            WotConversionResult<WotMethodArgumentLayout> generated =
+                GetMethodArgumentLayout(generatedAction, member);
+            if (!authored.Success ||
+                !generated.Success ||
+                authored.Value!.ArgumentCount != generated.Value!.ArgumentCount)
+            {
+                return false;
+            }
+            if (authored.Value.ArgumentCount == 0)
+            {
+                return authored.Value.Kind == generated.Value.Kind;
+            }
+            // Layout snapshots are detached; contextual type lookup needs the original declaration elements.
+            JsonElement authoredSchema = authoredAction.GetProperty(member);
+            JsonElement generatedSchema = generatedAction.GetProperty(member);
+            var factDiagnostics = new List<WotDiagnostic>();
+            DataTypeDefinitionContext authoredTypes = CreateDataTypeDefinitionContext(
+                authoredDocument, identities, [], [], factDiagnostics);
+            bool factsMatch = true;
+            for (int index = 0; index < authored.Value.ArgumentCount; index++)
+            {
+                WotMethodArgument authoredArgument = ReadArgument(
+                    authoredDocument, authored.Value.GetArgumentSchema(authoredSchema, index), "Argument",
+                    identities, factDiagnostics, authoredTypes);
+                WotMethodArgument generatedArgument = ReadArgument(
+                    generatedDocument, generated.Value.GetArgumentSchema(generatedSchema, index), "Argument",
+                    identities, factDiagnostics, null);
+                if (ResolveArchivedAlias(authoredArgument.DataType, aliases) !=
+                    ResolveArchivedAlias(generatedArgument.DataType, aliases) ||
+                    authoredArgument.ValueRank != generatedArgument.ValueRank ||
+                    NormalizeArchivedDimensions(authoredArgument.ArrayDimensions) !=
+                    NormalizeArchivedDimensions(generatedArgument.ArrayDimensions))
+                {
+                    factsMatch = false;
+                    break;
+                }
+            }
+            diagnostics.AddRange(factDiagnostics);
+            if (!factsMatch || HasErrors(factDiagnostics))
+            {
+                return false;
+            }
+            if (authored.Value.Kind == WotMethodArgumentLayoutKind.Single &&
+                generated.Value.Kind == WotMethodArgumentLayoutKind.Named)
+            {
+                JsonElement schema = authoredSchema;
+                if ((schema.TryGetProperty("uav:browseName", out _) || schema.TryGetProperty("title", out _)) &&
+                    ReadArgumentName(schema, member == InputMember ? DefaultInputArgumentName : DefaultOutputArgumentName) !=
+                        generated.Value.FieldOrder[0])
+                {
+                    return false;
+                }
+                return IsArchivedJsonSubset(
+                    schema, generated.Value.GetArgumentSchema(generatedSchema, 0),
+                    authoredDocument, identities, aliases, diagnostics,
+                    expectedDocument: generatedDocument);
+            }
+            if (authored.Value.Kind != generated.Value.Kind)
+            {
+                return false;
+            }
+            if (authored.Value.Kind == WotMethodArgumentLayoutKind.None)
+            {
+                return true;
+            }
+            return IsArchivedJsonSubset(
+                authoredSchema, generatedSchema, authoredDocument, identities, aliases, diagnostics,
+                optionalRequiredField: member == InputMember &&
+                    AllowsOptionalPreservedConditionComment(authoredAction, generatedAction)
+                        ? CommentField : null,
+                expectedDocument: generatedDocument);
         }
 
         private static void CompareArchivedJsonType(

@@ -893,7 +893,8 @@ A UA Method's `InputArguments` and `OutputArguments` are the WoT action's
 `input` and `output` DataSchemas, in both directions.
 
 **NodeSet to WoT.** The `Argument` structures the argument Properties hold are
-decoded into an object DataSchema whose members are the arguments, whose
+decoded into an object DataSchema marked `uav:argumentLayout: "named"`,
+whose members are the arguments, whose
 `uav:fieldOrder` states their declaration order — the order an OPC 10000-4
 `Call` is positional over — and whose `required` lists all of them, because a
 Call supplies all of them. Each member carries the WoT type members that stand for its DataType, the
@@ -906,6 +907,32 @@ attributes of the argument Properties travel in the `uav:nodes` preservation
 projection.
 
 **WoT to NodeSet.** See the `input` / `output` row of the defaults table above.
+
+An explicit `uav:argumentLayout: "single"` maps the complete DataSchema to
+one native argument; its object properties remain Structure fields rather
+than becoming separate arguments. An explicit `named` layout requires an
+object schema and a complete, duplicate-free `uav:fieldOrder`, including for
+one property. It cannot also identify a whole-value DataType. Invalid layouts
+produce `MethodArgumentSchemaInvalid`. Existing unambiguous implicit member
+maps remain readable for compatibility; generated documents state the layout.
+
+`WotNodeSetConverter.GetMethodArgumentLayout(action, "input")` (or `"output"`)
+uses that same mapping without creating Nodes. Its immutable
+`WotMethodArgumentLayout` retains the complete schema, argument count and
+ordered names; `GetArgumentSchema(index)` returns a native position's schema
+and rejects out-of-range indexes. An absent schema has layout `None` and zero
+arguments. Standard binding planners retain both layouts on
+`WotPayloadDescriptor.InputLayout` and `OutputLayout`.
+
+An authored single-value schema is retained through NodeSet round trips rather
+than replaced by a named argument wrapper. Reapplying that schema requires its
+normalized argument count, DataType and rank facts to agree with the native
+argument declaration. Changed native facts produce a preservation conflict;
+the source schema cannot rewrite them. A materialized inline or externally
+resolved definition contributes its resolved portable DataType binding to the
+retained schema, without duplicating the complete definition in residue. The
+conversion's existing resolved datatype closure supplies this identity.
+Combined JSON depth and size limits also apply when restoring the retained schema.
 
 ## ReferenceTypes and relations (Sections 5.1.2, 5.3 and 6.2)
 

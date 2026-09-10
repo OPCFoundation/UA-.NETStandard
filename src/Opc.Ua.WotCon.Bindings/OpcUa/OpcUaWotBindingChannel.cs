@@ -278,13 +278,16 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             DiagnosticsMasks diagnosticsMask,
             CancellationToken cancellationToken)
         {
-            if (!Form.Addressing.Metadata.TryGetValue("componentOf", out string? objectRef) ||
+            bool explicitReceiver = Form.Addressing.Metadata.TryGetValue("callObjectId", out string? objectRef);
+            string receiverTerm = explicitReceiver ? "uav:callObjectId" : "uav:componentOf";
+            if ((!explicitReceiver && !Form.Addressing.Metadata.TryGetValue("componentOf", out objectRef)) ||
                 string.IsNullOrEmpty(objectRef) ||
+                (explicitReceiver && !WotPortableIdentity.IsPortableNodeId(objectRef)) ||
                 !TryResolveNodeId(objectRef!, out NodeId objectId))
             {
                 return new WotInvokeResult(
                     StatusCodes.BadNodeIdInvalid, null,
-                    "An OPC UA action requires a uav:componentOf object NodeId.");
+                    $"An OPC UA action requires a valid {receiverTerm} receiver NodeId.");
             }
             if (!TryResolveNodeId(m_nodeId, out NodeId methodId))
             {
@@ -296,6 +299,21 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 if (Form.ConditionInvocation is { } invocation)
                 {
                     inputs = invocation.NormalizeInputs(inputs);
+                    if (inputs.Count != 2)
+                    {
+                        return new WotInvokeResult(
+                            inputs.Count < 2 ? StatusCodes.BadArgumentsMissing : StatusCodes.BadTooManyArguments,
+                            error: "A Condition occurrence action requires EventId and Comment; " +
+                                "only an explicitly optional Comment can be supplied as a typed null.");
+                    }
+                }
+                else if (Form.Payload.InputLayout is { } layout && inputs.Count != layout.ArgumentCount)
+                {
+                    return new WotInvokeResult(
+                        inputs.Count < layout.ArgumentCount
+                            ? StatusCodes.BadArgumentsMissing
+                            : StatusCodes.BadTooManyArguments,
+                        error: $"The action declares {layout.ArgumentCount} native arguments, but {inputs.Count} were supplied.");
                 }
                 if (inputContext is not null)
                 {
@@ -560,7 +578,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             ArrayOf<string> elements = clause.PathElements;
             if (elements.Count == 0)
             {
-                return ArrayOf<QualifiedName>.Empty;
+                return [];
             }
             var names = new QualifiedName[elements.Count];
             for (int ii = 0; ii < elements.Count; ii++)
@@ -680,7 +698,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         private ServiceMessageContext CreateSourceContext()
         {
             return new ServiceMessageContext(
-                m_context.Telemetry ?? AmbientMessageContext.Telemetry ??
+                m_context.Telemetry ??
+                AmbientMessageContext.Telemetry ??
                     TelemetryExtensions.InternalOnly__TelemetryHook(), m_session.Factory)
             {
                 NamespaceUris = new NamespaceTable(m_session.NamespaceUris),

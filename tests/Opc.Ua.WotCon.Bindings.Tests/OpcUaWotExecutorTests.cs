@@ -247,7 +247,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 WotInvokeResult result = await channel
                     .InvokeAsync([new(2.5f), new(3u)]).ConfigureAwait(false);
                 Assert.That(result.Success, Is.True,
-                    "Invoking the real 'Methods_Add' method (resolved via uav:componentOf) " +
+                    "Invoking the real 'Methods_Add' method with its explicit source receiver " +
                     $"must succeed: {result.Error}");
                 Assert.That(result.Outputs, Has.Count.EqualTo(1));
                 Assert.That(result.Outputs[0].WrappedValue.TryGetValue(out float sum), Is.True);
@@ -356,11 +356,17 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 CounterNodeId +
                 "\",\"op\":[\"readproperty\"]}" +
                 "]}}," +
-                "\"actions\":{\"add\":{\"forms\":[{\"href\":\"" +
+                "\"actions\":{\"add\":{" +
+                "\"input\":{\"type\":\"object\",\"uav:argumentLayout\":\"named\"," +
+                "\"uav:fieldOrder\":[\"Left\",\"Right\"],\"required\":[\"Left\",\"Right\"]," +
+                "\"properties\":{\"Left\":{\"type\":\"number\",\"uav:mapToType\":\"i=10\"}," +
+                "\"Right\":{\"type\":\"integer\",\"uav:mapToType\":\"i=7\"}}}," +
+                "\"output\":{\"type\":\"number\",\"uav:mapToType\":\"i=10\"}," +
+                "\"forms\":[{\"href\":\"" +
                 endpoint +
                 "\",\"uav:id\":\"" +
                 AddMethodNodeId +
-                "\",\"uav:componentOf\":\"" +
+                "\",\"uav:callObjectId\":\"" +
                 MethodsObjectNodeId +
                 "\",\"op\":[\"invokeaction\"]}]}}," +
                 "\"events\":{\"trigger\":{\"forms\":[{\"href\":\"" +
