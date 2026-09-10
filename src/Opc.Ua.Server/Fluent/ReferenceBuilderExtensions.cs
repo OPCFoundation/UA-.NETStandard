@@ -278,7 +278,8 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(parent));
             }
-            if (browseName.IsNull || string.IsNullOrEmpty(browseName.Name))
+            string? symbolicName = browseName.Name;
+            if (browseName.IsNull || symbolicName is null || symbolicName.Length == 0)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadBrowseNameInvalid,
@@ -293,7 +294,6 @@ namespace Opc.Ua.Server.Fluent
             }
             NodeId typeDef = typeDefinitionId.IsNull ? ObjectTypeIds.BaseObjectType : typeDefinitionId;
 
-            string symbolicName = browseName.Name ?? string.Empty;
             var child = new BaseObjectState(parent.Node)
             {
                 BrowseName = browseName,

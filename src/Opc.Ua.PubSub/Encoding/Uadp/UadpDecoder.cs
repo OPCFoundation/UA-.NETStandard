@@ -348,25 +348,28 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 ushort writerId = payloadWriterIds?[i] ?? 0;
                 int expected = payloadSizes?[i] ?? 0;
-                int before = reader.Position;
 
-                UadpDataSetMessage? dsm = DecodeDataSetMessage(
-                    ref reader, writerId, publisherId,
-                    writerGroupId ?? 0, dataSetClassId, context);
+                UadpDataSetMessage? dsm = payloadSizes is not null && expected > 0
+                    ? DecodeSizedDataSetMessage(
+                        ref reader,
+                        expected,
+                        writerId,
+                        publisherId,
+                        writerGroupId ?? 0,
+                        dataSetClassId,
+                        context)
+                    : DecodeDataSetMessage(
+                        ref reader,
+                        writerId,
+                        publisherId,
+                        writerGroupId ?? 0,
+                        dataSetClassId,
+                        context);
                 if (dsm is null)
                 {
                     return null;
                 }
                 dataSetMessages.Add(dsm);
-
-                if (expected > 0)
-                {
-                    int actual = reader.Position - before;
-                    if (actual < expected)
-                    {
-                        reader.Advance(expected - actual);
-                    }
-                }
             }
 
             return new UadpNetworkMessage
@@ -684,19 +687,21 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 return null;
             }
-            int start = reader.Position;
-            int end = start + size;
             if (size > reader.Remaining)
             {
                 return null;
             }
+            var blockReader = new UadpBinaryReader(
+                reader.Buffer,
+                reader.Origin + reader.Position,
+                size);
             var fields = new List<DataSetField>();
-            while (reader.Position < end)
+            while (blockReader.Position < blockReader.Capacity)
             {
                 Variant value;
                 try
                 {
-                    value = reader.ReadVariant(context.MessageContext);
+                    value = blockReader.ReadVariant(context.MessageContext);
                 }
                 catch (ServiceResultException)
                 {
@@ -704,7 +709,41 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 }
                 fields.Add(new DataSetField { Value = value });
             }
+            reader.Advance(size);
             return fields;
+        }
+
+        private static UadpDataSetMessage? DecodeSizedDataSetMessage(
+            ref UadpBinaryReader reader,
+            int expected,
+            ushort writerId,
+            PublisherId publisherId,
+            ushort writerGroupId,
+            Uuid dataSetClassId,
+            PubSubNetworkMessageContext context)
+        {
+            if (expected > reader.Remaining)
+            {
+                return null;
+            }
+
+            var payloadReader = new UadpBinaryReader(
+                reader.Buffer,
+                reader.Origin + reader.Position,
+                expected);
+            UadpDataSetMessage? message = DecodeDataSetMessage(
+                ref payloadReader,
+                writerId,
+                publisherId,
+                writerGroupId,
+                dataSetClassId,
+                context);
+            if (message is null)
+            {
+                return null;
+            }
+            reader.Advance(expected);
+            return message;
         }
 
         private static UadpDataSetMessage? DecodeDataSetMessage(

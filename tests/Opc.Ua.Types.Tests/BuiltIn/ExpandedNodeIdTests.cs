@@ -271,6 +271,43 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.EqualTo(ExpandedNodeId.Null));
         }
 
+        /// <summary>
+        /// The namespace URI form and the namespace index form of the same NodeId must parse to
+        /// the same value. An identifier that is zero or empty is only a null NodeId while it
+        /// also sits in namespace zero, so a resolved "nsu=" namespace must survive parsing.
+        /// </summary>
+        [TestCase("i=0")]
+        [TestCase("s=Test")]
+        [TestCase("b=")]
+        [TestCase("g=00000000-0000-0000-0000-000000000000")]
+        public void ExpandedNodeIdNamespaceUriFormMatchesNamespaceIndexForm(string identifier)
+        {
+            var context = new ServiceMessageContext(NUnitTelemetryContext.Create(), new EncodeableFactory())
+            {
+                NamespaceUris = new NamespaceTable(),
+                ServerUris = new StringTable()
+            };
+            context.NamespaceUris.Append("http://opcfoundation.org/UA/");
+            context.NamespaceUris.Append("http://test.org/");
+
+            Assert.That(
+                ExpandedNodeId.TryParse(context, "nsu=http://test.org/;" + identifier, out ExpandedNodeId byUri),
+                Is.True);
+            Assert.That(
+                ExpandedNodeId.TryParse(context, "ns=2;" + identifier, out ExpandedNodeId byIndex),
+                Is.True);
+
+            Assert.That(byUri.NamespaceIndex, Is.EqualTo((ushort)2));
+            Assert.That(byUri.IdType, Is.EqualTo(byIndex.IdType));
+            Assert.That(byUri.IsNull, Is.False);
+            Assert.That(byUri, Is.EqualTo(byIndex));
+
+            NodeId localByUri = ExpandedNodeId.ToNodeId(byUri, context.NamespaceUris);
+            NodeId localByIndex = ExpandedNodeId.ToNodeId(byIndex, context.NamespaceUris);
+            Assert.That(localByUri.NamespaceIndex, Is.EqualTo((ushort)2));
+            Assert.That(localByUri, Is.EqualTo(localByIndex));
+        }
+
         [Test]
         public void ExpandedNodeIdTryParseWithContext()
         {

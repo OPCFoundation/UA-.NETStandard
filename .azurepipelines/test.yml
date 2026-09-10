@@ -19,7 +19,11 @@ parameters:
   default: ''
 # Test project discovery.  The defaults fan out over every *.Tests.csproj except
 # the tiers that are deliberately kept out of mainline CI (see #3810): AoT has
-# its own stage, and the stress / durable tiers run nightly.
+# its own stage, and the stress / durable tiers run nightly.  The OneFuzz
+# validator contracts are excluded for the same reason as AoT: the project pins
+# net10.0 (it must match the net10.0-only drop it validates), so a legacy leg
+# invoking `dotnet test` for net48 fails with NETSDK1005 before
+# RestrictForLegacyTfm can empty it.  They run in the GitHub fuzz-public-drop job.
 - name: projectfilename
   type: string
   default: '*.Tests.csproj'
@@ -28,7 +32,7 @@ parameters:
   default: ''
 - name: excludeprojects
   type: string
-  default: 'Opc.Ua.Aot.Tests.csproj,Opc.Ua.Stress.Tests.csproj,Opc.Ua.Subscriptions.Durable.Tests.csproj'
+  default: 'Opc.Ua.Aot.Tests.csproj,Opc.Ua.Stress.Tests.csproj,Opc.Ua.Subscriptions.Durable.Tests.csproj,Opc.Ua.OneFuzz.Validator.Tests.csproj'
 # NUnit category filter passed to 'dotnet test'.  The default keeps the
 # long-running and stress tiers out of the fast legs; pass an empty string to
 # run everything (used by the scheduled long-running stage).

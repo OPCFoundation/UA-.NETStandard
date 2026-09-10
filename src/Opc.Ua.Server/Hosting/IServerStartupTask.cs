@@ -49,6 +49,7 @@ namespace Opc.Ua.Server.Hosting
     {
         /// <summary>
         /// Invoked once after the server has started.
+        /// A failure aborts the hosted server's startup and triggers cleanup.
         /// </summary>
         /// <param name="server">The live server context.</param>
         /// <param name="cancellationToken">Cancellation token.</param>

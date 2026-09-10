@@ -355,6 +355,10 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("missing-fuzz-project")]
         [TestCase("corpus-change")]
         [TestCase("dictionary-change")]
+        [TestCase("shared-dictionary-change")]
+        [TestCase("fuzz-script-change")]
+        [TestCase("fuzz-manifest-change")]
+        [TestCase("onefuzz-change")]
         [TestCase("helper-change")]
         [TestCase("documentation-only")]
         public async Task ActionsDiscoveryIncludesRelevantReplayProjectsAsync(string scenario)

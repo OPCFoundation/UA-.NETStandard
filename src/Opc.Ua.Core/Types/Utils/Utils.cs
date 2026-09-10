@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Formats.Asn1;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -1856,13 +1857,12 @@ namespace Opc.Ua
             ITelemetryContext? telemetry,
             bool useAsnParser = false)
         {
-            var certificateChain = new CertificateCollection();
-            int offset = 0;
-            int length = certificateData.Length;
-            while (offset < length)
+            CertificateCollection? certificateChain = new();
+            try
             {
-                Certificate? certificate = null;
-                try
+                int offset = 0;
+                int length = certificateData.Length;
+                while (offset < length)
                 {
                     ReadOnlyMemory<byte> certBlob = certificateData[offset..];
 #if !NETFRAMEWORK
@@ -1873,24 +1873,30 @@ namespace Opc.Ua
                         certBlob = AsnUtils.ParseX509Blob(certBlob);
                     }
 #endif
-                    certificate = Certificate.FromRawData(certBlob);
+                    using Certificate certificate = Certificate.FromRawData(certBlob);
                     certificateChain.Add(certificate);
                     offset += certificate.RawData.Length;
                 }
-                catch (Exception e)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadCertificateInvalid,
-                        "Could not parse DER encoded form of a X509 certificate.",
-                        e);
-                }
-                finally
-                {
-                    certificate?.Dispose();
-                }
-            }
 
-            return certificateChain;
+                CertificateCollection result = certificateChain;
+                certificateChain = null;
+                return result;
+            }
+            catch (Exception e)
+            {
+                // Deliberately broad: this is a public API called on untrusted wire data
+                // (TcpListenerChannel, X509IdentityTokenHandler, ServerPushConfigurationClient),
+                // and malformed DER surfaces as different exception types per platform and TFM.
+                // Callers catch ServiceResultException, so anything escaping raw would break them.
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateInvalid,
+                    "Could not parse DER encoded form of a X509 certificate.",
+                    e);
+            }
+            finally
+            {
+                certificateChain?.Dispose();
+            }
         }
 
         /// <summary>

@@ -290,7 +290,7 @@ namespace Opc.Ua
             PushNamespace(Namespaces.OpcUaXsd);
 
             // write the message.
-            WriteEncodeable(typeof(T).Name, message);
+            WriteEncodeable(message.GetType().Name, message);
 
             PopNamespace();
         }
@@ -307,7 +307,7 @@ namespace Opc.Ua
             PushNamespace(Namespaces.OpcUaXsd);
 
             // write the message.
-            WriteEncodeable(typeof(T).Name, message, encodeableTypeId);
+            WriteEncodeable(message.GetType().Name, message, encodeableTypeId);
 
             PopNamespace();
         }

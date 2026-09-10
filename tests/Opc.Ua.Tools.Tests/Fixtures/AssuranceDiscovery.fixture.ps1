@@ -46,6 +46,10 @@ try {
     $change = switch ($Scenario) {
         'corpus-change' { 'fuzzing/Opc.Ua.Network.Fuzz.Corpus/Testcases.Tcp/seed' }
         'dictionary-change' { 'fuzzing/Opc.Ua.Network.Fuzz/ua.dict' }
+        'shared-dictionary-change' { 'fuzzing/Dictionaries/encoders.dict' }
+        'fuzz-script-change' { 'fuzzing/Scripts/test-fuzzing.ps1' }
+        'fuzz-manifest-change' { 'fuzzing/fuzz-targets.json' }
+        'onefuzz-change' { 'fuzzing/OneFuzz/README.md' }
         'helper-change' { '.azurepipelines/assurance-results.ps1' }
         'documentation-only' { 'docs/README.md' }
         default { 'src/Subject.cs' }

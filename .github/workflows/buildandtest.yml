@@ -42,6 +42,8 @@ permissions:
 # The macOS legs are deliberately exempt from this switch: Managed DevOps Pools
 # provide no macOS image, so macOS coverage has to stay on GitHub-hosted
 # runners regardless of the backend.
+# The dedicated fuzz replay/artifact gates also run independently of this
+# switch so corpus-, dictionary- and runner-only changes are not missed.
 #
 # Note: GitHub Actions does not expose the `env` context to job-level `if:`
 # conditions, so the switch is resolved once in the `discover` job below and
@@ -912,6 +914,88 @@ jobs:
         }
         Write-Host "UA.slnx built successfully for all target frameworks."
 
+  fuzz-drop:
+    name: fuzz-public-drop
+    needs: discover
+    if: ${{ needs.discover.outputs.relevant_changes == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        # Full history: Nerdbank.GitVersioning refuses to compute a version from
+        # a shallow clone, which fails the build before any test runs.
+        fetch-depth: 0
+    - uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 10.0.x
+    - name: Validate manifest and negative controls
+      shell: pwsh
+      run: ./fuzzing/Scripts/validate-fuzz-manifest.ps1 -SelfTest
+    - name: Exercise published-library contracts
+      shell: pwsh
+      run: |
+        $env:CustomTestTarget = 'net10.0'
+        $results = Join-Path $env:RUNNER_TEMP 'onefuzz-contract-results'
+        dotnet test ./fuzzing/OneFuzz/Opc.Ua.OneFuzz.Validator.Tests/Opc.Ua.OneFuzz.Validator.Tests.csproj `
+          -c Release -f net10.0 -m:1 --results-directory $results --logger 'trx;LogFileName=contracts.trx'
+        if ($LASTEXITCODE -ne 0) { throw "Published-library contract tests failed: $LASTEXITCODE" }
+        [xml]$trx = Get-Content -LiteralPath (Join-Path $results 'contracts.trx') -Raw
+        $counts = $trx.TestRun.ResultSummary.Counters
+        if ([int]$counts.executed -le 0 -or [int]$counts.failed -ne 0 -or [int]$counts.notExecuted -ne 0) {
+          throw 'Published-library contracts must execute without failures or skips.'
+        }
+    - name: Publish and replay uninstrumented callbacks
+      shell: pwsh
+      run: ./fuzzing/Scripts/build-onefuzz.ps1 -OutputDirectory '${{ runner.temp }}/onefuzz-drop'
+    - name: Upload validated public drop
+      uses: actions/upload-artifact@v7
+      with:
+        name: fuzz-public-drop
+        path: ${{ runner.temp }}/onefuzz-drop
+        if-no-files-found: error
+
+  fuzz-replay:
+    name: fuzz-replay-${{ matrix.os }}-${{ matrix.framework }}
+    needs: discover
+    if: ${{ needs.discover.outputs.relevant_changes == 'true' }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - os: ubuntu-latest
+          framework: net10.0
+        - os: ubuntu-latest
+          framework: net8.0
+        - os: ubuntu-latest
+          framework: net9.0
+        - os: windows-latest
+          framework: net48
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        # Full history: Nerdbank.GitVersioning refuses to compute a version from
+        # a shallow clone, which fails the build before any test runs.
+        fetch-depth: 0
+    - uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: |
+          8.0.x
+          9.0.x
+          10.0.x
+    - name: Run fuzz regressions
+      shell: pwsh
+      run: ./fuzzing/Scripts/test-fuzzing.ps1 -Framework '${{ matrix.framework }}' -ResultsDirectory '${{ runner.temp }}/fuzz-results'
+    - name: Upload fuzz replay evidence
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: fuzz-replay-${{ matrix.os }}-${{ matrix.framework }}
+        path: ${{ runner.temp }}/fuzz-results
+        if-no-files-found: error
+
   # Single stable status check for branch protection.  The individual jobs above
   # are matrix-generated (their names change with the OS/project fan-out) and
   # they are skipped entirely on master/main while CI_BUILD_BACKEND is 'ado', or
@@ -930,6 +1014,8 @@ jobs:
     - aot-test
     - build-all-tfm-windows
     - build-all-tfm-linux
+    - fuzz-replay
+    - fuzz-drop
     steps:
     - name: Evaluate job results
       shell: pwsh
@@ -943,6 +1029,8 @@ jobs:
         AOT_RESULT: ${{ needs.aot-test.result }}
         TFM_WINDOWS_RESULT: ${{ needs.build-all-tfm-windows.result }}
         TFM_LINUX_RESULT: ${{ needs.build-all-tfm-linux.result }}
+        FUZZ_RESULT: ${{ needs.fuzz-replay.result }}
+        FUZZ_DROP_RESULT: ${{ needs.fuzz-drop.result }}
       run: |
         if ($env:GH_OWNS_BUILD -eq 'true') {
           Write-Host 'GitHub Actions owns the build/test matrix for this branch.'
@@ -957,6 +1045,8 @@ jobs:
           'aot-test'              = $env:AOT_RESULT
           'build-all-tfm-windows' = $env:TFM_WINDOWS_RESULT
           'build-all-tfm-linux'   = $env:TFM_LINUX_RESULT
+          'fuzz-replay'           = $env:FUZZ_RESULT
+          'fuzz-public-drop'      = $env:FUZZ_DROP_RESULT
         }
 
         $bad = @()
@@ -966,6 +1056,8 @@ jobs:
           'aot-test' = $env:AOT_MATRIX -ne '[]'
           'build-all-tfm-windows' = $env:GH_OWNS_BUILD -eq 'true' -and $env:RELEVANT_CHANGES -eq 'true'
           'build-all-tfm-linux' = $env:GH_OWNS_BUILD -eq 'true' -and $env:RELEVANT_CHANGES -eq 'true'
+          'fuzz-replay' = $env:RELEVANT_CHANGES -eq 'true'
+          'fuzz-public-drop' = $env:RELEVANT_CHANGES -eq 'true'
         }
         foreach ($job in $results.GetEnumerator()) {
           Write-Host "$($job.Key): $($job.Value)"

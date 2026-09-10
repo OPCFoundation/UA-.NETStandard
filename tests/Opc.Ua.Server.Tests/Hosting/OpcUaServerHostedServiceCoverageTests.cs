@@ -62,7 +62,7 @@ namespace Opc.Ua.Server.Tests.Hosting
     /// <summary>
     /// Directly exercises <see cref="OpcUaServerHostedService"/> paths that
     /// are not reached by the broader fluent-API hosting tests: the
-    /// constructor's null-argument guards, early historian and post-start
+    /// constructor's null-argument guards, early historian and alias
     /// alias registry wiring on a plain
     /// (non dependency-injection-aware) <see cref="StandardServer"/>, and
     /// the matched-authenticator branches of <c>HasMatchingAuthenticator</c>
@@ -90,7 +90,6 @@ namespace Opc.Ua.Server.Tests.Hosting
                     [],
                     [],
                     [],
-                    [],
                     Mock.Of<IServiceProvider>(),
                     Mock.Of<IOpcUaServerFactory>(),
                     new HostedNodeManagerLifecycle(),
@@ -111,7 +110,6 @@ namespace Opc.Ua.Server.Tests.Hosting
                     NUnitTelemetryContext.Create(isServer: true),
                     Mock.Of<IApplicationInstanceFactory>(),
                     null!,
-                    [],
                     [],
                     [],
                     [],
@@ -147,7 +145,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     services.AddLogging(builder => builder.AddProvider(loggerProvider));
                     services.AddSingleton(continuationStore);
                     services.AddOpcUa()
-                        .AddServer<RegistryCaptureServer>(o => ConfigureHostedOptions(o, "PostStartRegistries"))
+                        .AddServer<RegistryCaptureServer>(o => ConfigureHostedOptions(o, "EarlyRegistries"))
                         .AddHistorian(historian.Object)
                         .AddAliasNameStore(directStore.Object)
                         .AddAliasNameStoreRegistry(sourceRegistry.Object);
@@ -158,7 +156,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     () => RegistryCaptureServer.StartedServer != null,
                     TimeSpan.FromSeconds(60)).ConfigureAwait(false),
                 Is.True,
-                "Hosted service post-start registry wiring did not complete.");
+                "Hosted service registry wiring did not complete.");
 
             IServerInternal server = RegistryCaptureServer.StartedServer ??
                 throw new InvalidOperationException("The server did not start.");
@@ -166,9 +164,6 @@ namespace Opc.Ua.Server.Tests.Hosting
             var historianRegistryProvider = (IHistorianRegistryProvider)server;
             var aliasRegistryProvider = (IAliasNameStoreRegistryProvider)server;
 
-            // OnServerStarted publishes StartedServer before the hosted service completes
-            // post-start alias registration. The historian is already present by
-            // MasterNodeManager startup.
             Assert.That(
                 await WaitForAsync(
                     () =>
@@ -383,9 +378,8 @@ namespace Opc.Ua.Server.Tests.Hosting
         /// <see cref="DependencyInjectionStandardServer"/>) whose
         /// <c>CurrentInstance</c> is the stock <c>ServerInternalData</c>,
         /// which implements <see cref="IHistorianRegistryProvider"/> and
-        /// <see cref="IAliasNameStoreRegistryProvider"/> -- required to
-        /// reach the post-start alias-registration loops, which explicitly
-        /// skip <see cref="DependencyInjectionStandardServer"/>.
+        /// <see cref="IAliasNameStoreRegistryProvider"/>. The hosted service
+        /// stages both registries before this server's node managers start.
         /// </summary>
         [SuppressMessage(
             "Performance",
