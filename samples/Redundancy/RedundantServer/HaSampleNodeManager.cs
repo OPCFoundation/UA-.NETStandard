@@ -47,7 +47,10 @@ namespace RedundantServer
     /// </summary>
     public sealed class HaSampleNodeManagerFactory : IAsyncNodeManagerFactory
     {
-        private const string NamespaceUri = "http://opcfoundation.org/UA/Samples/HighAvailability";
+        /// <summary>
+        /// Shared namespace reserved at the same index before every replica's node managers are created.
+        /// </summary>
+        public const string NamespaceUri = "http://opcfoundation.org/UA/Samples/HighAvailability";
         private readonly ILeaderElection m_leaderElection;
         private readonly HaSampleReplicaInfo m_replicaInfo;
         private readonly IDistributedValueCache? m_valueCache;
@@ -241,6 +244,7 @@ namespace RedundantServer
                 EventNotifier = EventNotifiers.SubscribeToEvents
             };
             folder.AddChild(m_historyEvents);
+            AddFactoryAssignedNodes(folder, namespaceIndex);
 
             if (m_historian != null)
             {
@@ -265,6 +269,49 @@ namespace RedundantServer
             }
 
             await AddPredefinedNodeAsync(SystemContext, folder, cancellationToken).ConfigureAwait(false);
+        }
+
+        private void AddFactoryAssignedNodes(FolderState parent, ushort namespaceIndex)
+        {
+            var generated = new BaseObjectState(parent)
+            {
+                BrowseName = new QualifiedName("FactoryAssigned", namespaceIndex),
+                DisplayName = new LocalizedText("Factory-assigned identities"),
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                TypeDefinitionId = ObjectTypeIds.BaseObjectType
+            };
+            generated.NodeId = NodeIdFactory.New(SystemContext, generated);
+            parent.AddChild(generated);
+            var value = new BaseDataVariableState(generated)
+            {
+                BrowseName = new QualifiedName("Value", namespaceIndex),
+                DisplayName = new LocalizedText("Value"),
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead,
+                Value = Variant.From(12345),
+                StatusCode = StatusCodes.Good
+            };
+            value.NodeId = NodeIdFactory.New(SystemContext, value);
+            generated.AddChild(value);
+            var target = new BaseDataVariableState(generated)
+            {
+                BrowseName = new QualifiedName("Target", namespaceIndex),
+                DisplayName = new LocalizedText("Target"),
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
+                DataType = DataTypeIds.NodeId,
+                ValueRank = ValueRanks.Scalar,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead,
+                Value = Variant.From(value.NodeId),
+                StatusCode = StatusCodes.Good
+            };
+            target.NodeId = NodeIdFactory.New(SystemContext, target);
+            generated.AddChild(target);
         }
 
         /// <inheritdoc/>

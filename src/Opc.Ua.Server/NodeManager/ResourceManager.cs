@@ -127,6 +127,7 @@ namespace Opc.Ua.Server
                         preferredLocales,
                         result.SymbolicId!,
                         result.NamespaceUri!,
+                        result.StatusCode,
                         args!);
                 }
                 else
@@ -418,7 +419,8 @@ namespace Opc.Ua.Server
                 }
 
                 // construct translated localized text.
-                return new LocalizedText(culture.Name, translatedText, info);
+                return new LocalizedText(new TranslationInfo(
+                    info.Key, culture.Name, translatedText, info.Args));
             }
         }
 
@@ -532,7 +534,8 @@ namespace Opc.Ua.Server
         private LocalizedText TranslateStatusCode(
             ArrayOf<string> preferredLocales,
             StatusCode statusCode,
-            object[] args)
+            object[] args,
+            string? symbolicId = null)
         {
             lock (m_lock)
             {
@@ -549,7 +552,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            return LocalizedText.From(Utils.Format("{0:X8}", statusCode.Code));
+            return LocalizedText.From(symbolicId ?? Utils.Format("{0:X8}", statusCode.Code));
         }
 
         /// <summary>
@@ -559,6 +562,7 @@ namespace Opc.Ua.Server
             ArrayOf<string> preferredLocales,
             string symbolicId,
             string namespaceUri,
+            StatusCode statusCode,
             object[] args)
         {
             lock (m_lock)
@@ -576,6 +580,12 @@ namespace Opc.Ua.Server
 
                     return Translate(preferredLocales, default, info);
                 }
+            }
+
+            if ((string.IsNullOrEmpty(namespaceUri) || namespaceUri == Opc.Ua.Namespaces.OpcUa) &&
+                symbolicId == new StatusCode(statusCode.Code).SymbolicId)
+            {
+                return TranslateStatusCode(preferredLocales, statusCode, args, symbolicId);
             }
 
             return LocalizedText.From(symbolicId);

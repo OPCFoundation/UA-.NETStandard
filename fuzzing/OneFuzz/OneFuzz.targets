@@ -1,0 +1,32 @@
+<Project>
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks />
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <GenerateDependencyFile>true</GenerateDependencyFile>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <SelfContained>false</SelfContained>
+    <UseAppHost>false</UseAppHost>
+    <PublishSingleFile>false</PublishSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <PublishAot>false</PublishAot>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <!-- Artifact isolation must be supplied as a global SDK property so that
+       project references and their restore assets use the same isolated graph. -->
+  <Target Name="ValidateOneFuzzPublication"
+          BeforeTargets="_GenerateRestoreGraphProjectEntry;PrepareForBuild">
+    <Error Condition="'$(CustomTestTarget)' != 'net10.0' OR '$(TargetFramework)' != 'net10.0'"
+           Text="OneFuzz publication requires CustomTestTarget=net10.0 and TargetFramework=net10.0." />
+    <Error Condition="'$(UseArtifactsOutput)' != 'true' OR '$(ArtifactsPath)' == ''"
+           Text="OneFuzz publication requires --artifacts-path with an isolated absolute directory for all project assets. Use fuzzing/Scripts/build-onefuzz.ps1." />
+    <Error Condition="'$(ArtifactsPath)' != '' AND !$([System.IO.Path]::IsPathRooted('$(ArtifactsPath)'))"
+           Text="OneFuzz ArtifactsPath must be absolute so all project references share the isolated SDK layout." />
+    <Error Condition="'$(LibFuzzer)' == 'true'"
+           Text="OneFuzz=true must not be combined with the local LibFuzzer runner. Instrumentation belongs to the service." />
+  </Target>
+</Project>

@@ -1494,7 +1494,7 @@ namespace Opc.Ua
                         {
                             symbolicId = -1;
                         }
-                        else if (!TryGetInt32FromElement(elem, out symbolicId))
+                        else if (!TryGetDiagnosticInfoIndexFromElement(elem, out symbolicId))
                         {
                             goto default;
                         }
@@ -1504,7 +1504,7 @@ namespace Opc.Ua
                         {
                             namespaceUri = -1;
                         }
-                        else if (!TryGetInt32FromElement(elem, out namespaceUri))
+                        else if (!TryGetDiagnosticInfoIndexFromElement(elem, out namespaceUri))
                         {
                             goto default;
                         }
@@ -1514,7 +1514,7 @@ namespace Opc.Ua
                         {
                             locale = -1;
                         }
-                        else if (!TryGetInt32FromElement(elem, out locale))
+                        else if (!TryGetDiagnosticInfoIndexFromElement(elem, out locale))
                         {
                             goto default;
                         }
@@ -1524,7 +1524,7 @@ namespace Opc.Ua
                         {
                             localizedText = -1;
                         }
-                        else if (!TryGetInt32FromElement(elem, out localizedText))
+                        else if (!TryGetDiagnosticInfoIndexFromElement(elem, out localizedText))
                         {
                             goto default;
                         }
@@ -1916,10 +1916,15 @@ namespace Opc.Ua
                                     break;
                                 case 0: // default
                                 case 3: // json
-                                    if (!typeId.IsNull && // if artifacts were suppressed (rawdata mode)
+                                    IEncodeableType? activator = null;
+                                    bool registeredType =
+                                        !typeId.IsNull &&
                                         Context.Factory.TryGetEncodeableType(
                                             typeId,
-                                            out IEncodeableType? activator))
+                                            out activator);
+                                    if (!typeId.IsNull && // if artifacts were suppressed (rawdata mode)
+                                        registeredType &&
+                                        activator != null)
                                     {
                                         IEncodeable encodeable = activator.CreateInstance() ??
                                             throw ServiceResultException.Create(
@@ -1950,6 +1955,20 @@ namespace Opc.Ua
                                             }
                                         }
                                     }
+                                    // A bodyless envelope is only preserved as a bodyless
+                                    // ExtensionObject when the type is unknown. For a registered
+                                    // type the inline body form makes a bodyless envelope
+                                    // indistinguishable from a default constructed instance, so
+                                    // the branch above materializes one; that is deliberate.
+                                    if (!registeredType &&
+                                        !artifactsSuppressed &&
+                                        !typeId.IsNull &&
+                                        uaBody.ValueKind == JsonValueKind.Undefined &&
+                                        IsBodylessExtensionObject(element))
+                                    {
+                                        value = new ExtensionObject(typeId);
+                                        return true;
+                                    }
                                     // Wrap the raw json inside an extension object
                                     if (!m_options.ParseStrict &&
                                         uaBody.ValueKind != JsonValueKind.Undefined)
@@ -1974,6 +1993,20 @@ namespace Opc.Ua
                     value = ExtensionObject.Null;
                     return false;
             }
+        }
+
+        private static bool IsBodylessExtensionObject(JsonElement element)
+        {
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                if (property.Name != JsonProperties.UaTypeId &&
+                    property.Name != JsonProperties.UaEncoding)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -2291,6 +2324,17 @@ namespace Opc.Ua
                 return true;
             }
             values = default;
+            return false;
+        }
+
+        private bool TryGetDiagnosticInfoIndexFromElement(JsonElement element, out int value)
+        {
+            if (TryGetInt32FromElement(element, out value) && value >= -1)
+            {
+                return true;
+            }
+
+            value = -1;
             return false;
         }
 
@@ -3779,16 +3823,12 @@ namespace Opc.Ua
                 }
                 catch (ArgumentException ex)
                 {
-                    // MatrixOf<T>(values, dimensions) deliberately throws
-                    // ArgumentException for wire dimensions that are inconsistent
-                    // with the value payload (a length mismatch or an
-                    // Int32-overflowing product). Convert to the standard decoder
-                    // rejection channel so callers treat it as malformed input.
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         ex,
-                        "Invalid variant matrix dimensions ({0}).",
-                        typeInfo);
+                        "Invalid variant matrix dimensions ({0}): {1}",
+                        typeInfo,
+                        ex.Message);
                 }
                 finally
                 {

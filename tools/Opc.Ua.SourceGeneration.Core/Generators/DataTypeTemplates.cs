@@ -55,7 +55,9 @@ namespace Opc.Ua.SourceGeneration
                 /// Data type definitions for all classes in the {{Tokens.NamespaceUri}} namespace.
                 /// </summary>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+                #if !OPCUA_FUZZING_COVERAGE
                 [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+                #endif
                 public static partial class DataTypeDefinitions
                 {
                     {{Tokens.ListOfDataTypeDefinitions}}
@@ -73,7 +75,9 @@ namespace Opc.Ua.SourceGeneration
                     /// <param name="builder">The factory builder.</param>
                     /// <returns>The factory builder passed as parameter.</returns>
                     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+                    #if !OPCUA_FUZZING_COVERAGE
                     [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+                    #endif
                     public static global::Opc.Ua.IEncodeableFactoryBuilder Add{{Tokens.Namespace}}(
                         this global::Opc.Ua.IEncodeableFactoryBuilder builder)
                     {
@@ -167,7 +171,9 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString StructureActivatorClass = TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EncodeableType<{{Tokens.ClassName}}>
             {
                 /// <summary>
@@ -202,7 +208,9 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString PooledStructureActivatorClass = TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.PooledEncodeableType<{{Tokens.ClassName}}>
             {
                 /// <summary>
@@ -312,7 +320,9 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString EnumerationActivatorClass = TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EnumeratedType<{{Tokens.ClassName}}>
             {
                 /// <summary>
@@ -334,7 +344,9 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString StructureActivatorClassWithDefinition = TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EncodeableType<{{Tokens.ClassName}}>
             {
                 /// <summary>
@@ -368,7 +380,9 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString PooledStructureActivatorClassWithDefinition = TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.PooledEncodeableType<{{Tokens.ClassName}}>
             {
                 /// <summary>
@@ -402,7 +416,9 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString EnumerationActivatorClassWithDefinition = TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EnumeratedType<{{Tokens.ClassName}}>
             {
                 /// <summary>
@@ -454,7 +470,9 @@ namespace Opc.Ua.SourceGeneration
             /// The {{Tokens.BrowseName}} DataType.
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public partial class {{Tokens.ClassName}} :
                 global::System.IEquatable<{{Tokens.ClassName}}>,
@@ -668,7 +686,9 @@ namespace Opc.Ua.SourceGeneration
             /// The {{Tokens.BrowseName}} DataType.
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public partial class {{Tokens.ClassName}} : {{Tokens.BaseType}}, global::System.IEquatable<{{Tokens.ClassName}}>
             {
@@ -850,7 +870,9 @@ namespace Opc.Ua.SourceGeneration
             /// The {{Tokens.BrowseName}} DataType.
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public partial class {{Tokens.ClassName}} :
                 global::System.IEquatable<{{Tokens.ClassName}}>,
@@ -1023,7 +1045,9 @@ namespace Opc.Ua.SourceGeneration
             /// The {{Tokens.BrowseName}} DataType.
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public {{Tokens.IsAbstract}}partial class {{Tokens.ClassName}} :
                 {{Tokens.ExtraInterfaces}}global::System.IEquatable<{{Tokens.ClassName}}>,
@@ -1173,7 +1197,9 @@ namespace Opc.Ua.SourceGeneration
             /// The {{Tokens.BrowseName}} DataType.
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public partial class {{Tokens.ClassName}} : {{Tokens.BaseType}}, global::System.IEquatable<{{Tokens.ClassName}}>
             {

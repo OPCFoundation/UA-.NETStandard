@@ -211,5 +211,97 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 .TryDecodeAsync(frame, UadpTestUtilities.NewContext()).ConfigureAwait(false);
             Assert.That(decoded, Is.Null);
         }
+
+        [Test]
+        public async Task PayloadSizeExceedingRemainingFrame_ReturnsNull()
+        {
+            byte[] frame =
+            [
+                0x41,
+                0x02,
+                0x01, 0x00,
+                0x02, 0x00,
+                0x0A, 0x00,
+                0x02, 0x00,
+                0x81, 0x03,
+                0x81, 0x03
+            ];
+
+            PubSubNetworkMessage? decoded = await new UadpDecoder()
+                .TryDecodeAsync(frame, UadpTestUtilities.NewContext()).ConfigureAwait(false);
+
+            Assert.That(decoded, Is.Null);
+        }
+
+        [Test]
+        public async Task PayloadSizeSmallerThanDataSetMessage_ReturnsNull()
+        {
+            byte[] frame =
+            [
+                0x41,
+                0x02,
+                0x01, 0x00,
+                0x02, 0x00,
+                0x01, 0x00,
+                0x02, 0x00,
+                0x81, 0x03,
+                0x81, 0x03
+            ];
+
+            PubSubNetworkMessage? decoded = await new UadpDecoder()
+                .TryDecodeAsync(frame, UadpTestUtilities.NewContext()).ConfigureAwait(false);
+
+            Assert.That(decoded, Is.Null);
+        }
+
+        [Test]
+        public async Task PayloadSizeDelimitedKeepAliveMessages_Decode()
+        {
+            byte[] frame =
+            [
+                0x41,
+                0x02,
+                0x01, 0x00,
+                0x02, 0x00,
+                0x02, 0x00,
+                0x02, 0x00,
+                0x81, 0x03,
+                0x81, 0x03
+            ];
+
+            PubSubNetworkMessage? decoded = await new UadpDecoder()
+                .TryDecodeAsync(frame, UadpTestUtilities.NewContext()).ConfigureAwait(false);
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded!.DataSetMessages, Has.Count.EqualTo(2));
+            Assert.That(decoded.DataSetMessages[0].MessageType, Is.EqualTo(PubSubDataSetMessageType.KeepAlive));
+            Assert.That(decoded.DataSetMessages[1].MessageType, Is.EqualTo(PubSubDataSetMessageType.KeepAlive));
+        }
+
+        [Test]
+        public async Task ZeroPayloadSizeFallsBackToUnsizedMessageAndPreservesFollowingMessage()
+        {
+            byte[] frame =
+            [
+                0x41,
+                0x02,
+                0x01, 0x00,
+                0x02, 0x00,
+                0x00, 0x00,
+                0x02, 0x00,
+                0x81, 0x03,
+                0x81, 0x03
+            ];
+
+            PubSubNetworkMessage? decoded = await new UadpDecoder()
+                .TryDecodeAsync(frame, UadpTestUtilities.NewContext()).ConfigureAwait(false);
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded!.DataSetMessages, Has.Count.EqualTo(2));
+            Assert.That(decoded.DataSetMessages[0].DataSetWriterId, Is.EqualTo((ushort)1));
+            Assert.That(decoded.DataSetMessages[0].MessageType, Is.EqualTo(PubSubDataSetMessageType.KeepAlive));
+            Assert.That(decoded.DataSetMessages[1].DataSetWriterId, Is.EqualTo((ushort)2));
+            Assert.That(decoded.DataSetMessages[1].MessageType, Is.EqualTo(PubSubDataSetMessageType.KeepAlive));
+        }
     }
 }

@@ -30,10 +30,13 @@
 
 using System;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.Encoding.Json;
 using Opc.Ua.PubSub.Tests;
 
 namespace OpcUaPubSubJsonTests
@@ -123,6 +126,125 @@ namespace OpcUaPubSubJsonTests
                     "{\"MessageId\":\"x\",\"MessageType\":123}"),
                 ctx).ConfigureAwait(false);
             Assert.That(result, Is.Null);
+        }
+
+        [Test]
+        public async Task MalformedVerboseFieldValue_ReturnsNetworkMessageWithoutDataSetMessageAsync()
+        {
+            const string json =
+                "{\"MessageType\":\"ua-data\",\"Messages\":[{\"DataSetWriterId\":1,\"Payload\":{" +
+                "\"Running\":{\"UaType\":1,\"Valueoseconds\":10,\"ServerTimestamp\":\"2026-06-15T12:00:01Z\"}" +
+                "}}]}";
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            var decoder = new Opc.Ua.PubSub.Encoding.Json.JsonDecoder();
+
+            PubSubNetworkMessage? result = await decoder.TryDecodeAsync(
+                Encoding.UTF8.GetBytes(json),
+                ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.DataSetMessages, Has.Count.Zero);
+            Assert.That(JsonTestUtilities.Read(ctx,
+                PubSubDiagnosticsCounterKind.FailedDataSetMessages),
+                Is.GreaterThan(0));
+        }
+
+        [Test]
+        public async Task ValidVerboseFieldValue_DecodesAsync()
+        {
+            const string json =
+                "{\"MessageType\":\"ua-data\",\"Messages\":[{\"DataSetWriterId\":1,\"Payload\":{" +
+                "\"Running\":{\"UaType\":1,\"Value\":true,\"ServerTimestamp\":\"2026-06-15T12:00:01Z\"}" +
+                "}}]}";
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            var decoder = new Opc.Ua.PubSub.Encoding.Json.JsonDecoder();
+
+            PubSubNetworkMessage? result = await decoder.TryDecodeAsync(
+                Encoding.UTF8.GetBytes(json),
+                ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(result.DataSetMessages[0].Fields, Has.Count.EqualTo(1));
+            Assert.That(result.DataSetMessages[0].Fields[0].Value.TryGetValue(out bool running), Is.True);
+            Assert.That(running, Is.True);
+        }
+
+        [Test]
+        public async Task InvalidUtf8InJsonFieldName_ReturnsNullAsync()
+        {
+            byte[] prefix = Encoding.UTF8.GetBytes(
+                "{\"MessageType\":\"ua-data\",\"Messages\":[{\"DataSetWriterId\":1,\"Payload\":{\"");
+            byte[] suffix = Encoding.UTF8.GetBytes("\":{\"UaType\":1,\"Value\":true}}}]}");
+            byte[] frame = [.. prefix, 0xFF, .. suffix];
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            var decoder = new Opc.Ua.PubSub.Encoding.Json.JsonDecoder();
+
+            PubSubNetworkMessage? result = await decoder.TryDecodeAsync(
+                frame,
+                ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Null);
+            Assert.That(JsonTestUtilities.Read(ctx,
+                PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages),
+                Is.GreaterThan(0));
+        }
+
+        [Test]
+        public async Task Utf8JsonFieldName_DecodesAsync()
+        {
+            const string json =
+                "{\"MessageType\":\"ua-data\",\"Messages\":[{\"DataSetWriterId\":1,\"Payload\":{" +
+                "\"Running\":{\"UaType\":1,\"Value\":true}" +
+                "}}]}";
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+            var decoder = new Opc.Ua.PubSub.Encoding.Json.JsonDecoder();
+
+            PubSubNetworkMessage? result = await decoder.TryDecodeAsync(
+                Encoding.UTF8.GetBytes(json),
+                ctx).ConfigureAwait(false);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(result.DataSetMessages[0].Fields, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void PublicDecodeFieldsStillSurfacesMalformedPayloads()
+        {
+            // Frame decoding tolerates a malformed field, but the public helper must not
+            // silently return an empty set and hide the failure from its own callers.
+            using JsonDocument document = JsonDocument.Parse(
+                "{\"Broken\":{\"UaType\":1,\"Value\":\"not-a-boolean\"}}");
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+
+            Assert.That(
+                () => JsonFieldDecoder.DecodeFields(
+                    document.RootElement,
+                    metaData: null,
+                    JsonEncodingMode.Verbose,
+                    ctx.MessageContext),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void PublicDecodeFieldsDecodesAWellFormedPayload()
+        {
+            using JsonDocument document = JsonDocument.Parse(
+                "{\"Running\":{\"UaType\":1,\"Value\":true}}");
+            PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
+
+            ArrayOf<DataSetField> fields = JsonFieldDecoder.DecodeFields(
+                document.RootElement,
+                metaData: null,
+                JsonEncodingMode.Verbose,
+                ctx.MessageContext);
+
+            Assert.That(fields, Has.Count.EqualTo(1));
+            Assert.That(fields[0].Value.TryGetValue(out bool running), Is.True);
+            Assert.That(running, Is.True);
         }
     }
 }

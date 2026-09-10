@@ -93,6 +93,15 @@ The server builds the initial set of node managers before accepting connections.
 
 ## Built-in node managers
 
+Replicated application managers require a fixed
+[replica NodeId identity configuration](ReplicaNodeIdentity.md). It runs before
+their constructors, so namespace indexes and callback keys are already final.
+The shared registration policy survives factory rebasing/replacement and runs
+before predefined-node indexing, including during import and hydration. Shared
+model namespaces must be declared up front; loading a new shared namespace at
+runtime requires a coordinated layout revision. Built-in core, diagnostics and
+configuration namespaces retain their replica-local role.
+
 Every `StandardServer` creates a `MasterNodeManager` and asks the server's `IMainNodeManagerFactory` for the main managers that are always present. The default `MainNodeManagerFactory` creates one `ConfigurationNodeManager` and one `CoreNodeManager`; application-provided managers from `AddNodeManager` or derived-server overrides are appended after those built-ins.
 
 ### Master node manager

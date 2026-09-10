@@ -207,7 +207,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 // document's back.
                 Assert.That(
                     BrowseNames(overlayDevice),
-                    Is.EquivalentTo(new[] { "Calibrate" }));
+                    Is.EquivalentTo(s_overlayDeviceBrowseNames));
                 // The generated Device exposes the imported replacement, and
                 // exposes it exactly once.
                 Assert.That(
@@ -338,5 +338,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             return response;
         }
+
+        private static readonly string[] s_overlayDeviceBrowseNames = ["Calibrate"];
     }
 }

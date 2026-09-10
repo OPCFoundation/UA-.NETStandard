@@ -1,0 +1,65 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == '' AND ('$(CustomTestTarget)' == 'netstandard2.0' OR '$(CustomTestTarget)' == 'netstandard2.1')">net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <AssemblyName>Opc.Ua.PubSub.Fuzz.Tests</AssemblyName>
+    <RootNamespace>PubSub.Fuzz.Tests</RootNamespace>
+    <GenerateProgramFile>false</GenerateProgramFile>
+    <StartupObject>Opc.Ua.Fuzzing.FuzzReplayProgram</StartupObject>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Opc.Ua.PubSub.Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
+    <Compile Include="..\Opc.Ua.PubSub.Fuzz\FuzzableCode.Json.cs" Link="FuzzableCode.Json.cs" />
+    <Compile Include="..\Opc.Ua.PubSub.Fuzz\FuzzableCode.Uadp.cs" Link="FuzzableCode.Uadp.cs" />
+    <Compile Include="..\Opc.Ua.PubSub.Fuzz\Properties\AssemblyInfo.cs" Link="Properties\AssemblyInfo.cs" />
+    <Compile Include="..\Opc.Ua.PubSub.Fuzz.Tools\PubSub.Testcases.cs" Link="PubSub.Testcases.cs" />
+    <Compile Include="..\Common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
+    <Compile Include="..\Common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />
+    <Compile Include="..\Common\Fuzz.Tests\*.cs" Link="Fuzz.Tests\%(FileName)%(Extension)" />
+    <Compile Include="..\..\tests\Common\Main.cs" Link="Main.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Console" />
+    <PackageReference Include="NUnit3TestAdapter">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="SharpFuzz" />
+    <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
+    <ProjectReference Include="..\..\tests\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Opc.Ua.PubSub.Fuzz.Corpus\Testcases.Json\**\*.*">
+      <Link>Testcases\Json\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\Opc.Ua.PubSub.Fuzz.Corpus\Testcases.Uadp\**\*.*">
+      <Link>Testcases\Uadp\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\Opc.Ua.PubSub.Fuzz.Corpus\Testcases.Chunks\**\*.*">
+      <Link>Testcases\Chunks\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Assets\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Common\Fuzz\EncodingFidelityException.cs" Link="EncodingFidelityException.cs" />
+  </ItemGroup>
+</Project>

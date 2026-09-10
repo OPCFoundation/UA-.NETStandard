@@ -107,6 +107,61 @@ enables the configured-default-authenticators bridge:
 > `AddDefaultIdentityAuthenticators(opt => …)` and `AddJwtIssuer(opt => …)`
 > explicitly.
 
+### Custom authenticator registrations
+
+`AddIdentityAuthenticator<TAuth>()` resolves an authenticator from
+dependency injection. Two other extensions on `IOpcUaServerBuilder`,
+in `Microsoft.Extensions.DependencyInjection`, support already-created
+instances and configuration-aware construction:
+
+| Overload | Use |
+|----------|-----|
+| `AddIdentityAuthenticator(IUserTokenAuthenticator)` | Register an existing authenticator instance. |
+| `AddIdentityAuthenticator(Func<IServiceProvider, ICertificateValidatorEx?, IUserTokenAuthenticator>)` | Construct an authenticator during startup using injected services and the effective certificate validator. |
+
+`IUserTokenAuthenticator` is in `Opc.Ua.Identity`;
+`ICertificateValidatorEx` is in `Opc.Ua`.
+The factory runs after configuration and certificate setup, including
+when configuration is loaded from XML or a stream. Its validator can be
+`null`: an authenticator that requires it should reject that case
+explicitly instead of bypassing validation.
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua;
+using Opc.Ua.Server.Hosting;
+
+services.AddOpcUa()
+    .AddServer(options =>
+    {
+        options.ApplicationName = "CertificateServer";
+        options.ApplicationUri = "urn:example:CertificateServer";
+        options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
+        {
+            TokenType = UserTokenType.Anonymous
+        });
+        options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
+        {
+            TokenType = UserTokenType.Certificate
+        });
+    })
+    .AddIdentityAuthenticator(new Opc.Ua.Server.AnonymousAuthenticator())
+    .AddIdentityAuthenticator((_, validator) =>
+        new Opc.Ua.Server.X509Authenticator(
+            validator ?? throw new InvalidOperationException(
+                "A certificate validator is required for X.509 user tokens.")));
+```
+
+Provision user-certificate trust through the
+[certificate manager and stores](CertificateManager.md); no certificate
+or secret belongs in this registration code. Register matching
+`UserTokenPolicies` as shown: adding an authenticator does not
+automatically advertise its token policy. Use the service-provider
+argument when the factory also needs application services.
+
+The instance and factory overloads are on `IOpcUaServerBuilder`; the
+existing generic registration remains available on the GDS builder.
+
 ### Client example
 
 The composite builder API takes the supporting service (an
@@ -188,7 +243,7 @@ is registered.
 
 ### GDS example
 
-`IGdsServerBuilder` forwards every identity-related extension to the
+`IGdsServerBuilder` forwards the shared identity configuration extensions to the
 underlying server builder (`ConfigureRoles`,
 `AddIdentityAuthenticator<T>`, `AddIdentityAugmenter<T>`,
 `AddDefaultIdentityAuthenticators`, `AddJwtIssuer` — each with both

@@ -101,7 +101,16 @@ namespace Opc.Ua.Server
         /// dependency injection picks this up from the registered
         /// <see cref="IRebasableNodeIdFactory"/>.
         /// </remarks>
-        public IRebasableNodeIdFactory? NodeIdFactory { get; set; }
+        /// <exception cref="ArgumentNullException">
+        /// The current factory has an identity policy and the replacement value is <c>null</c>.
+        /// </exception>
+        public IRebasableNodeIdFactory? NodeIdFactory
+        {
+            get;
+            set => field = field is INodeIdFactoryPolicy policy
+                ? policy.Apply(value ?? throw new ArgumentNullException(nameof(value)))
+                : value;
+        }
 
         /// <summary>
         /// Gets or sets whether this server's NodeManagers refuse to mint a
@@ -124,6 +133,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the active application configuration, failing if the server has not been configured.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The server has not been configured.</exception>
         internal ApplicationConfiguration CurrentConfiguration
             => Configuration
                 ?? throw new InvalidOperationException("The server has not been configured.");
@@ -3595,6 +3605,9 @@ namespace Opc.Ua.Server
         /// Returns IList of a host for a UA service together with the
         /// aggregated discovery information.
         /// </returns>
+        /// <exception cref="InvalidOperationException">
+        /// No transport listener factory is registered for a configured endpoint scheme.
+        /// </exception>
         protected override async ValueTask<ServiceHostInitializationResult> InitializeServiceHostsAsync(
             ApplicationConfiguration configuration,
             ITransportBindingRegistry bindingFactory,
@@ -3716,6 +3729,12 @@ namespace Opc.Ua.Server
 
                 m_serverInternal.SetNodeIdFactory(NodeIdFactory);
                 m_serverInternal.SetNodeIdCollisionDetection(DetectNodeIdCollisions);
+                if (NodeIdFactory is Hosting.IServerPreStartupTask factoryInitialization)
+                {
+                    await factoryInitialization.OnServerStartingAsync(
+                        m_serverInternal,
+                        cancellationToken).ConfigureAwait(false);
+                }
 
                 var historianRegistry =
                     (Historian.HistorianProviderRegistry)
@@ -3946,7 +3965,6 @@ namespace Opc.Ua.Server
                             Timeout.InfiniteTimeSpan);
                     }
                 }
-
             }
             catch (OperationCanceledException)
                 when (cancellationToken.IsCancellationRequested)
@@ -4016,7 +4034,6 @@ namespace Opc.Ua.Server
                 m_certManagerSubscription = CertificateManager.CertificateChanges
                     .Subscribe(new CertificateManagerChangeObserver(this, m_logger));
             }
-
         }
 
         /// <inheritdoc/>
@@ -4872,6 +4889,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Stages a historian provider for startup, retaining ownership if any registration requires it.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="provider"/> is <c>null</c>.</exception>
         internal void AddHistorianProvider(
             Historian.IHistorianProvider provider,
             bool ownsProvider)
@@ -4902,6 +4920,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Stages a pre-startup task without registering the same instance more than once.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="task"/> is <c>null</c>.</exception>
         internal void AddPreStartupTask(Hosting.IServerPreStartupTask task)
         {
             if (task == null)
@@ -4993,10 +5012,13 @@ namespace Opc.Ua.Server
         private bool m_useRegisterServer2;
         private readonly List<INodeManagerFactory> m_nodeManagerFactories = [];
         private readonly List<IAsyncNodeManagerFactory> m_asyncNodeManagerFactories = [];
+
         private readonly List<HistorianProviderRegistration>
             m_historianProviders = [];
+
         private readonly List<Hosting.IServerPreStartupTask> m_preStartupTasks =
             [];
+
         private IDisposable? m_certManagerSubscription;
         private ServerRateLimitOptions? m_rateLimitOptions;
         private IServerRateLimiterProvider? m_rateLimiterProvider;

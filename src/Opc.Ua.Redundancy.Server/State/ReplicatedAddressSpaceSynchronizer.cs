@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Channels;
@@ -68,7 +69,51 @@ namespace Opc.Ua.Redundancy.Server
             TimeProvider timeProvider,
             CrdtReaderOptions readerOptions,
             ILogger? logger = null)
+            : this(addressSpace, messageContext, replicaId, transport, timeProvider, readerOptions, logger, null, null)
         {
+        }
+
+        /// <summary>
+        /// Creates a synchronizer that admits only peers with the same fixed replica identity contract.
+        /// </summary>
+        public ReplicatedAddressSpaceSynchronizer(
+            ILocalAddressSpace addressSpace,
+            IServiceMessageContext messageContext,
+            ReplicaId replicaId,
+            ITransport transport,
+            TimeProvider timeProvider,
+            CrdtReaderOptions readerOptions,
+            ReplicaNodeIdFactory identity,
+            ILogger? logger = null)
+            : this(
+                addressSpace,
+                messageContext,
+                replicaId,
+                transport,
+                timeProvider,
+                readerOptions,
+                logger,
+                identity,
+                null)
+        {
+        }
+
+        internal ReplicatedAddressSpaceSynchronizer(
+            ILocalAddressSpace addressSpace,
+            IServiceMessageContext messageContext,
+            ReplicaId replicaId,
+            ITransport transport,
+            TimeProvider timeProvider,
+            CrdtReaderOptions readerOptions,
+            ILogger? logger,
+            ReplicaNodeIdFactory? identity,
+            Func<NodeId, bool>? ownsNode)
+        {
+            if (identity?.UsesWriterAssignedIds == true)
+            {
+                throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                    "Active/active replicas require independently reproducible or explicit shared identities.");
+            }
             m_addressSpace = addressSpace ?? throw new ArgumentNullException(nameof(addressSpace));
             m_messageContext = messageContext ?? throw new ArgumentNullException(nameof(messageContext));
             m_transport = new FramingGossipTransport(
@@ -76,6 +121,8 @@ namespace Opc.Ua.Redundancy.Server
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             m_readerOptions = readerOptions ?? throw new ArgumentNullException(nameof(readerOptions));
             m_logger = logger;
+            m_identity = identity;
+            m_ownsNode = ownsNode ?? (identity == null ? static _ => true : identity.IsShared);
             m_clock = new HybridLogicalClock(replicaId, m_timeProvider);
             m_onNodeAdded = OnLocalNodeAdded;
             m_onNodeRemoved = OnLocalNodeRemoved;
@@ -93,6 +140,11 @@ namespace Opc.Ua.Redundancy.Server
         /// applied to the local graph.
         /// </summary>
         internal event Action? InboundApplied;
+
+        /// <summary>
+        /// Raised when an inbound frame is rejected rather than reported as an applied update.
+        /// </summary>
+        internal event Action<Exception>? InboundRejected;
 
         /// <summary>
         /// Gets the number of node instances currently tracked for
@@ -133,6 +185,11 @@ namespace Opc.Ua.Redundancy.Server
             {
                 foreach (NodeState node in m_addressSpace.Nodes)
                 {
+                    if (!m_ownsNode(node.NodeId))
+                    {
+                        continue;
+                    }
+                    m_identity?.ValidateRegistration(m_addressSpace.Context, node);
                     CaptureUpsertLocked(node);
                     if (node is BaseVariableState variable)
                     {
@@ -160,7 +217,10 @@ namespace Opc.Ua.Redundancy.Server
                 m_addressSpace.NodeRemoved += m_onNodeRemoved;
                 foreach (NodeState node in m_addressSpace.Nodes)
                 {
-                    AttachStateChanged(node);
+                    if (m_ownsNode(node.NodeId))
+                    {
+                        AttachStateChanged(node);
+                    }
                 }
             }
 
@@ -170,6 +230,10 @@ namespace Opc.Ua.Redundancy.Server
         /// <summary>
         /// Waits until inbound apply advances beyond <paramref name="observedCount"/>.
         /// </summary>
+        /// <remarks>
+        /// This observes received state frames, not acknowledgements of outgoing snapshots.
+        /// A converged peer does not rebroadcast a no-op merge, so sending a snapshot need not advance this count.
+        /// </remarks>
         /// <param name="observedCount">The inbound apply count already observed by the caller.</param>
         /// <returns>
         /// A task that completes when a later inbound apply has completed, or immediately when it already did.
@@ -221,6 +285,7 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             await m_transport.DisposeAsync().ConfigureAwait(false);
+            m_applyGate.Dispose();
             m_cts.Dispose();
         }
 
@@ -247,6 +312,8 @@ namespace Opc.Ua.Redundancy.Server
                     catch (Exception ex)
                     {
                         m_logger?.CrdtAddressSpaceInboundApplyFailed(ex);
+                        InboundRejected?.Invoke(ex);
+                        continue;
                     }
 
                     PublishInboundApplied();
@@ -292,13 +359,30 @@ namespace Opc.Ua.Redundancy.Server
 
         private async ValueTask ApplyInboundFrameAsync(byte[] frame, CancellationToken ct)
         {
+            await m_applyGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await ApplyInboundFrameCoreAsync(frame, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_applyGate.Release();
+            }
+        }
+
+        private async ValueTask ApplyInboundFrameCoreAsync(byte[] frame, CancellationToken ct)
+        {
+            ReadOnlyMemory<byte> payload = ValidateIdentityFrame(frame);
             List<Diff> diffs;
             byte[] mergedSnapshot;
+            bool peerNeedsState;
+            var remote = LWWMap<string, ByteString>.ReadFrom(
+                payload.Span, CrdtValues.String, ByteStringCrdtSerializer.Instance, m_readerOptions);
+            ValidateRemoteState(remote);
             lock (m_lock)
             {
-                var remote = LWWMap<string, ByteString>.ReadFrom(
-                    frame, CrdtValues.String, ByteStringCrdtSerializer.Instance, m_readerOptions);
                 m_map.Merge(remote);
+                peerNeedsState = HasDifferentVisibleState(remote);
                 diffs = ComputeDiffsLocked();
                 mergedSnapshot = SerializeLocked();
             }
@@ -343,9 +427,62 @@ namespace Opc.Ua.Redundancy.Server
             // so inbound apply completion means the correcting frame was queued or
             // sent, instead of leaving it to a fire-and-forget continuation that can
             // be starved or canceled independently of the apply operation.
-            if (diffs.Count > 0 || reconciled)
+            if (diffs.Count > 0 || reconciled || peerNeedsState)
             {
                 await SendQuietlyAsync(mergedSnapshot).ConfigureAwait(false);
+            }
+        }
+
+        private bool HasDifferentVisibleState(LWWMap<string, ByteString> remote)
+        {
+            foreach (string key in m_map.Keys)
+            {
+                if (!remote.TryGetValue(key, out ByteString remoteValue) ||
+                    !m_map.TryGetValue(key, out ByteString localValue) ||
+                    remoteValue != localValue)
+                {
+                    return true;
+                }
+            }
+            foreach (string key in remote.Keys)
+            {
+                if (!m_map.TryGetValue(key, out _))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void ValidateRemoteState(LWWMap<string, ByteString> remote)
+        {
+            if (m_identity == null)
+            {
+                return;
+            }
+            foreach (string key in remote.Keys)
+            {
+                if (!TryParseKey(key, out bool isValue, out NodeId nodeId) ||
+                    !m_identity.IsShared(nodeId) ||
+                    !remote.TryGetValue(key, out ByteString payload))
+                {
+                    throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                        "The peer supplied an invalid shared identity key.");
+                }
+                if (isValue)
+                {
+                    m_identity.ValidateValue(m_addressSpace.Context, DecodeValue(payload));
+                }
+                else
+                {
+                    NodeState node = NodeStateSerializer.Deserialize(m_addressSpace.Context, payload);
+                    if (node.NodeId != nodeId)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNodeIdInvalid,
+                            "The peer topology does not match its shared identity key.");
+                    }
+                    m_identity.AuthorizeReplicatedTree(m_addressSpace.Context, node);
+                }
             }
         }
 
@@ -398,12 +535,21 @@ namespace Opc.Ua.Redundancy.Server
             {
                 return;
             }
+            if (!m_ownsNode(nodeId))
+            {
+                return;
+            }
+            m_identity?.ReserveId(nodeId);
 
             if (diff.Removed)
             {
                 if (!isValue)
                 {
                     await m_addressSpace.RemoveNodeAsync(nodeId, ct).ConfigureAwait(false);
+                    lock (m_lock)
+                    {
+                        m_removedTopology.Add(nodeId);
+                    }
                 }
                 return;
             }
@@ -440,6 +586,12 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             NodeState reconstructed = NodeStateSerializer.Deserialize(m_addressSpace.Context, diff.Value);
+            m_identity?.AuthorizeReplicatedTree(m_addressSpace.Context, reconstructed);
+            if (reconstructed.NodeId != nodeId)
+            {
+                throw new ServiceResultException(StatusCodes.BadNodeIdInvalid,
+                    "A replicated node payload does not match its original identifier.");
+            }
 
             // The topology payload also carries the variable's value, but values are
             // versioned independently via the value (v|) entries. Preserve the
@@ -471,22 +623,189 @@ namespace Opc.Ua.Redundancy.Server
                 }
             }
 
+            if (m_addressSpace.TryGetNode(nodeId, out NodeState? previousNode))
+            {
+                HashSet<NodeId> removedChildren =
+                    NodeStateSerializer.GetDescendantNodeIds(m_addressSpace.Context, previousNode);
+                reconstructed = NodeStateSerializer.UpdateExisting(m_addressSpace.Context, previousNode, reconstructed);
+                removedChildren.ExceptWith(
+                    NodeStateSerializer.GetDescendantNodeIds(m_addressSpace.Context, reconstructed));
+                foreach (NodeId removedChild in removedChildren)
+                {
+                    await m_addressSpace.RemoveNodeAsync(removedChild, ct).ConfigureAwait(false);
+                }
+                m_identity?.AuthorizeReplicatedTree(m_addressSpace.Context, reconstructed);
+            }
+            lock (m_lock)
+            {
+                m_removedTopology.Remove(nodeId);
+            }
             await m_addressSpace.AddOrUpdateNodeAsync(reconstructed, ct).ConfigureAwait(false);
             AttachStateChanged(reconstructed);
         }
 
+        internal async ValueTask RebindAsync(
+            ILocalAddressSpace addressSpace,
+            Func<NodeId, bool> ownsNode,
+            CancellationToken ct)
+        {
+            await m_applyGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(ReplicatedAddressSpaceSynchronizer));
+                }
+                m_addressSpace.NodeAdded -= m_onNodeAdded;
+                m_addressSpace.NodeRemoved -= m_onNodeRemoved;
+                DetachAll();
+                m_addressSpace = addressSpace;
+                m_ownsNode = ownsNode;
+                bool applying = m_applyingInbound.Value;
+                m_applyingInbound.Value = true;
+                try
+                {
+                    List<Diff> diffs;
+                    NodeId[] removed;
+                    lock (m_lock)
+                    {
+                        m_lastApplied.Clear();
+                        diffs = ComputeDiffsLocked();
+                        removed = [.. m_removedTopology];
+                    }
+                    foreach (NodeId nodeId in removed)
+                    {
+                        if (m_ownsNode(nodeId))
+                        {
+                            await m_addressSpace.RemoveNodeAsync(nodeId, ct).ConfigureAwait(false);
+                        }
+                    }
+                    foreach (Diff diff in diffs)
+                    {
+                        await ApplyDiffAsync(diff, ct).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    m_applyingInbound.Value = applying;
+                    m_addressSpace.NodeAdded += m_onNodeAdded;
+                    m_addressSpace.NodeRemoved += m_onNodeRemoved;
+                }
+                byte[] snapshot;
+                lock (m_lock)
+                {
+                    foreach (NodeState node in m_addressSpace.Nodes)
+                    {
+                        if (m_ownsNode(node.NodeId))
+                        {
+                            if (!m_map.TryGetValue(TopologyKey(node.NodeId), out _))
+                            {
+                                CaptureUpsertLocked(node);
+                            }
+                            AttachStateChanged(node);
+                        }
+                    }
+                    snapshot = SerializeLocked();
+                }
+                await SendQuietlyAsync(snapshot).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_applyGate.Release();
+            }
+        }
+
+        internal async ValueTask HydratePreparedAsync(
+            List<AddressSpaceRegistration> registrations,
+            CancellationToken ct)
+        {
+            await m_applyGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                var topology = new List<(NodeId Id, ByteString Payload)>();
+                var values = new List<(NodeId Id, ByteString Payload)>();
+                NodeId[] removed;
+                lock (m_lock)
+                {
+                    foreach (string key in m_map.Keys)
+                    {
+                        if (TryParseKey(key, out bool isValue, out NodeId id) &&
+                            m_map.TryGetValue(key, out ByteString payload))
+                        {
+                            (isValue ? values : topology).Add((id, payload));
+                        }
+                    }
+                    removed = [.. m_removedTopology];
+                }
+                foreach (AddressSpaceRegistration registration in registrations)
+                {
+                    ILocalAddressSpace space = registration.AddressSpace;
+                    foreach (NodeId id in removed)
+                    {
+                        if (registration.OwnsNode(id))
+                        {
+                            await space.RemoveNodeAsync(id, ct).ConfigureAwait(false);
+                        }
+                    }
+                    foreach ((NodeId id, ByteString payload) in topology)
+                    {
+                        if (!registration.OwnsNode(id))
+                        {
+                            continue;
+                        }
+                        NodeState node = NodeStateSerializer.Deserialize(space.Context, payload);
+                        m_identity?.AuthorizeReplicatedTree(space.Context, node);
+                        if (space.TryGetNode(id, out NodeState? existing))
+                        {
+                            node = NodeStateSerializer.UpdateExisting(space.Context, existing, node);
+                            m_identity?.AuthorizeReplicatedTree(space.Context, node);
+                        }
+                        await space.AddOrUpdateNodeAsync(node, ct).ConfigureAwait(false);
+                    }
+                    foreach ((NodeId id, ByteString payload) in values)
+                    {
+                        if (registration.OwnsNode(id) &&
+                            space.TryGetNode(id, out NodeState? node) &&
+                            node is BaseVariableState variable)
+                        {
+                            DataValue value = DecodeValue(payload);
+                            m_identity?.ValidateValue(space.Context, value);
+                            variable.Value = value.WrappedValue;
+                            variable.StatusCode = value.StatusCode;
+                            variable.Timestamp = value.SourceTimestamp;
+                            variable.ClearChangeMasks(space.Context, false);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                m_applyGate.Release();
+            }
+        }
+
         private void OnLocalNodeAdded(NodeState node)
         {
+            if (!m_ownsNode(node.NodeId))
+            {
+                return;
+            }
+            m_identity?.ValidateRegistration(m_addressSpace.Context, node);
             if (m_applyingInbound.Value)
             {
                 return;
             }
 
-            AttachStateChanged(node);
+            NodeState root = node;
+            while (root is BaseInstanceState { Parent: { } parent } && m_ownsNode(parent.NodeId))
+            {
+                root = parent;
+            }
+            AttachStateChanged(root);
             byte[] snapshot;
             lock (m_lock)
             {
-                CaptureUpsertLocked(node);
+                CaptureUpsertLocked(root);
                 snapshot = SerializeLocked();
             }
             Broadcast(snapshot);
@@ -494,6 +813,10 @@ namespace Opc.Ua.Redundancy.Server
 
         private void OnLocalNodeRemoved(NodeId nodeId)
         {
+            if (!m_ownsNode(nodeId))
+            {
+                return;
+            }
             DetachStateChanged(nodeId);
             if (m_applyingInbound.Value)
             {
@@ -507,6 +830,7 @@ namespace Opc.Ua.Redundancy.Server
                 m_map.Remove(ValueKey(nodeId), m_clock);
                 m_lastApplied.Remove(TopologyKey(nodeId));
                 m_lastApplied.Remove(ValueKey(nodeId));
+                m_removedTopology.Add(nodeId);
                 snapshot = SerializeLocked();
             }
             Broadcast(snapshot);
@@ -541,17 +865,20 @@ namespace Opc.Ua.Redundancy.Server
 
         private void CaptureUpsertLocked(NodeState node)
         {
+            m_identity?.ValidateReplicatedTree(m_addressSpace.Context, node);
             string key = TopologyKey(node.NodeId);
             ByteString payload = NodeStateSerializer.Serialize(m_addressSpace.Context, node);
             m_map.Set(key, payload, m_clock.Now());
+            m_removedTopology.Remove(node.NodeId);
             UpdateLastAppliedLocked(key);
         }
 
         private void CaptureValueLocked(BaseVariableState variable)
         {
             string key = ValueKey(variable.NodeId);
-            ByteString encoded = EncodeValue(
-                new DataValue(variable.Value, variable.StatusCode, variable.Timestamp));
+            var value = new DataValue(variable.Value, variable.StatusCode, variable.Timestamp);
+            m_identity?.ValidateValue(m_addressSpace.Context, value);
+            ByteString encoded = EncodeValue(value);
             m_map.Set(key, encoded, m_clock.Now());
             UpdateLastAppliedLocked(key);
         }
@@ -570,7 +897,40 @@ namespace Opc.Ua.Redundancy.Server
 
         private byte[] SerializeLocked()
         {
-            return m_map.ToByteArray(CrdtValues.String, ByteStringCrdtSerializer.Instance);
+            byte[] payload = m_map.ToByteArray(CrdtValues.String, ByteStringCrdtSerializer.Instance);
+            if (m_identity == null)
+            {
+                return payload;
+            }
+            ByteString descriptor = m_identity.Descriptor;
+            byte[] frame = new byte[checked(8 + descriptor.Length + payload.Length)];
+            BinaryPrimitives.WriteUInt32LittleEndian(frame, IdentityMagic);
+            BinaryPrimitives.WriteInt32LittleEndian(frame.AsSpan(4), descriptor.Length);
+            descriptor.Span.CopyTo(frame.AsSpan(8));
+            payload.CopyTo(frame, 8 + descriptor.Length);
+            return frame;
+        }
+
+        private ReadOnlyMemory<byte> ValidateIdentityFrame(byte[] frame)
+        {
+            if (m_identity == null)
+            {
+                return frame;
+            }
+            if (frame.Length >= 8 && BinaryPrimitives.ReadUInt32LittleEndian(frame) == IdentityMagic)
+            {
+                int length = BinaryPrimitives.ReadInt32LittleEndian(frame.AsSpan(4));
+                if (length == m_identity.Descriptor.Length &&
+                    length <= frame.Length - 8 &&
+                    frame.AsSpan(8, length).SequenceEqual(m_identity.Descriptor.Span))
+                {
+                    m_identity.ValidateNamespaces(m_addressSpace.Context.NamespaceUris);
+                    return frame.AsMemory(8 + length);
+                }
+            }
+            m_identity.RejectPeer();
+            throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                "The peer's replica-set identity, namespace layout or NodeId policy is incompatible.");
         }
 
         private List<Diff> ComputeDiffsLocked()
@@ -756,9 +1116,12 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         private const string TopologyPrefix = "n|";
+        private const uint IdentityMagic = 0x31444952;
+        private readonly ReplicaNodeIdFactory? m_identity;
+        private Func<NodeId, bool> m_ownsNode;
         private const string ValuePrefix = "v|";
 
-        private readonly ILocalAddressSpace m_addressSpace;
+        private ILocalAddressSpace m_addressSpace;
         private readonly IServiceMessageContext m_messageContext;
         private readonly FramingGossipTransport m_transport;
         private readonly TimeProvider m_timeProvider;
@@ -774,6 +1137,8 @@ namespace Opc.Ua.Redundancy.Server
         private readonly LWWMap<string, ByteString> m_map = new();
         private readonly Dictionary<string, byte[]> m_lastApplied = [];
         private readonly NodeIdDictionary<NodeState> m_attached = [];
+        private readonly HashSet<NodeId> m_removedTopology = [];
+        private readonly SemaphoreSlim m_applyGate = new(1, 1);
         private readonly List<(long ObservedCount, TaskCompletionSource<bool> Waiter)> m_inboundApplyWaiters = [];
         private readonly AsyncLocal<bool> m_applyingInbound = new();
         private Task? m_inboundTask;
@@ -797,5 +1162,4 @@ namespace Opc.Ua.Redundancy.Server
             Message = "CRDT address-space broadcast failed.")]
         public static partial void CrdtAddressSpaceBroadcastFailed(this ILogger logger, Exception exception);
     }
-
 }

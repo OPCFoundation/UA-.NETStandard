@@ -46,19 +46,20 @@ namespace Opc.Ua.Fuzzing
         public static void Run(string workPath, ITelemetryContext telemetry)
         {
             _ = telemetry;
+            DateTime referenceTime = s_certificateFixtureTime;
 
             using Certificate issuerCertificate = CertificateBuilder
                 .Create("CN=Fuzzing Test Root, O=OPC Foundation")
-                .SetNotBefore(DateTime.UtcNow.AddDays(-1))
-                .SetNotAfter(DateTime.UtcNow.AddDays(30))
+                .SetNotBefore(referenceTime.AddDays(-1))
+                .SetNotAfter(referenceTime.AddYears(20))
                 .SetCAConstraint()
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
             ICertificateBuilder applicationCertificateBuilder = CertificateBuilder
                 .Create("CN=Fuzzing Test Application, O=OPC Foundation")
-                .SetNotBefore(DateTime.UtcNow.AddDays(-1))
-                .SetNotAfter(DateTime.UtcNow.AddDays(10))
+                .SetNotBefore(referenceTime.AddDays(-1))
+                .SetNotAfter(referenceTime.AddYears(10))
                 .AddExtension(
                     new X509SubjectAltNameExtension(
                         "urn:opcfoundation.org:fuzzing",
@@ -70,13 +71,13 @@ namespace Opc.Ua.Fuzzing
                 .CreateForRSA();
 
             byte[] certificateDer = applicationCertificate.RawData;
-            WriteTestcase(workPath, "X509Cert", "certificate.der", certificateDer);
+            WriteCertificateTestcase(workPath, "certificate.der", certificateDer);
 
             // Expired RSA certificate: NotAfter in the past — exercises validity-window logic.
             using Certificate expiredCertificate = CertificateBuilder
                 .Create("CN=Fuzzing Test Expired, O=OPC Foundation")
-                .SetNotBefore(DateTime.UtcNow.AddDays(-30))
-                .SetNotAfter(DateTime.UtcNow.AddDays(-1))
+                .SetNotBefore(referenceTime.AddDays(-30))
+                .SetNotAfter(referenceTime.AddDays(-1))
                 .AddExtension(
                     new X509SubjectAltNameExtension(
                         "urn:opcfoundation.org:fuzzing:expired",
@@ -84,21 +85,21 @@ namespace Opc.Ua.Fuzzing
                 .SetIssuer(issuerCertificate)
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
-            WriteTestcase(workPath, "X509Cert", "certificate-expired.der", expiredCertificate.RawData);
+            WriteCertificateTestcase(workPath, "certificate-expired.der", expiredCertificate.RawData);
 
             // Self-signed RSA certificate: no separate issuer — exercises the
             // self-signature decoder path that skips chain construction.
             using Certificate selfSignedCertificate = CertificateBuilder
                 .Create("CN=Fuzzing Test SelfSigned, O=OPC Foundation")
-                .SetNotBefore(DateTime.UtcNow.AddDays(-1))
-                .SetNotAfter(DateTime.UtcNow.AddDays(10))
+                .SetNotBefore(referenceTime.AddDays(-1))
+                .SetNotAfter(referenceTime.AddYears(10))
                 .AddExtension(
                     new X509SubjectAltNameExtension(
                         "urn:opcfoundation.org:fuzzing:selfsigned",
                         ["localhost", "127.0.0.1", "::1"]))
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
-            WriteTestcase(workPath, "X509Cert", "certificate-selfsigned.der", selfSignedCertificate.RawData);
+            WriteCertificateTestcase(workPath, "certificate-selfsigned.der", selfSignedCertificate.RawData);
 
             // ECC P-256 application certificate + matching PEM private key.
             // Exercises the ECDsa decode branches in cert + PEM parsers.
@@ -106,16 +107,16 @@ namespace Opc.Ua.Fuzzing
             // signs with the issuer's ECDsa private key — an RSA-only issuer is rejected.
             using Certificate eccIssuerCertificate = CertificateBuilder
                 .Create("CN=Fuzzing Test ECC Root, O=OPC Foundation")
-                .SetNotBefore(DateTime.UtcNow.AddDays(-1))
-                .SetNotAfter(DateTime.UtcNow.AddDays(30))
+                .SetNotBefore(referenceTime.AddDays(-1))
+                .SetNotAfter(referenceTime.AddYears(20))
                 .SetCAConstraint()
                 .SetECCurve(ECCurve.NamedCurves.nistP256)
                 .CreateForECDsa();
 
             ICertificateBuilder eccApplicationBuilder = CertificateBuilder
                 .Create("CN=Fuzzing Test ECC, O=OPC Foundation")
-                .SetNotBefore(DateTime.UtcNow.AddDays(-1))
-                .SetNotAfter(DateTime.UtcNow.AddDays(10))
+                .SetNotBefore(referenceTime.AddDays(-1))
+                .SetNotAfter(referenceTime.AddYears(10))
                 .AddExtension(
                     new X509SubjectAltNameExtension(
                         "urn:opcfoundation.org:fuzzing:ecc",
@@ -125,39 +126,53 @@ namespace Opc.Ua.Fuzzing
             using Certificate eccApplicationCertificate = eccApplicationBuilder
                 .SetECCurve(ECCurve.NamedCurves.nistP256)
                 .CreateForECDsa();
-            WriteTestcase(workPath, "X509Cert", "certificate-ecc.der", eccApplicationCertificate.RawData);
+            WriteCertificateTestcase(workPath, "certificate-ecc.der", eccApplicationCertificate.RawData);
+
+            WriteCertificateChainTestcases(
+                workPath,
+                issuerCertificate,
+                applicationCertificate,
+                eccIssuerCertificate,
+                eccApplicationCertificate);
 
             // CRL with a single revoked entry (original).
             CrlBuilder crlBuilder = CrlBuilder
                 .Create(issuerCertificate.SubjectName)
-                .SetThisUpdate(DateTime.UtcNow.AddDays(-1))
-                .SetNextUpdate(DateTime.UtcNow.AddDays(7))
-                .AddRevokedCertificate(applicationCertificate)
+                .SetThisUpdate(referenceTime.AddDays(-1))
+                .SetNextUpdate(referenceTime.AddDays(7))
+                .AddRevokedCertificate(CreateRevokedCertificate(
+                    applicationCertificate, referenceTime.AddDays(-2), CRLReason.KeyCompromise))
                 .AddCRLExtension(new X509CrlNumberExtension(BigInteger.One));
             IX509CRL crl = crlBuilder.CreateForRSA(issuerCertificate);
             byte[] crlDer = crl.RawData;
-            WriteTestcase(workPath, "X509CRL", "crl.der", crlDer);
+            WriteCrlTestcase(workPath, "crl.der", crl, issuerCertificate);
 
             // CRL with multiple revoked entries (exercises the revoked-list loop in EnsureDecoded).
             CrlBuilder crlMultiBuilder = CrlBuilder
                 .Create(issuerCertificate.SubjectName)
-                .SetThisUpdate(DateTime.UtcNow.AddDays(-2))
-                .SetNextUpdate(DateTime.UtcNow.AddDays(14))
-                .AddRevokedCertificate(applicationCertificate)
-                .AddRevokedCertificate(expiredCertificate)
-                .AddRevokedCertificate(selfSignedCertificate)
-                .AddCRLExtension(new X509CrlNumberExtension(new BigInteger(42)));
+                .SetThisUpdate(referenceTime.AddDays(-2))
+                .SetNextUpdate(referenceTime.AddDays(14))
+                .AddRevokedCertificate(CreateRevokedCertificate(
+                    applicationCertificate, referenceTime.AddDays(-3), CRLReason.KeyCompromise))
+                .AddRevokedCertificate(CreateRevokedCertificate(
+                    expiredCertificate, referenceTime.AddDays(-4), CRLReason.Superseded))
+                .AddRevokedCertificate(CreateRevokedCertificate(
+                    selfSignedCertificate, referenceTime.AddDays(-5), CRLReason.CessationOfOperation))
+                .AddCRLExtension(new X509CrlNumberExtension(new BigInteger(42)))
+                .AddCRLExtension(issuerCertificate.BuildAuthorityKeyIdentifier());
             IX509CRL crlMulti = crlMultiBuilder.CreateForRSA(issuerCertificate);
-            WriteTestcase(workPath, "X509CRL", "crl-multi-revoked.der", crlMulti.RawData);
+            WriteCrlTestcase(workPath, "crl-multi-revoked.der", crlMulti, issuerCertificate);
 
             // Empty CRL (no revoked entries) — boundary case for the loop.
             CrlBuilder crlEmptyBuilder = CrlBuilder
                 .Create(issuerCertificate.SubjectName)
-                .SetThisUpdate(DateTime.UtcNow.AddDays(-1))
-                .SetNextUpdate(DateTime.UtcNow.AddDays(7))
+                .SetThisUpdate(referenceTime.AddDays(-1))
+                .SetNextUpdate(referenceTime.AddDays(7))
                 .AddCRLExtension(new X509CrlNumberExtension(BigInteger.Zero));
             IX509CRL crlEmpty = crlEmptyBuilder.CreateForRSA(issuerCertificate);
-            WriteTestcase(workPath, "X509CRL", "crl-empty.der", crlEmpty.RawData);
+            WriteCrlTestcase(workPath, "crl-empty.der", crlEmpty, issuerCertificate);
+
+            WriteCrlParityTestcases(workPath, issuerCertificate, eccIssuerCertificate);
 
             // RSA CSR (original).
             byte[] csrDer = DefaultCertificateFactory.Instance.CreateSigningRequest(
@@ -213,7 +228,7 @@ namespace Opc.Ua.Fuzzing
                     ["host-a", "host-b", "host-c", "host-d", "host-e",
                      "127.0.0.1", "::1", "10.0.0.1", "10.0.0.2"]).RawData);
 
-            FuzzableCode.FuzzX509CRLCore(crlDer);
+            _ = FuzzableCode.FuzzX509CRLCore(crlDer);
             FuzzableCode.FuzzX509SubjectAltNameExtensionCore(subjectAltName);
             FuzzableCode.FuzzX509AuthorityKeyIdentifierExtensionCore(authorityKeyIdentifier);
             FuzzableCode.FuzzX509CrlNumberExtensionCore(crlNumber);

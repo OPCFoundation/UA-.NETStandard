@@ -3,21 +3,32 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <!-- netstandard2.0/2.1 can't host the empty $(RestrictForLegacyTfm) shell
+         (CS8021 - no reference assembly defines System.Object), so build those
+         shells as net10.0. net472/net48 shells compile empty fine. -->
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == '' AND ('$(CustomTestTarget)' == 'netstandard2.0' OR '$(CustomTestTarget)' == 'netstandard2.1')">net10.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
+    <!-- Opc.Ua.PubSub is modern .NET only (MQTTnet has no netstandard2.0 asset),
+         so this host cannot take part in a legacy-pinned solution build. -->
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <AssemblyName>Opc.Ua.PubSub.Fuzz</AssemblyName>
     <RootNamespace>PubSub.Fuzz</RootNamespace>
   </PropertyGroup>
   <PropertyGroup Condition="'$(LibFuzzer)' == 'true'">
     <DefineConstants>$(DefineConstants);LIBFUZZER</DefineConstants>
   </PropertyGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(OneFuzz)' != 'true'">
     <Compile Include="..\Common\Fuzz\Program.cs" Link="Program.cs" />
     <Compile Include="..\Common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
   </ItemGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(OneFuzz)' != 'true'">
     <PackageReference Include="SharpFuzz" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
+  </ItemGroup>
+  <Import Project="..\OneFuzz\OneFuzz.targets" Condition="'$(OneFuzz)' == 'true'" />
+  <ItemGroup>
+    <Compile Include="..\Common\Fuzz\EncodingFidelityException.cs" Link="EncodingFidelityException.cs" />
   </ItemGroup>
 </Project>
