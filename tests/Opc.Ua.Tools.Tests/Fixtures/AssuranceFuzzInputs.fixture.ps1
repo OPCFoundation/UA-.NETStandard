@@ -33,31 +33,48 @@ $root = Split-Path (Split-Path (Split-Path $PSScriptRoot))
 $fixture = Join-Path (Split-Path $PSScriptRoot) "obj/assurance-$([guid]::NewGuid().ToString('N'))"
 $null = New-Item -ItemType Directory -Path $fixture
 try {
-    $project = 'fuzzing/Opc.Ua.Network.Fuzz.Tests/Opc.Ua.Network.Fuzz.Tests.csproj'
+    $pubSub = $Scenario.StartsWith('pubsub-', [StringComparison]::Ordinal)
+    $case = if ($pubSub) { $Scenario.Substring('pubsub-'.Length) } else { $Scenario }
+    $area = if ($pubSub) { 'PubSub' } else { 'Network' }
+    $project = "fuzzing/Opc.Ua.$area.Fuzz.Tests/Opc.Ua.$area.Fuzz.Tests.csproj"
     $profiles = Get-Content (Join-Path $root '.azurepipelines/assurance/profiles.json') -Raw | ConvertFrom-Json
-    $job = $profiles.profiles.jobs | Where-Object { $_.project -eq $project }
+    $definitions = @($profiles.profiles.jobs) + @($profiles.additionalReplayProjects)
+    $jobs = @($definitions | Where-Object { $_.project -eq $project })
+    if ($jobs.Count -ne 1) { throw 'A selected public replay project has no unique input definition.' }
+    $job = $jobs[0]
+    if ($pubSub) {
+        if ($project -in $profiles.profiles.jobs.project -or @($profiles.profiles.jobs).Count -ne 7) {
+            throw 'Baseline PubSub replay must not change the seven-job release contract.'
+        }
+        if ((($job.corpusBuckets | Sort-Object) -join ',') -cne 'Testcases.Chunks,Testcases.Json,Testcases.Uadp') {
+            throw 'PubSub must retain all three public seed buckets.'
+        }
+    }
     foreach ($bucket in $job.corpusBuckets) {
-        if ($Scenario -eq 'missing-seeds') { continue }
+        if ($case -eq 'missing-seeds') { continue }
         $src = Join-Path $fixture "$($job.corpusRoot)/$bucket"
         $dst = Join-Path $fixture ('output/Testcases/' + $bucket.Substring(10))
         $null = New-Item -ItemType Directory -Path $src, $dst -Force
-        if ($Scenario -eq 'empty-seeds') { continue }
+        if ($case -eq 'empty-seeds') { continue }
         # Identical basenames in DIFFERENT buckets must survive copying.
         Set-Content (Join-Path $src 'seed') $bucket
         Set-Content (Join-Path $dst 'seed') $bucket
     }
-    if ($Scenario -eq 'output-collision') {
-        Set-Content (Join-Path $fixture 'output/Testcases/Tcp/seed') 'overwritten-by-other-bucket'
+    if ($case -eq 'output-collision') {
+        $bucket = if ($pubSub) { 'Json' } else { 'Tcp' }
+        Set-Content (Join-Path $fixture "output/Testcases/$bucket/seed") 'overwritten-by-other-bucket'
     }
     $output = Join-Path $fixture 'manifest.json'
     & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/assurance/fuzz-inputs.ps1') `
         -RepoRoot $fixture -Project $project -ProfilesPath (Join-Path $root '.azurepipelines/assurance/profiles.json') `
         -BuildOutput (Join-Path $fixture 'output') -OutputPath $output
-    $expected = $Scenario -in @('bucket-identity', 'empty-regressions')
+    $expected = $case -in @('bucket-identity', 'empty-regressions')
     if (($LASTEXITCODE -eq 0) -ne $expected) { throw "Unexpected input validation result: $Scenario" }
     if ($expected) {
         $manifest = Get-Content $output -Raw | ConvertFrom-Json
-        if ($manifest.goodInputs -ne 8 -or $manifest.regressionInputs -ne 0) {
+        $expectedInputs = if ($pubSub) { 3 } else { 8 }
+        if ($manifest.goodInputs -ne $expectedInputs -or $manifest.regressionInputs -ne 0 -or
+            @($manifest.inputs | Select-Object -ExpandProperty id -Unique).Count -ne $expectedInputs) {
             throw 'Bucket identity or explicitly empty regression inventory was lost.'
         }
     }

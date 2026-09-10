@@ -100,7 +100,7 @@ namespace Opc.Ua.Tools.Tests
 
         /// <summary>
         /// Checks that result collection distinguishes actual successful execution from missing or invalid result
-        /// files.
+        /// files without waiting for standard-input EOF.
         /// </summary>
         [TestCase("missing-trx")]
         [TestCase("zero-trx")]
@@ -121,7 +121,7 @@ namespace Opc.Ua.Tools.Tests
         {
             string root = FindRepositoryRoot();
             (int exitCode, string output) = await RunAsync(
-                root, "-File",
+                root, keepStandardInputOpen: true, "-File",
                 Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "Fixtures", "AssuranceResults.fixture.ps1"),
                 "-Scenario", scenario).ConfigureAwait(false);
 
@@ -136,6 +136,10 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("missing-seeds")]
         [TestCase("empty-seeds")]
         [TestCase("empty-regressions")]
+        [TestCase("pubsub-bucket-identity")]
+        [TestCase("pubsub-output-collision")]
+        [TestCase("pubsub-missing-seeds")]
+        [TestCase("pubsub-empty-seeds")]
         public async Task FuzzInputsKeepTheirBucketIdentityAsync(string scenario)
         {
             string root = FindRepositoryRoot();
@@ -148,7 +152,7 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// Checks that replay credit requires observed coverage of the selected targets and their unchanged inputs.
+        /// Checks observed replay coverage and unchanged inputs without waiting for standard-input EOF.
         /// </summary>
         [TestCase("complete")]
         [TestCase("omitted-target")]
@@ -161,7 +165,7 @@ namespace Opc.Ua.Tools.Tests
         {
             string root = FindRepositoryRoot();
             (int exitCode, string output) = await RunAsync(
-                root, "-File",
+                root, keepStandardInputOpen: true, "-File",
                 Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "Fixtures", "AssuranceReplay.fixture.ps1"),
                 "-Scenario", scenario).ConfigureAwait(false);
 
@@ -245,7 +249,7 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// Checks bounded CodeQL evidence production, including extraction, query coverage, source binding, and review.
+        /// Checks bounded CodeQL extraction, query coverage, source binding, and review with standard input left open.
         /// </summary>
         [TestCase("complete")]
         [TestCase("incomplete-extraction")]
@@ -259,7 +263,7 @@ namespace Opc.Ua.Tools.Tests
         {
             string root = FindRepositoryRoot();
             (int exitCode, string output) = await RunAsync(
-                root, "-File",
+                root, keepStandardInputOpen: true, "-File",
                 Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "Fixtures", "AssuranceCodeql.fixture.ps1"),
                 "-Scenario", scenario).ConfigureAwait(false);
 
@@ -386,8 +390,16 @@ namespace Opc.Ua.Tools.Tests
             throw new DirectoryNotFoundException("Repository root not found.");
         }
 
+        private static Task<(int ExitCode, string Output)> RunAsync(
+            string workingDirectory,
+            params string[] arguments)
+        {
+            return RunAsync(workingDirectory, keepStandardInputOpen: false, arguments);
+        }
+
         private static async Task<(int ExitCode, string Output)> RunAsync(
             string workingDirectory,
+            bool keepStandardInputOpen,
             params string[] arguments)
         {
             using var process = new Process
@@ -395,6 +407,8 @@ namespace Opc.Ua.Tools.Tests
                 StartInfo = new ProcessStartInfo("pwsh")
                 {
                     WorkingDirectory = workingDirectory,
+                    // A live stdin pipe reproduces the CI host without supplying EOF to make helpers finish.
+                    RedirectStandardInput = keepStandardInputOpen,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,

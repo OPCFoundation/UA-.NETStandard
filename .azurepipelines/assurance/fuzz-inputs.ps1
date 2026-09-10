@@ -31,7 +31,8 @@
 .SYNOPSIS
 Freezes the public replay inventory and optionally verifies the built input copy.
 .DESCRIPTION
-Only committed public input roots from the profile are supported. Do not extract
+Only committed public input roots from profile jobs or additional replay definitions
+are supported. Additional projects do not join the release profiles. Do not extract
 private archives into these roots. Output contains counts and an aggregate digest,
 never input names, content or exception messages. Public input hashes bind replay.
 An absent or
@@ -47,7 +48,8 @@ param(
 $ErrorActionPreference = 'Stop'
 try {
     $profiles = Get-Content -LiteralPath $ProfilesPath -Raw | ConvertFrom-Json
-    $job = @($profiles.profiles.jobs | Where-Object { $_.project -eq $Project.Replace('\', '/') })
+    $definitions = @($profiles.profiles.jobs) + @($profiles.additionalReplayProjects)
+    $job = @($definitions | Where-Object { $_.project -eq $Project.Replace('\', '/') })
     if ($job.Count -ne 1 -or -not $job[0].corpusRoot) { throw 'Unknown corpus.' }
     $job = $job[0]
     $manifest = [ordered]@{

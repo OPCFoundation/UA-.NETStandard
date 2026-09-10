@@ -171,10 +171,10 @@ if ($files.Count -gt 0) {
                 @($copy.inputs).Count -ne $inputs.Count) { throw 'Incomplete frozen replay scope.' }
             $expected = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
             $inputIds = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-            foreach ($input in $inputs) {
-                $id = $input.GetAttribute('id')
-                $digest = $input.GetAttribute('digest')
-                $category = $input.GetAttribute('category')
+            foreach ($replayInput in $inputs) {
+                $id = $replayInput.GetAttribute('id')
+                $digest = $replayInput.GetAttribute('digest')
+                $category = $replayInput.GetAttribute('category')
                 if ($id -notmatch '^sha256:[0-9a-f]{64}$' -or $digest -notmatch '^sha256:[0-9a-f]{64}$' -or
                     $category -notin @('good', 'crash', 'timeout', 'slow') -or -not $inputIds.Add($id) -or
                     @($before.inputs | Where-Object { $_.id -ceq $id -and $_.digest -ceq $digest -and $_.category -ceq $category }).Count -ne 1 -or

@@ -13,6 +13,11 @@ commands, and the release-evidence tooling.
 | `release/` | `promotion.ps1`, `policy.json`, `artifacts.json`, readiness progress, and all release/verification/readiness/review/delivery JSON schemas |
 | `coverage/` | `check.ps1`, the shared coverage gate; its thresholds remain in the repository-root `coverage-thresholds.json` |
 
+`assurance/profiles.json` lists required release jobs under `profiles[].jobs`.
+Its `additionalReplayProjects` contains baseline-only replay input definitions,
+including PubSub, so selected CI projects receive the same frozen/copy-verified
+corpus checks without implicitly expanding the seven-job release profile.
+
 ## Paths and local commands
 
 Pipeline command paths are relative to the repository checkout. Helpers in task
@@ -20,6 +25,12 @@ folders resolve default repository roots two levels above their own directory;
 sibling helpers and data are resolved from `$PSScriptRoot`. Explicit input/output
 paths retain each command's documented meaning. Signing-list entries remain
 relative to the repository root, not to the `nuget/` directory.
+
+Do not reuse PowerShell automatic variables as local names. In particular,
+binding `$input` can make a child `pwsh` wait for standard-input EOF even after
+its script body finishes. Use descriptive locals such as `$sourceStream` and
+`$replayInput`; fixture tests keep stdin open to detect this CI process-lifetime
+regression without extending their deadlines.
 
 From the repository root in PowerShell:
 

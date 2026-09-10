@@ -36,6 +36,15 @@
       "allowedInInitialNet10Profile": false
     }
   ],
+  "additionalReplayProjects": [
+    {
+      "project": "fuzzing/Opc.Ua.PubSub.Fuzz.Tests/Opc.Ua.PubSub.Fuzz.Tests.csproj",
+      "corpusRoot": "fuzzing/Opc.Ua.PubSub.Fuzz.Corpus",
+      "regressionRoot": "fuzzing/Opc.Ua.PubSub.Fuzz.Tests/Assets",
+      "supportedLibraryTfms": ["net8.0", "net9.0", "net10.0"],
+      "corpusBuckets": ["Testcases.Json", "Testcases.Uadp", "Testcases.Chunks"]
+    }
+  ],
   "profiles": [
     {
       "id": "security-net10",

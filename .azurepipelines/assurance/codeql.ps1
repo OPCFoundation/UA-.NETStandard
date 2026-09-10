@@ -275,12 +275,12 @@ select compilation.getDirectoryString(), output, source.getAbsolutePath(),
                 throw 'CODEQL_SOURCE_ARCHIVE_LAYOUT_UNSUPPORTED'
             }
             if ($entry.Length -lt 0 -or $entry.Length -gt 33554432) { throw 'CODEQL_SOURCE_ARCHIVE_LIMIT' }
-            $input = $entry.Open()
+            $sourceStream = $entry.Open()
             $hash = [Security.Cryptography.IncrementalHash]::CreateHash([Security.Cryptography.HashAlgorithmName]::SHA256)
             try {
                 $buffer = [byte[]]::new(8192)
                 $length = 0L
-                while (($read = $input.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                while (($read = $sourceStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
                     $length += $read
                     if ($length -gt $entry.Length) { throw 'CODEQL_SOURCE_ARCHIVE_LIMIT' }
                     $hash.AppendData($buffer, 0, $read)
@@ -288,7 +288,10 @@ select compilation.getDirectoryString(), output, source.getAbsolutePath(),
                 if ($length -ne $entry.Length) { throw 'CODEQL_SOURCE_ARCHIVE_INCOMPLETE' }
                 $extractedDigest = 'sha256:' + [Convert]::ToHexString($hash.GetHashAndReset()).ToLowerInvariant()
             }
-            finally { $input.Dispose(); $hash.Dispose() }
+            finally {
+                $sourceStream.Dispose()
+                $hash.Dispose()
+            }
             $sourceDigest = Get-CodeqlDigest $source
             if ($sourceDigest -cne $extractedDigest) { throw 'CODEQL_EXTRACTED_SOURCE_CHANGED' }
             $expectedIdentities += "$sourceName|$sourceDigest"

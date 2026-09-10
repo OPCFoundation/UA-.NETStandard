@@ -47,10 +47,10 @@ try {
     $inputXml = ($inputs | ForEach-Object { "<input id='$($_.id)' digest='$($_.digest)' category='$($_.category)' />" }) -join ''
     $executionXml = ''
     foreach ($target in @($a, $b)) {
-        foreach ($input in $inputs) {
+        foreach ($replayInput in $inputs) {
             if ($Scenario -eq 'omitted-target' -and $target -eq $b) { continue }
-            if ($Scenario -eq 'omitted-input' -and $input.id -eq $c) { continue }
-            $executionXml += "<execution target='$target' input='$($input.id)' />"
+            if ($Scenario -eq 'omitted-input' -and $replayInput.id -eq $c) { continue }
+            $executionXml += "<execution target='$target' input='$($replayInput.id)' />"
         }
     }
     "<replay schemaVersion='1'><targets><target id='$a'/><target id='$b'/></targets><inputs>$inputXml</inputs><executions>$executionXml</executions></replay>" |
