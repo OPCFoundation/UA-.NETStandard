@@ -215,7 +215,7 @@ internal sealed class SessionModelInspectorBackend : IModelInspectorBackend
             }
             foreach ((NodeId dependency, string fieldName) in dependencies)
             {
-                if (TypeInfo.GetBuiltInType(dependency) != BuiltInType.Null || !scheduled.Add(dependency))
+                if (SchemaTypeInfo.GetFieldEncodingType(dependency) != BuiltInType.Null || !scheduled.Add(dependency))
                 {
                     continue;
                 }

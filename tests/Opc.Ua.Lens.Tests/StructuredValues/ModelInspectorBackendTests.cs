@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -219,6 +220,89 @@ public sealed class ModelInspectorBackendTests
             Assert.That(result.Text, Does.Contain("Number"));
             Assert.That(result.MediaType, Does.Contain("json"));
             Assert.That(result.Extension, Is.EqualTo("json"));
+        }
+    }
+
+    [TestCase(UaSchemaFormat.JsonCompact)]
+    [TestCase(UaSchemaFormat.JsonVerbose)]
+    [TestCase(UaSchemaFormat.Xsd)]
+    [TestCase(UaSchemaFormat.Bsd)]
+    public async Task StructureWithNumberValueGeneratesSchemaAsync(UaSchemaFormat format)
+    {
+        using var context = new StructuredValueTestContext();
+        var definition = new StructureDefinition
+        {
+            BaseDataType = DataTypeIds.Structure,
+            Fields =
+            [
+                StructuredValueTestContext.Field("NumberValue", DataTypeIds.Number),
+                StructuredValueTestContext.Field("IntegerValue", DataTypeIds.Integer),
+                StructuredValueTestContext.Field("UIntegerValue", DataTypeIds.UInteger)
+            ]
+        };
+        var backend = new SessionModelInspectorBackend(context.Service);
+        await using (backend.ConfigureAwait(false))
+        {
+            await backend.BindAsync(context.Session.Object, CancellationToken.None).ConfigureAwait(false);
+
+            ModelSchemaPreview schema = await backend.CreateSchemaAsync(
+                SchemaInspection(context, definition), format, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(schema.Available, Is.True, schema.Text);
+            Assert.That(schema.Text, Does.Contain("NumberValue"));
+            Assert.That(schema.Text, Does.Contain("IntegerValue"));
+            Assert.That(schema.Text, Does.Contain("UIntegerValue"));
+            Assert.That(context.Reads, Is.Zero, "Standard abstract numeric types do not need server definitions.");
+            if (format is UaSchemaFormat.JsonCompact or UaSchemaFormat.JsonVerbose)
+            {
+                JsonNode document = JsonNode.Parse(schema.Text)!;
+                JsonNode properties = document["$defs"]!["Root"]!["properties"]!;
+                Assert.That(properties["NumberValue"]!["$ref"]!.GetValue<string>(), Is.EqualTo("#/$defs/Ua_Variant"));
+                Assert.That(properties["IntegerValue"]!["$ref"]!.GetValue<string>(), Is.EqualTo("#/$defs/Ua_Variant"));
+                Assert.That(properties["UIntegerValue"]!["$ref"]!.GetValue<string>(), Is.EqualTo("#/$defs/Ua_Variant"));
+                Assert.That(schema.MediaType, Is.EqualTo("application/schema+json"));
+                Assert.That(schema.Extension, Is.EqualTo("json"));
+            }
+            else
+            {
+                Assert.That(schema.MediaType, Is.EqualTo("application/xml"));
+                Assert.That(schema.Extension, Is.EqualTo(format == UaSchemaFormat.Xsd ? "xsd" : "bsd"));
+            }
+        }
+    }
+
+    [TestCase(26u)]
+    [TestCase(27u)]
+    [TestCase(28u)]
+    public async Task NonstandardNumericIdentifiersStillRequireDefinitionsAsync(uint identifier)
+    {
+        using var context = new StructuredValueTestContext();
+        var customType = new NodeId(identifier, context.NamespaceIndex);
+        var definition = new StructureDefinition
+        {
+            Fields = [StructuredValueTestContext.Field("CustomNumber", customType)]
+        };
+        context.Reader = (ids, _) =>
+        {
+            Assert.That(ids.Count, Is.EqualTo(1));
+            Assert.That(ids[0].NodeId, Is.EqualTo(customType));
+            Assert.That(ids[0].AttributeId, Is.EqualTo(Attributes.DataTypeDefinition));
+            return ValueTask.FromResult(StructuredValueTestContext.Reply(
+                Variant.Null, StatusCodes.BadAttributeIdInvalid));
+        };
+        var backend = new SessionModelInspectorBackend(context.Service);
+        await using (backend.ConfigureAwait(false))
+        {
+            await backend.BindAsync(context.Session.Object, CancellationToken.None).ConfigureAwait(false);
+
+            ModelSchemaPreview schema = await backend.CreateSchemaAsync(
+                SchemaInspection(context, definition), UaSchemaFormat.JsonCompact, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(schema.Available, Is.False);
+            Assert.That(schema.Text, Does.Contain($"'CustomNumber' has no definition for {customType}"));
+            Assert.That(context.Reads, Is.EqualTo(1));
         }
     }
 

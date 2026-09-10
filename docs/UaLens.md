@@ -13,6 +13,12 @@ There is one primary server connection. GDS tools can use a suitable primary
 session or maintain their own secondary connection. Document tabs are working
 contexts, not separate primary server sessions.
 
+The screenshots show local examples using the repository's ConsoleReferenceServer.
+The live examples use Anonymous/None on a loopback endpoint; this is not a
+deployment security recommendation. Select the appropriate security policy,
+identity and certificate trust for a deployed server. Sample values and counters
+illustrate the interface, not timing or delivery guarantees.
+
 ## Getting started
 
 From the repository root:
@@ -51,6 +57,11 @@ An unavailable operation does not hide an entire document. Local certificate
 management and discovery are available without a primary connection. Session-bound
 documents retain their configuration while disconnected.
 
+![UaLens workspace with an expanded address space and live values, quality and source timestamps](Images/UaLens/workspace.png)
+
+*Browse the address space beside a monitor document. The connection bar applies
+to the primary session shared by the documents.*
+
 The default appearance follows the operating system. Light and Dark can be
 selected explicitly. Saved Light, DarkStandard, and DarkNavy preferences select
 an explicit appearance; System follows the operating system. Charts use the
@@ -76,6 +87,11 @@ connection. Disconnecting or selecting a different target clears it. Permanent
 trust must be written successfully to the certificate store before retrying.
 Invalid or revoked certificates are not made acceptable by the untrusted-certificate
 choice.
+
+![Endpoint picker showing security policies, message security modes and user-token choices](Images/UaLens/connection-policies.png)
+
+*Choose an advertised endpoint and its user-token policy. Selecting SignAndEncrypt
+does not automatically grant certificate trust.*
 
 The validation callback never blocks on a window. Connection coordination rejects
 and captures the validation failure, prompts asynchronously, and makes a bounded
@@ -123,15 +139,26 @@ See [Identity Providers](IdentityProviders.md), [Crypto Provider](CryptoProvider
 
 ## Monitoring
 
-A monitor document starts with values, quality, and source timestamps. An optional
-trend or timing visualization can be selected without changing server publishing.
-The available visualizations are Dots, Bars, Lines, Signal, Histogram, and Heatmap.
+A monitor document starts with values, quality, and source timestamps. Its **View**
+selector offers Values, Trend, Timing: dots, Timing: bars, Timing: lines, Histogram,
+and Heatmap. Trend plots the sampled signal; choosing a visualization does not
+change server publishing.
+
+![Monitor document with two live numeric values and a trend chart with axes and legend](Images/UaLens/monitoring.png)
+
+*Trend combines the latest values and quality with a signal chart. The sample
+axis is a display sequence, not a measurement of network latency.*
 
 The requested publishing interval and publishing-enabled control are immediately
 available. The server's revised values are displayed separately. Item settings
 control sampling, monitoring mode, queues, discard policy, and data-change filtering.
 Source and server timestamps have different meanings; neither is replaced with
 the time at which the UI happens to render.
+
+![Add monitored item dialog with sampling interval, data-change trigger and deadband controls](Images/UaLens/monitored-item.png)
+
+*The address-space Monitor action lets you confirm sampling and an optional
+data-change filter before adding the selected variable.*
 
 Publishing, sampling, and display timing are distinct:
 
@@ -181,6 +208,11 @@ The catalog provides seventeen tool kinds:
 | GDS Management / Push | Registered applications, issuance/CSR, trust lists, certificate update/apply |
 | User / Role Management | Account/password restrictions and role/identity/application/endpoint mappings |
 
+![Searchable Add Tool catalog with grouped workflows and offline configuration and capability descriptions](Images/UaLens/tool-catalog.png)
+
+*The catalog explains configuration and live-operation prerequisites per tool.
+An available document or successful browse does not establish mutation permission.*
+
 Subscription Bench is slider-driven; there is no separate Run prerequisite. Shared
 settings apply to existing resources and resources added later. Shrinking, Stop,
 and document closure release the corresponding server resources.
@@ -223,6 +255,11 @@ service request without the expected event sequence is not presented as a comple
 refresh. Recreating a subscription and refreshing is distinct from transferring one.
 Missing events and bounded retention are visible.
 
+![Alarms document with retained condition branches, completed refresh markers and bounded event history](Images/UaLens/alarms.png)
+
+*Observe an event notifier and reconcile retained conditions with Condition
+refresh. This example uses a bounded reference-server alarm simulation.*
+
 Acknowledgement, confirmation, comments and applicable advanced condition
 operations are explicit. A disconnected or restored document never repeats them.
 Authorization errors and unsupported operations are reported as failures; the UI
@@ -238,6 +275,11 @@ explicitly. The same structured editing module serves Models and the Write/Call
 dialogs; it supports generated encodeables and the stack's default NativeAOT-friendly
 runtime type adapters without Reflection.Emit.
 
+![Models document displaying BuildInfo fields, type evidence and a generated compact JSON schema](Images/UaLens/models.png)
+
+*Read a structured value, inspect its definition and preview a schema. Editing
+starts from a separate local draft and does not itself write to the server.*
+
 Edits use a separate draft. A rejected or canceled draft cannot modify the original
 value or write to the server. Nested fields, optional presence, unions and supported
 arrays retain their type semantics. Matrix dimensions are preserved; creating
@@ -248,6 +290,11 @@ Schema preview/export uses the stack's schema provider. Missing definitions are
 reported explicitly; denied reads, canceled resolution and connection failures
 are not treated as authoritative absence. Metadata refresh and session-generation
 changes discard stale definitions. Unknown opaque values are read-only.
+
+Structure fields declared as `Number` (`i=26`), `Integer` (`i=27`) or `UInteger`
+(`i=28`) use the standard Variant wire encoding in JSON, XML and binary schemas.
+They do not require a server-side `DataTypeDefinition`. Unresolved custom data
+types are reported as unavailable rather than exported as an untyped success.
 
 See [Complex Types](ComplexTypes.md) and [Schema Generation](SchemaGeneration.md).
 
@@ -262,6 +309,12 @@ messages and republish activity. It records actual server subscription/partition
 IDs where available; client correlation IDs are not relabeled as server IDs.
 Requested and revised settings and server operation limits provide context for
 throughput and failures.
+
+![Continuity Lab showing the own-subscription recreation scenario and retained lifecycle and counter evidence after Stop](Images/UaLens/continuity.png)
+
+*The lab retains bounded evidence after its resources are released. Recreation,
+transfer and recovery are distinct observations; discontinuities alone are not
+proof of lost source samples.*
 
 The available scenarios include observation of a user-managed outage, recreation
 of the lab's own subscription, transfer or recreation from its own snapshot, and
@@ -301,6 +354,11 @@ The default subscriber sink observes locally. Receiving a dataset does not write
 to a UA server. Publication, Actions, external-server adapters and write-back need
 explicit configuration and authorization. Stop/close releases the owned runtime;
 primary-session loss affects only configured adapters that depend on that session.
+
+![PubSub document with applied field values, message history and counters after a bounded local UDP loopback](Images/UaLens/pubsub.png)
+
+*A bounded synthetic loopback retains received values and wire-message evidence
+after Stop. Local dataset acceptance is separate from an external delivery guarantee.*
 
 The module reuses `PubSubApplicationBuilder`, `IPubSubApplication`, transport,
 metadata, source/sink, security and Action facilities. Configurations save safe
