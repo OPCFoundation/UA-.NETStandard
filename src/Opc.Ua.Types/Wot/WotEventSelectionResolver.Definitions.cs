@@ -411,11 +411,12 @@ namespace Opc.Ua.Wot
         /// such as <c>evt:highTemperatureAlarm</c> has none of these and names
         /// a definition by identity, which is exactly the distinction that
         /// keeps this resolver from trying to fetch an identifier as if it were
-        /// a file.
+        /// a file. An absolute IRI's non-pointer fragment belongs to its logical
+        /// identity, not to a document location.
         /// </remarks>
         private static bool NamesDocumentLocation(string reference)
         {
-            if (reference.Length == 0)
+            if (reference.Length == 0 || WotEventSelectClauses.IsLogicalFragmentReference(reference))
             {
                 return false;
             }
@@ -472,26 +473,27 @@ namespace Opc.Ua.Wot
                 return null;
             }
 
-            // Held documents and configured resolvers, by location. The attempt
-            // is made for any reference that splits, because a document set may
-            // name its documents with bare tokens; the failure it produces is
-            // held back until the well-known catalog has also been consulted,
-            // so a well-known identifier is not reported as a missing file.
+            // A logical identifier is the complete provider request. Only a
+            // location is split into a document URI and a JSON Pointer.
             bool located = false;
             DefinitionCandidate locationTarget = default;
             string? unresolvedDocument = null;
             bool pointerMissed = false;
-            bool logicalLookup = !NamesDocumentLocation(reference) &&
-                TryExpandLogicalId(document, reference, out _, carryingNode);
-            string lookupReference = logicalLookup &&
-                TryExpandLogicalId(document, reference, out string logicalIdentity, carryingNode)
-                ? logicalIdentity
-                : ResolveLocationReference(document, carryingNode, origin, reference);
-            if (WotEventSelectClauses.TrySplitEventTypeReference(
-                lookupReference, out string documentUri, out string pointer))
+            bool logicalLookup = TryExpandLogicalId(document, reference, out string logicalIdentity, carryingNode) &&
+                !NamesDocumentLocation(reference);
+            string documentUri = logicalIdentity;
+            string pointer = string.Empty;
+            bool validReference = logicalLookup;
+            if (!logicalLookup)
             {
-                // TrySplitEventTypeReference rejects a fragment-only reference,
-                // so a reference that splits always names a document.
+                validReference = WotEventSelectClauses.TrySplitEventTypeReference(reference, out _, out _) &&
+                    WotEventSelectClauses.TrySplitEventTypeReference(
+                        ResolveLocationReference(document, carryingNode, origin, reference),
+                        out documentUri,
+                        out pointer);
+            }
+            if (validReference)
+            {
                 WotDocument? resolved = await LoadAsync(
                         documentUri, scope, cancellationToken)
                     .ConfigureAwait(false);
@@ -527,7 +529,7 @@ namespace Opc.Ua.Wot
                     {
                         AddError(diagnostics,
                             "The resolver result does not identify the requested logical EventType " +
-                            $"'{lookupReference}'; " +
+                            $"'{logicalIdentity}'; " +
                             "a different document root or sibling definition cannot substitute for it.", where);
                         return null;
                     }
@@ -751,14 +753,20 @@ namespace Opc.Ua.Wot
 
             int baseSuffix = basis.IndexOfAny(s_uriSuffixDelimiters);
             string basePath = baseSuffix < 0 ? basis : basis[..baseSuffix];
+            int suffixStart = reference.IndexOfAny(s_uriSuffixDelimiters);
+            string suffix = suffixStart < 0 ? string.Empty : reference[suffixStart..];
+            string path = suffixStart < 0 ? reference : reference[..suffixStart];
+            if (path.Length == 0)
+            {
+                int baseFragment = basis.IndexOf('#', StringComparison.Ordinal);
+                string inherited = baseFragment < 0 ? basis : basis[..baseFragment];
+                return (reference.StartsWith('?') ? basePath : inherited) + suffix;
+            }
             int directoryEnd = basePath.LastIndexOf('/');
             if (!reference.StartsWith('/') && directoryEnd < 0)
             {
                 return reference;
             }
-            int suffixStart = reference.IndexOfAny(s_uriSuffixDelimiters);
-            string suffix = suffixStart < 0 ? string.Empty : reference[suffixStart..];
-            string path = suffixStart < 0 ? reference : reference[..suffixStart];
             path = path.StartsWith('/') ? path : basePath[..(directoryEnd + 1)] + path;
 
             // Relative document-set locations have no absolute URI to borrow.

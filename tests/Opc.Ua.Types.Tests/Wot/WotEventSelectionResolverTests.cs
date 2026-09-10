@@ -33,6 +33,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Wot;
 
@@ -132,6 +133,19 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("models/sub/derived.json", "../base.json", "models/base.json")]
         [TestCase("../models/derived.json", "../../base.json", "../../base.json")]
         [TestCase("./models/derived.json", "base.json", "./models/base.json")]
+        [TestCase("derived.json", "?version=2", "derived.json?version=2")]
+        [TestCase("models/sub/derived.json", "?version=2", "models/sub/derived.json?version=2")]
+        [TestCase("models/sub/derived.json?version=1", "?version=2", "models/sub/derived.json?version=2")]
+        [TestCase("models/sub/derived.json?version=1", "?", "models/sub/derived.json?")]
+        [TestCase("models/sub/derived.json?version=1", "base.json?version=2", "models/sub/base.json?version=2")]
+        [TestCase(
+            "https://origin.test/models/derived.json",
+            "?version=2",
+            "https://origin.test/models/derived.json?version=2")]
+        [TestCase(
+            "https://origin.test/models/derived.json?version=1",
+            "?",
+            "https://origin.test/models/derived.json?")]
         public async Task ARelativeDocumentLocationRetainsItsDirectoryAcrossHopsAsync(
             string origin,
             string next,
@@ -145,6 +159,51 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(clauses.ToList().Select(clause => clause.BrowsePath), Is.EqualTo(s_baseEventBrowsePaths));
             Assert.That(clauses.ToList().All(clause => clause.TypeDefinitionId == "i=2041"), Is.True);
             Assert.That(clauses.ToList().All(clause => clause.TypeDefinitionReference == origin), Is.True);
+        }
+
+        [TestCase("models/sub/derived.json?version=1", "models/sub/derived.json?version=2")]
+        [TestCase(
+            "https://origin.test/models/derived.json?version=1",
+            "https://origin.test/models/derived.json?version=2")]
+        public async Task AQueryOnlyReferenceRetainsTheDocumentBeforeItsPointerAsync(string origin, string target)
+        {
+            ArrayOf<WotResolvedEventSelectClause> clauses = await ResolveAsync(
+                Affordance($"\"tm:ref\":\"{origin}\""),
+                (origin, ChainDocument("?version=2#/events/alarm")),
+                (target, AlarmTypeDocument())).ConfigureAwait(false);
+
+            Assert.That(
+                WotEventSelectClauses.GetMaterializedMemberPaths(clauses).ToList()
+                    .Select(WotEventSelectClauses.FormatMemberPath),
+                Is.EqualTo(s_nestedAlarmMemberPaths));
+            Assert.That(clauses.ToList().All(clause => clause.TypeDefinitionId == "nsu=urn:test:pump;i=6001"), Is.True);
+            Assert.That(clauses.ToList().All(clause => clause.TypeDefinitionReference == origin), Is.True);
+        }
+
+        [TestCase("")]
+        [TestCase("#")]
+        [TestCase("#/events/alarm")]
+        public async Task AChainRejectsEmptyOrFragmentOnlyReferencesAsync(string reference)
+        {
+            const string origin = "models/sub/derived.json";
+            using WotDocument document = Parse(Affordance($"\"tm:ref\":\"{origin}\""));
+            var provider = new Mock<IWotThingResolver>(MockBehavior.Strict);
+            provider.Setup(value => value.ResolveThingAsync(
+                    origin, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<WotResolverResult>(
+                    WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(ChainDocument(reference)))));
+
+            WotConversionResult<WotEventSelectionCatalog> result =
+                await new WotEventSelectionResolver(provider.Object).ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Value, Is.Null);
+            WotDiagnostic diagnostic = result.Diagnostics.Single();
+            Assert.That(diagnostic.Code, Is.EqualTo(WotDiagnosticCode.EventSelectClauseInvalid));
+            Assert.That(diagnostic.Location?.JsonPointer, Is.EqualTo("/events/alarm"));
+            provider.Verify(value => value.ResolveThingAsync(
+                origin, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
+            provider.VerifyNoOtherCalls();
         }
 
         [Test]

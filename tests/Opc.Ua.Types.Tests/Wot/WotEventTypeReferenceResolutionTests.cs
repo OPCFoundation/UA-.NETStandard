@@ -204,6 +204,38 @@ namespace Opc.Ua.Types.Tests.Wot
                 "urn:event:Wanted", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
+        [TestCase(false, "matching")]
+        [TestCase(true, "matching")]
+        [TestCase(false, "substituted")]
+        [TestCase(true, "substituted")]
+        [TestCase(false, "missing")]
+        [TestCase(true, "missing")]
+        [TestCase(false, "ambiguous")]
+        [TestCase(true, "ambiguous")]
+        [TestCase(false, "notFound")]
+        [TestCase(true, "notFound")]
+        public async Task FragmentLogicalIdentifiersReachTheProviderAndVerifyItsDefinitionsAsync(
+            bool expanded,
+            string answerKind)
+        {
+            await AssertFragmentLogicalIdentityAsync(expanded, answerKind, explicitClause: false).ConfigureAwait(false);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FragmentLogicalIdentifiersAreValidInExplicitClausesAsync(bool expanded)
+        {
+            await AssertFragmentLogicalIdentityAsync(expanded, "matching", explicitClause: true).ConfigureAwait(false);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AnEmptyFragmentCanBelongToAFullLogicalIdentifierAsync(bool explicitClause)
+        {
+            await AssertFragmentLogicalIdentityAsync(true, "matching", explicitClause, fragment: string.Empty)
+                .ConfigureAwait(false);
+        }
+
         /// <summary>
         /// A prefix the referring document binds elsewhere expands elsewhere,
         /// so the same short form does not reach a definition it does not name.
@@ -868,6 +900,98 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
                 members +
                 "}}}";
+        }
+
+        private static async Task AssertFragmentLogicalIdentityAsync(
+            bool expanded,
+            string answerKind,
+            bool explicitClause,
+            string fragment = "Wanted")
+        {
+            string identity = "https://types.test/events#" + fragment;
+            string reference = expanded ? identity : "request:" + fragment;
+            string selection = explicitClause
+                ? "\"uav:eventSelectClauses\":[{\"tm:ref\":\"" + reference + "\",\"uav:browsePath\":\"Message\"}]"
+                : "\"tm:ref\":\"" + reference + "\"";
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                $$"""
+                {
+                  "@context": { "request": "urn:wrong:" },
+                  "@type": "tm:ThingModel",
+                  "events": {
+                    "alarm": {
+                      "@context": { "request": "https://types.test/events#" },
+                      "@type": "uav:eventType",
+                      {{selection}}
+                    }
+                  }
+                }
+                """));
+            string wantedId = fragment.Length == 0 ? identity : "answer:" + fragment;
+            string answeredId = answerKind == "substituted" ? "answer:Other" : wantedId;
+            string idMember = answerKind == "missing"
+                ? string.Empty
+                : "\"@id\":\"" + answeredId + "\",";
+            string sibling = answerKind == "ambiguous"
+                ? $$"""
+                  ,"events": {
+                    "sibling": {
+                      "@id":"{{wantedId}}", "@type":"uav:eventType", "uav:id":"nsu=urn:test:pump;i=6102",
+                      "data": { "type":"object", "properties": { "Message": { "type":"string" } } }
+                    }
+                  }
+                  """
+                : string.Empty;
+            string response =
+                $$"""
+                {
+                  "@context": { "answer":"https://types.test/events#" },
+                  {{idMember}}
+                  "@type": ["tm:ThingModel","uav:eventType"],
+                  "uav:id": "nsu=urn:test:pump;i=6101",
+                  "data": { "type":"object", "properties": { "Message": { "type":"string" } } }
+                  {{sibling}}
+                }
+                """;
+            var provider = new Mock<IWotThingResolver>(MockBehavior.Strict);
+            provider.Setup(value => value.ResolveThingAsync(
+                    identity, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<WotResolverResult>(answerKind == "notFound"
+                    ? WotResolverResult.NotFound
+                    : WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(response))));
+
+            WotConversionResult<WotEventSelectionCatalog> result =
+                await new WotEventSelectionResolver(provider.Object).ResolveAsync(document).ConfigureAwait(false);
+
+            provider.Verify(value => value.ResolveThingAsync(
+                identity, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
+            provider.VerifyNoOtherCalls();
+            Assert.That(result.Success, Is.EqualTo(answerKind == "matching"), Describe(result.Diagnostics));
+            if (answerKind == "matching")
+            {
+                Assert.That(result.Diagnostics, Is.Empty);
+                Assert.That(result.Value!.TryGetSelection("alarm", out ArrayOf<WotResolvedEventSelectClause> clauses),
+                    Is.True);
+                Assert.That(clauses.Count, Is.EqualTo(1));
+                Assert.That(clauses[0].TypeDefinitionId, Is.EqualTo("nsu=urn:test:pump;i=6101"));
+                Assert.That(clauses[0].TypeDefinitionReference, Is.EqualTo(reference));
+                Assert.That(clauses[0].BrowsePath, Is.EqualTo("Message"));
+                Assert.That(clauses[0].Source, Is.EqualTo(explicitClause
+                    ? WotEventSelectClauseSource.Explicit
+                    : WotEventSelectClauseSource.LinkedEventType));
+            }
+            else
+            {
+                Assert.That(result.Value, Is.Null);
+                WotDiagnostic diagnostic = result.Diagnostics.Single();
+                Assert.That(diagnostic.Code, Is.EqualTo(WotDiagnosticCode.EventSelectClauseInvalid));
+                Assert.That(diagnostic.Severity, Is.EqualTo(WotDiagnosticSeverity.Error));
+                Assert.That(diagnostic.Location?.JsonPointer, Is.EqualTo("/events/alarm"));
+                if (answerKind == "ambiguous")
+                {
+                    Assert.That(diagnostic.Message, Does.Contain("names 2 different definitions"));
+                }
+            }
         }
 
         /// <summary>

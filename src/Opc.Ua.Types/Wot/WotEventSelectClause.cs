@@ -1169,19 +1169,20 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Determines whether a value spells an EventType reference: a document
-        /// URI, optionally followed by a '#' and a non-empty RFC 6901 JSON
-        /// Pointer (WoT Binding Section 6.1).
+        /// Determines whether a value spells an EventType reference: a logical
+        /// identifier, or a document URI optionally followed by a '#' and a
+        /// non-empty RFC 6901 JSON Pointer (WoT Binding Section 6.1).
         /// </summary>
         /// <param name="reference">The <c>tm:ref</c> value.</param>
         /// <returns><c>true</c> when the value is a well-formed reference.</returns>
         public static bool IsEventTypeReference(string? reference)
         {
-            return TrySplitEventTypeReference(reference, out _, out _);
+            return IsLogicalFragmentReference(reference) ||
+                TrySplitEventTypeReference(reference, out _, out _);
         }
 
         /// <summary>
-        /// Splits an EventType reference into the document URI it names and the
+        /// Splits a location-form EventType reference into the document URI it names and the
         /// RFC 6901 JSON Pointer into that document, which is empty where the
         /// reference names the document's root (WoT Binding Section 6.1).
         /// </summary>
@@ -1231,6 +1232,18 @@ namespace Opc.Ua.Wot
             document = reference[..hash];
             pointer = candidate;
             return true;
+        }
+
+        internal static bool IsLogicalFragmentReference(string? reference)
+        {
+            if (string.IsNullOrEmpty(reference))
+            {
+                return false;
+            }
+            int fragment = reference.IndexOf('#', StringComparison.Ordinal);
+            return fragment > 0 &&
+                (fragment + 1 == reference.Length || reference[fragment + 1] != '/') &&
+                Uri.IsWellFormedUriString(reference, UriKind.Absolute);
         }
 
         /// <summary>
