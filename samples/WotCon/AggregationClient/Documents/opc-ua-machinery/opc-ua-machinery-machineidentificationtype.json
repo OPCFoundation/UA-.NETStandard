@@ -8,7 +8,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -37,6 +43,12 @@
   ],
   "properties": {
     "DefaultInstanceBrowseName": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "The default BrowseName for instances of the type.",
       "links": [
@@ -58,6 +70,12 @@
       "uav:mapToType": "i=20"
     },
     "Location": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "To be used by end users to store the location of the machine in a scheme specific to the end user. Servers shall support at least 60 Unicode characters for the clients writing this value, this means clients can expect to be able to write strings with a length of 60 Unicode characters into that field.",
       "links": [

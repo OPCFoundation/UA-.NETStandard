@@ -6,7 +6,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -21,6 +27,12 @@
   ],
   "properties": {
     "OptionSetValues": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "items": {},
       "links": [
@@ -52,6 +64,12 @@
   "uav:browseName": "ns1:LocationIndicationType",
   "uav:dataTypeDefinitions": [
     {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=410",
       "@type": "uav:EnumDefinition",
       "title": "LocationIndicationType",
@@ -62,12 +80,24 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Location indication through optical signals, such as blinking LEDs, if supported by the device.",
           "uav:enumName": "Visual",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Location indication through auditory signals, such as sounds or beeps, if supported by the device.",
           "uav:enumName": "Audible",

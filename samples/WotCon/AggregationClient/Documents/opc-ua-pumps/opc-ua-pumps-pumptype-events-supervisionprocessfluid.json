@@ -8,7 +8,17 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "description": {
+        "@id": "https://www.w3.org/2019/wot/td#description",
+        "@language": null
+      },
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": "uav:object",
   "description": "Supervision process fluid specifies information for monitoring the fluid of a pump.",
@@ -25,6 +35,16 @@
   ],
   "properties": {
     "Blockage": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates a closed valve operation.",
@@ -44,6 +64,16 @@
       "uav:modellingRule": "Optional"
     },
     "Cavitation": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates cavitation of the pump liquid.",
@@ -63,6 +93,16 @@
       "uav:modellingRule": "Optional"
     },
     "Condensation": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates abnormal condensation in flow medium.",
@@ -82,6 +122,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -107,6 +153,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -132,6 +184,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -157,6 +215,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -182,6 +246,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_13": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -207,6 +277,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -232,6 +308,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -257,6 +339,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -282,6 +370,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -307,6 +401,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -332,6 +432,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -357,6 +463,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -382,6 +494,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -407,6 +525,16 @@
       "uav:modellingRule": "Optional"
     },
     "Dry": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates a dry running.",
@@ -426,6 +554,12 @@
       "uav:modellingRule": "Optional"
     },
     "FalseState": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -450,6 +584,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -474,6 +614,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -498,6 +644,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -522,6 +674,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_13": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -546,6 +704,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -570,6 +734,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -594,6 +764,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -618,6 +794,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -642,6 +824,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -666,6 +854,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -690,6 +884,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -714,6 +914,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -738,6 +944,16 @@
       "uav:modellingRule": "Mandatory"
     },
     "Flow": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates an abnormal flow of the pump fluid.",
@@ -757,6 +973,16 @@
       "uav:modellingRule": "Optional"
     },
     "Gas": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates a significant amount of gas in the pump liquid.",
@@ -776,6 +1002,16 @@
       "uav:modellingRule": "Optional"
     },
     "Liquid": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates a significant amount of liquid in the flow medium.",
@@ -795,6 +1031,16 @@
       "uav:modellingRule": "Optional"
     },
     "Pressure": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates an abnormal pressure of the pump fluid.",
@@ -814,6 +1060,16 @@
       "uav:modellingRule": "Optional"
     },
     "ProcessFault": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates a generic process problem.",
@@ -833,6 +1089,16 @@
       "uav:modellingRule": "Optional"
     },
     "Solid": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates an significant amount of solid in the pump fluid.",
@@ -852,6 +1118,16 @@
       "uav:modellingRule": "Optional"
     },
     "Stall": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates a stall of the pump liquid.",
@@ -871,6 +1147,16 @@
       "uav:modellingRule": "Optional"
     },
     "Temperature": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates an abnormal temperature of the pump fluid.",
@@ -890,6 +1176,12 @@
       "uav:modellingRule": "Optional"
     },
     "TrueState": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -914,6 +1206,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -938,6 +1236,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -962,6 +1266,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -986,6 +1296,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_13": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1010,6 +1326,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1034,6 +1356,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1058,6 +1386,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1082,6 +1416,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1106,6 +1446,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1130,6 +1476,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1154,6 +1506,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1178,6 +1536,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1202,6 +1566,16 @@
       "uav:modellingRule": "Mandatory"
     },
     "Viscosity": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates an abnormal viscosity of the pump liquid.",

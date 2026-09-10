@@ -221,7 +221,7 @@ namespace Opc.Ua.Wot
             }
         }
 
-        private static ArrayOf<JsonElement> ReadDataSchemaOccurrences(WotDocument document)
+        internal static ArrayOf<JsonElement> ReadDataSchemaOccurrences(WotDocument document)
         {
             var schemas = new List<JsonElement>();
             Visit(document.RootElement);
@@ -881,7 +881,7 @@ namespace Opc.Ua.Wot
                         BrowseName = browseName
                     };
             dataType.IsAbstract = isAbstract;
-            ApplyDataTypeText(dataType, definition, GetDeclaredLocale(document));
+            ApplyDataTypeText(document, dataType, definition);
 
             var references = new List<Reference>(dataType.References ?? []);
             SetSuperType(references, ResolveBaseDataType(
@@ -1306,8 +1306,7 @@ namespace Opc.Ua.Wot
             {
                 result.IsOptionSet = GetElementBool(definition, "uav:isOptionSet");
                 result.Field = BuildEnumFields(
-                    definition, result.IsOptionSet, name, GetDeclaredLocale(document),
-                    diagnostics);
+                    document, definition, result.IsOptionSet, name, diagnostics);
                 return result;
             }
             result.IsUnion = IsUnionStructure(definition);
@@ -1320,10 +1319,10 @@ namespace Opc.Ua.Wot
         /// Builds the ordered enumeration or OptionSet fields of §6.11.5.
         /// </summary>
         private static DataTypeField[] BuildEnumFields(
+            WotDocument document,
             JsonElement definition,
             bool isOptionSet,
             string typeName,
-            string? defaultLocale,
             List<WotDiagnostic> diagnostics)
         {
             var fields = new List<DataTypeField>();
@@ -1379,7 +1378,7 @@ namespace Opc.Ua.Wot
                     Name = fieldName,
                     Value = value
                 };
-                ApplyFieldText(entry, field, defaultLocale);
+                ApplyFieldText(document, entry, field);
                 fields.Add(entry);
             }
             return [.. fields];
@@ -1433,7 +1432,7 @@ namespace Opc.Ua.Wot
                 {
                     entry.ArrayDimensions = arrayDimensions;
                 }
-                ApplyFieldText(entry, field, GetDeclaredLocale(document));
+                ApplyFieldText(document, entry, field);
                 fields.Add(entry);
             }
             return [.. fields];
@@ -1740,17 +1739,17 @@ namespace Opc.Ua.Wot
         ];
 
         private static void ApplyDataTypeText(
+            WotDocument document,
             UADataType dataType,
-            JsonElement definition,
-            string? defaultLocale = null)
+            JsonElement definition)
         {
-            Export.LocalizedText[]? title = ReadTitle(definition, defaultLocale);
+            Export.LocalizedText[]? title = ReadTitle(document, definition);
             if (title is not null)
             {
                 dataType.DisplayName = title;
             }
             Export.LocalizedText[]? description =
-                ReadDescription(definition, defaultLocale);
+                ReadDescription(document, definition);
             if (description is not null)
             {
                 dataType.Description = description;
@@ -1758,17 +1757,17 @@ namespace Opc.Ua.Wot
         }
 
         private static void ApplyFieldText(
+            WotDocument document,
             DataTypeField field,
-            JsonElement declared,
-            string? defaultLocale = null)
+            JsonElement declared)
         {
-            Export.LocalizedText[]? title = ReadTitle(declared, defaultLocale);
+            Export.LocalizedText[]? title = ReadTitle(document, declared);
             if (title is not null)
             {
                 field.DisplayName = title;
             }
             Export.LocalizedText[]? description =
-                ReadDescription(declared, defaultLocale);
+                ReadDescription(document, declared);
             if (description is not null)
             {
                 field.Description = description;
@@ -1910,6 +1909,8 @@ namespace Opc.Ua.Wot
                 }
             }
             WriteBaseDataType(writer, dataType, nodeSet);
+            WriteLocalizedTextContext(
+                writer, dataType.DisplayName, dataType.Description, defaultLocale, inheritedLanguageMayDiffer: true);
             WriteLocalizedTitle(writer, dataType.DisplayName, defaultLocale);
             WriteLocalizedDescription(writer, dataType.Description, defaultLocale);
 
@@ -2049,6 +2050,8 @@ namespace Opc.Ua.Wot
                     writer.WriteString("@type", "uav:EnumField");
                     writer.WriteString("uav:enumName", field.Name);
                     writer.WriteNumber("uav:enumValue", field.Value);
+                    WriteLocalizedTextContext(
+                        writer, field.DisplayName, field.Description, defaultLocale, inheritedLanguageMayDiffer: true);
                     WriteLocalizedTitle(writer, field.DisplayName, defaultLocale);
                     WriteLocalizedDescription(writer, field.Description, defaultLocale);
                     writer.WriteEndObject();
@@ -2085,6 +2088,8 @@ namespace Opc.Ua.Wot
                     }
                     writer.WriteBoolean("uav:isOptional", field.IsOptional);
                     writer.WriteBoolean("uav:allowSubtypes", field.AllowSubTypes);
+                    WriteLocalizedTextContext(
+                        writer, field.DisplayName, field.Description, defaultLocale, inheritedLanguageMayDiffer: true);
                     WriteLocalizedTitle(writer, field.DisplayName, defaultLocale);
                     WriteLocalizedDescription(writer, field.Description, defaultLocale);
                     writer.WriteEndObject();
@@ -2205,7 +2210,7 @@ namespace Opc.Ua.Wot
                     {
                         root.IsAbstract = produced.IsAbstract;
                         root.Definition = produced.Definition;
-                        ApplyDataTypeText(root, schema, GetDeclaredLocale(owner));
+                        ApplyDataTypeText(owner, root, schema);
                         var references = new List<Reference>(root.References ?? []);
                         foreach (Reference reference in produced.References ?? [])
                         {
@@ -2254,7 +2259,7 @@ namespace Opc.Ua.Wot
                 BrowseName = ToNodeSetQualifiedName(document, name, nodeSet, diagnostics, schema),
                 IsAbstract = GetElementBool(schema, "uav:isAbstract")
             };
-            ApplyDataTypeText(dataType, schema, GetDeclaredLocale(document));
+            ApplyDataTypeText(document, dataType, schema);
             string kind = isEnumeration ? "uav:EnumDefinition" : "uav:StructureDefinition";
             var references = new List<Reference>
             {
@@ -2268,7 +2273,7 @@ namespace Opc.Ua.Wot
 
             dataType.Definition = isEnumeration
                 ? BuildInferredEnumeration(
-                    document, elementSchema, dataType.BrowseName!, branches, GetDeclaredLocale(document), diagnostics)
+                    document, elementSchema, dataType.BrowseName!, branches, diagnostics)
                 : BuildInferredStructure(
                     document, elementSchema, dataType.BrowseName!, name, context, nodeSet, diagnostics,
                     union: IsUnionStructure(schema));
@@ -2350,7 +2355,7 @@ namespace Opc.Ua.Wot
                     }
                 ]
             };
-            ApplyDataTypeText(dataType, schema, GetDeclaredLocale(document));
+            ApplyDataTypeText(document, dataType, schema);
             items.Add(dataType);
         }
 
@@ -2383,7 +2388,6 @@ namespace Opc.Ua.Wot
             JsonElement schema,
             string browseName,
             JsonElement branches,
-            string? defaultLocale,
             List<WotDiagnostic> diagnostics)
         {
             var fields = new List<DataTypeField>();
@@ -2411,7 +2415,7 @@ namespace Opc.Ua.Wot
                     Name = name,
                     Value = value.Value
                 };
-                ApplyFieldText(field, branch, defaultLocale);
+                ApplyFieldText(document, field, branch);
                 fields.Add(field);
                 index++;
             }
@@ -2511,7 +2515,7 @@ namespace Opc.Ua.Wot
                 {
                     field.ArrayDimensions = dimensions;
                 }
-                ApplyFieldText(field, fieldSchema, GetDeclaredLocale(document));
+                ApplyFieldText(document, field, fieldSchema);
                 fields.Add(field);
             }
             return new Export.DataTypeDefinition

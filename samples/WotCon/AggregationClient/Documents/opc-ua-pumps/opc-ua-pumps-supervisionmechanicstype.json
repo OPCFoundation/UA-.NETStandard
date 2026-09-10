@@ -8,7 +8,17 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "description": {
+        "@id": "https://www.w3.org/2019/wot/td#description",
+        "@language": null
+      },
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -24,6 +34,16 @@
   ],
   "properties": {
     "AxialBearingAbrasion": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates an unacceptable abrasion of the axial bearing.",
@@ -43,6 +63,16 @@
       "uav:modellingRule": "Optional"
     },
     "AxialBearingFault": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates a failure of the axial bearing.",
@@ -62,6 +92,16 @@
       "uav:modellingRule": "Optional"
     },
     "AxialBearingOverheat": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates an overheating of the axial bearing.",
@@ -81,6 +121,16 @@
       "uav:modellingRule": "Optional"
     },
     "BearingFault": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates a generic bearing failure.",
@@ -100,6 +150,16 @@
       "uav:modellingRule": "Optional"
     },
     "BrakeChopper": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates a problem of the brake chopper.",
@@ -119,6 +179,16 @@
       "uav:modellingRule": "Optional"
     },
     "BrakeOverheat": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates an overheating of a brake.",
@@ -138,6 +208,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -163,6 +239,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -188,6 +270,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -213,6 +301,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -238,6 +332,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_13": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -263,6 +363,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_14": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -288,6 +394,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_15": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -313,6 +425,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_16": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -338,6 +456,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -363,6 +487,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -388,6 +518,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -413,6 +549,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -438,6 +580,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -463,6 +611,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -488,6 +642,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -513,6 +673,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -538,6 +704,16 @@
       "uav:modellingRule": "Optional"
     },
     "ExcessVibration": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates unacceptable high mechanical vibration.",
@@ -557,6 +733,12 @@
       "uav:modellingRule": "Optional"
     },
     "FalseState": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -581,6 +763,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -605,6 +793,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -629,6 +823,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -653,6 +853,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_13": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -677,6 +883,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_14": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -701,6 +913,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_15": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -725,6 +943,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_16": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -749,6 +973,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -773,6 +1003,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -797,6 +1033,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -821,6 +1063,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -845,6 +1093,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -869,6 +1123,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -893,6 +1153,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -917,6 +1183,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "FalseState_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -941,6 +1213,16 @@
       "uav:modellingRule": "Mandatory"
     },
     "GapWear": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates a mechanical wear at gap.",
@@ -960,6 +1242,16 @@
       "uav:modellingRule": "Optional"
     },
     "MechanicalFault": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates a generic mechanical fault.",
@@ -979,6 +1271,16 @@
       "uav:modellingRule": "Optional"
     },
     "Misalignment": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates a misalignment.",
@@ -998,6 +1300,16 @@
       "uav:modellingRule": "Optional"
     },
     "RadialBearingAbrasion": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates an unacceptable abrasion of the radial bearing.",
@@ -1017,6 +1329,16 @@
       "uav:modellingRule": "Optional"
     },
     "RadialBearingFault": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates a failure of the radial bearing.",
@@ -1036,6 +1358,16 @@
       "uav:modellingRule": "Optional"
     },
     "RadialBearingOverheat": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates an overheating of the radial bearing.",
@@ -1055,6 +1387,16 @@
       "uav:modellingRule": "Optional"
     },
     "RotorBlocked": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates a blocked rotor.",
@@ -1074,6 +1416,16 @@
       "uav:modellingRule": "Optional"
     },
     "RotorStationRubbing": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates the rubbing of stator and rotor.",
@@ -1093,6 +1445,12 @@
       "uav:modellingRule": "Optional"
     },
     "TrueState": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1117,6 +1475,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1141,6 +1505,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1165,6 +1535,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1189,6 +1565,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_13": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1213,6 +1595,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_14": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1237,6 +1625,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_15": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1261,6 +1655,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_16": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1285,6 +1685,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1309,6 +1715,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1333,6 +1745,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1357,6 +1775,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1381,6 +1805,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1405,6 +1835,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1429,6 +1865,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1453,6 +1895,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "TrueState_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1477,6 +1925,16 @@
       "uav:modellingRule": "Mandatory"
     },
     "Unbalance": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": false,
       "description": "This attribute indicates an unbalance.",

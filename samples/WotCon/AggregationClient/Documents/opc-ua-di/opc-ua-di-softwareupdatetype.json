@@ -6,7 +6,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -81,6 +87,12 @@
   ],
   "properties": {
     "DefaultInstanceBrowseName": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -101,6 +113,12 @@
       "uav:mapToType": "i=20"
     },
     "SoftwareClass": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -122,6 +140,12 @@
       "uav:modellingRule": "Optional"
     },
     "SoftwareName": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -144,6 +168,12 @@
       "uav:modellingRule": "Optional"
     },
     "SoftwareSubclass": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -166,6 +196,12 @@
       "uav:modellingRule": "Optional"
     },
     "UnsignedPackageAllowed": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -188,6 +224,12 @@
       "uav:modellingRule": "Optional"
     },
     "UpdateStatus": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -204,6 +246,12 @@
       "uav:modellingRule": "Optional"
     },
     "VendorErrorCode": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {

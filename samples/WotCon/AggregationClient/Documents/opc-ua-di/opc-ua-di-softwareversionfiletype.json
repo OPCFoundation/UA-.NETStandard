@@ -6,7 +6,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -21,6 +27,12 @@
   ],
   "properties": {
     "EnumStrings": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "items": {},
       "links": [
@@ -52,6 +64,12 @@
   "uav:browseName": "ns1:SoftwareVersionFileType",
   "uav:dataTypeDefinitions": [
     {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=331",
       "@type": "uav:EnumDefinition",
       "title": "SoftwareVersionFileType",
@@ -62,18 +80,36 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "The currently used version of the software identified by the CurrentVersion Object.",
           "uav:enumName": "Current",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "The pending version of the software that could be installed identified by the PendingVersion Object.",
           "uav:enumName": "Pending",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "The fallback version of the software identified by the FallbackVersion Object.",
           "uav:enumName": "Fallback",

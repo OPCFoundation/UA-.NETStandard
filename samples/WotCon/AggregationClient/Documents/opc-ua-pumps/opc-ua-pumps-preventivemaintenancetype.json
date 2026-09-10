@@ -8,7 +8,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -23,6 +29,16 @@
   ],
   "properties": {
     "ActivePreventiveMaintenanceTime": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "This attribute indicates the date of installation or commissioning of the device.",
       "links": [
@@ -42,6 +58,12 @@
       "unit": "h"
     },
     "Definition": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -67,6 +89,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -92,6 +120,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -117,6 +151,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -142,6 +182,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -167,6 +213,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -192,6 +244,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -217,6 +275,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -241,6 +305,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -265,6 +335,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -296,6 +372,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -327,6 +409,16 @@
       "uav:modellingRule": "Optional"
     },
     "InstallationDate": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "This attribute identifies the date when the device was last inspected.",
       "format": "date-time",
@@ -345,6 +437,16 @@
       "uav:modellingRule": "Optional"
     },
     "LastInspectionDate": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "This attribute identifies the date when the device is scheduled for the next inspection.",
       "format": "date-time",
@@ -363,6 +465,16 @@
       "uav:modellingRule": "Optional"
     },
     "LastServicingDate": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "This attribute identifies the date when the device is scheduled for the next servicing.",
       "format": "date-time",
@@ -381,6 +493,16 @@
       "uav:modellingRule": "Optional"
     },
     "NextInspectionDate": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "This attribute identifies the date when the device was last serviced.",
       "format": "date-time",
@@ -399,6 +521,16 @@
       "uav:modellingRule": "Optional"
     },
     "NextServicingDate": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Part of maintenance time when preventive maintenance is carried out on an item, including technical, logistic and internal administrative delays",
       "format": "date-time",
@@ -417,6 +549,16 @@
       "uav:modellingRule": "Optional"
     },
     "PreventiveMaintenanceTime": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Part of the active maintenance time taken to perform a preventive maintenance",
       "links": [

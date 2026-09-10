@@ -8,7 +8,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -35,6 +41,12 @@
   ],
   "properties": {
     "Definition": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -60,6 +72,16 @@
       "uav:modellingRule": "Optional"
     },
     "NominalSize": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "An alphanumeric designation of size for components of a pipework system, which is used for reference purposes. It comprises the letters DN followed by a dimensionless whole number which is indirectly related to the physical size, in millimeters, of the bore or outside diameter of the end connections.",
       "links": [

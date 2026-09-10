@@ -6,7 +6,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -25,6 +31,12 @@
   "uav:browseName": "ns1:TransferResultErrorDataType",
   "uav:dataTypeDefinitions": [
     {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=15888",
       "@type": "uav:StructureDefinition",
       "title": "TransferResultErrorDataType",

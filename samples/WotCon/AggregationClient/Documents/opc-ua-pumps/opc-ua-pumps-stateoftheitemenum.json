@@ -8,7 +8,17 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "description": {
+        "@id": "https://www.w3.org/2019/wot/td#description",
+        "@language": null
+      },
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -24,6 +34,12 @@
   ],
   "properties": {
     "EnumValues": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "items": {},
       "links": [
@@ -56,6 +72,16 @@
   "uav:browseName": "ns1:StateOfTheItemEnum",
   "uav:dataTypeDefinitions": [
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3003",
       "@type": "uav:EnumDefinition",
       "description": "describes the state of the pump",
@@ -67,30 +93,60 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Item is in up state and non-operating outside required time",
           "uav:enumName": "IdleState",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Item is in up state and non-operating during required time",
           "uav:enumName": "StandByState",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Item is in up state and operating as required",
           "uav:enumName": "OperatingState",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Item is in up state, but lacks required external resources or is disabled due to planned actions other than maintenance",
           "uav:enumName": "ExternalDisabledState",
           "uav:enumValue": 3
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Item is unable to perform a required function due to preventive maintenance or a fault",
           "uav:enumName": "DownState",

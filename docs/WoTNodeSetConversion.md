@@ -823,21 +823,30 @@ is written in the default locale, and nothing is pushed into the exceptional
 Asserting no locale is a claim a JSON-LD reader has to be told about. `title` and
 `description` are terms of the W3C Thing Description context, and a `@context`
 that declares `@language` tags every unqualified value with it - so a German
-singular member would expand as English text. Where any projected text states no
-entry for the document's default locale, the generated `@context` therefore
-carries **one** further entry re-declaring the two terms with `"@language": null`.
-It is written only where the document needs it: adding it unconditionally would
-strip the language tag from every document this library writes. Being derived
-from the projected Nodes it is re-derivable and is not also captured as residue;
-an author's own override of the same terms says something different and is kept.
+singular member would expand as English text. Each carrying object with a
+fallback title or description therefore has its own local `@context`, with
+`"@language": null` only on the affected term. A German fallback title does not
+remove the language of an English description. The root context handles only
+root text; it cannot replace the overrides needed inside TD property-scoped
+contexts. Generated overrides are derived from the native localized values and
+are not duplicated as residue. An authored context is retained with its
+declaration and checked against authoritative native facts before restoration.
+
+Positive term-language overrides also matter: a German default needs an explicit
+`"@language": "de"` on the singular term where TD fixes that term's language to
+English. Untagged native text uses a neutral term definition. Methods, events and
+DataType metadata explicitly state their term languages where an enclosing
+override could otherwise leak into them. Index-map keys are labels, not predicates
+that activate a scoped context.
 
 The same problem has a different answer inside `uav:engineeringUnits`. Section
 6.4.1 mints `displayName` and `description` there as **short members under a
 type-scoped context**, so a root-level override cannot reach them: the scoped
 context is entered on that object and nowhere else. Where the EUInformation's
 text is not in the document's default locale, the object therefore carries its
-own node-local `@context` re-declaring `displayName` as `uav:unitDisplayName`
-and `description` as `uav:unitDescription`, each with `"@language": null`.
+own node-local `@context` re-declaring the affected `displayName` as
+`uav:unitDisplayName` or `description` as `uav:unitDescription`, with
+`"@language": null`. A text that already uses the default locale is not overridden.
 `namespaceUri` and `unitId` are short members of that same scoped context, which
 is why the generated document names the Binding context itself
 (`http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld`)
@@ -852,8 +861,28 @@ entry written first — the one the Node's own attribute carries — is the
 default-locale entry where the map has one and the code-point-first entry
 otherwise, which is the same entry the singular member carries, so the round
 trip is stable. A singular member alone becomes one `LocalizedText` tagged with
-the document's declared `@language`, or untagged where the context declares none
-— the form a UANodeSet writes when it names one language without saying which.
+its effective term language. Inline property-scoped contexts, ordered contexts,
+local overrides and context resets are evaluated at the carrying object. An
+explicit term language overrides the ambient `@language`; a null term language
+leaves the native text untagged. Contexts and opaque payloads remain traversal
+boundaries for model metadata. Restoring an authored contextual declaration is
+bounded by the combined document size and depth limits and cannot overwrite
+contradictory native model facts.
+
+Plural selection uses the carrying object's ambient language independently of
+the singular term's language: a neutral fallback does not reset display selection
+to English. Preserved contextual schemas freeze their selected text languages so
+adding the generated document's TD context cannot silently retag them. Mapped
+datatype bindings and unit pointers continue to come from the resolved/native
+model rather than stale lexical names.
+
+If the root's native text cannot reproduce an authored selection locale, that
+locale is retained as bounded, integrity-checked residue and restored before
+generating localized members. Neutral root text therefore cannot erase a German
+selection inherited by its children. Context definitions retain their lexical
+JSON so formatting alone does not create a false preservation conflict.
+Contextual semantic type arrays may be empty; regenerated native NodeClass
+markers are retained but are not duplicated in residue.
 
 The same selection is used wherever a term reduces a `LocalizedText` to one
 string: a ReferenceType's `uav:inverseName`, and the `displayName` and
@@ -861,6 +890,14 @@ string: a ReferenceType's `uav:inverseName`, and the `displayName` and
 Variable is taken in that same locale, so a multi-locale `EUInformation` states
 one text in both places instead of falling back to preservation because the two
 disagree.
+
+An `EUInformation` value has only one native `LocalizedText` per text member.
+Import selects that value using the unit object's effective locale. Other
+authored translations are retained as per-language residue and merged with the
+regenerated native translation on export, including repeated round trips.
+The selected native translation is not duplicated in residue. The same principle
+applies to a Method Argument's single native Description: additional locales are
+preserved without treating them as contradictory native descriptions.
 
 The mapping applies to the root, to property, action and event affordances, to
 event fields, to `Method` argument descriptions, and to DataType definitions and

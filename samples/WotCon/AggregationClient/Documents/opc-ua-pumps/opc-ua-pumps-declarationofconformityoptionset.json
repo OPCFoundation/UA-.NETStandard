@@ -8,7 +8,17 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "description": {
+        "@id": "https://www.w3.org/2019/wot/td#description",
+        "@language": null
+      },
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -24,6 +34,12 @@
   ],
   "properties": {
     "OptionSetValues": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "items": {},
       "links": [
@@ -56,6 +72,16 @@
   "uav:browseName": "ns1:DeclarationOfConformityOptionSet",
   "uav:dataTypeDefinitions": [
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3019",
       "@type": "uav:EnumDefinition",
       "description": "defines flags for directives on the basis of which conformity was determined",
@@ -68,48 +94,96 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Directives of the EU Declaration of Conformity - 2006/ 42/ EG, concerning machinery and amending Directive 95/16/EG",
           "uav:enumName": "2006_42_EC",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Directives of the EU Declaration of Conformity - 2009/ 125/ EC, establishing a framework for the setting of ecodesign requirements for energy-related products",
           "uav:enumName": "2009_125_EC",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Directives of the EU Declaration of Conformity - 2011/ 65/ EU, restriction of the use of certain hazardous substances in electrical and electronic equipment",
           "uav:enumName": "2011_65_EU",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Directives of the EU Declaration of Conformity - 2014/ 35/ EU, harmonisation of the laws of the Member States on the provision of electrical equipment for use within certain voltage limits on the market",
           "uav:enumName": "2014_35_EU",
           "uav:enumValue": 3
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Directives of the EU Declaration of Conformity - 2014/ 34/ EU, harmonisation of the laws of the Member States concerning equipment and protective systems intended for use in potentially explosive atmospheres",
           "uav:enumName": "2014_34_EU",
           "uav:enumValue": 4
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Directives of the EU Declaration of Conformity - 2014/ 30/ EU, harmonisation of the laws of the Member States on electromagnetic compatibility",
           "uav:enumName": "2014_30_EU",
           "uav:enumValue": 5
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Directives of the EU Declaration of Conformity - 2014/ 68/ EU, harmonisation of Member States' legislation on the provision of pressure equipment on the market",
           "uav:enumName": "2014_68_EU",
           "uav:enumValue": 6
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Directives of the EU Declaration of Conformity - 2014/ 29/ EU, harmonisation of the laws of the Member States relating to the making available on the market of simple pressure vessels",
           "uav:enumName": "2014_29_EU",

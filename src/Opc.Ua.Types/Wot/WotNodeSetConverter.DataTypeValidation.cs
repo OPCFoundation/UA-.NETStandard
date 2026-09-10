@@ -313,7 +313,7 @@ namespace Opc.Ua.Wot
                     definition = node.Kind == ValidationDataTypeKind.Enumeration &&
                         schema.TryGetProperty("oneOf", out JsonElement branches)
                         ? BuildInferredEnumeration(
-                            node.Document, schema, node.Name, branches, GetDeclaredLocale(node.Document), diagnostics)
+                            node.Document, schema, node.Name, branches, diagnostics)
                         : node.Kind is ValidationDataTypeKind.Structure or ValidationDataTypeKind.Union
                             ? BuildInferredStructure(
                                 node.Document, schema, node.Name, node.Name, context, nodeSet, diagnostics,

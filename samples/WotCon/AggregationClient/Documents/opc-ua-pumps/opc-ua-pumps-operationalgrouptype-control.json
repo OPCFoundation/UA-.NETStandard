@@ -8,7 +8,17 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "description": {
+        "@id": "https://www.w3.org/2019/wot/td#description",
+        "@language": null
+      },
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": "uav:object",
   "description": "Control parameters for a pump.",
@@ -25,6 +35,16 @@
   ],
   "properties": {
     "CommandVariable": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Variable quantity, which is not influenced by the control but is introduced into the control system from outside with the aim of making the final controlled variable follow it in a given relationship",
       "links": [
@@ -44,6 +64,16 @@
       "unit": "%"
     },
     "ControlDifferenceVariable": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Difference between the reference variable and the feedback variable",
       "links": [
@@ -62,6 +92,16 @@
       "uav:modellingRule": "Optional"
     },
     "ControlledVariable": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Output variable of the controlled system that will be acted upon by one or more manipulated variables",
       "links": [
@@ -80,6 +120,16 @@
       "uav:modellingRule": "Optional"
     },
     "ControllerOutputVariable": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Output variable of the controlling element, which is deducted from the control difference variable and is also the input variable of the actuator",
       "links": [
@@ -98,6 +148,16 @@
       "uav:modellingRule": "Optional"
     },
     "DeadTime": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "In a dead-time element the duration of the time interval by which the output variable is shifted relative to the input variable",
       "links": [
@@ -117,6 +177,12 @@
       "unit": "%"
     },
     "Definition": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -142,6 +208,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -167,6 +239,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -192,6 +270,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -217,6 +301,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_13": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -242,6 +332,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -267,6 +363,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -292,6 +394,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -317,6 +425,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -342,6 +456,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -367,6 +487,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -392,6 +518,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -417,6 +549,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -442,6 +580,16 @@
       "uav:modellingRule": "Optional"
     },
     "DerivativeActionCoefficient": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "For a derivative element, the quotient of the value of the output variable to the value of the time derivative of the input variable",
       "links": [
@@ -459,6 +607,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -483,6 +637,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -507,6 +667,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -531,6 +697,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -555,6 +727,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -579,6 +757,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -603,6 +787,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -627,6 +817,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -651,6 +847,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -675,6 +877,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -699,6 +907,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -723,6 +937,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -747,6 +967,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -778,6 +1004,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -802,6 +1034,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -826,6 +1064,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -857,6 +1101,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -881,6 +1131,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -905,6 +1161,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -929,6 +1191,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -960,6 +1228,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -984,6 +1258,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1015,6 +1295,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1046,6 +1332,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1070,6 +1362,16 @@
       "uav:modellingRule": "Optional"
     },
     "FeedbackVariable": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Variable quantity, which represents the controlled variable and is returned to the comparing element",
       "links": [
@@ -1090,6 +1392,16 @@
       "unit": "%"
     },
     "FinalControlledVariable": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Variable quantity which has, or combination of variable quantities which have, to be influenced by the control",
       "links": [
@@ -1109,6 +1421,16 @@
       "unit": "%"
     },
     "IntegralActionCoefficient": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "For an integral element, the quotient of the time derivative of the output variable to the fixed value of the input variable",
       "links": [
@@ -1126,6 +1448,16 @@
       "uav:modellingRule": "Optional"
     },
     "ManipulatedVariable": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Output variable of the controlling system, which is also an input variable of the controlled system",
       "links": [
@@ -1143,6 +1475,16 @@
       "uav:modellingRule": "Optional"
     },
     "OperatingMode": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Characterization of the way and the extent to which the human operator intervenes in the control equipment",
       "links": [
@@ -1160,6 +1502,16 @@
       "uav:modellingRule": "Optional"
     },
     "ProportionalActionCoefficient": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "For a proportional element, the quotient of the variation of the output variable to the corresponding variation of the input variable",
       "links": [
@@ -1177,6 +1529,16 @@
       "uav:modellingRule": "Optional"
     },
     "ReferenceVariable": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Input variable to a comparing element in a controlling system, which sets the desired value of the controlled variable and is deducted from the command variable",
       "links": [

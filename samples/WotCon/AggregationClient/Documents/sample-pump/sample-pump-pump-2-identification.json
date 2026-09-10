@@ -9,7 +9,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": "uav:object",
   "links": [
@@ -25,6 +31,12 @@
   ],
   "properties": {
     "Manufacturer": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "forms": [
         {
@@ -55,6 +67,12 @@
       "uav:mapToType": "i=21"
     },
     "ProductInstanceUri": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "urn:simdevice:SimPump:PumpX-2000:SN-002",
       "forms": [
@@ -87,6 +105,12 @@
       "uav:mapToType": "i=12"
     },
     "SerialNumber": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "SN-002",
       "forms": [

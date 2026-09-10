@@ -517,6 +517,7 @@ namespace Opc.Ua.Wot
         {
             writer.WriteStartObject();
             WriteRankedJsonType(writer, argument.DataType, argument.ValueRank);
+            WriteLocalizedTextContext(writer, null, argument.Description, defaultLocale);
             WriteLocalizedDescription(writer, argument.Description, defaultLocale);
             WriteOptional(
                 writer,
@@ -877,7 +878,7 @@ namespace Opc.Ua.Wot
                 MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics, dataTypes),
                 GetElementInt32(schema, "uav:valueRank") ?? -1,
                 ReadArrayDimensions(schema, name, diagnostics),
-                ReadDescription(schema, GetDeclaredLocale(document)));
+                ReadDescription(document, schema));
         }
 
         /// <summary>

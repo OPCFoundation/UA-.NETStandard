@@ -8,7 +8,17 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "description": {
+        "@id": "https://www.w3.org/2019/wot/td#description",
+        "@language": null
+      },
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -24,6 +34,12 @@
   ],
   "properties": {
     "EnumValues": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "items": {},
       "links": [
@@ -56,6 +72,16 @@
   "uav:browseName": "ns1:PumpKickModeEnum",
   "uav:dataTypeDefinitions": [
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3009",
       "@type": "uav:EnumDefinition",
       "description": "describes the pump kick mode of the pump",
@@ -67,18 +93,36 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Manufacturer specific pump kick mode",
           "uav:enumName": "ManufacturerSpecific",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Pump kick mode disabled",
           "uav:enumName": "Disabled",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Operator specific pump kick mode",
           "uav:enumName": "OperatorSpecific",

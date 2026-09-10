@@ -159,6 +159,15 @@ namespace Opc.Ua.Wot
                 options,
                 diagnostics);
             json = WotJsonResidue.Apply(json, nodeSet, options, diagnostics);
+            if (json.Length > options.MaxJsonDocumentSize)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.JsonDocumentTooLarge,
+                    "Generated WoT document exceeds the configured " +
+                    $"{options.MaxJsonDocumentSize} byte limit."));
+                return new WotConversionResult<WotDocument>(null, diagnostics);
+            }
 
             if (!IsReadableMappingComplete(json, nodeSet, options))
             {
@@ -289,9 +298,11 @@ namespace Opc.Ua.Wot
             try
             {
                 writer.WriteStartObject();
-                string? documentLocale = SelectDocumentLocale(root);
+                string? documentLocale = WotJsonResidue.TryGetDocumentLocale(
+                    nodeSet, options, diagnostics, out string? preservedLocale)
+                    ? preservedLocale : SelectDocumentLocale(root);
                 string defaultLocale = EffectiveLocale(documentLocale);
-                WriteContext(writer, nodeSet, documentLocale);
+                WriteContext(writer, nodeSet, documentLocale, root);
                 bool rootIsEventType = IsEventTypeRoot(root, nodeSet);
                 WriteRootType(writer, root, rootIsEventType);
 
@@ -353,7 +364,7 @@ namespace Opc.Ua.Wot
                 WriteDataTypeDefinitions(writer, nodeSet, defaultLocale, documentHref is null ? null : root);
                 WriteAffordances(
                     writer, nodeSet, root, diagnostics, options, defaultLocale, parentHref,
-                    TypeDefinitionHref(root, nodeSet), eventTypeHrefs, documentHref, projectedNodeIds);
+                    TypeDefinitionHref(root, nodeSet), eventTypeHrefs, documentHref, projectedNodeIds, documentLocale);
 
                 if (emitEnvelope)
                 {
@@ -494,7 +505,8 @@ namespace Opc.Ua.Wot
         private static void WriteContext(
             Utf8JsonWriter writer,
             UANodeSet nodeSet,
-            string? documentLocale)
+            string? documentLocale,
+            UANode? root)
         {
             writer.WritePropertyName("@context");
             writer.WriteStartArray();
@@ -531,35 +543,41 @@ namespace Opc.Ua.Wot
             // context is what makes them terms.
             writer.WriteStringValue(WotVocabulary.BindingContext);
 
-            // Section 9.1.1 admits a document whose localized text states no
-            // entry for its own default locale. Under a context that declares
-            // @language, an unqualified title would then be read as text of a
-            // language it is not written in, so the two terms are re-declared
-            // without a language. The override is written only where the
-            // document actually needs it: adding it unconditionally would drop
-            // the language tag from every document, including the ones whose
-            // text really is in the default locale.
-            if (!string.IsNullOrEmpty(documentLocale) &&
-                RequiresLocalizedTextOverride(nodeSet, documentLocale!))
+            string defaultLocale = EffectiveLocale(documentLocale);
+            bool titleOverride = NeedsLocalizedTextOverride(root?.DisplayName, defaultLocale, FallbackLocale);
+            bool descriptionOverride = NeedsLocalizedTextOverride(root?.Description, defaultLocale, FallbackLocale);
+            if (titleOverride || descriptionOverride)
             {
-                WriteLocalizedTextOverride(writer);
+                WriteLocalizedTextOverride(
+                    writer, titleOverride, descriptionOverride,
+                    ProjectedTextLocale(root?.DisplayName, defaultLocale),
+                    ProjectedTextLocale(root?.Description, defaultLocale));
             }
             writer.WriteEndArray();
         }
 
         /// <summary>
-        /// Writes the <c>title</c> / <c>description</c> override that drops the
-        /// document's default language from the two W3C terms.
+        /// Writes explicit languages for localized terms, including neutral fallbacks.
         /// </summary>
-        private static void WriteLocalizedTextOverride(Utf8JsonWriter writer)
+        private static void WriteLocalizedTextOverride(
+            Utf8JsonWriter writer,
+            bool titleOverride,
+            bool descriptionOverride,
+            string? titleLanguage,
+            string? descriptionLanguage)
         {
             writer.WriteStartObject();
             foreach ((string member, string iri) in s_localizedTextOverrides)
             {
+                if ((member == TitleMember && !titleOverride) ||
+                    (member == DescriptionMember && !descriptionOverride))
+                {
+                    continue;
+                }
                 writer.WritePropertyName(member);
                 writer.WriteStartObject();
                 writer.WriteString("@id", iri);
-                writer.WriteNull("@language");
+                writer.WriteString("@language", member == TitleMember ? titleLanguage : descriptionLanguage);
                 writer.WriteEndObject();
             }
             writer.WriteEndObject();
@@ -576,17 +594,18 @@ namespace Opc.Ua.Wot
         ];
 
         /// <summary>
-        /// Gets whether a <c>@context</c> entry is the generated
-        /// <c>title</c> / <c>description</c> override.
+        /// Gets whether a context entry has the generated localized-term override shape.
         /// </summary>
         /// <remarks>
-        /// The shape is matched exactly rather than by member name alone: an
-        /// author's own override of the same two terms says something different
-        /// from the one this converter derives, and treating it as
-        /// re-derivable would drop what the author wrote.
+        /// Other IRIs or additional keywords are preserved rather than treated
+        /// as re-derivable native localized metadata.
         /// </remarks>
         internal static bool IsGeneratedLocalizedTextOverride(JsonElement item)
         {
+            if (item.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
             int matched = 0;
             foreach (JsonProperty member in item.EnumerateObject())
             {
@@ -599,13 +618,13 @@ namespace Opc.Ua.Wot
                         break;
                     }
                 }
-                if (iri is null || !IsLanguageFreeAlias(member.Value, iri))
+                if (iri is null || !IsLocalizedTextAlias(member.Value, iri))
                 {
                     return false;
                 }
                 matched++;
             }
-            return matched == s_localizedTextOverrides.Length;
+            return matched > 0 && matched <= s_localizedTextOverrides.Length;
         }
 
         /// <summary>
@@ -613,6 +632,12 @@ namespace Opc.Ua.Wot
         /// <c>{ "@id": iri, "@language": null }</c>.
         /// </summary>
         internal static bool IsLanguageFreeAlias(JsonElement definition, string iri)
+        {
+            return IsLocalizedTextAlias(definition, iri) &&
+                definition.GetProperty("@language").ValueKind == JsonValueKind.Null;
+        }
+
+        internal static bool IsLocalizedTextAlias(JsonElement definition, string iri)
         {
             if (definition.ValueKind != JsonValueKind.Object)
             {
@@ -634,7 +659,9 @@ namespace Opc.Ua.Wot
                         hasId = true;
                         break;
                     case "@language":
-                        if (member.Value.ValueKind != JsonValueKind.Null)
+                        if (member.Value.ValueKind != JsonValueKind.Null &&
+                            (member.Value.ValueKind != JsonValueKind.String ||
+                                string.IsNullOrEmpty(member.Value.GetString())))
                         {
                             return false;
                         }
@@ -716,7 +743,8 @@ namespace Opc.Ua.Wot
             string? typeDefinitionHref = null,
             IReadOnlyDictionary<string, string>? eventTypeHrefs = null,
             string? documentHref = null,
-            HashSet<string>? projectedNodeIds = null)
+            HashSet<string>? projectedNodeIds = null,
+            string? documentLocale = null)
         {
             if (root is null)
             {
@@ -973,7 +1001,7 @@ namespace Opc.Ua.Wot
                         variable.NodeId ?? string.Empty, out WotAnalogFacets? facets);
                     WriteVariableAffordance(
                         writer, variable, namespaceUris, nodeSet, defaultLocale,
-                        facets, owner, referenceTypeNames);
+                        facets, owner, referenceTypeNames, documentLocale);
                 }
                 writer.WriteEndObject();
             }
@@ -1458,7 +1486,8 @@ namespace Opc.Ua.Wot
             string defaultLocale,
             WotAnalogFacets? analogFacets = null,
             string? componentOf = null,
-            WotReferenceTypeNames? referenceTypeNames = null)
+            WotReferenceTypeNames? referenceTypeNames = null,
+            string? documentLocale = null)
         {
             writer.WriteStartObject();
             writer.WriteString("@type", "uav:variable");
@@ -1469,6 +1498,7 @@ namespace Opc.Ua.Wot
                 writer.WriteStringValue(componentOf);
                 writer.WriteEndArray();
             }
+            WriteLocalizedTextContext(writer, variable.DisplayName, variable.Description, defaultLocale);
             WriteLocalizedTitle(writer, variable.DisplayName, defaultLocale);
             WriteLocalizedDescription(writer, variable.Description, defaultLocale);
             WriteOptional(
@@ -1521,7 +1551,7 @@ namespace Opc.Ua.Wot
             // Sections 6.4 and 6.4.1: the engineering unit, its authority and
             // identity, and the two ranges that say what the value means.
             WriteAnalogFacets(writer, analogFacets, defaultLocale);
-            WriteEngineeringUnits(writer, variable, defaultLocale);
+            WriteEngineeringUnits(writer, variable, defaultLocale, documentLocale);
 
             bool readable = (variable.AccessLevel & AccessLevelCurrentRead) != 0;
             bool writable = (variable.AccessLevel & AccessLevelCurrentWrite) != 0;
@@ -1557,6 +1587,8 @@ namespace Opc.Ua.Wot
         {
             writer.WriteStartObject();
             writer.WriteString("@type", "uav:method");
+            WriteLocalizedTextContext(
+                writer, method.DisplayName, method.Description, defaultLocale, inheritedLanguageMayDiffer: true);
             WriteLocalizedTitle(writer, method.DisplayName, defaultLocale);
             WriteLocalizedDescription(writer, method.Description, defaultLocale);
             WriteOptional(
@@ -1598,6 +1630,8 @@ namespace Opc.Ua.Wot
             // records an EventType projection. WoT Binding 1.1 defines no
             // parallel boolean flag, so nothing else states event identity.
             writer.WriteString("@type", WotVocabulary.EventTypeAnnotation);
+            WriteLocalizedTextContext(
+                writer, eventType.DisplayName, eventType.Description, defaultLocale, inheritedLanguageMayDiffer: true);
             WriteLocalizedTitle(writer, eventType.DisplayName, defaultLocale);
             WriteLocalizedDescription(writer, eventType.Description, defaultLocale);
             WriteOptional(

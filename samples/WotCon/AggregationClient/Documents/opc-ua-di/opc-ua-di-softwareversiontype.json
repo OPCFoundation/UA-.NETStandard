@@ -6,7 +6,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -14,6 +20,12 @@
   ],
   "actions": {
     "Clear": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "title": "Clear",
       "uav:browseName": "ns1:Clear",
@@ -30,6 +42,12 @@
   ],
   "properties": {
     "ChangeLogReference": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -52,6 +70,12 @@
       "uav:modellingRule": "Optional"
     },
     "Hash": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "contentEncoding": "base64",
       "links": [
@@ -75,6 +99,12 @@
       "uav:modellingRule": "Optional"
     },
     "Manufacturer": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -96,6 +126,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "ManufacturerUri": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -118,6 +154,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "PatchIdentifiers": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "items": {
         "type": "string"
@@ -147,6 +189,12 @@
       "uav:valueRank": 1
     },
     "ReleaseDate": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "format": "date-time",
       "links": [
@@ -170,6 +218,12 @@
       "uav:modellingRule": "Optional"
     },
     "SoftwareRevision": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {

@@ -6,7 +6,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -14,6 +20,12 @@
   ],
   "actions": {
     "GetUpdateBehavior": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -31,6 +43,7 @@
           "NodeIds"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "NodeIds"
         ]
@@ -46,6 +59,7 @@
           "UpdateBehavior"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "UpdateBehavior"
         ]
@@ -56,6 +70,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "ValidateFiles": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -73,6 +93,7 @@
           "NodeIds"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "NodeIds"
         ]
@@ -94,6 +115,7 @@
           "ErrorMessage"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "ErrorCode",
           "ErrorMessage"

@@ -6,11 +6,23 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": "uav:object",
   "actions": {
     "Close": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -24,6 +36,7 @@
           "FileHandle"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "FileHandle"
         ]
@@ -34,6 +47,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "GetPosition": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -47,6 +66,7 @@
           "FileHandle"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "FileHandle"
         ]
@@ -63,6 +83,7 @@
           "Position"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "Position"
         ]
@@ -73,6 +94,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "Open": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -86,6 +113,7 @@
           "Mode"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "Mode"
         ]
@@ -102,6 +130,7 @@
           "FileHandle"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "FileHandle"
         ]
@@ -112,6 +141,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "Read": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -131,6 +166,7 @@
           "Length"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "FileHandle",
           "Length"
@@ -149,6 +185,7 @@
           "Data"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "Data"
         ]
@@ -159,6 +196,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "SetPosition": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -178,6 +221,7 @@
           "Position"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "FileHandle",
           "Position"
@@ -189,6 +233,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "Write": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -209,6 +259,7 @@
           "Data"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "FileHandle",
           "Data"
@@ -233,6 +284,12 @@
   ],
   "properties": {
     "OpenCount": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -255,6 +312,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "Size": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -277,6 +340,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "UserWritable": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -299,6 +368,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "Writable": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {

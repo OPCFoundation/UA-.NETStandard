@@ -6,7 +6,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -14,6 +20,12 @@
   ],
   "actions": {
     "StartLocationIndication": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -26,6 +38,7 @@
           "IndicationDuration"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "IndicationDuration"
         ]
@@ -36,6 +49,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "StopLocationIndication": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "title": "StopLocationIndication",
       "uav:browseName": "ns1:StopLocationIndication",
@@ -52,6 +71,12 @@
   ],
   "properties": {
     "IsIndicating": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -74,6 +99,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "SupportedIndicationTypes": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -95,6 +126,12 @@
       "uav:modellingRule": "Optional"
     },
     "UsedIndicationType": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {

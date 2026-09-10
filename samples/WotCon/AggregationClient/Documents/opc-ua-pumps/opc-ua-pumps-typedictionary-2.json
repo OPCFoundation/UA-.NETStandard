@@ -8,7 +8,17 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "description": {
+        "@id": "https://www.w3.org/2019/wot/td#description",
+        "@language": null
+      },
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": "uav:variable",
   "description": "Collects the data type descriptions of http://opcfoundation.org/UA/Pumps/",
@@ -20,6 +30,12 @@
   ],
   "properties": {
     "DeclarationOfConformityOptionSet": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "//xs:element[@name='DeclarationOfConformityOptionSet']",
       "links": [
@@ -37,6 +53,12 @@
       "uav:mapToType": "i=12"
     },
     "ExplosionProtectionOptionSet": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "//xs:element[@name='ExplosionProtectionOptionSet']",
       "links": [
@@ -54,6 +76,12 @@
       "uav:mapToType": "i=12"
     },
     "ExplosionZoneOptionSet": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "//xs:element[@name='ExplosionZoneOptionSet']",
       "links": [
@@ -71,6 +99,12 @@
       "uav:mapToType": "i=12"
     },
     "NamespaceUri": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "http://opcfoundation.org/UA/Pumps/Types.xsd",
       "links": [
@@ -93,6 +127,12 @@
       "uav:mapToType": "i=12"
     },
     "OfferedControlModesOptionSet": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "//xs:element[@name='OfferedControlModesOptionSet']",
       "links": [
@@ -110,6 +150,12 @@
       "uav:mapToType": "i=12"
     },
     "OfferedFieldbusesOptionSet": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "//xs:element[@name='OfferedFieldbusesOptionSet']",
       "links": [
@@ -127,6 +173,12 @@
       "uav:mapToType": "i=12"
     },
     "PhysicalAddressDataType": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "//xs:element[@name='PhysicalAddressDataType']",
       "links": [

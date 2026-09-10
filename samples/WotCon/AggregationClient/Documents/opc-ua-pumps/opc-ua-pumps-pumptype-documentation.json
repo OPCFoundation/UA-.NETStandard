@@ -8,7 +8,17 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "description": {
+        "@id": "https://www.w3.org/2019/wot/td#description",
+        "@language": null
+      },
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": "uav:object",
   "description": "Static documentation files of a pump.",
@@ -25,6 +35,16 @@
   ],
   "properties": {
     "ArrangementsLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Drawing showing replacement components layout for an item.",
       "links": [
@@ -43,6 +63,16 @@
       "uav:modellingRule": "Optional"
     },
     "CertificatesLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Specific safety and statutory regulations certificates for items (lifting equipment, steam boilers, pressure vessels,...).",
       "links": [
@@ -61,6 +91,16 @@
       "uav:modellingRule": "Optional"
     },
     "CircuitDiagramLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Overall feeder and control circuits diagram.",
       "links": [
@@ -79,6 +119,16 @@
       "uav:modellingRule": "Optional"
     },
     "ComponentsListLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Comprehensive list of items which constitute part of another one.",
       "links": [
@@ -97,6 +147,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -122,6 +178,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -147,6 +209,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -172,6 +240,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -197,6 +271,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_13": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -222,6 +302,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_14": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -247,6 +333,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_15": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -272,6 +364,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_16": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -297,6 +395,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_17": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -322,6 +426,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_18": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -347,6 +457,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_19": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -372,6 +488,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -397,6 +519,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_20": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -422,6 +550,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_21": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -447,6 +581,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_22": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -472,6 +612,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -497,6 +643,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -522,6 +674,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -547,6 +705,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -572,6 +736,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -597,6 +767,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -622,6 +798,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -647,6 +829,16 @@
       "uav:modellingRule": "Optional"
     },
     "DetailLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Drawing with part list to ensure dismantling, repair and assembly of items.",
       "links": [
@@ -665,6 +857,16 @@
       "uav:modellingRule": "Optional"
     },
     "DuringMaintenanceServicesRenderedLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Final and/or interim report on services provided",
       "links": [
@@ -683,6 +885,16 @@
       "uav:modellingRule": "Optional"
     },
     "ImplementationDescriptionLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Explanation of the work carried out",
       "links": [
@@ -701,6 +913,16 @@
       "uav:modellingRule": "Optional"
     },
     "LayoutLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Drawing showing all areas of a particular plant.",
       "links": [
@@ -719,6 +941,16 @@
       "uav:modellingRule": "Optional"
     },
     "LocationLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Drawing showing the position of all field items within the considered area.",
       "links": [
@@ -737,6 +969,16 @@
       "uav:modellingRule": "Optional"
     },
     "LogicDiagramLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "System control diagram to clarify the overall system logic.",
       "links": [
@@ -755,6 +997,16 @@
       "uav:modellingRule": "Optional"
     },
     "LubricationMapLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Drawing showing position of each item lubrication point, with lubrication data and specifications.",
       "links": [
@@ -773,6 +1025,16 @@
       "uav:modellingRule": "Optional"
     },
     "MaintenanceManualLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Technical instructions intended to preserve an item in, or restore it to, a state in which it can perform a required function.",
       "links": [
@@ -791,6 +1053,16 @@
       "uav:modellingRule": "Optional"
     },
     "OperationManualLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Technical instructions to reach a proper item function performance according to its technical specifications and safety conditions.",
       "links": [
@@ -809,6 +1081,16 @@
       "uav:modellingRule": "Optional"
     },
     "PersonnelRecordingLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "List of all activities (work order) performed by a technician. This list includes a predefined time period",
       "links": [
@@ -827,6 +1109,16 @@
       "uav:modellingRule": "Optional"
     },
     "PipeAndInstrumentDiagramLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Overall fluid conduction (air, steam, oil, fuel ...), and control diagram.",
       "links": [
@@ -845,6 +1137,16 @@
       "uav:modellingRule": "Optional"
     },
     "ScopeOfWorkLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "The hours worked in the execution of the work order. The type of hours worked should be indicated: normal, in shifts, at night, overtime, etc.",
       "links": [
@@ -863,6 +1165,16 @@
       "uav:modellingRule": "Optional"
     },
     "SingleLineDiagramLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Overall power distribution diagram (electrical, pneumatic, hydraulic). This kind of diagram includes switchboard circuits.",
       "links": [
@@ -881,6 +1193,16 @@
       "uav:modellingRule": "Optional"
     },
     "SparePartReferenceLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "List of all spare parts used within the scope of the work order",
       "links": [
@@ -899,6 +1221,16 @@
       "uav:modellingRule": "Optional"
     },
     "StaffLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "List of all maintenance workers involved in the execution of the work order",
       "links": [
@@ -917,6 +1249,16 @@
       "uav:modellingRule": "Optional"
     },
     "TechnicalDataLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Manufacturer`s specification of the item.",
       "links": [
@@ -935,6 +1277,16 @@
       "uav:modellingRule": "Optional"
     },
     "TestProgramReportLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Commissioning report which demonstrates that an item is in compliance with specifications.",
       "links": [
@@ -953,6 +1305,16 @@
       "uav:modellingRule": "Optional"
     },
     "UnitMaintenanceReportLink": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "List of work orders for a particular unit. The list is created for a specified period of time",
       "links": [

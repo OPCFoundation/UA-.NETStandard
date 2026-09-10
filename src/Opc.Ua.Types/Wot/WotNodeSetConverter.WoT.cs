@@ -1630,9 +1630,9 @@ namespace Opc.Ua.Wot
             // carries.
             string? declaredLocale = GetDeclaredLocale(document);
             rootNode.DisplayName = ReadTitle(
-                document.RootElement, declaredLocale, document.Title ?? rootLocal) ??
+                document, document.RootElement, document.Title ?? rootLocal) ??
                 MakeText(rootLocal);
-            rootNode.Description = ReadDescription(document.RootElement, declaredLocale);
+            rootNode.Description = ReadDescription(document, document.RootElement);
             ApplyReferenceTypeNames(rootNode, document, declaredLocale);
             if (rootNode is UAType projectedType)
             {
@@ -1666,7 +1666,7 @@ namespace Opc.Ua.Wot
                 affordanceBindings?.TryGetValue(property.Value, out propertyBinding);
                 SynthesizeProperty(
                     document, nodeSet, property.Key, property.Value, rootLocal,
-                    rootNodeId, isThingModel, declaredLocale,
+                    rootNodeId, isThingModel,
                     items, rootReferences, propertyNodeIds, externalSchemas, propertyBinding,
                     referenceTypeCatalog, diagnostics, dataTypes);
             }
@@ -1805,7 +1805,6 @@ namespace Opc.Ua.Wot
             string rootLocal,
             string rootNodeId,
             bool isThingModel,
-            string? declaredLocale,
             List<UANode> items,
             List<Reference> rootReferences,
             Dictionary<string, string> propertyNodeIds,
@@ -1843,13 +1842,13 @@ namespace Opc.Ua.Wot
                 // json type cannot.
                 ValueRank = ReadValueRank(schema),
                 ArrayDimensions = ReadArrayDimensions(schema, local, diagnostics),
-                DisplayName = ReadTitle(schema, declaredLocale),
-                Description = ReadDescription(schema, declaredLocale)
+                DisplayName = ReadTitle(document, schema),
+                Description = ReadDescription(document, schema)
             };
 
             // §6.4.1: the affordance reads as a string at run time but the Node
             // behind it holds the EUInformation structure the term states.
-            ApplyEngineeringUnits(variable, schema);
+            ApplyEngineeringUnits(document, variable, schema);
 
             // §9.1: a property may state the Variable it belongs to rather than
             // the Thing. Without this a Variable's own Variables — EURange and
@@ -2318,9 +2317,8 @@ namespace Opc.Ua.Wot
                 MethodDeclarationId = declaration,
                 ParentNodeId = rootNodeId
             };
-            string? declaredLocale = GetDeclaredLocale(document);
-            method.DisplayName = ReadTitle(action, declaredLocale);
-            method.Description = ReadDescription(action, declaredLocale);
+            method.DisplayName = ReadTitle(document, action);
+            method.Description = ReadDescription(document, action);
 
             string owner = ReadComponentOfParent(action, nodeSet, diagnostics) ?? rootNodeId;
             if (isConditionMethod &&
@@ -2404,9 +2402,8 @@ namespace Opc.Ua.Wot
                         eventAffordance),
                 IsAbstract = false
             };
-            string? declaredLocale = GetDeclaredLocale(document);
-            eventType.DisplayName = ReadTitle(eventAffordance, declaredLocale);
-            eventType.Description = ReadDescription(eventAffordance, declaredLocale);
+            eventType.DisplayName = ReadTitle(document, eventAffordance);
+            eventType.Description = ReadDescription(document, eventAffordance);
             eventType.References =
             [
                 new Reference

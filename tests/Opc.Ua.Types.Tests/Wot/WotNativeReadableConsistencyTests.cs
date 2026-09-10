@@ -246,6 +246,13 @@ namespace Opc.Ua.Types.Tests.Wot
             root.Remove("links");
             root["properties"] = JsonNode.Parse(
                 """{"speed":{"uav:id":"nsu=urn:test:model;i=6001","description":"Speed description"}}""");
+            if (german)
+            {
+                root["properties"]!["speed"]!["@context"] = JsonNode.Parse(
+                    """
+                    {"description":{"@id":"https://www.w3.org/2019/wot/td#description","@language":"de"}}
+                    """);
+            }
             using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
 
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);

@@ -6,7 +6,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -14,6 +20,12 @@
   ],
   "actions": {
     "Add": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -33,6 +45,7 @@
           "Name"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "Subclass",
           "Name"
@@ -44,6 +57,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "Delete": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -56,6 +75,7 @@
           "ObjectToDelete"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "ObjectToDelete"
         ]
@@ -75,6 +95,12 @@
   ],
   "properties": {
     "SoftwareClass": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {

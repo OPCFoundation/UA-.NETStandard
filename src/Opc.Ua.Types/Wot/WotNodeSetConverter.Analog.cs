@@ -317,7 +317,8 @@ namespace Opc.Ua.Wot
         private static void WriteEngineeringUnits(
             Utf8JsonWriter writer,
             UAVariable variable,
-            string defaultLocale)
+            string defaultLocale,
+            string? documentLocale)
         {
             if (!IsBaseNamespaceBrowseName(variable.BrowseName, EngineeringUnitsBrowseName) ||
                 !TryDecodeEngineeringUnits(variable.Value, out WotEngineeringUnits? units))
@@ -330,42 +331,80 @@ namespace Opc.Ua.Wot
             // Section 6.4.1 mints displayName and description as short members
             // scoped to this object, so a root-level override cannot reach
             // them: a scoped context is entered here and nowhere else. Where
-            // either states no text in the document's default locale, the two
-            // are re-declared without a language, so an unqualified value is
-            // not read as text of a language it is not written in.
-            if (LacksDefaultLocale(units!.DisplayName, defaultLocale) ||
-                LacksDefaultLocale(units.Description, defaultLocale))
+            // a text lacks the default locale, only that term is neutralized.
+            bool displayNameOverride = NeedsLocalizedTextOverride(units!.DisplayName, defaultLocale, documentLocale);
+            bool descriptionOverride = NeedsLocalizedTextOverride(units.Description, defaultLocale, documentLocale);
+            string? displayNameLanguage = ProjectedTextLocale(units.DisplayName, defaultLocale);
+            string? descriptionLanguage = ProjectedTextLocale(units.Description, defaultLocale);
+            if (displayNameOverride || descriptionOverride)
             {
-                WriteUnitLocalizedTextOverride(writer);
+                WriteUnitLocalizedTextOverride(
+                    writer, displayNameOverride, descriptionOverride, displayNameLanguage, descriptionLanguage);
             }
             writer.WriteString("namespaceUri", units.NamespaceUri);
             writer.WriteNumber("unitId", units.UnitId);
             WriteLocalizedMember(
-                writer, "displayName", "displayNames", units.DisplayName, defaultLocale);
+                writer, "displayName", "displayNames", units.DisplayName, defaultLocale,
+                displayNameOverride && displayNameLanguage is not null);
             WriteLocalizedMember(
-                writer, "description", "descriptions", units.Description, defaultLocale);
+                writer, "description", "descriptions", units.Description, defaultLocale,
+                descriptionOverride && descriptionLanguage is not null);
             writer.WriteEndObject();
         }
 
         /// <summary>
-        /// Writes the node-local override that drops the document's default
-        /// language from the two scoped <c>EUInformation</c> text members.
+        /// Writes the node-local term languages required by the native EUInformation text.
         /// </summary>
-        private static void WriteUnitLocalizedTextOverride(Utf8JsonWriter writer)
+        private static void WriteUnitLocalizedTextOverride(
+            Utf8JsonWriter writer,
+            bool displayNameOverride,
+            bool descriptionOverride,
+            string? displayNameLanguage,
+            string? descriptionLanguage)
         {
             writer.WritePropertyName("@context");
             writer.WriteStartObject();
-            writer.WritePropertyName("displayName");
-            writer.WriteStartObject();
-            writer.WriteString("@id", "uav:unitDisplayName");
-            writer.WriteNull("@language");
+            if (displayNameOverride)
+            {
+                writer.WritePropertyName("displayName");
+                writer.WriteStartObject();
+                writer.WriteString("@id", "uav:unitDisplayName");
+                writer.WriteString("@language", displayNameLanguage);
+                writer.WriteEndObject();
+            }
+            if (descriptionOverride)
+            {
+                writer.WritePropertyName("description");
+                writer.WriteStartObject();
+                writer.WriteString("@id", "uav:unitDescription");
+                writer.WriteString("@language", descriptionLanguage);
+                writer.WriteEndObject();
+            }
             writer.WriteEndObject();
-            writer.WritePropertyName("description");
-            writer.WriteStartObject();
-            writer.WriteString("@id", "uav:unitDescription");
-            writer.WriteNull("@language");
-            writer.WriteEndObject();
-            writer.WriteEndObject();
+        }
+
+        internal static bool IsGeneratedUnitLocalizedTextOverride(JsonElement context)
+        {
+            if (context.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+            int count = 0;
+            foreach (JsonProperty term in context.EnumerateObject())
+            {
+                string? identity = term.Name switch
+                {
+                    "displayName" => "uav:unitDisplayName",
+                    "description" => "uav:unitDescription",
+                    _ => null
+                };
+                if (identity is null || !IsLocalizedTextAlias(term.Value, identity))
+                {
+                    return false;
+                }
+                count++;
+            }
+            return count is > 0 and <= 2;
         }
 
         /// <summary>
@@ -733,7 +772,7 @@ namespace Opc.Ua.Wot
         private static bool TryReadEngineeringUnits(
             JsonElement element,
             out WotEngineeringUnits? units,
-            string? declaredLocale = null)
+            WotDocument? document = null)
         {
             units = null;
             if (element.ValueKind != JsonValueKind.Object ||
@@ -751,10 +790,14 @@ namespace Opc.Ua.Wot
                 NamespaceUri = namespaceUri,
                 UnitId = identifier,
                 DisplayName = ReadLocalizedText(
-                    element, "displayName", "displayNames", displayName, declaredLocale),
+                    element, "displayName", "displayNames", displayName,
+                    document is null ? null : GetDeclaredLocale(document, element),
+                    document is null ? null : GetDeclaredLocale(document, element, "displayName")),
                 Description = ReadLocalizedText(
                     element, "description", "descriptions",
-                    GetElementString(element, "description"), declaredLocale)
+                    GetElementString(element, "description"),
+                    document is null ? null : GetDeclaredLocale(document, element),
+                    document is null ? null : GetDeclaredLocale(document, element, "description"))
             };
             return true;
         }
@@ -1050,11 +1093,12 @@ namespace Opc.Ua.Wot
         /// rather than from the json type, unless the document pinned one
         /// itself through Section 5.4's <c>uav:mapToType</c>.
         /// </remarks>
-        private static void ApplyEngineeringUnits(UAVariable variable, JsonElement affordance)
+        private static void ApplyEngineeringUnits(WotDocument document, UAVariable variable, JsonElement affordance)
         {
             if (affordance.ValueKind != JsonValueKind.Object ||
                 !affordance.TryGetProperty(EngineeringUnitsTerm, out JsonElement declared) ||
-                !TryReadEngineeringUnits(declared, out WotEngineeringUnits? units))
+                !TryReadEngineeringUnits(
+                    declared, out WotEngineeringUnits? units, document))
             {
                 return;
             }

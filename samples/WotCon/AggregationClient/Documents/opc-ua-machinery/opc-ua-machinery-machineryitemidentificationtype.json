@@ -8,7 +8,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -47,6 +53,12 @@
   ],
   "properties": {
     "AssetId": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "\n      ",
       "description": "To be used by end users to store a unique identification in the context of their overall application. Servers shall support at least 40 Unicode characters for the clients writing this value, this means clients can expect to be able to write strings with a length of 40 Unicode characters into that field.",
@@ -70,6 +82,12 @@
       "uav:modellingRule": "Optional"
     },
     "ComponentName": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "To be used by end users to store a human-readable localized text for the MachineryItem. The minimum number of locales supported for this property shall be two. Servers shall support at least 40 Unicode characters for the clients writing the text part of each locale, this means clients can expect to be able to write texts with a length of 40 Unicode characters into that field.",
       "links": [
@@ -91,6 +109,12 @@
       "uav:modellingRule": "Optional"
     },
     "DeviceClass": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Indicates in which domain or for what purpose the MachineryItem is used.",
       "links": [
@@ -114,6 +138,12 @@
       "uav:modellingRule": "Optional"
     },
     "HardwareRevision": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "A string representation of the revision level of the hardware of a MachineryItem. Hardware is physical equipment, as opposed to programs, procedures, rules and associated documentation. Many machines will not provide such information due to the modular and configurable nature of the machine.",
       "links": [
@@ -137,6 +167,12 @@
       "uav:modellingRule": "Optional"
     },
     "InitialOperationDate": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "The date, when the MachineryItem was switched on the first time after it has left the manufacturer plant.",
       "format": "date-time",
@@ -161,6 +197,12 @@
       "uav:modellingRule": "Optional"
     },
     "Manufacturer": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "A human-readable, localized name of the manufacturer of the MachineryItem.",
       "links": [
@@ -183,6 +225,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "ManufacturerUri": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "A globally unique identifier of the manufacturer of the MachineryItem.",
       "links": [
@@ -206,6 +254,12 @@
       "uav:modellingRule": "Optional"
     },
     "Model": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "A human-readable, localized name of the model of the MachineryItem.",
       "links": [
@@ -228,6 +282,12 @@
       "uav:modellingRule": "Optional"
     },
     "MonthOfConstruction": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "The month in which the manufacturing process of the MachineryItem has been completed. It shall be a number between 1 and 12, representing the month from January to December.",
       "links": [
@@ -251,6 +311,12 @@
       "uav:modellingRule": "Optional"
     },
     "ProductCode": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "A machine-readable string of the model of the MachineryItem, that might include options like the hardware configuration of the model. This information might be provided by the ERP system of the vendor. For example, it can be used as order information.",
       "links": [
@@ -274,6 +340,12 @@
       "uav:modellingRule": "Optional"
     },
     "ProductInstanceUri": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "A globally unique resource identifier provided by the manufacturer of the MachineryItem.",
       "links": [
@@ -297,6 +369,12 @@
       "uav:modellingRule": "Optional"
     },
     "SerialNumber": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "A string containing a unique production number of the manufacturer of the MachineryItem. The global uniqueness of the serial number is only given in the context of the manufacturer, and potentially the model. The value shall not change during the life-cycle of the MachineryItem.",
       "links": [
@@ -320,6 +398,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "SoftwareRevision": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "A string representation of the revision level of a MachineryItem. In most cases, MachineryItems consist of several software components. In that case, information about the software components might be provided as additional information in the address space, including individual revision information. In that case, this property is either not provided or provides an overall software revision level. The value might change during the life-cycle of a MachineryItem.",
       "links": [
@@ -343,6 +427,12 @@
       "uav:modellingRule": "Optional"
     },
     "YearOfConstruction": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "The year (Gregorian calendar) in which the manufacturing process of the MachineryItem has been completed. It shall be a four-digit number and never change during the life-cycle of a MachineryItem.",
       "links": [

@@ -6,7 +6,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -92,6 +98,12 @@
   "uav:browseName": "ns1:TopologyElementType",
   "uav:dataTypeDefinitions": [
     {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6244",
       "@type": "uav:EnumDefinition",
       "title": "DeviceHealthEnumeration",
@@ -102,30 +114,60 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "This device functions normally.",
           "uav:enumName": "NORMAL",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Malfunction of the device or any of its peripherals.",
           "uav:enumName": "FAILURE",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Functional checks are currently performed.",
           "uav:enumName": "CHECK_FUNCTION",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "The device is currently working outside of its specified range or that internal diagnoses indicate deviations from measured or set values.",
           "uav:enumName": "OFF_SPEC",
           "uav:enumValue": 3
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "This element is working, but a maintenance operation is required.",
           "uav:enumName": "MAINTENANCE_REQUIRED",
@@ -135,6 +177,12 @@
       "uav:isOptionSet": false
     },
     {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6522",
       "@type": "uav:StructureDefinition",
       "title": "FetchResultDataType",
@@ -151,6 +199,12 @@
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/DI/;i=6535"
     },
     {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=15888",
       "@type": "uav:StructureDefinition",
       "title": "TransferResultErrorDataType",
@@ -183,6 +237,12 @@
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/DI/;i=15900"
     },
     {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=15889",
       "@type": "uav:StructureDefinition",
       "title": "TransferResultDataDataType",
@@ -223,6 +283,12 @@
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/DI/;i=15901"
     },
     {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=6525",
       "@type": "uav:StructureDefinition",
       "title": "ParameterResultDataType",
@@ -263,6 +329,12 @@
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/DI/;i=6538"
     },
     {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=408",
       "@type": "uav:EnumDefinition",
       "title": "SoftwareClass",
@@ -273,24 +345,48 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "The software update is used for the firmware of a physical device.",
           "uav:enumName": "Firmware",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "The software update is used for an executable software.",
           "uav:enumName": "Application",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "The software update is used for the configuration of a device or application.",
           "uav:enumName": "Configuration",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "The software update is used to install a solution with several software package to several components.",
           "uav:enumName": "Solution",
@@ -300,6 +396,12 @@
       "uav:isOptionSet": false
     },
     {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=410",
       "@type": "uav:EnumDefinition",
       "title": "LocationIndicationType",
@@ -310,12 +412,24 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Location indication through optical signals, such as blinking LEDs, if supported by the device.",
           "uav:enumName": "Visual",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Location indication through auditory signals, such as sounds or beeps, if supported by the device.",
           "uav:enumName": "Audible",
@@ -325,6 +439,12 @@
       "uav:isOptionSet": true
     },
     {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=331",
       "@type": "uav:EnumDefinition",
       "title": "SoftwareVersionFileType",
@@ -335,18 +455,36 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "The currently used version of the software identified by the CurrentVersion Object.",
           "uav:enumName": "Current",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "The pending version of the software that could be installed identified by the PendingVersion Object.",
           "uav:enumName": "Pending",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "The fallback version of the software identified by the FallbackVersion Object.",
           "uav:enumName": "Fallback",
@@ -356,6 +494,12 @@
       "uav:isOptionSet": false
     },
     {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/DI/;i=333",
       "@type": "uav:EnumDefinition",
       "title": "UpdateBehavior",
@@ -366,30 +510,60 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "If KeepsParameters is not set, the device will lose its configuration during update. The Client should do a backup of the parameters before the update and restore them afterwards.",
           "uav:enumName": "KeepsParameters",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "If WillDisconnect is set, the OPC UA Server will restart during installation. This can be the case if the update is about the firmware of the device that hosts the OPC UA Server.",
           "uav:enumName": "WillDisconnect",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "If RequiresPowerCycle is set, the devices require a manual power off / power on for installation.",
           "uav:enumName": "RequiresPowerCycle",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "If WillReboot is set, the device will reboot during the update, inclusive of embedded infrastructure elements like an integrated switch. An update Client should take this into account since the devices behind an integrated switch are not reachable for that time.",
           "uav:enumName": "WillReboot",
           "uav:enumValue": 3
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "If NeedsPreparation is not set, the Client can install the update without maintaining the PrepareForUpdateStateMachine. This can be used to support an installation without stopping the software.",
           "uav:enumName": "NeedsPreparation",

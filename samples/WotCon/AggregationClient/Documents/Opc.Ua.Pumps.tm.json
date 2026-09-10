@@ -8,7 +8,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -29,6 +35,16 @@
   ],
   "properties": {
     "ArticleNumber": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Alphanumeric character sequence identifying a manufactured, non-configurable product.",
       "links": [
@@ -52,6 +68,16 @@
       "uav:modellingRule": "Optional"
     },
     "CountryOfOrigin": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Country in which the product is manufactured.",
       "links": [
@@ -74,6 +100,16 @@
       "uav:modellingRule": "Optional"
     },
     "DayOfConstruction": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "The optional DayOfConstrucition provides the day of the month in which the manufacturing process of the machine has been completed. It shall be a number and never change during the life-cycle of a machine.",
       "links": [
@@ -97,6 +133,16 @@
       "uav:modellingRule": "Optional"
     },
     "FabricationNumber": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Alphanumeric character sequence assigned to a fabricated product, which allows the date, time and circumstances of fabrication to be traced.",
       "links": [
@@ -120,6 +166,16 @@
       "uav:modellingRule": "Optional"
     },
     "GTINCode": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Bar code number that identifies the device based on the Global Trade Item Number system.",
       "links": [
@@ -143,6 +199,16 @@
       "uav:modellingRule": "Optional"
     },
     "NationalStockNumber": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "13-digit numeric code, identifying all 'standardized material items of supply' as recognized by the United States Department of Defense.",
       "links": [
@@ -166,6 +232,16 @@
       "uav:modellingRule": "Optional"
     },
     "OrderProductCode": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Unique combination of numbers and letters used to order the device.",
       "links": [
@@ -189,6 +265,16 @@
       "uav:modellingRule": "Optional"
     },
     "PhysicalAddress": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Physical address of the manufacturer.",
       "links": [
@@ -210,6 +296,16 @@
       "uav:modellingRule": "Optional"
     },
     "Supplier": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Name of the supplier or vendor of a device.",
       "links": [
@@ -233,6 +329,16 @@
       "uav:modellingRule": "Optional"
     },
     "TypeOfProduct": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Characterization of the device based on its usage, operation principle, and its fabricated form.",
       "links": [
@@ -261,6 +367,16 @@
   "uav:browseName": "ns1:IPumpVendorNameplateType",
   "uav:dataTypeDefinitions": [
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3008",
       "@type": "uav:EnumDefinition",
       "description": "describes the possible control modes of the pump",
@@ -272,72 +388,144 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Constant pressure control mode",
           "uav:enumName": "ConstantPressureControl",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Constant temperature control mode",
           "uav:enumName": "ConstantTemperatureControl",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Differential pressure control mode",
           "uav:enumName": "DifferentialPressureControl",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Constant differential pressure control mode",
           "uav:enumName": "ConstantDifferentialPressureControl",
           "uav:enumValue": 3
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Variable differential pressure control mode",
           "uav:enumName": "VariableDifferentialPressureControl",
           "uav:enumValue": 4
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Flow-dependent differential pressure control mode",
           "uav:enumName": "FlowDependentDifferentialPressureControl",
           "uav:enumValue": 5
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Return flow temperature control mode",
           "uav:enumName": "ReturnFlowTemperatureControl",
           "uav:enumValue": 6
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Flow temperature control mode",
           "uav:enumName": "FlowTemperatureControl",
           "uav:enumValue": 7
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Flow rate control mode",
           "uav:enumName": "FlowRateControl",
           "uav:enumValue": 8
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Speed control mode",
           "uav:enumName": "SpeedControl",
           "uav:enumValue": 9
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Automatic control mode",
           "uav:enumName": "Automatic",
           "uav:enumValue": 10
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "None / uncontrolled mode",
           "uav:enumName": "Uncontrolled",
@@ -347,6 +535,16 @@
       "uav:isOptionSet": false
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3013",
       "@type": "uav:EnumDefinition",
       "description": "describes the share of operation time of different pumps of the pump system in addition operation mode",
@@ -358,24 +556,48 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Manufacturer specific distribution of operation time",
           "uav:enumName": "ManufacturerSpecific",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Operator specific distribution of operation time",
           "uav:enumName": "OperatorSpecific",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Equivalent distribution of operation time, concerning time distribution",
           "uav:enumName": "ConcerningTimeDistribution",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Equivalent distribution of operation time, concerning load distribution",
           "uav:enumName": "ConcerningLoadDistribution",
@@ -385,6 +607,16 @@
       "uav:isOptionSet": false
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3012",
       "@type": "uav:EnumDefinition",
       "description": "specifies the exchange mode of the pump",
@@ -396,18 +628,36 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Manufacturer specific pump exchange mode",
           "uav:enumName": "ManufacturerSpecific",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Pump exchange disabled",
           "uav:enumName": "ExchangeDisabled",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Operator specific pump exchange mode",
           "uav:enumName": "OperatorSpecific",
@@ -417,6 +667,16 @@
       "uav:isOptionSet": false
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3005",
       "@type": "uav:EnumDefinition",
       "description": "defines possible field buses",
@@ -428,300 +688,600 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Fieldbus is not specified in this enumeration",
           "uav:enumName": "Other",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "ARCNET",
           "uav:enumName": "ARCNET",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "AS-Interface",
           "uav:enumName": "AS-Interface",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "BACnet/IP",
           "uav:enumName": "BACnet/IP",
           "uav:enumValue": 3
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "BACnet/MSTP",
           "uav:enumName": "BACnet/MSTP",
           "uav:enumValue": 4
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Bluetooth",
           "uav:enumName": "Bluetooth",
           "uav:enumValue": 5
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Bluetooth Low Energy",
           "uav:enumName": "BluetoothLowEnergy",
           "uav:enumValue": 6
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "CAN",
           "uav:enumName": "CAN",
           "uav:enumValue": 7
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "CANopen",
           "uav:enumName": "CANopen",
           "uav:enumValue": 8
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "CC-Link",
           "uav:enumName": "CC-Link",
           "uav:enumValue": 9
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "ControlNet",
           "uav:enumName": "ControlNet",
           "uav:enumValue": 10
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "DALI",
           "uav:enumName": "DALI",
           "uav:enumValue": 11
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "DECT ULE",
           "uav:enumName": "DECTULE",
           "uav:enumValue": 12
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "DeviceNet",
           "uav:enumName": "DeviceNet",
           "uav:enumValue": 13
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "DMX",
           "uav:enumName": "DMX",
           "uav:enumValue": 14
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "KNX",
           "uav:enumName": "KNX",
           "uav:enumValue": 15
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "EnOcean",
           "uav:enumName": "EnOcean",
           "uav:enumValue": 16
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "EtherCAT",
           "uav:enumName": "EtherCAT",
           "uav:enumValue": 17
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Ethernet/IP",
           "uav:enumName": "Ethernet/IP",
           "uav:enumValue": 18
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Ethernet TCP/IP",
           "uav:enumName": "EthernetTCP/IP",
           "uav:enumValue": 19
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "IEEE1588",
           "uav:enumName": "IEEE1588",
           "uav:enumValue": 20
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "GSM",
           "uav:enumName": "GSM",
           "uav:enumValue": 21
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Interbus",
           "uav:enumName": "Interbus",
           "uav:enumValue": 22
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "IO-Link",
           "uav:enumName": "IO-Link",
           "uav:enumValue": 23
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "HART",
           "uav:enumName": "HART",
           "uav:enumValue": 24
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "LON",
           "uav:enumName": "LON",
           "uav:enumValue": 25
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "LoRaWAN",
           "uav:enumName": "LoRaWAN",
           "uav:enumValue": 26
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "LIN-Bus",
           "uav:enumName": "LIN-Bus",
           "uav:enumValue": 27
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "LTE",
           "uav:enumName": "LTE",
           "uav:enumValue": 28
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "LTE-M",
           "uav:enumName": "LTE-M",
           "uav:enumValue": 29
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "M-Bus",
           "uav:enumName": "M-Bus",
           "uav:enumValue": 30
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Modbus TCP",
           "uav:enumName": "ModbusTCP",
           "uav:enumValue": 31
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Modbus RTU",
           "uav:enumName": "ModbusRTU",
           "uav:enumValue": 32
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "MP-Bus",
           "uav:enumName": "MP-Bus",
           "uav:enumValue": 33
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "NB-IOT",
           "uav:enumName": "NB-IOT",
           "uav:enumValue": 34
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "NFC",
           "uav:enumName": "NFC",
           "uav:enumValue": 35
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "OPC UA",
           "uav:enumName": "OPCUA",
           "uav:enumValue": 36
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "OPC DA",
           "uav:enumName": "OPCDA",
           "uav:enumValue": 37
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "PROFIBUS DP",
           "uav:enumName": "PROFIBUSDP",
           "uav:enumValue": 38
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "PROFINET RT",
           "uav:enumName": "PROFINETRT",
           "uav:enumValue": 39
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Powerlink",
           "uav:enumName": "Powerlink",
           "uav:enumValue": 40
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "SERCOS",
           "uav:enumName": "SERCOS",
           "uav:enumValue": 41
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "SMI",
           "uav:enumName": "SMI",
           "uav:enumValue": 42
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Thread",
           "uav:enumName": "Thread",
           "uav:enumValue": 43
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "UMTS",
           "uav:enumName": "UMTS",
           "uav:enumValue": 44
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "WIFI",
           "uav:enumName": "WIFI",
           "uav:enumValue": 45
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "X2X-Link",
           "uav:enumName": "X2X-Link",
           "uav:enumValue": 46
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "VARAN",
           "uav:enumName": "VARAN",
           "uav:enumValue": 47
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "ZigBee",
           "uav:enumName": "ZigBee",
           "uav:enumValue": 48
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Z-Wave",
           "uav:enumName": "Z-Wave",
@@ -731,6 +1291,16 @@
       "uav:isOptionSet": false
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3004",
       "@type": "uav:EnumDefinition",
       "description": "defines maintenance levels for the pump",
@@ -742,30 +1312,60 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Level 1 is characterized by simple actions carried out with minimal training",
           "uav:enumName": "Level1",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Level 2 is characterized by basic actions which have to be carried out by qualified personnel using detailed procedures ",
           "uav:enumName": "Level2",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Level 3 is characterized by complex actions carried out by qualified technical personnel using detailed procedures",
           "uav:enumName": "Level3",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Level 4 is characterized by actions which imply the know-how of a technique or a technology and carried out by specialized technical personnel",
           "uav:enumName": "Level4",
           "uav:enumValue": 3
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Level 5 is characterized by actions which imply a knowledge held by the manufacturer or a specialized company with industrial logistic support equipment",
           "uav:enumName": "Level5",
@@ -775,6 +1375,16 @@
       "uav:isOptionSet": false
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3011",
       "@type": "uav:EnumDefinition",
       "description": "specifies the actual multi pump operation mode",
@@ -786,24 +1396,48 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Standalone mode",
           "uav:enumName": "Standalone",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "pump fulfils the process function of another pump",
           "uav:enumName": "RedundancyOperation",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "supplementary fulfilling of the process function",
           "uav:enumName": "AdditionOperation",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Redundancy and addition operation mixed",
           "uav:enumName": "MixedRedundancy",
@@ -813,6 +1447,16 @@
       "uav:isOptionSet": false
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3006",
       "@type": "uav:EnumDefinition",
       "description": "specifies whether the pump is to be operated in single, parallel or series connection",
@@ -824,18 +1468,36 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Single operating mode",
           "uav:enumName": "SingleOperation",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Series operating mode",
           "uav:enumName": "SeriesOperation",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Parallel operating mode",
           "uav:enumName": "ParallelOperation",
@@ -845,6 +1507,16 @@
       "uav:isOptionSet": false
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3007",
       "@type": "uav:EnumDefinition",
       "description": "describes the possible operation modes of the pump",
@@ -856,66 +1528,132 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "standard control algorithm, not configurable",
           "uav:enumName": "AutoControl",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "pid algorithm, control parameters configurable in functional element ControlPID",
           "uav:enumName": "ClosedLoopStandardPID",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "manufacturer specific control algorithm, control parameters configurable",
           "uav:enumName": "Advanced",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "ready for operation ",
           "uav:enumName": "StandBy",
           "uav:enumValue": 3
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "open loop operation at minimum characteristic",
           "uav:enumName": "OpenLoopMin",
           "uav:enumValue": 4
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "open loop operation at set point value",
           "uav:enumName": "OpenLoopValue",
           "uav:enumValue": 5
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "open loop operation at maximum characteristic",
           "uav:enumName": "OpenLoopMax",
           "uav:enumValue": 6
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "closed loop operation at minimum characteristic",
           "uav:enumName": "ClosedLoopMin",
           "uav:enumValue": 7
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "closed loop operation at maximum characteristic",
           "uav:enumName": "ClosedLoopMax",
           "uav:enumValue": 8
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Test operation",
           "uav:enumName": "Test",
           "uav:enumValue": 9
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Calibration mode",
           "uav:enumName": "Calibration",
@@ -925,6 +1663,16 @@
       "uav:isOptionSet": false
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3014",
       "@type": "uav:EnumDefinition",
       "description": "determines whether the port is an inlet and outlet or both",
@@ -936,18 +1684,36 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Ports with the direction “In” can only be connected to ports with the direction “Out” or “InOut”.",
           "uav:enumName": "In",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Ports with the direction “Out” can only be connected to ports with the direction “In” or “InOut”.",
           "uav:enumName": "Out",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Ports with the direction “InOut” can be connected to ports with arbitrary directions.",
           "uav:enumName": "InOut",
@@ -957,6 +1723,16 @@
       "uav:isOptionSet": false
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3021",
       "@type": "uav:EnumDefinition",
       "description": "defines possible pump types",
@@ -968,42 +1744,84 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Rotodynamic pump",
           "uav:enumName": "RotodynamicPump",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Positive displacement pump",
           "uav:enumName": "PositiveDisplacementPump",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Process vacuum pump",
           "uav:enumName": "ProcessVacuumPump",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Turbo vacuum pump",
           "uav:enumName": "TurboVacuumPump",
           "uav:enumValue": 3
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Vacuum pump",
           "uav:enumName": "VacuumPump",
           "uav:enumValue": 4
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Liquid pump",
           "uav:enumName": "LiquidPump",
           "uav:enumValue": 5
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Pump",
           "uav:enumName": "Pump",
@@ -1013,6 +1831,16 @@
       "uav:isOptionSet": false
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3009",
       "@type": "uav:EnumDefinition",
       "description": "describes the pump kick mode of the pump",
@@ -1024,18 +1852,36 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Manufacturer specific pump kick mode",
           "uav:enumName": "ManufacturerSpecific",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Pump kick mode disabled",
           "uav:enumName": "Disabled",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Operator specific pump kick mode",
           "uav:enumName": "OperatorSpecific",
@@ -1045,6 +1891,16 @@
       "uav:isOptionSet": false
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3010",
       "@type": "uav:EnumDefinition",
       "description": "identifies the role rsp. task of the pump within the multi pump management",
@@ -1056,18 +1912,36 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Slave",
           "uav:enumName": "Slave",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Master",
           "uav:enumName": "Master",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Slave and auxiliary master",
           "uav:enumName": "SlaveAndAuxiliaryMaster",
@@ -1077,6 +1951,16 @@
       "uav:isOptionSet": false
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3003",
       "@type": "uav:EnumDefinition",
       "description": "describes the state of the pump",
@@ -1088,30 +1972,60 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Item is in up state and non-operating outside required time",
           "uav:enumName": "IdleState",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Item is in up state and non-operating during required time",
           "uav:enumName": "StandByState",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Item is in up state and operating as required",
           "uav:enumName": "OperatingState",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Item is in up state, but lacks required external resources or is disabled due to planned actions other than maintenance",
           "uav:enumName": "ExternalDisabledState",
           "uav:enumValue": 3
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Item is unable to perform a required function due to preventive maintenance or a fault",
           "uav:enumName": "DownState",
@@ -1121,6 +2035,16 @@
       "uav:isOptionSet": false
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3019",
       "@type": "uav:EnumDefinition",
       "description": "defines flags for directives on the basis of which conformity was determined",
@@ -1133,48 +2057,96 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Directives of the EU Declaration of Conformity - 2006/ 42/ EG, concerning machinery and amending Directive 95/16/EG",
           "uav:enumName": "2006_42_EC",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Directives of the EU Declaration of Conformity - 2009/ 125/ EC, establishing a framework for the setting of ecodesign requirements for energy-related products",
           "uav:enumName": "2009_125_EC",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Directives of the EU Declaration of Conformity - 2011/ 65/ EU, restriction of the use of certain hazardous substances in electrical and electronic equipment",
           "uav:enumName": "2011_65_EU",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Directives of the EU Declaration of Conformity - 2014/ 35/ EU, harmonisation of the laws of the Member States on the provision of electrical equipment for use within certain voltage limits on the market",
           "uav:enumName": "2014_35_EU",
           "uav:enumValue": 3
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Directives of the EU Declaration of Conformity - 2014/ 34/ EU, harmonisation of the laws of the Member States concerning equipment and protective systems intended for use in potentially explosive atmospheres",
           "uav:enumName": "2014_34_EU",
           "uav:enumValue": 4
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Directives of the EU Declaration of Conformity - 2014/ 30/ EU, harmonisation of the laws of the Member States on electromagnetic compatibility",
           "uav:enumName": "2014_30_EU",
           "uav:enumValue": 5
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Directives of the EU Declaration of Conformity - 2014/ 68/ EU, harmonisation of Member States' legislation on the provision of pressure equipment on the market",
           "uav:enumName": "2014_68_EU",
           "uav:enumValue": 6
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Directives of the EU Declaration of Conformity - 2014/ 29/ EU, harmonisation of the laws of the Member States relating to the making available on the market of simple pressure vessels",
           "uav:enumName": "2014_29_EU",
@@ -1186,6 +2158,16 @@
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5014"
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3016",
       "@type": "uav:EnumDefinition",
       "description": "defines flags for the category of explosion protection for devices according to EU Directive 2014/34/EU (ATEX)",
@@ -1198,48 +2180,96 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "This category is intended for use in underground mines and their surface installations which may be endangered by firedamp and/or combustible dust. Category 1 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a very high level of safety. (2014/34/EU)",
           "uav:enumName": "M1",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "This category is intended for use in underground mines and their surface installations which may be endangered by firedamp and/or combustible dust. Category 2 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a high level of safety. (2014/34/EU)",
           "uav:enumName": "M2",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and gases, vapours or mists is present. Category 1 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a very high level of safety. (2014/34/EU)",
           "uav:enumName": "1G",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and gases, vapours or mists is present. Category 2 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a high level of safety. (2014/34/EU)",
           "uav:enumName": "2G",
           "uav:enumValue": 3
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and gases, vapours or mists is present. Category 3 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a normal level of safety. (2014/34/EU)",
           "uav:enumName": "3G",
           "uav:enumValue": 4
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and dust is present. Category 1 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a very high level of safety. (2014/34/EU)",
           "uav:enumName": "1D",
           "uav:enumValue": 5
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and dust is present. Category 2 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a high level of safety. (2014/34/EU)",
           "uav:enumName": "2D",
           "uav:enumValue": 6
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and dust is present. Category 3 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a normal level of safety. (2014/34/EU)",
           "uav:enumName": "3D",
@@ -1251,6 +2281,16 @@
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5005"
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3015",
       "@type": "uav:EnumDefinition",
       "description": "defines flags for the category of explosion zones for devices",
@@ -1263,36 +2303,72 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "A zone in which an explosive atmosphere consisting of a mixture with air of flammable substances in the form of gas, vapour or mist is present continuously or for long periods or frequently.",
           "uav:enumName": "Zone 0",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "A zone in which an explosive atmosphere consisting of a mixture with air of flammable substances in the form of gas, vapour or mist is likely to occur in normal operation occasionally.",
           "uav:enumName": "Zone 1",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "A zone in which an explosive atmosphere consisting of a mixture with air of flammable substances in the form of gas, vapour or mist is not likely to occur in normal operation but, if it does occur, will persist for a short period only.",
           "uav:enumName": "Zone 2",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "A zone in which an explosive atmosphere in the form of a cloud of combustible dust in air is present continuously, for long periods or frequently.",
           "uav:enumName": "Zone 20",
           "uav:enumValue": 3
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "A zone in which an explosive atmosphere in the form of a cloud of combustible dust in air is likely to occur in normal operation occasionally.",
           "uav:enumName": "Zone 21",
           "uav:enumValue": 4
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "A zone in which an explosive atmosphere in the form of a cloud of combustible dust in air is not likely to occur in normal operation but, if it does occur, will persist for a short period only.",
           "uav:enumName": "Zone 22",
@@ -1304,6 +2380,16 @@
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5002"
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3017",
       "@type": "uav:EnumDefinition",
       "description": "defines flags for offerd control modes supported by the manufacturer for the product",
@@ -1316,72 +2402,144 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Constant pressure control mode",
           "uav:enumName": "Constant pressure control",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Constant temperature control mode",
           "uav:enumName": "Constant temperature control",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Differential pressure control mode",
           "uav:enumName": "Differential pressure control",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Constant differential pressure control mode",
           "uav:enumName": "Constant differential pressure control",
           "uav:enumValue": 3
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Variable differential pressure control mode",
           "uav:enumName": "Variable differential pressure control",
           "uav:enumValue": 4
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Flow-dependent differential pressure control mode",
           "uav:enumName": "Flow_dependent differential pressure control",
           "uav:enumValue": 5
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Return flow temperature control mode",
           "uav:enumName": "Return flow temperature control",
           "uav:enumValue": 6
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Flow temperature control mode",
           "uav:enumName": "Flow temperature control",
           "uav:enumValue": 7
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Flow rate control mode",
           "uav:enumName": "Flow rate control",
           "uav:enumValue": 8
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Automatic control mode",
           "uav:enumName": "Automatic",
           "uav:enumValue": 9
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "None / uncontrolled mode",
           "uav:enumName": "Uncontrolled",
           "uav:enumValue": 10
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Speed control mode",
           "uav:enumName": "Speed control",
@@ -1393,6 +2551,16 @@
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5008"
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3018",
       "@type": "uav:EnumDefinition",
       "description": "defines flags for fieldbuses supported by the manufacturer for the product",
@@ -1405,300 +2573,600 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Additional fieldbuses listed in the AdditionalFieldbuses variable",
           "uav:enumName": "Other",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "ARCNET",
           "uav:enumName": "ARCNET",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "AS-Interface",
           "uav:enumName": "AS_Interface",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "BACnet/IP",
           "uav:enumName": "BACnet_IP",
           "uav:enumValue": 3
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "BACnet/MSTP",
           "uav:enumName": "BACnet_MSTP",
           "uav:enumValue": 4
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Bluetooth",
           "uav:enumName": "Bluetooth",
           "uav:enumValue": 5
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Bluetooth Low Energy",
           "uav:enumName": "Bluetooth Low Energy",
           "uav:enumValue": 6
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "CAN",
           "uav:enumName": "CAN",
           "uav:enumValue": 7
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "CANopen",
           "uav:enumName": "CANopen",
           "uav:enumValue": 8
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "CC-Link",
           "uav:enumName": "CC_Link",
           "uav:enumValue": 9
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "ControlNet",
           "uav:enumName": "ControlNet",
           "uav:enumValue": 10
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "DALI",
           "uav:enumName": "DALI",
           "uav:enumValue": 11
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "DECT ULE",
           "uav:enumName": "DECT ULE",
           "uav:enumValue": 12
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "DeviceNet",
           "uav:enumName": "DeviceNet",
           "uav:enumValue": 13
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "DMX",
           "uav:enumName": "DMX",
           "uav:enumValue": 14
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "KNX",
           "uav:enumName": "KNX",
           "uav:enumValue": 15
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "EnOcean",
           "uav:enumName": "EnOcean",
           "uav:enumValue": 16
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "EtherCAT",
           "uav:enumName": "EtherCAT",
           "uav:enumValue": 17
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Ethernet/IP",
           "uav:enumName": "Ethernet_IP",
           "uav:enumValue": 18
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Ethernet TCP/IP",
           "uav:enumName": "Ethernet TCP_IP",
           "uav:enumValue": 19
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "IEEE1588",
           "uav:enumName": "IEEE1588",
           "uav:enumValue": 20
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "GSM",
           "uav:enumName": "GSM",
           "uav:enumValue": 21
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Interbus",
           "uav:enumName": "Interbus",
           "uav:enumValue": 22
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "IO-Link",
           "uav:enumName": "IO_Link",
           "uav:enumValue": 23
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "HART",
           "uav:enumName": "HART",
           "uav:enumValue": 24
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "LON",
           "uav:enumName": "LON",
           "uav:enumValue": 25
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "LoRaWAN",
           "uav:enumName": "LoRaWAN",
           "uav:enumValue": 26
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "LIN-Bus",
           "uav:enumName": "LIN_Bus",
           "uav:enumValue": 27
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "LTE",
           "uav:enumName": "LTE",
           "uav:enumValue": 28
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "LTE-M",
           "uav:enumName": "LTE_M",
           "uav:enumValue": 29
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "M-Bus",
           "uav:enumName": "M_Bus",
           "uav:enumValue": 30
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Modbus TCP",
           "uav:enumName": "Modbus TCP",
           "uav:enumValue": 31
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Modbus RTU",
           "uav:enumName": "Modbus RTU",
           "uav:enumValue": 32
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "MP-Bus",
           "uav:enumName": "MP_Bus",
           "uav:enumValue": 33
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "NB-IOT",
           "uav:enumName": "NB_IOT",
           "uav:enumValue": 34
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "NFC",
           "uav:enumName": "NFC",
           "uav:enumValue": 35
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "OPC UA",
           "uav:enumName": "OPC UA",
           "uav:enumValue": 36
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "OPC DA",
           "uav:enumName": "OPC DA",
           "uav:enumValue": 37
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "PROFIBUS DP",
           "uav:enumName": "PROFIBUS DP",
           "uav:enumValue": 38
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "PROFINET RT",
           "uav:enumName": "PROFINET RT",
           "uav:enumValue": 39
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Powerlink",
           "uav:enumName": "Powerlink",
           "uav:enumValue": 40
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "SERCOS",
           "uav:enumName": "SERCOS",
           "uav:enumValue": 41
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "SMI",
           "uav:enumName": "SMI",
           "uav:enumValue": 42
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Thread",
           "uav:enumName": "Thread",
           "uav:enumValue": 43
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "UMTS",
           "uav:enumName": "UMTS",
           "uav:enumValue": 44
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "WIFI",
           "uav:enumName": "WIFI",
           "uav:enumValue": 45
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "X2X_Link",
           "uav:enumName": "X2X_Link",
           "uav:enumValue": 46
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "VARAN",
           "uav:enumName": "VARAN",
           "uav:enumValue": 47
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "ZigBee",
           "uav:enumName": "ZigBee",
           "uav:enumValue": 48
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Z-Wave",
           "uav:enumName": "Z_Wave",
@@ -1710,6 +3178,16 @@
       "uav:xmlEncodingId": "nsu=http://opcfoundation.org/UA/Pumps/;i=5011"
     },
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3020",
       "@type": "uav:StructureDefinition",
       "description": "Physical address of the manufacturer.",
@@ -1722,6 +3200,12 @@
       },
       "uav:fields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:StructureField",
           "description": "Street name where the manufacturer is located.",
           "uav:allowSubtypes": false,
@@ -1731,6 +3215,12 @@
           "uav:valueRank": -1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:StructureField",
           "description": "Street number where the manufacturer is located.",
           "uav:allowSubtypes": false,
@@ -1740,6 +3230,12 @@
           "uav:valueRank": -1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:StructureField",
           "description": "City where the manufacturer is located.",
           "uav:allowSubtypes": false,
@@ -1749,6 +3245,12 @@
           "uav:valueRank": -1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:StructureField",
           "description": "Postal code where the manufacturer is located.",
           "uav:allowSubtypes": false,
@@ -1758,6 +3260,12 @@
           "uav:valueRank": -1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:StructureField",
           "description": "State where the manufacturer is located.",
           "uav:allowSubtypes": false,
@@ -1767,6 +3275,12 @@
           "uav:valueRank": -1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:StructureField",
           "description": "Country where the manufacturer is located.",
           "uav:allowSubtypes": false,

@@ -38,7 +38,7 @@ namespace Opc.Ua.Wot
 {
     public static partial class WotNodeSetConverter
     {
-        private static void ValidatePreservedReadableFacts(
+        internal static void ValidatePreservedReadableFacts(
             WotDocument document,
             UANodeSet baseline,
             WotNodeSetConverterOptions options,
@@ -330,7 +330,24 @@ namespace Opc.Ua.Wot
                 string? conditionOwner = null;
                 if (collection == "properties")
                 {
-                    owner = ReadComponentOfParent(affordance.Value, identities, diagnostics) ?? owner;
+                    string? explicitOwner = ReadComponentOfParent(affordance.Value, identities, diagnostics);
+                    if (explicitOwner is not null)
+                    {
+                        owner = explicitOwner;
+                    }
+                    else
+                    {
+                        foreach (KeyValuePair<string, JsonElement> candidate in document.Properties)
+                        {
+                            if (TryReadUnitPointerTarget(document, candidate.Value, out string target) &&
+                                target == affordance.Key &&
+                                resolved["/properties/" + EscapeJsonPointerToken(candidate.Key)] is { } unitOwner)
+                            {
+                                owner = ResolveArchivedAlias(unitOwner.NodeId, aliases);
+                                break;
+                            }
+                        }
+                    }
                 }
                 else if (collection == "actions" &&
                     affordance.Value.ValueKind == JsonValueKind.Object &&
@@ -470,14 +487,13 @@ namespace Opc.Ua.Wot
                 UAVariableType variableType => variableType.ArrayDimensions,
                 _ => null
             };
-            string? locale = GetDeclaredLocale(document);
             if (!isRoot || authored.TryGetProperty(TitlesMember, out _))
             {
                 CompareArchivedText(
-                    ReadTitle(authored, locale), node.DisplayName, pointer + "/title", diagnostics);
+                    ReadTitle(document, authored), node.DisplayName, pointer + "/title", diagnostics);
             }
             CompareArchivedText(
-                ReadDescription(authored, locale), node.Description, pointer + "/description", diagnostics);
+                ReadDescription(document, authored), node.Description, pointer + "/description", diagnostics);
             foreach (JsonProperty member in authored.EnumerateObject())
             {
                 string location = pointer + "/" + EscapeJsonPointerToken(member.Name);
@@ -590,7 +606,7 @@ namespace Opc.Ua.Wot
                         {
                             if (!PreservedArgumentSchemasMatch(
                                 document, authored, regeneratedDocument ?? document, regenerated,
-                                member.Name, identities, aliases, diagnostics))
+                                member.Name, identities, aliases, diagnostics, pointer))
                             {
                                 ReportArchiveConflict(location, member.Name, diagnostics);
                             }
@@ -600,11 +616,17 @@ namespace Opc.Ua.Wot
                             ReportArchiveConflict(location, member.Name, diagnostics);
                         }
                         break;
+                    case EngineeringUnitsTerm:
+                        if (node is UAVariable unitVariable)
+                        {
+                            CompareArchivedEngineeringUnits(
+                                document, member.Value, unitVariable, location, diagnostics);
+                        }
+                        break;
                     case "uav:dataTypeDefinition":
                     case InverseNameTerm:
                     case SymmetricTerm:
                     case DataMember:
-                    case EngineeringUnitsTerm:
                     case InstrumentRangeTerm:
                     case MinimumMember:
                     case MaximumMember:
@@ -629,6 +651,31 @@ namespace Opc.Ua.Wot
                 }
             }
             AttachPreservedNodeIdentity(diagnostics, firstDiagnostic, node.NodeId);
+        }
+
+        private static void CompareArchivedEngineeringUnits(
+            WotDocument document,
+            JsonElement authored,
+            UAVariable variable,
+            string pointer,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!TryReadEngineeringUnits(authored, out WotEngineeringUnits? declared, document) ||
+                !TryDecodeEngineeringUnits(variable.Value, out WotEngineeringUnits? expected) ||
+                declared!.NamespaceUri != expected!.NamespaceUri ||
+                declared.UnitId != expected.UnitId)
+            {
+                ReportArchiveConflict(pointer, "EngineeringUnits", diagnostics);
+                return;
+            }
+            if (declared.DisplayName is { Length: > 0 } displayNames)
+            {
+                CompareArchivedText([displayNames[0]], expected.DisplayName, pointer + "/displayName", diagnostics);
+            }
+            if (declared.Description is { Length: > 0 } descriptions)
+            {
+                CompareArchivedText([descriptions[0]], expected.Description, pointer + "/description", diagnostics);
+            }
         }
 
         private static void AttachPreservedNodeIdentity(
@@ -679,7 +726,8 @@ namespace Opc.Ua.Wot
             string member,
             UANodeSet identities,
             INodeSetAliasResolver aliases,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            string actionPointer)
         {
             WotConversionResult<WotMethodArgumentLayout> authored =
                 GetMethodArgumentLayout(authoredAction, member);
@@ -701,15 +749,29 @@ namespace Opc.Ua.Wot
             var factDiagnostics = new List<WotDiagnostic>();
             DataTypeDefinitionContext authoredTypes = CreateDataTypeDefinitionContext(
                 authoredDocument, identities, [], [], factDiagnostics);
+            var argumentSchemas = new HashSet<JsonElement>();
             bool factsMatch = true;
             for (int index = 0; index < authored.Value.ArgumentCount; index++)
             {
+                JsonElement argumentSchema = authored.Value.GetArgumentSchema(authoredSchema, index);
+                argumentSchemas.Add(argumentSchema);
                 WotMethodArgument authoredArgument = ReadArgument(
-                    authoredDocument, authored.Value.GetArgumentSchema(authoredSchema, index), "Argument",
+                    authoredDocument, argumentSchema, "Argument",
                     identities, factDiagnostics, authoredTypes);
                 WotMethodArgument generatedArgument = ReadArgument(
                     generatedDocument, generated.Value.GetArgumentSchema(generatedSchema, index), "Argument",
                     identities, factDiagnostics, null);
+                if (authoredArgument.Description is { Length: > 0 } descriptions)
+                {
+                    string argumentPointer = actionPointer + "/" + member;
+                    if (authored.Value.Kind == WotMethodArgumentLayoutKind.Named)
+                    {
+                        argumentPointer += "/properties/" + EscapeJsonPointerToken(authored.Value.FieldOrder[index]);
+                    }
+                    CompareArchivedText(
+                        [descriptions[0]], generatedArgument.Description,
+                        argumentPointer + "/description", factDiagnostics);
+                }
                 if (ResolveArchivedAlias(authoredArgument.DataType, aliases) !=
                     ResolveArchivedAlias(generatedArgument.DataType, aliases) ||
                     authoredArgument.ValueRank != generatedArgument.ValueRank ||
@@ -738,7 +800,7 @@ namespace Opc.Ua.Wot
                 return IsArchivedJsonSubset(
                     schema, generated.Value.GetArgumentSchema(generatedSchema, 0),
                     authoredDocument, identities, aliases, diagnostics,
-                    expectedDocument: generatedDocument);
+                    expectedDocument: generatedDocument, argumentSchemas: argumentSchemas);
             }
             if (authored.Value.Kind != generated.Value.Kind)
             {
@@ -753,7 +815,7 @@ namespace Opc.Ua.Wot
                 optionalRequiredField: member == InputMember &&
                     AllowsOptionalPreservedConditionComment(authoredAction, generatedAction)
                         ? CommentField : null,
-                expectedDocument: generatedDocument);
+                expectedDocument: generatedDocument, argumentSchemas: argumentSchemas);
         }
 
         private static void CompareArchivedJsonType(
@@ -1290,7 +1352,8 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic>? diagnostics = null,
             bool namedMap = false,
             string? optionalRequiredField = null,
-            WotDocument? expectedDocument = null)
+            WotDocument? expectedDocument = null,
+            HashSet<JsonElement>? argumentSchemas = null)
         {
             if (authored.ValueKind != expected.ValueKind)
             {
@@ -1312,6 +1375,11 @@ namespace Opc.Ua.Wot
                     }
                     foreach (JsonProperty member in authored.EnumerateObject())
                     {
+                        if (member.Name is DescriptionMember or DescriptionsMember &&
+                            argumentSchemas?.Contains(authored) == true)
+                        {
+                            continue;
+                        }
                         if (definition &&
                             (member.Name is DefaultEncodingsTerm or "uav:hasDefaultEncoding" ||
                                 PresenceForEncodingTerm(member.Name) != EncodingPresence.None))
@@ -1386,7 +1454,7 @@ namespace Opc.Ua.Wot
                         if (!IsArchivedJsonSubset(
                             member.Value, value, document, identities, aliases, diagnostics,
                             member.Name is "properties" or TitlesMember or DescriptionsMember or "displayNames",
-                            expectedDocument: expectedDocument))
+                            expectedDocument: expectedDocument, argumentSchemas: argumentSchemas))
                         {
                             return false;
                         }
@@ -1401,7 +1469,7 @@ namespace Opc.Ua.Wot
                     {
                         if (!IsArchivedJsonSubset(
                             authored[index], expected[index], document, identities, aliases, diagnostics,
-                            expectedDocument: expectedDocument))
+                            expectedDocument: expectedDocument, argumentSchemas: argumentSchemas))
                         {
                             return false;
                         }

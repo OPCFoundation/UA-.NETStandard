@@ -160,9 +160,46 @@ namespace Opc.Ua.Types.Tests.Wot
 
             JsonElement property = restored.RootElement.GetProperty("properties").GetProperty("Value");
             Assert.That(property.GetProperty("@type").EnumerateArray().Select(token => token.GetString()),
-                Does.Contain("semantic:Measurement"));
+                Is.EqualTo(s_contextualPropertyTypes));
             Assert.That(property.GetProperty("@context").GetProperty("semantic").GetString(),
                 Is.EqualTo("urn:property-semantic#"));
+        }
+
+        [TestCase("properties", "uav:variable")]
+        [TestCase("actions", "uav:method")]
+        [TestCase("events", "uav:eventType")]
+        public void ContextualTypeAnnotationsRetainNativeClassAndDeduplicateSemanticTypes(
+            string collection, string nativeType)
+        {
+            string json = $$"""
+                {
+                  "@context": {
+                    "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+                    "device": "urn:semantic-type#"
+                  },
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "uav:browseName": "device:Device",
+                  "{{collection}}": {
+                    "Interaction": {
+                      "@context": {"semantic": "urn:property-semantic#"},
+                      "@type": ["{{nativeType}}", "semantic:First", "semantic:Second", "semantic:First"],
+                      "uav:browseName": "device:Interaction"
+                    }
+                  }
+                }
+                """;
+            UANodeSet nodes = WotNodeSetConverter.ToNodeSet(Encoding.UTF8.GetBytes(json));
+
+            for (int pass = 0; pass < 3; pass++)
+            {
+                using WotDocument restored = WotNodeSetConverter.FromNodeSet(nodes);
+                JsonElement affordance = restored.RootElement.GetProperty(collection).GetProperty("Interaction");
+                Assert.That(affordance.GetProperty("@type").EnumerateArray().Select(token => token.GetString()),
+                    Is.EqualTo([nativeType, "semantic:First", "semantic:Second"]));
+                Assert.That(affordance.GetProperty("@context").GetProperty("semantic").GetString(),
+                    Is.EqualTo("urn:property-semantic#"));
+                nodes = WotNodeSetConverter.ToNodeSet(restored);
+            }
         }
 
         [TestCase("[\"uav:method\"]", WotDiagnosticCode.ResidueConflict, false)]
@@ -210,5 +247,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     string.Join("; ", result.Diagnostics));
             }
         }
+
+        private static readonly string[] s_contextualPropertyTypes = ["uav:variable", "semantic:Measurement"];
     }
 }

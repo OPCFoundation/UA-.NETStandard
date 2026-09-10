@@ -1256,6 +1256,7 @@ namespace Opc.Ua.Wot
             }
             if (declared is not null)
             {
+                WriteLocalizedTextContext(writer, null, declared.Description, defaultLocale);
                 WriteLocalizedDescription(writer, declared.Description, defaultLocale);
             }
             writer.WriteEndObject();
@@ -1280,6 +1281,7 @@ namespace Opc.Ua.Wot
             string defaultLocale)
         {
             writer.WriteStartObject();
+            WriteLocalizedTextContext(writer, field.DisplayName, field.Description, defaultLocale);
             WriteRankedJsonType(writer, field.DataType, field.ValueRank);
             WriteLocalizedTitle(writer, field.DisplayName, defaultLocale);
             WriteLocalizedDescription(writer, field.Description, defaultLocale);
@@ -1763,7 +1765,7 @@ namespace Opc.Ua.Wot
                     ? GetOrAppendNamespaceUri(nodeSet, GeneratedNamespaceUri(nodeSet))
                         .ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + local
                     : ToNodeSetQualifiedName(document, authoredBrowseName, nodeSet, diagnostics, schema),
-                DisplayName = ReadTitle(schema, GetDeclaredLocale(document), local),
+                DisplayName = ReadTitle(document, schema, local),
                 ParentNodeId = eventNodeId,
                 DataType = MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics, dataTypes),
                 ValueRank = GetElementInt32(schema, "uav:valueRank") ?? -1,
@@ -1796,7 +1798,7 @@ namespace Opc.Ua.Wot
             string? description = GetElementString(schema, "description");
             if (description is not null)
             {
-                field.Description = ReadDescription(schema, GetDeclaredLocale(document));
+                field.Description = ReadDescription(document, schema);
             }
             items.Add(field);
             eventReferences.Add(new Reference

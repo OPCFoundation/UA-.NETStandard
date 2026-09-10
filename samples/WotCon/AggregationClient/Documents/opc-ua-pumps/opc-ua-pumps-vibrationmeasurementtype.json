@@ -8,7 +8,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -23,6 +29,16 @@
   ],
   "properties": {
     "1XPhase": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Phase of the 1X relative shaft vibration related to a reference point of time. The reference point of time for the phase is defined by a so called phase reference sensor.",
       "links": [
@@ -43,6 +59,16 @@
       "unit": "°"
     },
     "1XRelativeShaftVibrationP_P": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Oscillation range at the rotation frequency of the shaft under consideration, expressed as displacement.",
       "links": [
@@ -63,6 +89,16 @@
       "unit": "µm"
     },
     "2XPhase": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Phase of the 2X relative shaft vibration related to a reference point of time. The reference point of time for the phase is defined by a so called phase reference sensor.",
       "links": [
@@ -83,6 +119,16 @@
       "unit": "°"
     },
     "2XRelativeShaftVibrationP_P": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Oscillation range at the double rotation frequency of the shaft under consideration, expressed as displacement.",
       "links": [
@@ -103,6 +149,16 @@
       "unit": "µm"
     },
     "BearingIndex": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Amplitude of the oscillation envelope after high pass filtering, expressed as acceleration. The parameter for the high pass filtering and oscillation envelope are regularly defined by the user.",
       "links": [
@@ -123,6 +179,16 @@
       "unit": "m/s²"
     },
     "BearingIndexPerG": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Amplitude of the oscillation envelope after high pass filtering, expressed as acceleration in units of the acceleration of gravity g. The parameter for the high pass filtering and oscillation envelope are regularly defined by the user.",
       "links": [
@@ -141,6 +207,16 @@
       "uav:modellingRule": "Optional"
     },
     "BroadbandCavitationAccelerationPerG_RMS": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Root mean square of the oscillation signal due to cavitation within a defined frequency range, expressed as acceleration in units of the acceleration of gravity g. The frequency range is regularly defined by the user.",
       "links": [
@@ -159,6 +235,16 @@
       "uav:modellingRule": "Optional"
     },
     "BroadbandCavitationAccelerationRMS": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Root mean square of the oscillation signal due to cavitation within a defined frequency range, expressed as acceleration. The frequency range is regularly defined by the user.",
       "links": [
@@ -179,6 +265,12 @@
       "unit": "m/s²"
     },
     "Definition": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -204,6 +296,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -229,6 +327,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -254,6 +358,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -279,6 +389,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_13": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -304,6 +420,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_14": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -329,6 +451,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_15": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -354,6 +482,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_16": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -379,6 +513,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_17": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -404,6 +544,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_18": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -429,6 +575,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_19": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -454,6 +606,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -479,6 +637,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_20": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -504,6 +668,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_21": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -529,6 +699,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_22": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -554,6 +730,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_23": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -579,6 +761,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_24": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -604,6 +792,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_25": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -629,6 +823,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_26": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -654,6 +854,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_27": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -679,6 +885,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_28": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -704,6 +916,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_29": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -729,6 +947,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -754,6 +978,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_30": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -779,6 +1009,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_31": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -804,6 +1040,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_32": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -829,6 +1071,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_33": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -854,6 +1102,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_34": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -879,6 +1133,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_35": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -904,6 +1164,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_36": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -929,6 +1195,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -954,6 +1226,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -979,6 +1257,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1004,6 +1288,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1029,6 +1319,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1054,6 +1350,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1079,6 +1381,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1103,6 +1411,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1127,6 +1441,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1151,6 +1471,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1175,6 +1501,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_13": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1199,6 +1531,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_14": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1223,6 +1561,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_15": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1247,6 +1591,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_16": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1271,6 +1621,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_17": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1295,6 +1651,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_18": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1319,6 +1681,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_19": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1343,6 +1711,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1367,6 +1741,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_20": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1391,6 +1771,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_21": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1415,6 +1801,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_22": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1439,6 +1831,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_23": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1463,6 +1861,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_24": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1487,6 +1891,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_25": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1511,6 +1921,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_26": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1535,6 +1951,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_27": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1559,6 +1981,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_28": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1583,6 +2011,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_29": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1607,6 +2041,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1631,6 +2071,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_30": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1655,6 +2101,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_31": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1679,6 +2131,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_32": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1703,6 +2161,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_33": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1727,6 +2191,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_34": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1751,6 +2221,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_35": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1775,6 +2251,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1799,6 +2281,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1823,6 +2311,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1847,6 +2341,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1871,6 +2371,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1895,6 +2401,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1919,6 +2431,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1950,6 +2468,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1981,6 +2505,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2012,6 +2542,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2043,6 +2579,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_13": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2067,6 +2609,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_14": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2091,6 +2639,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_15": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2115,6 +2669,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_16": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2146,6 +2706,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_17": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2177,6 +2743,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_18": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2208,6 +2780,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_19": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2239,6 +2817,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2270,6 +2854,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_20": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2301,6 +2891,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_21": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2332,6 +2928,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_22": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2363,6 +2965,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_23": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2394,6 +3002,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_24": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2425,6 +3039,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_25": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2456,6 +3076,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_26": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2487,6 +3113,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_27": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2511,6 +3143,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_28": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2542,6 +3180,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_29": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2573,6 +3217,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2604,6 +3254,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_30": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2635,6 +3291,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_31": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2659,6 +3321,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_32": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2690,6 +3358,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_33": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2721,6 +3395,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_34": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2752,6 +3432,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_35": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2776,6 +3462,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2807,6 +3499,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2838,6 +3536,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2862,6 +3566,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2886,6 +3596,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2917,6 +3633,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2948,6 +3670,16 @@
       "uav:modellingRule": "Optional"
     },
     "GapVoltage": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Sum value of the oscillation ranges of the vibration at all frequencies except the rotation frequency of the shaft under consideration, expressed as displacement. Regularly, only the frequency range below the rotational frequency is considered.",
       "links": [
@@ -2968,6 +3700,16 @@
       "unit": "V"
     },
     "Not1XRelativeShaftVibrationP_P": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Phase of the 2X relative shaft vibration related to a reference point of time. The reference point of time for the phase is defined by a so called phase reference sensor.",
       "links": [
@@ -2988,6 +3730,16 @@
       "unit": "µm"
     },
     "OverallVibrationAcceleration0_P": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Maximum oscillation amplitude, expressed as acceleration. The oscillation range is the difference between the minimum and maximum value within the time range under consideration.",
       "links": [
@@ -3008,6 +3760,16 @@
       "unit": "m/s²"
     },
     "OverallVibrationAccelerationP_P": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Oscillation range, expressed as acceleration. The oscillation range is the difference between the minimum and maximum value within the time range under consideration.",
       "links": [
@@ -3028,6 +3790,16 @@
       "unit": "m/s²"
     },
     "OverallVibrationAccelerationPerG0_P": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Maximum oscillation amplitude, expressed as acceleration in units of the acceleration of gravity g. The oscillation range is the difference between the minimum and maximum value within the time range under consideration.",
       "links": [
@@ -3046,6 +3818,16 @@
       "uav:modellingRule": "Optional"
     },
     "OverallVibrationAccelerationPerGP_P": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Oscillation range, expressed as acceleration in units of the acceleration of gravity g. The oscillation range is the difference between the minimum and maximum value within the time range under consideration.",
       "links": [
@@ -3064,6 +3846,16 @@
       "uav:modellingRule": "Optional"
     },
     "OverallVibrationAccelerationPerG_RMS": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Root mean square of the oscillation displacement, expressed as acceleration in units of the acceleration of gravity g",
       "links": [
@@ -3082,6 +3874,16 @@
       "uav:modellingRule": "Optional"
     },
     "OverallVibrationAccelerationRMS": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Root mean square of the oscillation displacement, expressed as acceleration",
       "links": [
@@ -3102,6 +3904,16 @@
       "unit": "m/s²"
     },
     "OverallVibrationDisplacementP_P": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Oscillation range, expressed as local displacement. The oscillation range is the difference between the minimum and maximum value within the time range under consideration.",
       "links": [
@@ -3122,6 +3934,16 @@
       "unit": "µm"
     },
     "OverallVibrationDisplacementRMS": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Root mean square of oscillation range, expressed as local displacement. The oscillation range is the difference between the minimum and maximum value within the time range under consideration.",
       "links": [
@@ -3142,6 +3964,16 @@
       "unit": "µm"
     },
     "OverallVibrationVelocity0_P": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Maximum oscillation amplitude, expressed as velocity. The oscillation range is the difference between the minimum and maximum value within the time range under consideration.",
       "links": [
@@ -3162,6 +3994,16 @@
       "unit": "mm/s"
     },
     "OverallVibrationVelocityP_P": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Oscillation range, expressed as velocity. The oscillation range is the difference between the minimum and maximum value within the time range under consideration.",
       "links": [
@@ -3182,6 +4024,16 @@
       "unit": "mm/s"
     },
     "OverallVibrationVelocityRMS": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Root mean square of the oscillation displacement expressed as velocity",
       "links": [
@@ -3202,6 +4054,16 @@
       "unit": "mm/s"
     },
     "ReferenceStandardForVibrationMeasurement": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Standard to which statements on vibration measurement refer.",
       "links": [
@@ -3220,6 +4082,16 @@
       "uav:modellingRule": "Optional"
     },
     "RotationalPhase1X": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Phase of the vibration amplitude at the rotation frequency (1X) of the object under consideration related to a reference point of time. The reference point of time for the phase is defined by a so called phase reference sensor.",
       "links": [
@@ -3240,6 +4112,16 @@
       "unit": "°"
     },
     "RotationalPhase2X": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Phase of the vibration amplitude at the first harmonic of the rotation frequency (2X) of the object under consideration related to a reference point of time. The reference point of time for the phase is defined by a so called phase reference sensor.",
       "links": [
@@ -3260,6 +4142,16 @@
       "unit": "°"
     },
     "SpeedOfRotation": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Number of revolutions per time.",
       "links": [
@@ -3280,6 +4172,16 @@
       "unit": "s⁻¹"
     },
     "ThrustPosition": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Measure for the distance between the sensor and the shaft, expressed as device output voltage",
       "links": [
@@ -3300,6 +4202,16 @@
       "unit": "mm"
     },
     "VibrationAmplitudeAtTheBearingDefectFrequencies": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Amplitude of the oscillation envelope at the roller bearing defect frequencies after high pass filtering, expressed as acceleration. The parameter for the high pass filtering and oscillation envelope are regularly defined by the user.",
       "links": [
@@ -3320,6 +4232,16 @@
       "unit": "m/s²"
     },
     "VibrationAmplitudeAtTheBearingDefectFrequenciesPerG": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Amplitude of the oscillation envelope at the roller bearing defect frequencies after high pass filtering, expressed as acceleration in units of the acceleration of gravity g. The parameter for the high pass filtering and oscillation envelope are regularly defined by the user.",
       "links": [
@@ -3338,6 +4260,16 @@
       "uav:modellingRule": "Optional"
     },
     "VibrationAmplitudeAtTheBladePassFrequency": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Performance indicator of vibration calculated from the oscillation amplitude at the rotation frequency of the shaft multiplied with the number of blades mounted at the shaft, expressed as velocity.",
       "links": [
@@ -3358,6 +4290,16 @@
       "unit": "mm/s"
     },
     "VibrationAmplitudeAtTheFirstHarmonicOfTheRotationFrequency2X": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Oscillation amplitude at the double rotation frequency of the object under consideration, expressed as velocity.",
       "links": [
@@ -3378,6 +4320,16 @@
       "unit": "mm/s"
     },
     "VibrationAmplitudeAtTheGearMeshingFrequency": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Performance indicator of vibration calculated from the oscillation amplitude at the rotation frequency of the shaft, multiplied with the number of teeth of the gear mounted at the shaft, expressed as acceleration.",
       "links": [
@@ -3398,6 +4350,16 @@
       "unit": "m/s²"
     },
     "VibrationAmplitudeAtTheGearMeshingFrequencyPerG": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Performance indicator of vibration calculated from the oscillation amplitude at the rotation frequency of the shaft, multiplied with the number of teeth of the gear mounted at the shaft, expressed as acceleration in units of the acceleration of gravity g.",
       "links": [
@@ -3416,6 +4378,16 @@
       "uav:modellingRule": "Optional"
     },
     "VibrationAmplitudeAtTheHarmonicsOfTheRotationFrequencyNx": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Performance indicator of vibration calculated from the oscillation amplitude at the harmonics of the rotation frequency of the object under consideration, expressed as velocity.",
       "links": [
@@ -3436,6 +4408,16 @@
       "unit": "mm/s"
     },
     "VibrationAmplitudeAtTheRotationFrequency1X": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Oscillation amplitude at the rotation frequency of the object under consideration, expressed as velocity.",
       "links": [
@@ -3456,6 +4438,16 @@
       "unit": "mm/s"
     },
     "VibrationAmplitudeAtTheSidebandsOfTheGearMeshingFrequency": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Root mean square of the oscillation signal within defined frequency ranges, which include the side bands of the mesh frequency above and below the mesh frequency, expressed as acceleration.",
       "links": [
@@ -3476,6 +4468,16 @@
       "unit": "m/s²"
     },
     "VibrationAmplitudeAtTheSidebandsOfTheGearMeshingFrequencyPerG": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "description": "Root mean square of the oscillation signal within defined frequency ranges, which include the side bands of the mesh frequency above and below the mesh frequency, expressed as acceleration in units of the acceleration of gravity g.",
       "links": [

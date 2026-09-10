@@ -6,11 +6,23 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": "uav:object",
   "actions": {
     "CloseAndCommit": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -24,6 +36,7 @@
           "FileHandle"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "FileHandle"
         ]
@@ -39,6 +52,7 @@
           "CompletionStateMachine"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "CompletionStateMachine"
         ]
@@ -49,6 +63,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "GenerateFileForRead": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -61,6 +81,7 @@
           "GenerateOptions"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "GenerateOptions"
         ]
@@ -87,6 +108,7 @@
           "CompletionStateMachine"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "FileNodeId",
           "FileHandle",
@@ -99,6 +121,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "GenerateFileForWrite": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -111,6 +139,7 @@
           "GenerateOptions"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "GenerateOptions"
         ]
@@ -132,6 +161,7 @@
           "FileHandle"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "FileNodeId",
           "FileHandle"
@@ -156,6 +186,12 @@
   ],
   "properties": {
     "ClientProcessingTimeout": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {

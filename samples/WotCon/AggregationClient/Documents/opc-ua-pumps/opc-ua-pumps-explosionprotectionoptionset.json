@@ -8,7 +8,17 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "description": {
+        "@id": "https://www.w3.org/2019/wot/td#description",
+        "@language": null
+      },
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -24,6 +34,12 @@
   ],
   "properties": {
     "OptionSetValues": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "items": {},
       "links": [
@@ -56,6 +72,16 @@
   "uav:browseName": "ns1:ExplosionProtectionOptionSet",
   "uav:dataTypeDefinitions": [
     {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@id": "nsu=http://opcfoundation.org/UA/Pumps/;i=3016",
       "@type": "uav:EnumDefinition",
       "description": "defines flags for the category of explosion protection for devices according to EU Directive 2014/34/EU (ATEX)",
@@ -68,48 +94,96 @@
       },
       "uav:enumFields": [
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "This category is intended for use in underground mines and their surface installations which may be endangered by firedamp and/or combustible dust. Category 1 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a very high level of safety. (2014/34/EU)",
           "uav:enumName": "M1",
           "uav:enumValue": 0
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "This category is intended for use in underground mines and their surface installations which may be endangered by firedamp and/or combustible dust. Category 2 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a high level of safety. (2014/34/EU)",
           "uav:enumName": "M2",
           "uav:enumValue": 1
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and gases, vapours or mists is present. Category 1 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a very high level of safety. (2014/34/EU)",
           "uav:enumName": "1G",
           "uav:enumValue": 2
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and gases, vapours or mists is present. Category 2 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a high level of safety. (2014/34/EU)",
           "uav:enumName": "2G",
           "uav:enumValue": 3
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and gases, vapours or mists is present. Category 3 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a normal level of safety. (2014/34/EU)",
           "uav:enumName": "3G",
           "uav:enumValue": 4
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and dust is present. Category 1 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a very high level of safety. (2014/34/EU)",
           "uav:enumName": "1D",
           "uav:enumValue": 5
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and dust is present. Category 2 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a high level of safety. (2014/34/EU)",
           "uav:enumName": "2D",
           "uav:enumValue": 6
         },
         {
+          "@context": {
+            "description": {
+              "@id": "https://www.w3.org/2019/wot/td#description",
+              "@language": null
+            }
+          },
           "@type": "uav:EnumField",
           "description": "Devices in this category are intended for use in areas in which an explosive atmosphere consisting of a mixture of air and dust is present. Category 3 comprises devices designed to be capable of functioning in conformity with the parameters specified by the manufacturer and ensuring a normal level of safety. (2014/34/EU)",
           "uav:enumName": "3D",

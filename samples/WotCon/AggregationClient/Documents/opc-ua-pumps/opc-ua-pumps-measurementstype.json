@@ -8,7 +8,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -33,6 +39,16 @@
   ],
   "properties": {
     "AmbientHumidity": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured ambient humidity",
@@ -54,6 +70,16 @@
       "unit": "%"
     },
     "AmbientTemperature": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured ambient temperature",
@@ -75,6 +101,16 @@
       "unit": "K"
     },
     "AxialLoadOfPumpRotor": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured residual thrust acting through the shaft derived from hydraulic or mechanical forces",
@@ -96,6 +132,16 @@
       "unit": "N"
     },
     "AxialRotorPosition": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured position of the axial rotor in bearing.",
@@ -115,6 +161,16 @@
       "uav:modellingRule": "Optional"
     },
     "BackPressure": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured back pressure of the pump",
@@ -136,6 +192,16 @@
       "unit": "Pa"
     },
     "BearingTemperature": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured temperature of the bearing",
@@ -157,6 +223,16 @@
       "unit": "K"
     },
     "ClearanceFlow": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured clearance flow between the housing and the impeller",
@@ -178,6 +254,16 @@
       "unit": "m³/s"
     },
     "CoolantTemperature": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured temperature of the coolant.",
@@ -199,6 +285,12 @@
       "unit": "K"
     },
     "Definition": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -224,6 +316,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -249,6 +347,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -274,6 +378,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -299,6 +409,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_13": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -324,6 +440,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_14": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -349,6 +471,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_15": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -374,6 +502,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_16": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -399,6 +533,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_17": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -424,6 +564,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_18": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -449,6 +595,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_19": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -474,6 +626,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -499,6 +657,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_20": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -524,6 +688,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_21": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -549,6 +719,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_22": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -574,6 +750,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_23": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -599,6 +781,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_24": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -624,6 +812,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_25": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -649,6 +843,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_26": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -674,6 +874,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_27": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -699,6 +905,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_28": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -724,6 +936,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_29": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -749,6 +967,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -774,6 +998,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_30": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -799,6 +1029,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_31": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -824,6 +1060,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_32": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -849,6 +1091,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_33": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -874,6 +1122,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_34": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -899,6 +1153,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_35": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -924,6 +1184,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_36": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -949,6 +1215,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_37": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -974,6 +1246,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_38": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -999,6 +1277,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_39": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1024,6 +1308,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1049,6 +1339,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_40": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1074,6 +1370,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_41": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1099,6 +1401,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_42": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1124,6 +1432,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_43": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1149,6 +1463,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_44": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1174,6 +1494,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_45": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1199,6 +1525,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_46": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1224,6 +1556,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_47": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1249,6 +1587,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_48": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1274,6 +1618,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_49": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1299,6 +1649,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1324,6 +1680,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_50": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1349,6 +1711,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1374,6 +1742,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1399,6 +1773,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1424,6 +1804,12 @@
       "uav:modellingRule": "Optional"
     },
     "Definition_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1449,6 +1835,16 @@
       "uav:modellingRule": "Optional"
     },
     "Density": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured density of the fluid",
@@ -1470,6 +1866,16 @@
       "unit": "kg/m³"
     },
     "DifferentialPressure": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Determined (actual) gain in total pressure between the pump inlet and pump outlet",
@@ -1491,6 +1897,16 @@
       "unit": "Pa"
     },
     "DynamicViscosity": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured kinematic viscosity of the fluid",
@@ -1512,6 +1928,12 @@
       "unit": "Pa·m³/s"
     },
     "EURange": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1536,6 +1958,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1560,6 +1988,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1584,6 +2018,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1608,6 +2048,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_13": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1632,6 +2078,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_14": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1656,6 +2108,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_15": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1680,6 +2138,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_16": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1704,6 +2168,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_17": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1728,6 +2198,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_18": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1752,6 +2228,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_19": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1776,6 +2258,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1800,6 +2288,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_20": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1824,6 +2318,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_21": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1848,6 +2348,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_22": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1872,6 +2378,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_23": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1896,6 +2408,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_24": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1920,6 +2438,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_25": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1944,6 +2468,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_26": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1968,6 +2498,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_27": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -1992,6 +2528,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_28": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2016,6 +2558,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_29": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2040,6 +2588,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2064,6 +2618,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_30": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2088,6 +2648,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_31": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2112,6 +2678,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_32": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2136,6 +2708,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_33": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2160,6 +2738,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_34": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2184,6 +2768,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_35": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2208,6 +2798,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_36": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2232,6 +2828,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_37": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2256,6 +2858,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_38": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2280,6 +2888,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_39": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2304,6 +2918,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2328,6 +2948,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_40": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2352,6 +2978,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_41": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2376,6 +3008,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_42": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2400,6 +3038,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_43": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2424,6 +3068,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_44": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2448,6 +3098,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_45": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2472,6 +3128,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_46": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2496,6 +3158,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_47": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2520,6 +3188,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_48": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2544,6 +3218,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_49": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2568,6 +3248,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2592,6 +3278,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_50": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2616,6 +3308,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2640,6 +3338,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2664,6 +3368,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2688,6 +3398,12 @@
       "uav:modellingRule": "Optional"
     },
     "EURange_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2712,6 +3428,16 @@
       "uav:modellingRule": "Optional"
     },
     "ElectronicTemperature": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured temperature of the electronic",
@@ -2733,6 +3459,12 @@
       "unit": "K"
     },
     "EngineeringUnits": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2764,6 +3496,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_10": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2795,6 +3533,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_11": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2826,6 +3570,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_12": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2857,6 +3607,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_13": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2888,6 +3644,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_14": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2919,6 +3681,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_15": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2950,6 +3718,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_16": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -2981,6 +3755,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_17": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3012,6 +3792,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_18": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3043,6 +3829,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_19": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3074,6 +3866,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_2": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3105,6 +3903,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_20": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3136,6 +3940,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_21": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3167,6 +3977,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_22": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3198,6 +4014,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_23": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3229,6 +4051,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_24": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3260,6 +4088,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_25": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3291,6 +4125,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_26": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3322,6 +4162,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_27": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3353,6 +4199,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_28": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3377,6 +4229,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_29": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3408,6 +4266,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_3": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3439,6 +4303,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_30": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3470,6 +4340,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_31": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3501,6 +4377,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_32": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3532,6 +4414,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_33": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3563,6 +4451,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_34": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3594,6 +4488,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_35": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3625,6 +4525,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_36": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3656,6 +4562,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_37": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3687,6 +4599,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_38": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3718,6 +4636,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_39": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3749,6 +4673,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_4": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3773,6 +4703,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_40": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3804,6 +4740,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_41": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3835,6 +4777,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_42": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3866,6 +4814,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_43": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3897,6 +4851,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_44": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3928,6 +4888,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_45": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3959,6 +4925,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_46": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -3990,6 +4962,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_47": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -4021,6 +4999,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_48": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -4052,6 +5036,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_49": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -4083,6 +5073,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_5": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -4114,6 +5110,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_50": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -4145,6 +5147,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_6": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -4176,6 +5184,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_7": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -4207,6 +5221,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_8": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -4238,6 +5258,12 @@
       "uav:modellingRule": "Optional"
     },
     "EngineeringUnits_9": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -4269,6 +5295,16 @@
       "uav:modellingRule": "Optional"
     },
     "FluidTemperature": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured internal temperature of pump fluid.",
@@ -4290,6 +5326,16 @@
       "unit": "K"
     },
     "HousingTemperature": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured temperature of the housing",
@@ -4311,6 +5357,16 @@
       "unit": "K"
     },
     "HydraulicEfficiency": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Determined proportion of pump available power input, Pa, which is delivered as pump power output, Pu, after satisfying the losses resulting from friction due to the relative motion of internal surfaces and internal leakage",
@@ -4332,6 +5388,16 @@
       "unit": "%"
     },
     "InletPressureOfTheInstallation": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured pressure at the inlet area of the installation.",
@@ -4353,6 +5419,16 @@
       "unit": "Pa"
     },
     "InstallationTotalHead": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Determined difference between the total head at the outlet side of the installation and the total head at the inlet side of the installation",
@@ -4374,6 +5450,16 @@
       "unit": "m"
     },
     "KindOfQuantity": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "relative humidity",
       "description": "Quotient of partial pressure of water vapor and partial pressure at its saturation",
@@ -4401,6 +5487,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_10": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
@@ -4428,6 +5524,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_11": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "dynamic viscosity",
       "description": "For laminar flows, proportionality constant between shear stress in a fluid moving with a velocity and gradient perpendicular to the plane of shear",
@@ -4455,6 +5561,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_12": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "temperature",
       "description": "Quantity representing a temperature value",
@@ -4482,6 +5598,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_13": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "temperature",
       "description": "Quantity representing a temperature value",
@@ -4509,6 +5635,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_14": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "temperature",
       "description": "Quantity representing a temperature value",
@@ -4536,6 +5672,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_15": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "ratio",
       "description": "Quotient of two numbers or two quantities of the same kind",
@@ -4563,6 +5709,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_16": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
@@ -4590,6 +5746,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_17": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "length",
       "description": "Linear extent in space between any two points",
@@ -4617,6 +5783,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_18": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "kinematic viscosity",
       "description": "Quotient of dynamic viscosity and mass density of a fluid",
@@ -4644,6 +5820,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_19": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "volume flow rate",
       "description": "Scalar quantity characterizing the total flow through the two-dimensional domain A with the normal vector of a flowing fluid with velocity as an integral",
@@ -4671,6 +5857,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_2": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "temperature",
       "description": "Quantity representing a temperature value",
@@ -4698,6 +5894,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_20": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "length",
       "description": "Linear extent in space between any two points",
@@ -4725,6 +5931,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_21": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "volume",
       "description": "Extent of a three dimensional geometrical shape",
@@ -4752,6 +5968,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_22": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
@@ -4779,6 +6005,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_23": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "mass flow",
       "description": "Vector quantity characterizing a flowing fluid by the product of its local mass density and local velocity",
@@ -4806,6 +6042,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_24": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "velocity",
       "description": "Vector quantity giving the rate of change of a position vector",
@@ -4833,6 +6079,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_25": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "ratio",
       "description": "Quotient of two numbers or two quantities of the same kind",
@@ -4860,6 +6116,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_26": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
@@ -4887,6 +6153,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_27": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "length",
       "description": "Linear extent in space between any two points",
@@ -4914,6 +6190,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_28": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "rational number",
       "description": "Element of a set of mathematical entities that includes all integers and other entities, each defined as the quotient of two integers, such that the division is defined for any two entities, except zero as a divisor",
@@ -4941,6 +6227,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_29": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
@@ -4968,6 +6264,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_3": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "force",
       "description": "Vector quantity describing interaction between bodies or particles",
@@ -4995,6 +6301,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_30": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "ratio",
       "description": "Quotient of two numbers or two quantities of the same kind",
@@ -5022,6 +6338,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_31": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "power",
       "description": "Derivative with respect to time t of energy E being transferred or transformed",
@@ -5049,6 +6375,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_32": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
@@ -5076,6 +6412,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_33": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "ratio",
       "description": "Quotient of two numbers or two quantities of the same kind",
@@ -5103,6 +6449,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_34": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "relative humidity",
       "description": "Quotient of partial pressure of water vapor and partial pressure at its saturation",
@@ -5130,6 +6486,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_35": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "mechanical power",
       "description": "Scalar product of force acting to a body and its velocity",
@@ -5157,6 +6523,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_36": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "mechanical power",
       "description": "Scalar product of force acting to a body and its velocity",
@@ -5184,6 +6560,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_37": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "temperature",
       "description": "Quantity representing a temperature value",
@@ -5211,6 +6597,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_38": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "length",
       "description": "Linear extent in space between any two points",
@@ -5238,6 +6634,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_39": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "force",
       "description": "Vector quantity describing interaction between bodies or particles",
@@ -5265,6 +6671,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_4": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "rational number",
       "description": "Element of a set of mathematical entities that includes all integers and other entities, each defined as the quotient of two integers, such that the division is defined for any two entities, except zero as a divisor",
@@ -5292,6 +6708,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_40": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "energy",
       "description": "Ability of a system to do work",
@@ -5319,6 +6745,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_41": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "sound level",
       "description": "Logarithm of the ratio of a given sound pressure to the reference sound pressure of 20 μPa, the sound pressure being obtained with a standard frequency weighting and with a standard exponential time weighting. Sound level in decibels is twenty times the logarithm to the base ten of that ratio",
@@ -5346,6 +6782,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_42": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "power",
       "description": "Derivative with respect to time t of energy E being transferred or transformed",
@@ -5373,6 +6819,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_43": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "sound level",
       "description": "Logarithm of the ratio of a given sound pressure to the reference sound pressure of 20 μPa, the sound pressure being obtained with a standard frequency weighting and with a standard exponential time weighting. Sound level in decibels is twenty times the logarithm to the base ten of that ratio",
@@ -5400,6 +6856,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_44": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
@@ -5427,6 +6893,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_45": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "sound level",
       "description": "Logarithm of the ratio of a given sound pressure to the reference sound pressure of 20 μPa, the sound pressure being obtained with a standard frequency weighting and with a standard exponential time weighting. Sound level in decibels is twenty times the logarithm to the base ten of that ratio",
@@ -5454,6 +6930,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_46": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "frequency",
       "description": "Inverse of one cycle of a periodic event",
@@ -5481,6 +6967,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_47": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "volume flow rate",
       "description": "Scalar quantity characterizing the total flow through the two-dimensional domain A with the normal vector of a flowing fluid with velocity as an integral",
@@ -5508,6 +7004,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_48": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "length",
       "description": "Linear extent in space between any two points",
@@ -5535,6 +7041,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_49": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "length",
       "description": "Linear extent in space between any two points",
@@ -5562,6 +7078,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_5": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "pressure",
       "description": "Quotient of the component of a force normal to a surface and its area",
@@ -5589,6 +7115,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_50": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "ratio",
       "description": "Quotient of two numbers or two quantities of the same kind.",
@@ -5616,6 +7152,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_6": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "temperature",
       "description": "Quantity representing a temperature value",
@@ -5643,6 +7189,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_7": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "volume flow rate",
       "description": "Scalar quantity characterizing the total flow through the two-dimensional domain A with the normal vector of a flowing fluid with velocity as an integral",
@@ -5670,6 +7226,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_8": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "temperature",
       "description": "Quantity representing a temperature value",
@@ -5697,6 +7263,16 @@
       "uav:modellingRule": "Optional"
     },
     "KindOfQuantity_9": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": "density",
       "description": "Quantity representing the spatial distribution of mass of a continuous material",
@@ -5724,6 +7300,16 @@
       "uav:modellingRule": "Optional"
     },
     "KinematicViscosity": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured dynamic viscosity of the fluid",
@@ -5745,6 +7331,16 @@
       "unit": "m²/s"
     },
     "LeakageRateOfFlow": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured rate of flow leaking from shaft seals",
@@ -5766,6 +7362,16 @@
       "unit": "m³/s"
     },
     "Level": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured level",
@@ -5787,6 +7393,16 @@
       "unit": "m"
     },
     "LubricatingOilConsumption": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured oil consumption of the lubricating system",
@@ -5808,6 +7424,16 @@
       "unit": "m³"
     },
     "LubricatingOilPressure": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured oil pressure of the lubrication system",
@@ -5829,6 +7455,16 @@
       "unit": "Pa"
     },
     "MassFlow": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measure mass flow from the outlet area of the pump",
@@ -5850,6 +7486,16 @@
       "unit": "kg/s"
     },
     "MeanVelocityAtThroat": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured rate of flow passing through the exit from the volute divided by the throat area",
@@ -5871,6 +7517,16 @@
       "unit": "m/s"
     },
     "MechanicalEfficiency": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Determined proportion of the pump power input, P, available after satisfying the mechanical power losses, PJ, ab, at given operating conditions",
@@ -5892,6 +7548,16 @@
       "unit": "%"
     },
     "NetPositiveInletPressure": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Total pressure (including velocity pressure) at the pump inlet connection less the liquid vapor pressure at the present temperature of the liquid",
@@ -5913,6 +7579,16 @@
       "unit": "Pa"
     },
     "NetPositiveSuctionHead": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Amount of the absolute value of the total head above the head, equivalent to the vapor pressure of the liquid at the particular temperature, with reference to the NPSH datum plane",
@@ -5934,6 +7610,16 @@
       "unit": "m"
     },
     "NumberOfStarts": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Total number of starts",
@@ -5953,6 +7639,16 @@
       "uav:modellingRule": "Optional"
     },
     "OutletPressureOfTheInstallation": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured pressure at the outlet area of the installation.",
@@ -5974,6 +7670,16 @@
       "unit": "Pa"
     },
     "OverallEfficiency": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Determined proportion of the driver power input, Pmot, delivered as pump power output, Pu",
@@ -5995,6 +7701,16 @@
       "unit": "%"
     },
     "PowerLossDueToInternalLeakage": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Determined power loss due clearance flows",
@@ -6016,6 +7732,16 @@
       "unit": "W"
     },
     "ProcessPressure": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured process pressure of the pump",
@@ -6037,6 +7763,16 @@
       "unit": "Pa"
     },
     "PumpEfficiency": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Determined proportion of the pump power input, P, delivered as pump power output, Pu, at given operating conditions",
@@ -6058,6 +7794,16 @@
       "unit": "%"
     },
     "PumpHumidity": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured humidity inside the pump",
@@ -6079,6 +7825,16 @@
       "unit": "%"
     },
     "PumpPowerInput": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured power transmitted to the pump by its driver",
@@ -6100,6 +7856,16 @@
       "unit": "W"
     },
     "PumpPowerOutput": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured useful mechanical power transferred to the fluid during its passage through the pump",
@@ -6121,6 +7887,16 @@
       "unit": "W"
     },
     "PumpTemperature": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured temperature of the pump",
@@ -6142,6 +7918,16 @@
       "unit": "K"
     },
     "PumpTotalHead": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Determined difference between the total head at the outlet side of the pump and the total head at the inlet side of the pump",
@@ -6163,6 +7949,16 @@
       "unit": "m"
     },
     "RadialLoadOfPumpRotor": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured residual force acting at right angles to the line of the shaft and derived from hydraulic forces",
@@ -6184,6 +7980,16 @@
       "unit": "N"
     },
     "SoundEnergy": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Determined integral of the sound power, P, over a stated time interval of duration T (starting at t1 and ending at t2)",
@@ -6205,6 +8011,16 @@
       "unit": "J"
     },
     "SoundEnergyLevel": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Determined ten times the logarithm to the base 10 of the ratio of the sound energy, J, to a reference value, J0, expressed in decibels",
@@ -6226,6 +8042,16 @@
       "unit": "dB"
     },
     "SoundPower": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Determined through a surface, product of the sound pressure, p, and the component of the particle velocity, un, at a point on the surface in the direction normal to the surface, integrated over that surface",
@@ -6247,6 +8073,16 @@
       "unit": "W"
     },
     "SoundPowerLevel": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Determined ten times the logarithm to the base 10 of the ratio of the sound power of a source, P, to a reference value, P0, expressed in decibels",
@@ -6268,6 +8104,16 @@
       "unit": "dB"
     },
     "SoundPressure": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured difference between instantaneous pressure and static pressure",
@@ -6289,6 +8135,16 @@
       "unit": "Pa"
     },
     "SoundPressureLevel": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Determined ten times logarithm to the base 10 of the ratio of the square of the sound pressure, p, to the square of a reference value, p0, expressed in decibels",
@@ -6310,6 +8166,16 @@
       "unit": "dB"
     },
     "Speed": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured number of rotations or movements made by the shaft, coupling or impeller in a given time",
@@ -6331,6 +8197,16 @@
       "unit": "s⁻¹"
     },
     "Throughput": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Measured throughput of the vacuum pump",
@@ -6352,6 +8228,16 @@
       "unit": "Pa·m³/s"
     },
     "TotalHeadAtInletAreaOfTheInstallation": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Determined total head at the inlet area of the installation, which corresponds to the sum of geodetic head, pressure head and velocity head",
@@ -6373,6 +8259,16 @@
       "unit": "m"
     },
     "TotalHeadAtOutletAreaOfTheInstallation": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Determined total head at the outlet area of the installation, which corresponds to the sum of geodetic head, pressure head and velocity head",
@@ -6394,6 +8290,16 @@
       "unit": "m"
     },
     "VolumetricEfficiency": {
+      "@context": {
+        "description": {
+          "@id": "https://www.w3.org/2019/wot/td#description",
+          "@language": null
+        },
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "const": 0,
       "description": "Determined ratio of the actual delivered volume at maximum pressure to the geometric displacement volume",

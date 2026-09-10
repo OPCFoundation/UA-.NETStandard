@@ -68,8 +68,9 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void LaterContextBindingDeterminesTheRootBrowseNameNamespace()
         {
-            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
-                """
+            using var document = WotDocument.Parse(WotTestData.Utf8(
+                                     /*lang=json,strict*/
+                                     """
                 {
                   "@context": [
                     "https://www.w3.org/2022/wot/td/v1.1",
@@ -87,15 +88,16 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
             UANodeSet nodeSet = result.Value!;
-            QualifiedName browseName = QualifiedName.Parse(nodeSet.Items![0].BrowseName!);
+            var browseName = QualifiedName.Parse(nodeSet.Items![0].BrowseName!);
             Assert.That(nodeSet.NamespaceUris![browseName.NamespaceIndex - 1], Is.EqualTo("urn:new:"));
         }
 
         [Test]
         public void AnObjectFormLocalPrefixChangesOnlyItsAffordanceNamespace()
         {
-            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
-                """
+            using var document = WotDocument.Parse(WotTestData.Utf8(
+                                     /*lang=json,strict*/
+                                     """
                 {
                   "@context": [
                     "https://www.w3.org/2022/wot/td/v1.1",
@@ -120,9 +122,9 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
             UANodeSet nodeSet = result.Value!;
-            QualifiedName local = QualifiedName.Parse(nodeSet.Items!.OfType<UAVariable>()
+            var local = QualifiedName.Parse(nodeSet.Items!.OfType<UAVariable>()
                 .Single(v => v.BrowseName!.EndsWith(":Local", StringComparison.Ordinal)).BrowseName!);
-            QualifiedName sibling = QualifiedName.Parse(nodeSet.Items!.OfType<UAVariable>()
+            var sibling = QualifiedName.Parse(nodeSet.Items!.OfType<UAVariable>()
                 .Single(v => v.BrowseName!.EndsWith(":Sibling", StringComparison.Ordinal)).BrowseName!);
             Assert.Multiple(() =>
             {
@@ -134,8 +136,9 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void ContextDefinitionsAndOpaquePayloadsAreNotReadableNodeIdentities()
         {
-            using WotDocument document = WotDocument.Parse(WotTestData.Utf8(
-                """
+            using var document = WotDocument.Parse(WotTestData.Utf8(
+                                     /*lang=json,strict*/
+                                     """
                 {
                   "@context": [{
                     "m": "urn:test:context",
@@ -230,10 +233,10 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocument document = WotNodeSetConverter.FromNodeSet(
                 CreateMixedLocaleNodeSet());
 
-            List<JsonElement> overrides = OverrideEntries(document);
-            Assert.That(overrides, Has.Count.EqualTo(1), "Exactly one override, not one per Node.");
+            Assert.That(OverrideEntries(document), Is.Empty,
+                "A child fallback must not remove the root title's language.");
 
-            JsonElement entry = overrides[0];
+            JsonElement entry = document.Properties["Speed"].GetProperty("@context");
             Assert.Multiple(() =>
             {
                 Assert.That(DocumentLocale(document), Is.EqualTo("en"));
@@ -243,27 +246,36 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(
                     entry.GetProperty("title").GetProperty("@language").ValueKind,
                     Is.EqualTo(JsonValueKind.Null));
-                Assert.That(
-                    entry.GetProperty("description").GetProperty("@id").GetString(),
-                    Is.EqualTo(DescriptionIri));
-                Assert.That(
-                    entry.GetProperty("description").GetProperty("@language").ValueKind,
-                    Is.EqualTo(JsonValueKind.Null));
+                Assert.That(entry.TryGetProperty("description", out _), Is.False,
+                    "The carrying node has only a fallback title, not a fallback description.");
             });
         }
 
         /// <summary>
-        /// A single locale is written as the singular member alone and is the
-        /// document's own language by definition, so it is never the case the
-        /// override exists for.
+        /// The English locale already agrees with the pinned TD term definition.
         /// </summary>
         [Test]
         public void ASingleLocaleNeedsNoOverride()
         {
             using WotDocument document = WotNodeSetConverter.FromNodeSet(
-                CreateLocalizedNodeSet(("de", "Pumpe")));
+                CreateLocalizedNodeSet(("en", "Pump")));
 
             Assert.That(OverrideEntries(document), Is.Empty);
+        }
+
+        [Test]
+        public void ANonEnglishDefaultLocaleStatesItsSingularTermLanguage()
+        {
+            UANodeSet source = CreateLocalizedNodeSet(("de", "Pumpe"));
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            JsonElement context = OverrideEntries(document).Single();
+            Assert.That(context.GetProperty("title").GetProperty("@language").GetString(), Is.EqualTo("de"));
+            Assert.That(document.RootElement.GetProperty("titles").GetProperty("de").GetString(), Is.EqualTo("Pumpe"));
+            Assert.That(document.RootElement.TryGetProperty("uav:nodes", out _), Is.False);
+            UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
+            Assert.That(restored.Items!.Single().DisplayName!.Single().Locale, Is.EqualTo("de"));
         }
 
         /// <summary>
@@ -291,8 +303,8 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// An author's own override of the same terms says something different
-        /// from the derived one, so it is preserved rather than dropped.
+        /// An authored term language survives, including when it can be
+        /// re-derived from the native localized value.
         /// </summary>
         [Test]
         public void AnAuthoredContextEntryIsPreserved()
@@ -301,22 +313,21 @@ namespace Opc.Ua.Types.Tests.Wot
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
                 "\"pump\":\"urn:test:pump\"}," +
-                "{\"title\":{\"@id\":\"" + TitleIri + "\",\"@language\":\"de\"}}]," +
+                "{\"title\":{\"@id\":\"" +
+                TitleIri +
+                "\",\"@language\":\"de\"}}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"PumpType\",\"uav:browseName\":\"pump:PumpType\"," +
                 "\"uav:id\":\"nsu=urn:test:pump;i=1001\"}");
 
-            using WotDocument authored = WotDocument.Parse(json);
+            using var authored = WotDocument.Parse(json);
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(authored);
 
-            string extensions = nodeSet.Extensions is null
-                ? string.Empty
-                : string.Concat(nodeSet.Extensions.Select(e => e.OuterXml));
-            Assert.That(
-                extensions,
-                Does.Contain("Pointer=\"/@context/-\""),
-                "An override that is not the derived one states an author's intent, so it " +
-                "is carried rather than treated as re-derivable.");
+            Assert.That(nodeSet.Items!.Single().DisplayName!.Single().Locale, Is.EqualTo("de"));
+            using WotDocument restored = WotNodeSetConverter.FromNodeSet(nodeSet);
+            Assert.That(OverrideEntries(restored).Single().GetProperty("title")
+                .GetProperty("@language").GetString(), Is.EqualTo("de"));
+            Assert.That(restored.RootElement.GetProperty("title").GetString(), Is.EqualTo("PumpType"));
         }
 
         /// <summary>
@@ -365,6 +376,37 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.False);
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void EngineeringUnitFallbackDoesNotStripTheOtherTextLocale(bool displayNameFallback)
+        {
+            UANodeSet source = CreateUnitNodeSet("de", "Drehzahl");
+            UAVariable unit = source.Items!.OfType<UAVariable>().Single();
+            string nativeMember = displayNameFallback ? "Description" : "DisplayName";
+            System.Xml.XmlElement defaultText = unit.Value!.GetElementsByTagName(nativeMember, Namespaces.OpcUaXsd)
+                .OfType<System.Xml.XmlElement>().Single();
+            defaultText.GetElementsByTagName("Locale", Namespaces.OpcUaXsd)[0]!.InnerText = "en";
+            defaultText.GetElementsByTagName("Text", Namespaces.OpcUaXsd)[0]!.InnerText = "Rotation";
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            JsonElement context = document.Properties["EngineeringUnits"]
+                .GetProperty("uav:engineeringUnits").GetProperty("@context");
+            string fallbackMember = displayNameFallback ? "displayName" : "description";
+            string ordinaryMember = displayNameFallback ? "description" : "displayName";
+            Assert.That(context.GetProperty(fallbackMember).GetProperty("@language").ValueKind,
+                Is.EqualTo(JsonValueKind.Null));
+            Assert.That(context.TryGetProperty(ordinaryMember, out _), Is.False);
+            UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
+            UAVariable restoredUnit = restored.Items!.OfType<UAVariable>().Single();
+            System.Xml.XmlElement restoredText = restoredUnit.Value!
+                .GetElementsByTagName(nativeMember, Namespaces.OpcUaXsd)
+                .OfType<System.Xml.XmlElement>().Single();
+            Assert.That(restoredText.GetElementsByTagName("Locale", Namespaces.OpcUaXsd)[0]!.InnerText,
+                Is.EqualTo("en"));
+            Assert.That(document.RootElement.TryGetProperty("uav:nodes", out _), Is.False);
+        }
+
         /// <summary>
         /// The whole context is a function of the NodeSet, so two conversions
         /// of the same source produce the same bytes.
@@ -391,27 +433,51 @@ namespace Opc.Ua.Types.Tests.Wot
         /// </summary>
         [TestCase("{\"title\":{\"@id\":\"" + TitleIri + "\",\"@language\":null}}",
             TestName = "OnlyOneOfTheTwoTermsIsNotTheDerivedOverride")]
-        [TestCase("{\"title\":{\"@id\":\"" + TitleIri + "\",\"@language\":null}," +
+        [TestCase("{\"title\":{\"@id\":\"" +
+            TitleIri +
+            "\",\"@language\":null}," +
             "\"description\":{\"@id\":\"urn:other\",\"@language\":null}}",
             TestName = "AnotherIriIsNotTheDerivedOverride")]
-        [TestCase("{\"title\":{\"@id\":\"" + TitleIri + "\",\"@language\":null}," +
-            "\"description\":{\"@id\":\"" + DescriptionIri + "\",\"@language\":\"de\"}}",
+        [TestCase("{\"title\":{\"@id\":\"" +
+            TitleIri +
+            "\",\"@language\":null}," +
+            "\"description\":{\"@id\":\"" +
+            DescriptionIri +
+            "\",\"@language\":\"de\"}}",
             TestName = "ATaggedTermIsNotTheDerivedOverride")]
-        [TestCase("{\"title\":{\"@id\":\"" + TitleIri + "\",\"@language\":null}," +
-            "\"description\":{\"@id\":\"" + DescriptionIri + "\",\"@language\":null," +
+        [TestCase("{\"title\":{\"@id\":\"" +
+            TitleIri +
+            "\",\"@language\":null}," +
+            "\"description\":{\"@id\":\"" +
+            DescriptionIri +
+            "\",\"@language\":null," +
             "\"@container\":\"@set\"}}",
             TestName = "AnExtraKeywordIsNotTheDerivedOverride")]
-        [TestCase("{\"title\":{\"@id\":\"" + TitleIri + "\",\"@language\":null}," +
+        [TestCase("{\"title\":{\"@id\":\"" +
+            TitleIri +
+            "\",\"@language\":null}," +
             "\"description\":{\"@language\":null}}",
             TestName = "AMissingIdIsNotTheDerivedOverride")]
-        [TestCase("{\"title\":{\"@id\":\"" + TitleIri + "\",\"@language\":null}," +
-            "\"description\":{\"@id\":" + "42" + ",\"@language\":null}}",
+        [TestCase("{\"title\":{\"@id\":\"" +
+            TitleIri +
+            "\",\"@language\":null}," +
+            "\"description\":{\"@id\":" +
+            "42" +
+            ",\"@language\":null}}",
             TestName = "ANonStringIdIsNotTheDerivedOverride")]
-        [TestCase("{\"title\":{\"@id\":\"" + TitleIri + "\",\"@language\":null}," +
-            "\"description\":\"" + DescriptionIri + "\"}",
+        [TestCase("{\"title\":{\"@id\":\"" +
+            TitleIri +
+            "\",\"@language\":null}," +
+            "\"description\":\"" +
+            DescriptionIri +
+            "\"}",
             TestName = "AStringTermDefinitionIsNotTheDerivedOverride")]
-        [TestCase("{\"title\":{\"@id\":\"" + TitleIri + "\",\"@language\":null}," +
-            "\"description\":{\"@id\":\"" + DescriptionIri + "\",\"@language\":null}," +
+        [TestCase("{\"title\":{\"@id\":\"" +
+            TitleIri +
+            "\",\"@language\":null}," +
+            "\"description\":{\"@id\":\"" +
+            DescriptionIri +
+            "\",\"@language\":null}," +
             "\"forms\":{\"@id\":\"urn:x\"}}",
             TestName = "AnUnrelatedTermIsNotTheDerivedOverride")]
         public void AnAlmostMatchingContextEntryIsPreserved(string entry)
@@ -419,17 +485,27 @@ namespace Opc.Ua.Types.Tests.Wot
             byte[] json = WotTestData.Utf8(
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
-                "\"pump\":\"urn:test:pump\"}," + entry + "]," +
+                "\"pump\":\"urn:test:pump\"}," +
+                entry +
+                "]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"PumpType\",\"uav:browseName\":\"pump:PumpType\"," +
                 "\"uav:id\":\"nsu=urn:test:pump;i=1001\"}");
 
-            using WotDocument authored = WotDocument.Parse(json);
+            using var authored = WotDocument.Parse(json);
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(authored);
 
             string extensions = nodeSet.Extensions is null
                 ? string.Empty
                 : string.Concat(nodeSet.Extensions.Select(e => e.OuterXml));
+            if (entry == "{\"title\":{\"@id\":\"" + TitleIri + "\",\"@language\":null}}")
+            {
+                Assert.That(nodeSet.Items!.Single().DisplayName!.Single().Locale, Is.Empty);
+                using WotDocument restored = WotNodeSetConverter.FromNodeSet(nodeSet);
+                Assert.That(OverrideEntries(restored).Single().GetProperty("title")
+                    .GetProperty("@language").ValueKind, Is.EqualTo(JsonValueKind.Null));
+                return;
+            }
             Assert.That(
                 extensions,
                 Does.Contain("Pointer=\"/@context/-\""),
@@ -453,7 +529,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"title\":\"PumpType\",\"uav:browseName\":\"pump:PumpType\"," +
                 "\"uav:id\":\"nsu=urn:test:pump;i=1001\"}");
 
-            using WotDocument authored = WotDocument.Parse(json);
+            using var authored = WotDocument.Parse(json);
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(authored);
 
             string extensions = nodeSet.Extensions is null
@@ -473,12 +549,14 @@ namespace Opc.Ua.Types.Tests.Wot
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
                 "\"pump\":\"urn:test:pump\"}," +
-                "\"" + BindingContext + "\"]," +
+                "\"" +
+                BindingContext +
+                "\"]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"PumpType\",\"uav:browseName\":\"pump:PumpType\"," +
                 "\"uav:id\":\"nsu=urn:test:pump;i=1001\"}");
 
-            using WotDocument authored = WotDocument.Parse(json);
+            using var authored = WotDocument.Parse(json);
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(authored);
 
             string extensions = nodeSet.Extensions is null
@@ -710,12 +788,20 @@ namespace Opc.Ua.Types.Tests.Wot
                 "</uax:NamespaceUri>" +
                 "<uax:UnitId>5340017</uax:UnitId>" +
                 "<uax:DisplayName>" +
-                "<uax:Locale>" + locale + "</uax:Locale>" +
-                "<uax:Text>" + text + "</uax:Text>" +
+                "<uax:Locale>" +
+                locale +
+                "</uax:Locale>" +
+                "<uax:Text>" +
+                text +
+                "</uax:Text>" +
                 "</uax:DisplayName>" +
                 "<uax:Description>" +
-                "<uax:Locale>" + locale + "</uax:Locale>" +
-                "<uax:Text>" + text + "</uax:Text>" +
+                "<uax:Locale>" +
+                locale +
+                "</uax:Locale>" +
+                "<uax:Text>" +
+                text +
+                "</uax:Text>" +
                 "</uax:Description>" +
                 "</uax:EUInformation></uax:Body></uax:ExtensionObject>";
 

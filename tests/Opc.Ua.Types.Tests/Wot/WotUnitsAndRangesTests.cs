@@ -154,7 +154,7 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             using WotDocument generated = WotNodeSetConverter.FromNodeSet(source);
-            using WotDocument canonical = WotDocument.Parse(generated.ToCanonicalUtf8());
+            using var canonical = WotDocument.Parse(generated.ToCanonicalUtf8());
 
             Assert.That(canonical.Properties["Measurement"].GetProperty("maximum").GetRawText(),
                 Is.EqualTo("473.15"));
@@ -424,6 +424,55 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void EngineeringUnitsUseTheDeclaredLocaleAndRetainEveryTranslation(bool localLanguage)
+        {
+            using WotDocument original = ParseThingModel(
+                "\"properties\":{\"speed\":{\"type\":\"number\",\"unit\":\"Drehzahl\"," +
+                "\"uav:unitProperty\":\"/properties/speedUnit\"}," +
+                "\"speedUnit\":{\"type\":\"string\",\"uav:browseName\":\"ua:EngineeringUnits\"," +
+                "\"uav:engineeringUnits\":{" +
+                "\"namespaceUri\":\"" +
+                WotAnalogTestData.UnitAuthority +
+                "\"," +
+                "\"unitId\":5340017,\"displayName\":\"Drehzahl\"," +
+                "\"displayNames\":{\"de\":\"Drehzahl\",\"en\":\"rotation\"}," +
+                "\"description\":\"Drehende Welle\"," +
+                "\"descriptions\":{\"de\":\"Drehende Welle\",\"en\":\"Rotating shaft\"}}}}");
+            JsonObject root = JsonNode.Parse(original.Utf8Json.Span)!.AsObject();
+            root["@context"]![1]!["@language"] = localLanguage ? "en" : "de";
+            if (localLanguage)
+            {
+                root["properties"]!["speedUnit"]!["uav:engineeringUnits"]!["@context"] =
+                    JsonNode.Parse("{\"@language\":\"de\"}");
+            }
+            using var document = WotDocument.Parse(WotTestData.Utf8(root.ToJsonString()));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            UANodeSet source = result.Value!;
+            for (int pass = 0; pass < 3; pass++)
+            {
+                UAVariable unit = source.Items!.OfType<UAVariable>()
+                    .Single(variable => variable.BrowseName == "EngineeringUnits");
+                System.Xml.XmlElement display = unit.Value!.GetElementsByTagName("DisplayName", Namespaces.OpcUaXsd)
+                    .OfType<System.Xml.XmlElement>().Single();
+                Assert.That(display.GetElementsByTagName("Locale", Namespaces.OpcUaXsd)[0]!.InnerText, Is.EqualTo("de"));
+                Assert.That(display.GetElementsByTagName("Text", Namespaces.OpcUaXsd)[0]!.InnerText, Is.EqualTo("Drehzahl"));
+
+                using WotDocument restored = WotNodeSetConverter.FromNodeSet(source);
+                JsonElement units = restored.Properties["EngineeringUnits"].GetProperty("uav:engineeringUnits");
+                Assert.That(units.GetProperty("displayName").GetString(), Is.EqualTo("Drehzahl"));
+                Assert.That(units.GetProperty("displayNames").GetProperty("de").GetString(), Is.EqualTo("Drehzahl"));
+                Assert.That(units.GetProperty("displayNames").GetProperty("en").GetString(), Is.EqualTo("rotation"));
+                Assert.That(units.GetProperty("descriptions").GetProperty("de").GetString(), Is.EqualTo("Drehende Welle"));
+                Assert.That(units.GetProperty("descriptions").GetProperty("en").GetString(), Is.EqualTo("Rotating shaft"));
+                source = WotNodeSetConverter.ToNodeSet(restored);
+            }
+        }
+
         [Test]
         public void AnalogNodeSetRoundTripsWithoutTheStructuredFallback()
         {
@@ -661,7 +710,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task ThePinnedLegacyModelDoesNotTurnAComponentTypeIntoAnInstanceAsync()
         {
-            using WotDocument document = WotDocument.Parse(ReadExample("02-thing-model-pump.jsonld"));
+            using var document = WotDocument.Parse(ReadExample("02-thing-model-pump.jsonld"));
             WotConversionResult<UANodeSet> result =
                 await WotSpecExampleResolver.ConvertAsync(document).ConfigureAwait(false);
 

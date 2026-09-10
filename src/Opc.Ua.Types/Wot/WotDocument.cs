@@ -34,6 +34,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Opc.Ua.Wot
 {
@@ -155,20 +156,10 @@ namespace Opc.Ua.Wot
             out string namespaceUri,
             JsonElement carryingNode = default)
         {
-            m_contextScopes ??= CreateContextScopes();
-            if (carryingNode.ValueKind == JsonValueKind.Undefined)
+            if (TryGetContextTerm(prefix, out JsonElement definition, carryingNode))
             {
-                carryingNode = RootElement;
-            }
-            if (m_contextScopes.TryGetValue(carryingNode, out ContextScope? scope))
-            {
-                for (; scope is not null; scope = scope.Parent)
-                {
-                    if (TryReadContextPrefix(scope.Context, prefix, out namespaceUri))
-                    {
-                        return namespaceUri.Length != 0;
-                    }
-                }
+                namespaceUri = ReadContextPrefix(definition);
+                return namespaceUri.Length != 0;
             }
             namespaceUri = prefix switch
             {
@@ -179,52 +170,110 @@ namespace Opc.Ua.Wot
             return namespaceUri.Length != 0;
         }
 
+        internal bool TryGetContextTerm(
+            string term,
+            out JsonElement definition,
+            JsonElement carryingNode = default)
+        {
+            m_contextScopes ??= CreateContextScopes();
+            if (carryingNode.ValueKind == JsonValueKind.Undefined)
+            {
+                carryingNode = RootElement;
+            }
+            if (m_contextScopes.TryGetValue(carryingNode, out ContextScope? scope))
+            {
+                return TryFindContextTerm(scope, term, out definition);
+            }
+            definition = default;
+            return false;
+        }
+
+        private static bool TryFindContextTerm(
+            ContextScope? scope, string term, out JsonElement definition)
+        {
+            for (; scope is not null; scope = scope.Parent)
+            {
+                if (TryReadContextTerm(scope.Context, term, out definition))
+                {
+                    return true;
+                }
+            }
+            definition = default;
+            return false;
+        }
+
         internal static bool TryGetContextPrefix(
             JsonElement context,
             string prefix,
             out string namespaceUri)
         {
-            return TryReadContextPrefix(context, prefix, out namespaceUri) && namespaceUri.Length != 0;
+            namespaceUri = TryReadContextTerm(context, prefix, out JsonElement definition)
+                ? ReadContextPrefix(definition)
+                : string.Empty;
+            return namespaceUri.Length != 0;
         }
 
-        private static bool TryReadContextPrefix(
-            JsonElement context,
-            string prefix,
-            out string namespaceUri)
+        internal static bool TryGetLocalContextTerm(JsonElement context, string term, out JsonElement definition)
         {
-            namespaceUri = string.Empty;
-            if (context.ValueKind == JsonValueKind.Null)
+            return TryReadContextTerm(context, term, out definition);
+        }
+
+        private static string ReadContextPrefix(JsonElement definition)
+        {
+            if (definition.ValueKind == JsonValueKind.String)
+            {
+                return definition.GetString()!;
+            }
+            if (definition.ValueKind == JsonValueKind.Object &&
+                (!definition.TryGetProperty("@prefix", out JsonElement flag) ||
+                    flag.ValueKind == JsonValueKind.True) &&
+                definition.TryGetProperty("@id", out JsonElement identity) &&
+                identity.ValueKind == JsonValueKind.String)
+            {
+                return identity.GetString()!;
+            }
+            return string.Empty;
+        }
+
+        private static bool TryReadContextTerm(
+            JsonElement context,
+            string term,
+            out JsonElement definition)
+        {
+            if (context.ValueKind == JsonValueKind.String &&
+                context.GetString() == WotVocabulary.WotContext &&
+                s_tdScopedTerms.TryGetProperty(term, out definition))
             {
                 return true;
             }
-            if (context.ValueKind == JsonValueKind.Object &&
-                context.TryGetProperty(prefix, out JsonElement value))
+            if (context.ValueKind == JsonValueKind.String &&
+                context.GetString() == WotVocabulary.BindingContext &&
+                term == WotNodeSetConverter.EngineeringUnitsTerm)
             {
-                if (value.ValueKind == JsonValueKind.String)
-                {
-                    namespaceUri = value.GetString()!;
-                }
-                else if (value.ValueKind == JsonValueKind.Object &&
-                    (!value.TryGetProperty("@prefix", out JsonElement flag) ||
-                        flag.ValueKind == JsonValueKind.True) &&
-                    value.TryGetProperty("@id", out JsonElement identity) &&
-                    identity.ValueKind == JsonValueKind.String)
-                {
-                    namespaceUri = identity.GetString()!;
-                }
+                definition = s_unitScopedTerm;
+                return true;
+            }
+            if (context.ValueKind == JsonValueKind.Null)
+            {
+                definition = context;
+                return true;
+            }
+            if (context.ValueKind == JsonValueKind.Object &&
+                context.TryGetProperty(term, out definition))
+            {
                 return true;
             }
             if (context.ValueKind == JsonValueKind.Array)
             {
                 for (int index = context.GetArrayLength() - 1; index >= 0; index--)
                 {
-                    if (TryReadContextPrefix(context[index], prefix, out namespaceUri))
+                    if (TryReadContextTerm(context[index], term, out definition))
                     {
                         return true;
                     }
                 }
             }
-            namespaceUri = string.Empty;
+            definition = default;
             return false;
         }
 
@@ -238,20 +287,40 @@ namespace Opc.Ua.Wot
         private static void AddContextScopes(
             JsonElement element,
             ContextScope? scope,
-            Dictionary<JsonElement, ContextScope?> scopes)
+            Dictionary<JsonElement, ContextScope?> scopes,
+            bool indexMap = false)
         {
             if (element.ValueKind == JsonValueKind.Object)
             {
-                if (element.TryGetProperty("@context", out JsonElement context))
+                if (!indexMap && element.TryGetProperty("@context", out JsonElement context))
                 {
                     scope = new ContextScope(context, scope);
                 }
                 scopes[element] = scope;
                 foreach (JsonProperty member in element.EnumerateObject())
                 {
-                    if (!IsSemanticBoundary(member.Name))
+                    if (indexMap)
                     {
                         AddContextScopes(member.Value, scope, scopes);
+                        continue;
+                    }
+                    if (!IsSemanticBoundary(member.Name))
+                    {
+                        ContextScope? childScope = scope;
+                        bool childIndexMap = false;
+                        if (TryFindContextTerm(scope, member.Name, out JsonElement definition) &&
+                            definition.ValueKind == JsonValueKind.Object)
+                        {
+                            if (definition.TryGetProperty("@context", out JsonElement propertyContext))
+                            {
+                                childScope = new ContextScope(propertyContext, scope);
+                            }
+                            if (definition.TryGetProperty("@container", out JsonElement container))
+                            {
+                                childIndexMap = IsIndexContainer(container);
+                            }
+                        }
+                        AddContextScopes(member.Value, childScope, scopes, childIndexMap);
                     }
                 }
             }
@@ -262,6 +331,72 @@ namespace Opc.Ua.Wot
                     AddContextScopes(item, scope, scopes);
                 }
             }
+        }
+
+        private static bool IsIndexContainer(JsonElement container)
+        {
+            if (container.ValueKind == JsonValueKind.String)
+            {
+                return container.GetString() is "@index" or "@id" or "@type" or "@language";
+            }
+            if (container.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement member in container.EnumerateArray())
+                {
+                    if (IsIndexContainer(member))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private static JsonElement CreateTdScopedTerms()
+        {
+            // TD 1.1 resets these terms inside its DataSchema scopes, after any enclosing override.
+            JsonNode schema = JsonNode.Parse(
+                """
+                {
+                  "title": {"@id": "https://www.w3.org/2019/wot/td#title", "@language": "en"},
+                  "description": {"@id": "https://www.w3.org/2019/wot/td#description", "@language": "en"},
+                  "titles": {"@container": "@language"},
+                  "descriptions": {"@container": "@language"},
+                  "properties": {"@container": "@index"}
+                }
+                """)!;
+            var terms = new JsonObject();
+            foreach (string name in new[] { "properties", "input", "output", "data", "dataResponse", "subscription", "cancellation" })
+            {
+                var definition = new JsonObject { ["@context"] = schema.DeepClone() };
+                if (name == "properties")
+                {
+                    definition["@container"] = "@index";
+                }
+                terms[name] = definition;
+            }
+            foreach (string name in new[] { "actions", "events", "schemaDefinitions", "uriVariables" })
+            {
+                terms[name] = new JsonObject { ["@container"] = "@index" };
+            }
+            using JsonDocument document = JsonDocument.Parse(terms.ToJsonString());
+            return document.RootElement.Clone();
+        }
+
+        private static JsonElement CreateUnitScopedTerm()
+        {
+            using JsonDocument document = JsonDocument.Parse(
+                """
+                {
+                  "@context": {
+                    "displayName": "uav:unitDisplayName",
+                    "description": "uav:unitDescription",
+                    "displayNames": {"@container": "@language"},
+                    "descriptions": {"@container": "@language"}
+                  }
+                }
+                """);
+            return document.RootElement.Clone();
         }
 
         internal static bool IsSemanticBoundary(string name)
@@ -912,6 +1047,8 @@ namespace Opc.Ua.Wot
             return items;
         }
 
+        private static readonly JsonElement s_tdScopedTerms = CreateTdScopedTerms();
+        private static readonly JsonElement s_unitScopedTerm = CreateUnitScopedTerm();
         private readonly byte[] m_utf8Json;
         private readonly JsonDocument m_document;
         private IReadOnlyList<string>? m_typeTokens;

@@ -6,7 +6,13 @@
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
-    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld"
+    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+    {
+      "title": {
+        "@id": "https://www.w3.org/2019/wot/td#title",
+        "@language": null
+      }
+    }
   ],
   "@type": [
     "tm:ThingModel",
@@ -14,6 +20,12 @@
   ],
   "actions": {
     "BreakLock": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "output": {
         "properties": {
@@ -27,6 +39,7 @@
           "BreakLockStatus"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "BreakLockStatus"
         ]
@@ -37,6 +50,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "ExitLock": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "output": {
         "properties": {
@@ -50,6 +69,7 @@
           "ExitLockStatus"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "ExitLockStatus"
         ]
@@ -60,6 +80,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "InitLock": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -73,6 +99,7 @@
           "Context"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "Context"
         ]
@@ -89,6 +116,7 @@
           "InitLockStatus"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "InitLockStatus"
         ]
@@ -99,6 +127,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "RenewLock": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:method",
       "output": {
         "properties": {
@@ -112,6 +146,7 @@
           "RenewLockStatus"
         ],
         "type": "object",
+        "uav:argumentLayout": "named",
         "uav:fieldOrder": [
           "RenewLockStatus"
         ]
@@ -131,6 +166,12 @@
   ],
   "properties": {
     "DefaultInstanceBrowseName": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -151,6 +192,12 @@
       "uav:mapToType": "i=20"
     },
     "Locked": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -173,6 +220,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "LockingClient": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -195,6 +248,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "LockingUser": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
@@ -217,6 +276,12 @@
       "uav:modellingRule": "Mandatory"
     },
     "RemainingLockTime": {
+      "@context": {
+        "title": {
+          "@id": "https://www.w3.org/2019/wot/td#title",
+          "@language": null
+        }
+      },
       "@type": "uav:variable",
       "links": [
         {
