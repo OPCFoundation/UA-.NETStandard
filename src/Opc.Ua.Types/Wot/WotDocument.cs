@@ -61,7 +61,7 @@ namespace Opc.Ua.Wot
     /// The original UTF-8 representation is retained so unknown JSON-LD terms
     /// can be written back byte-for-byte without a lossy object-model
     /// projection. Typed access is exposed over the parsed
-    /// <see cref="System.Text.Json.JsonElement"/> tree rather than one POCO per
+    /// <see cref="JsonElement"/> tree rather than one POCO per
     /// W3C class, so members the binding does not model are still reachable and
     /// preserved. A separate deterministic canonical writer is provided.
     /// </remarks>
@@ -211,6 +211,29 @@ namespace Opc.Ua.Wot
                 ? ReadContextPrefix(definition)
                 : string.Empty;
             return namespaceUri.Length != 0;
+        }
+
+        /// <summary>
+        /// Gets the carrying object's active contexts in outermost-first order.
+        /// Relative base declarations compose in this order rather than replacing one another.
+        /// </summary>
+        internal ArrayOf<JsonElement> GetActiveContexts(JsonElement carryingNode = default)
+        {
+            m_contextScopes ??= CreateContextScopes();
+            if (carryingNode.ValueKind == JsonValueKind.Undefined)
+            {
+                carryingNode = RootElement;
+            }
+            var contexts = new List<JsonElement>();
+            if (m_contextScopes.TryGetValue(carryingNode, out ContextScope? scope))
+            {
+                for (; scope is not null; scope = scope.Parent)
+                {
+                    contexts.Add(scope.Context);
+                }
+            }
+            contexts.Reverse();
+            return contexts.ToArrayOf();
         }
 
         internal static bool TryGetLocalContextTerm(JsonElement context, string term, out JsonElement definition)
@@ -559,6 +582,7 @@ namespace Opc.Ua.Wot
         /// <param name="localName">The local term name without the prefix.</param>
         /// <param name="value">The member value on success.</param>
         /// <returns><c>true</c> when the member is present.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="localName"/> is <c>null</c>.</exception>
         public bool TryGetUav(string localName, out JsonElement value)
         {
             if (localName is null)
@@ -574,6 +598,7 @@ namespace Opc.Ua.Wot
         /// <param name="pointer">The JSON Pointer (empty string addresses the root).</param>
         /// <param name="value">The addressed element on success.</param>
         /// <returns><c>true</c> when the pointer resolves.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="pointer"/> is <c>null</c>.</exception>
         public bool TryEvaluatePointer(string pointer, out JsonElement value)
         {
             if (pointer is null)
@@ -590,6 +615,7 @@ namespace Opc.Ua.Wot
         /// <param name="pointer">The JSON Pointer (empty string addresses <paramref name="root"/>).</param>
         /// <param name="value">The addressed element on success.</param>
         /// <returns><c>true</c> when the pointer resolves.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="pointer"/> is <c>null</c>.</exception>
         public static bool TryEvaluatePointer(JsonElement root, string pointer, out JsonElement value)
         {
             if (pointer is null)
@@ -617,7 +643,7 @@ namespace Opc.Ua.Wot
                 {
                     next = pointer.Length;
                 }
-                string token = UnescapePointerToken(pointer.Substring(index, next - index));
+                string token = UnescapePointerToken(pointer[index..next]);
                 index = next + 1;
 
                 switch (current.ValueKind)
@@ -666,7 +692,7 @@ namespace Opc.Ua.Wot
             }
 
             byte[] copy = utf8Json.ToArray();
-            JsonDocument document = JsonDocument.Parse(
+            var document = JsonDocument.Parse(
                 copy,
                 new JsonDocumentOptions
                 {
@@ -681,6 +707,7 @@ namespace Opc.Ua.Wot
         /// Writes the original UTF-8 document bytes to <paramref name="stream"/>.
         /// </summary>
         /// <param name="stream">The destination stream.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="stream"/> is <c>null</c>.</exception>
         public void Write(Stream stream)
         {
             if (stream is null)
@@ -708,6 +735,7 @@ namespace Opc.Ua.Wot
         /// domain of RFC 8259 Section 6, which RFC 8785 cannot canonicalize
         /// without changing the value.
         /// </exception>
+        /// <exception cref="ArgumentNullException"><paramref name="stream"/> is <c>null</c>.</exception>
         public void WriteCanonical(Stream stream)
         {
             if (stream is null)
@@ -822,7 +850,7 @@ namespace Opc.Ua.Wot
             byte[] utf8Json,
             WotNodeSetConverterOptions options)
         {
-            JsonDocument document = JsonDocument.Parse(
+            var document = JsonDocument.Parse(
                 utf8Json,
                 new JsonDocumentOptions
                 {
@@ -1003,7 +1031,7 @@ namespace Opc.Ua.Wot
                     member.TryGetProperty("uav:browseName", out JsonElement browseName) &&
                     browseName.ValueKind == JsonValueKind.String &&
                     WotPortableIdentity.TryResolveQualifiedName(
-                        browseName.GetString()!, this, member, out WotBrowsePathElement qualified)
+                        browseName.GetString(), this, member, out WotBrowsePathElement qualified)
                     ? qualified
                     : new WotBrowsePathElement(modelUri, WotPortableIdentity.AffordanceName(member, key));
                 string namespaceUri = string.IsNullOrEmpty(element.NamespaceUri)
@@ -1039,10 +1067,7 @@ namespace Opc.Ua.Wot
                 element.TryGetProperty(name, out JsonElement value) &&
                 value.ValueKind == JsonValueKind.Array)
             {
-                foreach (JsonElement item in value.EnumerateArray())
-                {
-                    items.Add(item);
-                }
+                items.AddRange(value.EnumerateArray());
             }
             return items;
         }

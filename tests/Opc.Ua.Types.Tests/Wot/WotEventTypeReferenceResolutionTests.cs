@@ -34,6 +34,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Wot;
 
@@ -130,6 +131,77 @@ namespace Opc.Ua.Types.Tests.Wot
                 diagnostics.Any(d => d.Severity == WotDiagnosticSeverity.Error),
                 Is.True,
                 Describe(diagnostics));
+        }
+
+        [Test]
+        public async Task ALogicalIdentifierCannotFallBackToASubstitutedRootAsync()
+        {
+            const string returned =
+                                     /*lang=json,strict*/
+                                     """
+                {
+                  "@id": "urn:event:Other",
+                  "@type": ["tm:ThingModel", "uav:eventType"],
+                  "uav:id": "nsu=urn:test:pump;i=6101",
+                  "data": { "type": "object", "properties": { "Message": { "type": "string" } } }
+                }
+                """;
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                Affordance("\"tm:ref\":\"urn:event:Wanted\"")));
+            var resolver = new WotEventSelectionResolver(new StubResolver([("urn:event:Wanted", returned)]));
+            WotConversionResult<WotEventSelectionCatalog> result =
+                await resolver.ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Value, Is.Null);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Severity == WotDiagnosticSeverity.Error &&
+                diagnostic.Location?.JsonPointer == "/events/alarm" &&
+                diagnostic.Message.Contains("urn:event:Wanted", StringComparison.Ordinal)), Is.True);
+        }
+
+        [Test]
+        public async Task LogicalIdentityAliasesUseTheActualCarryingContextsAsync()
+        {
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                                     /*lang=json,strict*/
+                                     """
+                {
+                  "@context": { "request": "urn:wrong:" },
+                  "@type": "tm:ThingModel",
+                  "events": {
+                    "alarm": {
+                      "@context": { "request": "urn:event:" },
+                      "@type": "uav:eventType", "tm:ref": "request:Wanted"
+                    }
+                  }
+                }
+                """));
+            var provider = new Mock<IWotThingResolver>();
+            provider.Setup(value => value.ResolveThingAsync(
+                    "urn:event:Wanted", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<WotResolverResult>(WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(
+                                         /*lang=json,strict*/
+                                         """
+                    {
+                      "@context": { "answer": "urn:event:" },
+                      "@id": "answer:Wanted", "@type": ["tm:ThingModel","uav:eventType"],
+                      "uav:id": "nsu=urn:test:pump;i=6101",
+                      "data": { "type":"object", "properties": { "Message": { "type":"string" } } }
+                    }
+                    """))));
+
+            WotConversionResult<WotEventSelectionCatalog> result =
+                await new WotEventSelectionResolver(provider.Object).ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, Describe(result.Diagnostics));
+            Assert.That(result.Value!.TryGetSelection("alarm", out ArrayOf<WotResolvedEventSelectClause> clauses),
+                Is.True);
+            Assert.That(clauses.Count, Is.EqualTo(1));
+            Assert.That(clauses[0].TypeDefinitionId, Is.EqualTo("nsu=urn:test:pump;i=6101"));
+            Assert.That(clauses[0].TypeDefinitionReference, Is.EqualTo("request:Wanted"));
+            provider.Verify(value => value.ResolveThingAsync(
+                "urn:event:Wanted", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         /// <summary>
@@ -490,7 +562,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = new CountingResolver(
                 ("./types.tm.jsonld", NestedDefinitionDocument()));
 
-            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
                 "\"evt\":\"urn:test:events:\"}]," +
@@ -545,7 +617,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task ASiblingOverTheByteLimitIsReportedAsync()
         {
-            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(
                 Affordance("\"tm:ref\":\"./types.tm.jsonld#/events/highTemperature\"")));
 
             var resolver = new WotEventSelectionResolver(
@@ -599,7 +671,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// </summary>
         [TestCase("42")]
         [TestCase("\"\"")]
-        [TestCase("{\"@value\":\"x\"}")]
+        [TestCase(/*lang=json,strict*/ "{\"@value\":\"x\"}")]
         [TestCase("\"highTemperature\"")]
         [TestCase("\"urn:example: spaced\"")]
         public async Task ANestedIdentifierThatNamesNothingIndexesNothingAsync(string id)
@@ -611,7 +683,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"],\"title\":\"PumpType\"," +
                 "\"events\":{" +
                 "\"alarm\":{\"@type\":\"uav:eventType\",\"tm:ref\":\"evt:highTemperature\"}," +
-                "\"highTemperature\":{\"@id\":" + id + "," +
+                "\"highTemperature\":{\"@id\":" +
+                id +
+                "," +
                 "\"@type\":\"uav:eventType\",\"uav:id\":\"nsu=urn:test:pump;i=6001\"," +
                 "\"data\":{\"type\":\"object\"," +
                 "\"properties\":{\"EventId\":{\"type\":\"string\"}}}}}}")
@@ -752,7 +826,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string documentJson,
             params (string Href, string Json)[] siblings)
         {
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(documentJson));
             var resolver = new WotEventSelectionResolver(new StubResolver(siblings));
             WotConversionResult<WotEventSelectionCatalog> result = await resolver
@@ -774,7 +848,7 @@ namespace Opc.Ua.Types.Tests.Wot
             string documentJson,
             params (string Href, string Json)[] siblings)
         {
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(documentJson));
             var resolver = new WotEventSelectionResolver(new StubResolver(siblings));
             WotConversionResult<WotEventSelectionCatalog> result = await resolver
@@ -791,7 +865,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"evt\":\"urn:test:events:\"," +
                 "\"pump\":\"urn:test:pump\"}]," +
                 "\"@type\":\"tm:ThingModel\",\"title\":\"Pump\"," +
-                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," + members + "}}}";
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
+                members +
+                "}}}";
         }
 
         /// <summary>
@@ -805,7 +881,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"evt\":\"urn:test:events:\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"],\"title\":\"PumpType\"," +
                 "\"events\":{" +
-                "\"alarm\":{\"@type\":\"uav:eventType\",\"tm:ref\":\"" + reference + "\"}," +
+                "\"alarm\":{\"@type\":\"uav:eventType\",\"tm:ref\":\"" +
+                reference +
+                "\"}," +
                 "\"highTemperature\":{\"@id\":\"evt:highTemperature\"," +
                 "\"@type\":\"uav:eventType\",\"uav:id\":\"nsu=urn:test:pump;i=6001\"," +
                 "\"data\":{\"type\":\"object\"," +
@@ -821,7 +899,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"evt\":\"urn:test:events:\"}]," +
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"],\"title\":\"PumpType\"," +
                 "\"events\":{\"highTemperature\":{\"@id\":\"evt:highTemperature\"," +
-                "\"@type\":\"uav:eventType\",\"uav:id\":\"" + id + "\"," +
+                "\"@type\":\"uav:eventType\",\"uav:id\":\"" +
+                id +
+                "\"," +
                 "\"data\":{\"type\":\"object\"," +
                 "\"uav:fieldOrder\":[\"EventId\",\"Message\"]," +
                 "\"properties\":{\"EventId\":{\"type\":\"string\"}," +

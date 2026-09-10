@@ -225,7 +225,7 @@ namespace Opc.Ua.Wot
             get
             {
                 ArrayOf<string> path = MemberPath;
-                return path.Count == 0 ? string.Empty : path[path.Count - 1];
+                return path.Count == 0 ? string.Empty : path[^1];
             }
         }
 
@@ -430,7 +430,7 @@ namespace Opc.Ua.Wot
         {
             if (clauses.IsNull || clauses.Count == 0)
             {
-                return ArrayOf<ArrayOf<string>>.Empty;
+                return [];
             }
             var basePaths = new List<string[]>(clauses.Count);
             var reachedThrough = new HashSet<string>(StringComparer.Ordinal);
@@ -452,14 +452,14 @@ namespace Opc.Ua.Wot
             {
                 string[] names = basePaths[ii];
                 bool isState = !clauses[ii].IsConditionIdSelection &&
-                    (IsStateVariableFieldName(names[names.Length - 1]) ||
+                    (IsStateVariableFieldName(names[^1]) ||
                         reachedThrough.Contains(JoinMemberPath(names, names.Length)));
                 if (!isState)
                 {
                     paths[ii] = names;
                     continue;
                 }
-                var members = new string[names.Length + 1];
+                string[] members = new string[names.Length + 1];
                 Array.Copy(names, members, names.Length);
                 members[names.Length] = StateNameMember;
                 paths[ii] = members;
@@ -567,9 +567,9 @@ namespace Opc.Ua.Wot
                 int separator = element.IndexOf(';', NamespaceUriPrefix.Length);
                 if (separator > NamespaceUriPrefix.Length && separator + 1 < element.Length)
                 {
-                    qualifier = element.Substring(
-                        NamespaceUriPrefix.Length, separator - NamespaceUriPrefix.Length);
-                    name = element.Substring(separator + 1);
+                    qualifier = element[
+                        NamespaceUriPrefix.Length..separator];
+                    name = element[(separator + 1)..];
                     return;
                 }
                 qualifier = null;
@@ -581,8 +581,8 @@ namespace Opc.Ua.Wot
                 int close = element.IndexOf('}', 1);
                 if (close > 1 && close + 1 < element.Length)
                 {
-                    qualifier = element.Substring(1, close - 1);
-                    name = element.Substring(close + 1);
+                    qualifier = element[1..close];
+                    name = element[(close + 1)..];
                     return;
                 }
                 qualifier = null;
@@ -592,8 +592,8 @@ namespace Opc.Ua.Wot
             int colon = element.IndexOf(':', 0);
             if (colon > 0 && colon + 1 < element.Length)
             {
-                qualifier = element.Substring(0, colon);
-                name = element.Substring(colon + 1);
+                qualifier = element[..colon];
+                name = element[(colon + 1)..];
                 return;
             }
             qualifier = null;
@@ -645,7 +645,7 @@ namespace Opc.Ua.Wot
             }
             if (browsePath.Length == 0)
             {
-                return ArrayOf<string>.Empty;
+                return [];
             }
             var elements = new List<string>();
             int start = 0;
@@ -654,10 +654,10 @@ namespace Opc.Ua.Wot
                 int separator = browsePath.IndexOf('/', SkipQualifier(browsePath, start));
                 if (separator < 0)
                 {
-                    elements.Add(browsePath.Substring(start));
+                    elements.Add(browsePath[start..]);
                     break;
                 }
-                elements.Add(browsePath.Substring(start, separator - start));
+                elements.Add(browsePath[start..separator]);
                 start = separator + 1;
             }
             return elements.ToArray();
@@ -721,7 +721,7 @@ namespace Opc.Ua.Wot
         /// </summary>
         private static string[] SplitMemberNames(ArrayOf<string> elements)
         {
-            var names = new string[elements.Count];
+            string[] names = new string[elements.Count];
             for (int ii = 0; ii < elements.Count; ii++)
             {
                 names[ii] = MemberName(elements[ii]);
@@ -866,7 +866,7 @@ namespace Opc.Ua.Wot
             out string error,
             out int errorIndex)
         {
-            clauses = ArrayOf<WotEventSelectClause>.Empty;
+            clauses = [];
             errorIndex = -1;
             if (selectClauses.ValueKind != JsonValueKind.Array)
             {
@@ -1014,6 +1014,10 @@ namespace Opc.Ua.Wot
             {
                 return string.Empty;
             }
+            if (clause is WotResolvedEventSelectClause resolved && !resolved.ResolvedPathElements.IsNull)
+            {
+                return JoinBrowsePath(resolved.ResolvedPathElements);
+            }
             ArrayOf<string> elements = clause.PathElements;
             var normalized = new StringBuilder();
             for (int ii = 0; ii < elements.Count; ii++)
@@ -1025,6 +1029,21 @@ namespace Opc.Ua.Wot
                 normalized.Append(NormalizeElement(elements[ii], resolvePrefix));
             }
             return normalized.ToString();
+        }
+
+        internal static string NormalizeQualifiedElement(
+            string element,
+            Func<string, string?>? resolvePrefix = null)
+        {
+            if (element.StartsWith("{}", StringComparison.Ordinal))
+            {
+                return element;
+            }
+            string normalized = NormalizeElement(element, resolvePrefix);
+            const string standard = "{" + WotVocabulary.OpcUaNamespace + "}";
+            return normalized.StartsWith(standard, StringComparison.Ordinal)
+                ? normalized.Remove(1, WotVocabulary.OpcUaNamespace.Length)
+                : normalized;
         }
 
         /// <summary>
@@ -1041,7 +1060,7 @@ namespace Opc.Ua.Wot
                 return false;
             }
             string local = member!.StartsWith(WotDocument.UavPrefix, StringComparison.Ordinal)
-                ? member.Substring(WotDocument.UavPrefix.Length)
+                ? member[WotDocument.UavPrefix.Length..]
                 : member;
             return string.Equals(local, "whereClause", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(local, "where", StringComparison.OrdinalIgnoreCase) ||
@@ -1098,7 +1117,7 @@ namespace Opc.Ua.Wot
                     "the EventType definition that declares the selected field.";
                 return false;
             }
-            if (!IsEventTypeReference(typeDefinitionReference!))
+            if (!IsEventTypeReference(typeDefinitionReference))
             {
                 error = $"The select-clause {TypeDefinitionReferenceTerm} " +
                     $"'{typeDefinitionReference}' is not a document URI with an optional " +
@@ -1126,7 +1145,7 @@ namespace Opc.Ua.Wot
                         "(Section 6.1).";
                     return false;
                 }
-                if (elements[elements.Count - 1].Length == 0)
+                if (elements[^1].Length == 0)
                 {
                     error = $"The select-clause browse path '{browsePath}' ends with a " +
                         "separator, so its last element is empty (Section 6.1).";
@@ -1191,7 +1210,7 @@ namespace Opc.Ua.Wot
                 // resolve, and a '#' that starts no pointer is not a pointer.
                 return false;
             }
-            string candidate = reference.Substring(hash + 1);
+            string candidate = reference[(hash + 1)..];
             if (candidate[0] != '/')
             {
                 return false;
@@ -1209,7 +1228,7 @@ namespace Opc.Ua.Wot
                 }
                 ii++;
             }
-            document = reference.Substring(0, hash);
+            document = reference[..hash];
             pointer = candidate;
             return true;
         }
@@ -1231,7 +1250,7 @@ namespace Opc.Ua.Wot
             {
                 members.Add(MemberName(elements[ii]));
             }
-            if (IsStateVariableFieldName(members[members.Count - 1]))
+            if (IsStateVariableFieldName(members[^1]))
             {
                 members.Add(StateNameMember);
             }

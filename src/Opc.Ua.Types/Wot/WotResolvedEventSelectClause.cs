@@ -139,6 +139,8 @@ namespace Opc.Ua.Wot
         /// </remarks>
         public string? TypeDefinitionReference { get; }
 
+        internal ArrayOf<string> ResolvedPathElements { get; init; }
+
         /// <summary>
         /// Gets whether the clause is the empty-path <c>ConditionId</c>
         /// selection, which selects the NodeId Attribute rather than a Value
@@ -196,7 +198,7 @@ namespace Opc.Ua.Wot
             get
             {
                 ArrayOf<string> path = MemberPath;
-                return path.Count == 0 ? string.Empty : path[path.Count - 1];
+                return path.Count == 0 ? string.Empty : path[^1];
             }
         }
 
