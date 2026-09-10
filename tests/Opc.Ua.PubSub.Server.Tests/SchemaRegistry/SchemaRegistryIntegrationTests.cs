@@ -461,7 +461,11 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
 
             Assert.Multiple(() =>
             {
-                Assert.That(resource.Xid!.Value, Is.EqualTo(ByteString.From(expected).ToHexString()));
+                Assert.That(resource.Xid!.Value,
+                    Is.EqualTo(
+                        "/groups/registered-group/resources/urn:schema:registered/versions/" +
+                        resource.VersionId!.Value),
+                    "Xid is the structural registry path; the content fingerprint is the SchemaId.");
                 Assert.That(resource.Format!.Value, Is.EqualTo("avro"));
                 Assert.That(registeredSchemaId, Is.EqualTo(ByteString.From(expected)));
                 Assert.That(resolved, Is.Not.Null,
@@ -533,7 +537,9 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
 
             ExpandedNodeId externalReference = proxy!.ExternalReference!.Value;
             string resourceUrl = proxy.ResourceUrl!.Value;
-            ByteString proxySchemaId = ByteString.FromHexString(proxy.Xid!.Value);
+            // Xid is the structural registry path; the content-addressed SchemaId is carried by
+            // the ExternalReference identifier.
+            externalReference.InnerNodeId.TryGetValue(out ByteString proxySchemaId);
             // De-dup by SchemaId: the proxy's identity is the content fingerprint a consumer
             // would compute for the same document (§4.3, Annex B step 4).
             byte[] expected;
@@ -558,6 +564,8 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
                 // Cross-registry identity: the remote node is content-addressed by the same SchemaId.
                 Assert.That(externalReference.InnerNodeId, Is.EqualTo(new NodeId(proxySchemaId)),
                     "The ExternalReference targets the remote node keyed by the same SchemaId.");
+                Assert.That(proxy.Xid!.Value, Is.EqualTo("/groups/federated/resources/federated-resource/versions/1"),
+                    "Xid is the structural registry path, not the content fingerprint.");
             });
         }
 

@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
         {
             // Ownership of the node manager is transferred to the server.
 #pragma warning disable CA2000 // Ownership of the node manager is transferred to the server.
-            return new FederationNodeManager(server, configuration, m_options);
+            return new FederationNodeManager(server, configuration, m_options).SyncNodeManager;
 #pragma warning restore CA2000
         }
     }
