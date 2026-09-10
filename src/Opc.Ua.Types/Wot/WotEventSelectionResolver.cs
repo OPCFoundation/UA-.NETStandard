@@ -237,9 +237,18 @@ namespace Opc.Ua.Wot
         public WotEventSelectionResolver(
             IWotThingResolver thingResolver,
             WotNodeSetConverterOptions? options = null)
+            : this(thingResolver, null, options)
+        {
+        }
+
+        internal WotEventSelectionResolver(
+            IWotThingResolver thingResolver,
+            IWotNodeResolver? nodeResolver,
+            WotNodeSetConverterOptions? options)
         {
             m_thingResolver = thingResolver ??
                 throw new ArgumentNullException(nameof(thingResolver));
+            m_nodeResolver = nodeResolver ?? NullWotNodeResolver.Instance;
             m_options = options ?? new WotNodeSetConverterOptions();
             m_options.Validate();
         }
@@ -508,9 +517,80 @@ namespace Opc.Ua.Wot
                 }
             }
 
-            return CountErrors(diagnostics) == errorsBefore
-                ? final
-                : [];
+            if (CountErrors(diagnostics) != errorsBefore)
+            {
+                return [];
+            }
+            return await ResolveOccurrenceDeclarationsAsync(final, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async System.Threading.Tasks.ValueTask<ArrayOf<WotResolvedEventSelectClause>>
+            ResolveOccurrenceDeclarationsAsync(
+                ArrayOf<WotResolvedEventSelectClause> clauses,
+                System.Threading.CancellationToken cancellationToken)
+        {
+            var verified = new List<WotResolvedEventSelectClause>(clauses.Count);
+            for (int index = 0; index < clauses.Count; index++)
+            {
+                WotResolvedEventSelectClause clause = clauses[index];
+                if (clause.ResolvedPathElements.Count != 1 ||
+                    clause.ResolvedPathElements[0] != "{}EventId")
+                {
+                    verified.Add(clause);
+                    continue;
+                }
+                (WotTypeDeclaration? declaration, string? failure) =
+                    await ResolveOccurrenceDeclarationAsync(clause.TypeDefinitionId, cancellationToken)
+                        .ConfigureAwait(false);
+                verified.Add(new WotResolvedEventSelectClause(
+                    clause.TypeDefinitionId, clause.BrowsePath, clause.Source, clause.TypeDefinitionReference)
+                {
+                    ResolvedPathElements = clause.ResolvedPathElements,
+                    Declaration = declaration,
+                    DeclarationFailure = failure
+                });
+            }
+            return verified.ToArrayOf();
+        }
+
+        private async System.Threading.Tasks.ValueTask<(WotTypeDeclaration? Declaration, string? Failure)>
+            ResolveOccurrenceDeclarationAsync(
+                string typeNodeId,
+                System.Threading.CancellationToken cancellationToken)
+        {
+            WotTypeBinding binding = await WotNodeSetConverter.VerifyEventTypeBindingAsync(
+                typeNodeId, false, m_nodeResolver, cancellationToken).ConfigureAwait(false);
+            if (binding is not { Outcome: WotTypeBindingOutcome.Bound, NodeId: { } identity })
+            {
+                return (null, binding.Detail);
+            }
+            WotTypeDeclarationSet? set = m_nodeResolver is IWotTypeDeclarationResolver capability
+                ? await capability.ResolveDeclarationsAsync(identity, WotDeclarationScope.Effective, cancellationToken)
+                    .ConfigureAwait(false)
+                : null;
+            cancellationToken.ThrowIfCancellationRequested();
+            if (set is null)
+            {
+                return identity == WotVocabulary.BaseEventType ||
+                    WotVocabulary.TryGetConditionTypeName(identity, out _)
+                    ? (WotNodeSetConverter.StandardEventIdDeclaration(identity), null)
+                    : (null, $"The local context supplies no declarations for query EventType '{identity}'.");
+            }
+            if (!set.IsComplete ||
+                !WotPortableIdentity.IsPortableNodeId(set.TypeNodeId) ||
+                WotNodeSetConverter.NormalizeExpandedNodeId(set.TypeNodeId) != identity)
+            {
+                return (null, $"The declarations of query EventType '{identity}' are incomplete or identify " +
+                    $"a different type. {set.Detail}");
+            }
+            var declarations = WotDeclarationCatalog.Create(
+                identity, WotDeclarationScope.Effective, set, capabilityOffered: true);
+            IReadOnlyList<WotTypeDeclaration> matches = declarations.Match(WotVocabulary.OpcUaNamespace, "EventId");
+            if (matches.Count != 1)
+            {
+                return (null, $"The query EventType '{identity}' has no unique namespace-zero EventId declaration.");
+            }
+            return (matches[0] with { ArrayDimensions = [.. matches[0].ArrayDimensions] }, null);
         }
 
         /// <summary>
@@ -1348,6 +1428,7 @@ namespace Opc.Ua.Wot
 
         private static readonly MemberPathComparer s_memberPathComparer = new();
         private readonly IWotThingResolver m_thingResolver;
+        private readonly IWotNodeResolver m_nodeResolver;
         private readonly WotNodeSetConverterOptions m_options;
     }
 }

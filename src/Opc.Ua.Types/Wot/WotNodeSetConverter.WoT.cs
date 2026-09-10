@@ -252,7 +252,7 @@ namespace Opc.Ua.Wot
                 // synthesis reads the result.
                 if (!TakesRestorePath(document))
                 {
-                    var selectionResolver = new WotEventSelectionResolver(thingResolver, options);
+                    var selectionResolver = new WotEventSelectionResolver(thingResolver, nodeResolver, options);
                     WotConversionResult<WotEventSelectionCatalog> selectionResult =
                         await selectionResolver
                             .ResolveAsync(document, resolutionContext, cancellationToken)
@@ -286,6 +286,12 @@ namespace Opc.Ua.Wot
                         property.Value,
                         WotExpectedNodeClass.VariableType,
                         "/properties/" + EscapeJsonPointerToken(property.Key),
+                        cancellationToken).ConfigureAwait(false);
+                }
+                foreach (KeyValuePair<string, JsonElement> eventAffordance in document.Events)
+                {
+                    affordanceBindings[eventAffordance.Value] = await ResolveConditionTypeBindingAsync(
+                        document, eventAffordance.Value, nodeResolver ?? NullWotNodeResolver.Instance,
                         cancellationToken).ConfigureAwait(false);
                 }
                 componentTargets = await PreresolveComponentTargetsAsync(
@@ -1083,6 +1089,7 @@ namespace Opc.Ua.Wot
                     if (documentSet?.DeferPreservedFactValidation != true)
                     {
                         ValidateNativeAffordanceCoverage(document, restored, diagnostics);
+                        ValidateRestoredConditions(document, archiveContext ?? restored, diagnostics);
                         ValidatePreservedReadableFacts(document, restored, options, diagnostics, archiveContext);
                     }
                     ApplyIdentifierLeniency(diagnostics, options);
@@ -1501,7 +1508,9 @@ namespace Opc.Ua.Wot
             ValidateModelVocabulary(document, diagnostics);
             ValidateBindingConformance(document, options, diagnostics);
             ValidateEventSelectionsResolved(document, eventSelectionsResolved, diagnostics);
-            ValidateConditions(document, eventSelections, diagnostics);
+            Dictionary<JsonElement, WotTypeBinding> resolvedBindings =
+                CompleteConditionBindings(document, affordanceBindings);
+            ValidateConditions(document, eventSelections, resolvedBindings, diagnostics);
 
             string modelUri = DeriveModelUri(document);
             string rootLocal = LocalName(GetUavString(document, "browseName")) ??
@@ -1687,7 +1696,8 @@ namespace Opc.Ua.Wot
                 }
                 SynthesizeAction(
                     document, nodeSet, action.Key, action.Value, rootLocal,
-                    rootNodeId, items, rootReferences, conditionMethods, referenceTypeCatalog, diagnostics, dataTypes);
+                    rootNodeId, items, rootReferences, conditionMethods, resolvedBindings,
+                    referenceTypeCatalog, diagnostics, dataTypes);
             }
 
             foreach (KeyValuePair<string, JsonElement> eventAffordance in document.Events)
@@ -1699,7 +1709,7 @@ namespace Opc.Ua.Wot
                 SynthesizeEvent(
                     document, nodeSet, eventAffordance.Key, eventAffordance.Value,
                     rootLocal, items, rootReferences, conditionMethods, diagnostics,
-                    eventSelections, dataTypes);
+                    eventSelections, dataTypes, resolvedBindings[eventAffordance.Value]);
             }
 
             // Section 5.2.1: every affordance is now a Node, so a member that
@@ -2256,6 +2266,7 @@ namespace Opc.Ua.Wot
             List<UANode> items,
             List<Reference> rootReferences,
             Dictionary<string, List<string>> conditionMethods,
+            Dictionary<JsonElement, WotTypeBinding> affordanceBindings,
             WotReferenceTypeCatalog? referenceTypeCatalog,
             List<WotDiagnostic> diagnostics,
             DataTypeDefinitionContext dataTypes)
@@ -2272,7 +2283,7 @@ namespace Opc.Ua.Wot
             // reported instead of being materialized against a Method that is
             // not there.
             string? declaration = ResolveConditionMethodDeclaration(
-                document, action, key, nodeSet, diagnostics);
+                document, action, key, affordanceBindings, diagnostics);
             string actsOn = string.Empty;
             bool isConditionMethod =
                 TryGetNonEmptyString(action, ConditionActionTerm, out string conditionAction) &&
@@ -2374,7 +2385,8 @@ namespace Opc.Ua.Wot
             Dictionary<string, List<string>> conditionMethods,
             List<WotDiagnostic> diagnostics,
             WotEventSelectionCatalog? eventSelections,
-            DataTypeDefinitionContext dataTypes)
+            DataTypeDefinitionContext dataTypes,
+            WotTypeBinding conditionBinding)
         {
             string local = LocalName(GetElementString(eventAffordance, "uav:browseName")) ?? key;
             string? authoredNodeId = GetElementString(
@@ -2410,8 +2422,7 @@ namespace Opc.Ua.Wot
                 {
                     ReferenceType = "HasSubtype",
                     IsForward = false,
-                    Value = ResolveConditionSupertype(
-                        document, eventAffordance, key, nodeSet, diagnostics)
+                    Value = ResolveConditionSupertype(conditionBinding, nodeSet, diagnostics)
                 }
             ];
 
@@ -2425,7 +2436,7 @@ namespace Opc.Ua.Wot
             // deliberately not created a second time here.
             SynthesizeEventFields(
                 document, nodeSet, eventAffordance, key,
-                eventType.References[0].Value!, nodeId, local, rootLocal,
+                InheritedStandardEventType(conditionBinding), nodeId, local, rootLocal,
                 items, eventReferences, diagnostics, eventSelections, dataTypes);
 
             // Section 13.4: the Condition Methods that act on this event are

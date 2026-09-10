@@ -74,12 +74,14 @@ namespace Opc.Ua.Wot
             WotTypeBindingOutcome outcome,
             string? nodeId,
             string? detail,
-            bool isAmbiguous = false)
+            bool isAmbiguous = false,
+            ArrayOf<string> verifiedSupertypes = default)
         {
             Outcome = outcome;
             NodeId = nodeId;
             Detail = detail;
             IsAmbiguous = isAmbiguous;
+            VerifiedSupertypes = verifiedSupertypes.IsNull ? [] : verifiedSupertypes;
         }
 
         /// <summary>
@@ -108,6 +110,12 @@ namespace Opc.Ua.Wot
         public bool IsAmbiguous { get; }
 
         /// <summary>
+        /// Gets the verified EventType ancestry, nearest first, when the
+        /// binding was resolved for an event or Condition.
+        /// </summary>
+        public ArrayOf<string> VerifiedSupertypes { get; }
+
+        /// <summary>
         /// The document declares no binding.
         /// </summary>
         public static WotTypeBinding None { get; } =
@@ -116,9 +124,10 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// The binding resolved to <paramref name="nodeId"/>.
         /// </summary>
-        public static WotTypeBinding Bound(string nodeId)
+        public static WotTypeBinding Bound(string nodeId, ArrayOf<string> verifiedSupertypes = default)
         {
-            return new WotTypeBinding(WotTypeBindingOutcome.Bound, nodeId, null);
+            return new WotTypeBinding(
+                WotTypeBindingOutcome.Bound, nodeId, null, verifiedSupertypes: verifiedSupertypes);
         }
 
         /// <summary>

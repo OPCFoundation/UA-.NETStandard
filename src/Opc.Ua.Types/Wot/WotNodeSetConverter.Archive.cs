@@ -623,6 +623,14 @@ namespace Opc.Ua.Wot
                                 document, member.Value, unitVariable, location, diagnostics);
                         }
                         break;
+                    case ConditionTypeTerm:
+                    case ConditionTypeIdTerm:
+                        if (member.Name == ConditionTypeIdTerm || !authored.TryGetProperty(ConditionTypeIdTerm, out _))
+                        {
+                            ValidateRestoredConditionType(
+                                document, authored, node, baseline, index, identities, aliases, pointer, diagnostics);
+                        }
+                        break;
                     case "uav:dataTypeDefinition":
                     case InverseNameTerm:
                     case SymmetricTerm:
@@ -630,8 +638,6 @@ namespace Opc.Ua.Wot
                     case InstrumentRangeTerm:
                     case MinimumMember:
                     case MaximumMember:
-                    case ConditionTypeTerm:
-                    case ConditionTypeIdTerm:
                     case ConditionActionTerm:
                     case ActsOnTerm:
                         if (regenerated.ValueKind == JsonValueKind.Object &&

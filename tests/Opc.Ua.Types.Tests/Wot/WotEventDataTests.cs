@@ -93,10 +93,6 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static readonly int[] s_traceArrayDimensions = [3, 4];
 
-        // ------------------------------------------------------------------
-        // NodeSet -> WoT
-        // ------------------------------------------------------------------
-
         /// <summary>
         /// Section 6.1 makes the eight mandatory <c>BaseEventType</c> fields
         /// the list a consumer selects when a document says nothing else, so an
@@ -411,10 +407,6 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
-        // ------------------------------------------------------------------
-        // WoT -> NodeSet
-        // ------------------------------------------------------------------
-
         /// <summary>
         /// A field the projected type inherits is already declared by the type
         /// it comes from. Creating it again would leave a Server holding two
@@ -442,7 +434,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase(false, "i=80")]
         public void AFieldTheTypeAddsIsMaterialized(bool required, string modellingRule)
         {
-            string members = "\"EventId\":{\"type\":\"string\"}," +
+            const string members = "\"EventId\":{\"type\":\"string\"}," +
                 "\"Trace\":{\"type\":\"integer\",\"uav:mapToType\":\"i=6\"," +
                 "\"uav:valueRank\":2,\"uav:arrayDimensions\":[3,4]," +
                 "\"description\":\"A trace.\"}";
@@ -558,14 +550,17 @@ namespace Opc.Ua.Types.Tests.Wot
         /// own.
         /// </summary>
         [Test]
-        public void AnUnresolvableHintWithAPinIsAccepted()
+        public async Task AnUnresolvableHintWithAPinIsAccepted()
         {
-            WotConversionResult<UANodeSet> result = Convert(
+            using WotDocument document = ParseConditionDocument(
                 ConditionEvent(
                     "vendor:CustomAlarmType",
                     "\"EventId\":{\"type\":\"string\"}",
                     string.Empty,
                     "\"uav:conditionTypeId\":\"nsu=urn:test:pump;i=7001\","));
+            using var context = new WotEventTypeTestContext("nsu=urn:test:pump;i=7001");
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+                document, null, null, null, context.Resolver).ConfigureAwait(false);
 
             Assert.That(
                 result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error),
@@ -587,7 +582,8 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<UANodeSet> result = Convert(
                 ConditionEvent("ua:LimitAlarmType", "\"EventId\":{\"type\":\"string\"}") +
-                "," + ConditionAction(action));
+                "," +
+                ConditionAction(action));
 
             UAMethod method = result.Value!.Items.OfType<UAMethod>().Single();
             Assert.That(method.MethodDeclarationId, Is.EqualTo(declaration));
@@ -604,7 +600,8 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<UANodeSet> result = Convert(
                 ConditionEvent("ua:LimitAlarmType", "\"EventId\":{\"type\":\"string\"}") +
-                "," + ConditionAction("Acknowledge"));
+                "," +
+                ConditionAction("Acknowledge"));
 
             UAMethod method = result.Value!.Items.OfType<UAMethod>().Single();
             UAObjectType eventType = result.Value.Items.OfType<UAObjectType>()
@@ -635,7 +632,8 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<UANodeSet> result = Convert(
                 ConditionEvent("ua:ConditionType", "\"EventId\":{\"type\":\"string\"}") +
-                "," + ConditionAction(action));
+                "," +
+                ConditionAction(action));
 
             Assert.That(
                 result.Diagnostics.Any(d =>
@@ -657,7 +655,8 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<UANodeSet> result = Convert(
                 ConditionEvent("ua:ConditionType", "\"EventId\":{\"type\":\"string\"}") +
-                "," + ConditionAction(action));
+                "," +
+                ConditionAction(action));
 
             Assert.That(
                 result.Diagnostics.Any(d =>
@@ -676,15 +675,19 @@ namespace Opc.Ua.Types.Tests.Wot
         /// shown to give it is asserted.
         /// </summary>
         [Test]
-        public void APairingWithACompanionConditionTypeIsRecordedWithoutADeclaration()
+        public async Task APairingWithACompanionConditionTypeIsRecordedWithoutADeclaration()
         {
-            WotConversionResult<UANodeSet> result = Convert(
+            using WotDocument document = ParseConditionDocument(
                 ConditionEvent(
                     "vendor:CustomAlarmType",
                     "\"EventId\":{\"type\":\"string\"}",
                     string.Empty,
                     "\"uav:conditionTypeId\":\"nsu=urn:test:pump;i=7001\",") +
-                "," + ConditionAction("Acknowledge"));
+                "," +
+                ConditionAction("Acknowledge"));
+            using var context = new WotEventTypeTestContext("nsu=urn:test:pump;i=7001");
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+                document, null, null, null, context.Resolver).ConfigureAwait(false);
 
             Assert.That(
                 result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error),
@@ -709,7 +712,8 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<UANodeSet> result = Convert(
                 ConditionEvent("ua:LimitAlarmType", "\"EventId\":{\"type\":\"string\"}") +
-                "," + ConditionAction("Acknowledge"));
+                "," +
+                ConditionAction("Acknowledge"));
 
             UAVariable arguments = result.Value!.Items.OfType<UAVariable>()
                 .Single(v => string.Equals(
@@ -721,10 +725,6 @@ namespace Opc.Ua.Types.Tests.Wot
                 ArgumentNames(arguments),
                 Is.EqualTo(s_conditionMethodArguments).AsCollection);
         }
-
-        // ------------------------------------------------------------------
-        // Round trip
-        // ------------------------------------------------------------------
 
         /// <summary>
         /// The specification's own Condition example is the reference document,
@@ -739,11 +739,15 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task TheConditionExampleRoundTripsAndImportsAsync()
         {
-            using WotDocument authored = WotDocument.Parse(
+            using var authored = WotDocument.Parse(
                 ReadExample("21-condition-limit-alarm.jsonld"));
+            using var context = new WotEventTypeTestContext(
+                "nsu=http://example.com/demo/pump;i=6001",
+                LimitAlarmType,
+                "nsu=http://example.com/demo/pump;HighTemperatureAlarmType");
 
             WotConversionResult<UANodeSet> result = await WotNodeSetConverter
-                .ToNodeSetResultAsync(authored, null, new ExampleResolver())
+                .ToNodeSetResultAsync(authored, null, new ExampleResolver(), null, context.Resolver)
                 .ConfigureAwait(false);
             Assert.That(
                 result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
@@ -880,10 +884,6 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
-        // ------------------------------------------------------------------
-        // Fixtures
-        // ------------------------------------------------------------------
-
         private static IReadOnlyList<string> MemberNames(JsonElement data)
         {
             return [.. data.GetProperty("properties").EnumerateObject().Select(p => p.Name)];
@@ -977,8 +977,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             var eventReferences = new List<Reference>
             {
-                new Reference
-                {
+                new() {
                     ReferenceType = "HasSubtype", IsForward = false, Value = superType
                 }
             };
@@ -1062,7 +1061,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 AccessLevel = 1,
                 Value = WotTestData.ParseValue(
                     "<uax:UInt16 xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
-                    severity + "</uax:UInt16>"),
+                    severity +
+                    "</uax:UInt16>"),
                 References =
                 [
                     new Reference
@@ -1087,7 +1087,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             UANodeSet nodeSet = CreateEventNodeSet(LimitAlarmType);
             var items = new List<UANode>(nodeSet.Items);
-            var owner = (UANode)(ownedByEventType ? items[1] : items[0]);
+            UANode owner = ownedByEventType ? items[1] : items[0];
             owner.References =
             [
                 .. owner.References,
@@ -1164,15 +1164,23 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             return "\"events\":{\"highTemperature\":{\"@type\":\"uav:eventType\"," +
                 "\"uav:browseName\":\"pump:HighTemperatureAlarmType\"," +
-                "\"uav:conditionType\":\"" + conditionType + "\"," + pin +
-                "\"data\":{\"type\":\"object\",\"properties\":{" + members + "}" +
-                required + "}}}";
+                "\"uav:conditionType\":\"" +
+                conditionType +
+                "\"," +
+                pin +
+                "\"data\":{\"type\":\"object\",\"properties\":{" +
+                members +
+                "}" +
+                required +
+                "}}}";
         }
 
         private static string ConditionAction(string action)
         {
             return "\"actions\":{\"act\":{\"@type\":\"uav:method\"," +
-                "\"uav:conditionAction\":\"" + action + "\"," +
+                "\"uav:conditionAction\":\"" +
+                action +
+                "\"," +
                 "\"uav:actsOn\":\"highTemperature\"," +
                 "\"input\":{\"type\":\"object\",\"required\":[\"EventId\"]," +
                 "\"properties\":{" +
@@ -1181,6 +1189,12 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         private static WotConversionResult<UANodeSet> Convert(string members)
+        {
+            using WotDocument document = ParseConditionDocument(members);
+            return WotNodeSetConverter.ToNodeSetResult(document);
+        }
+
+        private static WotDocument ParseConditionDocument(string members)
         {
             byte[] json = WotTestData.Utf8(
                 "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
@@ -1193,10 +1207,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"uav:id\":\"nsu=urn:test:pump;i=5001\"," +
                 "\"security\":\"nosec_sc\"," +
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
-                members + "}");
+                members +
+                "}");
 
-            using WotDocument document = WotDocument.Parse(json);
-            return WotNodeSetConverter.ToNodeSetResult(document);
+            return WotDocument.Parse(json);
         }
 
         private static byte[] ReadExample(string name)
@@ -1229,7 +1243,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 int slash = name.LastIndexOf('/');
                 if (slash >= 0)
                 {
-                    name = name.Substring(slash + 1);
+                    name = name[(slash + 1)..];
                 }
                 if (!name.EndsWith(".jsonld", StringComparison.Ordinal))
                 {

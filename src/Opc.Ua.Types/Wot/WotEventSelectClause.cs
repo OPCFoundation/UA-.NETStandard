@@ -560,7 +560,7 @@ namespace Opc.Ua.Wot
         /// namespace declares it - a NamespaceUri or a context-bound prefix -
         /// and the name itself (WoT Binding Section 5.1.3).
         /// </summary>
-        private static void SplitElement(string element, out string? qualifier, out string name)
+        internal static void SplitElement(string element, out string? qualifier, out string name)
         {
             if (element.StartsWith(NamespaceUriPrefix, StringComparison.Ordinal))
             {

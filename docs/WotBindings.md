@@ -435,7 +435,12 @@ What the runtime does with it:
 * `OpcUaBindingPlanner` compiles the **effective** selection onto
   `WotCompiledForm.EventSelection` as an ordered list of
   `Opc.Ua.Wot.WotResolvedEventSelectClause`, each carrying the portable
-  `TypeDefinitionId` its definition declared.
+  `TypeDefinitionId` its definition declared. This is the **query anchor**, not
+  necessarily the owner of an inherited field. A Condition occurrence selection
+  must resolve the one-element namespace-zero `BaseEventType.EventId` declaration
+  (`i=2042`, scalar `ByteString`), including when queried through a companion
+  EventType. A vendor `EventId`, a nested lookalike, or a base64 string schema does
+  not establish that declaration.
 * A compact path element such as `pump:Temperature` is rewritten to the portable
   `nsu=<NamespaceUri>;Temperature` form using the prefixes the document's `@context`
   binds (`WotBindingPlanContext.NamespacePrefixes`). An unbound prefix fails the form
@@ -1591,14 +1596,46 @@ its supertypes, can match the event. An action that carries
 10000-9 Condition Method on the Condition identified by the event affordance.
 
 The two forms follow the hint-plus-pin pattern of Section 5.3.
-`uav:conditionTypeId` is definitive and wins. `uav:conditionType` is a readable
-hint, resolved for the four ConditionTypes Section 13.1 scopes —
+`uav:conditionTypeId` supplies the definitive identity, not proof that the Node
+is a Condition. The converter verifies that exact ObjectType and a bounded,
+cycle-free ancestry reaching `ConditionType` (`i=2782`). `BaseObjectType`
+(`i=58`) and its non-Condition subtypes cannot acquire Condition semantics by
+being pinned. The four standard ConditionTypes resolve without external context:
 `ConditionType`, `AcknowledgeableConditionType`, `AlarmConditionType` and
-`LimitAlarmType`. A name outside that set must be pinned; an unpinned one is
-reported rather than guessed. Where a document states both and they name
-different types, that is a contradiction rather than a precedence question —
-the pin is the definitive identity of *the same* type the compact name reads —
-and it is reported as `ConditionTypeConflict`.
+`LimitAlarmType`.
+
+For companion types, use the asynchronous converter with the existing local
+node context. A unique `uav:conditionType` hint can resolve without a pin; a pin
+can settle an otherwise unresolved hint only after its ancestry is verified.
+Where both forms resolve to different types, conversion reports
+`ConditionTypeConflict`. The verified binding retains the companion identity
+for the emitted `HasSubtype` and governs inherited Condition action declarations
+as well; it is not replaced by the standard ancestor used to verify it.
+
+```csharp
+WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+    document,
+    options: null,
+    thingResolver: siblingDocuments,
+    resolutionContext: null,
+    nodeResolver: localTypes,
+    cancellationToken: cancellationToken);
+```
+
+`localTypes` is the supplied `IWotNodeResolver`, for example a
+`WotDocumentNodeResolver` over explicit type declarations and their `tm:extends`
+links. For a companion query anchor selecting the occurrence `EventId`, it also
+supplies `IWotTypeDeclarationResolver`: a complete effective declaration set
+identifies the field's owner, qualified name, native identity, DataType and rank.
+The asynchronous conversion carries that evidence in the existing event selection
+catalog. A linked effective DataSchema remains usable, but its shape or numeric
+EventType pin is not a substitute for type/declaration context. Synchronous
+conversion cannot verify an otherwise unknown companion pin.
+
+Native and archive restoration retain their authoritative Nodes. Readable
+Condition claims are checked against those actual ObjectTypes and their ancestry,
+not merely against regenerated readable hints. Missing readable `data` or other
+unasserted Condition facts do not demand synthesis of additional native Nodes.
 
 The converter enforces the four Section 13.3/13.4 conformance rules, each
 because breaking it yields a document a consumer can read but cannot act on, and
@@ -1606,7 +1643,7 @@ also rejects an unresolvable readable ConditionType name:
 
 | Rule | Section | Diagnostic |
 | --- | --- | --- |
-| A Condition event declares `EventId` in its `data` | 13.3 | `ConditionEventIdMissing` |
+| A Condition event declares the occurrence `EventId` in its own or linked `data` and any stated selection reaches its verified declaration | 6.1, 13.3 | `ConditionEventIdMissing` |
 | `uav:conditionAction` is in the closed set | 13.2 | `InvalidConditionAction` |
 | `uav:actsOn` names a Condition event in the same document | 13.4 | `InvalidConditionTarget` |
 | `Acknowledge` / `Confirm` / `AddComment` declare an `EventId` input | 13.4 | `ConditionActionInputMissing` |
@@ -1614,6 +1651,12 @@ also rejects an unresolvable readable ConditionType name:
 | `uav:conditionType` and `uav:conditionTypeId` name the same type | 13.2 | `ConditionTypeConflict` |
 | The ConditionType declares the Method `uav:conditionAction` names | 13.1, 13.4 | `ConditionActionNotDeclared` |
 | A `data` member is a DataSchema naming one field | 13.3 | `EventFieldInvalid` |
+
+Explicit vendor-qualified event fields remain ordinary fields even when their
+local name is `EventId` or `Severity`. Materialization preserves the qualified
+identity and the linked definition's namespace context. Namespace aliases for
+one field and ambiguous unqualified duplicate declarations remain errors, as do
+select clauses competing for the same output member.
 
 #### Condition event data and Condition Methods
 

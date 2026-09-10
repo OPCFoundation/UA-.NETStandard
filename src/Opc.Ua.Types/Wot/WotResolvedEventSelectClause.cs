@@ -59,8 +59,8 @@ namespace Opc.Ua.Wot
     /// <summary>
     /// One OPC UA event field select clause after its EventType reference has
     /// been resolved (WoT Binding Section 6.1): the portable ExpandedNodeId of
-    /// the EventType that declares the field, and the browse path from that
-    /// EventType to it.
+    /// the query EventType and the browse path from that EventType to the
+    /// field. An inherited field's declaring type can differ from this anchor.
     /// </summary>
     /// <remarks>
     /// This is the form a runtime consumes: it is the readable equivalent of an
@@ -79,7 +79,7 @@ namespace Opc.Ua.Wot
         /// Initializes a new resolved select clause.
         /// </summary>
         /// <param name="typeDefinitionId">
-        /// The portable ExpandedNodeId of the EventType that declares the field.
+        /// The portable ExpandedNodeId of the query EventType.
         /// </param>
         /// <param name="browsePath">
         /// The relative browse path from that EventType to the field. The empty
@@ -111,8 +111,9 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Gets the portable ExpandedNodeId of the EventType that declares the
-        /// selected field (WoT Binding Sections 5.1.1 and 6.1).
+        /// Gets the portable ExpandedNodeId of the query EventType, not
+        /// necessarily the selected field's declaring type
+        /// (WoT Binding Sections 5.1.1 and 6.1).
         /// </summary>
         public string TypeDefinitionId { get; }
 
@@ -140,6 +141,14 @@ namespace Opc.Ua.Wot
         public string? TypeDefinitionReference { get; }
 
         internal ArrayOf<string> ResolvedPathElements { get; init; }
+
+        /// <summary>
+        /// Gets the declaration verified against the query's native type
+        /// context, independently of its readable schema and query anchor.
+        /// </summary>
+        internal WotTypeDeclaration? Declaration { get; init; }
+
+        internal string? DeclarationFailure { get; init; }
 
         /// <summary>
         /// Gets whether the clause is the empty-path <c>ConditionId</c>
