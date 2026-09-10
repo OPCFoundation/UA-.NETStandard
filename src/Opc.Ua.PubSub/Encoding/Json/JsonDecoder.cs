@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -93,7 +94,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="frame">Raw frame.</param>
         /// <param name="context">Decoder context.</param>
         /// <returns>Decoded message or <see langword="null"/>.</returns>
-        private static PubSubNetworkMessage? DecodeCore(
+        internal static PubSubNetworkMessage? DecodeCore(
             ReadOnlyMemory<byte> frame,
             PubSubNetworkMessageContext context)
         {
@@ -110,62 +111,76 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             using (document)
             {
-                JsonElement root = document.RootElement;
-                if (root.ValueKind == JsonValueKind.Array)
+                try
                 {
-                    context.Diagnostics.Increment(
-                        PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
-                    return DecodeDataWithoutNetworkHeader(root, context);
-                }
-                if (root.ValueKind != JsonValueKind.Object)
-                {
-                    context.Diagnostics.Increment(
-                        PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
-                    return null;
-                }
-                if (!root.TryGetProperty("MessageType", out JsonElement typeElement) ||
-                    typeElement.ValueKind != JsonValueKind.String)
-                {
-                    if (root.TryGetProperty("MessageId", out _) ||
-                        root.TryGetProperty("PublisherId", out _) ||
-                        root.TryGetProperty("Messages", out _))
+                    JsonElement root = document.RootElement;
+                    if (root.ValueKind == JsonValueKind.Array)
+                    {
+                        context.Diagnostics.Increment(
+                            PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
+                        return DecodeDataWithoutNetworkHeader(root, context);
+                    }
+                    if (root.ValueKind != JsonValueKind.Object)
                     {
                         context.Diagnostics.Increment(
                             PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
                         return null;
                     }
+                    if (!root.TryGetProperty("MessageType", out JsonElement typeElement) ||
+                        typeElement.ValueKind != JsonValueKind.String)
+                    {
+                        if (root.TryGetProperty("MessageId", out _) ||
+                            root.TryGetProperty("PublisherId", out _) ||
+                            root.TryGetProperty("Messages", out _))
+                        {
+                            context.Diagnostics.Increment(
+                                PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
+                            return null;
+                        }
+                        context.Diagnostics.Increment(
+                            PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
+                        return DecodeDataWithoutNetworkHeader(root, context);
+                    }
+                    string messageType = typeElement.GetString() ?? string.Empty;
                     context.Diagnostics.Increment(
                         PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
-                    return DecodeDataWithoutNetworkHeader(root, context);
+                    return messageType switch
+                    {
+                        JsonNetworkMessage.MessageTypeData
+                            => DecodeData(root, context),
+                        JsonNetworkMessage.MessageTypeMetaData
+                            => DecodeMetaData(root, context),
+                        JsonDiscoveryMessage.MessageTypeApplication
+                            => DecodeDiscovery(root, context, UadpDiscoveryType.ApplicationInformation),
+                        JsonDiscoveryMessage.MessageTypeEndpoints
+                            => DecodeDiscovery(root, context, UadpDiscoveryType.PublisherEndpoints),
+                        JsonDiscoveryMessage.MessageTypeStatus
+                            => DecodeDiscovery(root, context, UadpDiscoveryType.None),
+                        JsonDiscoveryMessage.MessageTypeConnection
+                            => DecodeDiscovery(root, context, UadpDiscoveryType.PubSubConnection),
+                        JsonActionNetworkMessage.MessageTypeActionRequest
+                            => DecodeAction(root, context),
+                        JsonActionNetworkMessage.MessageTypeActionResponse
+                            => DecodeAction(root, context),
+                        JsonActionNetworkMessage.MessageTypeActionMetaData
+                            => DecodeActionMetaData(root, context),
+                        JsonActionNetworkMessage.MessageTypeActionResponder
+                            => DecodeActionResponder(root, context),
+                        _ => DecodeUnknown(context, messageType)
+                    };
                 }
-                string messageType = typeElement.GetString() ?? string.Empty;
-                context.Diagnostics.Increment(
-                    PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
-                return messageType switch
+                catch (InvalidOperationException ex) when (IsInvalidUtf8JsonText(ex))
                 {
-                    JsonNetworkMessage.MessageTypeData
-                        => DecodeData(root, context),
-                    JsonNetworkMessage.MessageTypeMetaData
-                        => DecodeMetaData(root, context),
-                    JsonDiscoveryMessage.MessageTypeApplication
-                        => DecodeDiscovery(root, context, UadpDiscoveryType.ApplicationInformation),
-                    JsonDiscoveryMessage.MessageTypeEndpoints
-                        => DecodeDiscovery(root, context, UadpDiscoveryType.PublisherEndpoints),
-                    JsonDiscoveryMessage.MessageTypeStatus
-                        => DecodeDiscovery(root, context, UadpDiscoveryType.None),
-                    JsonDiscoveryMessage.MessageTypeConnection
-                        => DecodeDiscovery(root, context, UadpDiscoveryType.PubSubConnection),
-                    JsonActionNetworkMessage.MessageTypeActionRequest
-                        => DecodeAction(root, context),
-                    JsonActionNetworkMessage.MessageTypeActionResponse
-                        => DecodeAction(root, context),
-                    JsonActionNetworkMessage.MessageTypeActionMetaData
-                        => DecodeActionMetaData(root, context),
-                    JsonActionNetworkMessage.MessageTypeActionResponder
-                        => DecodeActionResponder(root, context),
-                    _ => DecodeUnknown(context, messageType)
-                };
+                    context.Diagnostics.Increment(
+                        PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
+                    return null;
+                }
             }
+        }
+
+        private static bool IsInvalidUtf8JsonText(InvalidOperationException exception)
+        {
+            return exception.InnerException is DecoderFallbackException;
         }
 
         private static JsonNetworkMessage? DecodeDataWithoutNetworkHeader(
@@ -778,19 +793,29 @@ namespace Opc.Ua.PubSub.Encoding.Json
             ArrayOf<DataSetField> fields = [];
             if (hasPayloadWrapper)
             {
-                fields = JsonFieldDecoder.DecodeFields(
+                if (!JsonFieldDecoder.TryDecodeFields(
                     payload,
                     metaData,
                     detectedMode,
-                    context.MessageContext);
+                    context.MessageContext,
+                    out ArrayOf<DataSetField> decodedFields))
+                {
+                    return null;
+                }
+                fields = decodedFields;
             }
             else if (!hasDataSetHeader)
             {
-                fields = JsonFieldDecoder.DecodeFields(
+                if (!JsonFieldDecoder.TryDecodeFields(
                     entry,
                     metaData,
                     detectedMode,
-                    context.MessageContext);
+                    context.MessageContext,
+                    out ArrayOf<DataSetField> decodedFields))
+                {
+                    return null;
+                }
+                fields = decodedFields;
             }
             return new JsonDataSetMessage
             {

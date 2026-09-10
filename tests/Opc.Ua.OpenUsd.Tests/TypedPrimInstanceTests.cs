@@ -172,7 +172,7 @@ namespace Opc.Ua.OpenUsd.Tests
             // Exactly one authored attribute, the generic lowercase "points".
             List<UsdAttributeState> attrs =
                 MaterializationHarness.ChildrenOfType<UsdAttributeState>(ms.Context, node);
-            Assert.That(attrs.Select(a => a.BrowseName.Name), Is.EquivalentTo(new[] { "points" }));
+            Assert.That(attrs.Select(a => a.BrowseName.Name), Is.EquivalentTo(s_stringValues1));
 
             // The capitalized typed member "Points" is deliberately absent — no duplicate.
             var allChildren = new List<BaseInstanceState>();
@@ -206,13 +206,20 @@ namespace Opc.Ua.OpenUsd.Tests
             List<string> exportedPaths = exported.AllPrims().Select(p => p.PathOf()).ToList();
             Assert.That(
                 exportedPaths,
-                Is.EquivalentTo(new[]
-                {
-                    "/World", "/World/Ball", "/World/Box", "/World/Mat", "/World/Mat/Surface"
-                }));
+                Is.EquivalentTo(s_stringValues2));
 
             UsdPrim surface = exported.AllPrims().Single(p => p.Name == "Surface");
             Assert.That(surface.TypeName, Is.EqualTo("Shader"));
         }
+
+        private static readonly string[] s_stringValues1 = ["points"];
+        private static readonly string[] s_stringValues2 =
+        [
+            "/World",
+            "/World/Ball",
+            "/World/Box",
+            "/World/Mat",
+            "/World/Mat/Surface",
+        ];
     }
 }

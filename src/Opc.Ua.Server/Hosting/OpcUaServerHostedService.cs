@@ -41,7 +41,6 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
-using Opc.Ua.Server.AliasNames;
 using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server.Hosting
@@ -60,7 +59,6 @@ namespace Opc.Ua.Server.Hosting
         private readonly ITelemetryContext m_telemetry;
         private readonly IApplicationInstanceFactory m_applicationFactory;
         private readonly IOpcUaApplicationConfigurationProvider? m_configurationProvider;
-        private readonly IEnumerable<OpcUaServerNodeManagerRegistration> m_registrations;
         private readonly IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> m_identityRegistrations;
         private readonly IEnumerable<OpcUaServerIdentityAugmenterRegistration> m_augmenterRegistrations;
         private readonly IEnumerable<KeyCredentialPushSubject> m_keyCredentialPushSubjects;
@@ -70,19 +68,21 @@ namespace Opc.Ua.Server.Hosting
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger<OpcUaServerHostedService> m_logger;
         // CA2213: ApplicationInstance is IAsyncDisposable; it is owned either
-        // by this service and disposed in StopAsync or by the shared provider.
+        // by this service and disposed during execution cleanup or by the shared provider.
 #pragma warning disable CA2213
         private IApplicationInstance? m_application;
 #pragma warning restore CA2213
         private StandardServer? m_server;
         private bool m_ownsApplication;
 
+        /// <summary>
+        /// Initializes the hosted server with its options, injected registrations, factories, and lifecycle services.
+        /// </summary>
         public OpcUaServerHostedService(
             IOptions<OpcUaServerOptions> options,
             ITelemetryContext telemetry,
             IApplicationInstanceFactory applicationFactory,
             IEnumerable<IOpcUaApplicationConfigurationProvider> configurationProviders,
-            IEnumerable<OpcUaServerNodeManagerRegistration> registrations,
             IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> identityRegistrations,
             IEnumerable<OpcUaServerIdentityAugmenterRegistration> augmenterRegistrations,
             IEnumerable<KeyCredentialPushSubject> keyCredentialPushSubjects,
@@ -107,7 +107,6 @@ namespace Opc.Ua.Server.Hosting
             {
                 m_configurationProvider = provider;
             }
-            m_registrations = registrations ?? throw new ArgumentNullException(nameof(registrations));
             m_identityRegistrations = identityRegistrations ??
                 throw new ArgumentNullException(nameof(identityRegistrations));
             m_augmenterRegistrations = augmenterRegistrations ??
@@ -122,7 +121,39 @@ namespace Opc.Ua.Server.Hosting
             m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
+        /// <summary>
+        /// Waits for server cleanup before the host disposes its injected services.
+        /// </summary>
+        public override async Task StopAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await base.StopAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (ExecuteTask is { } execution)
+                {
+                    // Keep dependencies alive through cleanup; execution failures remain on ExecuteTask,
+                    // matching BackgroundService.StopAsync rather than rethrowing them during shutdown.
+                    await Task.WhenAny(execution).ConfigureAwait(false);
+                }
+            }
+        }
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            try
+            {
+                await RunServerAsync(stoppingToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                await StopApplicationAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        private async Task RunServerAsync(CancellationToken stoppingToken)
         {
             ICertificateManager? certificateManager =
                 m_services.GetService<ICertificateManager>();
@@ -194,6 +225,10 @@ namespace Opc.Ua.Server.Hosting
 
             m_server = m_serverFactory.CreateServer(m_telemetry, m_timeProvider);
             m_nodeManagerLifecycle.Attach(m_server.NodeManagerLifecycle);
+            if (m_server is not DependencyInjectionStandardServer)
+            {
+                OpcUaServerRegistrationStaging.Apply(m_server, m_services);
+            }
 
             // Complex-type loading is on by default (StandardServer.LoadComplexTypes);
             // build and register stand-in encodeables for runtime-loaded custom
@@ -213,6 +248,8 @@ namespace Opc.Ua.Server.Hosting
             m_server.RedundantServerSetProvider = m_services.GetService<IRedundantServerSetProvider>();
             m_server.GetEndpointsDirector = m_services.GetService<IGetEndpointsDirector>();
             m_server.SubscriptionStore = m_services.GetService<ISubscriptionStore>();
+            m_server.HistoryContinuationPointStore =
+                m_services.GetService<IHistoryContinuationPointStore>();
             m_server.MonitoredItemQueueFactory = m_services.GetService<IMonitoredItemQueueFactory>();
             if (m_services.GetService<ITransportBindingRegistry>() is { } transportBindings)
             {
@@ -235,11 +272,16 @@ namespace Opc.Ua.Server.Hosting
                 m_server.RateLimitOptions = rateLimitOptions;
             }
 
-            foreach (OpcUaServerNodeManagerRegistration reg in m_registrations)
+            foreach (OpcUaServerNodeManagerRegistration reg in
+                m_services.GetServices<OpcUaServerNodeManagerRegistration>())
             {
-                if (reg.AsyncFactory is not null)
+                stoppingToken.ThrowIfCancellationRequested();
+                ArrayOf<IAsyncNodeManagerFactory> factories = reg.ResolveAsyncFactories(m_services, configuration);
+                foreach (IAsyncNodeManagerFactory factory in factories)
                 {
-                    m_server.AddNodeManager(reg.AsyncFactory);
+                    m_server.AddNodeManager(factory ??
+                        throw new InvalidOperationException(
+                            "The node-manager factories callback returned a null factory."));
                 }
                 if (reg.SyncFactory is not null)
                 {
@@ -248,7 +290,6 @@ namespace Opc.Ua.Server.Hosting
             }
 
             await application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
-            RegisterPostStartRegistries();
             await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
             RegisterIdentityAuthenticators();
             RegisterIdentityAugmenters();
@@ -260,6 +301,7 @@ namespace Opc.Ua.Server.Hosting
             {
                 try
                 {
+                    stoppingToken.ThrowIfCancellationRequested();
                     await startupTask
                         .OnServerStartedAsync(m_server.CurrentInstance, stoppingToken)
                         .ConfigureAwait(false);
@@ -274,6 +316,7 @@ namespace Opc.Ua.Server.Hosting
                     {
                         m_logger.ServerStartupTaskStartupTaskFailedAfterServer(ex, startupTask.GetType().FullName);
                     }
+                    throw;
                 }
             }
 
@@ -463,41 +506,6 @@ namespace Opc.Ua.Server.Hosting
             }
         }
 
-        private void RegisterPostStartRegistries()
-        {
-            if (m_server is null or DependencyInjectionStandardServer)
-            {
-                return;
-            }
-
-            IServerInternal server = m_server.CurrentInstance;
-            if (server is IHistorianRegistryProvider historianRegistryProvider)
-            {
-                foreach (OpcUaServerHistorianRegistration registration in
-                    m_services.GetServices<OpcUaServerHistorianRegistration>())
-                {
-                    historianRegistryProvider.HistorianRegistry.RegisterDefault(registration.Provider);
-                }
-            }
-
-            if (server is IAliasNameStoreRegistryProvider aliasNameStoreRegistryProvider)
-            {
-                foreach (IAliasNameStoreRegistry registry in m_services.GetServices<IAliasNameStoreRegistry>())
-                {
-                    foreach (IAliasNameStore store in registry.Stores)
-                    {
-                        aliasNameStoreRegistryProvider.AliasNameStoreRegistry.Register(store);
-                    }
-                }
-
-                foreach (OpcUaServerAliasNameStoreRegistration registration in
-                    m_services.GetServices<OpcUaServerAliasNameStoreRegistration>())
-                {
-                    aliasNameStoreRegistryProvider.AliasNameStoreRegistry.Register(registration.Store);
-                }
-            }
-        }
-
         private void RegisterIdentityAugmenters()
         {
             if (m_server == null)
@@ -612,21 +620,20 @@ namespace Opc.Ua.Server.Hosting
             return false;
         }
 
-        public override async Task StopAsync(CancellationToken cancellationToken)
+        private async ValueTask StopApplicationAsync(CancellationToken cancellationToken)
         {
-            await base.StopAsync(cancellationToken).ConfigureAwait(false);
-
             if (m_server is not null)
             {
                 m_nodeManagerLifecycle.Detach(m_server.NodeManagerLifecycle);
             }
 
-            if (m_application != null)
+            IApplicationInstance? application = Interlocked.Exchange(ref m_application, null);
+            if (application != null)
             {
                 m_logger.StoppingOPCUAServer();
                 try
                 {
-                    await m_application.StopAsync(cancellationToken).ConfigureAwait(false);
+                    await application.StopAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -634,15 +641,25 @@ namespace Opc.Ua.Server.Hosting
                 }
                 finally
                 {
-                    if (m_ownsApplication)
+                    try
                     {
-                        await m_application.DisposeAsync().ConfigureAwait(false);
+                        if (m_ownsApplication)
+                        {
+                            await application.DisposeAsync().ConfigureAwait(false);
+                        }
                     }
-                    m_application = null;
+                    finally
+                    {
+                        m_server?.Dispose();
+                        m_server = null;
+                    }
                 }
             }
         }
 
+        /// <summary>
+        /// Detaches the node-manager lifecycle and disposes the server and background service.
+        /// </summary>
         public override void Dispose()
         {
             if (m_server is not null)
@@ -659,6 +676,9 @@ namespace Opc.Ua.Server.Hosting
     /// </summary>
     internal static partial class OpcUaServerHostedServiceLog
     {
+        /// <summary>
+        /// Logs a startup task failure after the OPC UA server has started.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 0, Level = LogLevel.Error,
             Message = "Server startup task {StartupTask} failed after server start.")]
         public static partial void ServerStartupTaskStartupTaskFailedAfterServer(
@@ -666,30 +686,48 @@ namespace Opc.Ua.Server.Hosting
             Exception ex,
             string? startupTask);
 
+        /// <summary>
+        /// Logs an endpoint on which the OPC UA server is listening.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 1, Level = LogLevel.Information,
             Message = "OPC UA server listening at {Endpoint}.")]
         public static partial void OPCUAServerListeningAtEndpoint(this ILogger logger, string endpoint);
 
+        /// <summary>
+        /// Logs a configured user token policy that lacks a matching identity authenticator.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 2, Level = LogLevel.Warning,
             Message = "User token policy {TokenType} is configured without a matching identity authenticator.")]
         public static partial void UserTokenPolicyTokenTypeIsConfiguredWithout(
             this ILogger logger,
             UserTokenType tokenType);
 
+        /// <summary>
+        /// Logs the start of hosted OPC UA server shutdown.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 3, Level = LogLevel.Information,
             Message = "Stopping OPC UA server...")]
         public static partial void StoppingOPCUAServer(this ILogger logger);
 
+        /// <summary>
+        /// Logs an exception while stopping the hosted OPC UA server.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 4, Level = LogLevel.Warning,
             Message = "Error while stopping OPC UA server.")]
         public static partial void ErrorWhileStoppingOPCUAServer(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs the file used to load the OPC UA server configuration.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 5, Level = LogLevel.Information,
             Message = "Loading OPC UA server configuration from file {ConfigurationFile}.")]
         public static partial void LoadingOPCUAServerConfigurationFromFile(
             this ILogger logger,
             string configurationFile);
 
+        /// <summary>
+        /// Logs loading of the OPC UA server configuration from a stream.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 6, Level = LogLevel.Information,
             Message = "Loading OPC UA server configuration from a stream.")]
         public static partial void LoadingOPCUAServerConfigurationFromStream(this ILogger logger);

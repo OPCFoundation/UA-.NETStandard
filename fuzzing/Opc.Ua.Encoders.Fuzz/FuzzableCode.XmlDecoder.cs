@@ -52,17 +52,7 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         public static void AflfuzzXmlEncoder(Stream stream)
         {
-            IEncodeable encodeable;
-            try
-            {
-                encodeable = FuzzXmlDecoderCore(stream);
-            }
-            catch
-            {
-                return;
-            }
-
-            // encode the fuzzed object and see if it crashes
+            IEncodeable encodeable = FuzzXmlDecoderCore(stream);
             if (encodeable != null)
             {
                 using var encoder = new XmlEncoder(MessageContext);
@@ -76,19 +66,12 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         public static void AflfuzzXmlEncoderIndempotent(Stream stream)
         {
-            IEncodeable encodeable;
-            string serialized;
-            try
+            IEncodeable encodeable = FuzzXmlDecoderCore(stream);
+            if (encodeable != null)
             {
-                encodeable = FuzzXmlDecoderCore(stream, true);
-                serialized = EncodeXmlMessage(encodeable);
+                string serialized = EncodeXmlMessage(encodeable);
+                FuzzXmlEncoderIndempotentCore(serialized, encodeable);
             }
-            catch
-            {
-                return;
-            }
-
-            FuzzXmlEncoderIndempotentCore(serialized, encodeable);
         }
 
         /// <summary>
@@ -105,24 +88,8 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         public static void LibfuzzXmlEncoder(ReadOnlySpan<byte> input)
         {
-            IEncodeable encodeable;
-            try
-            {
-                using var memoryStream = new MemoryStream(input.ToArray());
-                encodeable = FuzzXmlDecoderCore(memoryStream);
-            }
-            catch
-            {
-                return;
-            }
-
-            // encode the fuzzed object and see if it crashes
-            if (encodeable != null)
-            {
-                using var encoder = new XmlEncoder(MessageContext);
-                encoder.EncodeMessage(encodeable, encodeable.TypeId);
-                encoder.Close();
-            }
+            using var memoryStream = new MemoryStream(input.ToArray());
+            AflfuzzXmlEncoder(memoryStream);
         }
 
         /// <summary>
@@ -156,13 +123,13 @@ namespace Opc.Ua.Fuzzing
             string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
             if (serialized2 == null || !serialized.SequenceEqual(serialized2))
             {
-                throw new InvalidOperationException(
+                throw new EncodingFidelityException(
                     Utils.Format("Idempotent XML encoding failed. Type={0}.", encodeableTypeName));
             }
 
             if (!Utils.IsEqual(encodeable2, encodeable3))
             {
-                throw new InvalidOperationException(Utils.Format(
+                throw new EncodingFidelityException(Utils.Format(
                     "Idempotent XML 3rd gen decoding failed. Type={0}.",
                     encodeableTypeName));
             }
@@ -183,66 +150,22 @@ namespace Opc.Ua.Fuzzing
         {
             try
             {
-                XmlReader reader = null;
-                try
-                {
-                    Type systemType = null;
-                    try
-                    {
-                        reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
-                        reader.MoveToContent();
-                        string typeName = reader.LocalName;
-                        string namespaceUri = reader.NamespaceURI;
-                        systemType = MessageContext
-                            .Factory.KnownTypeIds
-                                .Select(MessageContext.Factory.GetSystemType)
-                                .FirstOrDefault(entry => entry.Name == typeName
-                                    /* && entry.Key.NamespaceUri == namespaceUri*/);
-                    }
-                    catch (XmlException ex)
-                    {
-                        if (!throwAll)
-                        {
-                            return null;
-                        }
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            ex.Message);
-                    }
-
-                    if (systemType == null)
-                    {
-                        if (!throwAll)
-                        {
-                            return null;
-                        }
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Could not find type for decoding.");
-                    }
-
-                    // TODO: match ns GetEncodeableFactory(typeName, namespaceUri, out IEncodeable encodeable, out _);
-                    using var decoder = new XmlDecoder(reader, MessageContext);
-                    return decoder.DecodeMessage<IEncodeable>();
-                }
-                finally
-                {
-                    reader?.Dispose();
-                }
+                using XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
+                reader.MoveToContent();
+                using var decoder = new XmlDecoder(reader, MessageContext);
+                return decoder.DecodeMessage<IEncodeable>();
             }
-            catch (ServiceResultException sre)
+            catch (XmlException exception)
             {
-                if (!throwAll &&
-                    (sre.StatusCode == StatusCodes.BadDecodingError ||
-                        sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded))
+                if (!throwAll)
                 {
                     return null;
                 }
-                Console.WriteLine(
-                    "Unexpected ServiceResultException: {0} {1}",
-                    sre.StatusCode,
-                    sre.Message);
-                throw;
+                throw new ServiceResultException(StatusCodes.BadDecodingError, exception.Message, exception);
+            }
+            catch (ServiceResultException exception) when (!throwAll && IsExpectedDecodingError(exception))
+            {
+                return null;
             }
         }
     }

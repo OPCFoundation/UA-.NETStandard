@@ -2,6 +2,12 @@
 
 This guide explains how to load one or more NodeSet2 XML documents into the server's address space at startup without writing a source-generated or hand-coded NodeManager. You configure which files or streams to load; the server imports them in dependency order and registers the resulting nodes.
 
+Within each imported set, types are registered in inheritance order rather than
+XML record order. A derived type may precede its supertype in the document;
+an inheritance cycle is rejected before registration. Imported namespace-zero
+`InputArguments` and `OutputArguments` Properties populate their Method's typed
+signature, retaining the declared Property NodeIds, argument order, and values.
+
 ## When to use the runtime NodeSet path
 
 Use `AddRuntimeNodeSet` when:
@@ -14,7 +20,26 @@ Use the [source-generated path](NodeManagers.md#source-generated-node-managers) 
 
 ## Startup and live lifecycle semantics
 
-`AddRuntimeNodeSet` on `IOpcUaServerBuilder` remains the startup path: its factory is created before the server starts and its NodeSet is imported during `CreateAddressSpaceAsync`.
+`AddRuntimeNodeSet` on `IOpcUaServerBuilder` remains the startup path: its factory is created before the server starts and its NodeSet is imported during `CreateAddressSpaceAsync`. After startup, the resulting generation-1 registration is available from `INodeManagerLifecycle.Registrations`, so a model composed at startup can use the same reload and removal APIs as one added while the server is already running.
+
+For example, a startup task can locate the registration by an owned model namespace:
+
+```csharp
+public sealed class ModelRegistration(INodeManagerLifecycle lifecycle)
+    : IServerStartupTask
+{
+    public NodeManagerRegistration? Registration { get; private set; }
+
+    public ValueTask OnServerStartedAsync(
+        IServerContext server,
+        CancellationToken ct)
+    {
+        Registration = lifecycle.Registrations.Find(registration =>
+            registration.NamespaceUris.Contains("urn:example:MyMachine"));
+        return default;
+    }
+}
+```
 
 Running servers also expose `INodeManagerLifecycle`. Resolve it from dependency injection in a hosted server, or use `StandardServer.NodeManagerLifecycle` when constructing the server directly. The lifecycle provider can add, reload, shadow-reload, and remove runtime NodeSets without restarting the server.
 
@@ -54,6 +79,10 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 ```
 
 Each add returns an immutable `NodeManagerRegistration`, and reload returns the next generation while invalidating the previous handle.
+
+A registration obtained from `Registrations` for an `AddRuntimeNodeSet` model is already the first
+live generation; pass it directly to `ReloadRuntimeNodeSetAsync`,
+`ShadowReloadRuntimeNodeSetAsync`, `ImmediateReloadRuntimeNodeSetAsync`, or `RemoveAsync`.
 
 `AddRuntimeNodeSetAsync`, `ReloadRuntimeNodeSetAsync`, and `RemoveAsync` take the operation the caller is running under. Pass `context.GetOperationContext()` when calling from a NodeManager or Method callback: a lifecycle operation drains the requests that are in flight, so one started from inside a request would wait for itself and is rejected with an `InvalidOperationException`. A control-plane caller such as the `ModelLoader` above is not serving a request and passes `null`. See [Registering NodeManagers](NodeManagers.md#runtime-registration).
 
@@ -117,6 +146,18 @@ services.AddOpcUa()
                 .OnRead(ReadTemperature);
         });
 ```
+
+Standard Method argument children are bound to their typed `NodeState` properties during import.
+A NodeSet2 Method's `InputArguments` and `OutputArguments` Variables populate
+`MethodState.InputArguments` and `MethodState.OutputArguments`, so normal Call argument validation
+uses the declarations from the document.
+Binding uses the authored `HasProperty` relationship, declared either on the Method or
+as an inverse reference on the argument Property; `ParentNodeId` is optional. Local
+namespace-URI reference targets are resolved against the import context's namespace table.
+The Property must use the namespace-zero standard BrowseName, `PropertyType`, the `Argument`
+DataType, and a one-dimensional value rank. Ambiguous or conflicting declarations and
+custom or malformed properties do not bind the Method's typed signature; their authored
+nodes and references are retained. Other authored reference types are preserved.
 
 ### Group of dependent NodeSets
 
@@ -196,6 +237,8 @@ When no `Configure` callback is registered, `DefaultNamespaceUri` has no effect 
 ## Dependency sorting
 
 The factory reads the `Models/Model/RequiredModel` entries from each parsed NodeSet document and performs a topological sort (Kahn's algorithm) before importing. Import order guarantees that a required model's nodes are in the address space before any document that depends on them imports its nodes.
+
+All documents of one manager are parsed into a single batch whose parent-child relationships are linked exactly once, after the last document has been parsed. A node may therefore declare a `ParentNodeId` that lives in another document of the group regardless of the order the two were parsed in; a duplicate NodeId across documents is rejected while parsing. A fluent `Configure` callback can add further documents to the manager with `builder.Import` — see [Importing a NodeSet2 overlay at runtime](NodeManagers.md#importing-a-nodeset2-overlay-at-runtime--builderimport).
 
 Dependencies on models **not included in the group** — for example the OPC UA base namespace or a third-party model hosted by a generated NodeManager — are silently allowed and treated as external. The server resolves cross-manager references through the normal `AddReverseReferencesAsync` mechanism.
 

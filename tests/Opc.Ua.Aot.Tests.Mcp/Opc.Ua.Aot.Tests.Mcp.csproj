@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Opc.Ua.Aot.Tests</RootNamespace>
+    <PublishAot>true</PublishAot>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+  </PropertyGroup>
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX')) AND ('$(TF_BUILD)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true')">
+    <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
+    <OptimizationPreference>Size</OptimizationPreference>
+    <DebugType>none</DebugType>
+    <DebuggerSupport>false</DebuggerSupport>
+    <StackTraceSupport>false</StackTraceSupport>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.Core\Opc.Ua.Mcp.Core.csproj" />
+  </ItemGroup>
+  <!-- Keep the existing test source and assembly hooks unchanged while
+       compiling the independent MCP tool graph in its own native executable. -->
+  <ItemGroup>
+    <Compile Include="..\Opc.Ua.Aot.Tests\McpAotTests.cs" Link="McpAotTests.cs" />
+    <Compile Include="..\Opc.Ua.Aot.Tests\LeakDetectionSetup.cs" Link="LeakDetectionSetup.cs" />
+    <Compile Include="..\Opc.Ua.Aot.Tests\Properties\AssemblyInfo.cs" Link="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+</Project>

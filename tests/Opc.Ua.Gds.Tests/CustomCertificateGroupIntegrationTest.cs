@@ -182,6 +182,16 @@ namespace Opc.Ua.Gds.Tests
                 Assert.That(customGroupNodeId.IsNull, Is.False,
                     "The custom group NodeId must not be null");
 
+                // The identifier itself is minted by the server and may change,
+                // but the namespace it is minted in is part of the GDS contract:
+                // server-owned instance nodes live in the application record
+                // namespace, not in the companion model's.
+                Assert.That(
+                    m_gdsClient.GDSClient.Session.NamespaceUris
+                        .GetString(customGroupNodeId.NamespaceIndex),
+                    Is.EqualTo("http://opcfoundation.org/UA/GDS/applications/"),
+                    "The custom group node must live in the application record namespace");
+
                 // Read the BrowseName of the custom group node from the address space
                 Node customGroupNode = await m_gdsClient.GDSClient.Session
                     .ReadNodeAsync(customGroupNodeId)

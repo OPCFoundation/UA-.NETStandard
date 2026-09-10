@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -270,6 +271,104 @@ namespace Opc.Ua.WotCon.Tests.Client
 
             ByteString downloaded = await resource.DownloadAsync(chunkSize: 4096).ConfigureAwait(false);
             Assert.That(downloaded.ToArray(), Is.EqualTo(content));
+        }
+
+        [Test]
+        public async Task RetryingContentlessPlaceholderUploadsWithoutAllocatingAnotherVersionAsync()
+        {
+            var mock = new WotRegistrySessionMock();
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            (WotRegistryResourceClient first, string firstVersionId, bool firstCreated) =
+                await group.GetOrCreateResourceAsync("retry").ConfigureAwait(false);
+            (WotRegistryResourceClient retry, string retryVersionId, bool retryCreated) =
+                await group.GetOrCreateResourceAsync("retry").ConfigureAwait(false);
+
+            await retry.UploadNewVersionAsync(ByteString.From(Encoding.UTF8.GetBytes("retry")))
+                .ConfigureAwait(false);
+
+            NodeId createResourceMethodId = mock.ResolveMethodId(
+                XRegistry.MethodIds.GroupType_CreateResource);
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstCreated, Is.True);
+                Assert.That(retryCreated, Is.False);
+                Assert.That(retryVersionId, Is.EqualTo(firstVersionId));
+                Assert.That(
+                    mock.Capture.Count(request => request.MethodId == createResourceMethodId),
+                    Is.EqualTo(1),
+                    "The retry must atomically claim the returned placeholder.");
+                Assert.That(first.ResourceNodeId, Is.EqualTo(retry.ResourceNodeId));
+                Assert.That(retry.HasContent, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task PendingPlaceholderAllocatesNewVersionWhenAtomicClaimIsUnavailableAsync()
+        {
+            var mock = new WotRegistrySessionMock
+            {
+                SupportsAtomicContentlessFill = false
+            };
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            (WotRegistryResourceClient placeholder, string placeholderVersionId, _) =
+                await group.GetOrCreateResourceAsync("legacy-claim").ConfigureAwait(false);
+
+            byte[] content = Encoding.UTF8.GetBytes("new-version");
+            WotRegistryUploadResult upload = await placeholder
+                .UploadNewVersionAndGetResultAsync(ByteString.From(content))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(upload.VersionId, Is.Not.EqualTo(placeholderVersionId));
+                Assert.That(upload.ResourceNodeId, Is.Not.EqualTo(placeholder.ResourceNodeId));
+                Assert.That(mock.ContentFor(placeholder.ResourceNodeId).Length, Is.Zero);
+                Assert.That(mock.ContentFor(upload.ResourceNodeId).ToArray(), Is.EqualTo(content));
+            });
+        }
+
+        [TestCase(false, false)]
+        [TestCase(true, true)]
+        public async Task UnavailableContentStatePreservesLegacyUploadBehaviorAsync(
+            bool exposeContentDigest,
+            bool returnNullContentDigest)
+        {
+            var mock = new WotRegistrySessionMock
+            {
+                ExposeContentDigest = exposeContentDigest,
+                ReturnNullContentDigest = returnNullContentDigest
+            };
+            WotRegistryClient client = await WotRegistryClient
+                .ForServerAsync(mock.Session, CreateTelemetry())
+                .ConfigureAwait(false);
+            WotRegistryGroupClient group = await client
+                .CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            _ = await group.GetOrCreateResourceAsync("legacy").ConfigureAwait(false);
+            (WotRegistryResourceClient retry, _, bool created) =
+                await group.GetOrCreateResourceAsync("legacy").ConfigureAwait(false);
+
+            await retry.UploadNewVersionAsync(ByteString.From(Encoding.UTF8.GetBytes("legacy")))
+                .ConfigureAwait(false);
+
+            NodeId createResourceMethodId = mock.ResolveMethodId(
+                XRegistry.MethodIds.GroupType_CreateResource);
+            Assert.Multiple(() =>
+            {
+                Assert.That(created, Is.False);
+                Assert.That(retry.HasContent, Is.Null);
+                Assert.That(
+                    mock.Capture.Count(request => request.MethodId == createResourceMethodId),
+                    Is.EqualTo(1),
+                    "Without content state the client must retain its prior allocation behavior.");
+            });
         }
 
         [Test]

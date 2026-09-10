@@ -282,6 +282,7 @@ namespace Opc.Ua.Security.Certificates
                                     crlExtensionList.Add(extension);
                                 }
                             }
+                            optReader.ThrowIfNotEmpty();
                             CrlExtensions = crlExtensionList;
                         }
                     }
@@ -304,6 +305,11 @@ namespace Opc.Ua.Security.Certificates
         /// <exception cref="AsnContentException"></exception>
         private static DateTime ReadTime(AsnReader asnReader, bool optional)
         {
+            if (optional && !asnReader.HasData)
+            {
+                return DateTime.MinValue;
+            }
+
             // determine if the time is UTC or GeneralizedTime time
             Asn1Tag timeTag = asnReader.PeekTag();
             if (timeTag.TagValue == Asn1Tag.UtcTime.TagValue)
@@ -312,6 +318,13 @@ namespace Opc.Ua.Security.Certificates
             }
             else if (timeTag.TagValue == Asn1Tag.GeneralizedTime.TagValue)
             {
+                // The BCL validates the calendar value, but it accepts fractional seconds.
+                // RFC 5280 4.1.2.5.2 requires whole-second Zulu times in a CRL, and a
+                // fractional value does not survive canonical re-encoding, so reject it here.
+                if (asnReader.PeekContentBytes().Span.IndexOf((byte)'.') >= 0)
+                {
+                    throw new AsnContentException("The CRL time must not contain fractional seconds.");
+                }
                 return asnReader.ReadGeneralizedTime().UtcDateTime;
             }
             else if (optional)

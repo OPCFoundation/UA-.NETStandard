@@ -37,6 +37,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
@@ -89,6 +90,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         private RequestHeader m_requestHeader;
         private SecureChannelContext m_secureChannelContext;
         private ILogger m_logger;
+        private HashSet<Guid> m_startupRegistrationIds;
 
         /// <summary>
         /// Starts a fresh <see cref="ReferenceServer"/> and activates a session for the test.
@@ -110,6 +112,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
             m_logger = NUnitTelemetryContext.Create().CreateLogger<RuntimeNodeSetLifecycleTests>();
+            m_startupRegistrationIds = [];
+            m_server.NodeManagerLifecycle.Registrations.ForEach(
+                registration => m_startupRegistrationIds.Add(registration.Id));
 
             (m_requestHeader, m_secureChannelContext) = await m_server
                 .CreateAndActivateSessionAsync(TestContext.CurrentContext.Test.Name)
@@ -142,6 +147,70 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             {
                 Directory.Delete(m_pkiRoot, recursive: true);
             }
+        }
+
+        [TestCase(true, false)]
+        [TestCase(false, false)]
+        [TestCase(true, true)]
+        [TestCase(false, true)]
+        public async Task RuntimeMethodCallsUseAuthoredArgumentsAsync(
+            bool includeParentHints,
+            bool useNamespaceUriTargets)
+        {
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(
+                    StartupRuntimeNodeSetServer.CreatePrimaryOptions(1, includeParentHints, useNamespaceUriTargets),
+                    null)
+                .ConfigureAwait(false);
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                StartupRuntimeNodeSetServer.PrimaryNamespaceUri);
+            var rootId = new NodeId(StartupRuntimeNodeSetServer.PrimaryRootNodeId, namespaceIndex);
+            var methodId = new NodeId(StartupRuntimeNodeSetServer.LoadMethodNodeId, namespaceIndex);
+            ArrayOf<CallMethodRequest> calls =
+            [
+                new CallMethodRequest
+                {
+                    ObjectId = rootId,
+                    MethodId = methodId,
+                    InputArguments = [Variant.From("Rev1")]
+                },
+                new CallMethodRequest { ObjectId = rootId, MethodId = methodId },
+                new CallMethodRequest
+                {
+                    ObjectId = rootId,
+                    MethodId = methodId,
+                    InputArguments = [Variant.From("Rev1"), Variant.From("Rev2")]
+                },
+                new CallMethodRequest
+                {
+                    ObjectId = rootId,
+                    MethodId = methodId,
+                    InputArguments = [Variant.From(42)]
+                }
+            ];
+
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            CallResponse response = await m_server.CallAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                calls,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(response.Results, Has.Count.EqualTo(4));
+            Assert.Multiple(() =>
+            {
+                Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(response.Results[0].OutputArguments, Has.Count.EqualTo(1));
+                Assert.That(response.Results[0].OutputArguments[0].GetBoolean(), Is.True);
+                Assert.That(response.Results[1].StatusCode, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+                Assert.That(response.Results[2].StatusCode, Is.EqualTo(StatusCodes.BadTooManyArguments));
+                Assert.That(response.Results[3].StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(response.Results[3].InputArgumentResults, Has.Count.EqualTo(1));
+                Assert.That(response.Results[3].InputArgumentResults[0], Is.EqualTo(StatusCodes.BadTypeMismatch));
+            });
+
+            await m_server.NodeManagerLifecycle.RemoveAsync(registration, null).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -203,6 +272,111 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(urisVersionAfter, Is.EqualTo(urisVersionBefore + 1));
         }
 
+        /// <summary>
+        /// The fluent base class dispatches monitored-item lifecycle callbacks
+        /// to every attached builder, so the manager must not dispatch a second
+        /// time on its own.
+        /// </summary>
+        [Test]
+        public async Task RuntimeNodeSetMonitoredItemCallbacksRunOnceAsync()
+        {
+            int created = 0;
+            int deleted = 0;
+            RuntimeNodeSetOptions options = CreateOptions(generation: 1);
+            options.Configure += builder =>
+                builder.Node($"{kRootBrowseName}/{kValueBrowseName}")
+                    .OnMonitoredItemCreated((_, _, _) => created++)
+                    .OnMonitoredItemDeleted((_, _, _, _) =>
+                    {
+                        deleted++;
+                        return default;
+                    });
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(options, null).ConfigureAwait(false);
+            try
+            {
+                var services = new ServerTestServices(m_server, m_secureChannelContext);
+                ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris
+                    .GetIndex(kModelNamespaceUri);
+                uint subscriptionId = await CreateSubscriptionWithMonitoredItemAsync(
+                    services, new NodeId(kValueNodeId, namespaceIndex)).ConfigureAwait(false);
+                try
+                {
+                    Assert.That(created, Is.EqualTo(1));
+                }
+                finally
+                {
+                    await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+                }
+                Assert.That(deleted, Is.EqualTo(1));
+            }
+            finally
+            {
+                await m_server.NodeManagerLifecycle.RemoveAsync(
+                    registration, callerContext: null).ConfigureAwait(false);
+            }
+        }
+        /// <summary>
+        /// Simulations must not start before the NotifyNodeAdded replay, so a
+        /// simulated value change can never precede the OnNodeAdded handler of
+        /// its own node.
+        /// </summary>
+        [Test]
+        public async Task RuntimeNodeSetSimulationStartsAfterNodeAddedReplayAsync()
+        {
+            int nodeAddedCompleted = 0;
+            int ticks = 0;
+            bool? firstTickSawCompletedReplay = null;
+            RuntimeNodeSetOptions options = CreateOptions(generation: 1);
+            options.Configure += builder =>
+            {
+                builder.Node($"{kRootBrowseName}/{kValueBrowseName}")
+                    .OnNodeAdded((_, _) =>
+                    {
+                        // Hold the replay open long enough that a simulation
+                        // started too early is certain to tick meanwhile.
+                        Thread.Sleep(100);
+                        Volatile.Write(ref nodeAddedCompleted, 1);
+                    });
+                builder.Simulation(TimeSpan.FromMilliseconds(5))
+                    .OnTick((_, _) =>
+                    {
+                        if (Interlocked.Increment(ref ticks) == 1)
+                        {
+                            firstTickSawCompletedReplay =
+                                Volatile.Read(ref nodeAddedCompleted) == 1;
+                        }
+                    });
+            };
+
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(options, null).ConfigureAwait(false);
+            try
+            {
+                DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+                while (Volatile.Read(ref ticks) == 0 && DateTime.UtcNow < deadline)
+                {
+                    await Task.Delay(10).ConfigureAwait(false);
+                }
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        Volatile.Read(ref ticks),
+                        Is.GreaterThan(0),
+                        "The configured simulation must run once the manager is active.");
+                    Assert.That(
+                        firstTickSawCompletedReplay,
+                        Is.True,
+                        "The OnNodeAdded replay must complete before a simulation ticks.");
+                });
+            }
+            finally
+            {
+                await m_server.NodeManagerLifecycle.RemoveAsync(
+                    registration, callerContext: null).ConfigureAwait(false);
+            }
+        }
         [Test]
         public async Task PreparedRuntimeNodeSetRemainsHiddenUntilCommitAsync()
         {
@@ -594,7 +768,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                         .ConfigureAwait(false));
 
             Assert.That(exception.Message, Does.Contain("Duplicate NodeId"));
-            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+            Assert.That(GetNonStartupRegistrations(), Is.Empty);
             Assert.That(master.AsyncNodeManagers, Has.Count.EqualTo(managerCountBefore));
 
             int namespaceIndex = server.NamespaceUris.GetIndex(kModelNamespaceUri);
@@ -630,7 +804,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                         .ConfigureAwait(false));
 
             Assert.That(exception.Message, Does.Contain("not owned"));
-            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+            Assert.That(GetNonStartupRegistrations(), Is.Empty);
             Assert.That(master.AsyncNodeManagers, Has.Count.EqualTo(managerCountBefore));
 
             int externalNamespaceIndex =
@@ -694,7 +868,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     .With.Message.EqualTo(expectedMessage)).ConfigureAwait(false);
 
             ArrayOf<NodeManagerRegistration> registrations =
-                m_server.NodeManagerLifecycle.Registrations;
+                GetNonStartupRegistrations();
             Assert.That(registrations, Has.Count.EqualTo(1));
             NodeManagerRegistration current = registrations[0];
             Assert.That(current, Is.SameAs(original));
@@ -1617,6 +1791,19 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 m_logger);
 
             return response;
+        }
+
+        private ArrayOf<NodeManagerRegistration> GetNonStartupRegistrations()
+        {
+            var registrations = new List<NodeManagerRegistration>();
+            m_server.NodeManagerLifecycle.Registrations.ForEach(registration =>
+            {
+                if (!m_startupRegistrationIds.Contains(registration.Id))
+                {
+                    registrations.Add(registration);
+                }
+            });
+            return new ArrayOf<NodeManagerRegistration>(registrations.ToArray());
         }
 
         /// <summary>

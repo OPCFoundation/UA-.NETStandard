@@ -311,7 +311,8 @@ namespace Opc.Ua.Wot
                 eventSelections,
                 eventSelectionsResolved,
                 declarations,
-                externalSchemas);
+                externalSchemas,
+                (thingResolver as DocumentSetThingResolver)?.ArchiveContext);
             ApplyIdentifierLeniency(diagnostics, options);
             return new WotConversionResult<UANodeSet>(nodeSet, diagnostics);
         }
@@ -595,7 +596,9 @@ namespace Opc.Ua.Wot
 
         private static bool TakesRestorePath(WotDocument document)
         {
-            return document.TryGetEnvelope(out _) || document.TryGetNativeProjection(out _);
+            return document.TryGetEnvelope(out _) ||
+                (document.TryGetNativeProjection(out JsonElement projection) &&
+                    !WotNativeProjection.HasUnsupportedProfile(projection));
         }
 
         /// <summary>
@@ -751,7 +754,8 @@ namespace Opc.Ua.Wot
             WotEventSelectionCatalog? eventSelections = null,
             bool eventSelectionsResolved = false,
             WotDeclarationCatalog? declarations = null,
-            WotExternalSchemaCatalog? externalSchemas = null)
+            WotExternalSchemaCatalog? externalSchemas = null,
+            UANodeSet? archiveContext = null)
         {
             options ??= new WotNodeSetConverterOptions();
             options.Validate();
@@ -764,6 +768,19 @@ namespace Opc.Ua.Wot
             // conversion rather than resetting for each resolved reference.
             resolutionContext ??= new WotResolutionContext(options.ToResolverOptions());
 
+            bool hasProjection = document.TryGetNativeProjection(out JsonElement nativeProjection);
+            bool unsupportedProjection = hasProjection &&
+                WotNativeProjection.HasUnsupportedProfile(nativeProjection);
+            if (unsupportedProjection)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Warning,
+                    WotDiagnosticCode.NativeProjectionInvalid,
+                    "The uav:nodes profileVersion is unsupported. Its records were not read; " +
+                    "the remaining document is processed independently.",
+                    WotLocation.FromPointer("/uav:nodes/profileVersion")));
+            }
+
             if (document.TryGetEnvelope(out JsonElement envelope))
             {
                 UANodeSet? restored = RestoreFromEnvelope(envelope, options, diagnostics);
@@ -771,19 +788,25 @@ namespace Opc.Ua.Wot
                 {
                     return null;
                 }
-                if (document.TryGetNativeProjection(out JsonElement projection))
+                if (hasProjection && !unsupportedProjection)
                 {
-                    UANodeSet? projected = ValidateNativeConsistency(restored, projection, options, diagnostics);
+                    UANodeSet? projected = ValidateNativeConsistency(restored, nativeProjection, options, diagnostics);
                     if (projected is not null)
                     {
                         ValidateNativeAffordanceCoverage(document, projected, diagnostics);
                     }
                 }
+                ValidateArchivedReadableFacts(document, restored, options, diagnostics, archiveContext);
+                ApplyIdentifierLeniency(diagnostics, options);
+                if (HasErrors(diagnostics))
+                {
+                    return NodeSetAliasCompleter.Complete(restored, WotNodeSetAliases.Instance);
+                }
                 WotJsonResidue.Replace(restored, document, options, diagnostics);
                 return NodeSetAliasCompleter.Complete(restored, WotNodeSetAliases.Instance);
             }
 
-            if (document.TryGetNativeProjection(out JsonElement nativeProjection))
+            if (hasProjection && !unsupportedProjection)
             {
                 UANodeSet? restored = WotNativeProjection.Read(
                     nativeProjection,
@@ -1367,12 +1390,22 @@ namespace Opc.Ua.Wot
                 document, rootReferences, componentTypedRefs, nodeSet, diagnostics);
             if (parentPlacement is { } placement)
             {
-                rootReferences.Add(new Reference
+                string parentId = ToNodeSetNodeId(placement.ParentNodeId, nodeSet, diagnostics);
+                if (!rootReferences.Exists(reference =>
+                    !reference.IsForward && IsComponentReference(reference.ReferenceType) &&
+                    reference.Value == parentId))
                 {
-                    ReferenceType = "HasComponent",
-                    IsForward = false,
-                    Value = placement.ParentNodeId
-                });
+                    rootReferences.Add(new Reference
+                    {
+                        ReferenceType = "HasComponent",
+                        IsForward = false,
+                        Value = parentId
+                    });
+                }
+                if (rootNode is UAInstance instance)
+                {
+                    instance.ParentNodeId = parentId;
+                }
             }
 
             rootNode.References = [.. rootReferences];
@@ -1446,10 +1479,10 @@ namespace Opc.Ua.Wot
             // else, so an affordance that binds itself to PropertyType - which
             // is what EngineeringUnits, EURange and every other Property does -
             // is held that way rather than as a component.
-            string ownership = string.Equals(
-                typeDefinition, WotVocabulary.PropertyType, StringComparison.Ordinal)
-                ? "HasProperty"
-                : "HasComponent";
+            string ownership = ReadAffordanceOwnership(document, schema, owner, nodeSet, diagnostics) ??
+                (string.Equals(typeDefinition, WotVocabulary.PropertyType, StringComparison.Ordinal)
+                    ? "HasProperty"
+                    : "HasComponent");
             var references = new List<Reference>
             {
                 new Reference
@@ -1468,6 +1501,7 @@ namespace Opc.Ua.Wot
             AddModellingRule(schema, references);
             variable.ParentNodeId = owner;
             variable.References = [.. references];
+            ValidateVariableValue(schema, variable.DataType, key, diagnostics);
             variable.Value ??= BuildVariableValue(schema, variable.DataType);
 
             ReportUnsupportedSchema(schema, nodeId, local, externalSchemas, diagnostics);
@@ -1614,8 +1648,53 @@ namespace Opc.Ua.Wot
             return null;
         }
 
+        private static string? ReadAffordanceOwnership(
+            WotDocument document,
+            JsonElement affordance,
+            string owner,
+            UANodeSet nodeSet,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!affordance.TryGetProperty("links", out JsonElement links) ||
+                links.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+            foreach (JsonElement link in links.EnumerateArray())
+            {
+                string? rel = GetElementString(link, "rel");
+                string? href = GetElementString(link, "href");
+                if (rel is null || rel == TypeBindingRel || href is null || !LooksLikeNodeId(href) ||
+                    ToNodeSetNodeId(href, nodeSet, diagnostics) != owner)
+                {
+                    continue;
+                }
+                string referenceType;
+                bool isForward;
+                if (rel is ComponentOfRel or ComponentOfAliasRel)
+                {
+                    referenceType = GetElementString(link, "uav:refId") ?? "i=47";
+                    isForward = false;
+                }
+                else if (!TryResolveLinkReferenceType(
+                    document, link, rel, null, diagnostics, out referenceType, out isForward))
+                {
+                    continue;
+                }
+                if (isForward || !IsComponentReference(referenceType))
+                {
+                    continue;
+                }
+                return WotVocabulary.TryGetReferenceTypeBrowseName(referenceType, out string name)
+                    ? name
+                    : referenceType;
+            }
+            return null;
+        }
+
         /// <summary>
-        /// Rebuilds a Variable's <c>Value</c> from the property's <c>const</c>.
+        /// Rebuilds a Variable's <c>Value</c> from the property's <c>const</c>
+        /// or <c>default</c>.
         /// </summary>
         /// <remarks>
         /// The DataType decides the XML shape, which is why §5.4's definitive
@@ -1626,18 +1705,14 @@ namespace Opc.Ua.Wot
             JsonElement schema, string? dataType)
         {
             if (schema.ValueKind != JsonValueKind.Object ||
-                !schema.TryGetProperty("const", out JsonElement constant))
+                ReadValueRank(schema) != ScalarValueRank ||
+                (!schema.TryGetProperty("const", out JsonElement constant) &&
+                    !schema.TryGetProperty("default", out constant)))
             {
                 return null;
             }
-            string? local = dataType switch
-            {
-                "i=1" => "Boolean",
-                "i=12" => "String",
-                "i=21" => "LocalizedText",
-                _ => null
-            };
-            if (local is null)
+            string? local = VariableValueElementName(dataType);
+            if (local is null || !TryReadVariableConstant(constant, local, out string textValue))
             {
                 return null;
             }
@@ -1646,28 +1721,147 @@ namespace Opc.Ua.Wot
                 "uax", local, UaXmlNamespace);
             if (string.Equals(local, "LocalizedText", StringComparison.Ordinal))
             {
-                if (constant.ValueKind != JsonValueKind.String)
-                {
-                    return null;
-                }
                 System.Xml.XmlElement text = document.CreateElement(
                     "uax", "Text", UaXmlNamespace);
-                text.InnerText = constant.GetString() ?? string.Empty;
+                text.InnerText = textValue;
                 element.AppendChild(text);
                 return element;
             }
-            switch (constant.ValueKind)
+            element.InnerText = textValue;
+            return element;
+        }
+
+        private static string? VariableValueElementName(string? dataType)
+        {
+            if (dataType is not null && WotNodeSetAliases.Instance.TryResolve(dataType, out string resolved))
             {
-                case JsonValueKind.True:
-                case JsonValueKind.False:
-                    element.InnerText = constant.GetBoolean() ? "true" : "false";
-                    return element;
-                case JsonValueKind.String:
-                    element.InnerText = constant.GetString() ?? string.Empty;
-                    return element;
-                default:
-                    return null;
+                dataType = resolved;
             }
+            return dataType switch
+            {
+                "i=1" => "Boolean",
+                "i=2" => "SByte",
+                "i=3" => "Byte",
+                "i=4" => "Int16",
+                "i=5" => "UInt16",
+                "i=6" => "Int32",
+                "i=7" => "UInt32",
+                "i=8" => "Int64",
+                "i=9" => "UInt64",
+                "i=10" => "Float",
+                "i=11" => "Double",
+                "i=12" => "String",
+                "i=21" => "LocalizedText",
+                _ => null
+            };
+        }
+
+        private static bool TryReadVariableConstant(JsonElement constant, string local, out string text)
+        {
+            text = string.Empty;
+            if (constant.ValueKind == JsonValueKind.String && local is "String" or "LocalizedText")
+            {
+                text = constant.GetString() ?? string.Empty;
+                return true;
+            }
+            if (constant.ValueKind is JsonValueKind.True or JsonValueKind.False && local == "Boolean")
+            {
+                text = constant.GetBoolean() ? "true" : "false";
+                return true;
+            }
+            if (constant.ValueKind != JsonValueKind.Number)
+            {
+                return false;
+            }
+            if (constant.TryGetInt64(out long signed) &&
+                (local == "Int64" ||
+                    (local == "Int32" && signed is >= int.MinValue and <= int.MaxValue) ||
+                    (local == "Int16" && signed is >= short.MinValue and <= short.MaxValue) ||
+                    (local == "SByte" && signed is >= sbyte.MinValue and <= sbyte.MaxValue)))
+            {
+                text = System.Xml.XmlConvert.ToString(signed);
+                return true;
+            }
+            if (constant.TryGetUInt64(out ulong unsigned) &&
+                (local == "UInt64" ||
+                    (local == "UInt32" && unsigned <= uint.MaxValue) ||
+                    (local == "UInt16" && unsigned <= ushort.MaxValue) ||
+                    (local == "Byte" && unsigned <= byte.MaxValue)))
+            {
+                text = System.Xml.XmlConvert.ToString(unsigned);
+                return true;
+            }
+            if (local == "Float" && constant.TryGetSingle(out float single) &&
+                !float.IsInfinity(single) && !float.IsNaN(single))
+            {
+                text = System.Xml.XmlConvert.ToString(single);
+                return true;
+            }
+            if (local == "Double" && constant.TryGetDouble(out double number) &&
+                !double.IsInfinity(number) && !double.IsNaN(number))
+            {
+                text = System.Xml.XmlConvert.ToString(number);
+                return true;
+            }
+            return false;
+        }
+
+        private static void ValidateVariableValue(
+            JsonElement schema,
+            string? dataType,
+            string key,
+            List<WotDiagnostic> diagnostics)
+        {
+            string? local = VariableValueElementName(dataType);
+            if (local is null || ReadValueRank(schema) != ScalarValueRank)
+            {
+                return;
+            }
+            foreach (string member in new[] { "const", "default" })
+            {
+                if (schema.TryGetProperty(member, out JsonElement value) &&
+                    !TryReadVariableConstant(value, local, out _))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.ValidationError,
+                        $"The {member} value cannot be represented by the Variable's {local} DataType.",
+                        WotLocation.FromPointer("/properties/" + EscapeJsonPointerToken(key) + "/" + member)));
+                }
+            }
+            if (schema.TryGetProperty("const", out JsonElement constant) &&
+                schema.TryGetProperty("default", out JsonElement defaultValue) &&
+                !IsArchivedJsonSubset(constant, defaultValue))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ValidationError,
+                    "The const and default members state different values for the same Variable.",
+                    WotLocation.FromPointer("/properties/" + EscapeJsonPointerToken(key) + "/default")));
+            }
+        }
+
+        /// <summary>
+        /// Gets whether the scalar value is represented by a Variable's Value
+        /// Attribute rather than by opaque JSON residue.
+        /// </summary>
+        internal static bool MapsVariableValue(JsonElement schema)
+        {
+            if (schema.ValueKind != JsonValueKind.Object ||
+                ReadValueRank(schema) != ScalarValueRank ||
+                (!schema.TryGetProperty("const", out JsonElement constant) &&
+                    !schema.TryGetProperty("default", out constant)))
+            {
+                return false;
+            }
+            string dataType = GetElementString(schema, "uav:mapToType") ??
+                GetElementString(schema, "uav:dataTypeId") ??
+                WotVocabulary.MapJsonTypeToDataType(
+                    GetElementString(schema, "type"),
+                    GetElementString(schema, "contentEncoding"),
+                    GetElementString(schema, "format"));
+            string? local = VariableValueElementName(ToNodeSetNodeId(dataType, new UANodeSet(), []));
+            return local is not null && TryReadVariableConstant(constant, local, out _);
         }
 
         private const string UaXmlNamespace = "http://opcfoundation.org/UA/2008/02/Types.xsd";
@@ -1886,6 +2080,7 @@ namespace Opc.Ua.Wot
             UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics)
         {
+            INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
             foreach (ResolvableThingReference thingReference in EnumerateResolvableThingReferences(
                 document,
                 componentTypedRefs,
@@ -1903,7 +2098,7 @@ namespace Opc.Ua.Wot
                         out string extendsTarget))
                     {
                         ValidateInstantiatedThingModelType(document, boundType, extendsTarget, diagnostics);
-                        SetSuperType(rootReferences, extendsTarget);
+                        SetSuperType(rootReferences, ToNodeSetNodeId(extendsTarget, nodeSet, diagnostics));
                     }
                     continue;
                 }
@@ -1916,12 +2111,22 @@ namespace Opc.Ua.Wot
                     diagnostics,
                     out string linkTarget))
                 {
+                    string referenceType = ToNodeSetReferenceType(
+                        thingReference.ReferenceType!, nodeSet, diagnostics);
+                    string target = ToNodeSetNodeId(linkTarget, nodeSet, diagnostics);
+                    if (thingReference.IsForward && ResolveArchivedAlias(referenceType, aliases) == "i=40" &&
+                        rootReferences.Exists(reference =>
+                            reference.IsForward &&
+                            ResolveArchivedAlias(reference.ReferenceType, aliases) == "i=40" &&
+                            reference.Value == target))
+                    {
+                        continue;
+                    }
                     rootReferences.Add(new Reference
                     {
-                        ReferenceType = ToNodeSetReferenceType(
-                            thingReference.ReferenceType!, nodeSet, diagnostics),
+                        ReferenceType = referenceType,
                         IsForward = thingReference.IsForward,
-                        Value = linkTarget
+                        Value = target
                     });
                 }
             }
@@ -2550,7 +2755,7 @@ namespace Opc.Ua.Wot
                                 nodeSet,
                                 diagnostics),
                             IsForward = true,
-                            Value = target.GetString()
+                            Value = ToNodeSetNodeId(target.GetString()!, nodeSet, diagnostics)
                         });
                     }
                 }
@@ -2569,7 +2774,7 @@ namespace Opc.Ua.Wot
                                 nodeSet,
                                 diagnostics),
                             IsForward = false,
-                            Value = target.GetString()
+                            Value = ToNodeSetNodeId(target.GetString()!, nodeSet, diagnostics)
                         });
                     }
                 }
@@ -2624,8 +2829,7 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics,
             CancellationToken cancellationToken)
         {
-            if (document.TryGetEnvelope(out _) ||
-                document.TryGetNativeProjection(out _) ||
+            if (TakesRestorePath(document) ||
                 document.Kind == WotDocumentKind.Unknown)
             {
                 return;

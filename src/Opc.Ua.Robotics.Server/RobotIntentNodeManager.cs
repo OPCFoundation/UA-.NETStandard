@@ -84,7 +84,12 @@ namespace Opc.Ua.Robotics.Server
             m_options.Validate();
             m_runner = runner;
             m_services = services;
-            SystemContext.NodeIdFactory = this;
+
+            // mint into the server's own instance namespace. It is listed
+            // after the model namespaces, which belong to the loaded
+            // NodeSets and whose identifiers are not ours to hand out.
+            NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(
+                GetInstanceNamespaceIndex(SystemContext));
             RegisterEncodeables(SystemContext);
         }
 
@@ -117,22 +122,6 @@ namespace Opc.Ua.Robotics.Server
         public ArrayOf<string> ServerProfiles => ComputeServerProfileArrayEntries();
 
         internal bool BaseDisposeStarted => Volatile.Read(ref m_baseDisposeStarted) != 0;
-
-        /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState instance && instance.Parent != null)
-            {
-                return new NodeId(
-                    $"{instance.Parent.NodeId.IdentifierAsString}_{instance.SymbolicName}",
-                    GetInstanceNamespaceIndex(context));
-            }
-            if (node.NodeId.IsNull)
-            {
-                return new NodeId(Guid.NewGuid(), GetInstanceNamespaceIndex(context));
-            }
-            return node.NodeId;
-        }
 
         /// <summary>
         /// Creates a direct build context for non-DI configuration.
@@ -404,7 +393,7 @@ namespace Opc.Ua.Robotics.Server
             return root;
         }
 
-        private ushort GetInstanceNamespaceIndex(ISystemContext context)
+        private ushort GetInstanceNamespaceIndex(ServerSystemContext context)
         {
             return (ushort)context.NamespaceUris.GetIndex(m_options.InstanceNamespaceUri);
         }

@@ -184,6 +184,179 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void WriteStatusCodeRawDataOmitsSymbol()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext, JsonEncoderOptions.RawData))
+            {
+                writer.WriteStatusCode(JsonProperties.Value, StatusCodes.BadNotWritable);
+            }
+
+            using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+            JsonElement status = document.RootElement.GetProperty(JsonProperties.Value);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(status.TryGetProperty(JsonProperties.Code, out _), Is.True);
+                Assert.That(status.TryGetProperty(JsonProperties.Symbol, out _), Is.False);
+            });
+        }
+
+        [Test]
+        public void WriteDataValueWithSourcePicosecondsWithoutTimestampThrowsBadEncodingError()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var buffer = new PooledBufferWriter();
+            using var writer = new JsonEncoder(buffer, messageContext);
+            var value = new DataValue(
+                Variant.From("value"),
+                StatusCodes.Good,
+                DateTimeUtc.MinValue,
+                DateTimeUtc.MinValue,
+                sourcePicoseconds: 1,
+                serverPicoseconds: 0);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => writer.WriteDataValue(JsonProperties.Value, value));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteDataValueWithServerPicosecondsWithoutTimestampThrowsBadEncodingError()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var buffer = new PooledBufferWriter();
+            using var writer = new JsonEncoder(buffer, messageContext);
+            var value = new DataValue(
+                Variant.From("value"),
+                StatusCodes.Good,
+                DateTimeUtc.MinValue,
+                DateTimeUtc.MinValue,
+                sourcePicoseconds: 0,
+                serverPicoseconds: 1);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => writer.WriteDataValue(JsonProperties.Value, value));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteExtensionObjectJsonBodyWritesRawObjectProperties()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext))
+            {
+                var value = new ExtensionObject(
+                    new ExpandedNodeId(1),
+                    /*lang=json,strict*/ """{"A":1,"B":{"C":true}}""");
+                writer.WriteExtensionObject(JsonProperties.Value, value);
+            }
+
+            using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+            JsonElement valueElement = document.RootElement.GetProperty(JsonProperties.Value);
+            Assert.Multiple(() =>
+            {
+                Assert.That(valueElement.GetProperty("A").GetInt32(), Is.EqualTo(1));
+                Assert.That(valueElement.GetProperty("B").GetProperty("C").GetBoolean(), Is.True);
+            });
+        }
+
+        [Test]
+        public void WriteExtensionObjectJsonBodyDoesNotDuplicateUaTypeId()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext))
+            {
+                var value = new ExtensionObject(
+                    new ExpandedNodeId(809),
+                    /*lang=json,strict*/ """{"UaTypeId":"i=809","MonitoredItems":[]}""");
+                writer.WriteExtensionObject(JsonProperties.Value, value);
+            }
+
+            using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+            JsonElement valueElement = document.RootElement.GetProperty(JsonProperties.Value);
+
+            Assert.That(
+                valueElement.EnumerateObject().Count(property => property.Name == JsonProperties.UaTypeId),
+                Is.EqualTo(1));
+        }
+
+        [Test]
+        public void WriteExtensionObjectWithUnencodableBodylessTypeIdThrowsBadEncodingError()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var value = new ExtensionObject(new ExpandedNodeId(NodeId.Null, "urn:test"));
+            using var buffer = new PooledBufferWriter();
+            using var writer = new JsonEncoder(buffer, messageContext);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => writer.WriteExtensionObject(JsonProperties.Value, value));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
+        public void WriteExtensionObjectMalformedJsonBodyThrowsBadEncodingError()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var buffer = new PooledBufferWriter();
+            using var writer = new JsonEncoder(buffer, messageContext);
+            var value = new ExtensionObject(
+                new ExpandedNodeId(1),
+                /*lang=json,strict*/ """{"A":1,"B":}""");
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => writer.WriteExtensionObject(JsonProperties.Value, value));
+            Assert.Multiple(() =>
+            {
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+                Assert.That(ex.InnerException, Is.InstanceOf<JsonException>());
+            });
+        }
+
+        [Test]
+        public void WriteQualifiedNameWithNamespaceQualifiedEmptyNameRoundTrips()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.NamespaceUris.Append("urn:test");
+            var expected = new QualifiedName(string.Empty, 1);
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext))
+            {
+                writer.WriteQualifiedName(JsonProperties.Value, expected);
+            }
+
+            using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            QualifiedName actual = decoder.ReadQualifiedName(JsonProperties.Value);
+
+            Assert.That(actual, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void WriteQualifiedNameWithNamespaceQualifiedNullNameThrowsBadEncodingError()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var value = new QualifiedName(null, 1);
+            using var buffer = new PooledBufferWriter();
+            using var writer = new JsonEncoder(buffer, messageContext);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => writer.WriteQualifiedName(JsonProperties.Value, value));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+        }
+
+        [Test]
         public void WriteDiagnosticInfosWithNestingLevelsExceedingThrows()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();

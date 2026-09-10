@@ -160,12 +160,18 @@ namespace Opc.Ua.Di.Tests
                 NodeId pump2Id = ExpandedNodeId.ToNodeId(
                     clientPumpReferences.Single(reference => reference.BrowseName.Name == "Pump_2").NodeId,
                     session.NamespaceUris);
-                var pump1PressureId = new NodeId(
-                    pump1Id.IdentifierAsString + "_Operational_Measurements_DifferentialPressure",
-                    pump1Id.NamespaceIndex);
-                var pump2PressureId = new NodeId(
-                    pump2Id.IdentifierAsString + "_Operational_Measurements_DifferentialPressure",
-                    pump2Id.NamespaceIndex);
+                NodeId pump1PressureId = await ResolveBrowsePathAsync(
+                    session,
+                    pump1Id,
+                    "Operational",
+                    "Measurements",
+                    "DifferentialPressure").ConfigureAwait(false);
+                NodeId pump2PressureId = await ResolveBrowsePathAsync(
+                    session,
+                    pump2Id,
+                    "Operational",
+                    "Measurements",
+                    "DifferentialPressure").ConfigureAwait(false);
 
                 DataValue initialPump1 = await ReadGoodValueAsync(
                     session,
@@ -404,10 +410,12 @@ namespace Opc.Ua.Di.Tests
                 NodeId dynamicPumpId = ExpandedNodeId.ToNodeId(
                     dynamicPump!.NodeId,
                     session.NamespaceUris);
-                var pressureId = new NodeId(
-                    dynamicPumpId.IdentifierAsString +
-                        "_Operational_Measurements_DifferentialPressure",
-                    dynamicPumpId.NamespaceIndex);
+                NodeId pressureId = await ResolveBrowsePathAsync(
+                    session,
+                    dynamicPumpId,
+                    "Operational",
+                    "Measurements",
+                    "DifferentialPressure").ConfigureAwait(false);
 
                 // Joining the simulation is what turns the initial
                 // BadWaitingForInitialData into a published value.
@@ -484,6 +492,69 @@ namespace Opc.Ua.Di.Tests
             {
                 listener.Stop();
             }
+        }
+
+        /// <summary>
+        /// Resolves a browse path from a starting node over the session.
+        /// </summary>
+        /// <remarks>
+        /// The server mints instance NodeIds through its
+        /// <c>DefaultNodeIdFactory</c>, so a client cannot construct one by
+        /// appending to its parent's identifier - it asks the server to
+        /// translate the browse path, as a real client would.
+        /// </remarks>
+        private static async Task<NodeId> ResolveBrowsePathAsync(
+            Opc.Ua.Client.ISession session,
+            NodeId startNodeId,
+            params string[] browseNames)
+        {
+            NodeId current = startNodeId;
+            foreach (string browseName in browseNames)
+            {
+                ArrayOf<BrowseDescription> nodesToBrowse =
+                [
+                    new BrowseDescription
+                    {
+                        NodeId = current,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences,
+                        IncludeSubtypes = true,
+                        ResultMask = (uint)BrowseResultMask.All
+                    }
+                ];
+
+                BrowseResponse response = await session.BrowseAsync(
+                    null,
+                    null,
+                    0,
+                    nodesToBrowse,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                NodeId match = NodeId.Null;
+                ArrayOf<ReferenceDescription> references = response.Results[0].References;
+                for (int ii = 0; ii < references.Count; ii++)
+                {
+                    // matched on the name alone: the browse names come from
+                    // several companion-spec namespaces.
+                    if (references[ii].BrowseName.Name == browseName)
+                    {
+                        match = ExpandedNodeId.ToNodeId(
+                            references[ii].NodeId,
+                            session.NamespaceUris);
+                        break;
+                    }
+                }
+
+                // NodeId carries its own null sentinel, so the wrapper would
+                // only prove a NodeId was assigned, not that it names a node.
+                Assert.That(
+                    match.IsNull,
+                    Is.False,
+                    string.Join("/", browseNames) + " could not be resolved at " + browseName + ".");
+                current = match;
+            }
+
+            return current;
         }
 
         private static async Task<bool> WaitForAsync(

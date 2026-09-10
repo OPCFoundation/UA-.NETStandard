@@ -296,15 +296,15 @@ namespace Opc.Ua.Wot
             }
             if (facets.EuRange is { } range)
             {
-                writer.WriteNumber(MinimumMember, range.Low);
-                writer.WriteNumber(MaximumMember, range.High);
+                WotJsonCanonicalizer.WriteNumber(writer, MinimumMember, range.Low);
+                WotJsonCanonicalizer.WriteNumber(writer, MaximumMember, range.High);
             }
             if (facets.InstrumentRange is { } instrument)
             {
                 writer.WritePropertyName(InstrumentRangeTerm);
                 writer.WriteStartObject();
-                writer.WriteNumber(MinimumMember, instrument.Low);
-                writer.WriteNumber(MaximumMember, instrument.High);
+                WotJsonCanonicalizer.WriteNumber(writer, MinimumMember, instrument.Low);
+                WotJsonCanonicalizer.WriteNumber(writer, MaximumMember, instrument.High);
                 writer.WriteEndObject();
             }
         }

@@ -91,7 +91,12 @@ namespace Opc.Ua.Vision.Server
             m_registry = new VisionRegistry();
             m_dispatcherLogger = server.Telemetry.CreateLogger<VisionMethodDispatcher>();
             m_dispatcher = new VisionMethodDispatcher(m_registry, m_dispatcherLogger);
-            SystemContext.NodeIdFactory = this;
+
+            // mint into the server's own instance namespace. It is listed
+            // after the model namespaces, which belong to the loaded
+            // NodeSets and whose identifiers are not ours to hand out.
+            NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(
+                GetInstanceNamespaceIndex(SystemContext));
             RegisterEncodeables(SystemContext);
         }
 
@@ -109,30 +114,6 @@ namespace Opc.Ua.Vision.Server
 
         /// <inheritdoc/>
         public ArrayOf<string> ServerProfiles => ComputeServerProfileArrayEntries();
-
-        /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-            if (node == null)
-            {
-                throw new ArgumentNullException(nameof(node));
-            }
-            if (node is BaseInstanceState instance && instance.Parent != null)
-            {
-                return new NodeId(
-                    $"{instance.Parent.NodeId.IdentifierAsString}_{instance.SymbolicName}",
-                    GetInstanceNamespaceIndex(context));
-            }
-            if (node.NodeId.IsNull)
-            {
-                return new NodeId(Guid.NewGuid(), GetInstanceNamespaceIndex(context));
-            }
-            return node.NodeId;
-        }
 
         /// <summary>
         /// Creates a direct build context for non-DI configuration.
@@ -417,7 +398,7 @@ namespace Opc.Ua.Vision.Server
             return root;
         }
 
-        private ushort GetInstanceNamespaceIndex(ISystemContext context)
+        private ushort GetInstanceNamespaceIndex(ServerSystemContext context)
         {
             return (ushort)context.NamespaceUris.GetIndex(m_options.InstanceNamespaceUri);
         }

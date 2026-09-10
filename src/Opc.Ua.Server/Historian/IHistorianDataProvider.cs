@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -86,10 +85,10 @@ namespace Opc.Ua.Server.Historian
         /// <see cref="StatusCodes.BadEntryExists"/> when a value already
         /// exists at the value's <c>SourceTimestamp</c>.
         /// </summary>
-        ValueTask<IList<StatusCode>> InsertAsync(
+        ValueTask<HistorianUpdateOutcome<DataValue>> InsertAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<DataValue> values,
+            ArrayOf<DataValue> values,
             CancellationToken ct);
 
         /// <summary>
@@ -97,19 +96,19 @@ namespace Opc.Ua.Server.Historian
         /// <see cref="StatusCodes.BadNoEntryExists"/> when no value exists
         /// at the value's <c>SourceTimestamp</c>.
         /// </summary>
-        ValueTask<IList<StatusCode>> ReplaceAsync(
+        ValueTask<HistorianUpdateOutcome<DataValue>> ReplaceAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<DataValue> values,
+            ArrayOf<DataValue> values,
             CancellationToken ct);
 
         /// <summary>
         /// Upsert — insert when absent, replace otherwise.
         /// </summary>
-        ValueTask<IList<StatusCode>> UpdateAsync(
+        ValueTask<HistorianUpdateOutcome<DataValue>> UpdateAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<DataValue> values,
+            ArrayOf<DataValue> values,
             CancellationToken ct);
 
         /// <summary>
@@ -128,7 +127,7 @@ namespace Opc.Ua.Server.Historian
         /// also implements <see cref="IHistorianModifiedProvider"/>).
         /// </param>
         /// <param name="ct">Cancellation token.</param>
-        ValueTask<StatusCode> DeleteRawAsync(
+        ValueTask<HistorianUpdateOutcome<DataValue>> DeleteRawAsync(
             HistorianOperationContext context,
             NodeId nodeId,
             DateTimeUtc startTime,
@@ -141,10 +140,10 @@ namespace Opc.Ua.Server.Historian
         /// per-value with <see cref="StatusCodes.BadNoEntryExists"/> when
         /// no value exists at the requested timestamp.
         /// </summary>
-        ValueTask<IList<StatusCode>> DeleteAtTimeAsync(
+        ValueTask<HistorianUpdateOutcome<DataValue>> DeleteAtTimeAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<DateTimeUtc> timestamps,
+            ArrayOf<DateTimeUtc> timestamps,
             CancellationToken ct);
     }
 }

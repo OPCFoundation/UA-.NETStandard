@@ -42,6 +42,7 @@ namespace Opc.Ua.Types.Tests.State
     [SetUICulture("en-us")]
     [NonParallelizable]
     [MemoryDiagnoser]
+    [Config(typeof(NodeStateStorageBenchmarks.StorageBenchmarkConfig))]
     public class NodeStateReadAttributesBenchmarks
     {
         private static readonly uint[] s_commonAttributeIds =

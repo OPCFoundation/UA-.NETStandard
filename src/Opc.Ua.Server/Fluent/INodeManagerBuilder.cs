@@ -86,6 +86,17 @@ namespace Opc.Ua.Server.Fluent
         IAsyncNodeManager NodeManager { get; }
 
         /// <summary>
+        /// The namespace index a browse name given as a plain string is
+        /// qualified with.
+        /// </summary>
+        /// <remarks>
+        /// Exposed so that the child helpers qualify a string browse name the
+        /// same way <see cref="AddObject(string, NodeId, NodeId)"/> does,
+        /// rather than each inventing a namespace of its own.
+        /// </remarks>
+        ushort DefaultNamespaceIndex { get; }
+
+        /// <summary>
         /// Manager-level dispatch surface populated by the <c>On*</c>
         /// methods on the per-node builders. The owning node manager
         /// invokes this from its <c>HistoryRead</c>, <c>HistoryUpdate</c>,
@@ -94,6 +105,48 @@ namespace Opc.Ua.Server.Fluent
         /// callers fall back to the base behavior.
         /// </summary>
         IFluentDispatcher Dispatcher { get; }
+
+        /// <summary>
+        /// Imports a NodeSet2 document into the manager being configured.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Every document imported during one <c>Configure</c> pass forms a
+        /// single batch. Parent-child relationships are linked once when the
+        /// pass completes, so a node may declare a parent which lives in
+        /// another document of the same batch, or a node the manager already
+        /// owns - a NodeSet overlay can therefore extend a generated model.
+        /// The imported nodes are registered with the manager after
+        /// <c>Configure</c> returns, but they resolve through
+        /// <see cref="Node(NodeId)"/> and the other lookups immediately, so
+        /// they can be wired in the same pass.
+        /// </para>
+        /// <para>
+        /// When the manager (or the supplied
+        /// <paramref name="factoryProvider"/>) implements
+        /// <see cref="Nodes.INodeSetImportFactoryProvider"/>, matching nodes
+        /// are imported into the concrete generated state types instead of the
+        /// generic <c>BaseObjectState</c>/<c>BaseDataVariableState</c> shapes.
+        /// The source-generated node manager implements that contract for its
+        /// own model.
+        /// </para>
+        /// </remarks>
+        /// <param name="nodeSet">The parsed NodeSet2 document.</param>
+        /// <param name="factoryProvider">
+        /// Supplies the typed import factories for this batch. When
+        /// <c>null</c>, the node manager itself is used if it implements
+        /// <see cref="Nodes.INodeSetImportFactoryProvider"/>.
+        /// </param>
+        /// <exception cref="System.ArgumentNullException">
+        /// <paramref name="nodeSet"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// Thrown when the builder is sealed or the import batch is already
+        /// completed.
+        /// </exception>
+        void Import(
+            Export.UANodeSet nodeSet,
+            Nodes.INodeSetImportFactoryProvider? factoryProvider = null);
 
         /// <summary>
         /// Resolves a node by browse path against the manager's predefined

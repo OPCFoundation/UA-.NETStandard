@@ -36,11 +36,6 @@ using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 using ISession = Opc.Ua.Client.ISession;
 
-// Conformance tests use inline literal arrays as expected-value
-// assertions; the per-call allocation cost is irrelevant for tests
-// and keeping the literal adjacent to the assertion improves readability.
-#pragma warning disable CA1861 // Avoid constant arrays as arguments
-
 namespace Opc.Ua.Gds.Tests
 {
     /// <summary>
@@ -453,7 +448,7 @@ namespace Opc.Ua.Gds.Tests
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir010");
             rec.ServerCapabilities =
-                new string[] { "DA", "HDA", "AC" }.ToArrayOf();
+                s_stringValues1.ToArrayOf();
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             ApplicationRecordDataType retrieved = await GetAppAsync(appId).ConfigureAwait(false);
@@ -988,12 +983,12 @@ namespace Opc.Ua.Gds.Tests
         public async Task AppDirUpdateApplicationChangesCapabilitiesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir037");
-            rec.ServerCapabilities = new string[] { "DA" }.ToArrayOf();
+            rec.ServerCapabilities = s_stringValues2.ToArrayOf();
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             rec.ApplicationId = appId;
             rec.ServerCapabilities =
-                new string[] { "DA", "HDA" }.ToArrayOf();
+                s_stringValues3.ToArrayOf();
             await UpdateAppAsync(rec).ConfigureAwait(false);
 
             ApplicationRecordDataType retrieved = await GetAppAsync(appId).ConfigureAwait(false);
@@ -1010,9 +1005,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             rec.ApplicationId = appId;
-            rec.DiscoveryUrls = new string[] {
-                "opc.tcp://localhost:4841/Updated038"
-            }.ToArrayOf();
+            rec.DiscoveryUrls = s_stringValues4.ToArrayOf();
             await UpdateAppAsync(rec).ConfigureAwait(false);
 
             ApplicationRecordDataType retrieved = await GetAppAsync(appId).ConfigureAwait(false);
@@ -1484,10 +1477,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task AppDirRegisterMultipleDiscoveryUrlsAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir068");
-            rec.DiscoveryUrls = new string[] {
-                "opc.tcp://localhost:4840/Dir068a",
-                "opc.tcp://localhost:4841/Dir068b"
-            }.ToArrayOf();
+            rec.DiscoveryUrls = s_stringValues5.ToArrayOf();
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             ApplicationRecordDataType retrieved = await GetAppAsync(appId).ConfigureAwait(false);
@@ -1502,7 +1492,7 @@ namespace Opc.Ua.Gds.Tests
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir069");
             rec.ServerCapabilities =
-                new string[] { "DA", "HDA", "AC", "FD" }.ToArrayOf();
+                s_stringValues6.ToArrayOf();
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             ApplicationRecordDataType retrieved = await GetAppAsync(appId).ConfigureAwait(false);
@@ -1547,10 +1537,10 @@ namespace Opc.Ua.Gds.Tests
         public async Task AppDirQueryWithCapabilitiesFilterAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir072");
-            rec.ServerCapabilities = new string[] { "DA" }.ToArrayOf();
+            rec.ServerCapabilities = s_stringValues2.ToArrayOf();
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
-            ArrayOf<string> caps = new string[] { "DA" }.ToArrayOf();
+            ArrayOf<string> caps = s_stringValues2.ToArrayOf();
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100, null, null, 0, null, caps).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
@@ -1595,10 +1585,10 @@ namespace Opc.Ua.Gds.Tests
         public async Task AppDirQueryServersWithCapabilitiesFilterAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir075");
-            rec.ServerCapabilities = new string[] { "HDA" }.ToArrayOf();
+            rec.ServerCapabilities = s_stringValues7.ToArrayOf();
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
-            ArrayOf<string> caps = new string[] { "HDA" }.ToArrayOf();
+            ArrayOf<string> caps = s_stringValues7.ToArrayOf();
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100, null, null, 0, null, caps).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
@@ -1785,10 +1775,10 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryAppsFilterByCapabilitiesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA009");
-            rec.ServerCapabilities = new string[] { "DA" }.ToArrayOf();
+            rec.ServerCapabilities = s_stringValues2.ToArrayOf();
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
-            ArrayOf<string> caps = new string[] { "DA" }.ToArrayOf();
+            ArrayOf<string> caps = s_stringValues2.ToArrayOf();
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100, null, null, 0, null, caps).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
@@ -1895,10 +1885,10 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryAppsCombinedTypeAndCapabilitiesAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA017");
-            rec.ServerCapabilities = new string[] { "DA" }.ToArrayOf();
+            rec.ServerCapabilities = s_stringValues2.ToArrayOf();
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
-            ArrayOf<string> caps = new string[] { "DA" }.ToArrayOf();
+            ArrayOf<string> caps = s_stringValues2.ToArrayOf();
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100, null, null,
                 (uint)ApplicationType.Server, null, caps)
@@ -1912,10 +1902,10 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryAppsCombinedAllFiltersAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA018");
-            rec.ServerCapabilities = new string[] { "DA" }.ToArrayOf();
+            rec.ServerCapabilities = s_stringValues2.ToArrayOf();
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
-            ArrayOf<string> caps = new string[] { "DA" }.ToArrayOf();
+            ArrayOf<string> caps = s_stringValues2.ToArrayOf();
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100,
                 "Test Application DepthQA018",
@@ -2082,10 +2072,10 @@ namespace Opc.Ua.Gds.Tests
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA031");
             rec.ServerCapabilities =
-                new string[] { "DA", "HDA" }.ToArrayOf();
+                s_stringValues3.ToArrayOf();
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
-            ArrayOf<string> caps = new string[] { "DA", "HDA" }.ToArrayOf();
+            ArrayOf<string> caps = s_stringValues3.ToArrayOf();
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100, null, null, 0, null, caps).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
@@ -2264,10 +2254,10 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryAppsCombinedNameUriTypeProductCapsAsync()
         {
             ApplicationRecordDataType rec = CreateAppRecord("QA041");
-            rec.ServerCapabilities = new string[] { "DA" }.ToArrayOf();
+            rec.ServerCapabilities = s_stringValues2.ToArrayOf();
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
-            ArrayOf<string> caps = new string[] { "DA" }.ToArrayOf();
+            ArrayOf<string> caps = s_stringValues2.ToArrayOf();
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100,
                 "Test Application DepthQA041",
@@ -2666,5 +2656,17 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private NodeId m_directoryNodeId;
+
+        private static readonly string[] s_stringValues1 = ["DA", "HDA", "AC"];
+        private static readonly string[] s_stringValues2 = ["DA"];
+        private static readonly string[] s_stringValues3 = ["DA", "HDA"];
+        private static readonly string[] s_stringValues4 = ["opc.tcp://localhost:4841/Updated038"];
+        private static readonly string[] s_stringValues5 =
+        [
+            "opc.tcp://localhost:4840/Dir068a",
+            "opc.tcp://localhost:4841/Dir068b",
+        ];
+        private static readonly string[] s_stringValues6 = ["DA", "HDA", "AC", "FD"];
+        private static readonly string[] s_stringValues7 = ["HDA"];
     }
 }

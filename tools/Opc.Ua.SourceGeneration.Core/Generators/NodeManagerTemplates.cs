@@ -46,6 +46,12 @@ namespace Opc.Ua.SourceGeneration
             $$"""
             {{Tokens.CodeHeader}}
 
+            // The namespace-taking constructor is emitted for every manager,
+            // but the user's partial decides whether the class is sealed and
+            // the generator cannot see that. In a sealed manager the protected
+            // constructor is merely unreachable, not wrong.
+            #pragma warning disable CS0628 // New protected member in sealed type
+
             namespace {{Tokens.NamespacePrefix}}
             {
                 /// <summary>
@@ -55,27 +61,68 @@ namespace Opc.Ua.SourceGeneration
                 /// <remarks>
                 /// Implement <c>partial void Configure(INodeManagerBuilder builder)</c>
                 /// in a sibling partial to wire per-node callbacks using the
-                /// fluent API in <c>Opc.Ua.Server.Fluent</c>.
+                /// fluent API in <c>Opc.Ua.Server.Fluent</c>. Wiring that has to
+                /// await — materialising instances, reading a store — goes into
+                /// an override of
+                /// <c>ConfigureAsync(INodeManagerBuilder, CancellationToken)</c>,
+                /// which runs first so <c>Configure</c> sees the nodes it created.
                 /// </remarks>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
-                public partial class {{Tokens.NodeManagerClassName}} : global::Opc.Ua.Server.Fluent.FluentNodeManagerBase
+                public partial class {{Tokens.NodeManagerClassName}} :
+                    global::Opc.Ua.Server.Fluent.FluentNodeManagerBase,
+                    global::Opc.Ua.Server.Nodes.INodeSetImportFactoryProvider
                 {
                     private global::Opc.Ua.Server.Fluent.NodeManagerBuilder? __m_builder;
 
                     /// <summary>
-                    /// Initializes a new <see cref="{{Tokens.NodeManagerClassName}}"/>.
+                    /// The namespace URIs this manager owns, in the order they
+                    /// are reported to the master node manager. The first entry
+                    /// becomes <c>NamespaceIndexes[0]</c> and therefore the
+                    /// manager's own <c>NamespaceIndex</c>: the namespace an
+                    /// unqualified browse path resolves in. Where runtime
+                    /// NodeIds are minted is the NodeId factory's to decide,
+                    /// not this order's. Pass a different array to the
+                    /// protected constructor to change the set or the order.
                     /// </summary>
-                    public {{Tokens.NodeManagerClassName}}(
-                        global::Opc.Ua.Server.IServerInternal server,
-                        global::Opc.Ua.ApplicationConfiguration configuration)
-                        : base(server, configuration, {{Tokens.NamespaceUri}}{{Tokens.AdditionalNamespaceUris}})
+                    public static string[] DefaultNamespaceUris()
                     {
-                        SystemContext.NodeIdFactory = this;
+                        return new string[] { {{Tokens.NamespaceUri}}{{Tokens.AdditionalNamespaceUris}} };
+                    }
+
+                    {{Tokens.NodeManagerDefaultConstructor}}
+
+                    /// <summary>
+                    /// Initializes a new <see cref="{{Tokens.NodeManagerClassName}}"/>
+                    /// that owns <paramref name="namespaceUris"/>. Chain to this
+                    /// from a constructor of your own to take collaborators the
+                    /// generated signature does not carry, to change which
+                    /// namespaces the manager owns, or to change their order.
+                    /// </summary>
+                    /// <param name="server">The hosting server.</param>
+                    /// <param name="configuration">The application configuration.</param>
+                    /// <param name="namespaceUris">
+                    /// The namespace URIs to report, in order. <c>null</c> adopts
+                    /// <see cref="DefaultNamespaceUris"/>.
+                    /// </param>
+                    protected {{Tokens.NodeManagerClassName}}(
+                        global::Opc.Ua.Server.IServerInternal server,
+                        global::Opc.Ua.ApplicationConfiguration configuration,
+                        string[]? namespaceUris)
+                        : base(
+                            server,
+                            configuration,
+                            global::Opc.Ua.TelemetryExtensions.CreateLogger<{{Tokens.NodeManagerClassName}}>(
+                                server.Telemetry),
+                            namespaceUris ?? DefaultNamespaceUris())
+                    {
                     }
 
                     /// <summary>
                     /// User extensibility hook. Implement in a sibling
                     /// <c>partial</c> to wire callbacks via the fluent builder.
+                    /// Override
+                    /// <c>FluentNodeManagerBase.ConfigureAsync</c> instead when
+                    /// the wiring has to await.
                     /// </summary>
                     partial void Configure(global::Opc.Ua.Server.Fluent.INodeManagerBuilder builder);
 
@@ -86,6 +133,45 @@ namespace Opc.Ua.SourceGeneration
                     /// strongly-typed model-traversal surface generated for this manager.
                     /// </summary>
                     partial void Configure(I{{Tokens.NodeManagerClassName}}Builder builder);
+
+                    /// <summary>
+                    /// Supplies the concrete states used when a NodeSet2
+                    /// document imported through
+                    /// <c>INodeManagerBuilder.Import</c> declares a node of
+                    /// this model.
+                    /// </summary>
+                    public global::Opc.Ua.ArrayOf<
+                        global::Opc.Ua.Server.Nodes.INodeSetImportFactory>
+                        GetNodeSetImportFactories()
+                    {
+                        var __factories = new global::System.Collections.Generic.List<
+                            global::Opc.Ua.Server.Nodes.INodeSetImportFactory>();
+                        global::Opc.Ua.ArrayOf<
+                            global::Opc.Ua.Server.Nodes.INodeSetImportFactory>
+                            __generatedFactories =
+                                global::{{Tokens.Prefix}}.
+                                    {{Tokens.NodeSetImportFactoryProviderClassName}}.Instance.
+                                    GetNodeSetImportFactories();
+                        for (int __index = 0;
+                            __index < __generatedFactories.Count;
+                            __index++)
+                        {
+                            __factories.Add(__generatedFactories[__index]);
+                        }
+                        AddNodeSetImportFactories(__factories);
+                        return new global::Opc.Ua.ArrayOf<
+                            global::Opc.Ua.Server.Nodes.INodeSetImportFactory>(
+                                __factories.ToArray());
+                    }
+
+                    /// <summary>
+                    /// Adds import factories supplied by dependency models or
+                    /// by the application. Implement in a sibling
+                    /// <c>partial</c>.
+                    /// </summary>
+                    partial void AddNodeSetImportFactories(
+                        global::System.Collections.Generic.List<
+                            global::Opc.Ua.Server.Nodes.INodeSetImportFactory> factories);
 
                     /// <inheritdoc/>
                     protected override global::System.Threading.Tasks.ValueTask<global::Opc.Ua.NodeStateCollection> LoadPredefinedNodesAsync(
@@ -122,6 +208,11 @@ namespace Opc.Ua.SourceGeneration
                         // it before the user's Configure partial(s) run.
                         AttachToBuilder(__m_builder);
 
+                        // The awaitable wiring seam. Runs before the synchronous
+                        // Configure partial(s) so instances it materialises are in
+                        // the address space by the time they wire callbacks.
+                        await ConfigureAsync(__m_builder, cancellationToken).ConfigureAwait(false);
+
                         Configure(__m_builder);
                         Configure(new {{Tokens.NodeManagerClassName}}TypedBuilder(__m_builder));
 
@@ -136,12 +227,14 @@ namespace Opc.Ua.SourceGeneration
                         // folder) into the externalReferences dictionary.
                         await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
-                        __m_builder.Seal();
-
-                        foreach (global::Opc.Ua.NodeState __node in PredefinedNodes.Values)
-                        {
-                            __m_builder.Dispatcher.NotifyNodeAdded(SystemContext, __node);
-                        }
+                        // Seals the builder, replays NotifyNodeAdded for every
+                        // predefined node so per-node lifecycle hooks fire
+                        // deterministically, and only then completes the
+                        // registrations Configure could not await (root
+                        // notifiers) and starts the simulations, so no
+                        // simulated value change can precede the OnNodeAdded
+                        // handler of its own node.
+                        await SealConfigurationAsync(__m_builder, cancellationToken).ConfigureAwait(false);
                     }
 
                     /// <inheritdoc/>
@@ -279,6 +372,28 @@ namespace Opc.Ua.SourceGeneration
                             __matches.ToArray());
                     }
                 }
+            }
+            """);
+
+        /// <summary>
+        /// The public <c>(server, configuration)</c> constructor. Emitted
+        /// unless the binding sets <c>GenerateDefaultConstructor=false</c>,
+        /// which managers do when they cannot be built from those two
+        /// arguments alone.
+        /// </summary>
+        public static readonly TemplateString DefaultConstructor = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// Initializes a new <see cref="{{Tokens.NodeManagerClassName}}"/>
+            /// owning <see cref="DefaultNamespaceUris"/>.
+            /// </summary>
+            /// <param name="server">The hosting server.</param>
+            /// <param name="configuration">The application configuration.</param>
+            public {{Tokens.NodeManagerClassName}}(
+                global::Opc.Ua.Server.IServerInternal server,
+                global::Opc.Ua.ApplicationConfiguration configuration)
+                : this(server, configuration, null)
+            {
             }
             """);
 

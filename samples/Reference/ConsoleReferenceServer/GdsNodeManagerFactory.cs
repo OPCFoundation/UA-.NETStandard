@@ -61,11 +61,13 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <inheritdoc/>
-        public ArrayOf<string> NamespacesUris =>
-        [
-            "http://opcfoundation.org/UA/GDS/applications/",
-            Opc.Ua.Gds.Namespaces.OpcUaGds
-        ];
+        /// <remarks>
+        /// Taken from the manager itself so the two cannot drift: the master
+        /// node manager routes a namespace to this manager only if it is
+        /// advertised here.
+        /// </remarks>
+        public ArrayOf<string> NamespacesUris
+            => new(ApplicationsNodeManager.DefaultNamespaceUris());
 
         /// <inheritdoc/>
         public ValueTask<IAsyncNodeManager> CreateAsync(

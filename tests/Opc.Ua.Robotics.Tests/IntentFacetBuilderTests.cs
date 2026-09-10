@@ -699,7 +699,7 @@ namespace Opc.Ua.Robotics.Tests
                 null!,
                 Attributes.Value,
                 NumericRange.Null,
-                new DataValue(Variant.From(new[] { "RI-Fake" }.ToArrayOf())));
+                new DataValue(Variant.From(s_stringValues1.ToArrayOf())));
 
             Assert.Multiple(() =>
             {
@@ -800,7 +800,7 @@ namespace Opc.Ua.Robotics.Tests
                     AxisId = axisIds[ii],
                     Kind = AxisKindEnum.Revolute,
                     OriginTransform = Pose(),
-                    AxisVector = new[] { 0.0, 0.0, 1.0 }.ToArrayOf()
+                    AxisVector = s_doubleValues1.ToArrayOf()
                 };
             }
             m_controller.Description.KinematicChain!.Value = chain.ToArrayOf();
@@ -854,8 +854,8 @@ namespace Opc.Ua.Robotics.Tests
             return new Pose3DDataType
             {
                 FrameId = "world",
-                Position = new[] { 0.0, 0.0, 0.0 }.ToArrayOf(),
-                Orientation = new[] { 0.0, 0.0, 0.0, 1.0 }.ToArrayOf()
+                Position = s_doubleValues2.ToArrayOf(),
+                Orientation = s_doubleValues3.ToArrayOf()
             };
         }
 
@@ -952,5 +952,10 @@ namespace Opc.Ua.Robotics.Tests
 
         private SystemContext m_context = null!;
         private IntentControllerState m_controller = null!;
+
+        private static readonly string[] s_stringValues1 = ["RI-Fake"];
+        private static readonly double[] s_doubleValues1 = [0.0, 0.0, 1.0];
+        private static readonly double[] s_doubleValues2 = [0.0, 0.0, 0.0];
+        private static readonly double[] s_doubleValues3 = [0.0, 0.0, 0.0, 1.0];
     }
 }

@@ -90,7 +90,7 @@ namespace Opc.Ua.OpenUsd.Tests
             Assert.That(outer.Count, Is.EqualTo(1));
             Assert.That(outer[0].TryGetTuple(out ArrayOf<UsdValue> tuple), Is.True);
             Assert.That(tuple.ToArray()!.Select(v => v.TryGetInteger(out long integer) ? integer : -1L).ToArray(),
-                Is.EqualTo(new[] { 1L, 0L, 0L }));
+                Is.EqualTo(s_longValues1));
         }
 
         [Test]
@@ -144,7 +144,7 @@ namespace Opc.Ua.OpenUsd.Tests
             UsdPrim basePrim = UsdTestHelpers.RequirePrim(_stage, R1 + "/Base");
 
             List<string> schemas = basePrim.ApiSchemas.Select(s => s.SchemaName).ToList();
-            Assert.That(schemas, Is.EqualTo(new[] { "MaterialBindingAPI", "CollectionAPI" }));
+            Assert.That(schemas, Is.EqualTo(s_stringValues1));
 
             UsdApiSchema collection = basePrim.ApiSchemas.First(s => s.SchemaName == "CollectionAPI");
             Assert.That(collection.ExpansionRule, Is.EqualTo("expandPrims"));
@@ -203,5 +203,8 @@ namespace Opc.Ua.OpenUsd.Tests
             UsdPrim tool = UsdTestHelpers.RequirePrim(_stage, R1Flange + "/Tool");
             Assert.That(tool.Composition.Any(a => a.ArcKind == UsdArcKindEnum.Instance), Is.False);
         }
+
+        private static readonly long[] s_longValues1 = [1L, 0L, 0L];
+        private static readonly string[] s_stringValues1 = ["MaterialBindingAPI", "CollectionAPI"];
     }
 }

@@ -29,7 +29,10 @@
  * ======================================================================*/
 
 using System.Linq;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -41,6 +44,115 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotNativeProjectionTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UnsupportedNativeGrammarLeavesReadableContentUsableAsync(bool asynchronous)
+        {
+            const string json =
+                """
+                {
+                  "@context": {
+                    "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+                    "ua": "http://opcfoundation.org/UA/"
+                  },
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "title": "PumpType",
+                  "uav:id": "nsu=urn:test:future;s=PumpType",
+                  "uav:browseName": "nsu=urn:test:future;PumpType",
+                  "uav:nodes": {
+                    "@type": "uav:NodeModel",
+                    "profileVersion": "99.0",
+                    "nodes": {"futureRecord": "not the current grammar"}
+                  }
+                }
+                """;
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+
+            WotConversionResult<UANodeSet> result = asynchronous
+                ? await WotNodeSetConverter.ToNodeSetResultAsync(document).ConfigureAwait(false)
+                : WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Value!.Items, Has.Length.EqualTo(1));
+                Assert.That(result.Value.Items![0].NodeId, Is.EqualTo("ns=1;s=PumpType"));
+                Assert.That(result.Value.Items[0], Is.TypeOf<UAObjectType>());
+                Assert.That(
+                    result.Diagnostics.Single(d => d.Code == WotDiagnosticCode.NativeProjectionInvalid).Severity,
+                    Is.EqualTo(WotDiagnosticSeverity.Warning));
+            });
+
+            using WotDocument roundTrip = WotNodeSetConverter.FromNodeSet(result.Value!);
+            Assert.That(
+                roundTrip.RootElement.GetProperty("uav:nodes").GetProperty("nodes")
+                    .GetProperty("futureRecord").GetString(),
+                Is.EqualTo("not the current grammar"));
+            Assert.That(roundTrip.RootElement.GetProperty("uav:nodes")
+                .GetProperty("profileVersion").GetString(), Is.EqualTo("99.0"));
+        }
+
+        [Test]
+        public void UnsupportedNativeOnlyDocumentDoesNotInventReadableContent()
+        {
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                """
+                {"uav:nodes":{"@type":"uav:NodeModel","profileVersion":"99.0","nodes":{}}}
+                """));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Value, Is.Null);
+            Assert.That(result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NoConvertibleContent), Is.True);
+        }
+
+        [Test]
+        public void MalformedSupportedProjectionDoesNotFallBackToReadableContent()
+        {
+            var root = new JsonObject
+            {
+                ["@type"] = "tm:ThingModel",
+                ["title"] = "PumpType",
+                ["uav:nodes"] = new JsonObject
+                {
+                    ["@type"] = "uav:NodeModel",
+                    ["profileVersion"] = "1.0",
+                    ["nodes"] = new JsonObject()
+                }
+            };
+            using WotDocument document = WotDocument.Parse(JsonSerializer.SerializeToUtf8Bytes(root));
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Value, Is.Null);
+        }
+
+        [Test]
+        public async Task UnsupportedProjectionDoesNotBypassReadableTypeResolutionAsync()
+        {
+            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                """
+                {
+                  "@context":{"uav":"http://opcfoundation.org/UA/WoT-Binding/","ua":"http://opcfoundation.org/UA/"},
+                  "@type":["Thing","uav:object"],
+                  "uav:id":"nsu=urn:test:future;s=Pump",
+                  "links":[{"rel":"ua:HasTypeDefinition","href":"nsu=urn:missing;i=1000"}],
+                  "uav:nodes":{"@type":"uav:NodeModel","profileVersion":"99.0","nodes":{}}
+                }
+                """));
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter
+                .ToNodeSetResultAsync(document).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(
+                result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.UnresolvedTypeBinding),
+                Is.True,
+                string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        }
+
         [Test]
         public void NativeProjectionReconstructsNodeSetWithoutEnvelope()
         {

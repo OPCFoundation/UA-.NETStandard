@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System.Text.Json.Nodes;
 using System.Xml;
 using System.Xml.Linq;
@@ -123,7 +125,13 @@ namespace Opc.Ua.Aot.Tests
 
             foreach ((NodeId id, string name) in identifiers)
             {
-                ExpandedNodeId uriId = NodeId.ToExpandedNodeId(id, namespaceUris);
+                var stored = Variant.From(id);
+                await Assert.That(stored.TryGetValue(out NodeId extracted)).IsTrue();
+                await Assert.That(extracted.IdType).IsEqualTo(id.IdType);
+                await Assert.That(extracted.NamespaceIndex).IsEqualTo(id.NamespaceIndex);
+                await Assert.That(extracted.GetHashCode()).IsEqualTo(id.GetHashCode());
+                await Assert.That(extracted.Equals(id)).IsTrue();
+                var uriId = NodeId.ToExpandedNodeId(extracted, namespaceUris);
                 await Assert.That(registry.TryResolve(uriId, out UaTypeDescription? registered)).IsTrue();
                 await Assert.That(registered!.Name).IsEqualTo(name);
                 await Assert.That(source.TryResolve(uriId, out UaTypeDescription? resolved)).IsTrue();

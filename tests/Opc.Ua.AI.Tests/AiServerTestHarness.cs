@@ -116,6 +116,9 @@ namespace Opc.Ua.AI.Tests
             typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.FolderType, Opc.Ua.ObjectTypeIds.BaseObjectType);
             typeTable.AddSubtype(Opc.Ua.ObjectTypeIds.FileType, Opc.Ua.ObjectTypeIds.BaseObjectType);
             typeTable.AddSubtype(
+                Opc.Ua.ObjectTypeIds.BaseEventType,
+                Opc.Ua.ObjectTypeIds.BaseObjectType);
+            typeTable.AddSubtype(
                 Opc.Ua.ObjectTypeIds.StateMachineType, Opc.Ua.ObjectTypeIds.BaseObjectType);
             typeTable.AddSubtype(
                 Opc.Ua.ObjectTypeIds.FiniteStateMachineType, Opc.Ua.ObjectTypeIds.StateMachineType);

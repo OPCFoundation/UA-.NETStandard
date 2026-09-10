@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.Server.AliasNames;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -111,6 +113,51 @@ namespace Opc.Ua.Server
             IPushCertificateKeyGenerator? keyGenerator = null,
             IPushConfigurationTrustListEffectHandler? trustListEffectHandler = null,
             ServerConfigurationOptions? serverConfigurationOptions = null)
+            : this(
+                applicationConfiguration,
+                server,
+                coordinator,
+                pendingKeyStore,
+                keyGenerator,
+                trustListEffectHandler,
+                serverConfigurationOptions,
+                aliasNameOptions: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the main node-manager factory with explicit PushManagement
+        /// dependencies and optional alias-name materialization.
+        /// </summary>
+        /// <param name="applicationConfiguration">The application configuration.</param>
+        /// <param name="server">The server.</param>
+        /// <param name="coordinator">
+        /// The shared transaction coordinator, or <see langword="null"/> to create the default.
+        /// </param>
+        /// <param name="pendingKeyStore">
+        /// The pending signing-request key store, or <see langword="null"/> to create the default.
+        /// </param>
+        /// <param name="keyGenerator">
+        /// The signing-request key generator, or <see langword="null"/> to create the default.
+        /// </param>
+        /// <param name="trustListEffectHandler">
+        /// The post-ApplyChanges TrustList effect handler, or <see langword="null"/> to create the default.
+        /// </param>
+        /// <param name="serverConfigurationOptions">
+        /// The optional ServerConfiguration surface, or <see langword="null"/> to use its defaults.
+        /// </param>
+        /// <param name="aliasNameOptions">
+        /// The alias-name address-space options, or <see langword="null"/> to leave materialization disabled.
+        /// </param>
+        public MainNodeManagerFactory(
+            ApplicationConfiguration applicationConfiguration,
+            IServerInternal server,
+            IPushConfigurationTransactionCoordinator? coordinator,
+            IPendingCertificateKeyStore? pendingKeyStore,
+            IPushCertificateKeyGenerator? keyGenerator,
+            IPushConfigurationTrustListEffectHandler? trustListEffectHandler,
+            ServerConfigurationOptions? serverConfigurationOptions,
+            AliasNameServerOptions? aliasNameOptions)
         {
             m_applicationConfiguration = applicationConfiguration;
             m_server = server;
@@ -119,6 +166,7 @@ namespace Opc.Ua.Server
             m_keyGenerator = keyGenerator;
             m_trustListEffectHandler = trustListEffectHandler;
             m_serverConfigurationOptions = serverConfigurationOptions;
+            m_aliasNameOptions = aliasNameOptions;
         }
 
         /// <inheritdoc/>
@@ -133,7 +181,8 @@ namespace Opc.Ua.Server
                 m_pendingKeyStore,
                 m_keyGenerator,
                 m_trustListEffectHandler,
-                m_serverConfigurationOptions);
+                m_serverConfigurationOptions,
+                m_aliasNameOptions);
         }
 
         /// <inheritdoc/>
@@ -149,5 +198,6 @@ namespace Opc.Ua.Server
         private readonly IPushCertificateKeyGenerator? m_keyGenerator;
         private readonly IPushConfigurationTrustListEffectHandler? m_trustListEffectHandler;
         private readonly ServerConfigurationOptions? m_serverConfigurationOptions;
+        private readonly AliasNameServerOptions? m_aliasNameOptions;
     }
 }

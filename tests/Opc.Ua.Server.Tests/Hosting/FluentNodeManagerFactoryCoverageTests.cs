@@ -254,6 +254,75 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
+        public void AddNodeIdFactoryRegistersTheFactoryForEveryNodeManager()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa()
+                .AddServer(o =>
+                {
+                    o.ApplicationName = "NodeIdFactoryServer";
+                    o.ApplicationUri = "urn:test:NodeIdFactoryServer";
+                    o.ProductUri = "urn:test:product";
+                })
+                .AddNodeIdFactory(NodeIdAssignmentMode.Guid);
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            var registered = provider.GetService<IRebasableNodeIdFactory>();
+
+            Assert.That(registered, Is.Not.Null);
+            Assert.That(registered!.Mode, Is.EqualTo(NodeIdAssignmentMode.Guid));
+        }
+
+        [Test]
+        public void AddNodeIdFactoryReplacesAPreviousRegistration()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa()
+                .AddServer(o =>
+                {
+                    o.ApplicationName = "NodeIdFactoryServer";
+                    o.ApplicationUri = "urn:test:NodeIdFactoryServer";
+                    o.ProductUri = "urn:test:product";
+                })
+                .AddNodeIdFactory(NodeIdAssignmentMode.Guid)
+                .AddNodeIdFactory(new DefaultNodeIdFactory(NodeIdAssignmentMode.Counter, 7));
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            var registered = provider.GetService<IRebasableNodeIdFactory>();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(registered!.Mode, Is.EqualTo(NodeIdAssignmentMode.Counter));
+                Assert.That(registered.DefaultNamespaceIndex, Is.EqualTo(7));
+            });
+        }
+
+        [Test]
+        public void AddNodeIdFactoryRejectsMissingArguments()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            IOpcUaServerBuilder builder = services.AddOpcUa()
+                .AddServer(o =>
+                {
+                    o.ApplicationName = "NodeIdFactoryServer";
+                    o.ApplicationUri = "urn:test:NodeIdFactoryServer";
+                    o.ProductUri = "urn:test:product";
+                });
+
+            Assert.Multiple(() =>
+            {
+                Assert.Throws<ArgumentNullException>(
+                    () => builder.AddNodeIdFactory((IRebasableNodeIdFactory)null!));
+                Assert.Throws<ArgumentNullException>(
+                    () => ((IOpcUaServerBuilder)null!).AddNodeIdFactory(
+                        NodeIdAssignmentMode.String));
+            });
+        }
+
+        [Test]
         public void AddNodeManagerExtensionRegistersAsyncNodeManagerFactory()
         {
             var services = new ServiceCollection();

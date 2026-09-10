@@ -24,11 +24,17 @@ permissions:
 
 jobs:
   sample-ha-longhaul:
-    name: Sample HA Long-Haul (${{ github.event.inputs.duration || '60' }} min)
+    name: Sample HA Long-Haul (${{ github.event.inputs.duration || '60' }} min/scenario)
     runs-on: ubuntu-latest
-    # Allow generous head-room beyond the configured soak duration for build,
-    # startup and teardown.
-    timeout-minutes: 120
+    # SAMPLE_HA_DURATION_MINUTES is the soak length of *each* scenario, and the
+    # fixture is [NonParallelizable], so the two soaks (PubSubFailoverSoakAsync
+    # and ClientReconnectSoakAsync) run back to back: the floor is 2 x duration,
+    # plus each test's own teardown head-room (5 and 10 minutes) before its
+    # CancellationTokenSource fires. The previous 110/120-minute budgets were
+    # below that floor for the default 60-minute duration, so the weekly
+    # schedule could never pass - it always tripped the step timeout. Keep the
+    # budgets above 2 x duration + teardown + build.
+    timeout-minutes: 180
 
     env:
       DOTNET_VERSION: '10.0.x'
@@ -65,7 +71,7 @@ jobs:
 
     - name: Run long-haul HA soak
       run: |
-        echo "Running the sample HA long-haul soak for $SAMPLE_HA_DURATION_MINUTES minute(s)."
+        echo "Running the sample HA long-haul soak for $SAMPLE_HA_DURATION_MINUTES minute(s) per scenario."
         dotnet test ${{ env.TESTPROJECT }} \
           --configuration ${{ env.CONFIGURATION }} \
           --no-build \
@@ -75,7 +81,7 @@ jobs:
           --logger "trx;LogFileName=sample-ha-longhaul.trx" \
           --logger "console;verbosity=detailed" \
           --results-directory ./TestResults
-      timeout-minutes: 110
+      timeout-minutes: 150
 
     - name: Upload test results
       uses: actions/upload-artifact@v7

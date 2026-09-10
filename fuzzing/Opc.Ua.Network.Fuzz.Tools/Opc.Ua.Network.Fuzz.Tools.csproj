@@ -42,4 +42,7 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Common\Fuzz\EncodingFidelityException.cs" Link="EncodingFidelityException.cs" />
+  </ItemGroup>
 </Project>

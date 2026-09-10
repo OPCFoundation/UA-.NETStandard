@@ -80,6 +80,14 @@ namespace Opc.Ua.SourceGeneration
         public bool EmitFactory { get; init; } = true;
 
         /// <summary>
+        /// When <c>false</c> the public
+        /// <c>(IServerInternal, ApplicationConfiguration)</c> constructor
+        /// is not emitted; only the <c>protected</c> constructor taking
+        /// the namespace URI array is. Defaults to <c>true</c>.
+        /// </summary>
+        public bool EmitDefaultConstructor { get; init; } = true;
+
+        /// <summary>
         /// Additional namespace URIs (beyond the model namespace) that
         /// the generated constructor passes to the base node manager and
         /// the generated factory advertises via <c>NamespacesUris</c>.
@@ -145,11 +153,20 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(Tokens.NamespacePrefix, targetNamespace);
             template.AddReplacement(Tokens.Prefix, modelNamespace);
             template.AddReplacement(Tokens.Namespace, typeStem);
+            template.AddReplacement(
+                Tokens.NodeSetImportFactoryProviderClassName,
+                typeStem + "NodeSetImportFactoryProvider");
             template.AddReplacement(Tokens.NodeManagerClassName, targetClass);
             template.AddReplacement(Tokens.NamespaceUri, nsUriSymbol);
             template.AddReplacement(
                 Tokens.AdditionalNamespaceUris,
                 FormatAdditionalNamespaceUris());
+            // An empty target list collapses the block, which is how the
+            // template expresses "omit the default constructor".
+            template.AddReplacement(
+                Tokens.NodeManagerDefaultConstructor,
+                NodeManagerTemplates.DefaultConstructor,
+                EmitDefaultConstructor ? [targetClass] : Array.Empty<object>());
             template.Render();
             return fileName.AsTextFileResource();
         }

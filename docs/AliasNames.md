@@ -34,8 +34,9 @@ The server library exposes a pluggable backend (`IAliasNameStore`) plus
 a default in-memory implementation. Apps assemble their alias inventory
 inside a store, then either:
 
-1. Register the store directly with the server-wide
-   `IAliasNameStoreRegistry` so the standard well-known
+1. Register the store through `AddAliasNameStore(...)` on the DI server
+   builder, or directly with the server-wide `IAliasNameStoreRegistry`,
+   so the standard well-known
    `Aliases`/`TagVariables`/`Topics` nodes start dispatching through it,
    **or**
 2. Wrap the store in an `AliasNameNodeManager` to expose application-
@@ -47,31 +48,54 @@ Both approaches can be combined.
 ### Quick start — serving standard categories
 
 ```csharp
+using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua;
-using Opc.Ua.Server;
 using Opc.Ua.Server.AliasNames;
 
-// inside CreateMasterNodeManager(IServerInternal server, ...):
 var tagVariables = new AliasNameCategoryDescriptor(
     ObjectIds.TagVariables,
     QualifiedName.From(BrowseNames.TagVariables),
     AliasNameCapabilities.FindAliasVerbose);
 
 var store = new InMemoryAliasNameStore([tagVariables]);
-store.Seed(ObjectIds.TagVariables, "TIC101_Setpoint",
-    new ExpandedNodeId("Scalar_Static_Double", refServerNs),
+store.Seed(ObjectIds.TagVariables, "ServerCurrentTime",
+    new ExpandedNodeId(VariableIds.Server_ServerStatus_CurrentTime),
     serverUri: null,
     referenceTypeId: ReferenceTypeIds.AliasFor);
-// ... seed more entries ...
 
-((IAliasNameStoreRegistryProvider)server)
-    .AliasNameStoreRegistry.Register(store);
+services.AddOpcUa()
+    .AddServer(options =>
+    {
+        options.ApplicationName = "AliasServer";
+        options.EndpointUrls.Add("opc.tcp://localhost:4840/AliasServer");
+    })
+    .AddAliasNameStore(store)
+    .ConfigureAliasNames(options => options.MaterializeAliasNodes = true);
 ```
+
+`AddAliasNameStore(...)` and `AddAliasNameStoreRegistry(...)` register
+their stores before address-space startup. The opt-in
+`ConfigureAliasNames(Action<AliasNameServerOptions>)` extension is on
+`IOpcUaServerBuilder` in `Microsoft.Extensions.DependencyInjection`.
+`AliasNameServerOptions` is in `Opc.Ua.Server.AliasNames`, and its
+`MaterializeAliasNodes` property defaults to `false`.
+
+When enabled, the normal `ConfigurationNodeManager` materializes
+registered standard-category aliases and their declared optional
+capabilities after the standard nodes have loaded. No server or
+diagnostics-node-manager subclass is needed. The same setting applies
+to stores for `Topics`; their targets must be `PublishedDataSetType`
+instances. Omit `ConfigureAliasNames(...)` when only method-based
+lookup is needed.
 
 When a client calls `Aliases.FindAlias` (`i=23476`),
 `TagVariables.FindAlias` (`i=23485`) or `Topics.FindAlias` (`i=23494`),
 `DiagnosticsNodeManager`'s late binder routes the call through the
 registry to the matching store.
+
+Direct `IAliasNameStoreRegistry` registration remains available for
+custom hosting. Register stores before the materialization pass when
+their aliases must also be browsable.
 
 ### Quick start — application-defined categories
 
@@ -96,7 +120,8 @@ Options:
   NodeId must lie in this namespace; descriptors pointing anywhere else
   are skipped with a warning rather than claiming another manager's
   ids.
-* `MaterializeAliasNodes` (default `true`) — creates one browsable
+* `MaterializeAliasNodes` (default `true`, unchanged for
+  `AliasNameNodeManagerOptions`) — creates one browsable
   `AliasNameType` node per alias, with `AliasFor` references to its
   targets, exactly as the standard-node materialization below does.
   Disable to expose only the category tree.
@@ -127,6 +152,15 @@ the standard well-known nodes — run the same shared walker
 (`AliasNameNodeMaterializer`), so they produce structurally identical
 Part 17 trees and every fix lands in both at once.
 
+For the standard DI server, `ConfigureAliasNames(options =>
+options.MaterializeAliasNodes = true)` makes the normal
+`ConfigurationNodeManager` invoke that helper. Its default is `false`,
+independent of the custom `AliasNameNodeManagerOptions` default of
+`true`. Metadata, resource, and alias configuration use the
+`DependencyInjectionStandardServer` hooks; a non-DI custom
+`AddServer<TServer>()` rejects these DI-only settings rather than
+silently ignoring them.
+
 `DiagnosticsNodeManager.MaterializeRegisteredAliasNameNodesAsync` does
 that for every registered store: one `AliasNameType` instance per alias
 — BrowseName carrying the alias name, `AliasFor` references to its
@@ -143,8 +177,9 @@ namespace; Part 17 clients compare alias names ignoring the namespace,
 so this is transparent to them. The pass is idempotent, and only
 creates category nodes whose NodeId lies in the diagnostics namespace —
 a descriptor pointing anywhere else is skipped with a warning rather
-than claiming another manager's (or the standard NodeSet's) ids. Call
-it from an overridden `CreateAddressSpaceAsync`, after `base` has
+than claiming another manager's (or the standard NodeSet's) ids.
+Custom diagnostics-node-manager implementations can still call the
+helper from an overridden `CreateAddressSpaceAsync`, after `base` has
 loaded the standard categories:
 
 ```csharp
@@ -160,7 +195,7 @@ public override async ValueTask CreateAddressSpaceAsync(
 }
 ```
 
-The same pass also instantiates the **optional Part 17 methods** —
+The same pass also instantiates the **optional Part 17 members** —
 `FindAliasVerbose`, `AddAliasesToCategory`, `DeleteAliasesFromCategory`
 and `LastChange` — on every category whose descriptor declares them
 through `AliasNameCapabilities`, including the well-known ones the
@@ -176,9 +211,10 @@ var tagVariables = new AliasNameCategoryDescriptor(
 Mutation calls are gated on a `SecurityAdmin` caller over a
 `SignAndEncrypt` channel and return `BadUserAccessDenied` otherwise.
 
-It is opt-in: servers that only need `FindAlias` to answer from their
-store pay nothing. The created nodes are a snapshot taken at
-address-space creation — aliases added or removed later through
+Standard-category materialization is opt-in: servers that only need
+`FindAlias` to answer from their store do not create alias instance
+nodes. The created nodes are a snapshot taken at address-space creation
+— aliases added or removed later through
 `AddAliasesToCategory` / `DeleteAliasesFromCategory` change what
 `FindAlias` returns and advance `LastChange`, but do not add or remove
 `AliasNameType` nodes.
@@ -484,6 +520,8 @@ while letting PubSub drive the rest.
 
 * OPC UA Part 17 specification:
   https://reference.opcfoundation.org/v105/Core/docs/Part17/
+* [Dependency Injection](DependencyInjection.md#alias-name-stores-and-standard-browse-nodes)
+  — hosted store registration and standard-category materialization.
 * `tools/Opc.Ua.SourceGeneration.Core/Design/StandardTypes.xml` —
   Part 17 type definitions consumed by the source generator.
 * `tests/Opc.Ua.Server.Tests/AliasNames/` — server-side unit tests.

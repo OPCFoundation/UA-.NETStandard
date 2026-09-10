@@ -157,6 +157,18 @@ before the parent's first completion, or wire those late children explicitly.
 This prevents duplicate callback execution when an explicitly completed
 subtree is later registered.
 
+Use the overload accepting a `CancellationToken` when completing a large
+subtree outside registration. Cancellation is checked between nodes and the
+same token is passed to each `OnAfterCreate` override. A later call resumes
+completion for nodes whose callback did not finish.
+
+Removing a node from a node manager is not the same as deleting the
+`NodeState` object. `DeleteNodeAsync` removes the node from the address-space
+index and disconnects monitoring and references, but does not invoke
+`OnBeforeDelete`/`OnAfterDelete` and does not reset `IsCreated`.
+`NodeState.Delete` performs that object lifecycle recursively. Full
+address-space teardown invokes `Delete` for each root.
+
 #### NodeState FindChild and CreateChild state NodeId assignment
 
 `NodeState.FindChild` and `NodeState.CreateChild` now take
@@ -302,6 +314,55 @@ lock held, so an override must not block on external work such as I/O; defer
 that to the browser's own `Next()`.
 
 Analyzer `UA0027` reports every remaining `NodeBrowser.DataLock` reference.
+
+### NodeBrowser gains an async iteration seam
+
+`INodeBrowser` and `NodeBrowser` gain
+`ValueTask<IReference?> NextAsync(CancellationToken cancellationToken = default)`.
+`AsyncCustomNodeManager.BrowseAsync` and `TranslateBrowsePathAsync` iterate a
+browser through it, so a browser whose references depend on I/O — the
+aggregation case, where the references come from another server — can `await`
+the fetch instead of blocking a request worker on it.
+
+**Nothing changes for an existing browser.** The default `NextAsync` completes
+synchronously with the result of `Next()`, so a browser that only overrides
+`Next()` is iterated exactly as before. Only a type that implements
+`INodeBrowser` directly, without deriving from `NodeBrowser`, has to add the
+member.
+
+A browser that was bridging sync-over-async moves the real work into
+`NextAsync` and keeps `Next()` as the bridge for the remaining synchronous
+consumers (`UANodeSetHelpers` export, `CustomNodeManager2`):
+
+```csharp
+// was — the fetch ran under GetResult() on every browse
+public override IReference Next()
+{
+    return NextAsync().GetAwaiter().GetResult();
+}
+
+private async Task<IReference> NextAsync() { ... }
+
+// now — the async server awaits the fetch; Next() is only reached by sync callers
+public override async ValueTask<IReference?> NextAsync(CancellationToken cancellationToken)
+{
+    IReference? reference = base.Next();
+    if (reference != null)
+    {
+        return reference;
+    }
+    ...
+}
+
+public override IReference? Next()
+{
+    return NextAsync(CancellationToken.None).AsTask().GetAwaiter().GetResult();
+}
+```
+
+Browser creation stays synchronous: `OnCreateBrowser` runs under the node's
+browse lock, so a browser does its first fetch lazily in `NextAsync`, not in its
+constructor.
 
 ## `INodeCache` changes
 
