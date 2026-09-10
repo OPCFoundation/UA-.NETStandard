@@ -38,7 +38,7 @@ An assessment is an immutable handoff reference, never a grant by itself.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][ValidateSet('Verify', 'Write', 'Offline')][string]$Operation,
-    [string]$ControllerRoot = (Split-Path -Parent $PSScriptRoot),
+    [string]$ControllerRoot = (Split-Path (Split-Path $PSScriptRoot)),
     [Parameter(Mandatory)][string]$CandidateRoot,
     [Parameter(Mandatory)][string]$Evidence,
     [Parameter(Mandatory)][string]$Expected,
@@ -53,7 +53,7 @@ param(
     [string]$OfflineDestination
 )
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot 'nuget-evidence-functions.ps1')
+. (Join-Path $PSScriptRoot '..\nuget\evidence-functions.ps1')
 try {
     if ([string]::IsNullOrWhiteSpace($TrustPolicy)) {
         Stop-NugetEvidence 'Protected release trust is unconfigured; no promotion can be authorized.' 1

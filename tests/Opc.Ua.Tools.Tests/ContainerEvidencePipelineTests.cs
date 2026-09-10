@@ -46,6 +46,7 @@ namespace Opc.Ua.Tools.Tests
         /// <summary>
         /// Confirms each fixture enforces artifact identity, platform scope, and explicit incomplete outcomes.
         /// </summary>
+        /// <param name="scenario">The isolated evidence scenario.</param>
         [TestCase("valid-pump")]
         [TestCase("valid-dual-platform")]
         [TestCase("record-request")]
@@ -70,6 +71,35 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("path-traversal")]
         public async Task ContainerEvidencePreservesBoundariesAsync(string scenario)
         {
+            await RunFixtureAsync("ContainerEvidencePipeline.fixture.ps1", scenario).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Preserves image selection, registry and platform contracts while sharing the Docker producer.
+        /// </summary>
+        /// <param name="scenario">The workflow selection or invalid-input scenario.</param>
+        [TestCase("master")]
+        [TestCase("release")]
+        [TestCase("docker-branch")]
+        [TestCase("pull-request")]
+        [TestCase("manual-pump")]
+        [TestCase("fork")]
+        [TestCase("invalid-push-ref")]
+        [TestCase("invalid-event")]
+        [TestCase("missing-group")]
+        [TestCase("wrong-producer")]
+        [TestCase("missing-dockerfile")]
+        [TestCase("duplicate-image")]
+        [TestCase("empty-platforms")]
+        [TestCase("unsafe-dockerfile")]
+        [TestCase("workflow-wiring")]
+        public async Task ContainerWorkflowPreservesImageContractsAsync(string scenario)
+        {
+            await RunFixtureAsync("ContainerWorkflow.fixture.ps1", scenario).ConfigureAwait(false);
+        }
+
+        private static async Task RunFixtureAsync(string fixture, string scenario)
+        {
             DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);
             while (directory != null && !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
             {
@@ -91,7 +121,7 @@ namespace Opc.Ua.Tools.Tests
             foreach (string argument in new[]
             {
                 "-NoLogo", "-NoProfile", "-File",
-                Path.Combine(repositoryRoot, "tests", "Opc.Ua.Tools.Tests", "Fixtures", "ContainerEvidencePipeline.fixture.ps1"),
+                Path.Combine(repositoryRoot, "tests", "Opc.Ua.Tools.Tests", "Fixtures", fixture),
                 "-Scenario", scenario
             })
             {

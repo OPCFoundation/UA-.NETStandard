@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "readiness-progress",
-  "policyPath": ".azurepipelines/release-policy.json",
+  "policyPath": ".azurepipelines/release/policy.json",
   "records": [
     {
       "id": "reviewed-protected-policy-and-controller",

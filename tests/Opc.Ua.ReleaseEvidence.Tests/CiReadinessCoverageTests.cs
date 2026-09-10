@@ -60,7 +60,8 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             JsonArray records = progress["records"]!.AsArray();
             JsonObject record = records[0]!.AsObject();
             string policyDigest = CiEvidenceWorkspace.Hash(await File.ReadAllBytesAsync(Path.Combine(
-                CiEvidenceWorkspace.RepositoryRoot, ".azurepipelines", "release-policy.json")).ConfigureAwait(false));
+                CiEvidenceWorkspace.RepositoryRoot, ".azurepipelines", "release", "policy.json"))
+                .ConfigureAwait(false));
             if (scenario is "submitted" or "expired" or "stale-policy")
             {
                 Submit(record, policyDigest);
@@ -145,7 +146,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 case "empty-interval":
                 case "future-review":
                     Submit(record, CiEvidenceWorkspace.Hash(await File.ReadAllBytesAsync(Path.Combine(
-                        CiEvidenceWorkspace.RepositoryRoot, ".azurepipelines", "release-policy.json"))
+                        CiEvidenceWorkspace.RepositoryRoot, ".azurepipelines", "release", "policy.json"))
                         .ConfigureAwait(false)));
                     if (scenario == "empty-interval")
                     {
@@ -304,7 +305,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
         private static async Task<JsonObject> ReadProgressAsync()
         {
             return JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(
-                CiEvidenceWorkspace.RepositoryRoot, ".azurepipelines", "readiness-progress.json"))
+                CiEvidenceWorkspace.RepositoryRoot, ".azurepipelines", "release", "readiness-progress.json"))
                 .ConfigureAwait(false))!.AsObject();
         }
 

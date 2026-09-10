@@ -74,4 +74,4 @@ jobs:
     - name: Check test results
       if: always()
       shell: pwsh
-      run: ./.azurepipelines/assurance-results.ps1 -ResultsPath ./TestResults -OutputPath ./stability-summary.json -Kind trx -RequireNoSkipped -Enforce
+      run: ./.azurepipelines/assurance/results.ps1 -ResultsPath ./TestResults -OutputPath ./stability-summary.json -Kind trx -RequireNoSkipped -Enforce

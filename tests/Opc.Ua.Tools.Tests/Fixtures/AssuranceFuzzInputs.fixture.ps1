@@ -34,7 +34,7 @@ $fixture = Join-Path (Split-Path $PSScriptRoot) "obj/assurance-$([guid]::NewGuid
 $null = New-Item -ItemType Directory -Path $fixture
 try {
     $project = 'fuzzing/Opc.Ua.Network.Fuzz.Tests/Opc.Ua.Network.Fuzz.Tests.csproj'
-    $profiles = Get-Content (Join-Path $root '.azurepipelines/assurance-profiles.json') -Raw | ConvertFrom-Json
+    $profiles = Get-Content (Join-Path $root '.azurepipelines/assurance/profiles.json') -Raw | ConvertFrom-Json
     $job = $profiles.profiles.jobs | Where-Object { $_.project -eq $project }
     foreach ($bucket in $job.corpusBuckets) {
         if ($Scenario -eq 'missing-seeds') { continue }
@@ -50,8 +50,8 @@ try {
         Set-Content (Join-Path $fixture 'output/Testcases/Tcp/seed') 'overwritten-by-other-bucket'
     }
     $output = Join-Path $fixture 'manifest.json'
-    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/assurance-fuzz-inputs.ps1') `
-        -RepoRoot $fixture -Project $project -ProfilesPath (Join-Path $root '.azurepipelines/assurance-profiles.json') `
+    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/assurance/fuzz-inputs.ps1') `
+        -RepoRoot $fixture -Project $project -ProfilesPath (Join-Path $root '.azurepipelines/assurance/profiles.json') `
         -BuildOutput (Join-Path $fixture 'output') -OutputPath $output
     $expected = $Scenario -in @('bucket-identity', 'empty-regressions')
     if (($LASTEXITCODE -eq 0) -ne $expected) { throw "Unexpected input validation result: $Scenario" }

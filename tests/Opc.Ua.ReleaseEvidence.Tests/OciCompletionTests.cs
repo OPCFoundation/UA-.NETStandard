@@ -647,21 +647,22 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             private async Task InitializeAsync(string scenario)
             {
                 await m_native.CreateAsync(scenario).ConfigureAwait(false);
-                Directory.CreateDirectory(Path.Combine(Repository, ".azurepipelines"));
                 Directory.CreateDirectory(EvidenceRoot);
-                foreach (string name in new[]
+                foreach ((string folder, string name) in new[]
                 {
-                    "release-policy.json", "release-evidence.schema.json", "release-artifacts.json",
-                    "assurance-profiles.json", "verification-bundle.schema.json", "verification-record.schema.json",
-                    "trusted-policy-snapshot.schema.json"
+                    ("release", "policy.json"), ("release", "evidence.schema.json"), ("release", "artifacts.json"),
+                    ("assurance", "profiles.json"), ("release", "verification-bundle.schema.json"),
+                    ("release", "verification-record.schema.json"), ("release", "trusted-policy-snapshot.schema.json")
                 })
                 {
+                    Directory.CreateDirectory(Path.Combine(Repository, ".azurepipelines", folder));
                     byte[] bytes = await File.ReadAllBytesAsync(
-                        Path.Combine(NativeFixture.RepositoryRoot, ".azurepipelines", name)).ConfigureAwait(false);
-                    await File.WriteAllBytesAsync(Path.Combine(Repository, ".azurepipelines", name), bytes)
+                        Path.Combine(NativeFixture.RepositoryRoot, ".azurepipelines", folder, name))
+                        .ConfigureAwait(false);
+                    await File.WriteAllBytesAsync(Path.Combine(Repository, ".azurepipelines", folder, name), bytes)
                         .ConfigureAwait(false);
                 }
-                string policyPath = Path.Combine(Repository, ".azurepipelines", "release-policy.json");
+                string policyPath = Path.Combine(Repository, ".azurepipelines", "release", "policy.json");
                 JsonNode policy = JsonNode.Parse(await File.ReadAllTextAsync(policyPath).ConfigureAwait(false))!;
                 policy["stage"] = "required";
                 await File.WriteAllTextAsync(policyPath, policy.ToJsonString()).ConfigureAwait(false);
@@ -693,8 +694,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 documents.AddRange(results);
                 Envelope = Envelope with { Documents = [.. documents] };
                 FrozenFile[] contracts = [.. await Task.WhenAll(Directory.EnumerateFiles(
-                    Path.Combine(Repository, ".azurepipelines")).Select(async path => new FrozenFile(
-                        ".azurepipelines/" + Path.GetFileName(path),
+                    Path.Combine(Repository, ".azurepipelines"), "*", SearchOption.AllDirectories)
+                    .Select(async path => new FrozenFile(
+                        Path.GetRelativePath(Repository, path).Replace('\\', '/'),
                         await m_files.DigestAsync(path, CancellationToken.None).ConfigureAwait(false),
                         new FileInfo(path).Length))).ConfigureAwait(false)];
                 DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -727,7 +729,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             private async Task<(AssuranceRecord Scope, DocumentRecord[] Documents, ProducerPin[] Producers)>
                 CreateAssuranceAsync(EvaluationExpectation context)
             {
-                string profilePath = Path.Combine(Repository, ".azurepipelines", "assurance-profiles.json");
+                string profilePath = Path.Combine(Repository, ".azurepipelines", "assurance", "profiles.json");
                 ProfilesConfiguration profiles = await m_files.ReadModelAsync(profilePath,
                     EvidenceJsonContext.Default.ProfilesConfiguration, CancellationToken.None).ConfigureAwait(false);
                 var jobs = new List<JobRecord>();
@@ -798,7 +800,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     .ConfigureAwait(false);
                 var scope = new AssuranceRecord([.. profiles.Profiles.Select(p => p.Id)],
                     jobs.Count, jobs.Count, jobs.Count, 0, 0, 0, [.. jobs],
-                    [new("profile", "profile", "contracts/assurance-profiles.json", profileDigest)]);
+                    [new("profile", "profile", "contracts/profiles.json", profileDigest)]);
                 ProducerPin[] producers = [.. jobs.Select(j => j.Producer!)
                     .GroupBy(p => p.Workflow, StringComparer.Ordinal).Select(g => new ProducerPin(
                         g.First().System, g.Key, g.First().DefinitionSha, [.. g.Select(p => p.Job)],
@@ -983,9 +985,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             {
                 string root = FindRoot();
                 JsonNode catalog = JsonNode.Parse(await File.ReadAllTextAsync(
-                    Path.Combine(root, ".azurepipelines", "release-artifacts.json")).ConfigureAwait(false))!;
+                    Path.Combine(root, ".azurepipelines", "release", "artifacts.json")).ConfigureAwait(false))!;
                 JsonNode definition = catalog["groups"]!.AsArray().Single(g => g!["id"]!.GetValue<string>() == group)!;
-                string policy = Path.Combine(root, ".azurepipelines", "release-policy.json");
+                string policy = Path.Combine(root, ".azurepipelines", "release", "policy.json");
                 var context = new JsonObject
                 {
                     ["source"] = new JsonObject
@@ -1166,7 +1168,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     Path.Combine(m_work, "context.json"), EvidenceJsonContext.Default.EvaluationExpectation,
                     CancellationToken.None).ConfigureAwait(false);
                 ArtifactsConfiguration catalog = await files.ReadModelAsync(
-                    Path.Combine(RepositoryRoot, ".azurepipelines", "release-artifacts.json"),
+                    Path.Combine(RepositoryRoot, ".azurepipelines", "release", "artifacts.json"),
                     EvidenceJsonContext.Default.ArtifactsConfiguration, CancellationToken.None).ConfigureAwait(false);
                 OciRequest request = await files.ReadModelAsync(Path.Combine(m_work, "request.json"),
                     EvidenceJsonContext.Default.OciRequest, CancellationToken.None).ConfigureAwait(false);

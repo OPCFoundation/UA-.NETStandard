@@ -52,7 +52,7 @@ jobs:
     - name: Prepare evaluated compilation evidence
       if: ${{ github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/2.') }}
       shell: pwsh
-      run: ./.azurepipelines/assurance-codeql.ps1 -Mode Prepare -WorkDirectory '.assurance/codeql'
+      run: ./.azurepipelines/assurance/codeql.ps1 -Mode Prepare -WorkDirectory '.assurance/codeql'
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -113,7 +113,7 @@ jobs:
         CODEQL_DATABASES: ${{ steps.analysis.outputs.db-locations }}
         CODEQL_SARIF_ID: ${{ steps.analysis.outputs.sarif-id }}
       run: |
-        ./.azurepipelines/assurance-codeql.ps1 -Mode Collect -WorkDirectory '.assurance/codeql' `
+        ./.azurepipelines/assurance/codeql.ps1 -Mode Collect -WorkDirectory '.assurance/codeql' `
           -CodeqlPath $env:CODEQL_EXECUTABLE -CodeqlVersion $env:CODEQL_VERSION `
           -DatabaseLocations $env:CODEQL_DATABASES -SarifId $env:CODEQL_SARIF_ID `
           -ResultsPath '.assurance/codeql-sarif' -OutputPath '.assurance/codeql-proof.json'
@@ -121,7 +121,7 @@ jobs:
       if: ${{ always() && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/2.')) }}
       shell: pwsh
       run: |
-        ./.azurepipelines/write-assurance-job.ps1 -Project 'UA.slnx' `
+        ./.azurepipelines/assurance/write-job.ps1 -Project 'UA.slnx' `
           -ResultsPath '.assurance/codeql-proof.json' -Kind codeql `
           -OutputPath '.assurance/public/evidence.job.json' `
           -Workflow '.github/workflows/codeql-analysis.yml'

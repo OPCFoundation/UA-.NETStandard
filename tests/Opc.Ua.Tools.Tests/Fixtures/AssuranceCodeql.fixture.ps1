@@ -39,7 +39,7 @@ foreach ($name in @('PATH', 'GITHUB_ACTIONS', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEM
 }
 try {
     $work = Join-Path $fixture 'work'
-    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines\assurance-codeql.ps1') -Mode Prepare -WorkDirectory $work
+    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines\assurance\codeql.ps1') -Mode Prepare -WorkDirectory $work
     if ($LASTEXITCODE -ne 0) { throw 'CodeQL preparation failed.' }
     [xml] $capture = Get-Content -LiteralPath (Join-Path $work 'capture.targets') -Raw
     if ($capture.Project.Target.BeforeTargets -cne 'CoreCompile') { throw 'Compilation input capture hook missing.' }
@@ -138,7 +138,7 @@ try {
         throw 'Fake transport not selected.'
     }
     $output = Join-Path $fixture 'proof.json'
-    & (Join-Path $root '.azurepipelines\assurance-codeql.ps1') `
+    & (Join-Path $root '.azurepipelines\assurance\codeql.ps1') `
         -Mode Collect -WorkDirectory $work -OutputPath $output -CodeqlPath $cli -CodeqlVersion '2.23.0' `
         -DatabaseLocations (@{ csharp = $database } | ConvertTo-Json -Compress) -SarifId $sarifId `
         -ResultsPath $results -CommandTimeoutSeconds 10

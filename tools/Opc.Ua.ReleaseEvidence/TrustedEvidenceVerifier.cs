@@ -119,10 +119,10 @@ namespace Opc.Ua.ReleaseEvidence
         internal static async Task<bool> PolicyFilesMatchAsync(
             TrustedPolicySnapshot policy, string repositoryRoot, EvidenceFiles files, CancellationToken cancellationToken)
         {
-            string policyPath = EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release-policy.json");
-            if (!policy.ContractFiles.Any(f => f.Path == ".azurepipelines/release-policy.json") ||
+            string policyPath = EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release/policy.json");
+            if (!policy.ContractFiles.Any(f => f.Path == ".azurepipelines/release/policy.json") ||
                 VerificationSchemas.Names.Any(name =>
-                    !policy.ContractFiles.Any(f => f.Path == ".azurepipelines/" + name)) ||
+                    !policy.ContractFiles.Any(f => f.Path == ".azurepipelines/release/" + name)) ||
                 policy.ContractFiles.Select(f => f.Path).Distinct(StringComparer.Ordinal).Count() !=
                     policy.ContractFiles.Length ||
                 await files.DigestAsync(policyPath, cancellationToken).ConfigureAwait(false) != policy.PolicyDigest)
@@ -221,16 +221,16 @@ namespace Opc.Ua.ReleaseEvidence
                 AddMissing(claims);
                 return claims;
             }
-            string policyPath = EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release-policy.json");
+            string policyPath = EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release/policy.json");
             PolicyConfiguration candidatePolicy = await files.ReadModelAsync(
                 policyPath, EvidenceJsonContext.Default.PolicyConfiguration, cancellationToken).ConfigureAwait(false);
             string[] requiredContracts =
             [
-                ".azurepipelines/release-policy.json", candidatePolicy.EvidenceSchema,
+                ".azurepipelines/release/policy.json", candidatePolicy.EvidenceSchema,
                 candidatePolicy.ArtifactCatalog, candidatePolicy.AssuranceProfiles,
-                ".azurepipelines/verification-bundle.schema.json",
-                ".azurepipelines/verification-record.schema.json",
-                ".azurepipelines/trusted-policy-snapshot.schema.json"
+                ".azurepipelines/release/verification-bundle.schema.json",
+                ".azurepipelines/release/verification-record.schema.json",
+                ".azurepipelines/release/trusted-policy-snapshot.schema.json"
             ];
             ArtifactsConfiguration catalog = await files.ReadModelAsync(
                 EvidenceFiles.Confined(repositoryRoot, candidatePolicy.ArtifactCatalog),

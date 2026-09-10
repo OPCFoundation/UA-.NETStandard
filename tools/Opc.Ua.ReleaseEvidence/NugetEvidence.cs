@@ -118,7 +118,7 @@ namespace Opc.Ua.ReleaseEvidence
                 throw new InvalidDataException("Duplicate project/configuration input bundle.");
             }
             PolicyConfiguration policy = await files.ReadModelAsync(
-                EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release-policy.json"),
+                EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release/policy.json"),
                 EvidenceJsonContext.Default.PolicyConfiguration, cancellationToken).ConfigureAwait(false);
             ArtifactsConfiguration catalog = await files.ReadModelAsync(
                 EvidenceFiles.Confined(repositoryRoot, policy.ArtifactCatalog),
@@ -180,7 +180,7 @@ namespace Opc.Ua.ReleaseEvidence
                 "input-manifest", "json", "1", "source-inputs.json", sourceDigest, sourceSubject));
             foreach ((string path, string type) in new[]
             {
-                (".azurepipelines/release-policy.json", "policy"),
+                (".azurepipelines/release/policy.json", "policy"),
                 (policy.ArtifactCatalog, "artifact-catalog"),
                 (policy.AssuranceProfiles, "profile")
             })
@@ -280,7 +280,7 @@ namespace Opc.Ua.ReleaseEvidence
                 2, context.Source, context.Producer, context.Release,
                 new PolicyRecord(policy.Id, policy.Version,
                     await files.DigestAsync(
-                        EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release-policy.json"),
+                        EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release/policy.json"),
                         cancellationToken).ConfigureAwait(false), policy.Stage),
                 [.. inventories.Select(i => i.Artifact)], [.. documents],
                 new AssuranceRecord(

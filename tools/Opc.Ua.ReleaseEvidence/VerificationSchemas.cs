@@ -58,7 +58,7 @@ namespace Opc.Ua.ReleaseEvidence
             foreach (string name in Names)
             {
                 using JsonDocument document = await files.ReadJsonAsync(
-                    EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/" + name), cancellationToken)
+                    EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release/" + name), cancellationToken)
                     .ConfigureAwait(false);
                 var schema = JsonSchema.FromText(document.RootElement.GetRawText(), options);
                 registry.Register(new Uri("https://opcfoundation.org/schemas/ua-netstandard/" + name), schema);
@@ -87,7 +87,7 @@ namespace Opc.Ua.ReleaseEvidence
         /// </summary>
         internal static readonly string[] Names =
         [
-            "release-evidence.schema.json", "verification-bundle.schema.json",
+            "evidence.schema.json", "verification-bundle.schema.json",
             "verification-record.schema.json", "trusted-policy-snapshot.schema.json"
         ];
     }

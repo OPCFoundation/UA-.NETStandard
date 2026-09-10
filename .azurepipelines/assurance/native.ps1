@@ -47,8 +47,8 @@ param(
     [switch] $NoRestore
 )
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot 'assurance-native-image.ps1')
-$root = Split-Path $PSScriptRoot
+. (Join-Path $PSScriptRoot 'native-image.ps1')
+$root = Split-Path (Split-Path $PSScriptRoot)
 $projectFile = [IO.Path]::GetFullPath($Project, $root)
 $Project = [IO.Path]::GetRelativePath($root, $projectFile).Replace('\', '/')
 if ($Project.StartsWith('../', [StringComparison]::Ordinal)) { throw 'NATIVE_PROJECT_OUTSIDE_REPOSITORY' }
@@ -164,7 +164,7 @@ try {
         if ($observedAt -lt $launchedAt -or $observedAt -gt $completedAt) { throw 'NATIVE_RUNTIME_REPORT_STALE' }
     }
     $trxProof = Join-Path $work 'mtp-results.json'
-    & (Join-Path $PSScriptRoot 'assurance-results.ps1') -ResultsPath $results -Kind mtp-trx `
+    & (Join-Path $PSScriptRoot 'results.ps1') -ResultsPath $results -Kind mtp-trx `
         -OutputPath $trxProof -RequireNoSkipped
     $mtp = Get-Content -LiteralPath $trxProof -Raw | ConvertFrom-Json
     $summary.documents = $mtp.documents

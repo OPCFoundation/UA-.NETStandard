@@ -41,7 +41,7 @@ param(
     [Parameter(Mandatory)]
     [ValidateSet('Preflight', 'Record', 'Collect', 'VerifyLocal', 'Sign', 'Status', 'Aggregate', 'Assemble', 'Evaluate')]
     [string]$Operation,
-    [string]$RepositoryRoot = (Split-Path -Parent $PSScriptRoot),
+    [string]$RepositoryRoot = (Split-Path (Split-Path $PSScriptRoot)),
     [ValidateSet('containers', 'pump')][string]$Group = 'containers',
     [string]$Image,
     [string]$RootDigest,
@@ -180,7 +180,7 @@ function New-Context {
             tools = @(@{ id = 'pwsh'; version = $PSVersionTable.PSVersion.ToString() })
         }
         release = @{ group = $Group; version = $Version; channel = 'development' }
-        policyDigest = Get-Digest (Join-Path $RepositoryRoot '.azurepipelines/release-policy.json')
+        policyDigest = Get-Digest (Join-Path $RepositoryRoot '.azurepipelines/release/policy.json')
         artifacts = @()
     }
 }
@@ -192,7 +192,7 @@ function Get-LocalContext {
         $value.producer.definitionSha -cnotmatch '^[0-9a-f]{40,64}$' -or
         $value.producer.workflow -cne $script:definition.producer -or
         $value.release.version -cnotmatch '^\d+\.\d+\.\d+(\.\d+)?([+-][0-9A-Za-z.+-]+)?$' -or
-        $value.policyDigest -cne (Get-Digest (Join-Path $RepositoryRoot '.azurepipelines/release-policy.json')) -or
+        $value.policyDigest -cne (Get-Digest (Join-Path $RepositoryRoot '.azurepipelines/release/policy.json')) -or
         ($Version -and $value.release.version -cne $Version)) {
         throw 'OCI context does not match the current group/policy.'
     }
@@ -433,8 +433,8 @@ $state = @{
 }
 $exitCode = 0
 try {
-    $script:policy = Read-Json (Join-Path $RepositoryRoot '.azurepipelines/release-policy.json')
-    $script:catalog = Read-Json (Join-Path $RepositoryRoot '.azurepipelines/release-artifacts.json')
+    $script:policy = Read-Json (Join-Path $RepositoryRoot '.azurepipelines/release/policy.json')
+    $script:catalog = Read-Json (Join-Path $RepositoryRoot '.azurepipelines/release/artifacts.json')
     $script:definition = Get-Group $Group
     if ($Image) { $script:imageId = Get-ImageId $Image $script:definition }
     if ($Operation -cin @('Assemble', 'Evaluate')) {

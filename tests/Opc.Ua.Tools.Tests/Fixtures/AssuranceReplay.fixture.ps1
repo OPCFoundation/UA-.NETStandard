@@ -64,7 +64,7 @@ try {
 </TestRun>
 "@ | Set-Content (Join-Path $fixture 'run.trx')
     $output = Join-Path $fixture 'summary.json'
-    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/assurance-results.ps1') `
+    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/assurance/results.ps1') `
         -ResultsPath $fixture -Kind fuzz-replay -OutputPath $output -Enforce
     $code = $LASTEXITCODE
     if (-not (Test-Path $output)) { throw 'Replay proof not produced.' }

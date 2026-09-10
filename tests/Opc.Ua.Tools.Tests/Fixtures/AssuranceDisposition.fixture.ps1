@@ -30,7 +30,7 @@
 param([Parameter(Mandatory)][string] $Scenario)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path (Split-Path $PSScriptRoot))
-. (Join-Path $root '.azurepipelines\assurance-proofs.ps1')
+. (Join-Path $root '.azurepipelines\assurance\proofs.ps1')
 . (Join-Path $PSScriptRoot 'AssuranceProofData.fixture.ps1')
 $proof = New-AssuranceFixtureCodeql ('a' * 40) '502' 2
 $proof.analysis.findings = 3

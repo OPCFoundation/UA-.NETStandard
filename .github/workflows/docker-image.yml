@@ -11,9 +11,10 @@ on:
     paths-ignore:
     - 'docs/**'
     - 'tests/**'
+  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -23,35 +24,39 @@ env:
   SBOM_SCANNER: docker.io/docker/buildkit-syft-scanner@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9
 
 jobs:
-  build-and-push-image:
+  select-images:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      images: ${{ steps.matrix.outputs.images }}
+      groups: ${{ steps.matrix.outputs.groups }}
+    steps:
+    - uses: actions/checkout@v7
+    - name: Select catalog images and independent groups
+      id: matrix
+      shell: pwsh
+      run: |
+        $selection = & ./.azurepipelines/containers/matrix.ps1 `
+          -EventName $env:GITHUB_EVENT_NAME -Ref $env:GITHUB_REF `
+          -Repository $env:GITHUB_REPOSITORY | ConvertFrom-Json
+        "images=$(ConvertTo-Json -InputObject $selection.images -Depth 8 -Compress)" >> $env:GITHUB_OUTPUT
+        "groups=$(ConvertTo-Json -InputObject $selection.groups -Depth 8 -Compress)" >> $env:GITHUB_OUTPUT
+
+  build-and-push-image:
+    needs: select-images
+    runs-on: ubuntu-latest
+    concurrency:
+      group: container-image-${{ github.repository }}-${{ matrix.image }}-${{ github.ref }}
+      cancel-in-progress: false
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          # Sample servers
-          - image: refserver
-            dockerfile: ./samples/Reference/ConsoleReferenceServer/Dockerfile
-          - image: ldsserver
-            dockerfile: ./samples/Lds/ConsoleLdsServer/Dockerfile
-          - image: boilerserver
-            dockerfile: ./samples/MinimalApi/MinimalBoilerServer/Dockerfile
-          - image: calcserver
-            dockerfile: ./samples/MinimalApi/MinimalCalcServer/Dockerfile
-          - image: mcpserver
-            dockerfile: ./tools/Opc.Ua.Mcp/Dockerfile
-          - image: redundantserver
-            dockerfile: ./samples/Redundancy/RedundantServer/Dockerfile
-          # Redundant client
-          - image: redundantclient
-            dockerfile: ./samples/Redundancy/RedundantClient/Dockerfile
-          # PubSub samples
-          - image: redundantpubsub
-            dockerfile: ./samples/Redundancy/RedundantPubSub/Dockerfile
-          - image: pubsubclient
-            dockerfile: ./samples/PubSub/ConsoleReferencePubSubClient/Dockerfile
+      matrix: ${{ fromJSON(needs.select-images.outputs.images) }}
     env:
       IMAGE_NAME: ${{ matrix.image }}
+      IMAGE_GROUP: ${{ matrix.group }}
+      IMAGE_REPOSITORY: ${{ matrix.repository }}
+      EVIDENCE_IMAGE: ${{ matrix.evidenceImage }}
       IS_NOT_PR: ${{ !github.head_ref && true }}
     permissions:
       contents: read
@@ -95,17 +100,18 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Prepare Tag Repo Info
+    - name: Prepare image version
+      shell: pwsh
       run: |
-        echo IMAGE_REPOSITORY=${{ env.REGISTRY }}/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]' | awk '{gsub(/-|\./, "")}1')/${{ env.IMAGE_NAME }} >> $GITHUB_ENV
-        echo IMAGE_VERSION=$(echo ${{ env.NBGV_Version }}${{ env.NBGV_PrereleaseVersion }}) >> $GITHUB_ENV
+        "IMAGE_VERSION=$env:NBGV_Version$env:NBGV_PrereleaseVersion" >> $env:GITHUB_ENV
 
     - name: Prepare Tag Branch info
-      if: env.NBGV_PublicRelease == 'False'
+      if: matrix.group == 'containers' && env.NBGV_PublicRelease == 'False'
       run: |
         echo IMAGE_TAG=-$(echo ${{ github.ref }} | tr '[:upper:]' '[:lower:]' |  awk '{sub(/([^\/]*\/){2}/,""); gsub(/\/|_/, "-")}1') >> $GITHUB_ENV
 
     - name: Prepare version and latest tag
+      if: matrix.group == 'containers'
       run: |
         echo TAG_BRANCH=$(echo ${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_VERSION }}${{ env.IMAGE_TAG }}) >> $GITHUB_ENV
         echo TAG_LATEST=$(echo ${{ env.IMAGE_REPOSITORY }}:latest${{ env.IMAGE_TAG }}) >> $GITHUB_ENV
@@ -115,23 +121,36 @@ jobs:
       if: github.event_name != 'pull_request'
       shell: pwsh
       run: |
-        ./.azurepipelines/container-evidence.ps1 -Operation Preflight -Group containers `
+        ./.azurepipelines/containers/evidence.ps1 -Operation Preflight -Group $env:IMAGE_GROUP `
           -Image $env:IMAGE_NAME -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK
 
     - name: Prepare Release tags
-      if: ${{ env.NBGV_PublicRelease == 'True' && env.NBGV_PrereleaseVersion == '' && env.IS_NOT_PR == 'true' }}
+      if: ${{ matrix.group == 'containers' && env.NBGV_PublicRelease == 'True' && env.NBGV_PrereleaseVersion == '' && env.IS_NOT_PR == 'true' }}
       run: |
         echo TAG_RELEASE=,${{ env.IMAGE_REPOSITORY }}:${{ env.NBGV_MajorMinorVersion }},${{ env.IMAGE_REPOSITORY }}:${{ env.NBGV_SimpleVersion }},${{ env.IMAGE_REPOSITORY }}:release >> $GITHUB_ENV
 
     # Extract metadata (tags, labels) for Docker
     # https://github.com/docker/metadata-action
     - name: Extract Docker metadata
+      if: matrix.group == 'containers'
       id: meta
       uses: docker/metadata-action@v6
       with:
         images: ${{ env.IMAGE_REPOSITORY }}
 
+    - name: Extract Pump Docker metadata
+      if: matrix.group == 'pump'
+      id: pump_meta
+      uses: docker/metadata-action@v6
+      with:
+        images: ${{ env.IMAGE_REPOSITORY }}
+        tags: |
+          type=raw,value=latest
+          type=raw,value=${{ env.IMAGE_VERSION }}
+          type=sha
+
     - name: Set up QEMU
+      if: contains(matrix.platforms, 'arm64')
       uses: docker/setup-qemu-action@v4
 
     # Build and push Docker image with Buildx (don't push on PR)
@@ -149,11 +168,11 @@ jobs:
           SourceRevisionId=${{ github.sha }}
           SourceRepositoryUrl=${{ github.server_url }}/${{ github.repository }}
         push: ${{ github.event_name != 'pull_request' }}
-        tags: ${{ env.TAG_BRANCH }},${{ env.TAG_LATEST }}${{ env.TAG_RELEASE }}
-        platforms: linux/amd64,linux/arm64/v8
+        tags: ${{ matrix.group == 'pump' && steps.pump_meta.outputs.tags || format('{0},{1}{2}', env.TAG_BRANCH, env.TAG_LATEST, env.TAG_RELEASE) }}
+        platforms: ${{ matrix.platforms }}
         file: ${{ matrix.dockerfile }}
         labels: |
-          ${{ steps.meta.outputs.labels }}
+          ${{ steps.meta.outputs.labels || steps.pump_meta.outputs.labels }}
           org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
           org.opencontainers.image.revision=${{ github.sha }}
           org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
@@ -171,7 +190,7 @@ jobs:
       env:
         ROOT_DIGEST: ${{ steps.build-and-push.outputs.digest }}
       run: |
-        ./.azurepipelines/container-evidence.ps1 -Operation Record -Group containers `
+        ./.azurepipelines/containers/evidence.ps1 -Operation Record -Group $env:IMAGE_GROUP `
           -Image $env:IMAGE_REPOSITORY -RootDigest $env:ROOT_DIGEST -Version $env:IMAGE_VERSION `
           -Work $env:EVIDENCE_WORK -BuildState success
 
@@ -193,7 +212,7 @@ jobs:
       env:
         GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        ./.azurepipelines/container-evidence.ps1 -Operation Collect -Group containers `
+        ./.azurepipelines/containers/evidence.ps1 -Operation Collect -Group $env:IMAGE_GROUP `
           -Image $env:IMAGE_REPOSITORY -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK -BuildState success
 
     - name: Reconcile runnable subjects and native attestations
@@ -202,7 +221,7 @@ jobs:
       continue-on-error: true
       shell: pwsh
       run: |
-        ./.azurepipelines/container-evidence.ps1 -Operation VerifyLocal -Group containers `
+        ./.azurepipelines/containers/evidence.ps1 -Operation VerifyLocal -Group $env:IMAGE_GROUP `
           -Image $env:IMAGE_REPOSITORY -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK -BuildState success
 
     - name: Install pinned cosign
@@ -220,7 +239,7 @@ jobs:
       env:
         GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        ./.azurepipelines/container-evidence.ps1 -Operation Sign -Group containers `
+        ./.azurepipelines/containers/evidence.ps1 -Operation Sign -Group $env:IMAGE_GROUP `
           -Image $env:IMAGE_REPOSITORY -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK -BuildState success
 
     - name: Always produce sanitized per-image status
@@ -234,14 +253,14 @@ jobs:
         $null = New-Item -ItemType Directory -Force -Path $public
         $status = Join-Path $public 'status.json'
         @{
-          schemaVersion = 1; status = 'incomplete'; group = 'containers'
-          image = "ghcr.io/opcfoundation/uanetstandard/$env:IMAGE_NAME"
+          schemaVersion = 1; status = 'incomplete'; group = $env:IMAGE_GROUP
+          image = $env:EVIDENCE_IMAGE
           collectorState = 'unavailable'; observedSubjects = @(); observedAttestations = @()
           unmetControls = @('PRODUCER_NOT_READY', 'PUBLISHER_BOUNDARY')
         } | ConvertTo-Json | Set-Content -LiteralPath $status
         $reportExit = 2
-        if (Test-Path ./.azurepipelines/container-evidence.ps1) {
-          & ./.azurepipelines/container-evidence.ps1 -Operation Status -Group containers `
+        if (Test-Path ./.azurepipelines/containers/evidence.ps1) {
+          & ./.azurepipelines/containers/evidence.ps1 -Operation Status -Group $env:IMAGE_GROUP `
             -Image $env:IMAGE_NAME -Version $env:IMAGE_VERSION -Work $env:EVIDENCE_WORK `
             -BuildState $env:BUILD_STATE -Output $status
           $reportExit = $LASTEXITCODE
@@ -255,7 +274,7 @@ jobs:
       continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
-        name: container-status-${{ matrix.image }}
+        name: container-status-${{ matrix.group }}-${{ matrix.image }}
         path: ${{ runner.temp }}/container-evidence/public/status.json
         if-no-files-found: error
 
@@ -264,16 +283,19 @@ jobs:
       continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
-        name: container-signature-bundles-${{ matrix.image }}
+        name: container-signature-bundles-${{ matrix.group }}-${{ matrix.image }}
         # Explicit signature material only; never upload the work directory, native predicates or raw tool logs.
         path: |
           ${{ runner.temp }}/container-evidence/subject-proofs/*.bundle.json
         if-no-files-found: error
 
   container-group-status:
-    if: always()
-    needs: build-and-push-image
+    if: always() && needs.select-images.result == 'success'
+    needs: [select-images, build-and-push-image]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select-images.outputs.groups) }}
     continue-on-error: true
     permissions:
       contents: read
@@ -282,18 +304,18 @@ jobs:
     - uses: actions/download-artifact@v4
       continue-on-error: true
       with:
-        pattern: container-status-*
+        pattern: container-status-${{ matrix.id }}-*
         path: ${{ runner.temp }}/container-statuses
     - name: Reconcile catalog membership without inventing missing platforms
       if: always()
       shell: pwsh
       run: |
-        ./.azurepipelines/container-evidence.ps1 -Operation Aggregate -Group containers `
+        ./.azurepipelines/containers/evidence.ps1 -Operation Aggregate -Group '${{ matrix.id }}' `
           -Inputs "${{ runner.temp }}/container-statuses" `
           -Output "${{ runner.temp }}/artifact-group-manifest.json"
     - uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: container-artifact-group-manifest
+        name: ${{ matrix.manifestArtifact }}
         path: ${{ runner.temp }}/artifact-group-manifest.json
         if-no-files-found: error

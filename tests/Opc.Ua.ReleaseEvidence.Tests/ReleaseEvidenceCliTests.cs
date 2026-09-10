@@ -114,7 +114,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             try
             {
                 CopyContracts(work);
-                string policyPath = Path.Combine(work, ".azurepipelines", "release-policy.json");
+                string policyPath = Path.Combine(work, ".azurepipelines", "release", "policy.json");
                 JsonNode policy = JsonNode.Parse(await File.ReadAllTextAsync(policyPath).ConfigureAwait(false))!;
                 policy["stage"] = stage;
                 policy["publisherBoundaryVerified"] = true;
@@ -158,7 +158,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             try
             {
                 CopyContracts(work);
-                string policyPath = Path.Combine(work, ".azurepipelines", "release-policy.json");
+                string policyPath = Path.Combine(work, ".azurepipelines", "release", "policy.json");
                 JsonNode policy = JsonNode.Parse(await File.ReadAllTextAsync(policyPath).ConfigureAwait(false))!;
                 policy["stage"] = "required";
                 await File.WriteAllTextAsync(policyPath, policy.ToJsonString()).ConfigureAwait(false);
@@ -664,14 +664,14 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             try
             {
                 CopyContracts(work);
-                string policyPath = Path.Combine(work, ".azurepipelines", "release-policy.json");
+                string policyPath = Path.Combine(work, ".azurepipelines", "release", "policy.json");
                 JsonNode policy = JsonNode.Parse(await File.ReadAllTextAsync(policyPath).ConfigureAwait(false))!;
                 policy["stage"] = stage;
                 await File.WriteAllTextAsync(policyPath, policy.ToJsonString()).ConfigureAwait(false);
                 JsonNode envelope = JsonNode.Parse(await File.ReadAllTextAsync(Fixture("v2.json"))
                     .ConfigureAwait(false))!;
                 JsonNode profiles = JsonNode.Parse(await File.ReadAllTextAsync(
-                    Path.Combine(work, ".azurepipelines", "assurance-profiles.json")).ConfigureAwait(false))!;
+                    Path.Combine(work, ".azurepipelines", "assurance", "profiles.json")).ConfigureAwait(false))!;
                 var jobs = new JsonArray();
                 foreach (JsonNode? profile in profiles["profiles"]!.AsArray())
                 {
@@ -956,7 +956,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             try
             {
                 CopyContracts(work);
-                string policyPath = Path.Combine(work, ".azurepipelines", "release-policy.json");
+                string policyPath = Path.Combine(work, ".azurepipelines", "release", "policy.json");
                 JsonNode policy = JsonNode.Parse(await File.ReadAllTextAsync(policyPath).ConfigureAwait(false))!;
                 policy["stage"] = "required";
                 await File.WriteAllTextAsync(policyPath, policy.ToJsonString()).ConfigureAwait(false);
@@ -1257,14 +1257,15 @@ namespace Opc.Ua.ReleaseEvidence.Tests
         private static void CopyContracts(string work)
         {
             string directory = Path.Combine(work, ".azurepipelines");
-            Directory.CreateDirectory(directory);
-            foreach (string file in new[]
+            foreach ((string folder, string file) in new[]
             {
-                "release-policy.json", "release-artifacts.json", "assurance-profiles.json",
-                "release-evidence.schema.json", "expected-packages.txt"
+                ("release", "policy.json"), ("release", "artifacts.json"), ("assurance", "profiles.json"),
+                ("release", "evidence.schema.json"), ("nuget", "expected-packages.txt")
             })
             {
-                File.Copy(Path.Combine(FindRoot(), ".azurepipelines", file), Path.Combine(directory, file));
+                Directory.CreateDirectory(Path.Combine(directory, folder));
+                File.Copy(Path.Combine(FindRoot(), ".azurepipelines", folder, file),
+                    Path.Combine(directory, folder, file));
             }
         }
 

@@ -10,7 +10,7 @@
       "producer": ".github/workflows/nuget-publish.yml",
       "kind": "nuget",
       "profiles": ["security-net10", "fuzz-replay-net10", "codeql-net10", "aot-net10"],
-      "modernCatalog": ".azurepipelines/expected-packages.txt",
+      "modernCatalog": ".azurepipelines/nuget/expected-packages.txt",
       "modernCatalogSyntax": "trim-lines-ignore-blank-and-leading-hash-require-unique-ids",
       "variants": [
         {
@@ -100,7 +100,7 @@
     },
     {
       "id": "pump",
-      "producer": ".github/workflows/pump-device-integration-server-docker.yml",
+      "producer": ".github/workflows/docker-image.yml",
       "kind": "oci",
       "profiles": ["security-net10", "fuzz-replay-net10", "codeql-net10", "aot-net10"],
       "registry": "ghcr.io",

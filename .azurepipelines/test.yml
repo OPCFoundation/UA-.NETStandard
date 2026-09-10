@@ -194,7 +194,7 @@ jobs:
         if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
         $null = New-Item -ItemType Directory -Path $dir
         if ('$(file)' -like '*Fuzz.Tests.csproj') {
-            & ./.azurepipelines/assurance-fuzz-inputs.ps1 -Project '$(file)' -OutputPath "$dir/public-inputs.json"
+            & ./.azurepipelines/assurance/fuzz-inputs.ps1 -Project '$(file)' -OutputPath "$dir/public-inputs.json"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         }
   - task: DotNetCoreCLI@2
@@ -281,7 +281,7 @@ jobs:
     inputs:
       pwsh: true
       targetType: filePath
-      filePath: ./.azurepipelines/assurance-results.ps1
+      filePath: ./.azurepipelines/assurance/results.ps1
       arguments: -ResultsPath "$(TestResultsDirectory)" -OutputPath "$(TestResultsDirectory)/public-results.json" -Kind trx -Enforce
   - task: PowerShell@2
     displayName: 'Verify copied public replay inputs'
@@ -291,7 +291,7 @@ jobs:
       targetType: inline
       script: |
         $dir = '$(TestResultsDirectory)'
-        & ./.azurepipelines/assurance-fuzz-inputs.ps1 -Project '$(file)' `
+        & ./.azurepipelines/assurance/fuzz-inputs.ps1 -Project '$(file)' `
             -BuildOutput '$(folder)/bin/${{ parameters.configuration }}/${{ parameters.framework }}' `
             -OutputPath "$dir/copied-inputs.json"
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -304,7 +304,7 @@ jobs:
     inputs:
       pwsh: true
       targetType: filePath
-      filePath: ./.azurepipelines/write-assurance-job.ps1
+      filePath: ./.azurepipelines/assurance/write-job.ps1
       arguments: -Project "$(file)" -ResultsPath "$(TestResultsDirectory)" -OutputPath "$(TestResultsDirectory)/public/evidence.job.json" -Workflow azure-pipelines.yml -HostTfm "${{ parameters.framework }}" -LibraryTfm "${{ coalesce(parameters.customtestarget, parameters.framework) }}" -Configuration "${{ parameters.configuration }}" -Filter "${{ parameters.testfilter }}"
   - task: PowerShell@2
     displayName: 'Detect public assurance result'

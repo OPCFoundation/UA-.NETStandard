@@ -81,7 +81,7 @@ namespace Opc.Ua.ReleaseEvidence
         {
             OciRequest request = await files.ReadModelAsync(
                 requestPath, EvidenceJsonContext.Default.OciRequest, cancellationToken).ConfigureAwait(false);
-            string policyPath = EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release-policy.json");
+            string policyPath = EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release/policy.json");
             PolicyConfiguration policy = await files.ReadModelAsync(
                 policyPath, EvidenceJsonContext.Default.PolicyConfiguration, cancellationToken).ConfigureAwait(false);
             string policyDigest = await files.DigestAsync(policyPath, cancellationToken).ConfigureAwait(false);
@@ -147,7 +147,7 @@ namespace Opc.Ua.ReleaseEvidence
             }
             foreach ((string path, string type) in new[]
             {
-                (".azurepipelines/release-policy.json", "policy"),
+                (".azurepipelines/release/policy.json", "policy"),
                 (policy.ArtifactCatalog, "artifact-catalog"),
                 (policy.AssuranceProfiles, "profile")
             })

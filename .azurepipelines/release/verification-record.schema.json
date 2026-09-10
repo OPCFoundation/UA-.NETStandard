@@ -26,13 +26,13 @@
       "$ref": "#/$defs/digest",
       "description": "On a publication-boundary record, authorizes the exact immutable promotion request bytes, including destinations, member identities, evidence and alias preconditions."
     },
-    "source": { "$ref": "release-evidence.schema.json#/$defs/source" },
-    "producer": { "$ref": "release-evidence.schema.json#/$defs/producer" },
-    "release": { "$ref": "release-evidence.schema.json#/properties/release" },
+    "source": { "$ref": "evidence.schema.json#/$defs/source" },
+    "producer": { "$ref": "evidence.schema.json#/$defs/producer" },
+    "release": { "$ref": "evidence.schema.json#/properties/release" },
     "artifacts": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "release-evidence.schema.json#/$defs/artifact" }
+      "items": { "$ref": "evidence.schema.json#/$defs/artifact" }
     },
     "documents": {
       "type": "array",
@@ -40,13 +40,13 @@
     },
     "jobs": {
       "type": "array",
-      "items": { "$ref": "release-evidence.schema.json#/$defs/job" }
+      "items": { "$ref": "evidence.schema.json#/$defs/job" }
     },
     "controls": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "$ref": "release-evidence.schema.json#/$defs/control" }
+      "items": { "$ref": "evidence.schema.json#/$defs/control" }
     },
     "checkpointSequence": { "type": "integer", "minimum": 1 },
     "issuedAt": { "type": "string", "format": "date-time" },
@@ -92,7 +92,7 @@
         "reviewedOccurrences", "reviewedAlerts", "unresolvedFindings"
       ],
       "properties": {
-        "sourceSha": { "$ref": "release-evidence.schema.json#/$defs/sha" },
+        "sourceSha": { "$ref": "evidence.schema.json#/$defs/sha" },
         "runId": { "$ref": "#/$defs/text" },
         "attempt": { "type": "integer", "minimum": 1 },
         "analysisId": { "$ref": "#/$defs/text" },
@@ -122,7 +122,7 @@
         "builderId": { "$ref": "#/$defs/text" },
         "invocationId": { "$ref": "#/$defs/text" },
         "sourceUri": { "$ref": "#/$defs/text" },
-        "sourceSha": { "$ref": "release-evidence.schema.json#/$defs/sha" },
+        "sourceSha": { "$ref": "evidence.schema.json#/$defs/sha" },
         "dockerfile": { "$ref": "#/$defs/path" },
         "scannerCreator": { "$ref": "#/$defs/text" },
         "scannerDigest": { "$ref": "#/$defs/digest" },

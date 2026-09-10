@@ -252,11 +252,11 @@ Do not mark an exercise complete until its outcome record exists.
 
 ### Machine-readable readiness records and synthetic scenarios
 
-[`readiness-progress.json`](../.azurepipelines/readiness-progress.json) tracks the
+[`readiness-progress.json`](../.azurepipelines/release/readiness-progress.json) tracks the
 six organizational requirements above and references the active engineering checks
-in `release-policy.json` by ID. All checked-in readiness records are **pending**;
+in `.azurepipelines/release/policy.json` by ID. All checked-in readiness records are **pending**;
 that status does not defer the required stable engineering gates.
-[`readiness-record.schema.json`](../.azurepipelines/readiness-record.schema.json)
+[`readiness-record.schema.json`](../.azurepipelines/release/readiness-record.schema.json)
 is a separate versioned companion; it does not change signed release envelopes.
 The responsible function identifies who must arrange a decision, not an existing
 personal appointment.
@@ -267,7 +267,7 @@ group/destination scope, public reference format and review intervals:
 ```powershell
 $tool = '.\tools\Opc.Ua.ReleaseEvidence\bin\Release\net10.0\Opc.Ua.ReleaseEvidence.dll'
 dotnet $tool validate-readiness --repository-root . `
-  --input .\.azurepipelines\readiness-progress.json `
+  --input .\.azurepipelines\release\readiness-progress.json `
   --output .\readiness-validation.json
 ```
 

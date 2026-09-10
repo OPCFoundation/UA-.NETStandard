@@ -39,7 +39,7 @@ requires their complete source/tool-bound proof, not baseline success or counter
 ReviewAuthenticator is a protected in-process core-verifier hook, never an
 artifact or dispatch input. Without it, nonzero findings remain missing.
 Producer/tool authority must still be authenticated by the trusted core.
-Output is the release-evidence.schema.json $defs/assurance object.
+Output is the release/evidence.schema.json $defs/assurance object.
 #>
 param(
     [Parameter(Mandatory)][string] $RecordsPath,
@@ -50,11 +50,11 @@ param(
     [Parameter(Mandatory)][string] $ExpectedWorkflow,
     [AllowEmptyString()][ValidatePattern('^(?:[0-9a-f]{40}(?:[0-9a-f]{24})?)?$')][string] $ExpectedDefinitionSha = '',
     [string] $ProfileIds = 'security-net10,fuzz-replay-net10,codeql-net10,aot-net10',
-    [string] $ProfilesPath = (Join-Path $PSScriptRoot 'assurance-profiles.json'),
+    [string] $ProfilesPath = (Join-Path $PSScriptRoot 'profiles.json'),
     [scriptblock] $ReviewAuthenticator
 )
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot 'assurance-proofs.ps1')
+. (Join-Path $PSScriptRoot 'proofs.ps1')
 if ($ExpectedAttempt -lt 1) { throw 'Expected attempt must be positive.' }
 $catalog = Get-Content -LiteralPath $ProfilesPath -Raw | ConvertFrom-Json
 $ids = @($ProfileIds.Split(',') | ForEach-Object { $_.Trim() } | Select-Object -Unique)
@@ -76,7 +76,7 @@ $assurance = [ordered]@{
     profiles = $ids; expected = 0; selected = 0; completed = 0; failed = 0; missing = 0
     notApplicable = 0; jobs = @()
     inputIdentities = @(@{
-        id = 'assurance-profile'; kind = 'profile'; path = '.azurepipelines/assurance-profiles.json'
+        id = 'assurance-profile'; kind = 'profile'; path = '.azurepipelines/assurance/profiles.json'
         digest = $profileDigest
     })
 }

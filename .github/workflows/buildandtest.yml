@@ -52,7 +52,7 @@ env:
   CI_BUILD_BACKEND: actions
   # Upload the merged coverage report to codecov.io. Reporting only - the
   # enforced rules live in coverage-thresholds.json and are applied by
-  # check-coverage.ps1 in the `code-coverage` job below, so a codecov outage can
+  # .azurepipelines/coverage/check.ps1 in the `code-coverage` job below, so a codecov outage can
   # never fail a build. Set to 'false' to turn the upload off; it is skipped
   # anyway when the CODECOV_TOKEN secret is unavailable, which is the case for
   # pull requests from forks.
@@ -97,12 +97,12 @@ jobs:
         # Projects whose name is in EXCLUDE are run by other workflows
         # (AOT has its own workflow; the Stress suite is opt-in via the
         # stress-test workflow).
-        $selection = & ./.azurepipelines/assurance-discovery.ps1 | ConvertFrom-Json
+        $selection = & ./.azurepipelines/assurance/discovery.ps1 | ConvertFrom-Json
         $projects = $selection.projects
         $json = ConvertTo-Json -InputObject @($projects) -Compress
         Write-Host "Discovered $(@($projects).Count) project(s): $json"
         "csprojs=$json" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-        $profiles = Get-Content .azurepipelines/assurance-profiles.json -Raw | ConvertFrom-Json
+        $profiles = Get-Content .azurepipelines/assurance/profiles.json -Raw | ConvertFrom-Json
         $assuranceProjects = @($profiles.profiles |
           Where-Object { $_.id -in @('security-net10', 'fuzz-replay-net10') } |
           ForEach-Object { $_.jobs } | ForEach-Object {
@@ -145,7 +145,7 @@ jobs:
             $changed = @(& git diff --name-only "$($env:BASE_SHA)...HEAD")
             if ($LASTEXITCODE -ne 0) { throw 'Cannot determine changed paths.' }
             $changed | Set-Content .assurance-changed-paths.txt
-            $selection = & ./.azurepipelines/assurance-discovery.ps1 -ChangedFilesPath .assurance-changed-paths.txt | ConvertFrom-Json
+            $selection = & ./.azurepipelines/assurance/discovery.ps1 -ChangedFilesPath .assurance-changed-paths.txt | ConvertFrom-Json
             $relevantChanges = $selection.relevantChanges
             Write-Host "Changed files: $(@($changed).Count); build-relevant: $relevantChanges"
         }
@@ -297,7 +297,7 @@ jobs:
     - name: Freeze public replay inventory
       if: ${{ startsWith(matrix.csproj.path, 'fuzzing/') }}
       shell: pwsh
-      run: ./.azurepipelines/assurance-fuzz-inputs.ps1 -Project '${{ matrix.csproj.path }}' -OutputPath '${{ env.TESTRESULTS }}/public-inputs.json'
+      run: ./.azurepipelines/assurance/fuzz-inputs.ps1 -Project '${{ matrix.csproj.path }}' -OutputPath '${{ env.TESTRESULTS }}/public-inputs.json'
 
     - name: Build
       # Build in parallel with the shared compiler (both `dotnet build` defaults).
@@ -314,7 +314,7 @@ jobs:
       shell: pwsh
       run: |
         $output = Join-Path (Split-Path '${{ matrix.csproj.path }}') 'bin/Release/net10.0'
-        & ./.azurepipelines/assurance-fuzz-inputs.ps1 -Project '${{ matrix.csproj.path }}' `
+        & ./.azurepipelines/assurance/fuzz-inputs.ps1 -Project '${{ matrix.csproj.path }}' `
           -BuildOutput $output -OutputPath '${{ env.TESTRESULTS }}/copied-inputs.json'
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         $before = Get-Content '${{ env.TESTRESULTS }}/public-inputs.json' -Raw | ConvertFrom-Json
@@ -382,13 +382,13 @@ jobs:
     - name: Require executed test result proof
       if: ${{ always() }}
       shell: pwsh
-      run: ./.azurepipelines/assurance-results.ps1 -ResultsPath '${{ env.TESTRESULTS }}' -OutputPath '${{ env.TESTRESULTS }}/public-results.json' -Kind trx -Enforce
+      run: ./.azurepipelines/assurance/results.ps1 -ResultsPath '${{ env.TESTRESULTS }}' -OutputPath '${{ env.TESTRESULTS }}/public-results.json' -Kind trx -Enforce
 
     - name: Record sanitized profile evidence
       if: ${{ always() }}
       shell: pwsh
       run: |
-        ./.azurepipelines/write-assurance-job.ps1 -Project '${{ matrix.csproj.path }}' `
+        ./.azurepipelines/assurance/write-job.ps1 -Project '${{ matrix.csproj.path }}' `
           -ResultsPath '${{ env.TESTRESULTS }}' -OutputPath 'assurance/evidence.job.json' `
           -Workflow '.github/workflows/buildandtest.yml'
         if (Test-Path '${{ env.TESTRESULTS }}/public-inputs.json') {
@@ -472,7 +472,7 @@ jobs:
     - name: Freeze public replay inventory
       if: ${{ startsWith(matrix.project.id, 'fuzz-') }}
       shell: pwsh
-      run: ./.azurepipelines/assurance-fuzz-inputs.ps1 -Project '${{ matrix.project.project }}' -OutputPath '.assurance/results/public-inputs.json'
+      run: ./.azurepipelines/assurance/fuzz-inputs.ps1 -Project '${{ matrix.project.project }}' -OutputPath '.assurance/results/public-inputs.json'
     - name: Build selected net10 project
       shell: pwsh
       run: dotnet build '${{ matrix.project.project }}' -c Release -f net10.0 -p:CustomTestTarget=net10.0
@@ -481,7 +481,7 @@ jobs:
       shell: pwsh
       run: |
         $output = Join-Path (Split-Path '${{ matrix.project.project }}') 'bin/Release/net10.0'
-        ./.azurepipelines/assurance-fuzz-inputs.ps1 -Project '${{ matrix.project.project }}' `
+        ./.azurepipelines/assurance/fuzz-inputs.ps1 -Project '${{ matrix.project.project }}' `
           -BuildOutput $output -OutputPath '.assurance/results/copied-inputs.json'
     - name: Execute selected net10 project
       shell: pwsh
@@ -494,7 +494,7 @@ jobs:
       if: always()
       shell: pwsh
       run: |
-        ./.azurepipelines/write-assurance-job.ps1 -Project '${{ matrix.project.project }}' `
+        ./.azurepipelines/assurance/write-job.ps1 -Project '${{ matrix.project.project }}' `
           -ResultsPath '.assurance/results' -OutputPath '.assurance/public/evidence.job.json' `
           -Workflow '.github/workflows/buildandtest.yml'
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -527,9 +527,9 @@ jobs:
       shell: pwsh
       run: |
         # Local summary only, not authenticated release retrieval.
-        # The publisher calls get-release-assurance.ps1 for cross-workflow checks.
+        # The publisher calls .azurepipelines/assurance/get-release.ps1 for cross-workflow checks.
         $sha = (& git rev-parse HEAD).Trim()
-        ./.azurepipelines/collect-assurance.ps1 -RecordsPath assurance-records `
+        ./.azurepipelines/assurance/collect.ps1 -RecordsPath assurance-records `
           -OutputPath assurance-component/assurance.json -ExpectedSourceSha $sha `
           -ExpectedRunId "$env:GITHUB_RUN_ID" -ExpectedAttempt "$env:GITHUB_RUN_ATTEMPT" `
           -ExpectedWorkflow '.github/workflows/buildandtest.yml' -ExpectedDefinitionSha "$env:GITHUB_WORKFLOW_SHA"
@@ -541,7 +541,7 @@ jobs:
 
   # Advisory coverage check. Mirrors the Azure Pipelines 'Code coverage' stage:
   # it merges the Cobertura fragments the matrix above already collects, runs the
-  # same check-coverage.ps1 against the same coverage-thresholds.json, and
+  # same .azurepipelines/coverage/check.ps1 against the same coverage-thresholds.json, and
   # surfaces the numbers in the run summary and on the pull request.
   #
   # It reports a clean failure when the thresholds are missed so the miss is
@@ -669,11 +669,11 @@ jobs:
       if: ${{ steps.probe.outputs.has_reports == 'true' }}
       shell: pwsh
       env:
-        # Empty on push/schedule, in which case check-coverage.ps1 enforces the
+        # Empty on push/schedule, in which case .azurepipelines/coverage/check.ps1 enforces the
         # project floor only and skips the changed-lines gate.
         BASE_REF: ${{ github.base_ref }}
       run: |
-        ./.azurepipelines/check-coverage.ps1 `
+        ./.azurepipelines/coverage/check.ps1 `
             -CoberturaPath CodeCoverage/Cobertura.xml `
             -ThresholdsPath coverage-thresholds.json `
             -RepoRoot '${{ github.workspace }}' `
@@ -772,7 +772,7 @@ jobs:
     - name: Publish and independently observe NativeAOT execution
       shell: pwsh
       run: |
-        ./.azurepipelines/assurance-native.ps1 -Project '${{ env.AOTPROJECT }}' `
+        ./.azurepipelines/assurance/native.ps1 -Project '${{ env.AOTPROJECT }}' `
           -RuntimeIdentifier '${{ matrix.rid }}' -Configuration '${{ env.CONFIGURATION }}' `
           -WorkDirectory '.assurance/native-${{github.run_id}}-${{github.run_attempt}}-${{matrix.rid}}' `
           -OutputPath '.assurance/native-proof.json'
@@ -782,14 +782,14 @@ jobs:
       if: ${{ always() }}
       shell: pwsh
       run: |
-        ./.azurepipelines/write-assurance-job.ps1 -Project 'tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj' `
+        ./.azurepipelines/assurance/write-job.ps1 -Project 'tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj' `
           -ResultsPath '.assurance/native-proof.json' -Kind native-aot -OutputPath ./assurance/evidence.job.json `
           -Workflow '.github/workflows/buildandtest.yml'
 
     - name: Publish and independently observe NativeAOT execution (Historian)
       shell: pwsh
       run: |
-        ./.azurepipelines/assurance-native.ps1 -Project '${{ env.AOTPROJECT_HISTORIAN }}' `
+        ./.azurepipelines/assurance/native.ps1 -Project '${{ env.AOTPROJECT_HISTORIAN }}' `
           -RuntimeIdentifier '${{ matrix.rid }}' -Configuration '${{ env.CONFIGURATION }}' `
           -WorkDirectory '.assurance/native-historian-${{github.run_id}}-${{github.run_attempt}}-${{matrix.rid}}' `
           -OutputPath '.assurance/native-historian-proof.json'
@@ -798,7 +798,7 @@ jobs:
     - name: Publish and independently observe NativeAOT execution (MCP)
       shell: pwsh
       run: |
-        ./.azurepipelines/assurance-native.ps1 -Project '${{ env.AOTPROJECT_MCP }}' `
+        ./.azurepipelines/assurance/native.ps1 -Project '${{ env.AOTPROJECT_MCP }}' `
           -RuntimeIdentifier '${{ matrix.rid }}' -Configuration '${{ env.CONFIGURATION }}' `
           -WorkDirectory '.assurance/native-mcp-${{github.run_id}}-${{github.run_attempt}}-${{matrix.rid}}' `
           -OutputPath '.assurance/native-mcp-proof.json'

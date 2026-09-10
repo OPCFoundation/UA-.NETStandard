@@ -32,7 +32,9 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path (Split-Path $PSScriptRoot))
 . (Join-Path $PSScriptRoot 'FixtureWorkspace.ps1')
 $fixture = Join-Path (Get-FixturePhysicalTempDirectory) "nuget-pipeline-$([guid]::NewGuid().ToString('N'))"
-$null = New-Item -ItemType Directory -Path (Join-Path $fixture '.azurepipelines')
+foreach ($folder in @('release', 'nuget', 'assurance')) {
+    $null = New-Item -ItemType Directory -Path (Join-Path $fixture ".azurepipelines/$folder") -Force
+}
 $packages = Join-Path $fixture 'packages'
 $null = New-Item -ItemType Directory -Path $packages
 
@@ -123,8 +125,8 @@ function global:gh {
 }
 
 try {
-    $policyPath = Join-Path $fixture '.azurepipelines/release-policy.json'
-    $policy = Get-Content -LiteralPath (Join-Path $root '.azurepipelines/release-policy.json') -Raw |
+    $policyPath = Join-Path $fixture '.azurepipelines/release/policy.json'
+    $policy = Get-Content -LiteralPath (Join-Path $root '.azurepipelines/release/policy.json') -Raw |
         ConvertFrom-Json -AsHashtable
     if ($Scenario.StartsWith('required-') -or $Scenario -eq 'deferred-major') { $policy.stage = 'required' }
     Write-Json $policy $policyPath
@@ -167,7 +169,7 @@ try {
     $tool = Join-Path $fixture 'reader.dll'
     [IO.File]::WriteAllBytes($tool, [byte[]]@())
     $output = Join-Path $fixture 'report.json'
-    $script = Join-Path $root '.azurepipelines/nuget-evidence.ps1'
+    $script = Join-Path $root '.azurepipelines/nuget/evidence.ps1'
 
     $env:SOURCE_SHA = $source.actualSha
     $env:SOURCE_REF = $source.actualRef
@@ -186,7 +188,7 @@ try {
     if ($Scenario -eq 'missing-source-authority') { $env:SOURCE_RUN_ID = '' }
 
     if ($Scenario.StartsWith('public-bom-')) {
-        . (Join-Path $root '.azurepipelines\nuget-evidence-functions.ps1')
+        . (Join-Path $root '.azurepipelines\nuget\evidence-functions.ps1')
         $artifact = @{ id = 'Example'; version = $version; digest = 'sha256:' + ('c' * 64) }
         $bom = @{
             bomFormat = 'CycloneDX'; specVersion = '1.6'; version = 1
@@ -243,12 +245,12 @@ try {
         $env:GITHUB_RUN_ID = '42'
         $env:GITHUB_RUN_ATTEMPT = '2'
         $env:GITHUB_JOB = 'publish'
-        [IO.File]::WriteAllText((Join-Path $fixture '.azurepipelines/expected-packages.txt'), "Example`n")
-        Write-Json @{ profiles = @() } (Join-Path $fixture '.azurepipelines/assurance-profiles.json')
+        [IO.File]::WriteAllText((Join-Path $fixture '.azurepipelines/nuget/expected-packages.txt'), "Example`n")
+        Write-Json @{ profiles = @() } (Join-Path $fixture '.azurepipelines/assurance/profiles.json')
         Write-Json @{ groups = @(@{
-            id = 'nuget'; profiles = @(); modernCatalog = '.azurepipelines/expected-packages.txt'
+            id = 'nuget'; profiles = @(); modernCatalog = '.azurepipelines/nuget/expected-packages.txt'
             variants = @(@{ id = 'metapackages'; sources = @('nuget/Meta.nuspec') })
-        }) } (Join-Path $fixture '.azurepipelines/release-artifacts.json')
+        }) } (Join-Path $fixture '.azurepipelines/release/artifacts.json')
         $null = New-Item -ItemType Directory -Path (Join-Path $fixture 'nuget')
         [IO.File]::WriteAllText((Join-Path $fixture 'nuget/Meta.nuspec'),
             '<package><metadata><id>Meta</id><version>2.0.0</version></metadata></package>')
@@ -413,7 +415,7 @@ try {
         Assert-True ($code -eq $expectedCode) "Expected feed exit $expectedCode, got $code."
         Assert-True ([Convert]::ToBase64String($before) -ceq
             [Convert]::ToBase64String([IO.File]::ReadAllBytes($output))) 'Feed observation mutated the initial receipt.'
-        . (Join-Path $root '.azurepipelines\nuget-evidence-functions.ps1')
+        . (Join-Path $root '.azurepipelines\nuget\evidence-functions.ps1')
         $receipt = Get-NugetDeliveryState $output
         Assert-True ($receipt.status -ceq 'incomplete') 'Feed identity or transport success cannot grant eligibility.'
         if ($Scenario -eq 'feed-content-matched-unapproved') {
@@ -441,7 +443,7 @@ try {
         & $script -Operation Receipt -RepositoryRoot $fixture -Packages $packages -Output $output `
             -Work (Join-Path $fixture 'work') -Destination NugetOrg `
             -File "Example.$version.nupkg" -State push-accepted-or-duplicate
-        . (Join-Path $root '.azurepipelines\nuget-evidence-functions.ps1')
+        . (Join-Path $root '.azurepipelines\nuget\evidence-functions.ps1')
         $receipt = Get-NugetDeliveryState $output
         if ($Scenario -eq 'receipt-source-mismatch') {
             Assert-True ((Test-Path -LiteralPath "$output.incomplete.json")) 'A conflicting receipt must be reported.'

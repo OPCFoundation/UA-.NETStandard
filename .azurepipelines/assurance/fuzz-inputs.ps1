@@ -38,9 +38,9 @@ An absent or
 empty good-seed bucket fails; a frozen zero regression inventory is legitimate.
 #>
 param(
-    [string] $RepoRoot = (Split-Path $PSScriptRoot),
+    [string] $RepoRoot = (Split-Path (Split-Path $PSScriptRoot)),
     [Parameter(Mandatory)][string] $Project,
-    [string] $ProfilesPath = (Join-Path $PSScriptRoot 'assurance-profiles.json'),
+    [string] $ProfilesPath = (Join-Path $PSScriptRoot 'profiles.json'),
     [string] $BuildOutput = '',
     [Parameter(Mandatory)][string] $OutputPath
 )

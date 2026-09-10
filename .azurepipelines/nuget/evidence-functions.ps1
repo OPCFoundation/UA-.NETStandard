@@ -153,7 +153,7 @@ function Assert-NugetPublicJson {
 
 function Get-NugetPolicy {
     param([string]$RepositoryRoot)
-    $policy = Read-NugetJson (Join-Path $RepositoryRoot '.azurepipelines\release-policy.json')
+    $policy = Read-NugetJson (Join-Path $RepositoryRoot '.azurepipelines\release\policy.json')
     if ($policy.schemaVersion -ne 1 -or $policy.stage -notin @('pilot', 'required') -or
         $policy.currentMajor -ne 2 -or $policy.requiredChannel -cne 'stable') {
         Stop-NugetEvidence 'Unsupported protected NuGet release policy.' 2
@@ -202,7 +202,7 @@ function New-NugetContext {
             tools = @(@{ id = 'dotnet'; version = $sdk; digest = Get-NugetDigest $dotnet })
         }
         release = @{ group = 'nuget'; version = $Version; channel = (Get-NugetChannel $Version) }
-        policyDigest = Get-NugetDigest (Join-Path $RepositoryRoot '.azurepipelines\release-policy.json')
+        policyDigest = Get-NugetDigest (Join-Path $RepositoryRoot '.azurepipelines\release\policy.json')
         artifacts = @()
     }
 }
@@ -520,8 +520,8 @@ function Copy-NugetPublicAttachment {
 
 function New-NugetAssurance {
     param([string]$RepositoryRoot)
-    $profiles = Read-NugetJson (Join-Path $RepositoryRoot '.azurepipelines\assurance-profiles.json')
-    $catalog = Read-NugetJson (Join-Path $RepositoryRoot '.azurepipelines\release-artifacts.json')
+    $profiles = Read-NugetJson (Join-Path $RepositoryRoot '.azurepipelines\assurance\profiles.json')
+    $catalog = Read-NugetJson (Join-Path $RepositoryRoot '.azurepipelines\release\artifacts.json')
     $group = @($catalog.groups | Where-Object id -CEQ 'nuget')[0]
     $jobs = @($profiles.profiles | Where-Object { $_.id -cin $group.profiles } | ForEach-Object {
         $profile = $_
@@ -634,7 +634,7 @@ function Merge-NugetSidecars {
         throw 'Duplicate evaluated project/configuration mapping.'
     }
     # Reconcile both halves against expectations expanded from the catalog, not observed archives.
-    $catalog = Read-NugetJson (Join-Path $RepositoryRoot '.azurepipelines\release-artifacts.json')
+    $catalog = Read-NugetJson (Join-Path $RepositoryRoot '.azurepipelines\release\artifacts.json')
     $group = @($catalog.groups | Where-Object id -CEQ 'nuget')[0]
     $modern = @(Get-Content -LiteralPath (Resolve-NugetPath $RepositoryRoot $group.modernCatalog) |
         ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith('#') })
@@ -748,12 +748,12 @@ function Get-NugetEvaluationEvidence {
         $receipt.sourceSha -cne $Context.source.actualSha -or
         $receipt.ref -cne $Context.source.actualRef -or
         $receipt.policyDigest -cne $Context.policyDigest -or
-        $receipt.profileDigest -cne (Get-NugetDigest (Join-Path $RepositoryRoot '.azurepipelines/assurance-profiles.json')) -or
+        $receipt.profileDigest -cne (Get-NugetDigest (Join-Path $RepositoryRoot '.azurepipelines/assurance/profiles.json')) -or
         $receipt.componentDigest -cne (Get-NugetDigest $componentPath)) {
         throw 'Assurance metadata does not bind the selected source, policy and component.'
     }
     $component = Read-NugetJson $componentPath
-    $schema = Read-NugetJson (Join-Path $RepositoryRoot '.azurepipelines/release-evidence.schema.json')
+    $schema = Read-NugetJson (Join-Path $RepositoryRoot '.azurepipelines/release/evidence.schema.json')
     $schema['$ref'] = '#/$defs/assurance'
     foreach ($key in @('required', 'properties', 'additionalProperties')) { $schema.Remove($key) }
     if (-not (Test-Json -Json ($component | ConvertTo-Json -Depth 40) `

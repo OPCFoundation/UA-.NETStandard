@@ -68,7 +68,7 @@ try {
     }
     $work = Join-Path $fixture 'work'
     $output = Join-Path $fixture 'proof.json'
-    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines\assurance-native.ps1') `
+    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines\assurance\native.ps1') `
         -Project $project -RuntimeIdentifier $rid `
         -WorkDirectory $work -OutputPath $output -NoRestore -TimeoutSeconds 5
     if ($LASTEXITCODE -eq 0) { throw 'Invalid native producer unexpectedly succeeded.' }
@@ -97,7 +97,7 @@ try {
         throw "Wrong native failure proof: $($proof | ConvertTo-Json -Depth 20)"
     }
     $original = (Get-FileHash -LiteralPath $output).Hash
-    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines\assurance-native.ps1') `
+    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines\assurance\native.ps1') `
         -Project $project -RuntimeIdentifier $rid `
         -WorkDirectory $work -OutputPath $output -NoRestore -TimeoutSeconds 5 2>$null
     if ($LASTEXITCODE -eq 0 -or (Get-FileHash -LiteralPath $output).Hash -cne $original) {
@@ -109,7 +109,7 @@ try {
             $settings | ConvertTo-Json | Set-Content -LiteralPath $env:ASSURANCE_NATIVE_FIXTURE
             $evaluationWork = Join-Path $fixture "evaluation-$publishAot"
             $evaluationOutput = Join-Path $fixture "evaluation-$publishAot.proof.json"
-            & pwsh -NoProfile -File (Join-Path $root '.azurepipelines\assurance-native.ps1') `
+            & pwsh -NoProfile -File (Join-Path $root '.azurepipelines\assurance\native.ps1') `
                 -Project $project -RuntimeIdentifier $rid `
                 -WorkDirectory $evaluationWork -OutputPath $evaluationOutput -NoRestore -TimeoutSeconds 5
             if ($LASTEXITCODE -eq 0) { throw 'Unevaluated or disabled NativeAOT unexpectedly succeeded.' }

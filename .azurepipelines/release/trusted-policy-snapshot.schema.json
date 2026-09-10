@@ -22,7 +22,7 @@
       "minItems": 4,
       "items": { "$ref": "verification-record.schema.json#/$defs/frozenFile" }
     },
-    "expectedRelease": { "$ref": "release-evidence.schema.json#/properties/release" },
+    "expectedRelease": { "$ref": "evidence.schema.json#/properties/release" },
     "expectedIntentDigest": { "$ref": "#/$defs/digest" },
     "authorities": {
       "type": "array",
@@ -39,7 +39,7 @@
           "issuer": { "type": "string", "format": "uri" },
           "certificateIdentity": { "$ref": "#/$defs/text" },
           "workflow": { "$ref": "verification-bundle.schema.json#/$defs/path" },
-          "definitionSha": { "$ref": "release-evidence.schema.json#/$defs/sha" },
+          "definitionSha": { "$ref": "evidence.schema.json#/$defs/sha" },
           "ref": { "$ref": "#/$defs/text" },
           "recordKinds": {
             "type": "array",
@@ -65,9 +65,9 @@
         "properties": {
           "system": { "enum": ["github-actions", "azure-pipelines"] },
           "workflow": { "$ref": "verification-bundle.schema.json#/$defs/path" },
-          "definitionSha": { "$ref": "release-evidence.schema.json#/$defs/sha" },
+          "definitionSha": { "$ref": "evidence.schema.json#/$defs/sha" },
           "jobs": { "$ref": "verification-record.schema.json#/$defs/strings" },
-          "tools": { "$ref": "release-evidence.schema.json#/$defs/producer/properties/tools" }
+          "tools": { "$ref": "evidence.schema.json#/$defs/producer/properties/tools" }
         }
       }
     },

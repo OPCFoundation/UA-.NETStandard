@@ -30,8 +30,8 @@
 param([Parameter(Mandatory)][string] $Scenario, [string] $OutputImage)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path (Split-Path $PSScriptRoot))
-. (Join-Path $root '.azurepipelines\assurance-native-image.ps1')
-. (Join-Path $root '.azurepipelines\assurance-proofs.ps1')
+. (Join-Path $root '.azurepipelines\assurance\native-image.ps1')
+. (Join-Path $root '.azurepipelines\assurance\proofs.ps1')
 $directory = Join-Path (Split-Path $PSScriptRoot) "obj\assurance-native-$([guid]::NewGuid().ToString('N'))"
 $null = New-Item -ItemType Directory -Path $directory
 try {

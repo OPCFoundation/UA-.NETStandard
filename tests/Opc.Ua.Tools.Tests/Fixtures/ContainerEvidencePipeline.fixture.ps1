@@ -33,7 +33,7 @@ $PSNativeCommandUseErrorActionPreference = $false
 $root = Split-Path (Split-Path (Split-Path $PSScriptRoot))
 . (Join-Path $PSScriptRoot 'FixtureWorkspace.ps1')
 $fixture = Join-Path (Get-FixturePhysicalTempDirectory) "container-fixture-$([guid]::NewGuid().ToString('N'))"
-$null = New-Item -ItemType Directory -Path (Join-Path $fixture '.azurepipelines')
+$null = New-Item -ItemType Directory -Path (Join-Path $fixture '.azurepipelines/release')
 
 function Write-Json($Value, [string]$Path) {
     [IO.File]::WriteAllText($Path, ($Value | ConvertTo-Json -Depth 100), [Text.UTF8Encoding]::new($false))
@@ -51,10 +51,11 @@ function Assert-True([bool]$Condition, [string]$Message) {
 }
 
 try {
-    foreach ($name in @('release-policy.json', 'release-artifacts.json')) {
-        Copy-Item -LiteralPath (Join-Path $root ".azurepipelines/$name") -Destination (Join-Path $fixture '.azurepipelines')
+    foreach ($name in @('policy.json', 'artifacts.json')) {
+        Copy-Item -LiteralPath (Join-Path $root ".azurepipelines/release/$name") `
+            -Destination (Join-Path $fixture '.azurepipelines/release')
     }
-    $policyPath = Join-Path $fixture '.azurepipelines/release-policy.json'
+    $policyPath = Join-Path $fixture '.azurepipelines/release/policy.json'
     $policy = Get-Content -LiteralPath $policyPath -Raw | ConvertFrom-Json -AsHashtable
     if ($Scenario -in @('required-stable', 'required-four-part-version', 'required-context-version', 'required-preview')) {
         $policy.stage = 'required'
@@ -70,9 +71,7 @@ try {
     $sha = 'a' * 40
     $version = if ($Scenario -eq 'required-preview') { '2.0.0-preview.1' }
         elseif ($Scenario -eq 'required-four-part-version') { '2.0.0.42' } else { '2.0.0' }
-    $workflow = if ($group -eq 'containers') {
-        '.github/workflows/docker-image.yml'
-    } else { '.github/workflows/pump-device-integration-server-docker.yml' }
+    $workflow = '.github/workflows/docker-image.yml'
     $context = @{
         source = @{ repository = 'OPCFoundation/UA-.NETStandard'; actualSha = $sha; actualRef = 'refs/heads/master'; trackedClean = $true }
         producer = @{
@@ -171,12 +170,10 @@ try {
         Write-Json $privateState (Join-Path $work 'state.json')
     }
     if ($Scenario -eq 'pr-no-publish') {
-        foreach ($name in @('docker-image.yml', 'pump-device-integration-server-docker.yml')) {
-            $workflowText = Get-Content -LiteralPath (Join-Path $root ".github/workflows/$name") -Raw
-            Assert-True ($workflowText.Contains("push: `${{ github.event_name != 'pull_request' }}")) `
-                'A workflow can push on a PR.'
-            Assert-True (-not $workflowText.Contains('provenance: false')) 'Workflow disabled native provenance.'
-        }
+        $workflowText = Get-Content -LiteralPath (Join-Path $root '.github/workflows/docker-image.yml') -Raw
+        Assert-True ($workflowText.Contains("push: `${{ github.event_name != 'pull_request' }}")) `
+            'The shared workflow can push on a PR.'
+        Assert-True (-not $workflowText.Contains('provenance: false')) 'Workflow disabled native provenance.'
         $env:GITHUB_ACTIONS = 'true'
         $env:GITHUB_EVENT_NAME = 'pull_request'
         $env:GITHUB_REPOSITORY = 'OPCFoundation/UA-.NETStandard'
@@ -190,7 +187,7 @@ try {
     $buildState = if ($Scenario -eq 'baseline-failure') { 'failure' } else { 'success' }
     $output = Join-Path $fixture 'status.json'
     $versionArgument = if ($Scenario -eq 'required-context-version') { '' } else { $version }
-    & pwsh -NoLogo -NoProfile -File (Join-Path $root '.azurepipelines/container-evidence.ps1') `
+    & pwsh -NoLogo -NoProfile -File (Join-Path $root '.azurepipelines/containers/evidence.ps1') `
         -Operation $operation -RepositoryRoot $fixture -Group $group -Image $image -Version $versionArgument `
         -RootDigest $index.digest `
         -Work $work -Output $output -Request (Join-Path $fixture 'request.json') `
@@ -236,13 +233,13 @@ try {
         $env:GITHUB_SHA = $sha
         $env:GITHUB_RUN_ID = '42'
         $env:GITHUB_RUN_ATTEMPT = '1'
-        & pwsh -NoLogo -NoProfile -File (Join-Path $root '.azurepipelines/container-evidence.ps1') `
+        & pwsh -NoLogo -NoProfile -File (Join-Path $root '.azurepipelines/containers/evidence.ps1') `
             -Operation Status -RepositoryRoot $fixture -Group $group -Image $image -Version $version `
             -Work $work -Output $output -BuildState success
         Assert-True ($LASTEXITCODE -eq 1) 'Incomplete stable evidence must remain blocking after serialization.'
         $status = Get-Content -LiteralPath $output -Raw | ConvertFrom-Json
         Assert-True ($status.attempt -eq 1) 'Serialized run attempt was lost.'
-        & pwsh -NoLogo -NoProfile -File (Join-Path $root '.azurepipelines/container-evidence.ps1') `
+        & pwsh -NoLogo -NoProfile -File (Join-Path $root '.azurepipelines/containers/evidence.ps1') `
             -Operation Aggregate -RepositoryRoot $fixture -Group $group -Inputs $fixture `
             -Work $work -Output (Join-Path $fixture 'aggregate.json')
         Assert-True ($LASTEXITCODE -eq 0) 'Aggregate failed.'

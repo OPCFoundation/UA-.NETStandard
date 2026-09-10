@@ -38,7 +38,7 @@ parameters:
   - ado
   - actions
 # Codecov is reporting only - the enforced coverage rules live in
-# coverage-thresholds.json and are applied by check-coverage.ps1 in the
+# coverage-thresholds.json and are applied by .azurepipelines/coverage/check.ps1 in the
 # 'Code coverage' stage.  Turn this off to stop uploading entirely; the upload
 # is skipped anyway whenever the CODECOV_TOKEN secret variable is unset, which
 # is the case for pull requests from forks.
@@ -274,7 +274,7 @@ stages:
       inputs:
         pwsh: true
         targetType: filePath
-        filePath: ./.azurepipelines/collect-assurance.ps1
+        filePath: ./.azurepipelines/assurance/collect.ps1
         arguments: -RecordsPath "$(Build.SourcesDirectory)/.assurance-records" -OutputPath "$(Build.ArtifactStagingDirectory)/assurance-component/assurance.json" -ExpectedSourceSha "$(Build.SourceVersion)" -ExpectedRunId "$(Build.BuildId)" -ExpectedAttempt "$(System.JobAttempt)" -ExpectedWorkflow azure-pipelines.yml -ExpectedDefinitionSha "$(Build.SourceVersion)"
     - task: PublishPipelineArtifact@1
       inputs:

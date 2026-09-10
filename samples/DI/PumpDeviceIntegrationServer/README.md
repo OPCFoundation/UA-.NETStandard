@@ -463,8 +463,12 @@ docker run --rm -p 62542:62542 `
 ```
 
 The image is built and published to the GitHub Container Registry by the
-[`pump-device-integration-server-docker.yml`](../../../.github/workflows/pump-device-integration-server-docker.yml)
-workflow on every push to `master` and on manual dispatch.
+[`Docker Sample Images CI`](../../../.github/workflows/docker-image.yml)
+workflow on applicable pushes to `master` and on manual dispatch. Pull requests
+also build the image without publishing. Pump remains an independent, amd64-only
+release group at `ghcr.io/opcfoundation/pumpdeviceintegrationserver`, with
+`latest`, full-version and `sha-<short-sha>` tags. Manual dispatch selects only
+Pump; automatic release/docker branch builds select the other container group.
 
 ## What the sample demonstrates
 

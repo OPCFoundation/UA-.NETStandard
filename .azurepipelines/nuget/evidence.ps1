@@ -40,7 +40,7 @@ param(
     [Parameter(Mandatory)]
     [ValidateSet('PrepareTool', 'Capture', 'Sidecars', 'Aggregate', 'Assurance', 'Preflight', 'Receipt', 'VerifyFeed', 'Attach')]
     [string]$Operation,
-    [string]$RepositoryRoot = (Split-Path -Parent $PSScriptRoot),
+    [string]$RepositoryRoot = (Split-Path (Split-Path $PSScriptRoot)),
     [string]$Packages,
     [string]$Inputs,
     [string]$Output,
@@ -58,7 +58,7 @@ param(
     [string]$State = 'not-attempted'
 )
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot 'nuget-evidence-functions.ps1')
+. (Join-Path $PSScriptRoot 'evidence-functions.ps1')
 if (-not $Work) { $Work = Join-Path ([IO.Path]::GetTempPath()) "nuget-evidence-$PID" }
 $null = New-Item -ItemType Directory -Force -Path $Work
 if (-not $Tool) {
@@ -70,7 +70,7 @@ $policy = $null
 $failureControl = 'EVIDENCE_SCHEMA'
 try {
     $policy = Get-NugetPolicy $RepositoryRoot
-    $policyDigest = Get-NugetDigest (Join-Path $RepositoryRoot '.azurepipelines\release-policy.json')
+    $policyDigest = Get-NugetDigest (Join-Path $RepositoryRoot '.azurepipelines\release\policy.json')
     if ($Operation -eq 'PrepareTool') {
         & dotnet build (Join-Path $RepositoryRoot 'tools\Opc.Ua.ReleaseEvidence\Opc.Ua.ReleaseEvidence.csproj') `
             -c Release -f net10.0 --nologo *> (Join-Path $Work 'tool-build.log')
@@ -137,7 +137,7 @@ try {
     elseif ($Operation -eq 'Assurance') {
         $manifest = Read-NugetJson (Join-Path $Packages 'release-manifest.json')
         $component = Join-Path $Output 'assurance.json'
-        & (Join-Path $PSScriptRoot 'get-release-assurance.ps1') `
+        & (Join-Path $PSScriptRoot '..\assurance\get-release.ps1') `
             -RepositoryRoot $RepositoryRoot -ExpectedSourceSha $manifest.commit -ExpectedSourceRef $manifest.ref `
             -OutputPath $component -WorkDirectory $Work -ReviewVerificationBundle $VerificationBundle `
             -TrustPolicy $TrustPolicy
@@ -183,7 +183,7 @@ try {
             $failureControl = 'SOURCE_IDENTITY'
             throw 'Trusted expectations differ from v1.'
         }
-        $context.policyDigest = Get-NugetDigest (Join-Path $RepositoryRoot '.azurepipelines\release-policy.json')
+        $context.policyDigest = Get-NugetDigest (Join-Path $RepositoryRoot '.azurepipelines\release\policy.json')
         $context.release.channel = $channel
         $metadata = Read-NugetJson (Join-Path $Packages 'archive-metadata.json')
         $context.artifacts = @($metadata.artifacts)
@@ -272,7 +272,7 @@ try {
             $null = New-Item -ItemType Directory -Force -Path $feedDirectory
             Move-Item -LiteralPath $download -Destination (Resolve-NugetPath $feedDirectory $entry.file)
             try {
-                & (Join-Path $PSScriptRoot 'validate-nuget-package-set.ps1') -PackageDirectory $feedDirectory `
+                & (Join-Path $PSScriptRoot 'validate-package-set.ps1') -PackageDirectory $feedDirectory `
                     -ManifestPath (Join-Path $feedDirectory 'verified.json') -ExpectedVersion $entry.version `
                     -VerifySignatures *> (Join-Path $Work "verify-$id.log")
             }

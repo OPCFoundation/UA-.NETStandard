@@ -105,7 +105,7 @@ namespace Opc.Ua.ReleaseEvidence
                 .ConfigureAwait(false);
             VerificationSchemas schemas = await VerificationSchemas.LoadAsync(repositoryRoot, files, cancellationToken)
                 .ConfigureAwait(false);
-            schemas.Validate("release-evidence.schema.json", producerJson.RootElement);
+            schemas.Validate("evidence.schema.json", producerJson.RootElement);
             EvidenceEnvelope producer = producerJson.Deserialize(EvidenceJsonContext.Default.EvidenceEnvelope)!;
             if (producer.Source != envelope.Source ||
                 !VerificationControls.SameProducer(producer.Producer, envelope.Producer) ||

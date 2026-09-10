@@ -84,7 +84,7 @@ try {
 "@ | Set-Content (Join-Path $fixture 'results.trx')
     }
     $output = Join-Path $fixture 'summary.json'
-    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/assurance-results.ps1') `
+    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/assurance/results.ps1') `
         -ResultsPath $fixture -Kind $kind -OutputPath $output -Enforce -RequireNoSkipped:$strictSkipped
     $code = $LASTEXITCODE
     if (-not (Test-Path $output)) { throw 'Result producer did not emit its public summary.' }
@@ -110,7 +110,7 @@ try {
         $env:GITHUB_JOB = 'fixture-job'
         $env:GITHUB_WORKFLOW_SHA = $sha
         $recordPath = Join-Path $fixture 'public/security.job.json'
-        & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/write-assurance-job.ps1') `
+        & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/assurance/write-job.ps1') `
             -Project 'tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj' `
             -ResultsPath $fixture -OutputPath $recordPath -Workflow '.github/workflows/buildandtest.yml'
         if ($LASTEXITCODE -ne 0) { throw 'Job producer failed.' }

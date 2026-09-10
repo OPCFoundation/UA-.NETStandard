@@ -71,7 +71,7 @@ namespace Opc.Ua.ReleaseEvidence
             deadline.CancelAfter(TimeSpan.FromMinutes(30));
             cancellationToken = deadline.Token;
             PolicyConfiguration policy = await files.ReadModelAsync(
-                EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release-policy.json"),
+                EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release/policy.json"),
                 EvidenceJsonContext.Default.PolicyConfiguration, cancellationToken).ConfigureAwait(false);
             EvaluationExpectation expected = await files.ReadModelAsync(
                 expectedPath, EvidenceJsonContext.Default.EvaluationExpectation, cancellationToken)
@@ -411,7 +411,7 @@ namespace Opc.Ua.ReleaseEvidence
                     "EVIDENCE_FRESHNESS", "Producer run, attempt or definition differs from expectation."));
             }
             string policyDigest = await files.DigestAsync(
-                EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release-policy.json"), cancellationToken)
+                EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release/policy.json"), cancellationToken)
                 .ConfigureAwait(false);
             if (envelope.Policy.Digest != policyDigest ||
                 expected.PolicyDigest != policyDigest ||

@@ -36,7 +36,7 @@ are explicitly required under fuzzing. No legacy/alternate TFM is claimed by
 this matrix; Azure uses evaluated MSBuild applicability in get-matrix.ps1.
 #>
 param(
-    [string] $RepoRoot = (Split-Path $PSScriptRoot),
+    [string] $RepoRoot = (Split-Path (Split-Path $PSScriptRoot)),
     [string] $ChangedFilesPath = ''
 )
 $ErrorActionPreference = 'Stop'

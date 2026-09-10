@@ -177,9 +177,9 @@ namespace Opc.Ua.ReleaseEvidence
             var contracts = new List<FrozenFile>();
             foreach (string relative in new[]
             {
-                ".azurepipelines/release-policy.json", ".azurepipelines/release-artifacts.json",
-                ".azurepipelines/assurance-profiles.json", ".azurepipelines/release-evidence.schema.json",
-                ".azurepipelines/expected-packages.txt"
+                ".azurepipelines/release/policy.json", ".azurepipelines/release/artifacts.json",
+                ".azurepipelines/assurance/profiles.json", ".azurepipelines/release/evidence.schema.json",
+                ".azurepipelines/nuget/expected-packages.txt"
             })
             {
                 byte[] bytes = await files.ReadAsync(

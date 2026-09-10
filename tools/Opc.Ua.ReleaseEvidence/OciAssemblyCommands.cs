@@ -105,7 +105,7 @@ namespace Opc.Ua.ReleaseEvidence
             else
             {
                 PolicyConfiguration policy = await files.ReadModelAsync(
-                    EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release-policy.json"),
+                    EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/release/policy.json"),
                     EvidenceJsonContext.Default.PolicyConfiguration, cancellationToken).ConfigureAwait(false);
                 ArtifactsConfiguration catalog = await files.ReadModelAsync(
                     EvidenceFiles.Confined(repositoryRoot, policy.ArtifactCatalog),

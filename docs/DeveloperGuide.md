@@ -23,6 +23,7 @@ The C# language version is pinned (`LangVersion` 14) and analyzer/style rules ar
 | `tools/` | Source generators, migration analyzers, and the installable `Opc.Ua.Mcp` tool. Each analyzer and generator has a build project and — for the source generators — a `*.Pack` project that packages it under a Roslyn-versioned analyzer folder. |
 | `docs/` | This documentation set (indexed by [docs/README.md](README.md)). |
 | `fuzzing/` | SharpFuzz / libFuzzer fuzz targets (see [Fuzzing.md](../fuzzing/Fuzzing.md)). |
+| `.azurepipelines/` | Azure YAML pipelines/templates and cross-cutting helpers at the root; scenario scripts and contracts in `assurance/`, `containers/`, `nuget/`, `release/`, and `coverage/`. See the [pipeline helper layout](../.azurepipelines/README.md). |
 
 Central build configuration lives at the repository root and is imported by every project:
 
@@ -244,7 +245,7 @@ nuget.org. Use `2.0.0-preview.*` to float to the latest published
 select *Include prerelease* in Visual Studio. No additional package source or
 credentials are required.
 
-The full set of packages the preview pipeline produces is pinned in [`.azurepipelines/expected-packages.txt`](../.azurepipelines/expected-packages.txt). `.azurepipelines/validate-source-generator-packages.ps1` fails the build when the packed output does not match it, so adding, removing or renaming a shipped package has to be done deliberately in the same pull request. That script also validates the analyzer packages: their `analyzers/dotnet/roslyn<major>.<minor>/cs` layout, that they carry their runtime closure privately, that the model generator's auto-imported `build/<PackageId>.props` is named after the package id, and — end to end — that a standalone project consuming the packed generator with a NodeSet actually gets code generated.
+The full set of packages the preview pipeline produces is pinned in [`.azurepipelines/nuget/expected-packages.txt`](../.azurepipelines/nuget/expected-packages.txt). `.azurepipelines/nuget/validate-source-generator-packages.ps1` fails the build when the packed output does not match it, so adding, removing or renaming a shipped package has to be done deliberately in the same pull request. That script also validates the analyzer packages: their `analyzers/dotnet/roslyn<major>.<minor>/cs` layout, that they carry their runtime closure privately, that the model generator's auto-imported `build/<PackageId>.props` is named after the package id, and — end to end — that a standalone project consuming the packed generator with a NodeSet actually gets code generated.
 
 ### Release assurance and stewardship
 
@@ -402,7 +403,7 @@ The Actions job must use `always()` (rather than the implicit "all needs succeed
 
 Every test matrix entry collects coverage while it runs and publishes its raw Cobertura fragment as an artifact. The coverage check then downloads every fragment the run produced, merges them **once** with ReportGenerator, and evaluates the merged report. It never re-runs the tests — doing so serialises a suite that was deliberately fanned out across matrix jobs and blows the stage timeout.
 
-The evaluation is [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/check-coverage.ps1), shared by both CI systems and driven by [`coverage-thresholds.json`](../coverage-thresholds.json):
+The evaluation is [`.azurepipelines/coverage/check.ps1`](../.azurepipelines/coverage/check.ps1), shared by both CI systems and driven by [`coverage-thresholds.json`](../coverage-thresholds.json):
 
 | Check | Behaviour |
 | --- | --- |
@@ -464,7 +465,7 @@ Both also publish the merged HTML report as a `coverage-report` artifact.
 To reproduce a coverage failure locally, generate the same report with [`tests/codecoverage.cmd`](../tests/codecoverage.cmd) (or [`tests/codecoverage.sh`](../tests/codecoverage.sh)) and run the script against it:
 
 ```powershell
-./.azurepipelines/check-coverage.ps1 -CoberturaPath ./CodeCoverage/Cobertura.xml -BaseRef master -SummaryPath ./coverage-summary.md
+./.azurepipelines/coverage/check.ps1 -CoberturaPath ./CodeCoverage/Cobertura.xml -BaseRef master -SummaryPath ./coverage-summary.md
 ```
 
 Omit `-BaseRef` to check only the project floor, and `-SummaryPath` to skip the markdown summary.

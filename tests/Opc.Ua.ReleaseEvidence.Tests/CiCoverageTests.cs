@@ -560,7 +560,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             await work.GenerateAsync().ConfigureAwait(false);
             EvidenceEnvelope envelope = await work.ReadEnvelopeAsync().ConfigureAwait(false);
             ProfilesConfiguration profiles = await work.Files.ReadModelAsync(
-                work.At(".azurepipelines/assurance-profiles.json"),
+                work.At(".azurepipelines/assurance/profiles.json"),
                 EvidenceJsonContext.Default.ProfilesConfiguration, CancellationToken.None).ConfigureAwait(false);
             ProfileConfiguration profile = profiles.Profiles.Single(p => p.Id == "security-net10");
             ProfileJob definition = profile.Jobs[0];
@@ -967,9 +967,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             var contracts = new List<FrozenFile>();
             foreach (string relative in new[]
             {
-                ".azurepipelines/release-policy.json", ".azurepipelines/release-artifacts.json",
-                ".azurepipelines/assurance-profiles.json", ".azurepipelines/release-evidence.schema.json",
-                ".azurepipelines/expected-packages.txt", "nuget/Opc.Ua.nuspec", "nuget/Opc.Ua.Symbols.nuspec"
+                ".azurepipelines/release/policy.json", ".azurepipelines/release/artifacts.json",
+                ".azurepipelines/assurance/profiles.json", ".azurepipelines/release/evidence.schema.json",
+                ".azurepipelines/nuget/expected-packages.txt", "nuget/Opc.Ua.nuspec", "nuget/Opc.Ua.Symbols.nuspec"
             })
             {
                 byte[] bytes = await File.ReadAllBytesAsync(Path.Combine(RepositoryRoot, relative))
@@ -985,7 +985,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             expected = expected with
             {
                 Release = expected.Release with { Channel = channel },
-                PolicyDigest = Hash(await File.ReadAllBytesAsync(At(".azurepipelines/release-policy.json"))
+                PolicyDigest = Hash(await File.ReadAllBytesAsync(At(".azurepipelines/release/policy.json"))
                     .ConfigureAwait(false))
             };
             await WriteModelAsync("context.json", expected, EvidenceJsonContext.Default.EvaluationExpectation)

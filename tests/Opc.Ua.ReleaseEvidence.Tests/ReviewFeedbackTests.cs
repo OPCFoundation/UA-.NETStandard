@@ -53,7 +53,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
         [Test]
         public async Task CheckedInPolicyRequiresStableEvidenceWithoutInventingPublisherApprovalAsync()
         {
-            string path = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "release-policy.json");
+            string path = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "release", "policy.json");
             using JsonDocument document = await new EvidenceFiles().ReadJsonAsync(path, CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(document.RootElement.GetProperty("stage").GetString(), Is.EqualTo("required"));

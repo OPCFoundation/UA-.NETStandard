@@ -121,7 +121,8 @@ namespace Opc.Ua.ReleaseEvidence
             CancellationToken cancellationToken)
         {
             EvidenceFiles files = m_files;
-            string schemaPath = EvidenceFiles.Confined(repositoryRoot, ".azurepipelines/readiness-record.schema.json");
+            string schemaPath = EvidenceFiles.Confined(
+                repositoryRoot, ".azurepipelines/release/readiness-record.schema.json");
             using JsonDocument schemaDocument = await files.ReadJsonAsync(schemaPath, cancellationToken)
                 .ConfigureAwait(false);
             using JsonDocument document = await files.ReadJsonAsync(input, cancellationToken).ConfigureAwait(false);

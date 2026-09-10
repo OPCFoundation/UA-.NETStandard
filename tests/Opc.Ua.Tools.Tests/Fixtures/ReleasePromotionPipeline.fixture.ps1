@@ -73,7 +73,7 @@ try {
             $expected = 2
         }
         'dormant-policy' {
-            . (Join-Path $root '.azurepipelines\nuget-evidence-functions.ps1')
+            . (Join-Path $root '.azurepipelines\nuget\evidence-functions.ps1')
             $policy = Get-NugetPolicy $root
             if ($policy.stage -cne 'required' -or $policy.publisherBoundaryVerified) {
                 throw 'The active contract must require verified records without fabricating a publisher boundary.'
@@ -100,7 +100,7 @@ try {
                 if ($resolved -cne [IO.Path]::GetFullPath($physicalChild)) {
                     throw 'Fixture setup did not resolve the physical temporary-directory ancestor.'
                 }
-                . (Join-Path $root '.azurepipelines\nuget-evidence-functions.ps1')
+                . (Join-Path $root '.azurepipelines\nuget\evidence-functions.ps1')
                 $rejected = $false
                 try { $null = Resolve-NugetPath $alias 'nested/input.json' }
                 catch { $rejected = $true }
@@ -110,7 +110,7 @@ try {
         }
         default { throw 'Unknown promotion pipeline fixture scenario.' }
     }
-    & (Join-Path $root '.azurepipelines\release-promotion.ps1') @parameters
+    & (Join-Path $root '.azurepipelines\release\promotion.ps1') @parameters
     if ($LASTEXITCODE -ne $expected) { throw "Expected rejection $expected, got $LASTEXITCODE." }
     if (Test-Path -LiteralPath $parameters.Output) { throw 'Rejected promotion fabricated an assessment or delivery result.' }
 }

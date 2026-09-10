@@ -50,12 +50,12 @@ try {
         'fuzz-script-change' { 'fuzzing/Scripts/test-fuzzing.ps1' }
         'fuzz-manifest-change' { 'fuzzing/fuzz-targets.json' }
         'onefuzz-change' { 'fuzzing/OneFuzz/README.md' }
-        'helper-change' { '.azurepipelines/assurance-results.ps1' }
+        'helper-change' { '.azurepipelines/assurance/results.ps1' }
         'documentation-only' { 'docs/README.md' }
         default { 'src/Subject.cs' }
     }
     Set-Content (Join-Path $fixture 'changed.txt') $change
-    $output = & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/assurance-discovery.ps1') `
+    $output = & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/assurance/discovery.ps1') `
         -RepoRoot $fixture -ChangedFilesPath (Join-Path $fixture 'changed.txt')
     if ($Scenario -eq 'missing-fuzz-project') {
         if ($LASTEXITCODE -eq 0) { throw 'Missing requested fuzz project was accepted.' }

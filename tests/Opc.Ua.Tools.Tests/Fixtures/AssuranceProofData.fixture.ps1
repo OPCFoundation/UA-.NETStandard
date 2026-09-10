@@ -38,7 +38,7 @@ function New-AssuranceFixtureNative($Directory, $SourceSha, $RunId, $Attempt) {
     & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'AssuranceNative.fixture.ps1') `
         -Scenario native-image -OutputImage $imagePath
     if ($LASTEXITCODE -ne 0) { throw 'Synthetic PE generation failed.' }
-    . (Join-Path (Split-Path (Split-Path (Split-Path $PSScriptRoot))) '.azurepipelines\assurance-native-image.ps1')
+    . (Join-Path (Split-Path (Split-Path (Split-Path $PSScriptRoot))) '.azurepipelines\assurance\native-image.ps1')
     $image = Get-AssuranceNativeImage $imagePath
     Remove-Item -LiteralPath $imagePath -Force
     $now = [DateTimeOffset]::UtcNow.AddMinutes(-1)

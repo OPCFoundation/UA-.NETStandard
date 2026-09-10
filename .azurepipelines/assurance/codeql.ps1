@@ -50,10 +50,10 @@ param(
     [ValidateRange(10, 600)][int] $CommandTimeoutSeconds = 180
 )
 $ErrorActionPreference = 'Stop'
-$root = Split-Path $PSScriptRoot
+$root = Split-Path (Split-Path $PSScriptRoot)
 $work = [IO.Path]::GetFullPath($WorkDirectory)
 $workspace = $work
-. (Join-Path $PSScriptRoot 'assurance-github.ps1')
+. (Join-Path $PSScriptRoot 'github.ps1')
 
 function Get-CodeqlDigest([string] $Path) {
     return 'sha256:' + (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -306,7 +306,7 @@ select compilation.getDirectoryString(), output, source.getAbsolutePath(),
     }
     if ($projects.Count -eq 0) { throw 'CODEQL_BUILD_INPUTS_MISSING' }
     $trx = Join-Path $work 'sarif-summary.json'
-    & (Join-Path $PSScriptRoot 'assurance-results.ps1') -ResultsPath $ResultsPath -Kind sarif -OutputPath $trx
+    & (Join-Path $PSScriptRoot 'results.ps1') -ResultsPath $ResultsPath -Kind sarif -OutputPath $trx
     $sarif = Get-Content -LiteralPath $trx -Raw | ConvertFrom-Json
     $summary.documents = $sarif.documents
     if ($sarif.status -cne 'completed' -or @($sarif.documents).Count -ne 1) { throw 'CODEQL_ANALYSIS_INCOMPLETE' }

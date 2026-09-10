@@ -1198,14 +1198,16 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             private async Task InitializeAsync(string stage, string channel, string version)
             {
                 string original = FindRoot();
-                foreach (string name in new[]
+                foreach ((string folder, string name) in new[]
                 {
-                    "release-evidence.schema.json", "assurance-profiles.json", "verification-bundle.schema.json",
-                    "verification-record.schema.json", "trusted-policy-snapshot.schema.json", "codeql-review.schema.json"
+                    ("release", "evidence.schema.json"), ("assurance", "profiles.json"),
+                    ("release", "verification-bundle.schema.json"), ("release", "verification-record.schema.json"),
+                    ("release", "trusted-policy-snapshot.schema.json"), ("release", "codeql-review.schema.json")
                 })
                 {
-                    File.Copy(Path.Combine(original, ".azurepipelines", name),
-                        Path.Combine(Repository, ".azurepipelines", name));
+                    Directory.CreateDirectory(Path.Combine(Repository, ".azurepipelines", folder));
+                    File.Copy(Path.Combine(original, ".azurepipelines", folder, name),
+                        Path.Combine(Repository, ".azurepipelines", folder, name));
                 }
                 var source = new SourceRecord(
                     "Synthetic/ReleaseTests", new string('a', 40), "refs/heads/master", true);
@@ -1220,31 +1222,32 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     "1000", 1, "pack", tools);
                 var release = new ReleaseRecord("nuget", version, channel);
                 ProfilesConfiguration profiles = await m_files.ReadModelAsync(
-                    Path.Combine(Repository, ".azurepipelines", "assurance-profiles.json"),
+                    Path.Combine(Repository, ".azurepipelines", "assurance", "profiles.json"),
                     EvidenceJsonContext.Default.ProfilesConfiguration, CancellationToken.None).ConfigureAwait(false);
                 string[] profileIds = [.. profiles.Profiles.Select(p => p.Id)];
                 var catalog = new ArtifactsConfiguration(1, "synthetic-catalog", "1.0.0",
                 [
                     new ArtifactGroup("nuget", producer.Workflow, "nuget", profileIds,
-                        ".azurepipelines/packages.txt",
+                        ".azurepipelines/nuget/packages.txt",
                         [new("modern", "Release"), new("debug", "Debug"),
-                            new("metapackages", "Release", [".azurepipelines/meta.nuspec"])])
+                            new("metapackages", "Release", [".azurepipelines/nuget/meta.nuspec"])])
                 ]);
                 var policy = new PolicyConfiguration(
                     1, "synthetic-policy", "1.0.0", 2, stage, false, 2,
-                    ".azurepipelines/release-evidence.schema.json", ".azurepipelines/release-artifacts.json",
-                    ".azurepipelines/assurance-profiles.json", ["nuget"], [], new("incomplete", []));
-                await WriteAsync(Path.Combine(Repository, ".azurepipelines", "release-policy.json"),
+                    ".azurepipelines/release/evidence.schema.json", ".azurepipelines/release/artifacts.json",
+                    ".azurepipelines/assurance/profiles.json", ["nuget"], [], new("incomplete", []));
+                await WriteAsync(Path.Combine(Repository, ".azurepipelines", "release", "policy.json"),
                     policy, EvidenceJsonContext.Default.PolicyConfiguration).ConfigureAwait(false);
-                await WriteAsync(Path.Combine(Repository, ".azurepipelines", "release-artifacts.json"),
+                await WriteAsync(Path.Combine(Repository, ".azurepipelines", "release", "artifacts.json"),
                     catalog, EvidenceJsonContext.Default.ArtifactsConfiguration).ConfigureAwait(false);
+                Directory.CreateDirectory(Path.Combine(Repository, ".azurepipelines", "nuget"));
                 await File.WriteAllTextAsync(
-                    Path.Combine(Repository, ".azurepipelines", "packages.txt"), "Synthetic\n")
+                    Path.Combine(Repository, ".azurepipelines", "nuget", "packages.txt"), "Synthetic\n")
                     .ConfigureAwait(false);
-                await File.WriteAllTextAsync(Path.Combine(Repository, ".azurepipelines", "meta.nuspec"),
+                await File.WriteAllTextAsync(Path.Combine(Repository, ".azurepipelines", "nuget", "meta.nuspec"),
                     Nuspec("Synthetic.Meta", version)).ConfigureAwait(false);
                 string policyDigest = await m_files.DigestAsync(
-                    Path.Combine(Repository, ".azurepipelines", "release-policy.json"), CancellationToken.None)
+                    Path.Combine(Repository, ".azurepipelines", "release", "policy.json"), CancellationToken.None)
                     .ConfigureAwait(false);
                 var documents = new List<DocumentRecord>();
                 var artifacts = new List<ArtifactRecord>();
@@ -1282,14 +1285,15 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                 var sourceSubject = new SubjectRecord("source", source.Repository, EvidenceFiles.Digest(mappingBytes));
                 await AddDocumentAsync("source-inputs.json", mappingBytes, "input-manifest", sourceSubject, documents)
                     .ConfigureAwait(false);
-                foreach ((string name, string type) in new[]
+                foreach ((string name, string folder, string file, string type) in new[]
                 {
-                    ("release-policy.json", "policy"), ("release-artifacts.json", "artifact-catalog"),
-                    ("assurance-profiles.json", "profile")
+                    ("release-policy.json", "release", "policy.json", "policy"),
+                    ("release-artifacts.json", "release", "artifacts.json", "artifact-catalog"),
+                    ("assurance-profiles.json", "assurance", "profiles.json", "profile")
                 })
                 {
                     await AddDocumentAsync(name, await File.ReadAllBytesAsync(
-                        Path.Combine(Repository, ".azurepipelines", name)).ConfigureAwait(false),
+                        Path.Combine(Repository, ".azurepipelines", folder, file)).ConfigureAwait(false),
                         type, sourceSubject, documents).ConfigureAwait(false);
                 }
                 var jobs = new List<JobRecord>();
@@ -1356,8 +1360,9 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     new("incomplete", [.. VerificationControls.Kinds.SelectMany(VerificationControls.ForKind)],
                         [.. VerificationControls.Kinds.SelectMany(VerificationControls.ForKind)], []));
                 FrozenFile[] contractFiles = [.. await Task.WhenAll(Directory.EnumerateFiles(
-                    Path.Combine(Repository, ".azurepipelines")).Select(async path => new FrozenFile(
-                        ".azurepipelines/" + Path.GetFileName(path),
+                    Path.Combine(Repository, ".azurepipelines"), "*", SearchOption.AllDirectories)
+                    .Select(async path => new FrozenFile(
+                        Path.GetRelativePath(Repository, path).Replace('\\', '/'),
                         await m_files.DigestAsync(path, CancellationToken.None).ConfigureAwait(false),
                         new FileInfo(path).Length))).ConfigureAwait(false)];
                 DateTimeOffset timestamp = DateTimeOffset.UtcNow;

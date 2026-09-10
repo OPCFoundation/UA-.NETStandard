@@ -12,7 +12,8 @@ There are multiple options to run the reference server in a Docker container:
 
 ## Other published sample images
 
-The `Docker Sample Images CI` workflow builds nine images at
+The `Docker Sample Images CI` workflow selects its images from the release
+catalog. The `containers` group contains nine images at
 `ghcr.io/opcfoundation/uanetstandard/<image>`. Each has `linux/amd64` and
 `linux/arm64/v8` runnable subjects and keeps its existing version/`latest`
 tagging scheme:
@@ -31,12 +32,19 @@ tagging scheme:
 
 For example: `docker pull ghcr.io/opcfoundation/uanetstandard/ldsserver:latest`. Each image has a Dockerfile under its application folder that is built from the repository root as context (for example `docker build -f samples/Lds/ConsoleLdsServer/Dockerfile -t opcua-lds-server .`).
 
-Pump is the **tenth, separately published image**:
-`ghcr.io/opcfoundation/pumpdeviceintegrationserver`, built by
-`pump-device-integration-server-docker.yml` from
+Pump is the **tenth image**, in the independent `pump` group:
+`ghcr.io/opcfoundation/pumpdeviceintegrationserver`, built by the same
+`docker-image.yml` workflow from
 `samples/DI/PumpDeviceIntegrationServer/Dockerfile`, for `linux/amd64` only.
 There is no enrolled `uanetstandard/pumpserver` image. The two artifact groups
 can publish independently; the catalog contains **19 runnable platform subjects**.
+
+Master pushes select both groups; release/docker branch pushes select only
+`containers`. Manual dispatch retains the Pump-only operation. Pull requests
+validate all ten images without publishing. Pump keeps its `latest`, full-version
+and `sha-<short-sha>` tags; the other images retain their existing branch and
+release aliases. Per-image jobs serialize overlapping manual and automatic runs,
+and each group has its own status artifacts and membership manifest.
 
 ## Container release evidence
 
@@ -48,7 +56,7 @@ the 1.5 pipeline backport remains deferred without changing maintenance.
 Baseline build/push failures still fail. A cosign, collection or reconciliation
 failure remains explicitly incomplete and cannot satisfy required stable gates.
 
-Both workflows request actual BuildKit `provenance: mode=min` and native SPDX
+The shared workflow requests actual BuildKit `provenance: mode=min` and native SPDX
 SBOM attestations for each runnable platform. Minimum provenance intentionally
 avoids maximum-detail build arguments. The scanner is
 `docker.io/docker/buildkit-syft-scanner:1.12.0`, selected by immutable index
@@ -79,7 +87,7 @@ multi-platform availability; a tag is not an immutable base pin.
 
 ### Runner-local and offline helper
 
-`.azurepipelines\container-evidence.ps1` has these operations:
+`.azurepipelines\containers\evidence.ps1` has these operations:
 
 | Operation | Behavior |
 | --- | --- |
@@ -108,7 +116,7 @@ For an existing **offline** layout and context in the contract's documented
 shape (use observed identities, not the synthetic documentation examples):
 
 ```powershell
-$helper = '.\.azurepipelines\container-evidence.ps1'
+$helper = '.\.azurepipelines\containers\evidence.ps1'
 & $helper -Operation VerifyLocal -Group pump -Image pumpdeviceintegrationserver `
   -Request .\staging\oci-inputs.json -Context .\staging\oci-context.json `
   -Version 2.0.0 -Work .\staging\container-work `

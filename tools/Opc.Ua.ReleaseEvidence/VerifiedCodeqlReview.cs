@@ -72,7 +72,7 @@ namespace Opc.Ua.ReleaseEvidence
             TimeProvider clock,
             CancellationToken cancellationToken)
         {
-            const string schemaRelative = ".azurepipelines/codeql-review.schema.json";
+            const string schemaRelative = ".azurepipelines/release/codeql-review.schema.json";
             FrozenFile[] pins = [.. policy.ContractFiles.Where(f => f.Path == schemaRelative)];
             string schemaPath = EvidenceFiles.Confined(repositoryRoot, schemaRelative);
             if (pins.Length != 1 || !File.Exists(schemaPath) ||

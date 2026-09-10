@@ -34,7 +34,7 @@ $fixture = Join-Path (Split-Path $PSScriptRoot) "obj/assurance-$([guid]::NewGuid
 $null = New-Item -ItemType Directory -Path $fixture
 try {
     $sha = 'a' * 40
-    $profiles = Get-Content (Join-Path $root '.azurepipelines/assurance-profiles.json') -Raw | ConvertFrom-Json
+    $profiles = Get-Content (Join-Path $root '.azurepipelines/assurance/profiles.json') -Raw | ConvertFrom-Json
     $profile = $profiles.profiles | Where-Object id -eq 'security-net10'
     $index = 0
     foreach ($definition in $profile.jobs) {
@@ -45,7 +45,7 @@ try {
             configuration='Release'; host='windows'; hostTfm='net10.0'; libraryTfm='net10.0'
             platform='windows/amd64'; shard='all'; filter=''; selected=$true; status='completed'
             inputIds=@('assurance-profile'); sourceSha=$sha; resultDocument="$index.results.json"
-            profileDigest='sha256:' + (Get-FileHash (Join-Path $root '.azurepipelines/assurance-profiles.json')).Hash.ToLowerInvariant()
+            profileDigest='sha256:' + (Get-FileHash (Join-Path $root '.azurepipelines/assurance/profiles.json')).Hash.ToLowerInvariant()
             producer=@{
                 system='azure-pipelines';workflow='azure-pipelines.yml';definitionSha=$sha
                 runId='123';attempt=2;job="job-$index";tools=@()
@@ -82,7 +82,7 @@ try {
         'security-net10,fuzz-replay-net10,codeql-net10,aot-net10'
     } else { 'security-net10' }
     $output = Join-Path $fixture 'component.json'
-    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/collect-assurance.ps1') `
+    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/assurance/collect.ps1') `
         -RecordsPath $fixture -OutputPath $output -ProfileIds $ids `
         -ExpectedSourceSha $sha -ExpectedRunId '123' -ExpectedAttempt 2 `
         -ExpectedWorkflow 'azure-pipelines.yml' -ExpectedDefinitionSha $sha
@@ -94,7 +94,7 @@ try {
         $actual.missing -ne ($expected - $completed) -or $actual.notApplicable -ne 0) {
         throw "Wrong completeness accounting in $Scenario."
     }
-    $schema = Get-Content (Join-Path $root '.azurepipelines/release-evidence.schema.json') -Raw | ConvertFrom-Json -AsHashtable
+    $schema = Get-Content (Join-Path $root '.azurepipelines/release/evidence.schema.json') -Raw | ConvertFrom-Json -AsHashtable
     $schema['$ref'] = '#/$defs/assurance'
     $schema.Remove('required')
     $schema.Remove('properties')

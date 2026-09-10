@@ -34,11 +34,15 @@ deferred, not declared unsupported.
 
 | File under `.azurepipelines` | Responsibility |
 | --- | --- |
-| `release-policy.json` | Required stage, current-line scope, classification, trust, public whitelist and operating prerequisites |
-| `release-evidence.schema.json` | Closed, typed v2 companion envelope |
-| `release-artifacts.json` | Approved groups and variant/platform membership |
-| `assurance-profiles.json` | Initial expected jobs, result criteria and permitted N/A rules |
-| Existing `expected-packages.txt` | Sole list of modern package IDs |
+| `release/policy.json` | Required stage, current-line scope, classification, trust, public whitelist and operating prerequisites |
+| `release/evidence.schema.json` | Closed, typed v2 companion envelope |
+| `release/artifacts.json` | Approved groups and variant/platform membership |
+| `assurance/profiles.json` | Initial expected jobs, result criteria and permitted N/A rules |
+| `nuget/expected-packages.txt` | Sole list of modern package IDs |
+
+The [pipeline helper layout](../.azurepipelines/README.md) groups scripts and
+contracts by task; shared release, verification, readiness, review and delivery
+schemas live together in `release/`.
 
 Release maintainers own coordinated contract/catalog changes, with security and
 publication administrators reviewing their respective boundaries. These are
@@ -89,7 +93,7 @@ the evaluated packable projects and imported pack targets at the source SHA.
   Require every applicable retained package's symbols and reject orphaned or
   duplicate pairs. Absence needs evaluated non-applicability, not a guessed
   universal symbol count. Current signing attempts include `.snupkg`, but
-  `validate-nuget-package-set.ps1` verifies signatures only on `.nupkg`.
+  `.azurepipelines/nuget/validate-package-set.ps1` verifies signatures only on `.nupkg`.
   Do not label symbol signatures verified without separate real verification.
 
 Inventories must reconcile the final `project.assets.json` after the last
@@ -104,17 +108,24 @@ NuGet identities.
 
 ### Containers
 
-The main workflow publishes nine image repositories under
+The shared Docker workflow's `containers` group publishes nine image repositories under
 `ghcr.io/opcfoundation/uanetstandard`: `refserver`, `ldsserver`, `boilerserver`,
 `calcserver`, `mcpserver`, `redundantserver`, `redundantclient`,
 `redundantpubsub`, `pubsubclient`. Each declares `linux/amd64` and
 `linux/arm64/v8`. Its repository transformation lowercases `owner/repository`
 and removes `-` and `.`.
 
-Pump is separate: `ghcr.io/opcfoundation/pumpdeviceintegrationserver`,
+The same workflow preserves the independent `pump` group:
+`ghcr.io/opcfoundation/pumpdeviceintegrationserver`,
 `linux/amd64` only. Its transformation lowercases the owner and image, without
-the main workflow's repository segment. The catalog preserves both identities.
+the main group's repository segment. The catalog preserves both identities.
 Fork-derived names are not automatically authorized official destinations.
+
+The catalog-driven selector builds both groups on master pushes and pull requests
+(build-only for pull requests), only `containers` on release/docker branch pushes,
+and only `pump` on manual dispatch. Status artifacts and membership manifests
+are aggregated separately for each selected group; sharing a workflow does not
+combine their release eligibility or require an unrelated group's members.
 
 These are **19 runnable platform subjects**. Inspect actual OCI media types:
 indexes, runnable manifests and attestation descriptors are different objects.
@@ -174,7 +185,7 @@ Write **`release-evidence.json`** beside, never over,
 
 The assessment object keeps its original two-field v2 shape. Pending versus
 observed findings are recorded in the separate
-[`producer-assessment` v1 companion](../.azurepipelines/producer-assessment.schema.json),
+[`producer-assessment` v1 companion](../.azurepipelines/release/producer-assessment.schema.json),
 referenced as a `producer-record` document. Its source, producer, release,
 artifacts and complete control partition must match the envelope. The document's
 exact bytes are covered by the producer's authenticated index/record.
@@ -242,7 +253,7 @@ Expand the seven expected jobs from profiles before filtering:
 profile job IDs with `shard: all` initially. Future approved sharding requires
 unique IDs and an explicit expected shard inventory; callers cannot reduce
 expectations through a PR filter. Profile digests refer to the whole frozen
-`assurance-profiles.json`, with selected IDs recorded separately.
+`.azurepipelines/assurance/profiles.json`, with selected IDs recorded separately.
 
 `assurance` counts are integers over unique expected job records:
 
@@ -338,7 +349,7 @@ Access, archive/retrieval ownership and restricted audit records remain under
 Foundation-approved controls, without an inferred fixed retention term.
 Repository files do not prove those controls operate.
 
-The separate [readiness progress template](../.azurepipelines/readiness-progress.json)
+The separate [readiness progress template](../.azurepipelines/release/readiness-progress.json)
 references the policy's required engineering check IDs alongside the separate
 stewardship records. `validate-readiness` checks structure and scope; it cannot
 authenticate an approval, establish production setup or relax required stable
@@ -377,14 +388,14 @@ false and `SIGNATURE_VERIFIED` remains unmet. Both the author and delivered arch
 still need independently authenticated verification under approved signer
 constraints. Unsupported `.snupkg` inputs return exit 2; verification of ordinary
 packages must never be credited to symbol packages. The separately versioned
-[content comparison schema](../.azurepipelines/nuget-delivery-content.schema.json)
+[content comparison schema](../.azurepipelines/release/nuget-delivery-content.schema.json)
 records this limited result without changing the archive or build provenance.
 Signatures/attestations supplement, not replace, existing signing checks.
 
 `verify-delivery-approved` additionally authenticates source/index and signature
 records under the independent policy, matches the **primary** CMS certificate
 fingerprint, and runs the pinned NuGet verifier on both archives. It emits the
-separate [delivery-verification record](../.azurepipelines/nuget-delivery-verification.schema.json):
+separate [delivery-verification record](../.azurepipelines/release/nuget-delivery-verification.schema.json):
 
 ```powershell
 dotnet $evidenceTool verify-delivery-approved --repository-root . `
@@ -408,7 +419,7 @@ verification.
 
 `nuget-publish.yml` builds the nonpackable evidence tool before the final package
 restore/build. After signing and baseline package verification,
-`nuget-evidence.ps1` captures the final inputs and creates configuration-local
+`.azurepipelines/nuget/evidence.ps1` captures the final inputs and creates configuration-local
 sidecars. Raw assets graphs, capture requests and diagnostics stay on the runner;
 only the selected public sidecars accompany the signed packages.
 
@@ -465,14 +476,14 @@ publication/retrieval validation are not performed by local fixture tests.
 
 ### Assurance collection
 
-`assurance-discovery.ps1`, `assurance-fuzz-inputs.ps1`,
-`assurance-results.ps1` and `write-assurance-job.ps1` record selected scope,
-public corpus identity and actual result counts. `collect-assurance.ps1` creates
+The helpers in `.azurepipelines/assurance` (`discovery.ps1`, `fuzz-inputs.ps1`,
+`results.ps1` and `write-job.ps1`) record selected scope,
+public corpus identity and actual result counts. `collect.ps1` creates
 the assurance component; each completed job keeps its own `<job-id>.proof.json`.
 For fuzz replay, the proof binds observed target/input pairs and any permitted
 empty-regression skips. Unrelated skipped tests remain invalid.
 
-`get-release-assurance.ps1` uses authenticated, read-only GitHub API responses to
+`.azurepipelines/assurance/get-release.ps1` uses authenticated, read-only GitHub API responses to
 select same-source workflow attempts and download bounded, explicitly named
 sanitized artifacts. `ExpectedSourceRef` supports master and current `release/2.*`
 branches; the policy floor still comes from protected master. It validates
@@ -486,7 +497,7 @@ definitions. Unproven or contradictory definitions remain incomplete. Its
 offline-metadata option cannot grant credit and is rejected on CI.
 
 ```powershell
-.\.azurepipelines\get-release-assurance.ps1 `
+.\.azurepipelines\assurance\get-release.ps1 `
     -ExpectedSourceSha $sourceSha `
     -ExpectedSourceRef 'refs/heads/release/2.0.0' `
     -OutputPath .\assurance\assurance.json `
@@ -503,7 +514,7 @@ success or plausible counters alone do not clear them.
 ### Container production
 
 Both Docker workflows emit native BuildKit SBOM/provenance and run
-`container-evidence.ps1` for `Preflight`, `Record`, `Collect`, `VerifyLocal`,
+`.azurepipelines/containers/evidence.ps1` for `Preflight`, `Record`, `Collect`, `VerifyLocal`,
 `Sign`, `Status` and `Aggregate`. The existing nine-image publisher and separate
 Pump publisher preserve their registry identities. Runnable platform manifests
 are counted independently from OCI indexes and attestation descriptors.
@@ -548,15 +559,15 @@ establishes Foundation operational readiness.
 
 ### Authenticated evaluation and independent bootstrap
 
-The separately versioned [verification bundle](../.azurepipelines/verification-bundle.schema.json),
-[verification record](../.azurepipelines/verification-record.schema.json) and
-[trusted snapshot](../.azurepipelines/trusted-policy-snapshot.schema.json)
+The separately versioned [verification bundle](../.azurepipelines/release/verification-bundle.schema.json),
+[verification record](../.azurepipelines/release/verification-record.schema.json) and
+[trusted snapshot](../.azurepipelines/release/trusted-policy-snapshot.schema.json)
 describe authentication inputs, not self-authorizing receipts. Records bind
 exact evidence, artifact-set, policy and intent digests; source/definition/run/
 attempt; complete artifact/document/job scope; validity interval and checkpoint.
 Record kinds distinguish intent, producer, signatures, assurance, public review,
 producer qualification and publication boundary. The independently signed
-[`codeql-review` record](../.azurepipelines/codeql-review.schema.json) is a distinct
+[`codeql-review` record](../.azurepipelines/release/codeql-review.schema.json) is a distinct
 companion referenced through `verification-bundle.json.codeqlReviews`. It binds
 repository/source/ref, analysis producer/run/attempt, query and finding-population
 digests, reviewed occurrences/alerts, policy checkpoint and validity interval.
@@ -591,7 +602,7 @@ archive or OCI bytes. Reimporting a bundle verifies it again; saved command outp
 collector API call are not authorization.
 
 `verify-codeql-review` reauthenticates the independent record and emits a
-sanitized projection only on success. `get-release-assurance.ps1` can construct
+sanitized projection only on success. `.azurepipelines/assurance/get-release.ps1` can construct
 the protected callback with `-ReviewVerificationBundle` and `-TrustPolicy`.
 The callback invokes that verifier for each requested ID/digest; it never accepts
 a saved projection as proof. Partial populations, different queries/attempts,
@@ -622,7 +633,7 @@ under the existing intended `release` authority. There is no dispatch switch to
 enable them. Approved candidate acquisition, independent trust, official transport
 and verified publication-boundary records are required before production use.
 Until that setup is complete, the active required stable gates refuse publication.
-`.azurepipelines\release-promotion.ps1` separates `Verify`, `Offline` and `Write`;
+`.azurepipelines\release\promotion.ps1` separates `Verify`, `Offline` and `Write`;
 the corresponding commands are `promotion-verify`, `promotion-offline` and
 `promotion-write`. **No official transport is registered or configured.**
 
@@ -771,7 +782,7 @@ job rather than substituting its build job:
 ```
 
 `policyDigest` is `sha256:` followed by the lowercase SHA-256 of the exact
-protected current `.azurepipelines\release-policy.json` bytes. `channel` is a
+protected current `.azurepipelines\release\policy.json` bytes. `channel` is a
 claimed intent, never authorization;
 unverified official intent is always recorded as unmet. For generation the
 empty `artifacts` list is allowed because identities are read from archives.
@@ -938,7 +949,7 @@ For example, `oci-context.json` for the Pump group is:
   },
   "producer": {
     "system": "github-actions",
-    "workflow": ".github/workflows/pump-device-integration-server-docker.yml",
+    "workflow": ".github/workflows/docker-image.yml",
     "definitionSha": "2222222222222222222222222222222222222222",
     "runId": "43",
     "attempt": 1,
@@ -1085,10 +1096,10 @@ publication exercises remain necessary.
 
 * [NuGet producer](../.github/workflows/nuget-publish.yml),
   [promoter](../.github/workflows/release.yml),
-  [archive validator](../.azurepipelines/validate-nuget-package-set.ps1),
-  [modern catalog](../.azurepipelines/expected-packages.txt)
-* [Main container producer](../.github/workflows/docker-image.yml),
-  [Pump producer](../.github/workflows/pump-device-integration-server-docker.yml)
+  [archive validator](../.azurepipelines/nuget/validate-package-set.ps1),
+  [modern catalog](../.azurepipelines/nuget/expected-packages.txt)
+* [Shared container/Pump producer](../.github/workflows/docker-image.yml),
+  [catalog-driven image selection](../.azurepipelines/containers/matrix.ps1)
 * [Framework mappings](../targets.props),
   [CodeQL](../.github/workflows/codeql-analysis.yml),
   [AOT execution](../.azurepipelines/test-aot.yml),

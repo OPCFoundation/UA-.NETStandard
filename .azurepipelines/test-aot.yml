@@ -86,7 +86,7 @@ jobs:
       script: |
         $arch = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
         $rid = if ($IsWindows) { "win-$arch" } elseif ($IsMacOS) { "osx-$arch" } else { "linux-$arch" }
-        ./.azurepipelines/assurance-native.ps1 -Project '$(file)' -RuntimeIdentifier $rid `
+        ./.azurepipelines/assurance/native.ps1 -Project '$(file)' -RuntimeIdentifier $rid `
           -Configuration '${{ parameters.configuration }}' `
           -WorkDirectory '$(Build.SourcesDirectory)/.assurance/aot-$(Build.BuildId)-$(System.JobAttempt)-$(System.JobId)' `
           -OutputPath '$(Build.SourcesDirectory)/.assurance/aot-public-$(System.JobId)/native-proof.json'
@@ -97,7 +97,7 @@ jobs:
     inputs:
       pwsh: true
       targetType: filePath
-      filePath: ./.azurepipelines/write-assurance-job.ps1
+      filePath: ./.azurepipelines/assurance/write-job.ps1
       arguments: -Project "$(file)" -ResultsPath "$(Build.SourcesDirectory)/.assurance/aot-public-$(System.JobId)/native-proof.json" -Kind native-aot -OutputPath "$(Build.SourcesDirectory)/.assurance/aot-public-$(System.JobId)/evidence.job.json" -Workflow azure-pipelines.yml -Configuration "${{ parameters.configuration }}"
   - task: PublishPipelineArtifact@1
     displayName: Publish sanitized native proof only

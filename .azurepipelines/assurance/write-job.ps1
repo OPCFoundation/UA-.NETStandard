@@ -32,7 +32,7 @@
 Produces one sanitized profile-job record from a real result document.
 .DESCRIPTION
 Run after the test/analysis even on failure. Only profile projects are recorded;
-other test projects still use assurance-results.ps1 for their baseline gate.
+other test projects still use results.ps1 for their baseline gate.
 Source and CI run identity are observed, not supplied as success claims.
 #>
 param(
@@ -47,8 +47,8 @@ param(
     [ValidateSet('trx', 'mtp-trx', 'sarif', 'fuzz-replay', 'native-aot', 'codeql')][string] $Kind = 'trx'
 )
 $ErrorActionPreference = 'Stop'
-$root = Split-Path $PSScriptRoot
-$profilesPath = Join-Path $PSScriptRoot 'assurance-profiles.json'
+$root = Split-Path (Split-Path $PSScriptRoot)
+$profilesPath = Join-Path $PSScriptRoot 'profiles.json'
 $profiles = Get-Content $profilesPath -Raw | ConvertFrom-Json
 $Project = $Project.Replace('\', '/').TrimStart('./')
 $profile = @($profiles.profiles | Where-Object { $Project -in $_.jobs.project })
@@ -96,7 +96,7 @@ if ($Kind -in @('native-aot', 'codeql')) {
     Copy-Item -LiteralPath $ResultsPath -Destination $proofPath
 }
 else {
-    & (Join-Path $PSScriptRoot 'assurance-results.ps1') -ResultsPath $ResultsPath -Kind $Kind -OutputPath $proofPath
+    & (Join-Path $PSScriptRoot 'results.ps1') -ResultsPath $ResultsPath -Kind $Kind -OutputPath $proofPath
     if ($LASTEXITCODE -ne 0) { throw 'Result producer failed.' }
 }
 $proof = Get-Content $proofPath -Raw | ConvertFrom-Json

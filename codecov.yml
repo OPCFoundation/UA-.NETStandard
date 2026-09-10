@@ -4,7 +4,7 @@
 #   curl --data-binary @codecov.yml https://codecov.io/validate
 #
 # Codecov is REPORTING, not a gate. The enforced coverage rules live in
-# coverage-thresholds.json and are applied by .azurepipelines/check-coverage.ps1
+# coverage-thresholds.json and are applied by .azurepipelines/coverage/check.ps1
 # inside the pipeline, where they can react to how much a patch actually
 # changed. Codecov is kept for what it is genuinely better at: the pull-request
 # comment, the file-by-file diff view and the coverage trend over time.

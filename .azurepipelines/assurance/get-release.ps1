@@ -55,11 +55,11 @@ review authority remain separate trusted-core requirements.
 OfflineMetadataPath is for local fixtures only, never a publisher input: it is
 rejected on CI, is marked offline-fixture, and cannot award any job credit.
 .EXAMPLE
-pwsh -NoProfile -File .azurepipelines\get-release-assurance.ps1 `
+pwsh -NoProfile -File .azurepipelines\assurance\get-release.ps1 `
   -ExpectedSourceSha <checkout-sha> -OutputPath out\assurance.json -WorkDirectory scratch
 #>
 param(
-    [string] $RepositoryRoot = (Split-Path $PSScriptRoot),
+    [string] $RepositoryRoot = (Split-Path (Split-Path $PSScriptRoot)),
     [Parameter(Mandatory)][ValidatePattern('^[0-9a-f]{40}([0-9a-f]{24})?$')][string] $ExpectedSourceSha,
     [ValidatePattern('^refs/heads/(master|release/2\.[0-9A-Za-z._/-]+)$')]
     [string] $ExpectedSourceRef = 'refs/heads/master',
@@ -73,13 +73,13 @@ param(
     [string] $TrustPolicy = $env:OPCUA_RELEASE_TRUST_POLICY
 )
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot 'assurance-github.ps1')
+. (Join-Path $PSScriptRoot 'github.ps1')
 $repository = 'OPCFoundation/UA-.NETStandard'
 $prefix = "repos/$repository"
 $sourceBranch = $ExpectedSourceRef.Substring('refs/heads/'.Length)
 $queryBranch = [Uri]::EscapeDataString($sourceBranch)
-$profilePath = Join-Path $RepositoryRoot '.azurepipelines/assurance-profiles.json'
-$policyPath = Join-Path $RepositoryRoot '.azurepipelines/release-policy.json'
+$profilePath = Join-Path $RepositoryRoot '.azurepipelines/assurance/profiles.json'
+$policyPath = Join-Path $RepositoryRoot '.azurepipelines/release/policy.json'
 $profiles = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json
 $policy = Get-Content -LiteralPath $policyPath -Raw | ConvertFrom-Json
 $profileDigest = 'sha256:' + (Get-FileHash -LiteralPath $profilePath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -88,7 +88,7 @@ $workspace = Join-Path ([IO.Path]::GetFullPath($WorkDirectory)) ('assurance-' + 
 $waitDeadline = [DateTimeOffset]::UtcNow.AddSeconds($WaitTimeoutSeconds)
 $null = New-Item -ItemType Directory -Path $workspace
 if ($ReviewVerificationBundle -and $TrustPolicy -and $null -eq $ReviewAuthenticator) {
-    . (Join-Path $PSScriptRoot 'assurance-review.ps1')
+    . (Join-Path $PSScriptRoot 'review.ps1')
     $ReviewAuthenticator = New-AssuranceReviewAuthenticator -RepositoryRoot $RepositoryRoot `
         -VerificationBundle $ReviewVerificationBundle -TrustPolicy $TrustPolicy `
         -WorkDirectory (Join-Path $workspace 'review-verification')
@@ -143,7 +143,7 @@ function Assert-AssuranceRun($Run, $Workflow, [switch] $AllowPending) {
 try {
     # Expand every expected job before querying CI; nothing discovered can shrink scope.
     $componentPath = Join-Path $workspace 'empty.json'
-    & (Join-Path $PSScriptRoot 'collect-assurance.ps1') -RecordsPath (Join-Path $workspace 'absent') `
+    & (Join-Path $PSScriptRoot 'collect.ps1') -RecordsPath (Join-Path $workspace 'absent') `
         -OutputPath $componentPath -ExpectedSourceSha $ExpectedSourceSha -ExpectedRunId 'unavailable' `
         -ExpectedAttempt 1 -ExpectedWorkflow '.github/workflows/buildandtest.yml' `
         -ProfilesPath $profilePath -ReviewAuthenticator $ReviewAuthenticator
@@ -166,8 +166,8 @@ try {
             $policySha = [string] $branch.commit.sha
             if ($policySha -notmatch '^[0-9a-f]{40}([0-9a-f]{24})?$') { throw 'POLICY_REF_UNVERIFIED' }
             foreach ($file in @(
-                @{ path = '.azurepipelines/release-policy.json'; digest = $policyDigest },
-                @{ path = '.azurepipelines/assurance-profiles.json'; digest = $profileDigest }
+                @{ path = '.azurepipelines/release/policy.json'; digest = $policyDigest },
+                @{ path = '.azurepipelines/assurance/profiles.json'; digest = $profileDigest }
             )) {
                 $remote = Invoke-AssuranceApi "$prefix/contents/$($file.path)?ref=$policySha"
                 if ($remote.encoding -cne 'base64' -or $remote.path -cne $file.path) { throw 'POLICY_INPUT_UNVERIFIED' }
@@ -374,7 +374,7 @@ try {
                     }
                     if ($definitionSha) {
                         $collected = Join-Path $workspace "$($run.id).component.json"
-                        & (Join-Path $PSScriptRoot 'collect-assurance.ps1') -RecordsPath $records -OutputPath $collected `
+                        & (Join-Path $PSScriptRoot 'collect.ps1') -RecordsPath $records -OutputPath $collected `
                             -ExpectedSourceSha $ExpectedSourceSha -ExpectedRunId ([string] $run.id) `
                             -ExpectedAttempt $run.run_attempt -ExpectedWorkflow $definition.path `
                             -ExpectedDefinitionSha $definitionSha -ProfileIds ($definition.profiles -join ',') `
@@ -423,7 +423,7 @@ try {
         expected = $component.expected; selected = $component.selected; completed = $component.completed
         failed = $component.failed; missing = $component.missing; notApplicable = $component.notApplicable
     }
-    $schema = Get-Content -LiteralPath (Join-Path $RepositoryRoot '.azurepipelines/release-evidence.schema.json') -Raw |
+    $schema = Get-Content -LiteralPath (Join-Path $RepositoryRoot '.azurepipelines/release/evidence.schema.json') -Raw |
         ConvertFrom-Json -AsHashtable
     $schema['$ref'] = '#/$defs/assurance'
     foreach ($key in @('required', 'properties', 'additionalProperties')) { $schema.Remove($key) }

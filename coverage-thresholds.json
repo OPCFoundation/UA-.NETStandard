@@ -1,7 +1,7 @@
 {
   "$comment": [
     "Coverage gates for the UA .NET Standard stack. These are the ENFORCED rules;",
-    "see .azurepipelines/check-coverage.ps1 for the implementation and",
+    "see .azurepipelines/coverage/check.ps1 for the implementation and",
     "docs/DeveloperGuide.md for the contributor-facing description.",
     "Rates are percentages (0-100).",
     "",

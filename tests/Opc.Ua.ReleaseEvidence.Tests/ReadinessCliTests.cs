@@ -69,7 +69,8 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             try
             {
                 JsonNode progress = JsonNode.Parse(await File.ReadAllTextAsync(
-                    Path.Combine(root, ".azurepipelines", "readiness-progress.json")).ConfigureAwait(false))!;
+                    Path.Combine(root, ".azurepipelines", "release", "readiness-progress.json"))
+                    .ConfigureAwait(false))!;
                 JsonArray records = progress["records"]!.AsArray();
                 JsonNode record = records[0]!;
                 switch (scenario)
@@ -79,7 +80,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
                     case "expired":
                         record["status"] = "submitted";
                         byte[] policy = await File.ReadAllBytesAsync(
-                            Path.Combine(root, ".azurepipelines", "release-policy.json")).ConfigureAwait(false);
+                            Path.Combine(root, ".azurepipelines", "release", "policy.json")).ConfigureAwait(false);
                         record["policyDigest"] = "sha256:" + Convert.ToHexStringLower(SHA256.HashData(policy));
                         record["controllerSha"] = new string('a', 40);
                         record["evidenceRecord"] = "record:synthetic-evidence";

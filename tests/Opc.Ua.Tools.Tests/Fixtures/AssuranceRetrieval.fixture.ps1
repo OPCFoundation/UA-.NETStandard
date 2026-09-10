@@ -39,7 +39,7 @@ $definitionSha = $sha
 $sourceBranch = if ($Scenario -eq 'release-branch') { 'release/2.0.0' } else { 'master' }
 $sourceRef = "refs/heads/$sourceBranch"
 $queryBranch = [Uri]::EscapeDataString($sourceBranch)
-$profilePath = Join-Path $root '.azurepipelines/assurance-profiles.json'
+$profilePath = Join-Path $root '.azurepipelines/assurance/profiles.json'
 $profiles = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json
 $profileDigest = 'sha256:' + (Get-FileHash -LiteralPath $profilePath).Hash.ToLowerInvariant()
 $now = [DateTimeOffset]::UtcNow.AddHours(-1)
@@ -54,7 +54,7 @@ function Add-Response([string] $Endpoint, $Value) {
 
 try {
     Add-Response "$prefix/branches/master" @{name='master'; protected=$true; commit=@{sha=$sha}}
-    foreach ($name in @('release-policy.json', 'assurance-profiles.json')) {
+    foreach ($name in @('release/policy.json', 'assurance/profiles.json')) {
         Add-Response "$prefix/contents/.azurepipelines/${name}?ref=$sha" @{
             path=".azurepipelines/$name"; encoding='base64'
             content=[Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $root ".azurepipelines/$name")))
@@ -308,7 +308,7 @@ try {
         throw 'Transport stub not selected; no live API call is allowed.'
     }
     $output = Join-Path $fixture 'public/assurance.json'
-    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/get-release-assurance.ps1') `
+    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/assurance/get-release.ps1') `
         -RepositoryRoot $root -ExpectedSourceSha $sha -ExpectedSourceRef $sourceRef `
         -OutputPath $output -WorkDirectory (Join-Path $fixture 'work') @waitArguments
     if ($LASTEXITCODE -ne 0) { throw 'Retrieval process failed.' }
