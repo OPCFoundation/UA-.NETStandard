@@ -34,8 +34,7 @@ migration notes inline.
 The active [release-evidence contract](ReleaseEvidence.md) applies to current
 `master`/2.0, requiring complete evidence for in-scope stable publication while
 preview/development release channels retain advisory applicability for these
-controls. Pipeline backport to 1.5 is deferred, not a withdrawal of
-1.5 security or critical-bug maintenance. The [Security Stewardship annex](SecurityStewardship.md)
+controls. The [Security Stewardship annex](SecurityStewardship.md)
 separates these engineering choices from the Foundation's statutory OSS steward duties.
 
 > **Pro TIP.** Point your favourite coding agent at this guide and let

@@ -51,8 +51,8 @@ and each group has its own status artifacts and membership manifest.
 The shared [release-evidence contract](ReleaseEvidence.md) is **active** with
 `stage: required`: unmet controls block in-scope stable major-2 publication.
 Preview/development are release channels with advisory evidence applicability,
-not contract maturity modes. Registry identities and tag formats are unchanged;
-the 1.5 pipeline backport remains deferred without changing maintenance.
+not contract maturity modes. Registry identities and tag formats remain
+group-specific.
 Baseline build/push failures still fail. A cosign, collection or reconciliation
 failure remains explicitly incomplete and cannot satisfy required stable gates.
 
@@ -184,31 +184,24 @@ The dedicated NUnit fixture is
 `Opc.Ua.Tools.Tests.ContainerEvidencePipelineTests` (net10.0 only). These fixtures
 cover local behavior and required stable refusals, not production qualification.
 
-**Required production records are missing:** authenticated producer/tool approval
-records, independently verified provenance and complete inventories, authenticated
-results for all assurance profiles, protected release intent and current-policy
-authentication, public retrieval/retention review, and administrator-verified
-publisher isolation. Neither source-controlled
-YAML nor an identity-bound signature establishes that ordinary/old workflows
-and external Azure credentials cannot publish official tags.
+In the [configured release process](ReleaseEvidence.md#configured-release-workflow),
+the controller authenticates producer/tool approval, provenance, complete
+inventories and assurance, release intent, the current policy, public-data review
+and publisher isolation. Missing or invalid records block stable publication;
+neither source-controlled YAML nor a boundary Boolean substitutes for those checks.
 
-Required stable publication through the current producer path is refused
-even if the boundary Boolean alone is changed. The separate promotion coordinator
-supports exact-content transfer, conditional aliases, append-only recovery records
-and repeated eligibility verification, with an offline file transport for
-exercises. The existing release controller's candidate jobs are literally disabled
-and no official registry transport or candidate namespace is configured.
+The isolated writer transfers exact content, applies conditional aliases, keeps
+append-only recovery records and repeats eligibility verification. Production
+registry transport verifies manifest/layer and native/signature-referrer
+discoverability after copying, with remote serialization that does not cancel
+active promotion. Matching immutable content is a no-op; different content is a
+collision, not permission to overwrite. Preview writers use the same isolated
+authority while preview/development evidence retains its advisory applicability.
 
-An official registry transport must prove exact manifests/layers and native/
-signature referrer discoverability after copying, and enforce remote serialization
-without cancelling active promotion. Matching immutable content is a no-op;
-different content is a collision, not permission to overwrite. All current-line
-official writers, including preview writers, require the isolated authority for
-production setup while preview/development evidence remains advisory.
-Environment protection, grants, production trust and real recovery/retrieval
-records are administrator-owned operating prerequisites. Until the required
-setup is complete, stable publication remains blocked; maintained 1.5 delivery
-must remain unaffected.
+Initial transport integration, candidate namespaces, protected environments,
+grants, independent trust and recovery/retrieval qualification are tracked in the
+[administrator setup checklist](../plans/ReleaseEvidenceAdministration.md).
+The offline file transport remains an exercise adapter, not a production registry.
 
 ## Building the local containers
 

@@ -249,16 +249,15 @@ The full set of packages the preview pipeline produces is pinned in [`.azurepipe
 
 ### Release assurance and stewardship
 
-The [Release Evidence contract](ReleaseEvidence.md) defines the new engineering
+The [Release Evidence contract](ReleaseEvidence.md) defines the engineering
 controls for current `master`/2.0 NuGet packages and designated published container
 images. The contract is **active**, with `stage: required`: failed or missing
-controls block in-scope stable publication. Production trust, authenticated
-producer verification and administrator-verified publication isolation are
-required operating prerequisites, not consequences of the policy setting.
-Candidate verification/writer jobs remain literally disabled and no official
-publication transport is configured, so stable gates refuse publication.
-Pipeline backport to `master378`/1.5 is deferred; its
-[maintenance status](../SECURITY.md#supported-versions) is unchanged.
+controls block in-scope stable publication. In the configured release workflow,
+the protected controller authenticates production trust and producer evidence,
+and the isolated writer rechecks authorization before publishing verified bytes.
+The [administrator setup checklist](../plans/ReleaseEvidenceAdministration.md)
+tracks initial integration, platform configuration and qualification separately
+from these operating instructions.
 
 Official previews and rolling development builds retain advisory applicability
 for these controls. They are release channels, not maturity modes of the contract,

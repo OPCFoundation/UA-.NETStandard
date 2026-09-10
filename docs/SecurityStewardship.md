@@ -331,13 +331,16 @@ platform access.
 Supply the following through controlled, attributable records; do not publish
 credentials, personal contacts or infrastructure inventories in this repository.
 None of these actions is authorized merely by running the validators.
+The concrete engineering setup sequence is in the
+[administrator checklist](../plans/ReleaseEvidenceAdministration.md); the table
+below also includes the separate Foundation decisions and operating records.
 
 | Decision or evidence | Responsible function | Completion evidence |
 | --- | --- | --- |
 | Policy and controller authority | Foundation programme approval / release assurance | Approved immutable policy/controller identities, actual environment reviewers, branch restrictions and bypass settings, and independent trust/bootstrap and revocation/checkpoint provisioning. |
 | Every current-line official writer | Development infrastructure response | GitHub/NuGet/GHCR grants, token and OIDC policies, preview/rolling writers, old workflows and alternate external Azure definitions/credentials. Include principals capable of bypassing a stable gate. |
 | Candidate/official separation | Development infrastructure response | Selected candidate locations and visibility, isolated authority, destination scope and verified limits on candidate/source workflows. A tag prefix or named `release` environment is not isolation. |
-| Deferred-line protection | Development infrastructure response / stack maintenance | Evidence that proposed grant or credential changes leave maintained 1.5 delivery unaffected. Do not revoke shared authority or expand scope to resolve an unapproved isolation conflict. |
+| Shared-authority protection | Development infrastructure response / stack maintenance | Evidence that proposed grant or credential changes leave other approved release routes unaffected. Do not revoke shared authority or expand scope to resolve an unapproved isolation conflict. |
 | Producer and verifier qualification | Release assurance / stack maintenance | Approved definition/tool pins, actual source-bound runs, native execution and full analysis scope, authenticated reviewed finding dispositions, and qualification limitations. Synthetic fixtures are not live qualification. |
 | Retrieval, retention and recovery | Authority liaison / release assurance | Public evidence retrieval, controlled record ownership/access, and separately authorized interrupted-delivery and recovery exercises. No fixed retention term is inferred. |
 | Stewardship policy and assignments | Foundation programme approval | Approved annex revision, accepted primary/deputy assignments, escalation arrangements and revalidation triggers. |
@@ -360,11 +363,9 @@ Article 24 deliverables**. They do not replace the verifiable policy, cooperatio
 or scoped reporting duties.
 
 The [Release Evidence contract](ReleaseEvidence.md) is the engineering reference.
-Its implementation scope is current **`master`/2.0 only**, covering NuGet and the
-designated published container images. The `master378`/1.5 pipeline backport is
-**deferred**, while 1.5 maintenance remains as stated in
-[SECURITY.md](../SECURITY.md#supported-versions). Engineering enrollment scope must
-not be used to exclude relevant products from the statutory scope inventory.
+Its implementation scope is current **`master`/2.0**, covering NuGet and the
+designated published container images. Engineering enrollment scope does not
+exclude relevant products from the statutory scope inventory.
 
 The contract is **active**, with `stage: required` for **in-scope stable releases**.
 Missing or failed evidence remains incomplete and blocks stable publication.

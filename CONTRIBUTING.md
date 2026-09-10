@@ -36,8 +36,9 @@ in-scope stable releases. Missing/failed evidence or required production setup
 blocks stable publication; the policy setting does not prove publisher isolation.
 Preview/development release channels retain advisory applicability for these
 controls, not a different contract maturity mode. Do not weaken existing mandatory
-signing, build, test or security checks. The 1.5 pipeline backport is deferred
-without changing its maintenance status.
+signing, build, test or security checks. The
+[administrator setup checklist](plans/ReleaseEvidenceAdministration.md) separates
+initial integration and platform qualification from the configured operating guide.
 
 ### Continuous integration on your pull request
 
