@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Server.AliasNames;
 
 namespace Opc.Ua.Server
 {
@@ -150,6 +151,60 @@ namespace Opc.Ua.Server
             IPushCertificateKeyGenerator? keyGenerator = null,
             IPushConfigurationTrustListEffectHandler? trustListEffectHandler = null,
             ServerConfigurationOptions? serverConfigurationOptions = null)
+            : this(
+                server,
+                configuration,
+                logger,
+                timeProvider,
+                coordinator,
+                pendingKeyStore,
+                keyGenerator,
+                trustListEffectHandler,
+                serverConfigurationOptions,
+                aliasNameOptions: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the configuration and diagnostics manager with explicit
+        /// PushManagement dependencies and optional alias-name materialization.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="logger">The logger.</param>
+        /// <param name="timeProvider">
+        /// The timer and delay provider, or <see langword="null"/> to use the server's provider
+        /// when available and <see cref="TimeProvider.System"/> otherwise.
+        /// </param>
+        /// <param name="coordinator">
+        /// The shared transaction coordinator, or <see langword="null"/> to create the default.
+        /// </param>
+        /// <param name="pendingKeyStore">
+        /// The pending signing-request key store, or <see langword="null"/> to create the default.
+        /// </param>
+        /// <param name="keyGenerator">
+        /// The signing-request key generator, or <see langword="null"/> to create the default.
+        /// </param>
+        /// <param name="trustListEffectHandler">
+        /// The post-ApplyChanges TrustList effect handler, or <see langword="null"/> to create the default.
+        /// </param>
+        /// <param name="serverConfigurationOptions">
+        /// The optional ServerConfiguration surface, or <see langword="null"/> to use its defaults.
+        /// </param>
+        /// <param name="aliasNameOptions">
+        /// The alias-name address-space options, or <see langword="null"/> to leave materialization disabled.
+        /// </param>
+        public ConfigurationNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            ILogger logger,
+            TimeProvider? timeProvider,
+            IPushConfigurationTransactionCoordinator? coordinator,
+            IPendingCertificateKeyStore? pendingKeyStore,
+            IPushCertificateKeyGenerator? keyGenerator,
+            IPushConfigurationTrustListEffectHandler? trustListEffectHandler,
+            ServerConfigurationOptions? serverConfigurationOptions,
+            AliasNameServerOptions? aliasNameOptions)
             : base(server, configuration, logger, timeProvider)
         {
             m_timeProvider = timeProvider
@@ -162,6 +217,7 @@ namespace Opc.Ua.Server
             m_trustListEffectHandler = trustListEffectHandler
                 ?? new PushConfigurationTrustListEffectHandler(server.Telemetry);
             m_serverConfigurationOptions = serverConfigurationOptions ?? new ServerConfigurationOptions();
+            m_aliasNameOptions = aliasNameOptions ?? new AliasNameServerOptions();
             CertificateStoreIdentifier? rejectedStore =
                 configuration.SecurityConfiguration.RejectedCertificateStore;
             if (!string.IsNullOrEmpty(rejectedStore?.StorePath))
@@ -435,8 +491,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Loads the predefined configuration nodes and then creates the
-        /// optional per-certificate-group alarm instances
+        /// Loads the predefined configuration nodes, materializes registered
+        /// aliases when enabled, and then creates the optional per-certificate-group alarm instances
         /// (<c>CertificateExpired</c> and <c>TrustListOutOfDate</c>,
         /// OPC 10000-12 §7.8.3). The alarm nodes are created here - once the
         /// certificate-group nodes exist - and initialized in an inactive,
@@ -451,6 +507,12 @@ namespace Opc.Ua.Server
         {
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
+
+            if (m_aliasNameOptions.MaterializeAliasNodes)
+            {
+                await MaterializeRegisteredAliasNameNodesAsync(externalReferences, cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             await CreateCertificateAlarmsAsync(
                 SystemContext,
@@ -1099,6 +1161,7 @@ namespace Opc.Ua.Server
         private readonly IPushCertificateKeyGenerator m_keyGenerator;
         private readonly IPushConfigurationTrustListEffectHandler m_trustListEffectHandler;
         private readonly ServerConfigurationOptions m_serverConfigurationOptions;
+        private readonly AliasNameServerOptions m_aliasNameOptions;
         private ApplicationConfigurationFile? m_configurationFile;
         private readonly List<ServerCertificateGroup> m_certificateGroups;
         private readonly CertificateStoreIdentifier? m_rejectedStore;

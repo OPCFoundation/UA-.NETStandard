@@ -1271,6 +1271,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         private const int kMaxStackallocChars = 256;
 
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
         /// <summary>
         /// The longest UTF-8 encoding of a path hashed on the stack.
         /// </summary>
@@ -1281,6 +1282,7 @@ namespace Opc.Ua.Server
         /// a stack sized path.
         /// </remarks>
         private const int kMaxStackallocBytes = kMaxStackallocChars * 3;
+#endif
 
         /// <summary>
         /// The identifiers minted so far, each with a witness of the browse

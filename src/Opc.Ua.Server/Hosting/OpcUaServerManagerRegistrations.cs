@@ -170,6 +170,9 @@ namespace Opc.Ua.Server.Hosting
                     registration.Resolve(services),
                     registration.OwnsProvider);
             }
+            server.AddPreStartupTask(
+                services.GetService<OpcUaServerAliasNameStartupTask>() ??
+                    new OpcUaServerAliasNameStartupTask(services));
             foreach (IServerPreStartupTask task in
                 services.GetServices<IServerPreStartupTask>())
             {

@@ -98,14 +98,14 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
-        public void DefaultNextAsyncCompletesSynchronously()
+        public async Task DefaultNextAsyncCompletesSynchronouslyAsync()
         {
             using NodeBrowser browser = CreateBrowser(CreateReferences(1));
 
             ValueTask<IReference?> pending = browser.NextAsync();
 
             Assert.That(pending.IsCompletedSuccessfully, Is.True);
-            Assert.That(pending.Result, Is.Not.Null);
+            Assert.That(await pending.ConfigureAwait(false), Is.Not.Null);
         }
 
         [Test]

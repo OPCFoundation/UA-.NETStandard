@@ -230,6 +230,10 @@ namespace Opc.Ua.Redundancy.Server
         /// <summary>
         /// Waits until inbound apply advances beyond <paramref name="observedCount"/>.
         /// </summary>
+        /// <remarks>
+        /// This observes received state frames, not acknowledgements of outgoing snapshots.
+        /// A converged peer does not rebroadcast a no-op merge, so sending a snapshot need not advance this count.
+        /// </remarks>
         /// <param name="observedCount">The inbound apply count already observed by the caller.</param>
         /// <returns>
         /// A task that completes when a later inbound apply has completed, or immediately when it already did.

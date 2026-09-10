@@ -41,7 +41,6 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
-using Opc.Ua.Server.AliasNames;
 using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server.Hosting
@@ -60,7 +59,6 @@ namespace Opc.Ua.Server.Hosting
         private readonly ITelemetryContext m_telemetry;
         private readonly IApplicationInstanceFactory m_applicationFactory;
         private readonly IOpcUaApplicationConfigurationProvider? m_configurationProvider;
-        private readonly IEnumerable<OpcUaServerNodeManagerRegistration> m_registrations;
         private readonly IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> m_identityRegistrations;
         private readonly IEnumerable<OpcUaServerIdentityAugmenterRegistration> m_augmenterRegistrations;
         private readonly IEnumerable<KeyCredentialPushSubject> m_keyCredentialPushSubjects;
@@ -70,7 +68,7 @@ namespace Opc.Ua.Server.Hosting
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger<OpcUaServerHostedService> m_logger;
         // CA2213: ApplicationInstance is IAsyncDisposable; it is owned either
-        // by this service and disposed in StopAsync or by the shared provider.
+        // by this service and disposed during execution cleanup or by the shared provider.
 #pragma warning disable CA2213
         private IApplicationInstance? m_application;
 #pragma warning restore CA2213
@@ -85,7 +83,6 @@ namespace Opc.Ua.Server.Hosting
             ITelemetryContext telemetry,
             IApplicationInstanceFactory applicationFactory,
             IEnumerable<IOpcUaApplicationConfigurationProvider> configurationProviders,
-            IEnumerable<OpcUaServerNodeManagerRegistration> registrations,
             IEnumerable<OpcUaServerIdentityAuthenticatorRegistration> identityRegistrations,
             IEnumerable<OpcUaServerIdentityAugmenterRegistration> augmenterRegistrations,
             IEnumerable<KeyCredentialPushSubject> keyCredentialPushSubjects,
@@ -110,7 +107,6 @@ namespace Opc.Ua.Server.Hosting
             {
                 m_configurationProvider = provider;
             }
-            m_registrations = registrations ?? throw new ArgumentNullException(nameof(registrations));
             m_identityRegistrations = identityRegistrations ??
                 throw new ArgumentNullException(nameof(identityRegistrations));
             m_augmenterRegistrations = augmenterRegistrations ??
@@ -125,7 +121,39 @@ namespace Opc.Ua.Server.Hosting
             m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
+        /// <summary>
+        /// Waits for server cleanup before the host disposes its injected services.
+        /// </summary>
+        public override async Task StopAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await base.StopAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (ExecuteTask is { } execution)
+                {
+                    // Keep dependencies alive through cleanup; execution failures remain on ExecuteTask,
+                    // matching BackgroundService.StopAsync rather than rethrowing them during shutdown.
+                    await Task.WhenAny(execution).ConfigureAwait(false);
+                }
+            }
+        }
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            try
+            {
+                await RunServerAsync(stoppingToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                await StopApplicationAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        private async Task RunServerAsync(CancellationToken stoppingToken)
         {
             ICertificateManager? certificateManager =
                 m_services.GetService<ICertificateManager>();
@@ -244,11 +272,16 @@ namespace Opc.Ua.Server.Hosting
                 m_server.RateLimitOptions = rateLimitOptions;
             }
 
-            foreach (OpcUaServerNodeManagerRegistration reg in m_registrations)
+            foreach (OpcUaServerNodeManagerRegistration reg in
+                m_services.GetServices<OpcUaServerNodeManagerRegistration>())
             {
-                if (reg.AsyncFactory is not null)
+                stoppingToken.ThrowIfCancellationRequested();
+                ArrayOf<IAsyncNodeManagerFactory> factories = reg.ResolveAsyncFactories(m_services, configuration);
+                foreach (IAsyncNodeManagerFactory factory in factories)
                 {
-                    m_server.AddNodeManager(reg.AsyncFactory);
+                    m_server.AddNodeManager(factory ??
+                        throw new InvalidOperationException(
+                            "The node-manager factories callback returned a null factory."));
                 }
                 if (reg.SyncFactory is not null)
                 {
@@ -257,7 +290,6 @@ namespace Opc.Ua.Server.Hosting
             }
 
             await application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
-            RegisterPostStartRegistries();
             await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
             RegisterIdentityAuthenticators();
             RegisterIdentityAugmenters();
@@ -269,6 +301,7 @@ namespace Opc.Ua.Server.Hosting
             {
                 try
                 {
+                    stoppingToken.ThrowIfCancellationRequested();
                     await startupTask
                         .OnServerStartedAsync(m_server.CurrentInstance, stoppingToken)
                         .ConfigureAwait(false);
@@ -283,6 +316,7 @@ namespace Opc.Ua.Server.Hosting
                     {
                         m_logger.ServerStartupTaskStartupTaskFailedAfterServer(ex, startupTask.GetType().FullName);
                     }
+                    throw;
                 }
             }
 
@@ -472,32 +506,6 @@ namespace Opc.Ua.Server.Hosting
             }
         }
 
-        private void RegisterPostStartRegistries()
-        {
-            if (m_server is null or DependencyInjectionStandardServer)
-            {
-                return;
-            }
-
-            IServerInternal server = m_server.CurrentInstance;
-            if (server is IAliasNameStoreRegistryProvider aliasNameStoreRegistryProvider)
-            {
-                foreach (IAliasNameStoreRegistry registry in m_services.GetServices<IAliasNameStoreRegistry>())
-                {
-                    foreach (IAliasNameStore store in registry.Stores)
-                    {
-                        aliasNameStoreRegistryProvider.AliasNameStoreRegistry.Register(store);
-                    }
-                }
-
-                foreach (OpcUaServerAliasNameStoreRegistration registration in
-                    m_services.GetServices<OpcUaServerAliasNameStoreRegistration>())
-                {
-                    aliasNameStoreRegistryProvider.AliasNameStoreRegistry.Register(registration.Store);
-                }
-            }
-        }
-
         private void RegisterIdentityAugmenters()
         {
             if (m_server == null)
@@ -612,24 +620,20 @@ namespace Opc.Ua.Server.Hosting
             return false;
         }
 
-        /// <summary>
-        /// Stops the hosted server and disposes the application instance when this service owns it.
-        /// </summary>
-        public override async Task StopAsync(CancellationToken cancellationToken)
+        private async ValueTask StopApplicationAsync(CancellationToken cancellationToken)
         {
-            await base.StopAsync(cancellationToken).ConfigureAwait(false);
-
             if (m_server is not null)
             {
                 m_nodeManagerLifecycle.Detach(m_server.NodeManagerLifecycle);
             }
 
-            if (m_application != null)
+            IApplicationInstance? application = Interlocked.Exchange(ref m_application, null);
+            if (application != null)
             {
                 m_logger.StoppingOPCUAServer();
                 try
                 {
-                    await m_application.StopAsync(cancellationToken).ConfigureAwait(false);
+                    await application.StopAsync(cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -637,11 +641,18 @@ namespace Opc.Ua.Server.Hosting
                 }
                 finally
                 {
-                    if (m_ownsApplication)
+                    try
                     {
-                        await m_application.DisposeAsync().ConfigureAwait(false);
+                        if (m_ownsApplication)
+                        {
+                            await application.DisposeAsync().ConfigureAwait(false);
+                        }
                     }
-                    m_application = null;
+                    finally
+                    {
+                        m_server?.Dispose();
+                        m_server = null;
+                    }
                 }
             }
         }
