@@ -62,10 +62,26 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public bool GenerateNodeSetImportSupport { get; init; }
 
+        /// <summary>
+        /// When <c>true</c>, emits the import factory provider on its own and
+        /// leaves the model types to the assembly that owns them. Set when a
+        /// node manager binds to a model a referenced assembly supplies: the
+        /// provider implements an <c>Opc.Ua.Server</c> contract that a
+        /// model-only assembly cannot reference, so it has to be emitted
+        /// beside the manager rather than beside the model.
+        /// </summary>
+        public bool ImportSupportOnly { get; init; }
+
         /// <inheritdoc/>
         public IEnumerable<Resource> Emit()
         {
             m_initializers.Clear();
+            if (ImportSupportOnly)
+            {
+                return GenerateNodeSetImportSupport
+                    ? [EmitNodeSetImportSupport()]
+                    : [];
+            }
             if (m_instances.Count + m_nodes.Count == 0)
             {
                 return GenerateNodeSetImportSupport

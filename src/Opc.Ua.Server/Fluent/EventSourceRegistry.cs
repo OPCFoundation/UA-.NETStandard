@@ -83,11 +83,12 @@ namespace Opc.Ua.Server.Fluent
         /// <remarks>
         /// Designed to be called from the manager's <c>Configure</c>
         /// delegate, which runs single-threaded before clients connect.
-        /// In that context the synchronous wait on
-        /// <see cref="AsyncCustomNodeManager.AddRootNotifierAsync"/>
-        /// (when <see cref="EventPublishOptions.RegisterAsRootNotifier"/>
-        /// is set) cannot deadlock because no other thread is contending
-        /// on the manager's monitored-item semaphore.
+        /// Root-notifier registration (when
+        /// <see cref="EventPublishOptions.RegisterAsRootNotifier"/> is set)
+        /// cannot be awaited from there, so it is staged and drained by
+        /// <see cref="CompleteRegistrationsAsync"/>, which
+        /// <see cref="NodeManagerBuilder.SealAsync"/> awaits immediately
+        /// after <c>Configure</c> returns.
         /// </remarks>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="notifier"/> is null.
@@ -97,11 +98,6 @@ namespace Opc.Ua.Server.Fluent
         /// </exception>
         /// <exception cref="ServiceResultException">
         /// A source is already registered for <paramref name="notifier"/>.
-        /// </exception>
-        /// <exception cref="ServiceResultException">
-        /// <see cref="EventPublishOptions.RegisterAsRootNotifier"/> is
-        /// set and adding <paramref name="notifier"/> as a root notifier
-        /// failed.
         /// </exception>
         public void Register(
             BaseObjectState notifier,
@@ -132,36 +128,145 @@ namespace Opc.Ua.Server.Fluent
                         notifier.NodeId);
                 }
 
+                var entry = new SourceEntry(notifier, factory, options);
+
                 // Auto-promote EventNotifier so clients can subscribe to events on
                 // the node — Boiler-style models do not set this flag by default.
                 if ((notifier.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
                 {
                     notifier.EventNotifier |= EventNotifiers.SubscribeToEvents;
+                    entry.PromotedEventNotifier = true;
                     m_logger?.PublishPromotedEventNotifierOfBrowseIdNodeId(notifier.BrowseName, notifier.NodeId);
                 }
 
-                m_sources[notifier.NodeId] = new SourceEntry(notifier, factory, options);
+                m_sources[notifier.NodeId] = entry;
             }
 
-            // Root-notifier registration runs eagerly OUTSIDE m_sourcesLock so
-            // existing Server-level event monitored items get attached
-            // immediately. Lazy activation gated on AreEventsMonitored cannot
-            // bootstrap a root notifier (the gate is on the wrong node).
+            // Root-notifier registration has to await the manager's
+            // monitored-item semaphore, which Configure cannot do. Stage it
+            // here and let the seal drain it; lazy activation gated on
+            // AreEventsMonitored cannot bootstrap a root notifier (the gate
+            // is on the wrong node), so it has to happen before any client
+            // connects rather than on first subscription.
             if (options.RegisterAsRootNotifier)
             {
+                lock (m_pendingRootNotifiersLock)
+                {
+                    m_pendingRootNotifiers.Add(notifier);
+                }
+            }
+
+            SignalReconcile();
+        }
+
+        /// <summary>
+        /// Drains the registrations staged by <see cref="Register"/> that
+        /// could not complete synchronously — currently the root-notifier
+        /// registrations requested through
+        /// <see cref="EventPublishOptions.RegisterAsRootNotifier"/>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Awaited by <see cref="NodeManagerBuilder.SealAsync"/> once the
+        /// <c>Configure</c> pass returns. A source whose root-notifier
+        /// registration fails is rolled out of the registry before the
+        /// failure surfaces, so a half-registered source never survives a
+        /// failed seal.
+        /// </para>
+        /// <para>
+        /// Cancellation is not such a failure: it propagates as
+        /// <see cref="OperationCanceledException"/> and leaves the
+        /// still-unregistered notifiers staged, so a later seal can complete
+        /// them.
+        /// </para>
+        /// </remarks>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="ServiceResultException">
+        /// Adding a notifier as a root notifier failed.
+        /// </exception>
+        public async ValueTask CompleteRegistrationsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            BaseObjectState[] pending;
+            lock (m_pendingRootNotifiersLock)
+            {
+                if (m_pendingRootNotifiers.Count == 0)
+                {
+                    return;
+                }
+                pending = [.. m_pendingRootNotifiers];
+                m_pendingRootNotifiers.Clear();
+            }
+
+            for (int ii = 0; ii < pending.Length; ii++)
+            {
+                BaseObjectState notifier = pending[ii];
                 try
                 {
-                    m_owner.AddRootNotifierFromFluentAsync(notifier, CancellationToken.None)
-                        .GetAwaiter()
-                        .GetResult();
+                    await m_owner.AddRootNotifierFromFluentAsync(
+                        notifier,
+                        cancellationToken).ConfigureAwait(false);
+
+                    // Record that this registration is the one that added the
+                    // notifier, so release removes only what it put there.
+                    lock (m_sourcesLock)
+                    {
+                        if (m_sources.TryGetValue(
+                            notifier.NodeId,
+                            out SourceEntry? registered))
+                        {
+                            registered.RegisteredRootNotifier = true;
+                        }
+                    }
                     m_logger?.PublishRegisteredBrowseIdNodeIdAsA(notifier.BrowseName, notifier.NodeId);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    // A cancelled seal aborts the drain, it does not fail it:
+                    // the source stays registered and everything still
+                    // unregistered goes back on the queue, so cancellation
+                    // surfaces as cancellation and a later seal can finish
+                    // the job.
+                    RestagePendingRootNotifiers(pending, ii);
+                    throw;
                 }
                 catch (Exception ex)
                 {
+                    // Undo the promotion before dropping the entry: removing the entry
+                    // discards the only record that we set the flag, so clearing it
+                    // afterwards would be impossible and the node would keep a
+                    // SubscribeToEvents bit this failed registration put there.
                     lock (m_sourcesLock)
                     {
+                        if (m_sources.TryGetValue(
+                                notifier.NodeId,
+                                out SourceEntry? failed) &&
+                            failed.PromotedEventNotifier)
+                        {
+                            notifier.EventNotifier = (byte)(notifier.EventNotifier &
+                                unchecked((byte)~EventNotifiers.SubscribeToEvents));
+                        }
                         m_sources.Remove(notifier.NodeId);
                     }
+
+                    // AddRootNotifierAsync can also have inserted the notifier before
+                    // failing in its later awaited work, so undo that too.
+                    try
+                    {
+                        await m_owner.RemoveRootNotifierFromFluentAsync(
+                                notifier,
+                                CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception cleanupEx) when (
+                        cleanupEx is not OutOfMemoryException)
+                    {
+                        m_logger?.PublishReleaseFailedForBrowseIdNodeId(
+                            notifier.BrowseName,
+                            notifier.NodeId,
+                            cleanupEx);
+                    }
+
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
                         ex,
@@ -170,8 +275,29 @@ namespace Opc.Ua.Server.Fluent
                         notifier.NodeId);
                 }
             }
+        }
 
-            SignalReconcile();
+        /// <summary>
+        /// Puts the notifiers from <paramref name="startIndex"/> onwards back
+        /// at the front of the pending queue, keeping their registration order
+        /// ahead of anything staged while the drain was running.
+        /// </summary>
+        private void RestagePendingRootNotifiers(
+            BaseObjectState[] pending,
+            int startIndex)
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                return;
+            }
+
+            lock (m_pendingRootNotifiersLock)
+            {
+                for (int ii = pending.Length - 1; ii >= startIndex; ii--)
+                {
+                    m_pendingRootNotifiers.Insert(0, pending[ii]);
+                }
+            }
         }
 
         private static void ValidateOptions(EventPublishOptions options)
@@ -250,6 +376,14 @@ namespace Opc.Ua.Server.Fluent
                     waiter.Completion.TrySetCanceled();
                 }
                 m_waiters.Clear();
+            }
+
+            // A manager disposed before its builder sealed leaves staged
+            // root-notifier registrations behind; drop them rather than
+            // pinning the notifiers for the registry's lifetime.
+            lock (m_pendingRootNotifiersLock)
+            {
+                m_pendingRootNotifiers.Clear();
             }
 
             // Stop the reconcile loop first so it cannot race with us.
@@ -758,6 +892,59 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <summary>
+        /// Undoes what registration did to the address space, then stops the loop.
+        /// </summary>
+        /// <remarks>
+        /// Registration has two effects on nodes that nothing used to reverse: it ORs
+        /// SubscribeToEvents into the notifier's EventNotifier, and it adds the node as
+        /// a root notifier. A manager that is torn down and rebuilt in one process
+        /// otherwise leaves both behind.
+        /// </remarks>
+        internal async ValueTask ReleaseAsync()
+        {
+            List<SourceEntry> snapshot;
+            lock (m_sourcesLock)
+            {
+                snapshot = [.. m_sources.Values];
+            }
+
+            for (int i = snapshot.Count - 1; i >= 0; i--)
+            {
+                SourceEntry entry = snapshot[i];
+
+                if (entry.RegisteredRootNotifier)
+                {
+                    entry.RegisteredRootNotifier = false;
+                    try
+                    {
+                        await m_owner
+                            .RemoveRootNotifierFromFluentAsync(
+                                entry.Notifier,
+                                CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        m_logger?.PublishReleaseFailedForBrowseIdNodeId(
+                            entry.Notifier.BrowseName,
+                            entry.Notifier.NodeId,
+                            ex);
+                    }
+                }
+
+                if (entry.PromotedEventNotifier)
+                {
+                    entry.PromotedEventNotifier = false;
+                    entry.Notifier.EventNotifier =
+                        (byte)(entry.Notifier.EventNotifier &
+                            unchecked((byte)~EventNotifiers.SubscribeToEvents));
+                }
+            }
+
+            Dispose();
+        }
+
         private sealed class SourceEntry
         {
             public SourceEntry(
@@ -773,6 +960,18 @@ namespace Opc.Ua.Server.Fluent
             public BaseObjectState Notifier { get; }
             public Func<NodeState, ISystemContext, CancellationToken, IAsyncEnumerable<BaseEventState>> Factory { get; }
             public EventPublishOptions Options { get; }
+
+            /// <summary>
+            /// Set when registration turned on SubscribeToEvents, so release can turn
+            /// it off again and leave the node as the model declared it.
+            /// </summary>
+            public bool PromotedEventNotifier { get; set; }
+
+            /// <summary>
+            /// Set when registration added the node as a root notifier, so release can
+            /// remove it again.
+            /// </summary>
+            public bool RegisteredRootNotifier { get; set; }
             public CancellationTokenSource? WorkerCts;
             public Task? WorkerTask;
             public TaskCompletionSource<bool> Ready =
@@ -788,6 +987,8 @@ namespace Opc.Ua.Server.Fluent
         private readonly CancellationTokenSource m_managerCts;
         private readonly Task m_reconcileTask;
         private readonly Lock m_sourcesLock = new();
+        private readonly Lock m_pendingRootNotifiersLock = new();
+        private readonly List<BaseObjectState> m_pendingRootNotifiers = [];
         private readonly Dictionary<NodeId, SourceEntry> m_sources = [];
         private readonly List<ReadinessWaiter> m_waiters = [];
         private int m_disposed;
@@ -796,6 +997,24 @@ namespace Opc.Ua.Server.Fluent
     /// <summary>
     /// Source-generated log messages for EventSourceRegistry.
     /// </summary>
+    /// <summary>
+    /// Releases the event sources when the owning node manager tears down.
+    /// </summary>
+    internal sealed class EventSourceLifetime : IAsyncDisposable
+    {
+        public EventSourceLifetime(EventSourceRegistry registry)
+        {
+            m_registry = registry;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return m_registry.ReleaseAsync();
+        }
+
+        private readonly EventSourceRegistry m_registry;
+    }
+
     internal static partial class EventSourceRegistryLog
     {
         [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 0, Level = LogLevel.Debug,
@@ -882,6 +1101,14 @@ namespace Opc.Ua.Server.Fluent
             Exception ex,
             QualifiedName browse,
             NodeId nodeId);
+
+        [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 11, Level = LogLevel.Warning,
+            Message = "Publish: failed to release '{Browse}' (id '{NodeId}').")]
+        public static partial void PublishReleaseFailedForBrowseIdNodeId(
+            this ILogger logger,
+            QualifiedName browse,
+            NodeId nodeId,
+            Exception ex);
     }
 
 }

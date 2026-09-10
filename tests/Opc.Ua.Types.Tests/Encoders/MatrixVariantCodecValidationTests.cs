@@ -175,6 +175,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => decoder.ReadVariant(null));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.InnerException, Is.Null);
         }
 
         [Test]
@@ -197,6 +198,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => decoder.ReadVariant(null));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.InnerException, Is.Null);
         }
 
         [Test]
@@ -216,6 +218,41 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => decoder.ReadVariant(null));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.InnerException, Is.Null);
+        }
+
+        [Test]
+        public void BinaryDecodeSourcePicosecondsWithoutTimestampThrowsBadDecodingError()
+        {
+            byte[] bytes =
+            [
+                0x10,
+                0x01, 0x00
+            ];
+            ServiceMessageContext ctx = CreateContext();
+            using var decoder = new BinaryDecoder(bytes, ctx);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadDataValue(null));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.InnerException, Is.Null);
+        }
+
+        [Test]
+        public void BinaryDecodeServerPicosecondsWithoutTimestampThrowsBadDecodingError()
+        {
+            byte[] bytes =
+            [
+                0x20,
+                0x01, 0x00
+            ];
+            ServiceMessageContext ctx = CreateContext();
+            using var decoder = new BinaryDecoder(bytes, ctx);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadDataValue(null));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.InnerException, Is.Null);
         }
 
         [Test]
@@ -257,6 +294,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => decoder.ReadVariant("v"));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.InnerException, Is.Null);
         }
 
         [Test]
@@ -270,6 +308,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => decoder.ReadVariant("v"));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.InnerException, Is.TypeOf<ArgumentException>());
         }
 
         [Test]
@@ -283,6 +322,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => decoder.ReadVariant("v"));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.InnerException, Is.Null);
         }
 
         [Test]
@@ -322,6 +362,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => DecodeXmlVariant(ZeroDimensionMatrixXml));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.InnerException, Is.Null);
         }
 
         [Test]
@@ -330,6 +371,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => DecodeXmlVariant(ProductMismatchMatrixXml));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.InnerException, Is.Null);
         }
 
         [Test]
@@ -353,6 +395,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => DecodeXmlParserVariant(ZeroDimensionMatrixXml));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.InnerException, Is.Null);
         }
 
         [Test]
@@ -361,6 +404,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => DecodeXmlParserVariant(ProductMismatchMatrixXml));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.InnerException, Is.Null);
         }
 
         [Test]
@@ -373,6 +417,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => DecodeDataValueViaXmlParser(payload));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.InnerException, Is.Null);
         }
 
         [Test]
@@ -385,6 +430,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => DecodeDataValueViaXmlParser(payload));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.InnerException, Is.Null);
         }
 
         private static string EncodeXmlVariant(ServiceMessageContext ctx, Variant variant)

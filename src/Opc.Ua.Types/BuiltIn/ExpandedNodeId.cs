@@ -1464,7 +1464,7 @@ namespace Opc.Ua
             if (namespaceIndex > 0)
             {
                 value = new ExpandedNodeId(
-                    nodeId.WithNamespaceIndex((ushort)namespaceIndex),
+                    WithResolvedNamespace(nodeId, (ushort)namespaceIndex),
                     null,
                     (uint)serverIndex);
             }
@@ -1474,6 +1474,32 @@ namespace Opc.Ua
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Applies a resolved namespace index to a parsed NodeId.
+        /// <para>
+        /// WithNamespaceIndex deliberately leaves a null NodeId untouched, but an identifier
+        /// that is zero or empty is only null while it also sits in namespace zero. Rebuilding
+        /// the NodeId here keeps the two textual forms of the same value in agreement, so
+        /// "nsu=&lt;uri&gt;;i=0" parses exactly like the "ns=&lt;index&gt;;i=0" form instead of
+        /// silently discarding the namespace.
+        /// </para>
+        /// </summary>
+        private static NodeId WithResolvedNamespace(NodeId nodeId, ushort namespaceIndex)
+        {
+            if (!nodeId.IsNull)
+            {
+                return nodeId.WithNamespaceIndex(namespaceIndex);
+            }
+
+            return nodeId.IdType switch
+            {
+                IdType.String => new NodeId(nodeId.StringIdentifier, namespaceIndex),
+                IdType.Guid => new NodeId(nodeId.GuidIdentifier, namespaceIndex),
+                IdType.Opaque => new NodeId(nodeId.OpaqueIdentifier, namespaceIndex),
+                _ => new NodeId(nodeId.NumericIdentifier, namespaceIndex)
+            };
         }
 
         /// <summary>

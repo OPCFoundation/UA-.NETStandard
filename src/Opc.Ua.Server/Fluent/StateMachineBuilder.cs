@@ -255,6 +255,10 @@ namespace Opc.Ua.Server.Fluent
 
             if (!m_simulationRegistered)
             {
+                // Reaches the registry directly rather than through Simulation(...), so
+                // it has to register the lifecycle behavior itself — that behavior is
+                // what starts the loops and releases them again.
+                root.EnsureSimulationLifecycleRegistered();
                 root.Simulations
                     .NewSimulation(s_timedTransitionTickInterval)
                     .OnTick(OnSimulationTick);

@@ -21,14 +21,18 @@
   <PropertyGroup Condition="'$(LibFuzzer)' == 'true'">
     <DefineConstants>$(DefineConstants);LIBFUZZER</DefineConstants>
   </PropertyGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(OneFuzz)' != 'true'">
     <Compile Include="..\Common\Fuzz\Program.cs" Link="Program.cs" />
     <Compile Include="..\Common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
   </ItemGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(OneFuzz)' != 'true'">
     <PackageReference Include="SharpFuzz" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core.Diagnostics\Opc.Ua.Core.Diagnostics.csproj" />
+  </ItemGroup>
+  <Import Project="..\OneFuzz\OneFuzz.targets" Condition="'$(OneFuzz)' == 'true'" />
+  <ItemGroup>
+    <Compile Include="..\Common\Fuzz\EncodingFidelityException.cs" Link="EncodingFidelityException.cs" />
   </ItemGroup>
 </Project>

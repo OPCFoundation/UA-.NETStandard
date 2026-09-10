@@ -2515,13 +2515,38 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     ex,
-                    "Invalid variant matrix dimensions.");
+                    "Variant matrix Dimensions are inconsistent.");
             }
             finally
             {
                 m_nestingLevel--;
             }
             return value;
+
+            MatrixOf<T> ToMatrix<T>(ArrayOf<T> elements, int[] dimensions)
+            {
+                if (!MatrixOf.IsValidMatrix(dimensions, elements.Count))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Variant matrix Dimensions [{0}] are inconsistent with {1} element(s).",
+                        string.Join(",", dimensions),
+                        elements.Count);
+                }
+
+                try
+                {
+                    return elements.ToMatrix(dimensions);
+                }
+                catch (ArgumentException)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Variant matrix Dimensions [{0}] are inconsistent with {1} element(s).",
+                        string.Join(",", dimensions),
+                        elements.Count);
+                }
+            }
 
             Variant ReadMatrix(int[] dimensions)
             {
@@ -2548,64 +2573,64 @@ namespace Opc.Ua
                 switch (elementTypeName)
                 {
                     case "Boolean":
-                        return Variant.From(ReadBooleanArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadBooleanArray(null), dimensions));
                     case "SByte":
-                        return Variant.From(ReadSByteArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadSByteArray(null), dimensions));
                     case "Byte":
-                        return Variant.From(ReadByteArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadByteArray(null), dimensions));
                     case "Int16":
-                        return Variant.From(ReadInt16Array(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadInt16Array(null), dimensions));
                     case "UInt16":
-                        return Variant.From(ReadUInt16Array(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadUInt16Array(null), dimensions));
                     case "Int32":
-                        return Variant.From(ReadInt32Array(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadInt32Array(null), dimensions));
                     case "UInt32":
-                        return Variant.From(ReadUInt32Array(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadUInt32Array(null), dimensions));
                     case "Int64":
-                        return Variant.From(ReadInt64Array(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadInt64Array(null), dimensions));
                     case "UInt64":
-                        return Variant.From(ReadUInt64Array(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadUInt64Array(null), dimensions));
                     case "Float":
-                        return Variant.From(ReadFloatArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadFloatArray(null), dimensions));
                     case "Double":
-                        return Variant.From(ReadDoubleArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadDoubleArray(null), dimensions));
                     case "String":
 #pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
-                        return Variant.From(ReadStringArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadStringArray(null), dimensions));
 #pragma warning restore CS8620
                     case "DateTime":
-                        return Variant.From(ReadDateTimeArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadDateTimeArray(null), dimensions));
                     case "Guid":
-                        return Variant.From(ReadGuidArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadGuidArray(null), dimensions));
                     case "ByteString":
-                        return Variant.From(ReadByteStringArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadByteStringArray(null), dimensions));
                     case "XmlElement":
-                        return Variant.From(ReadXmlElementArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadXmlElementArray(null), dimensions));
                     case "NodeId":
-                        return Variant.From(ReadNodeIdArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadNodeIdArray(null), dimensions));
                     case "ExpandedNodeId":
                         return Variant.From(
-                            ReadExpandedNodeIdArray(null).ToMatrix(dimensions));
+                            ToMatrix(ReadExpandedNodeIdArray(null), dimensions));
                     case "StatusCode":
                         return Variant.From(
-                            ReadStatusCodeArray(null).ToMatrix(dimensions));
+                            ToMatrix(ReadStatusCodeArray(null), dimensions));
                     case "QualifiedName":
                         return Variant.From(
-                            ReadQualifiedNameArray(null).ToMatrix(dimensions));
+                            ToMatrix(ReadQualifiedNameArray(null), dimensions));
                     case "LocalizedText":
                         return Variant.From(
-                            ReadLocalizedTextArray(null).ToMatrix(dimensions));
+                            ToMatrix(ReadLocalizedTextArray(null), dimensions));
                     case "ExtensionObject":
                         return Variant.From(
-                            ReadExtensionObjectArray(null).ToMatrix(dimensions));
+                            ToMatrix(ReadExtensionObjectArray(null), dimensions));
                     case "DataValue":
 #pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
                         return Variant.From(
-                            ReadDataValueArray(null).ToMatrix(dimensions));
+                            ToMatrix(ReadDataValueArray(null), dimensions));
 #pragma warning restore CS8620
                     case "Variant":
                         return Variant.From(
-                            ReadVariantArray(null).ToMatrix(dimensions));
+                            ToMatrix(ReadVariantArray(null), dimensions));
                     default:
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,

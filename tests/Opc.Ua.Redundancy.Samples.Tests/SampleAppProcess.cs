@@ -54,14 +54,17 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         /// <param name="assemblyName">The sample application assembly (dll) name without extension.</param>
         /// <param name="arguments">The command-line arguments passed to the sample application.</param>
         /// <param name="environment">Additional environment variables set for the process.</param>
+        /// <param name="writeOutput">Receives captured output, or uses the NUnit progress stream.</param>
         public SampleAppProcess(
             string name,
             string applicationDirectory,
             string assemblyName,
             IReadOnlyList<string> arguments,
-            IReadOnlyDictionary<string, string?>? environment = null)
+            IReadOnlyDictionary<string, string?>? environment = null,
+            Action<string>? writeOutput = null)
         {
             Name = name;
+            m_writeOutput = writeOutput ?? TestContext.Progress.WriteLine;
             string dll = LocateApplicationAssembly(applicationDirectory, assemblyName);
             var startInfo = new ProcessStartInfo
             {
@@ -125,7 +128,8 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 .ConfigureAwait(false) ??
                 throw new TimeoutException(
                     $"Sample process '{Name}' did not emit a line containing '{substring}' within {timeout}. " +
-                    $"Process {(HasExited ? "has exited" : "is still running")}.");
+                    $"Process {(HasExited ? $"has exited (code {m_process.ExitCode})" : "is still running")}. " +
+                    $"Last output:{Environment.NewLine}{GetOutputTail(20)}");
         }
 
         /// <summary>
@@ -153,6 +157,27 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                             return m_lines[index];
                         }
                     }
+                }
+
+                if (HasExited)
+                {
+                    TimeSpan remaining = deadline - DateTime.UtcNow;
+                    if (remaining <= TimeSpan.Zero ||
+                        !await WaitForExitAndOutputAsync(remaining, cancellationToken).ConfigureAwait(false))
+                    {
+                        return null;
+                    }
+                    lock (m_lock)
+                    {
+                        for (; index < m_lines.Count; index++)
+                        {
+                            if (m_lines[index].Contains(substring, StringComparison.Ordinal))
+                            {
+                                return m_lines[index];
+                            }
+                        }
+                    }
+                    return null;
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
@@ -202,6 +227,27 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Returns the index of the last captured output line containing the given substring, or <c>-1</c>.
+        /// </summary>
+        /// <param name="substring">The substring to search for (ordinal, case-sensitive).</param>
+        /// <returns>The zero-based index of the last matching line, or <c>-1</c>.</returns>
+        public int LastLineIndexContaining(string substring)
+        {
+            lock (m_lock)
+            {
+                for (int index = m_lines.Count - 1; index >= 0; index--)
+                {
+                    if (m_lines[index].Contains(substring, StringComparison.Ordinal))
+                    {
+                        return index;
+                    }
+                }
+            }
+
+            return -1;
         }
 
         /// <summary>
@@ -256,22 +302,13 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         }
 
         /// <summary>
-        /// Waits for the process to exit, or the timeout to elapse.
+        /// Waits for process exit and redirected output completion, or the timeout to elapse.
         /// </summary>
         /// <param name="timeout">The maximum time to wait.</param>
         /// <returns><c>true</c> when the process exited before the timeout.</returns>
-        public async Task<bool> WaitForExitAsync(TimeSpan timeout)
+        public Task<bool> WaitForExitAsync(TimeSpan timeout)
         {
-            using var cts = new CancellationTokenSource(timeout);
-            try
-            {
-                await m_process.WaitForExitAsync(cts.Token).ConfigureAwait(false);
-                return true;
-            }
-            catch (OperationCanceledException)
-            {
-                return false;
-            }
+            return WaitForExitAndOutputAsync(timeout, CancellationToken.None);
         }
 
         /// <summary>
@@ -302,6 +339,22 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             m_process.Dispose();
         }
 
+        private async Task<bool> WaitForExitAndOutputAsync(TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            using var deadline = new CancellationTokenSource(timeout);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+            try
+            {
+                await m_process.WaitForExitAsync(linked.Token).ConfigureAwait(false);
+                return true;
+            }
+            catch (OperationCanceledException) when (deadline.IsCancellationRequested &&
+                !cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+        }
+
         private void OnOutput(object sender, DataReceivedEventArgs e)
         {
             if (e.Data == null)
@@ -314,7 +367,16 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 m_lines.Add(e.Data);
             }
 
-            TestContext.Progress.WriteLine($"[{Name}] {e.Data}");
+            m_writeOutput($"[{Name}] {e.Data}");
+        }
+
+        private string GetOutputTail(int maximumLines)
+        {
+            lock (m_lock)
+            {
+                int start = Math.Max(0, m_lines.Count - maximumLines);
+                return string.Join(Environment.NewLine, m_lines.GetRange(start, m_lines.Count - start));
+            }
         }
 
         private static string LocateApplicationAssembly(string applicationDirectory, string assemblyName)
@@ -395,6 +457,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         }
 
         private readonly Process m_process;
+        private readonly Action<string> m_writeOutput;
         private readonly List<string> m_lines = [];
         private readonly Lock m_lock = new();
     }

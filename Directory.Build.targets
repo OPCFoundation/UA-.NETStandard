@@ -61,6 +61,10 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
     <OutputType>Library</OutputType>
+    <!-- An Exe project that names an entry point still passes /main to the
+         compiler, which is CS2017 once the shell downgrades it to a library. -->
+    <StartupObject />
+    <GenerateProgramFile>false</GenerateProgramFile>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
     <EnableDefaultNoneItems>false</EnableDefaultNoneItems>
@@ -75,6 +79,11 @@
          assembly providing System.Object; supply an explicit RuntimeMetadataVersion
          so the empty assembly still compiles (net4x get it from the targeting pack). -->
     <RuntimeMetadataVersion Condition="'$(RuntimeMetadataVersion)' == ''">v4.0.30319</RuntimeMetadataVersion>
+    <!-- The shell is an empty assembly, so there is nothing to test. Leaving it
+         marked as a test project makes `dotnet test` on a legacy leg launch a
+         test host for output the leg cannot load. -->
+    <IsTestProject>false</IsTestProject>
+    <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
   </PropertyGroup>
   <ItemGroup Condition="'$(_RestrictedToLegacyTfm)' == 'true'">
     <Compile Remove="@(Compile)" />

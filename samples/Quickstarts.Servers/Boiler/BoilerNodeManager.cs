@@ -71,20 +71,12 @@ namespace Boiler
             Server.NamespaceUris.GetIndexOrAppend(namespaceUris[0]);
             m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);
 
-            m_lastUsedId = 0;
+            // counter identifiers in the boiler namespace, which is the
+            // second one this manager owns.
+            NodeIdFactory = NodeIdFactory
+                .WithMode(NodeIdAssignmentMode.Counter)
+                .WithDefaultNamespaceIndex(m_namespaceIndex);
             m_boilers = [];
-        }
-
-        /// <summary>
-        /// Creates the NodeId for the specified node.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="node">The node.</param>
-        /// <returns>The new NodeId.</returns>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            uint id = Utils.IncrementIdentifier(ref m_lastUsedId);
-            return new NodeId(id, m_namespaceIndex);
         }
 
         /// <summary>
@@ -116,7 +108,16 @@ namespace Boiler
 
             string name = Utils.Format("Boiler #{0}", unitNumber);
 
-            boiler.Create(context, default, new QualifiedName(name, m_namespaceIndex), default, true);
+            // A generated state object is born carrying its own type's NodeId,
+            // and Create only replaces that when handed one. Passing the null
+            // NodeId would leave this boiler sitting on BoilerType, so the
+            // second boiler would overwrite the ObjectType in the index.
+            // CreateInstance builds the subtree and then rebases the root and
+            // its children onto fresh instance identifiers.
+            context.CreateInstance(
+                boiler,
+                new QualifiedName(name, m_namespaceIndex),
+                new LocalizedText(name));
 
             NodeState folder = FindPredefinedNode<NodeState>(
                 ExpandedNodeId.ToNodeId(ObjectIds.Boilers, Server.NamespaceUris)!)!;
@@ -272,7 +273,6 @@ namespace Boiler
         }
 
         private readonly ushort m_namespaceIndex;
-        private uint m_lastUsedId;
         private readonly List<BoilerState> m_boilers;
     }
 }

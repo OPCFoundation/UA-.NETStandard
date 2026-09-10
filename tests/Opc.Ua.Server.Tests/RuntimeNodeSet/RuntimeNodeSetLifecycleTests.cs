@@ -90,6 +90,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         private RequestHeader m_requestHeader;
         private SecureChannelContext m_secureChannelContext;
         private ILogger m_logger;
+        private HashSet<Guid> m_startupRegistrationIds;
 
         /// <summary>
         /// Starts a fresh <see cref="ReferenceServer"/> and activates a session for the test.
@@ -111,6 +112,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
             m_logger = NUnitTelemetryContext.Create().CreateLogger<RuntimeNodeSetLifecycleTests>();
+            m_startupRegistrationIds = [];
+            m_server.NodeManagerLifecycle.Registrations.ForEach(
+                registration => m_startupRegistrationIds.Add(registration.Id));
 
             (m_requestHeader, m_secureChannelContext) = await m_server
                 .CreateAndActivateSessionAsync(TestContext.CurrentContext.Test.Name)
@@ -143,6 +147,70 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             {
                 Directory.Delete(m_pkiRoot, recursive: true);
             }
+        }
+
+        [TestCase(true, false)]
+        [TestCase(false, false)]
+        [TestCase(true, true)]
+        [TestCase(false, true)]
+        public async Task RuntimeMethodCallsUseAuthoredArgumentsAsync(
+            bool includeParentHints,
+            bool useNamespaceUriTargets)
+        {
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(
+                    StartupRuntimeNodeSetServer.CreatePrimaryOptions(1, includeParentHints, useNamespaceUriTargets),
+                    null)
+                .ConfigureAwait(false);
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                StartupRuntimeNodeSetServer.PrimaryNamespaceUri);
+            var rootId = new NodeId(StartupRuntimeNodeSetServer.PrimaryRootNodeId, namespaceIndex);
+            var methodId = new NodeId(StartupRuntimeNodeSetServer.LoadMethodNodeId, namespaceIndex);
+            ArrayOf<CallMethodRequest> calls =
+            [
+                new CallMethodRequest
+                {
+                    ObjectId = rootId,
+                    MethodId = methodId,
+                    InputArguments = [Variant.From("Rev1")]
+                },
+                new CallMethodRequest { ObjectId = rootId, MethodId = methodId },
+                new CallMethodRequest
+                {
+                    ObjectId = rootId,
+                    MethodId = methodId,
+                    InputArguments = [Variant.From("Rev1"), Variant.From("Rev2")]
+                },
+                new CallMethodRequest
+                {
+                    ObjectId = rootId,
+                    MethodId = methodId,
+                    InputArguments = [Variant.From(42)]
+                }
+            ];
+
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            CallResponse response = await m_server.CallAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                calls,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(response.Results, Has.Count.EqualTo(4));
+            Assert.Multiple(() =>
+            {
+                Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(response.Results[0].OutputArguments, Has.Count.EqualTo(1));
+                Assert.That(response.Results[0].OutputArguments[0].GetBoolean(), Is.True);
+                Assert.That(response.Results[1].StatusCode, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+                Assert.That(response.Results[2].StatusCode, Is.EqualTo(StatusCodes.BadTooManyArguments));
+                Assert.That(response.Results[3].StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(response.Results[3].InputArgumentResults, Has.Count.EqualTo(1));
+                Assert.That(response.Results[3].InputArgumentResults[0], Is.EqualTo(StatusCodes.BadTypeMismatch));
+            });
+
+            await m_server.NodeManagerLifecycle.RemoveAsync(registration, null).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -700,7 +768,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                         .ConfigureAwait(false));
 
             Assert.That(exception.Message, Does.Contain("Duplicate NodeId"));
-            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+            Assert.That(GetNonStartupRegistrations(), Is.Empty);
             Assert.That(master.AsyncNodeManagers, Has.Count.EqualTo(managerCountBefore));
 
             int namespaceIndex = server.NamespaceUris.GetIndex(kModelNamespaceUri);
@@ -736,7 +804,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                         .ConfigureAwait(false));
 
             Assert.That(exception.Message, Does.Contain("not owned"));
-            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+            Assert.That(GetNonStartupRegistrations(), Is.Empty);
             Assert.That(master.AsyncNodeManagers, Has.Count.EqualTo(managerCountBefore));
 
             int externalNamespaceIndex =
@@ -800,7 +868,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     .With.Message.EqualTo(expectedMessage)).ConfigureAwait(false);
 
             ArrayOf<NodeManagerRegistration> registrations =
-                m_server.NodeManagerLifecycle.Registrations;
+                GetNonStartupRegistrations();
             Assert.That(registrations, Has.Count.EqualTo(1));
             NodeManagerRegistration current = registrations[0];
             Assert.That(current, Is.SameAs(original));
@@ -1723,6 +1791,19 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 m_logger);
 
             return response;
+        }
+
+        private ArrayOf<NodeManagerRegistration> GetNonStartupRegistrations()
+        {
+            var registrations = new List<NodeManagerRegistration>();
+            m_server.NodeManagerLifecycle.Registrations.ForEach(registration =>
+            {
+                if (!m_startupRegistrationIds.Contains(registration.Id))
+                {
+                    registrations.Add(registration);
+                }
+            });
+            return new ArrayOf<NodeManagerRegistration>(registrations.ToArray());
         }
 
         /// <summary>

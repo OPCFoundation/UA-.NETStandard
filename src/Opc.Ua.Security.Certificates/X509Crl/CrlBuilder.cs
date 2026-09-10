@@ -349,7 +349,7 @@ namespace Opc.Ua.Security.Certificates
                 WriteTime(crlWriter, ThisUpdate);
 
                 // next update is OPTIONAL
-                if (NextUpdate != DateTime.MinValue && NextUpdate > ThisUpdate)
+                if (NextUpdate != DateTime.MinValue)
                 {
                     // next update
                     WriteTime(crlWriter, NextUpdate);
@@ -409,14 +409,14 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Write either a UTC time or a Generalized time depending if DataTime is before or after 2050.
+        /// Write UTC time for 1950 through 2049 and GeneralizedTime outside that range.
         /// </summary>
         /// <param name="writer">The writer to write to.</param>
         /// <param name="dateTime">The date time to write.</param>
         private static void WriteTime(AsnWriter writer, DateTime dateTime)
         {
             DateTime utcTime = dateTime.ToUniversalTime();
-            if (utcTime.Year < 2050)
+            if (utcTime.Year is >= 1950 and < 2050)
             {
                 writer.WriteUtcTime(utcTime);
             }

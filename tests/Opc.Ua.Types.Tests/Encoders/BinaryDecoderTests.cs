@@ -4051,6 +4051,45 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.InnerStatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
 
+        [TestCase(0x01, nameof(DiagnosticInfo.SymbolicId))]
+        [TestCase(0x02, nameof(DiagnosticInfo.NamespaceUri))]
+        [TestCase(0x08, nameof(DiagnosticInfo.Locale))]
+        [TestCase(0x04, nameof(DiagnosticInfo.LocalizedText))]
+        public void ReadDiagnosticInfoRejectsInvalidNegativeStringTableIndex(int encodingMask, string fieldName)
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            byte[] buffer = [(byte)encodingMask, .. BitConverter.GetBytes(-2)];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDiagnosticInfo(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.Message, Does.Contain(fieldName));
+        }
+
+        [TestCase(0x01)]
+        [TestCase(0x02)]
+        [TestCase(0x08)]
+        [TestCase(0x04)]
+        public void ReadDiagnosticInfoAcceptsMinusOneStringTableIndex(int encodingMask)
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            byte[] buffer = [(byte)encodingMask, .. BitConverter.GetBytes(-1)];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            DiagnosticInfo result = decoder.ReadDiagnosticInfo(null);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+        }
+
         [Test]
         public void ReadDiagnosticInfoWithInnerDepthBelowMaxInnerDepthReadsSuccessfully()
         {

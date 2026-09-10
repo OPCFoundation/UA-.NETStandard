@@ -758,6 +758,62 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             });
         }
 
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void ReferenceOnlyArgumentsBindToAvailableMethodWithoutConsumingHandle(
+            bool inverseReference,
+            bool namespaceUriTarget)
+        {
+            SystemContext context = CreateContext();
+            var importer = new NodeSetImporter(context, factoryProvider: null);
+            string target = namespaceUriTarget
+                ? $"nsu={kNamespaceUri};i=1"
+                : "ns=1;i=1";
+            string inverse = inverseReference
+                ? $"<Reference ReferenceType=\"i=46\" IsForward=\"false\">{target}</Reference>"
+                : string.Empty;
+            UANodeSet children = ReadNodeSet(
+                $"""
+                  <UAVariable NodeId="ns=1;i=3" BrowseName="InputArguments" DataType="i=296" ValueRank="1">
+                    <References>
+                      <Reference ReferenceType="i=40">i=68</Reference>
+                      {inverse}
+                    </References>
+                  </UAVariable>
+                """);
+            importer.Import(children);
+            var child = (BaseInstanceState)Find(importer, 3);
+            var parent = new MethodState(null)
+            {
+                NodeId = new NodeId(1u, child.NodeId.NamespaceIndex),
+                BrowseName = new QualifiedName("Method", child.NodeId.NamespaceIndex)
+            };
+            if (!inverseReference)
+            {
+                parent.AddReference(
+                    ReferenceTypeIds.HasProperty,
+                    false,
+                    namespaceUriTarget
+                        ? new ExpandedNodeId(3u, kNamespaceUri)
+                        : child.NodeId);
+            }
+            var applicationHandle = new NodeId(999u, child.NodeId.NamespaceIndex);
+            child.Handle = applicationHandle;
+
+            importer.Complete(new Dictionary<NodeId, NodeState> { [parent.NodeId] = parent });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(parent.InputArguments, Is.SameAs(child));
+                Assert.That(child.Parent, Is.SameAs(parent));
+                Assert.That(child.Handle, Is.EqualTo(applicationHandle));
+                Assert.That(child.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasProperty));
+                Assert.That(UANodeSet.TryGetUnresolvedParentNodeId(child, out _), Is.False);
+            });
+        }
+
         [Test]
         public void DeferredLinkingPreservesApplicationHandle()
         {

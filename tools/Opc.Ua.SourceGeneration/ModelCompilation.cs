@@ -352,6 +352,11 @@ namespace Opc.Ua.SourceGeneration
                         "ModelSourceGeneratorOmitFluentApi cannot both be enabled."));
                 return false;
             }
+            // The project-wide switch would emit a conventionally named
+            // manager into the *referenced* model's own C# namespace for
+            // every design in the project. A [NodeManager] says which model
+            // gets a manager and what it is called, so that is the way to
+            // put one on a model a reference supplies.
             if (m_options.FluentAccessorsOnly && m_options.Options.GenerateNodeManager)
             {
                 m_context.ReportDiagnostic(
@@ -359,7 +364,9 @@ namespace Opc.Ua.SourceGeneration
                         SourceGenerator.FluentAccessorsOnlyOptionsError,
                         Location.None,
                         "ModelSourceGeneratorFluentAccessorsOnly cannot be combined with " +
-                        "ModelSourceGeneratorGenerateNodeManager."));
+                        "ModelSourceGeneratorGenerateNodeManager. Apply a [NodeManager] " +
+                        "attribute to the manager class instead; it binds to a model a " +
+                        "referenced assembly supplies without re-emitting the model."));
                 return false;
             }
             return true;

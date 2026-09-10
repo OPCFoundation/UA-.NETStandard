@@ -31,6 +31,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using NUnit.Framework;
 
 namespace Opc.Ua.Redundancy.Samples.Tests
 {
@@ -97,6 +98,44 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             int[] result = new int[count];
             ports.CopyTo(result);
             return result;
+        }
+
+        /// <summary>
+        /// Finds a free adjacent loopback pair for address-space gossip and its session-gossip port.
+        /// </summary>
+        /// <exception cref="System.InvalidOperationException">
+        /// No adjacent gossip port pair could be reserved within the retry limit.
+        /// </exception>
+        public static int GetFreeGossipPortPair()
+        {
+            for (int attempt = 0; attempt < 100; attempt++)
+            {
+                var first = new TcpListener(IPAddress.Loopback, 0);
+                TcpListener? second = null;
+                first.Start();
+                try
+                {
+                    int port = ((IPEndPoint)first.LocalEndpoint).Port;
+                    if (port == IPEndPoint.MaxPort)
+                    {
+                        continue;
+                    }
+                    second = new TcpListener(IPAddress.Loopback, port + 1);
+                    second.Start();
+                    return port;
+                }
+                catch (SocketException exception) when (
+                    exception.SocketErrorCode is SocketError.AddressAlreadyInUse or SocketError.AccessDenied)
+                {
+                    TestContext.Progress.WriteLine("Retrying unavailable adjacent gossip port: {0}", exception.Message);
+                }
+                finally
+                {
+                    second?.Stop();
+                    first.Stop();
+                }
+            }
+            throw new System.InvalidOperationException("Could not reserve an adjacent gossip port pair.");
         }
 
         private static readonly ConcurrentDictionary<int, byte> s_allocatedUdpPorts = new();

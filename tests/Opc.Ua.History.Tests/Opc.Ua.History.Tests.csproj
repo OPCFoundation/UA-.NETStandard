@@ -40,4 +40,8 @@
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\samples\Reference\ConsoleReferenceClient\HistorianClientSample.cs"
+             Link="HistorianClientSample.cs" />
+  </ItemGroup>
 </Project>

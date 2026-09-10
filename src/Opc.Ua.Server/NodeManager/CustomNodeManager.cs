@@ -398,7 +398,7 @@ namespace Opc.Ua.Server
                     catch (Exception ex) when (ex is not OutOfMemoryException)
                     {
                         var compensationFailures = new List<Exception>();
-                        NodeHandle compensationHandle =
+                        var compensationHandle =
                             (NodeHandle)monitoredItem.ManagerHandle;
                         (ServiceResult restoreResult, bool restored) =
                             lifecycle.AttachMonitoredItem(
@@ -465,7 +465,6 @@ namespace Opc.Ua.Server
             return new ValueTask<ServiceResult>(
                 AttachMonitoredItemForLifecycle(monitoredItem));
         }
-
 
         private ServiceResult ValidateMonitoredItemForLifecycle(IMonitoredItem monitoredItem)
         {
@@ -672,7 +671,7 @@ namespace Opc.Ua.Server
             ExtensionObject filter = storedItem.OriginalFilter == null
                 ? default
                 : new ExtensionObject(storedItem.OriginalFilter);
-            StatusCode statusCode = ValidateMonitoringFilter(
+            return ValidateMonitoringFilter(
                 context,
                 handle,
                 monitoredItem.AttributeId,
@@ -682,7 +681,6 @@ namespace Opc.Ua.Server
                 out _,
                 out _,
                 out _);
-            return statusCode;
         }
 
         private static bool CanSubscribeToEvents(NodeState source)
@@ -704,13 +702,22 @@ namespace Opc.Ua.Server
                 error.StatusCode == StatusCodes.BadDataEncodingUnsupported;
         }
 
+        /// <summary>
+        /// Whether root notifiers skip attachment to already existing event subscriptions.
+        /// </summary>
         internal bool SuppressExistingEventSubscriptions { get; set; }
 
+        /// <summary>
+        /// Gets the external references collected during address-space deletion.
+        /// </summary>
         internal List<LocalReference> GetRemovedExternalReferences()
         {
             return m_removedExternalReferences;
         }
 
+        /// <summary>
+        /// Clears the recorded external references pending removal.
+        /// </summary>
         internal void ClearRemovedExternalReferences()
         {
             m_removedExternalReferences = [];
@@ -1428,6 +1435,9 @@ namespace Opc.Ua.Server
             AddTypesToTypeTree(type);
         }
 
+        /// <summary>
+        /// Repopulates the server type tree with this manager's types and encoding relationships.
+        /// </summary>
         internal void RebuildTypeTree()
         {
             foreach (NodeState node in PredefinedNodes.Values)
@@ -2908,7 +2918,7 @@ namespace Opc.Ua.Server
                 false);
             e.SetChildValue(systemContext, BrowseNames.SourceName, "Server", false);
 
-            e.CreateOrReplaceChanges(systemContext, null!);
+            e.CreateOrReplaceChanges(systemContext, null);
 
             e!.Changes!.Value = new[]
                             {
@@ -2972,7 +2982,7 @@ namespace Opc.Ua.Server
                 false);
             e.SetChildValue(systemContext, BrowseNames.SourceName, "Server", false);
 
-            e.CreateOrReplaceChanges(systemContext, null!);
+            e.CreateOrReplaceChanges(systemContext, null);
             e!.Changes!.Value = changes;
 
             Server.ReportEvent(e);
@@ -3542,10 +3552,14 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            // check timestamps to return. Neither is not valid for HistoryRead: historical
-            // values always carry a source and/or server timestamp (OPC UA Part 11; CTT
-            // HA Read Raw Err-002).
-            if (timestampsToReturn is < TimestampsToReturn.Source or >= TimestampsToReturn.Neither)
+            bool timestampsInvalid = details is ReadEventDetails
+                ? timestampsToReturn is not TimestampsToReturn.Source and
+                    not TimestampsToReturn.Server and
+                    not TimestampsToReturn.Both and
+                    not TimestampsToReturn.Neither
+                : timestampsToReturn is < TimestampsToReturn.Source or
+                    >= TimestampsToReturn.Neither;
+            if (timestampsInvalid)
             {
                 throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
             }
@@ -3700,6 +3714,10 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
+                    if (nodeToUpdate.GetType() != detailsType)
+                    {
+                        continue;
+                    }
 
                     // check for valid handle.
                     NodeHandle? handle = GetManagerHandle(
@@ -3789,7 +3807,8 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (UpdateDataDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as UpdateDataDetails ??
+                        new UpdateDataDetails();
                 }
 
                 HistoryUpdateData(context, details, results, errors, nodesToProcess, cache);
@@ -3804,7 +3823,9 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (UpdateStructureDataDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as
+                        UpdateStructureDataDetails ??
+                        new UpdateStructureDataDetails();
                 }
 
                 HistoryUpdateStructureData(
@@ -3825,7 +3846,8 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (UpdateEventDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as UpdateEventDetails ??
+                        new UpdateEventDetails();
                 }
 
                 HistoryUpdateEvents(context, details, results, errors, nodesToProcess, cache);
@@ -3840,7 +3862,9 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (DeleteRawModifiedDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as
+                        DeleteRawModifiedDetails ??
+                        new DeleteRawModifiedDetails();
                 }
 
                 HistoryDeleteRawModified(context, details, results, errors, nodesToProcess, cache);
@@ -3855,7 +3879,8 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (DeleteAtTimeDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as DeleteAtTimeDetails ??
+                        new DeleteAtTimeDetails();
                 }
 
                 HistoryDeleteAtTime(context, details, results, errors, nodesToProcess, cache);
@@ -3870,7 +3895,8 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < details.Length; ii++)
                 {
-                    details[ii] = (DeleteEventDetails)nodesToUpdate[ii];
+                    details[ii] = nodesToUpdate[ii] as DeleteEventDetails ??
+                        new DeleteEventDetails();
                 }
 
                 HistoryDeleteEvents(context, details, results, errors, nodesToProcess, cache);
@@ -3919,7 +3945,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Updates the structured data history (Part 11 §5.2.7 Annotations).
+        /// Updates StructuredHistoryData or Annotations for one or more
+        /// historical nodes.
         /// </summary>
         protected virtual void HistoryUpdateStructureData(
             ServerSystemContext context,
@@ -3939,29 +3966,61 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (!HistorianDispatcher.IsAnnotationsProperty(source))
+                ValueTask<ServiceResult> dispatch;
+                if (HistorianDispatcher.IsAnnotationsProperty(source))
                 {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
+                    BaseVariableState? parent =
+                        HistorianDispatcher.GetAnnotationsParent(source);
+                    if (parent == null)
+                    {
+                        errors[handle.Index] =
+                            StatusCodes.BadHistoryOperationUnsupported;
+                        continue;
+                    }
+                    IHistorianProvider? annotationProvider =
+                        ResolveHistorianProvider(parent);
+                    if (annotationProvider == null)
+                    {
+                        errors[handle.Index] =
+                            StatusCodes.BadHistoryOperationUnsupported;
+                        continue;
+                    }
+                    dispatch =
+                        HistorianDispatcher.DispatchAnnotationUpdateAsync(
+                            context,
+                            annotationProvider,
+                            parent,
+                            nodesToUpdate[handle.Index],
+                            results[handle.Index],
+                            CancellationToken.None);
+                }
+                else
+                {
+                    if (source is not BaseVariableState)
+                    {
+                        errors[handle.Index] =
+                            StatusCodes.BadHistoryOperationUnsupported;
+                        continue;
+                    }
+                    IHistorianProvider? provider =
+                        ResolveHistorianProvider(source);
+                    if (provider == null)
+                    {
+                        errors[handle.Index] =
+                            StatusCodes.BadHistoryOperationUnsupported;
+                        continue;
+                    }
+                    dispatch =
+                        HistorianDispatcher.DispatchStructuredDataUpdateAsync(
+                            context,
+                            provider,
+                            source,
+                            nodesToUpdate[handle.Index],
+                            results[handle.Index],
+                            CancellationToken.None);
                 }
 
-                BaseVariableState? parent = HistorianDispatcher.GetAnnotationsParent(source);
-                if (parent == null)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(parent);
-                if (provider == null)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                errors[handle.Index] = HistorianDispatcher.DispatchAnnotationUpdateAsync(
-                    context, provider, parent, nodesToUpdate[handle.Index],
-                    results[handle.Index], CancellationToken.None)
+                errors[handle.Index] = dispatch
                     .AsTask().GetAwaiter().GetResult();
             }
         }

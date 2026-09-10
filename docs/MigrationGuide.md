@@ -51,121 +51,6 @@ Looking for the broader narrative (non-prescriptive overview of what
 changed in a release)? See
 [What's New in 2.0](WhatsNewIn2.0.md).
 
-## Migrating Robotics and Vision MCP requests
-
-The Robotics and Vision MCP tool names remain stable, but their request schemas
-are now strongly typed. Robotics tools no longer accept JSON encoded inside a
-string, and controller-scoped values can use an exact, unambiguous published
-name instead of copying every NodeId.
-
-For example, the old Pick request nested one JSON document inside another:
-
-```json
-{
-  "controllerId": "ns=3;s=7001_Controllers_BinPickingController",
-  "intentJson": "{\"intentId\":\"pick-red\",\"source\":\"ns=3;s=Bin\",\"tool\":\"ns=3;s=Gripper\",\"objectClass\":\"RedCube\"}"
-}
-```
-
-Pass the typed object directly now:
-
-```json
-{
-  "controller": "BinPickingController",
-  "input": {
-    "intentId": "pick-red",
-    "source": "Bin",
-    "tool": "ParallelGripper",
-    "objectClass": "RedCube"
-  }
-}
-```
-
-The same change applies to every `robotics_submit_*` tool. Motion poses,
-trajectory points, process attributes and program arguments are nested typed
-objects or arrays. Values that become OPC UA Variants use an explicit
-`dataType` plus `value`; they are never inferred through an `object`-typed API.
-
-Mission steps and transitions are arrays rather than stringified arrays. The
-intent `kind` is a closed discriminator. Kind-specific fields now sit directly
-beside it, so agents do not pay for or navigate 20 nested payload wrappers:
-
-```json
-{
-  "controller": "BinPickingController",
-  "missionId": "move-red",
-  "missionUpdateId": 1,
-  "steps": [
-    {
-      "stepId": "pick",
-      "released": true,
-      "intent": {
-        "kind": "Pick",
-        "source": "Bin",
-        "tool": "ParallelGripper",
-        "objectClass": "RedCube"
-      }
-    },
-    {
-      "stepId": "place",
-      "released": true,
-      "intent": {
-        "kind": "Place",
-        "destination": "Fixture",
-        "tool": "ParallelGripper"
-      }
-    }
-  ],
-  "transitions": []
-}
-```
-
-`robotics_list_operations` and `robotics_list_missions` now return bounded
-pages. Their optional `query` selects active or terminal work, filters by
-identifier/state, chooses `Summary` or `Full`, and carries an opaque
-continuation cursor. Use `robotics_wait_mission` with the MissionId and mission
-operation NodeId returned by `robotics_submit_mission`; timeout returns the
-current snapshot with `completed=false`, just like
-`robotics_wait_operation`.
-
-One-shot Vision inference also uses one structured request. Replace the old
-`pipelineNodeId` scalar:
-
-```json
-{
-  "pipelineNodeId": "ns=3;s=Vision/Pipelines/BinPickingPipeline"
-}
-```
-
-with:
-
-```json
-{
-  "request": {
-    "pipeline": "BinPickingPipeline",
-    "expectedKind": "Detection",
-    "detail": "Summary",
-    "maxItems": 20
-  }
-}
-```
-
-The result still includes the ResultId and result NodeId, and now also includes
-authoritative result kind/provenance plus a bounded detection, inspection or
-segmentation summary. The `vision_read_*_result` tools remain available when a
-caller needs the complete result.
-
-Callers that previously chained inference, detection selection, Pick and Place
-can instead use `robotics_vision_pick`. Its one structured request names the
-controller, pipeline, source, tool and optional destination plus detection
-filters. The result carries the selected detection provenance and either the
-intent operation or mission operation needed by the corresponding bounded wait
-tool. Command authority is still requested separately.
-
-Name matching is exact and ordinal after trimming. A missing or ambiguous name
-is an error that lists the matching candidates and NodeIds; the MCP layer never
-chooses the first candidate or requests command authority as a side effect.
-
 ## Migrating code that used the exposed diagnostics locks
 
 `IServerInternal`, `ISession` and `ISubscription` no longer expose their
@@ -349,6 +234,13 @@ a node halfway through a change.
 Analyzer `UA0027` flags `NodeBrowser.DataLock`. See
 [migrate/2.0.x/node-states.md](migrate/2.0.x/node-states.md).
 
+`INodeBrowser` also gains `NextAsync(CancellationToken)`, which the async server
+browse and translate-path loops use to iterate a browser. The default completes
+synchronously with `Next()`, so existing browsers are unaffected; a browser whose
+references come from I/O overrides `NextAsync` and awaits there instead of
+blocking inside `Next()`. Details in
+[migrate/2.0.x/node-states.md](migrate/2.0.x/node-states.md#nodebrowser-gains-an-async-iteration-seam).
+
 ## Migrating code that used ApplicationConfiguration.PropertiesLock
 
 `ApplicationConfiguration.PropertiesLock` was removed. It returned the
@@ -426,6 +318,20 @@ See
 for the before/after and
 [Custom node types and assignment control](NodeManagers.md#custom-node-types-and-assignment-control)
 for the runtime rules.
+
+## Adopting replica-consistent NodeIds
+
+When moving a custom 1.5.378 redundant deployment to the 2.0 shared address-space
+modules, configure [`UseReplicaNodeIdentity`](ReplicaNodeIdentity.md) with the same
+ordered model/instance namespace list on every replica. Namespace 1 remains local
+to each ApplicationUri; shared namespaces start at index 2. Do not assume that
+previously clock-seeded counters or namespace registration order form a portable
+identity contract. Preserve existing agreed IDs explicitly where compatible, or
+plan an offline namespace/identifier migration and client cutover.
+
+Unbound legacy shared state is not automatically adopted or renumbered. The
+identity module refuses unknown or conflicting stored contracts; see its
+new-store provisioning and migration limits before attaching an existing store.
 
 ## Removed members on ISession
 
@@ -655,6 +561,42 @@ public ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
 Deriving from `SessionManager` requires no change beyond renaming any
 `Shutdown` override: `ShutdownAsync` is `virtual` and the base
 implementation already awaits the monitor loop.
+
+## Configuring distributed address-space storage
+
+Direct `InMemoryNodeStateStore` writers require their backend to implement
+`ISharedKeyValueStoreConsistency` and provide linearizable operations for
+`election/addressspace-sequence`. A bare CRDT store is not a valid writer
+backend. Compose it with the shared Raft coordinator using
+`HybridSharedKeyValueStore`, or use the fluent consistency registration before
+`UseDistributedAddressSpace`.
+
+Use strong state storage for authoritative bootstrap and compacted snapshots.
+CRDT payload storage retains merge-only hydration and delta replay without
+absence-based cleanup or snapshot compaction. These are configuration
+requirements of the distributed-state extension, not a 1.5 persisted-format
+migration guarantee. See
+[address-space consistency](HighAvailability.md#activepassive-address-space-consistency).
+
+## Migrating SamplingGroupManager create/modify overrides
+
+The public virtual `SamplingGroupManager.CreateMonitoredItem` and
+`ModifyMonitoredItem` entry points, and the protected virtual creation
+factory, have been removed. They did not accept a separate server-revised
+filter, so preserving their dispatch required request-local state merely to
+carry that filter through existing overrides.
+
+Use the node manager's `IMonitoredItemManager` pipeline for creation and
+modification. For custom item construction, return
+`MonitoredItemCreateDecision.Use(factory)` from `OnCreateMonitoredItem` or
+`AsyncCustomNodeManager.OnCreatingMonitoredItemAsync`; the stack registers
+and owns the returned item. See
+[monitored-item creation and lifecycle](NodeManagers.md#monitored-item-creation-and-lifecycle).
+
+Sampling-group creation/modification now receives the original request and
+revised filter directly through internal, nonvirtual methods. The request is
+not rewritten, and the unrelated monitoring/lifecycle hooks are unchanged.
+This is an intentional API removal, not an obsolete forwarding shim.
 
 ## Migrating callers of the synchronous MonitoredNode2 notification wrappers
 

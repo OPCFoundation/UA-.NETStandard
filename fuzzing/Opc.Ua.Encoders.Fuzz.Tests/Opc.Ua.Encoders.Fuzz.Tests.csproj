@@ -5,6 +5,7 @@
     <AssemblyName>Opc.Ua.Encoders.Fuzz.Tests</AssemblyName>
     <RootNamespace>Encoders.Fuzz.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
+    <StartupObject>Opc.Ua.Fuzzing.FuzzReplayProgram</StartupObject>
   </PropertyGroup>
   <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
     <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
@@ -13,11 +14,13 @@
     <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
     <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.BinaryDecoder.cs" Link="FuzzableCode.BinaryDecoder.cs" />
     <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.BuiltInTypes.cs" Link="FuzzableCode.BuiltInTypes.cs" />
+    <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.Conversions.cs" Link="FuzzableCode.Conversions.cs" />
     <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.JsonDecoder.cs" Link="FuzzableCode.JsonDecoder.cs" />
     <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.Parsers.cs" Link="FuzzableCode.Parsers.cs" />
     <Compile Include="..\Opc.Ua.Encoders.Fuzz\FuzzableCode.XmlDecoder.cs" Link="FuzzableCode.XmlDecoder.cs" />
     <Compile Include="..\Common\Fuzz\FuzzMethods.cs" Link="FuzzMethods.cs" />
     <Compile Include="..\Common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />
+    <Compile Include="..\Opc.Ua.Encoders.Fuzz.Tools\Encoders.Testcases.cs" Link="Encoders.Testcases.cs" />
     <Compile Include="..\Common\Fuzz.Tests\*.cs" Link="Fuzz.Tests\%(FileName)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
@@ -67,5 +70,8 @@
     <None Update="Assets\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Common\Fuzz\EncodingFidelityException.cs" Link="EncodingFidelityException.cs" />
   </ItemGroup>
 </Project>

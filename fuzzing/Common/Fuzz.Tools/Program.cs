@@ -37,38 +37,57 @@ namespace Opc.Ua.Fuzzing
     public static class Program
     {
         /// <summary>
-        /// Relative folder references for testcases and findings,
-        /// for when Fuzz.Tools is started from a Visual Studio project.
+        /// Default artifact root, independent of the caller's working directory.
         /// </summary>
-        public static readonly string RootFolder = "../../../";
-
-        private static readonly string s_areaName =
-            typeof(Program).Assembly.GetName().Name?.Replace(".Fuzz.Tools", string.Empty, StringComparison.Ordinal)
-            ?? "Unknown";
+        public static readonly string RootFolder = AppContext.BaseDirectory;
 
         public static readonly string DefaultTestcasesFolder =
-            RootFolder + "../" + s_areaName + ".Fuzz.Corpus/Testcases";
+            Path.Combine(RootFolder, "Testcases");
 
         public static readonly string DefaultFindingsCrashFolder = RootFolder + "findings/crashes/";
         public static readonly string DefaultFindingsHangsFolder = RootFolder + "findings/hangs/";
         public static readonly string DefaultLibFuzzerCrashes = RootFolder + "crash-*";
         public static readonly string DefaultLibFuzzerHangs = RootFolder + "timeout-*";
 
-        public static void Main(string[] args)
+        public static int Main(string[] args)
         {
             string applicationName = typeof(Program).Assembly.GetName().Name;
 
             Console.WriteLine($"OPC UA {applicationName}");
 
-            var playbackOption = new Option<bool>("--playback", "-p") { Description = "playback crashes found by afl-fuzz and libfuzzer" };
-            var testcasesOption = new Option<bool>("--testcases", "-t") { Description = "create test cases for fuzzing" };
-            var stacktraceOption = new Option<bool>("--stacktrace", "-s") { Description = "show stacktrace with playback" };
+            var playbackOption = new Option<bool>("--playback", "-p")
+            {
+                Description = "playback crashes found by afl-fuzz and libfuzzer"
+            };
+            var testcasesOption = new Option<bool>("--testcases", "-t")
+            {
+                Description = "create test cases for fuzzing"
+            };
+            var stacktraceOption = new Option<bool>("--stacktrace", "-s")
+            {
+                Description = "show stacktrace with playback"
+            };
+            var outputOption = new Option<string>("--output")
+            {
+                Description = "Testcases path prefix for generation"
+            };
+            var inputOption = new Option<string>("--input")
+            {
+                Description = "Required replay directory, file or glob"
+            };
+            var targetOption = new Option<string>("--target")
+            {
+                Description = "Replay only this named target"
+            };
 
             var rootCommand = new RootCommand($"Usage: {applicationName}.exe [OPTIONS]")
             {
                 playbackOption,
                 testcasesOption,
-                stacktraceOption
+                stacktraceOption,
+                outputOption,
+                inputOption,
+                targetOption
             };
 
             rootCommand.SetAction((parseResult) =>
@@ -76,45 +95,46 @@ namespace Opc.Ua.Fuzzing
                 bool playback = parseResult.GetValue(playbackOption);
                 bool testcases = parseResult.GetValue(testcasesOption);
                 bool stacktrace = parseResult.GetValue(stacktraceOption);
+                if (playback == testcases)
+                {
+                    Console.Error.WriteLine("Specify exactly one of --testcases or --playback.");
+                    return 2;
+                }
+                if (playback && string.IsNullOrEmpty(parseResult.GetValue(inputOption)))
+                {
+                    Console.Error.WriteLine("--playback requires --input.");
+                    return 2;
+                }
+                if ((playback && parseResult.GetValue(outputOption) != null) ||
+                    (testcases && (parseResult.GetValue(inputOption) != null ||
+                        parseResult.GetValue(targetOption) != null)))
+                {
+                    Console.Error.WriteLine("--output is for generation; --input and --target are for playback.");
+                    return 2;
+                }
 
                 var telemetry = new Logging();
                 telemetry.Configure(applicationName, string.Empty, true, LogLevel.Trace);
 
-                // TODO: this loads opc ua assembly, but this should not be needed.
-                // but otherwise encoderfactory currently does not get all types.
-                // TODO: Remove: var temp = new AlarmConditionState(null);
-
                 if (testcases)
                 {
-                    Testcases.Run(DefaultTestcasesFolder, telemetry);
-                }
-                else if (playback)
-                {
-                    foreach (string encoderType in Testcases.DiscoverTestcaseEncoderSuffixes(DefaultTestcasesFolder))
-                    {
-                        Console.WriteLine("--- Fuzzer testcases for {0} ---", encoderType[1..]);
-                        Playback.Run(
-                            DefaultTestcasesFolder + encoderType + Path.DirectorySeparatorChar,
-                            stacktrace,
-                            telemetry);
-                    }
-                    Console.WriteLine("--- afl-fuzz crash findings ---");
-                    Playback.Run(DefaultFindingsCrashFolder, stacktrace, telemetry);
-                    Console.WriteLine("--- afl-fuzz timeout findings ---");
-                    Playback.Run(DefaultFindingsHangsFolder, stacktrace, telemetry);
-                    Console.WriteLine("--- libfuzzer crashes ---");
-                    Playback.Run(DefaultLibFuzzerCrashes, stacktrace, telemetry);
-                    Console.WriteLine("--- libfuzzer timeouts ---");
-                    Playback.Run(DefaultLibFuzzerHangs, stacktrace, telemetry);
+                    Testcases.Run(
+                        Path.GetFullPath(parseResult.GetValue(outputOption) ?? DefaultTestcasesFolder),
+                        telemetry);
                 }
                 else
                 {
-                    Console.WriteLine("No action specified. Use --help for usage information.");
+                    Playback.Run(
+                        parseResult.GetValue(inputOption),
+                        stacktrace,
+                        telemetry,
+                        parseResult.GetValue(targetOption));
                 }
+                return 0;
             });
 
             ParseResult parseResult = rootCommand.Parse(args);
-            parseResult.Invoke(new InvocationConfiguration());
+            return parseResult.Invoke(new InvocationConfiguration());
         }
     }
 }

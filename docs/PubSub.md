@@ -196,6 +196,17 @@ Filters honoured: `PublisherId`, `WriterGroupId`, `DataSetWriterId`,
 sink. `MessageReceiveTimeout > 0` moves the reader to `PubSubState.Error`
 when no matching message arrives within the configured idle window.
 
+WriterGroup and DataSetWriter message settings control the emitted header masks,
+including data, event, and keep-alive messages. Publisher/writer identities,
+sequence numbers, timestamps, and metadata versions reach the wire only when their
+corresponding mask bits are enabled. Field-content settings select RawData or
+DataValue encoding instead of silently discarding requested quality and timestamps.
+
+JSON encodes UInteger PublisherIds as canonical decimal strings. Reader matching
+recognizes that representation for a configured numeric identity without relaxing
+UADP's typed PublisherId matching. Typed JSON DataValues retain their status and
+timestamps even when Part 6 flattens `UaType` alongside `Value`.
+
 ### `IDataSetMetaDataRegistry`
 
 Pub/sub-shared registry keyed by

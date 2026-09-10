@@ -27,11 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Server.NodeManager;
+using Opc.Ua.Server.Nodes;
 
 namespace Opc.Ua.Server.Fluent
 {
@@ -178,7 +180,7 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// Registry that the fluent <c>Simulation</c> surface stores its
         /// registered periodic tick loops in. Started after
-        /// <c>Configure</c> completes (via <c>NodeManagerBuilder.Seal</c>)
+        /// <c>Configure</c> completes (via <c>NodeManagerBuilder.SealAsync</c>)
         /// and torn down on disposal.
         /// </summary>
         internal SimulationRegistry Simulations { get; }
@@ -195,11 +197,11 @@ namespace Opc.Ua.Server.Fluent
         /// to collapse the imperative
         /// <c>new NodeManagerBuilder(SystemContext, this, nsIndex, ...)</c>
         /// + <c>AttachToBuilder(builder)</c> + <c>Configure(builder)</c>
-        /// + <c>builder.Seal()</c> quadruple to a single fluent chain:
+        /// + <c>builder.SealAsync()</c> quadruple to a short pipeline:
         /// <code>
-        /// this.CreateFluentBuilder(nsIndex)
-        ///     .Configure(Configure)
-        ///     .Seal();
+        /// NodeManagerBuilder builder = CreateFluentBuilder(nsIndex);
+        /// Configure(builder);
+        /// await builder.SealAsync(cancellationToken);
         /// </code>
         /// The root/nodeId/typeId/dataTypeId lookups default to scanning the
         /// manager's <see cref="CustomNodeManager2.PredefinedNodes"/>
@@ -214,9 +216,8 @@ namespace Opc.Ua.Server.Fluent
         /// </param>
         /// <returns>
         /// A configured <see cref="NodeManagerBuilder"/> ready to
-        /// receive <c>Configure(builder)</c> wiring; the fluent
-        /// extensions <see cref="FluentNodeManagerBuilderExtensions.Configure(NodeManagerBuilder, System.Action{INodeManagerBuilder})"/>
-        /// and <see cref="NodeManagerBuilder.Seal"/> chain off it.
+        /// receive <c>Configure(builder)</c> wiring and, once the wiring
+        /// is done, <see cref="NodeManagerBuilder.SealAsync"/>.
         /// </returns>
         public NodeManagerBuilder CreateFluentBuilder(ushort defaultNamespaceIndex)
         {
@@ -287,6 +288,37 @@ namespace Opc.Ua.Server.Fluent
                 throw new System.ArgumentNullException(nameof(builder));
             }
 
+            NodeManagerBuilder? resolved = TryResolveAttachedBuilder(builder);
+            if (resolved != null)
+            {
+                return resolved;
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadConfigurationError,
+                "{0} requires the node manager to derive from FluentNodeManagerBase " +
+                "and attach its builder before Configure runs. Manager type '{1}' does not opt in.",
+                feature,
+                builder.NodeManager?.GetType().FullName ?? "(unknown)");
+        }
+
+        /// <summary>
+        /// Resolves the attached builder, or <c>null</c> when the manager does not opt
+        /// into the fluent surface.
+        /// </summary>
+        /// <remarks>
+        /// Used by features that work on any node manager but gain something extra on a
+        /// fluent one — behavior-owned release, for instance — so that opting out costs
+        /// the extra rather than the feature.
+        /// </remarks>
+        internal static NodeManagerBuilder? TryResolveAttachedBuilder(
+            INodeManagerBuilder builder)
+        {
+            if (builder == null)
+            {
+                return null;
+            }
+
             if (builder is NodeManagerBuilder concreteBuilder &&
                 concreteBuilder.FluentOwner != null)
             {
@@ -299,12 +331,7 @@ namespace Opc.Ua.Server.Fluent
                 return concrete;
             }
 
-            throw ServiceResultException.Create(
-                StatusCodes.BadConfigurationError,
-                "{0} requires the node manager to derive from FluentNodeManagerBase " +
-                "and attach its builder before Configure runs. Manager type '{1}' does not opt in.",
-                feature,
-                builder.NodeManager?.GetType().FullName ?? "(unknown)");
+            return null;
         }
 
         internal VirtualNodeRegistration? FindVirtualNodeRegistration(
@@ -333,6 +360,51 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Asynchronous counterpart of the <c>Configure(INodeManagerBuilder)</c>
+        /// hook, invoked once per manager activation with the same builder
+        /// immediately <em>before</em> the synchronous <c>Configure</c>
+        /// callbacks run.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This is the seam for wiring that has to await: materialising
+        /// instances from a store or a companion-spec factory, reading a
+        /// configuration source, or registering nodes whose creation is
+        /// asynchronous. Because it runs before the synchronous
+        /// <c>Configure</c> pass, nodes it creates are already in the
+        /// address space when <c>Configure</c> wires callbacks against
+        /// them, and everything it stages on the builder is picked up by
+        /// the <c>RegisterAuthoredNodes</c> / reverse-reference /
+        /// <see cref="NodeManagerBuilder.SealAsync"/> steps that follow.
+        /// </para>
+        /// <para>
+        /// The hook is a <c>virtual</c> method rather than a second
+        /// <c>partial</c> declaration because a <c>partial</c> method can be
+        /// either optional (<c>partial void</c>, no return value) or
+        /// awaitable (an extended partial method, which must be
+        /// implemented) — not both. Generated managers therefore keep
+        /// <c>partial void Configure(INodeManagerBuilder)</c> for
+        /// synchronous wiring and override this method for asynchronous
+        /// wiring; a manager can use either or both.
+        /// </para>
+        /// <para>
+        /// The default implementation does nothing. Overrides do not need
+        /// to invoke <c>base.ConfigureAsync</c>.
+        /// </para>
+        /// </remarks>
+        /// <param name="builder">
+        /// The fluent builder for this activation, already attached to the
+        /// manager's registries.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected virtual ValueTask ConfigureAsync(
+            INodeManagerBuilder builder,
+            CancellationToken cancellationToken)
+        {
+            return default;
+        }
+
+        /// <summary>
         /// Re-runs the reverse-reference collection pass after the user's
         /// <c>Configure</c> callbacks return so that nodes registered
         /// during <c>Configure</c> publish their references to nodes
@@ -346,7 +418,7 @@ namespace Opc.Ua.Server.Fluent
         /// <remarks>
         /// The source-generated <c>CreateAddressSpaceAsync</c> and the
         /// hosting <c>FluentNodeManager</c> invoke this once between the
-        /// <c>Configure</c> callbacks and <see cref="NodeManagerBuilder.Seal"/>;
+        /// <c>Configure</c> callbacks and <see cref="NodeManagerBuilder.SealAsync"/>;
         /// hand-written managers that drive
         /// <see cref="CreateFluentBuilder"/> themselves should do the
         /// same. Timing is safe because the master node manager
@@ -368,6 +440,227 @@ namespace Opc.Ua.Server.Fluent
                 .ConfigureAwait(false);
             await AddReverseReferencesAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
+
+            // Behaviors are deliberately NOT activated here. Sealing is the single
+            // activation point, and it is the later of the two: a manager that replays
+            // NotifyNodeAdded does so between SealGraphAuthoring and CompleteSealAsync,
+            // so activating at completion time would start a simulation loop before the
+            // replay it is supposed to follow. Every caller of this method seals
+            // afterwards, so nothing is left unactivated by the omission.
+        }
+
+        /// <summary>
+        /// Drains the behavior registrations pending on every attached builder and
+        /// activates them as one transactional generation.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <see cref="CompleteConfigureAsync"/> calls this, so a manager that already
+        /// routes through it needs no extra call. A manager that indexes its address
+        /// space by hand calls this once the graph is fully indexed and before it starts
+        /// driving nodes, since behaviors may only observe nodes that already exist.
+        /// </para>
+        /// <para>
+        /// The call is a no-op when nothing is pending, so it is safe to call twice. A
+        /// second configure pass drains only what that pass registered, and its
+        /// behaviors unwind before the earlier pass's.
+        /// </para>
+        /// </remarks>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="ServiceResultException">
+        /// Raised when a registration matches no node and did not allow that.
+        /// </exception>
+        protected async ValueTask ActivateNodeBehaviorsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            var registrations = new List<NodeAttachRegistration>();
+            lock (m_attachedBuildersLock)
+            {
+                foreach (NodeManagerBuilder builder in m_attachedBuilders)
+                {
+                    registrations.AddRange(builder.DrainNodeAttachments());
+                }
+            }
+
+            if (registrations.Count == 0)
+            {
+                return;
+            }
+
+            ITelemetryContext telemetry = Server.Telemetry;
+            TimeProvider timeProvider = NodeManagerTimeProvider;
+
+            var typeRegistrations = new List<NodeBehaviorRegistration>();
+            var pinned = new List<NodeBehaviorPinnedRegistration>();
+            var managerScoped = new List<INodeBehaviorFactory>();
+            var requireMatch = new List<INodeBehaviorFactory>();
+
+            foreach (NodeAttachRegistration registration in registrations)
+            {
+                var factory = new NodeAttachFactory(
+                    registration,
+                    registration.Kind == NodeAttachKind.Type
+                        ? ToNamespaceStableTypeId(registration.TypeDefinitionId)
+                        : ExpandedNodeId.Null,
+                    this,
+                    telemetry,
+                    timeProvider);
+
+                switch (registration.Kind)
+                {
+                    case NodeAttachKind.Type:
+                        typeRegistrations.Add(
+                            new NodeBehaviorRegistration(
+                                factory,
+                                registration.Options.IncludeSubtypes));
+                        if (!registration.Options.AllowZeroMatches)
+                        {
+                            requireMatch.Add(factory);
+                        }
+                        break;
+                    case NodeAttachKind.Node:
+                        pinned.Add(
+                            new NodeBehaviorPinnedRegistration(
+                                registration.Node!,
+                                factory));
+                        break;
+                    default:
+                        managerScoped.Add(factory);
+                        break;
+                }
+            }
+
+            var activation = new NodeBehaviorActivation(
+                new NodeBehaviorRegistry(
+                    typeRegistrations,
+                    Server.NamespaceUris,
+                    Server.TypeTree),
+                new NodeBehaviorAddressSpace(Server.NamespaceUris, Find),
+                SystemContext,
+                telemetry,
+                timeProvider,
+                pinned,
+                managerScoped,
+                requireMatch.Count == 0 ? null : requireMatch);
+
+            // Record before activating: a failed activation rolls itself back, and the
+            // recorded entry keeps a later teardown idempotent rather than surprised.
+            lock (m_behaviorActivationsLock)
+            {
+                m_behaviorActivations.Add(activation);
+            }
+
+            await activation
+                .ActivateAsync(
+                    new ArrayOf<NodeState>(System.Linq.Enumerable.ToArray(
+                        PredefinedNodes.Values)),
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public override async ValueTask DeleteAddressSpaceAsync(
+            CancellationToken cancellationToken = default)
+        {
+            List<NodeBehaviorActivation> activations;
+            lock (m_behaviorActivationsLock)
+            {
+                activations = [.. m_behaviorActivations];
+                m_behaviorActivations.Clear();
+            }
+
+            var failures = new List<Exception>();
+
+            // Unwind in reverse pass order, so a later generation releases before the
+            // one it was layered onto, and before base clears the nodes themselves.
+            for (int i = activations.Count - 1; i >= 0; i--)
+            {
+                try
+                {
+                    await activations[i]
+                        .DeactivateAndDisposeAsync()
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    failures.Add(ex);
+                }
+            }
+
+            try
+            {
+                await base
+                    .DeleteAddressSpaceAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                failures.Add(ex);
+            }
+
+            if (failures.Count == 1)
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo
+                    .Capture(failures[0])
+                    .Throw();
+            }
+            if (failures.Count > 1)
+            {
+                throw new AggregateException(
+                    "One or more node behaviors failed to release.",
+                    failures);
+            }
+        }
+
+        /// <summary>
+        /// Lets the builder drive behavior activation from its seal.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="NodeManagerBuilder"/> is not a subclass, so it cannot reach the
+        /// protected activation entry point directly. Sealing is the one point every
+        /// manager passes through, which is what makes activation reliable rather than
+        /// dependent on the manager also calling <see cref="CompleteConfigureAsync"/>.
+        /// </remarks>
+        internal ValueTask ActivateNodeBehaviorsFromSealAsync(
+            CancellationToken cancellationToken)
+        {
+            return ActivateNodeBehaviorsAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// Gets the server time provider, falling back to the system clock.
+        /// </summary>
+        /// <remarks>
+        /// Exposed so the manager-owned registries schedule from the same clock the
+        /// behavior surface hands to user code, which lets tests drive both from a
+        /// fake clock.
+        /// </remarks>
+        internal TimeProvider NodeManagerTimeProvider =>
+            (Server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System;
+
+        /// <summary>
+        /// Rewrites a type definition into the namespace-stable form the behavior
+        /// registry matches on.
+        /// </summary>
+        private ExpandedNodeId ToNamespaceStableTypeId(NodeId typeDefinitionId)
+        {
+            if (typeDefinitionId.NamespaceIndex == 0)
+            {
+                return new ExpandedNodeId(typeDefinitionId);
+            }
+
+            string? namespaceUri =
+                Server.NamespaceUris.GetString(typeDefinitionId.NamespaceIndex);
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "The namespace index of type definition '{0}' is not registered in " +
+                    "the server namespace table.",
+                    typeDefinitionId);
+            }
+
+            return new ExpandedNodeId(typeDefinitionId, namespaceUri);
         }
 
         /// <summary>
@@ -501,24 +794,28 @@ namespace Opc.Ua.Server.Fluent
 
         /// <summary>
         /// Seals the builder, replays <c>NotifyNodeAdded</c> for every node
-        /// this manager owns, and then starts the simulations the
-        /// <c>Configure</c> pass registered.
+        /// this manager owns, and then completes the registrations the
+        /// <c>Configure</c> pass could not finish synchronously and starts
+        /// the simulations it registered.
         /// </summary>
         /// <remarks>
         /// Call this once the address space is complete - after
         /// <see cref="RegisterAuthoredNodesAsync"/> and
         /// <see cref="CompleteConfigureAsync"/>. Both ends of the order
         /// matter: sealing first stops a lifecycle handler from authoring
-        /// nodes that nothing would register any more, and starting the
-        /// simulations last keeps a simulated value change from preceding the
+        /// nodes that nothing would register any more, and activating last
+        /// keeps a simulated value change from preceding the
         /// <c>OnNodeAdded</c> handler of its own node. The source-generated
         /// <c>CreateAddressSpaceAsync</c> emits this call for you.
         /// </remarks>
         /// <param name="builder">The builder the Configure pass used.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <exception cref="System.ArgumentNullException">
         /// <paramref name="builder"/> is <c>null</c>.
         /// </exception>
-        protected void SealConfiguration(NodeManagerBuilder builder)
+        protected ValueTask SealConfigurationAsync(
+            NodeManagerBuilder builder,
+            CancellationToken cancellationToken = default)
         {
             if (builder == null)
             {
@@ -532,7 +829,7 @@ namespace Opc.Ua.Server.Fluent
                 builder.Dispatcher.NotifyNodeAdded(SystemContext, entry.Value);
             }
 
-            builder.StartSimulations();
+            return builder.CompleteSealAsync(cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -1050,11 +1347,32 @@ namespace Opc.Ua.Server.Fluent
         {
             if (disposing)
             {
+                // Signal-only: real release runs in DeleteAddressSpaceAsync, which
+                // MasterNodeManager.ShutdownAsync invokes before it disposes managers.
+                // Blocking here would sit under a sync-over-async dispose.
+                SignalNodeBehaviorShutdown();
                 MonitoredSources.Dispose();
                 Simulations.Dispose();
                 EventSources.Dispose();
             }
             base.Dispose(disposing);
+        }
+
+        /// <summary>
+        /// Trips every activated behavior's shutdown signal without awaiting release.
+        /// </summary>
+        private void SignalNodeBehaviorShutdown()
+        {
+            List<NodeBehaviorActivation> activations;
+            lock (m_behaviorActivationsLock)
+            {
+                activations = [.. m_behaviorActivations];
+            }
+
+            for (int i = activations.Count - 1; i >= 0; i--)
+            {
+                activations[i].SignalShutdown();
+            }
         }
 
         /// <summary>
@@ -1072,6 +1390,17 @@ namespace Opc.Ua.Server.Fluent
             return AddRootNotifierAsync(notifier, cancellationToken).AsTask();
         }
 
+        /// <summary>
+        /// Internal trampoline used by <see cref="EventSourceRegistry"/> to undo a root
+        /// notifier registration when the manager tears down.
+        /// </summary>
+        internal Task RemoveRootNotifierFromFluentAsync(
+            NodeState notifier,
+            CancellationToken cancellationToken)
+        {
+            return RemoveRootNotifierAsync(notifier, cancellationToken).AsTask();
+        }
+
         private NodeManagerBuilder[] GetAttachedBuilders()
         {
             lock (m_attachedBuildersLock)
@@ -1082,5 +1411,7 @@ namespace Opc.Ua.Server.Fluent
 
         private readonly Lock m_attachedBuildersLock = new();
         private readonly List<NodeManagerBuilder> m_attachedBuilders = [];
+        private readonly Lock m_behaviorActivationsLock = new();
+        private readonly List<NodeBehaviorActivation> m_behaviorActivations = [];
     }
 }

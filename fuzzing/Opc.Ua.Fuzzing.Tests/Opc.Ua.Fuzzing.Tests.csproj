@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <AssemblyName>Opc.Ua.Fuzzing.Tests</AssemblyName>
+    <RootNamespace>Opc.Ua.Fuzzing.Tests</RootNamespace>
+    <GenerateProgramFile>false</GenerateProgramFile>
+    <StartupObject>Opc.Ua.Fuzzing.Tests.ReplayTestHost</StartupObject>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Common\Fuzz\Program.cs" Link="Fuzz\Program.cs" />
+    <Compile Include="..\Common\Fuzz\FuzzMethods.cs" Link="Fuzz\FuzzMethods.cs" />
+    <Compile Include="..\Common\Fuzz.Tests\FuzzProcessWatchdog.cs" Link="Fuzz.Tests\FuzzProcessWatchdog.cs" />
+    <Compile Include="..\Common\Fuzz.Tools\Playback.cs" Link="Fuzz.Tools\Playback.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit3TestAdapter">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="SharpFuzz" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.Types\Opc.Ua.Types.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Common\Fuzz\EncodingFidelityException.cs" Link="EncodingFidelityException.cs" />
+  </ItemGroup>
+</Project>

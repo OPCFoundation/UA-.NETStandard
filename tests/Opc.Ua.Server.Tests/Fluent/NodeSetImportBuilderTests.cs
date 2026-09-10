@@ -380,7 +380,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void SealingWithAnUnregisteredImportBatchIsRejected()
+        public async Task SealingWithAnUnregisteredImportBatchIsRejectedAsync()
         {
             Harness harness = Harness.Create();
             harness.Builder.Import(ReadNodeSet(
@@ -390,17 +390,17 @@ namespace Opc.Ua.Server.Tests.Fluent
                   </UAObject>
                 """));
 
-            ServiceResultException exception = Assert.Throws<ServiceResultException>(
-                () => harness.Builder.Seal());
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.Builder.SealAsync().ConfigureAwait(false))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidState));
         }
 
         [Test]
-        public void ImportIsRejectedAfterTheBuilderIsSealed()
+        public async Task ImportIsRejectedAfterTheBuilderIsSealedAsync()
         {
             Harness harness = Harness.Create();
-            harness.Builder.Seal();
+            await harness.Builder.SealAsync().ConfigureAwait(false);
 
             ServiceResultException exception = Assert.Throws<ServiceResultException>(
                 () => harness.Builder.Import(ReadNodeSet(

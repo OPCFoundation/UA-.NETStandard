@@ -44,8 +44,23 @@ namespace Opc.Ua.Redundancy
     /// deployments. Redis / external stores are drop-in replacements of the
     /// same contract.
     /// </summary>
-    public sealed class InMemorySharedKeyValueStore : ISharedKeyValueStore, IDisposable
+    public sealed class InMemorySharedKeyValueStore :
+        ISharedKeyValueStore,
+        ISharedKeyValueStoreConsistency,
+        IDisposable
     {
+        /// <inheritdoc/>
+        public bool IsLinearizable(string key)
+        {
+            return key != null;
+        }
+
+        /// <inheritdoc/>
+        public bool IsProcessLocal(string key)
+        {
+            return key != null;
+        }
+
         /// <summary>
         /// Reads the value stored under <paramref name="key"/>.
         /// </summary>
@@ -104,8 +119,28 @@ namespace Opc.Ua.Redundancy
                     return new ValueTask<bool>(false);
                 }
 
-                m_data[key] = value;
-                PublishLocked(new KeyValueChange { Kind = KeyValueChangeKind.Set, Key = key, Value = value });
+                if (value.IsNull)
+                {
+                    if (present)
+                    {
+                        m_data.Remove(key);
+                        PublishLocked(new KeyValueChange
+                        {
+                            Kind = KeyValueChangeKind.Delete,
+                            Key = key
+                        });
+                    }
+                }
+                else
+                {
+                    m_data[key] = value;
+                    PublishLocked(new KeyValueChange
+                    {
+                        Kind = KeyValueChangeKind.Set,
+                        Key = key,
+                        Value = value
+                    });
+                }
                 return new ValueTask<bool>(true);
             }
         }

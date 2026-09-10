@@ -29,8 +29,6 @@
 
 #pragma warning disable CA2007
 
-#nullable enable
-
 using System;
 using System.Threading.Tasks;
 using Moq;
@@ -48,7 +46,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
     [Category("Distributed")]
     public sealed class ReplicatedAddressSpaceStartupTaskTests
     {
-        private const ushort NamespaceIndex = 1;
+        private const ushort NamespaceIndex = 2;
 
         [Test]
         public async Task AttachesSynchronizerToOptedInNodeManagerAsync()
@@ -62,7 +60,9 @@ namespace Opc.Ua.Redundancy.Server.Tests
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+            messageContext.NamespaceUris.GetIndexOrAppend("urn:test:crdt-application");
             messageContext.NamespaceUris.GetIndexOrAppend("urn:test:crdt-startup");
+            var identity = new ReplicaNodeIdFactory("crdt-startup", ["urn:test:crdt-startup"]);
             var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = messageContext.NamespaceUris,
@@ -82,6 +82,7 @@ namespace Opc.Ua.Redundancy.Server.Tests
             }).ConfigureAwait(false);
 
             var optedIn = new Mock<INodeManager>();
+            optedIn.Setup(s => s.NamespaceUris).Returns(["urn:test:crdt-startup"]);
             optedIn.As<ILocalAddressSpaceSource>()
                 .Setup(s => s.CreateLocalAddressSpace())
                 .Returns(addressSpace);
@@ -92,8 +93,10 @@ namespace Opc.Ua.Redundancy.Server.Tests
                 .Returns([optedIn.Object, notOptedIn.Object]);
 
             var server = new Mock<IServerInternal>();
+            server.As<INodeIdFactoryProvider>().Setup(s => s.NodeIdFactory).Returns(identity);
             server.Setup(s => s.Telemetry).Returns(telemetry);
             server.Setup(s => s.MessageContext).Returns(messageContext);
+            server.Setup(s => s.NamespaceUris).Returns(messageContext.NamespaceUris);
             server.Setup(s => s.NodeManager).Returns(masterNodeManager.Object);
             server.Setup(s => s.DefaultSystemContext).Returns(new ServerSystemContext(server.Object));
             server.Setup(s => s.FindNodeManagers<ILocalAddressSpaceSource>())

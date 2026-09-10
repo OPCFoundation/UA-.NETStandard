@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <StartupObject>Opc.Ua.Fuzzing.FuzzReplayProgram</StartupObject>
     <!-- Follow CustomTestTarget like the Opc.Ua.Core.Diagnostics project this
          test indirectly references; see Opc.Ua.Network.Fuzz.csproj for
          the rationale. -->
@@ -82,5 +83,8 @@
     <None Update="Assets\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Common\Fuzz\EncodingFidelityException.cs" Link="EncodingFidelityException.cs" />
   </ItemGroup>
 </Project>

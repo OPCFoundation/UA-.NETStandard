@@ -114,12 +114,10 @@ namespace Opc.Ua.AI.Server
         private void BuildLearningJob()
         {
             m_learningJob = new LearningJobState(null);
-            m_learningJob.Create(
-                SystemContext,
-                NodeId.Null,
+            SystemContext.CreateInstance(
+                m_learningJob,
                 new QualifiedName("LearningSamples", NamespaceIndex),
-                new LocalizedText("Learning samples"),
-                true);
+                new LocalizedText("Learning samples"));
 
             Child<PropertyState<string>>(m_learningJob, BrowseNames.JobId).Value =
                 "learning-samples";

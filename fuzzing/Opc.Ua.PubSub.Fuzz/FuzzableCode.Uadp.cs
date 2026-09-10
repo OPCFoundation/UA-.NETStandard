@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Uadp;
 
 namespace Opc.Ua.Fuzzing
@@ -37,55 +39,92 @@ namespace Opc.Ua.Fuzzing
     {
         public static void AflfuzzUadpNetworkMessageDecode(Stream stream)
         {
-            LibfuzzUadpNetworkMessageDecode(ReadCapped(stream));
+            _ = DecodeUadp(ReadCapped(stream), NewContext());
         }
 
         public static void LibfuzzUadpNetworkMessageDecode(ReadOnlySpan<byte> input)
         {
-            try
-            {
-                _ = UadpDecoder.Decode(CopyCapped(input), NewContext());
-            }
-            catch (Exception ex) when (IsExpected(ex))
-            {
-            }
+            _ = DecodeUadp(CopyCapped(input), NewContext());
         }
 
         public static void AflfuzzUadpChunkReassembly(Stream stream)
         {
-            LibfuzzUadpChunkReassembly(ReadCapped(stream));
+            ExerciseUadpChunks(ReadCapped(stream), NewContext());
         }
 
         public static void LibfuzzUadpChunkReassembly(ReadOnlySpan<byte> input)
         {
-            try
-            {
-                byte[] data = CopyCapped(input);
-                using var reassembler = new UadpReassembler(TimeProvider.System);
-                _ = reassembler.TryAddChunk(
-                    Opc.Ua.PubSub.Encoding.PublisherId.FromUInt32(0xF00DBABEU),
-                    writerGroupId: 1,
-                    data,
-                    out ReadOnlyMemory<byte>? reassembled);
-                _ = reassembled?.Length;
+            ExerciseUadpChunks(CopyCapped(input), NewContext());
+        }
 
-                if (data.Length > 0)
+        internal static PubSubNetworkMessage DecodeUadp(
+            ReadOnlyMemory<byte> input,
+            PubSubNetworkMessageContext context)
+        {
+            return UadpDecoder.Decode(input, context);
+        }
+
+        internal static void ExerciseUadpChunks(
+            ReadOnlyMemory<byte> input,
+            PubSubNetworkMessageContext context)
+        {
+            // Untrusted chunk headers must not poison the state used by the
+            // independently generated, valid split/reassemble oracle.
+            using (var probe = new UadpReassembler(context.TimeProvider))
+            {
+                if (probe.TryAddChunk(SeedPublisherId, 1, input, out ReadOnlyMemory<byte>? decodedChunk))
                 {
-                    var chunker = new UadpChunker();
-                    int maxFrameSize = Math.Max(UadpChunker.ChunkHeaderSize + 1, Math.Min(256, data.Length + 10));
-                    foreach (byte[] chunk in chunker.Split(data, messageSequenceNumber: 1, maxFrameSize))
+                    ReadOnlyMemory<byte> complete = decodedChunk
+                        ?? throw new InvalidOperationException("Completed chunk did not return a message.");
+                    if (!complete.Span.SequenceEqual(input.Span[UadpChunker.ChunkHeaderSize..]) ||
+                        probe.PendingCount != 0)
                     {
-                        _ = reassembler.TryAddChunk(
-                            Opc.Ua.PubSub.Encoding.PublisherId.FromUInt32(0xF00DBABEU),
-                            writerGroupId: 1,
-                            chunk,
-                            out reassembled);
+                        throw new InvalidOperationException("Single-chunk reassembly changed its payload or state.");
                     }
+                    _ = DecodeUadp(complete, context);
                 }
             }
-            catch (Exception ex) when (IsExpected(ex))
+
+            if (!input.IsEmpty)
             {
+                ReadOnlyMemory<byte> ordered = ReassembleUadpPayload(input, context.TimeProvider, reverse: false);
+                _ = ReassembleUadpPayload(input, context.TimeProvider, reverse: true);
+                _ = DecodeUadp(ordered, context);
             }
+        }
+
+        internal static ReadOnlyMemory<byte> ReassembleUadpPayload(
+            ReadOnlyMemory<byte> input,
+            TimeProvider timeProvider,
+            bool reverse,
+            int maxFrameSize = 256)
+        {
+            IReadOnlyList<byte[]> chunks = new UadpChunker().Split(input, 42, maxFrameSize);
+            using var reassembler = new UadpReassembler(timeProvider);
+            ReadOnlyMemory<byte>? reassembled = null;
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                byte[] chunk = chunks[reverse ? chunks.Count - 1 - i : i];
+                bool complete = reassembler.TryAddChunk(SeedPublisherId, 1, chunk, out reassembled);
+                if (complete != (i == chunks.Count - 1))
+                {
+                    throw new InvalidOperationException("Reassembly completed at the wrong chunk boundary.");
+                }
+                if (i == 0 && chunks.Count > 1 &&
+                    (reassembler.TryAddChunk(SeedPublisherId, 1, chunk, out ReadOnlyMemory<byte>? duplicate) ||
+                        duplicate is not null || reassembler.PendingCount != 1))
+                {
+                    throw new InvalidOperationException("A duplicate chunk changed the incomplete reassembly.");
+                }
+            }
+
+            ReadOnlyMemory<byte> result = reassembled
+                ?? throw new InvalidOperationException("Valid chunks did not reassemble.");
+            if (!result.Span.SequenceEqual(input.Span) || reassembler.PendingCount != 0)
+            {
+                throw new InvalidOperationException("Reassembly changed the input or retained completed state.");
+            }
+            return result;
         }
     }
 }

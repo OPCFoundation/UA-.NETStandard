@@ -37,6 +37,13 @@ For non-transparent redundancy, set `RedundantPeers` when clients should resolve
 
 All servers in a `RedundantServerSet` must have identical application AddressSpaces: identical NodeIds, browse paths, AddressSpace structure, and `ServiceLevel` algorithm. Only local server diagnostics may differ. `UseDistributedAddressSpace(...)` helps satisfy this by mirroring node topology and values through `INodeStateStore`/`ISharedKeyValueStore`, but application-specific method handlers and callbacks still need to be attached by each node manager.
 
+Configure [`UseReplicaNodeIdentity`](ReplicaNodeIdentity.md) for replicated
+address spaces in either mode. It reserves identical shared namespace indexes
+before node-manager construction and binds the standard factory's assignment
+policy across replicas. The guarantee concerns raw wire NodeIds, not client-side
+URI remapping. Incompatible layouts, modes and peer/store contracts fail
+explicitly; built-in diagnostics and configuration remain local.
+
 ### Add* and Use* API convention
 
 High-availability builder methods follow the stack's standard `Add*`/`Use*` convention: `Add*` methods wire OPC 10000-4 §6.6 nodes and methods that are part of the standardized server model, while `Use*` methods register beyond-spec extension building blocks that make a redundant deployment work. For the stack-wide DI conventions and per-package entry points, see [DependencyInjection.md](DependencyInjection.md).
@@ -53,9 +60,11 @@ Beyond-spec distributed building blocks (`Use*`):
 
 | API | Description |
 | --- | --- |
+| `UseReplicaNodeIdentity(replicaSetId, namespaceUris, mode, writerAssignedIds)` | Required shared identity contract for replica sets: fixed namespace slots, guarded standard factory and unchanged hydrated IDs. |
 | `UseDistributedAddressSpace(options)` | Active/passive shared-store address-space replication with leader election (one writer; standbys hydrate from the shared store). Also registers the injectable `IDistributedValueCache` and the `SharedKeyValue` certificate-store support. |
 | `UseDistributedSessions(options)` | Mirrors session metadata to the shared store for fast reconnect after failover (opt-in `EnableFastReconnect`). |
 | `UseDistributedSubscriptionMirroring()` | Mirrors subscription / monitored-item definitions, retransmission state and continuation-point envelopes to the shared store. |
+| `UseDistributedHistorian(options)` | Adds the protected, leader-write active/passive historian and durable portable HistoryRead continuation store. Requires a cross-process linearizable store, authenticated `IRecordProtector`, and leader election; active/active and eventual configurations fail closed. |
 | `UseReplicatedAddressSpace(options)` | Active/active multi-writer address-space replication over CRDT gossip (no leader). |
 | `UseReplicatedSessions(options)` | Active/active CRDT-gossiped session metadata for cross-replica fast reconnect. |
 | `UseActiveActiveRedundancy(options)` | Single-call active/active: wires the replicated address space **and** sessions from one set of gossip options (session gossip on `GossipPort` + 1). This is the entry point that "selects active/active"; the two `UseReplicated*` methods remain for advanced setups. |
@@ -74,6 +83,7 @@ services.AddOpcUa()
         // normal endpoint, security, and application configuration
     })
     .AddNodeManager<MyNodeManagerFactory>()
+    .UseReplicaNodeIdentity("example-set", ["urn:example:model", "urn:example:instances"])
     .UseDistributedAddressSpace(options =>
     {
         options.UseLeaderElection = true;
@@ -237,17 +247,106 @@ You enable mirroring by registering the seams below on the server builder; each 
 - Mirrored session records carry a `SecurityStateVersion`. A replica only restores a Session from a record written at the version it understands; a record written by a peer running an older version is treated as missing security state and fails closed, so a rolling upgrade degrades to a normal Session recreate rather than comparing identity state it cannot interpret. The stored user identity is an encoded continuity key (token type plus a delimited issuer and subject), not the human-readable `ClientUserIdOfSession` diagnostic value. Activation records are stamped with a per-Session activation sequence so that when two activations overlap the mirror keeps the newest `serverNonce` instead of whichever write happens to land last.
 - `UseDistributedSubscriptionMirroring(...)` registers `SharedKeyValueSubscriptionStore` as `ISubscriptionStore`. It mirrors subscription definitions and monitored-item definitions: publishing interval, lifetime, keepalive, priority, node id, attribute id, monitoring mode, sampling interval, queue size, filters, discard policy, and related metadata. It also installs `SharedKeyValueMonitoredItemQueueFactory` as the `IMonitoredItemQueueFactory`, which continuously mirrors each monitored item's data/event queue contents to the shared store through a non-blocking, coalesced background drain (protected at rest by the configured `IRecordProtector`); on promotion the store's asynchronous restore members re-hydrate those queues so queued-but-unpublished notifications survive a failover.
 - The same store also implements `ISubscriptionRetransmissionStore`. Retransmission state is mirrored asynchronously through a non-blocking background drain: `NextSequenceNumber`, sent `NotificationMessage` entries, acknowledgements, and deletes are coalesced and persisted so `Republish` can continue after failover without blocking the publishing path.
-- `IContinuationPointStore` mirrors best-effort `ContinuationPointEnvelope` records for Browse and HistoryRead continuation points. The envelope contains the owner session, continuation point id, kind, and re-issuable request metadata.
+- `IContinuationPointStore` mirrors the generic Browse continuation envelope.
+- `IHistoryContinuationPointStore` separately persists versioned, protected
+  HistoryRead state for providers that expose a stable
+  `IHistorianProviderIdentity` and portable resume tokens. Persistence is
+  awaited before the continuation point is returned, and restore atomically
+  claims the record so only one replica can resume it.
 - `IEventIdProvider` is an optional event-publishing seam. `DeterministicEventIdProvider` derives EventIds from a shared replica-set seed and stable event fields so Transparent/HotAndMirrored replicas can publish the same logical EventId and clients do not double-process events; the default remains the existing random GUID EventId behavior.
 - `RegisterNodes` returns the input NodeIds in this stack, so registered-node handles are already replica-consistent when the AddressSpace NodeIds are identical.
-- `UseDistributedAddressSpace(...)` mirrors node topology and values through `INodeStateStore`, helping each server present the same NodeIds and browse paths. Hydration on startup and failover promotion uses a snapshot + delta-log fast path when the store implements `INodeStateSnapshotStore` (the default `InMemoryNodeStateStore` does): the writer periodically publishes a chunked, atomically-swapped snapshot of the graph and trims a bounded delta log, so a standby reads a handful of large chunks and replays only the changes after the snapshot instead of transferring one key/value entry per node. Each record carries a single-writer monotonic sequence, and the standby applies the snapshot, delta log, and live feed through a per-key sequence guard so the paths are idempotent and cannot apply a stale change over a newer one. When no snapshot has been published (or the store lacks the capability) the standby falls back to two streamed passes — `EnumerateAsync` for topology and `EnumerateValuesAsync` for values.
+- `UseDistributedAddressSpace(...)` mirrors node topology and values through `INodeStateStore`, helping each server present the same NodeIds and browse paths. Each node manager is restricted to its declared non-standard `NamespaceUris`; namespace-zero infrastructure remains replica-local, and a replicated root may not contain foreign descendants. Custom and shared-namespace partitions implement `ILocalAddressSpaceOwnership` with a stable `PartitionId` and an `OwnsNode(NodeId)` predicate. Hydration updates existing node graphs in place, preserving concrete node types, callbacks, and handles. Tracked subtree membership is independent of mutable child links, so deleting or replacing a graph also detaches its old replication callbacks.
+
+  On stores with authoritative reads, a protected partition marker distinguishes
+  a completed empty partition from an interrupted initial seed. Validated
+  snapshots and deltas provide a bulk-hydration path; missing or invalid snapshot
+  chunks trigger complete streamed fallback. A corrupt record under a valid
+  node/value key fails that scan rather than becoming an authoritative omission.
+  Failed snapshot publication leaves the previous manifest and delta log intact.
+
+  Startup buffers the live feed during hydration. The most recent accepted
+  topology sequence determines both graph changes and root membership; rejected
+  stale deletions cannot prune newer roots during cleanup. Value ordering remains
+  independent of topology ordering. Values arriving before their target node are
+  retained and applied when its topology becomes available, rather than being
+  marked as delivered while the node is absent. An accepted parent tombstone
+  prevents older pending values from crossing into recreated descendants.
+  See the consistency requirements below for
+  eventually consistent payload stores, where absence is not authoritative.
 
 Notes:
 
 - Hydration fully materializes the mirrored node graph (topology plus values): the snapshot + delta log reduces the store round trips and per-node work, but the whole graph is resident. True on-demand fault-in (materializing a node only when it is first browsed/read) would further cut time-to-ready and memory for very large, sparsely-accessed graphs; it requires an asynchronous node-resolution seam through the core node-manager read/browse path and is tracked as future work in OPCFoundation/UA-.NETStandard#3938. The eventual-consistency conflict-free replicated data type (CRDT) path already exchanges a compact state snapshot plus deltas.
 - `SharedKeyValueSubscriptionStore` restores subscription definitions, retransmission state, and — when the shared-store `SharedKeyValueMonitoredItemQueueFactory` is installed (the default for `UseDistributedSubscriptionMirroring`) — the per-monitored-item data/event queues. The monitored-item creation path pre-fetches each queue asynchronously through `ISubscriptionStore.RestoreDataChangeMonitoredItemQueueAsync`/`RestoreEventMonitoredItemQueueAsync` and hands the pre-hydrated queue to the (still synchronous) `MonitoredItem` constructor, so a networked store never blocks the creation path; the original synchronous `RestoreDataChangeMonitoredItemQueue`/`RestoreEventMonitoredItemQueue` remain as the fallback for local/durable stores. Queue contents are mirrored continuously as they are enqueued, so after a failover the promoted replica resumes with the values that were queued-but-not-yet-published on the failed replica instead of losing them; `Republish` of already-sent notifications is likewise preserved. Snapshots are coalesced per monitored item (the latest state wins), so the mirror cost scales with the unpublished queue tail rather than every sampled value.
-- Continuation-point mirroring is best-effort. Built-in node-manager `ContinuationPoint.Data` is opaque and is not reconstructed on a backup; after failover a client may receive `BadContinuationPointInvalid` and re-issue Browse or HistoryRead, which OPC 10000-4 §6.6.2.2 permits. Node managers that can serialize their own continuation-point data may opt in through `IContinuationPointStore`.
+- Generic Browse continuation-point mirroring remains best-effort because a
+  custom node manager's opaque `ContinuationPoint.Data` cannot be reconstructed
+  automatically. Built-in historian continuations are recoverable when the
+  provider identity matches on the promoted replica and its resume token is
+  explicitly portable; otherwise HistoryRead fails closed with
+  `BadContinuationPointInvalid`.
 - Deterministic EventIds (`DeterministicEventIdProvider`) are opt-in rather than on by default: they change the EventId values a server emits — a single-server deployment keeps the standard random GUID EventIds — and they require a shared replica-set seed. Enable them for a HotAndMirrored/Transparent set so every replica emits the same logical EventId and clients do not double-process events. They are only as stable as the event fields used, so Alarms & Conditions clients should still call `ConditionRefresh` after failover as required by OPC UA.
+
+### Active/passive address-space consistency
+
+`InMemoryNodeStateStore` requires a linearizable coordinator for
+`election/addressspace-sequence`. A bare `ReplicatedSharedKeyValueStore` cannot
+provide this primitive. Use `UseRedundancyConsistency(...)` before
+`UseDistributedAddressSpace(...)`: the hybrid mode keeps CRDT payloads on the
+bulk store and routes the sequence key to shared Raft. The address-space
+registration contributes its coordination and configured lease keys even when
+the application's strong-prefix list is customized. Startup validates the
+coordinator before election or shared-state mutation; direct writes enforce the
+same requirement. A process-local coordinator is allowed only with
+process-local payload storage, not as a substitute for shared coordination.
+
+For direct construction, explicitly compose existing stores:
+
+```csharp
+await using var hybrid = new HybridSharedKeyValueStore(
+    crdtPayloadStore, sharedRaftStore);
+using var stateStore = new InMemoryNodeStateStore(
+    hybrid, messageContext, recordProtector);
+```
+
+The identity contract is protected at `election/addressspace-identity/v1` and
+also requires strong routing. A new authoritative store initializes it atomically.
+An existing unbound store is rejected. For a verified new hybrid deployment,
+provision the matching contract on the fresh shared Raft backend before attaching
+the also-new CRDT payload backend; an empty eventual scan cannot authorize
+bootstrap. See [stored identity contracts](ReplicaNodeIdentity.md#stored-contracts-and-peer-admission).
+
+Both backend instances above are supplied by the application and retain their
+existing disposal ownership. Every writer replica must use the same replicated
+Raft coordination state, not a separate single-node development coordinator.
+
+Strong sequence allocation does not make CRDT payload reads linearizable.
+With CRDT bulk data, hydration applies observed updates and sequenced tombstones
+but does not infer deletion, initial seeding, or partition initialization from
+missing rows. Local predefined graphs must be provisioned independently.
+Automatic snapshots/compaction are unavailable, explicit snapshot publication
+is rejected, and deltas are retained so a delayed older primary-row write
+cannot hide a newer completed update. Select `RedundancyConsistencyMode.Strong`
+when authoritative bootstrap, missing-root cleanup, and compacted snapshots are
+required. Coordinator-free active/active replication remains the separate
+`UseReplicatedAddressSpace(...)` module.
+
+Sequence reservations are not completed publications. Protected pending
+reservations survive uncertain writes and prevent snapshot publication or log
+trimming past unfinished work, including after restart. Concurrent snapshot
+attempts fail instead of publishing an unvalidated cut. Failed or cancelled
+publications require reconciliation before compaction can resume; the module
+does not automatically discard their reservations or assume the payload was
+never written.
+
+### Strong active/passive historian
+
+`UseDistributedHistorian(...)` places raw, modified, at-time, processed, annotation, structured, and event history behind the same linearizable `ISharedKeyValueStore` used by the strong active/passive topology. Immutable segments are published by one manifest compare-and-swap. Each provider instance has a unique writer id, and a newly active writer publishes a higher writer epoch before it can append; a stale former writer is then rejected with `BadNotWritable`.
+
+HistoryRead cursors pin an immutable manifest generation. The separate `IHistoryContinuationPointStore` persists the versioned, protected server cursor before returning it, then atomically claims it during restore. A token-reuse session takeover therefore preserves the continuation owner and lets the promoted replica resume raw, event, and processed reads without shifting pages, duplicates, or gaps. Superseded generations are retained for the configured continuation lifetime.
+
+This module intentionally has no eventual or active/active adapter. Ordered historical values, deletes, modification chains, events, and atomic update batches do not have a safe CRDT merge contract, so requesting the distributed historian outside a strong active/passive topology fails startup. `NullRecordProtector` is also rejected: shared archive and continuation records must be authenticated.
+
+The redundancy samples exercise both guarantees: the client writes and reads a distinctive raw-history marker through the active replica, resumes paged raw, event, and processed reads after terminating that process, then reads the same marker and observes new raw/event writes through the promoted replica.
 
 ## Client redundancy (as per Part 4 §6.6.3)
 
@@ -309,6 +408,7 @@ Selecting active/active is a single call — `UseActiveActiveRedundancy` wires b
 services.AddOpcUa()
     .AddServer(server => { })
     .AddNodeManager<MyNodeManagerFactory>()
+    .UseReplicaNodeIdentity("example-set", ["urn:example:model", "urn:example:instances"])
     .UseActiveActiveRedundancy(aa =>
     {
         aa.ReplicaId = Crdt.ReplicaId.New();
@@ -325,6 +425,7 @@ The individual methods are available for advanced setups that need to diverge fr
 services.AddOpcUa()
     .AddServer(server => { })
     .AddNodeManager<MyNodeManagerFactory>()
+    .UseReplicaNodeIdentity("example-set", ["urn:example:model", "urn:example:instances"])
     .UseReplicatedAddressSpace(options =>
     {
         options.ReplicaId = Crdt.ReplicaId.New();
@@ -354,6 +455,7 @@ Static peer lists work for a fixed replica set, but an elastically-scaled deploy
 services.AddOpcUa()
     .AddServer(server => { })
     .AddNodeManager<MyNodeManagerFactory>()
+    .UseReplicaNodeIdentity("example-set", ["urn:example:model", "urn:example:instances"])
     .UseActiveActiveRedundancy(aa => aa.GossipPort = 4840)
     .AddServerRedundancy(r => r.Mode = RedundancySupport.HotAndMirrored)  // static fallback
     // Dynamic: a Kubernetes headless service resolves to one address per replica.
@@ -384,6 +486,7 @@ services.AddOpcUa()
         // options.BulkStoreFactory = sp => /* CRDT bulk store */;    // eventual mode
         // options.RaftConsensusFactory = sp => /* RaftCs replica */; // multi-pod
     })
+    .UseReplicaNodeIdentity("example-set", ["urn:example:model", "urn:example:instances"])
     .UseDistributedAddressSpace()
     .UseDistributedSessions(o => o.EnableFastReconnect = true);
 ```
@@ -585,7 +688,7 @@ Use the consolidated [Kubernetes High Availability Deployment](Kubernetes.md) gu
 
 ## Samples
 
-`samples/Redundancy/RedundantServer` demonstrates the server-side distributed and redundancy registrations, with `docker-compose` files for active/active and active/passive replica sets. `samples/Redundancy/RedundantClient` shows the recommended managed-client pattern: a single `ManagedSession` with `WithServerRedundancy()` that connects to any server, reads its redundancy metadata, and fails over transparently — the same code works whether or not the server is configured for redundancy.
+`samples/Redundancy/RedundantServer` demonstrates the server-side distributed and redundancy registrations, with `docker-compose` files for active/active and active/passive replica sets. Its strong active/passive topology historizes a stable Counter and event notifier through `UseDistributedHistorian`. `samples/Redundancy/RedundantClient` shows the recommended managed-client pattern: a single `ManagedSession` with `WithServerRedundancy()` and token-reuse failover that connects to any server, reads its redundancy metadata, and fails over transparently. Its `--history` workflow holds raw, event, and processed cursors across active-process loss and verifies post-promotion writes.
 
 `samples/Redundancy/RedundantClient/docker-compose.yml` runs the client and server in one env-driven compose file that covers the full HA matrix. `COMPOSE_PROFILES` (defaulted by an adjacent `.env`) picks one server profile (`server-eventual`, scalable active/active, or `server-strong`, a fixed 3-node Raft quorum) and one client profile (`client-independent`, scalable, or `client-coordinated`, a fixed 3-node client replica set); the eventual server and independent clients scale with `--scale server=N --scale client=M`. **Both sides log their failover / HA behavior, including data loss**: the client turns transparent reconnects and leader handoffs into explicit `FAILOVER:`, `ACTIVE CLIENT:`, `DATA LOSS:`, and `HA OK: Counter continued …` lines, and the server logs its active/standby role transitions and a per-replica `Counter` heartbeat. `server-eventual` shows data loss on failover because each replica owns an independent `Counter`; `server-strong` (active/passive Raft) keeps the `Counter` on a linearizable store and shows **no** data loss. See the [RedundantClient README](../samples/Redundancy/RedundantClient/README.md#run-with-docker-compose-one-file-the-full-ha-matrix-env-driven).
 
