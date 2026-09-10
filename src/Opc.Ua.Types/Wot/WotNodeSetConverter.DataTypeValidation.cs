@@ -468,7 +468,7 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics,
             int maxDepth)
         {
-            var validated = new HashSet<(JsonElement Schema, string Identity, int Rank)>();
+            var validated = new HashSet<(JsonElement Schema, string Identity, int Rank, bool AuthoritativeRank)>();
             foreach (JsonElement schema in ReadDataSchemaOccurrences(document))
             {
                 string? identity = GetElementString(schema, "uav:mapToType");
@@ -510,7 +510,7 @@ namespace Opc.Ua.Wot
                     string identity = ResolveFieldDataType(node.Document, field, context, nodeSet, diagnostics);
                     ValidateValueSchema(node.Document, field, NormalizeDataTypeValidationIdentity(identity, nodeSet),
                         GetElementInt32(field, "uav:valueRank") ?? -1,
-                        context, nodeSet, diagnostics, validated, 0, maxDepth);
+                        context, nodeSet, diagnostics, validated, 0, maxDepth, authoritativeRank: true);
                 }
             }
         }
@@ -523,11 +523,13 @@ namespace Opc.Ua.Wot
             DataTypeDefinitionContext context,
             UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics,
-            HashSet<(JsonElement Schema, string Identity, int Rank)> validated,
+            HashSet<(JsonElement Schema, string Identity, int Rank, bool AuthoritativeRank)> validated,
             int depth,
-            int maxDepth)
+            int maxDepth,
+            bool authoritativeRank = false)
         {
-            if (schema.ValueKind != JsonValueKind.Object || !validated.Add((schema, identity, rank)))
+            if (schema.ValueKind != JsonValueKind.Object ||
+                !validated.Add((schema, identity, rank, authoritativeRank)))
             {
                 return;
             }
@@ -541,9 +543,35 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            if (definition?.Inferred == true &&
+            if (authoritativeRank)
+            {
+                int arrayDepth = 0;
+                JsonElement supplied = schema;
+                while (GetElementString(supplied, "type") == "array")
+                {
+                    arrayDepth++;
+                    if (!supplied.TryGetProperty("items", out JsonElement items) ||
+                        items.ValueKind != JsonValueKind.Object)
+                    {
+                        break;
+                    }
+                    supplied = items;
+                }
+                if (arrayDepth > 0 &&
+                    (rank == -1 ||
+                        (rank == -3 && arrayDepth > 1) ||
+                        (rank > 0 && arrayDepth > rank)))
+                {
+                    Report("type",
+                        $"The explicit array shape has {arrayDepth} dimension(s), which contradicts the " +
+                        $"authoritative field ValueRank {rank}.");
+                    return;
+                }
+            }
+            bool definingInferredSchema = definition?.Inferred == true &&
                 definition.Source.Equals(schema) &&
-                definition.Kind != ValidationDataTypeKind.Simple)
+                definition.Kind != ValidationDataTypeKind.Simple;
+            if (definingInferredSchema && definition!.Kind != ValidationDataTypeKind.Union)
             {
                 return;
             }
@@ -636,6 +664,10 @@ namespace Opc.Ua.Wot
                 }
                 canonical["enum"] = values;
             }
+            if (definingInferredSchema)
+            {
+                return;
+            }
             int dimensionsToWrap = 0;
             JsonElement arraySchema = schema;
             bool unspecifiedItems = false;
@@ -693,7 +725,8 @@ namespace Opc.Ua.Wot
                     {
                         ValidateValueSchema(document, declared,
                             NormalizeDataTypeValidationIdentity(field.DataType ?? WotVocabulary.BaseDataType, nodeSet),
-                            field.ValueRank, context, nodeSet, diagnostics, validated, depth + 1, maxDepth);
+                            field.ValueRank, context, nodeSet, diagnostics, validated, depth + 1, maxDepth,
+                            authoritativeRank: true);
                     }
                 }
             }
@@ -720,6 +753,11 @@ namespace Opc.Ua.Wot
                     while (pending.Count > 0)
                     {
                         (JsonElement item, string pointer) = pending.Pop();
+                        if (pointer == term && rank >= 0 && item.ValueKind != JsonValueKind.Array)
+                        {
+                            Report(pointer, $"A Union value with ValueRank {rank} requires an array.");
+                            continue;
+                        }
                         if (item.ValueKind == JsonValueKind.Array && rank != -1)
                         {
                             int index = 0;

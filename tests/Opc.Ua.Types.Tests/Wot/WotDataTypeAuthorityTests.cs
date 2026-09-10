@@ -212,7 +212,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void InferredFieldOrderCannotOmitARequiredProperty()
         {
             WotConversionResult<UANodeSet> result = ConvertSchema(
-                /*lang=json,strict*/
+                                     /*lang=json,strict*/
                                      """
                 {
                   "type": "object",
@@ -233,7 +233,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void AnAuthoritativeDoubleRejectsAStringValueSchema()
         {
             WotConversionResult<UANodeSet> result = ConvertSchema(
-                /*lang=json,strict*/
+                                     /*lang=json,strict*/
                                      """{ "type": "string", "uav:mapToType": "i=11" }""");
 
             Assert.That(result.HasErrors, Is.True, Messages(result));
@@ -363,6 +363,147 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
+        [Test]
+        public void AnAuthoritativeScalarFieldRejectsAnExplicitArraySchema()
+        {
+            WotConversionResult<UANodeSet> result = ConvertNestedRankSchema(-1, 1);
+
+            Assert.That(result.Success, Is.False, Messages(result));
+            WotDiagnostic error = result.Diagnostics.Single(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.ValidationError);
+            Assert.That(error.Location?.JsonPointer, Is.EqualTo("/properties/value/properties/Nested/type"));
+            Assert.That(error.Location?.NodeId, Is.EqualTo("nsu=urn:test:pump;i=2101"));
+            UADataType outer = result.Value!.Items!.OfType<UADataType>()
+                .Single(node => node.NodeId == "ns=1;i=2102");
+            Assert.That(outer.Definition!.Field!.Single().ValueRank, Is.EqualTo(-1));
+        }
+
+        [TestCase(-1, 0, false)]
+        [TestCase(-1, 2, true)]
+        [TestCase(1, 0, false)]
+        [TestCase(1, 1, false)]
+        [TestCase(1, 2, true)]
+        [TestCase(2, 0, false)]
+        [TestCase(2, 1, false)]
+        [TestCase(2, 2, false)]
+        [TestCase(2, 3, true)]
+        [TestCase(-3, 0, false)]
+        [TestCase(-3, 1, false)]
+        [TestCase(-3, 2, true)]
+        [TestCase(-2, 2, false)]
+        [TestCase(0, 2, false)]
+        public void AuthoritativeFieldRanksRetainValidShorthandAndVariableRanks(
+            int rank,
+            int arrayDepth,
+            bool invalid)
+        {
+            WotConversionResult<UANodeSet> result = ConvertNestedRankSchema(rank, arrayDepth);
+
+            Assert.That(result.HasErrors, Is.EqualTo(invalid), Messages(result));
+            UADataType outer = result.Value!.Items!.OfType<UADataType>()
+                .Single(node => node.NodeId == "ns=1;i=2102");
+            DataTypeField field = outer.Definition!.Field!.Single();
+            Assert.That(field.DataType, Is.EqualTo("ns=1;i=2101"));
+            Assert.That(field.ValueRank, Is.EqualTo(rank));
+            if (invalid)
+            {
+                WotDiagnostic error = result.Diagnostics.Single(diagnostic =>
+                    diagnostic.Code == WotDiagnosticCode.ValidationError);
+                Assert.That(error.Location?.JsonPointer, Is.EqualTo("/properties/value/properties/Nested/type"));
+                Assert.That(error.Message, Does.Contain("ValueRank " + rank));
+            }
+        }
+
+        [TestCase("default", "null")]
+        [TestCase("default", /*lang=json,strict*/ """{"Unknown":null}""")]
+        public void InferredUnionValuesCannotBypassValidation(string term, string value)
+        {
+            WotConversionResult<UANodeSet> result = ConvertSchema(
+                $$"""
+                {
+                  "type": "object", "uav:dataTypeName": "pump:Choice", "uav:structureType": "Union",
+                  "properties": { "Text": { "type": "string" } },
+                  "{{term}}": {{value}}
+                }
+                """);
+
+            Assert.That(result.Success, Is.False, Messages(result));
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.ValidationError &&
+                diagnostic.Location?.JsonPointer == "/properties/value/" + term), Is.True, Messages(result));
+            Assert.That(result.Value!.Items!.OfType<UADataType>().Single().Definition!.IsUnion, Is.True);
+        }
+
+        [TestCase("const", "null", false, true)]
+        [TestCase("const", /*lang=json,strict*/ """{"Unknown":null}""", false, true)]
+        [TestCase("const", /*lang=json,strict*/ """{"Text":"value","Enabled":true}""", false, true)]
+        [TestCase("default", /*lang=json,strict*/ """{"Text":"value","Enabled":true}""", false, true)]
+        [TestCase("const", /*lang=json,strict*/ """{"Enabled":null}""", false, true)]
+        [TestCase("default", /*lang=json,strict*/ """{"Enabled":null}""", false, true)]
+        [TestCase("const", "{}", false, false)]
+        [TestCase("default", "{}", false, false)]
+        [TestCase("const", /*lang=json,strict*/ """{"Text":null}""", false, false)]
+        [TestCase("default", /*lang=json,strict*/ """{"Text":null}""", false, false)]
+        [TestCase("const", "[]", false, true)]
+        [TestCase("default", "[]", false, true)]
+        [TestCase("const", "[null]", true, true)]
+        [TestCase("default", "[null]", true, true)]
+        [TestCase("const", /*lang=json,strict*/ """[{"Unknown":null}]""", true, true)]
+        [TestCase("default", /*lang=json,strict*/ """[{"Unknown":null}]""", true, true)]
+        [TestCase("const", "{}", true, true)]
+        [TestCase("default", "{}", true, true)]
+        [TestCase("const", "[]", true, false)]
+        [TestCase("default", "[]", true, false)]
+        [TestCase("const", /*lang=json,strict*/ """[{},{"Text":null}]""", true, false)]
+        [TestCase("default", /*lang=json,strict*/ """[{},{"Text":null}]""", true, false)]
+        public void InferredUnionConstAndDefaultContractsAreChecked(
+            string term,
+            string value,
+            bool array,
+            bool invalid)
+        {
+            const string element =
+                                     /*lang=json,strict*/
+                                     """
+                {
+                  "type": "object",
+                  "properties": { "Text": { "type": "string" }, "Enabled": { "type": "boolean" } },
+                  "uav:fieldOrder": ["Text","Enabled"]
+                }
+                """;
+            string schema = array
+                ? """{"type":"array","uav:valueRank":1,"items":""" + element + "}"
+                : element;
+            System.Text.Json.Nodes.JsonObject definition = System.Text.Json.Nodes.JsonNode.Parse(schema)!.AsObject();
+            definition["uav:dataTypeName"] = "pump:Choice";
+            definition["uav:structureType"] = "Union";
+            definition[term] = System.Text.Json.Nodes.JsonNode.Parse(value);
+            WotConversionResult<UANodeSet> result = ConvertSchema(definition.ToJsonString());
+
+            Assert.That(result.HasErrors, Is.EqualTo(invalid), Messages(result));
+            UADataType type = result.Value!.Items!.OfType<UADataType>().Single();
+            Assert.That(type.Definition!.IsUnion, Is.True);
+            Assert.That(result.Value.Items!.OfType<UAVariable>().Single().ValueRank, Is.EqualTo(array ? 1 : -1));
+            if (invalid)
+            {
+                string pointer = "/properties/value/" + term;
+                if (array && value.Length != 0 && value[0] == '[')
+                {
+                    pointer += "/0";
+                }
+                Assert.That(result.Diagnostics.Any(diagnostic =>
+                    diagnostic.Code == WotDiagnosticCode.ValidationError &&
+                    diagnostic.Location?.JsonPointer == pointer), Is.True, Messages(result));
+            }
+            else
+            {
+                using WotDocument restored = WotNodeSetConverter.FromNodeSet(result.Value);
+                using var expected = System.Text.Json.JsonDocument.Parse(value);
+                Assert.That(System.Text.Json.JsonElement.DeepEquals(
+                    restored.Properties.Values.Single().GetProperty(term), expected.RootElement), Is.True);
+            }
+        }
+
         [TestCase("{}", false)]
         [TestCase(/*lang=json,strict*/ """{"Text":null}""", false)]
         [TestCase("null", true)]
@@ -380,7 +521,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "default": {{value}}
                 }
                 """,
-                /*lang=json,strict*/
+                                     /*lang=json,strict*/
                                      """
                 {
                   "@id": "urn:test:pump#Choice", "@type": "uav:StructureDefinition",
@@ -453,7 +594,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void AnInferredStructureRetainsItsResolvedSupertype()
         {
             WotConversionResult<UANodeSet> result = ConvertSchema(
-                /*lang=json,strict*/
+                                     /*lang=json,strict*/
                                      """
                 {
                   "type": "object", "uav:dataTypeName": "pump:Derived",
@@ -462,7 +603,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "required": ["A","B"], "uav:fieldOrder": ["A","B"]
                 }
                 """,
-                /*lang=json,strict*/
+                                     /*lang=json,strict*/
                                      """
                 {
                   "@id": "urn:test:pump#Base", "@type": "uav:StructureDefinition",
@@ -525,6 +666,41 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(type.Definition.Field!.Single().IsOptional, Is.False);
             Assert.That(type.References!.Single(reference =>
                 reference.ReferenceType == "HasSubtype" && !reference.IsForward).Value, Is.EqualTo("i=12756"));
+        }
+
+        private static WotConversionResult<UANodeSet> ConvertNestedRankSchema(int rank, int arrayDepth)
+        {
+            string nested =
+                /*lang=json,strict*/
+                """
+                {"type":"object","properties":{"Value":{"type":"boolean"}},"required":["Value"]}
+                """;
+            for (int index = 0; index < arrayDepth; index++)
+            {
+                nested = """{"type":"array","items":""" + nested + "}";
+            }
+            return ConvertSchema(
+                $$"""
+                {
+                  "type": "object", "uav:mapToType": "nsu=urn:test:pump;i=2102",
+                  "properties": { "Nested": {{nested}} }, "required": ["Nested"]
+                }
+                """,
+                $$"""
+                {
+                  "@id": "urn:test:pump#Inner", "@type": "uav:StructureDefinition",
+                  "uav:dataTypeName": "pump:Inner", "uav:dataTypeId": "nsu=urn:test:pump;i=2101",
+                  "uav:fields": [{ "uav:fieldName": "Value", "uav:fieldDataTypeId": "i=1" }]
+                },
+                {
+                  "@id": "urn:test:pump#Outer", "@type": "uav:StructureDefinition",
+                  "uav:dataTypeName": "pump:Outer", "uav:dataTypeId": "nsu=urn:test:pump;i=2102",
+                  "uav:fields": [{
+                    "uav:fieldName": "Nested", "uav:fieldDataTypeId": "nsu=urn:test:pump;i=2101",
+                    "uav:valueRank": {{rank}}
+                  }]
+                }
+                """);
         }
 
         private static WotConversionResult<UANodeSet> ConvertSchema(string schema, string definitions = "")

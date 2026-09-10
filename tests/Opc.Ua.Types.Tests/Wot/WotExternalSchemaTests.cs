@@ -51,6 +51,14 @@ namespace Opc.Ua.Types.Tests.Wot
     {
         private const string Reference = "https://example.com/schemas/speed.json";
 
+        private const string WideNumericPartialSchema =
+            "{\"type\":\"number\",\"minimum\":18446744073709551615," +
+            "\"multipleOf\":0.00000000000000000000000000000000000001}";
+
+        private const string StringFacetPartialSchema =
+                                 /*lang=json,strict*/
+                                 """{"format":"custom","contentEncoding":"base64","pattern":"","uniqueItems":false}""";
+
         /// <summary>
         /// A converter given no provider fetches nothing at all, which is the
         /// only safe default for an arbitrary IRI in a document a consumer did
@@ -165,7 +173,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             var resolver = new WotExternalSchemaResolver(
                 new CountingProvider(
-                    /*lang=json,strict*/
+                                         /*lang=json,strict*/
                                          "{\"type\":\"object\",\"properties\":{\"Other\":{\"type\":\"string\"}}}"));
 
             WotExternalSchemaResult result = await resolver.ResolveAndCompareAsync(
@@ -186,7 +194,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             var resolver = new WotExternalSchemaResolver(
                 new CountingProvider(
-                    /*lang=json,strict*/
+                                         /*lang=json,strict*/
                                          "{\"type\":\"object\",\"properties\":{\"Speed\":{\"type\":\"string\"}}}"));
 
             WotExternalSchemaResult result = await resolver.ResolveAndCompareAsync(
@@ -203,7 +211,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             var resolver = new WotExternalSchemaResolver(
                 new CountingProvider(
-                    /*lang=json,strict*/
+                                         /*lang=json,strict*/
                                          "{\"type\":\"object\",\"properties\":{\"Speed\":{\"type\":\"number\"}}}"));
 
             WotExternalSchemaResult result = await resolver.ResolveAndCompareAsync(
@@ -219,7 +227,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task ANestedFieldTypeDisagreementIsIncompatibleAsync()
         {
             var resolver = new WotExternalSchemaResolver(new CountingProvider(
-                /*lang=json,strict*/
+                                     /*lang=json,strict*/
                                      """
                 {
                   "type": "object",
@@ -231,7 +239,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotExternalSchemaResult result = await resolver.ResolveAndCompareAsync(
                 Reference,
                 Parse(
-                    /*lang=json,strict*/
+                                         /*lang=json,strict*/
                                          """
                     {
                       "type": "object",
@@ -249,51 +257,51 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [TestCase(
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  """{"type":"array","items":{"type":"string"}}""",
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  """{"type":"array","items":{"type":"boolean"}}""",
             false, "/items/type")]
         [TestCase(
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  """{"type":"array","items":{"type":"object","properties":{"Value":{"type":"string"}}}}""",
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  """{"type":"array","items":{"type":"object","properties":{"Value":{"type":"boolean"}}}}""",
             false, "/items/properties/Value/type")]
         [TestCase(
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  """{"type":"number","minimum":2}""",
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  """{"type":"number","minimum":1}""",
             false, "/minimum")]
         [TestCase(
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  """{"type":"number","minimum":1.0,"enum":[2.0,1.0]}""",
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  """{"enum":[1,2],"minimum":1,"type":"number"}""",
             true, "")]
         [TestCase(
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  """{"type":"object","properties":{"A":{},"B":{}},"required":["B","A"]}""",
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  """{"type":"object","properties":{"B":{},"A":{}},"required":["A","B"]}""",
             true, "")]
         [TestCase(
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  """{"type":"object","properties":{"A":{},"B":{}},"uav:fieldOrder":["B","A"]}""",
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  """{"type":"object","properties":{"A":{},"B":{}},"uav:fieldOrder":["A","B"]}""",
             false, "/uav:fieldOrder")]
         [TestCase(
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  """{"type":"object","properties":{"A":{}}}""",
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  """{"type":"object","properties":{"A":{},"B":{}}}""",
             false, "/properties/B")]
         [TestCase(
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  """{"type":"integer","enum":[18446744073709551615,0]}""",
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  """{"type":"integer","enum":[0,18446744073709551615]}""",
             true, "")]
         [TestCase(/*lang=json,strict*/ """{"type":"array","items":false}""", /*lang=json,strict*/ """{"type":"array","items":false}""", true, "")]
@@ -328,7 +336,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task ExternalDataTypeIdentityAliasesAreEquivalentAsync()
         {
             var resolver = new WotExternalSchemaResolver(new CountingProvider(
-                /*lang=json,strict*/
+                                     /*lang=json,strict*/
                                      """{"type":"number","uav:dataTypeId":"nsu=http://opcfoundation.org/UA/;i=11"}"""));
             WotExternalSchemaResult result = await resolver.ResolveAndCompareAsync(
                 Reference, Schema("number"), "i=11", new WotResolutionContext()).ConfigureAwait(false);
@@ -351,6 +359,115 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(result.Outcome, Is.EqualTo(WotExternalSchemaOutcome.Incompatible));
             Assert.That(result.Detail, Does.Contain(pointer));
+        }
+
+        [TestCase(/*lang=json,strict*/ """{"type":"array","items":{"$ref":"urn:missing"}}""",
+                                 /*lang=json,strict*/
+                                 """{"type":"array"}""", "/items/$ref", false)]
+        [TestCase(/*lang=json,strict*/ """{"type":"array","items":{"$ref":"urn:missing"}}""",
+                                 /*lang=json,strict*/
+                                 """{"type":"array"}""", "/items/$ref", true)]
+        [TestCase(/*lang=json,strict*/ """{"type":"number","minimum":"zero"}""",
+                                 /*lang=json,strict*/
+                                 """{"type":"number"}""", "/minimum", false)]
+        [TestCase(/*lang=json,strict*/ """{"type":"number","minimum":"zero"}""",
+                                 /*lang=json,strict*/
+                                 """{"type":"number"}""", "/minimum", true)]
+        [TestCase(/*lang=json,strict*/ """{"oneOf":[{"type":"number","minimum":false}]}""",
+            "{}", "/oneOf/0/minimum", false)]
+        [TestCase(/*lang=json,strict*/ """{"oneOf":[{"type":"number","minimum":false}]}""",
+            "{}", "/oneOf/0/minimum", true)]
+        [TestCase(/*lang=json,strict*/ """{"anyOf":[{"type":"array","items":{"$ref":"#"}}]}""",
+            "{}", "/anyOf/0/items/$ref", false)]
+        [TestCase(/*lang=json,strict*/ """{"allOf":[{"properties":{"Hidden":{"$ref":"urn:missing"}}}]}""",
+            "{}", "/allOf/0/properties/Hidden/$ref", true)]
+        [TestCase(/*lang=json,strict*/ """{"additionalProperties":{"$ref":"urn:missing"}}""",
+            "{}", "/additionalProperties/$ref", false)]
+        [TestCase(/*lang=json,strict*/ """{"additionalProperties":{"minimum":"zero"}}""",
+            "{}", "/additionalProperties/minimum", true)]
+        public async Task UnmatchedSchemaBranchesAreValidatedIndependentlyAsync(
+            string invalidSchema,
+            string partialSchema,
+            string pointer,
+            bool invalidCanonical)
+        {
+            var provider = new CountingProvider(invalidCanonical ? partialSchema : invalidSchema);
+            var resolver = new WotExternalSchemaResolver(provider);
+            WotExternalSchemaResult result = await resolver.ResolveAndCompareAsync(
+                Reference, Parse(invalidCanonical ? invalidSchema : partialSchema),
+                string.Empty, new WotResolutionContext()).ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(WotExternalSchemaOutcome.Incompatible), result.Detail);
+            Assert.That(result.Detail, Does.Contain(pointer));
+            Assert.That(result.Detail, Does.Contain(invalidCanonical ? "canonical schema" : "external schema"));
+            Assert.That(provider.Calls, Is.EqualTo(1));
+        }
+
+        [TestCase("maximum", "false")]
+        [TestCase("exclusiveMinimum", "null")]
+        [TestCase("exclusiveMaximum", "\"ten\"")]
+        [TestCase("multipleOf", "true")]
+        [TestCase("multipleOf", "0")]
+        [TestCase("multipleOf", "-1")]
+        [TestCase("minLength", "-1")]
+        [TestCase("maxLength", "1.5")]
+        [TestCase("minItems", "\"many\"")]
+        [TestCase("maxItems", "null")]
+        [TestCase("minProperties", "false")]
+        [TestCase("maxProperties", "1.00000000000000000000000000000000000001")]
+        [TestCase("format", "7")]
+        [TestCase("contentEncoding", "[]")]
+        [TestCase("pattern", "false")]
+        [TestCase("uniqueItems", "1")]
+        [TestCase("additionalProperties", "\"false\"")]
+        [TestCase("uav:valueRank", "\"1\"")]
+        [TestCase("uav:arrayDimensions", "[-1]")]
+        [TestCase("uav:mapToType", "11")]
+        [TestCase("uav:dataTypeId", "false")]
+        public async Task SupportedFacetTypesAreCheckedWithoutAMatchingFacetAsync(string term, string value)
+        {
+            string schema = "{\"" + term + "\":" + value + "}";
+            var resolver = new WotExternalSchemaResolver(new CountingProvider(schema));
+            WotExternalSchemaResult result = await resolver.ResolveAndCompareAsync(
+                Reference, Parse("{}"), string.Empty, new WotResolutionContext()).ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(WotExternalSchemaOutcome.Incompatible));
+            Assert.That(result.Detail, Does.Contain("/" + term));
+        }
+
+        [TestCase(WideNumericPartialSchema)]
+        [TestCase(/*lang=json,strict*/ """{"minItems":1.0,"maxLength":1e1000,"minProperties":-0.0e999999}""")]
+        [TestCase(StringFacetPartialSchema)]
+        [TestCase(/*lang=json,strict*/ """{"type":"array","items":{},"additionalProperties":true}""")]
+        public async Task ValidPartialFacetsRemainCompatibleAsync(string schema)
+        {
+            var resolver = new WotExternalSchemaResolver(new CountingProvider(schema));
+            WotExternalSchemaResult result = await resolver.ResolveAndCompareAsync(
+                Reference, Parse("{}"), string.Empty, new WotResolutionContext()).ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(WotExternalSchemaOutcome.Compatible), result.Detail);
+            Assert.That(result.Detail, Is.Null);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UnknownExtensionValuesAreNotInterpretedAsSchemasAsync(bool annotatedCanonical)
+        {
+            const string annotated = /*lang=json,strict*/ """
+                {
+                  "type": "number",
+                  "vendor:opaque": { "$ref": "urn:missing", "minimum": "zero", "properties": 7 },
+                  "default": { "$ref": "urn:business", "minimum": "zero" }
+                }
+                """;
+            const string partial = /*lang=json,strict*/ """{"type":"number"}""";
+            var resolver = new WotExternalSchemaResolver(
+                new CountingProvider(annotatedCanonical ? partial : annotated));
+            WotExternalSchemaResult result = await resolver.ResolveAndCompareAsync(
+                Reference, Parse(annotatedCanonical ? annotated : partial),
+                string.Empty, new WotResolutionContext()).ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(WotExternalSchemaOutcome.Compatible), result.Detail);
         }
 
         /// <summary>
@@ -493,7 +610,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             var resolver = new WotExternalSchemaResolver(
                 new CountingProvider(
-                    /*lang=json,strict*/
+                                         /*lang=json,strict*/
                                          "{\"type\":\"number\"}", "application/schema+json; charset=utf-8"));
 
             WotExternalSchemaResult result = await resolver.ResolveAndCompareAsync(
@@ -893,11 +1010,11 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase(/*lang=json,strict*/ "{\"type\":\"object\"}", /*lang=json,strict*/ "{\"type\":\"object\",\"properties\":{\"S\":{}}}",
             TestName = "ExternalDeclaresNoMembers")]
         [TestCase(/*lang=json,strict*/ "{\"type\":\"object\",\"properties\":7}",
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  "{\"type\":\"object\",\"properties\":{\"S\":{}}}",
             TestName = "ExternalMemberMapIsNotAnObject")]
         [TestCase(/*lang=json,strict*/ "{\"type\":\"object\",\"properties\":{\"S\":{}}}",
-            /*lang=json,strict*/
+                                 /*lang=json,strict*/
                                  "{\"type\":\"object\",\"properties\":7}",
             TestName = "CanonicalMemberMapIsNotAnObject")]
         [TestCase(/*lang=json,strict*/ "{\"type\":\"object\",\"properties\":{\"S\":{}}}", /*lang=json,strict*/ "{\"type\":\"object\"}",
@@ -964,7 +1081,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var provider = new CountingProvider(/*lang=json,strict*/ "{\"type\":\"number\"}");
 
             WotConversionResult<UANodeSet> result = await ConvertAsync(
-                /*lang=json,strict*/
+                                     /*lang=json,strict*/
                                      "{\"type\":\"number\",\"uav:externalSchema\":\"\"}",
                 new WotExternalSchemaResolver(provider)).ConfigureAwait(false);
 

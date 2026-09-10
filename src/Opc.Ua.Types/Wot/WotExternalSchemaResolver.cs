@@ -487,10 +487,68 @@ namespace Opc.Ua.Wot
                 {
                     return "is not a JSON object, so it is not a DataSchema.";
                 }
+                if (schema.TryGetProperty("$ref", out _))
+                {
+                    pointer = path + "/$ref";
+                    return "contains an unexpanded schema reference and cannot establish semantic compatibility.";
+                }
                 if (schema.TryGetProperty("type", out JsonElement type) && !SameSchemaTypes(type, type))
                 {
                     pointer = path + "/type";
                     return "has an invalid type term.";
+                }
+                foreach (string term in s_numericTerms)
+                {
+                    if (schema.TryGetProperty(term, out JsonElement value) &&
+                        (value.ValueKind != JsonValueKind.Number ||
+                            (term == "multipleOf" && !IsPositiveSchemaNumber(value))))
+                    {
+                        pointer = path + "/" + term;
+                        return $"has an invalid numeric {term} facet.";
+                    }
+                }
+                foreach (string term in s_countTerms)
+                {
+                    if (schema.TryGetProperty(term, out JsonElement value) && !IsNonNegativeSchemaInteger(value))
+                    {
+                        pointer = path + "/" + term;
+                        return $"has a {term} facet that is not a non-negative integer.";
+                    }
+                }
+                foreach (string term in s_stringTerms)
+                {
+                    if (schema.TryGetProperty(term, out JsonElement value) && value.ValueKind != JsonValueKind.String)
+                    {
+                        pointer = path + "/" + term;
+                        return $"has a {term} facet that is not a string.";
+                    }
+                }
+                if (schema.TryGetProperty("uniqueItems", out JsonElement unique) &&
+                    unique.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                {
+                    pointer = path + "/uniqueItems";
+                    return "has a uniqueItems facet that is not Boolean.";
+                }
+                if (schema.TryGetProperty("uav:valueRank", out JsonElement rank) &&
+                    (rank.ValueKind != JsonValueKind.Number || !rank.TryGetInt32(out int valueRank) || valueRank < -3))
+                {
+                    pointer = path + "/uav:valueRank";
+                    return "has an invalid ValueRank.";
+                }
+                if (schema.TryGetProperty("uav:arrayDimensions", out JsonElement dimensions))
+                {
+                    pointer = path + "/uav:arrayDimensions";
+                    if (dimensions.ValueKind != JsonValueKind.Array)
+                    {
+                        return "has arrayDimensions that is not an array.";
+                    }
+                    foreach (JsonElement dimension in dimensions.EnumerateArray())
+                    {
+                        if (dimension.ValueKind != JsonValueKind.Number || !dimension.TryGetUInt32(out _))
+                        {
+                            return "has an array dimension that is not a UInt32.";
+                        }
+                    }
                 }
                 HashSet<string>? names = null;
                 if (schema.TryGetProperty("properties", out JsonElement properties))
@@ -550,6 +608,10 @@ namespace Opc.Ua.Wot
                 {
                     pending.Push((items, path + "/items", depth + 1));
                 }
+                if (schema.TryGetProperty("additionalProperties", out JsonElement additional))
+                {
+                    pending.Push((additional, path + "/additionalProperties", depth + 1));
+                }
                 foreach (string term in s_alternativeTerms)
                 {
                     if (!schema.TryGetProperty(term, out JsonElement alternatives))
@@ -573,6 +635,85 @@ namespace Opc.Ua.Wot
             }
             pointer = string.Empty;
             return null;
+        }
+
+        private static bool IsPositiveSchemaNumber(JsonElement value)
+        {
+            string number = value.GetRawText();
+            if (number[0] == '-')
+            {
+                return false;
+            }
+            foreach (char character in number)
+            {
+                if (character is 'e' or 'E')
+                {
+                    break;
+                }
+                if (character is >= '1' and <= '9')
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool IsNonNegativeSchemaInteger(JsonElement value)
+        {
+            if (value.ValueKind != JsonValueKind.Number)
+            {
+                return false;
+            }
+            string number = value.GetRawText();
+            int index = number[0] == '-' ? 1 : 0;
+            bool fraction = false;
+            bool nonzero = false;
+            int fractionalDigits = 0;
+            int trailingZeros = 0;
+            while (index < number.Length && number[index] is not ('e' or 'E'))
+            {
+                char character = number[index++];
+                if (character == '.')
+                {
+                    fraction = true;
+                    continue;
+                }
+                if (fraction)
+                {
+                    fractionalDigits++;
+                }
+                nonzero |= character != '0';
+                trailingZeros = character == '0' ? trailingZeros + 1 : 0;
+            }
+            if (!nonzero)
+            {
+                return true;
+            }
+            if (number[0] == '-')
+            {
+                return false;
+            }
+            long exponent = 0;
+            bool negativeExponent = false;
+            if (index < number.Length)
+            {
+                index++;
+                negativeExponent = number[index] == '-';
+                if (number[index] is '-' or '+')
+                {
+                    index++;
+                }
+                while (index < number.Length)
+                {
+                    // Only the comparison with the coefficient length matters, not the full exponent value.
+                    if (exponent <= number.Length)
+                    {
+                        exponent = (exponent * 10) + number[index] - '0';
+                    }
+                    index++;
+                }
+            }
+            return (negativeExponent ? -exponent : exponent) >= fractionalDigits - trailingZeros;
         }
 
         private static string? CompareSchema(
@@ -958,6 +1099,21 @@ namespace Opc.Ua.Wot
         private static readonly string[] s_unorderedTerms = ["required", "enum"];
 
         private static readonly string[] s_nameSetTerms = ["required", "uav:fieldOrder"];
+
+        private static readonly string[] s_numericTerms =
+        [
+            "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf"
+        ];
+
+        private static readonly string[] s_countTerms =
+        [
+            "minLength", "maxLength", "minItems", "maxItems", "minProperties", "maxProperties"
+        ];
+
+        private static readonly string[] s_stringTerms =
+        [
+            "format", "contentEncoding", "pattern", "uav:enumName", "uav:mapToType", "uav:dataTypeId"
+        ];
 
         private static readonly string[] s_alternativeTerms = ["oneOf", "anyOf", "allOf"];
 
