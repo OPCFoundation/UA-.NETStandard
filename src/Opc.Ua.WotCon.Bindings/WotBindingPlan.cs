@@ -185,7 +185,10 @@ namespace Opc.Ua.WotCon.Bindings
                 SecurityDefinitions, codecs,
                 IsDeclarationContext ? WoTDocumentKindEnum.ThingModel : Kind,
                 BaseUri, bounds, NamespacePrefixes,
-                EventSelections);
+                EventSelections)
+            {
+                ProjectedAffordances = ProjectedAffordances
+            };
         }
 
         /// <summary>
@@ -378,7 +381,7 @@ namespace Opc.Ua.WotCon.Bindings
             WotBindingSelectionContext? selection,
             WotEventSelectionCatalog? eventSelections)
         {
-            ImmutableArray<WotAffordanceForm> forms = WotFormExtractor.Extract(document, maxJsonDepth);
+            ImmutableArray<WotAffordanceForm> forms = [];
             ImmutableDictionary<string, WotSecurityDefinition> definitions =
                 ImmutableDictionary<string, WotSecurityDefinition>.Empty;
             ImmutableDictionary<string, string> prefixes = ImmutableDictionary<string, string>.Empty;
@@ -387,25 +390,25 @@ namespace Opc.Ua.WotCon.Bindings
             string? baseUri = null;
             try
             {
-                // One parse for every document-level member: the forms are
-                // extracted above from their own pass, and re-parsing the whole
-                // document once per member would cost a copy of it each time.
-                var options = new JsonDocumentOptions { MaxDepth = maxJsonDepth <= 0 ? 64 : maxJsonDepth };
-                using var json = JsonDocument.Parse(document, options);
+                using var json = WotDocument.Parse(document, new WotNodeSetConverterOptions
+                {
+                    MaxJsonDepth = maxJsonDepth <= 0 ? 64 : maxJsonDepth
+                });
                 JsonElement root = json.RootElement;
                 if (root.ValueKind == JsonValueKind.Object)
                 {
+                    forms = WotFormExtractor.Extract(json);
                     definitions = ReadSecurityDefinitions(root);
                     baseUri = ReadBase(root);
                     prefixes = ReadNamespacePrefixes(root);
                     localVariables = ReadNativeVariableIds(root);
                     if (kind == WoTDocumentKindEnum.ThingDescription)
                     {
-                        projectedAffordances = WotProjectedAffordance.Extract(root);
+                        projectedAffordances = WotProjectedAffordance.Extract(json);
                     }
                 }
             }
-            catch (JsonException)
+            catch (Exception exception) when (exception is JsonException or FormatException)
             {
             }
             return new WotBindingPlanRequest(

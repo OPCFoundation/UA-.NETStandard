@@ -187,10 +187,15 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetService<IWotCodecRegistry>(),
                 sp.GetService<WotBindingBounds>(),
                 sp.GetService<WotEndpointPolicy>(),
-                sp.GetService<ITelemetryContext>()));
+                sp.GetService<ITelemetryContext>())
+            {
+                MessageContext = sp.GetService<IServiceMessageContext>()
+            });
             services.TryAddSingleton<IWotBinderRegistry>(
                 sp => sp.GetRequiredService<WotProtocolBinderRegistry>());
             services.TryAddSingleton<IWotBindingChannelFactory>(
+                sp => sp.GetRequiredService<WotProtocolBinderRegistry>());
+            services.TryAddSingleton<IWotContextualBindingChannelFactory>(
                 sp => sp.GetRequiredService<WotProtocolBinderRegistry>());
             return services;
         }

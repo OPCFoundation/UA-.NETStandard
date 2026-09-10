@@ -14,6 +14,13 @@ It defines the stable, replaceable protocol-binder contracts used by the materia
 
 Planner/validator binders for HTTP, CoAP, MQTT, Modbus TCP, BACnet, PROFINET, LoRaWAN and OPC UA ship on every supported target framework. HTTP, Modbus TCP, and OPC UA executors are included when targeting net8.0 or later. MQTT remains in the optional `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings.Mqtt` package because it carries the external MQTT transport dependency.
 
+The HTTP JSON executor supports complete ordered action inputs and outputs,
+single typed Structures, and typed selected/default event payloads through
+bounded polling. Resolved schemas and namespace/type-factory contexts survive
+planning and projected-consumer activation. Custom codecs can opt into
+`IWotInteractionPayloadCodec`; existing scalar codecs and channels keep their
+original interfaces.
+
 ## Target frameworks
 
 The base package targets `net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`, and `net10.0`. The planner, plan, codec, credential, diagnostics, and registry APIs are available on all targets. The concrete `Opc.Ua.WotCon.Bindings.Http`, `Opc.Ua.WotCon.Bindings.Modbus`, and `Opc.Ua.WotCon.Bindings.OpcUa` namespaces are available only on `net8.0`, `net9.0`, and `net10.0`.

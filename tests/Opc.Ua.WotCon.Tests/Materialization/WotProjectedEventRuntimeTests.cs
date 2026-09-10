@@ -30,13 +30,22 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
+using Moq.Protected;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
+#if NET8_0_OR_GREATER
+using Opc.Ua.WotCon.Bindings.Http;
+#endif
+using Opc.Ua.WotCon.Bindings.Planners;
 using Opc.Ua.WotCon.Server.Materialization;
 using WotAffordanceKind = Opc.Ua.WotCon.Bindings.WotAffordanceKind;
 
@@ -181,6 +190,76 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await runtime.DisposeAsync().ConfigureAwait(false);
             Assert.That(upstream.Channel.DisposeCount, Is.EqualTo(1));
             Assert.That(h.Invokes["aAcknowledge"].DisposeCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task SourcesWithDifferentResolvedPayloadTypesNeverShareASubscription()
+        {
+            var h = new EventHarness();
+            _ = h.AddAlarm("typed-a");
+            _ = h.AddAlarm("typed-b");
+            using WotDocument firstDocument = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                """{"type":"object","properties":{"Reading":{"type":"integer","uav:dataTypeId":"i=5"}}}"""));
+            using WotDocument secondDocument = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                """{"type":"object","properties":{"Reading":{"type":"string","uav:dataTypeId":"i=12"}}}"""));
+            WotPayloadSchema firstSchema = WotNodeSetConverter.CapturePayloadSchema(
+                firstDocument, Wot.WotAffordanceKind.Property, firstDocument.RootElement);
+            WotPayloadSchema secondSchema = WotNodeSetConverter.CapturePayloadSchema(
+                secondDocument, Wot.WotAffordanceKind.Property, secondDocument.RootElement);
+            var firstSelection = new WotEventSelection(
+                s_selection.Clauses.AddItem(
+                    new WotResolvedEventSelectClause("i=2915", "Reading").WithPayloadSchema(firstSchema)),
+                WotEventSelectionOrigin.Standard);
+            var secondSelection = new WotEventSelection(
+                s_selection.Clauses.AddItem(
+                    new WotResolvedEventSelectClause("i=2915", "Reading").WithPayloadSchema(secondSchema)),
+                WotEventSelectionOrigin.Standard);
+            var first = new EventChannel(h.SetSelection("typed-a", firstSelection));
+            var second = new EventChannel(h.SetSelection("typed-b", secondSelection));
+            h.Nodes.ChannelFactory.SetChannel(first.Channel.Form, first.Channel);
+            h.Nodes.ChannelFactory.SetChannel(second.Channel.Form, second.Channel);
+            await using IAsyncDisposable runtime = await h.WireAsync().ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            IAsyncEnumerator<BaseEventState> events = h.Publisher.Open(h.Nodes.Root.NodeId, cancellation.Token);
+            await using var eventsOwner = events.ConfigureAwait(false);
+            Task<bool> next = events.MoveNextAsync().AsTask();
+            try
+            {
+                await Task.WhenAll(first.Started.Task, second.Started.Task).WaitAsync(s_timeout).ConfigureAwait(false);
+                first.Push(WithReading("typed-a", new ByteString(new byte[] { 1 }), new Variant((ushort)17)));
+                Assert.That(await next.WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
+                Assert.That(events.Current.EventType!.Value, Is.EqualTo(h.Types["typed-a"]));
+                Assert.That(Read(events.Current, "Reading").TryGetValue(out ushort number), Is.True);
+                Assert.That(number, Is.EqualTo((ushort)17));
+                next = events.MoveNextAsync().AsTask();
+                second.Push(WithReading("typed-b", new ByteString(new byte[] { 2 }), new Variant("separate schema")));
+                Assert.That(await next.WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
+                Assert.That(events.Current.EventType!.Value, Is.EqualTo(h.Types["typed-b"]));
+                Assert.That(Read(events.Current, "Reading").TryGetValue(out string? text), Is.True);
+                Assert.That(text, Is.EqualTo("separate schema"));
+                Assert.That(first.Channel.SubscribeEventCount, Is.EqualTo(1));
+                Assert.That(second.Channel.SubscribeEventCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                try
+                {
+                    await next.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Drain the pending read before the test disposes its enumerator.
+                }
+            }
+
+            static WotNotification WithReading(string condition, ByteString eventId, Variant value)
+            {
+                WotNotification original = Notification(condition, eventId);
+                var members = original.Data.Members.ToDictionary(pair => pair.Key, pair => pair.Value);
+                members.Add("Reading", Field(value));
+                return new WotNotification(original.Value, null, new WotEventData(members), original.NamespaceUris);
+            }
         }
 
         [Test]
@@ -389,6 +468,338 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(upstream.Channel.SubscribeEventCount, Is.EqualTo(1));
         }
 
+#if NET8_0_OR_GREATER
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HttpEventSelectedFieldsReachProjectedConsumer(bool customSelection)
+        {
+            string sourceEventType = customSelection ? "i=2915" : "i=2041";
+            string extraData = customSelection
+                ? """, "ActiveState": { "Id": true }"""
+                : string.Empty;
+            string payload = $$"""
+                {
+                  "EventId": "AQID",
+                  "EventType": "{{sourceEventType}}",
+                  "SourceNode": "i=2253",
+                  "SourceName": "boiler-7",
+                  "Time": "2026-08-01T12:00:00Z",
+                  "ReceiveTime": "2026-08-01T12:00:01Z",
+                  "Message": "Over limit",
+                  "Severity": 700{{extraData}}
+                }
+                """;
+            int sendCount = 0;
+            HttpMethod? receivedMethod = null;
+            Uri? receivedUri = null;
+            var handler = new Mock<HttpMessageHandler>();
+            handler.Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .Returns<HttpRequestMessage, CancellationToken>((request, _) =>
+                {
+                    Interlocked.Increment(ref sendCount);
+                    receivedMethod = request.Method;
+                    receivedUri = request.RequestUri;
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(payload, Encoding.UTF8, "application/json")
+                    });
+                });
+            using var client = new HttpClient(handler.Object);
+            var registry = new WotProtocolBinderRegistry(
+                [new HttpBindingPlanner()],
+                [new HttpWotBindingExecutor(new HttpWotBindingOptions
+                {
+                    ClientFactory = () => client,
+                    CallerClientHandlesRedirectSafety = true,
+                    ObserveInterval = TimeSpan.FromHours(1)
+                })]);
+            string extraSchema = customSelection
+                ? """
+                  ,
+                  "ActiveState": {
+                    "type": "object",
+                    "properties": { "Id": { "type": "boolean" } }
+                  }
+                  """
+                : string.Empty;
+            string selectionReference = customSelection ? "\"tm:ref\": \"urn:http-tests:AlarmType\"," : string.Empty;
+            string td = $$"""
+                {
+                  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+                  "title": "Projected HTTP events",
+                  "events": {
+                    "alarm": {
+                      {{selectionReference}}
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "EventId": { "type": "string", "contentEncoding": "base64" },
+                          "EventType": { "type": "string" },
+                          "SourceNode": { "type": "string" },
+                          "SourceName": { "type": "string" },
+                          "Time": { "type": "string", "format": "date-time" },
+                          "ReceiveTime": { "type": "string", "format": "date-time" },
+                          "Message": { "type": "string" },
+                          "Severity": { "type": "integer", "minimum": 0, "maximum": 65535 }
+                          {{extraSchema}}
+                        }
+                      },
+                      "forms": [{
+                        "href": "https://http-payloads.example/events",
+                        "op": "subscribeevent",
+                        "contentType": "application/json"
+                      }]
+                    }
+                  }
+                }
+                """;
+            WotEventSelectionCatalog selections = customSelection
+                ? WotEventSelectionCatalog.Create(
+                    new Dictionary<string, ArrayOf<WotResolvedEventSelectClause>>(StringComparer.Ordinal)
+                    {
+                        ["alarm"] =
+                        [
+                            .. WotEventSelection.Default.Clauses,
+                            new WotResolvedEventSelectClause("i=2915", "ActiveState/Id")
+                        ]
+                    })
+                : WotEventSelectionCatalog.Empty;
+            var nodes = new WotProjectionBindingRuntimeTestHarness();
+            BaseObjectTypeState type = nodes.AddEventType("HttpEventType", Ua.ObjectTypeIds.BaseEventType);
+            WotBindingPlan plan = registry.Prepare(WotBindingPlanRequest.FromDocument(
+                "http-events", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(td), selections))
+                .WithProjectedAffordances(
+                [
+                    new WotProjectedAffordance(
+                        WotAffordanceKind.Event, "alarm", "/events/alarm",
+                        type.NodeId.ToString(), nodes.Root.NodeId.ToString())
+                ]);
+            WotCompiledForm form = plan.CompiledForms.Single(
+                compiled => compiled.Operation == WoTBindingCapabilityEnum.SubscribeEvent);
+            var publisher = new RecordingPublisher();
+            var runtimeFactory = new WotProjectionBindingRuntimeFactory(
+                registry, null, publisher, Mock.Of<IWotProjectionConditionFactory>(MockBehavior.Strict),
+                new WotProjectionBindingRuntimeOptions());
+
+            IAsyncDisposable runtime = await runtimeFactory.CreateAsync(nodes.Builder, [plan]).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("The HTTP event runtime must be present.");
+            await using var runtimeOwner = runtime.ConfigureAwait(false);
+            Assert.That(publisher.Roots, Is.EqualTo(new[] { nodes.Root.NodeId }));
+            IAsyncEnumerator<BaseEventState> events = publisher.Open(nodes.Root.NodeId);
+            await using (events.ConfigureAwait(false))
+            {
+                Assert.That(await events.MoveNextAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
+                BaseEventState projected = events.Current;
+                Assert.That(projected.EventId!.Value.IsEmpty, Is.False);
+                Assert.That(projected.EventId.Value, Is.Not.EqualTo(new ByteString(new byte[] { 1, 2, 3 })));
+                Assert.That(projected.EventType!.Value, Is.EqualTo(type.NodeId));
+                Assert.That(projected.SourceNode!.Value, Is.EqualTo(nodes.Root.NodeId));
+                Assert.That(projected.SourceName!.Value, Is.EqualTo("boiler-7"));
+                Assert.That(projected.Time!.Value, Is.EqualTo(new DateTimeUtc(2026, 8, 1, 12, 0, 0)));
+                Assert.That(projected.ReceiveTime!.Value, Is.EqualTo(new DateTimeUtc(2026, 8, 1, 12, 0, 1)));
+                Assert.That(projected.Message!.Value.Text, Is.EqualTo("Over limit"));
+                Assert.That(projected.Severity!.Value, Is.EqualTo((ushort)700));
+                if (customSelection)
+                {
+                    Assert.That(Read(projected, "ActiveState", "Id").TryGetValue(out bool active), Is.True);
+                    Assert.That(active, Is.True);
+                }
+
+                WotEventSelection selection = form.EventSelection ?? WotEventSelection.Default;
+                Assert.That(
+                    selection.Origin,
+                    Is.EqualTo(customSelection ? WotEventSelectionOrigin.Standard : WotEventSelectionOrigin.Default));
+                string[] expectedPaths = customSelection
+                    ? [
+                        "EventId", "EventType", "SourceNode", "SourceName",
+                        "Time", "ReceiveTime", "Message", "Severity", "ActiveState/Id"
+                    ]
+                    : [
+                        "EventId", "EventType", "SourceNode", "SourceName", "Time", "ReceiveTime", "Message", "Severity"
+                    ];
+                Assert.That(selection.Clauses.ConvertAll(clause => clause.BrowsePath), Is.EqualTo(expectedPaths));
+            }
+            Assert.That(sendCount, Is.EqualTo(1));
+            Assert.That(receivedMethod, Is.EqualTo(HttpMethod.Get));
+            Assert.That(receivedUri, Is.EqualTo(new Uri("https://http-payloads.example/events")));
+        }
+
+        [TestCase("valid")]
+        [TestCase("malformed")]
+        [TestCase("missing")]
+        [TestCase("wrong-kind")]
+        public async Task AuthoredHttpEventPayloadReachesRealConsumerOrFailsExplicitly(string scenario)
+        {
+            const string definition = """
+                {
+                  "@context":{"native":"http://opcfoundation.org/UA/","model":"urn:http-event-fields"},
+                  "@type":["tm:ThingModel","uav:eventType"],
+                  "uav:id":"nsu=urn:http-event-types;s=Telemetry","title":"Telemetry event",
+                  "data":{
+                    "type":"object",
+                    "uav:fieldOrder":[
+                      "EventId","EventType","SourceNode","SourceName",
+                      "Time","ReceiveTime","Message","Severity","Details"
+                    ],
+                    "properties":{
+                      "EventId":{"type":"string","contentEncoding":"base64"},
+                      "EventType":{"type":"string","uav:dataTypeId":"i=17"},
+                      "SourceNode":{"type":"string","uav:dataTypeId":"i=17"},
+                      "SourceName":{"type":"string"},
+                      "Time":{"type":"string","format":"date-time"},
+                      "ReceiveTime":{"type":"string","format":"date-time"},
+                      "Message":{"type":"string","uav:dataTypeId":"i=21"},
+                      "Severity":{"type":"integer","uav:dataTypeId":"i=5"},
+                      "Details":{
+                        "type":"object","uav:browseName":"model:Details","uav:fieldOrder":["Target","Pressure"],
+                        "properties":{
+                          "Target":{"type":"string","uav:dataTypeName":"native:NodeId","uav:browseName":"model:Target"},
+                          "Pressure":{
+                            "type":"integer","uav:dataTypeName":"native:UInt16","uav:browseName":"model:Pressure"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                """;
+            var resolver = new Mock<IWotThingResolver>(MockBehavior.Strict);
+            resolver.Setup(value => value.ResolveThingAsync(
+                    "event-type.tm.json", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<WotResolverResult>(
+                    WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(definition))));
+            const string td = """
+                {
+                  "@context":{"fields":"urn:http-event-fields","native":"urn:wrong-referrer"},
+                  "title":"Authored HTTP event",
+                  "events":{
+                    "telemetry":{
+                      "uav:eventSelectClauses":[
+                        {"tm:ref":"event-type.tm.json","uav:browsePath":"EventId"},
+                        {"tm:ref":"event-type.tm.json","uav:browsePath":"EventType"},
+                        {"tm:ref":"event-type.tm.json","uav:browsePath":"SourceNode"},
+                        {"tm:ref":"event-type.tm.json","uav:browsePath":"SourceName"},
+                        {"tm:ref":"event-type.tm.json","uav:browsePath":"Time"},
+                        {"tm:ref":"event-type.tm.json","uav:browsePath":"ReceiveTime"},
+                        {"tm:ref":"event-type.tm.json","uav:browsePath":"Message"},
+                        {"tm:ref":"event-type.tm.json","uav:browsePath":"Severity"},
+                        {"tm:ref":"event-type.tm.json","uav:browsePath":"fields:Details/fields:Target"},
+                        {"tm:ref":"event-type.tm.json","uav:browsePath":"fields:Details/fields:Pressure"}
+                      ],
+                      "forms":[{"href":"https://http-payloads.example/authored","op":"subscribeevent"}]
+                    }
+                  }
+                }
+                """;
+            string details = scenario switch
+            {
+                "missing" => """{"Pressure":65535}""",
+                "wrong-kind" => """{"Target":"nsu=urn:remote-event;s=Target","Pressure":"65535"}""",
+                _ => """{"Target":"nsu=urn:remote-event;s=Target","Pressure":65535}"""
+            };
+            string payload = scenario == "malformed" ? "{" : $$"""
+                {
+                  "EventId":"AQID","EventType":"nsu=urn:http-event-types;s=Telemetry",
+                  "SourceNode":"nsu=urn:remote-event;s=Source","SourceName":"remote-device",
+                  "Time":"2026-08-01T12:00:00Z","ReceiveTime":"2026-08-01T12:00:01Z",
+                  "Message":"Scoped fields","Severity":700,"Details":{{details}}
+                }
+                """;
+            int sends = 0;
+            var handler = new Mock<HttpMessageHandler>();
+            handler.Protected().Setup<Task<HttpResponseMessage>>(
+                    "SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .Returns<HttpRequestMessage, CancellationToken>((_, _) =>
+                {
+                    Interlocked.Increment(ref sends);
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(payload, Encoding.UTF8, "application/json")
+                    });
+                });
+            using var client = new HttpClient(handler.Object);
+            var registry = new WotProtocolBinderRegistry(
+                [new HttpBindingPlanner()],
+                [new HttpWotBindingExecutor(new HttpWotBindingOptions
+                {
+                    ClientFactory = () => client,
+                    CallerClientHandlesRedirectSafety = true,
+                    ObserveInterval = TimeSpan.FromHours(1),
+                    RetryPolicy = new ExponentialBackoffChannelReconnectPolicy { MaxAttempts = 1 }
+                })]);
+            var diagnostics = new List<WotDiagnostic>();
+            WotBindingPlanRequest request = await WotBindingPlanRequest.FromDocumentAsync(
+                "authored-http", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(td),
+                resolver.Object, diagnostics: diagnostics).ConfigureAwait(false);
+            Assert.That(diagnostics.Where(value => value.Severity == WotDiagnosticSeverity.Error), Is.Empty);
+            var nodes = new WotProjectionBindingRuntimeTestHarness();
+            nodes.Builder.Context.NamespaceUris.Append("urn:unrelated-local");
+            nodes.Builder.Context.NamespaceUris.Append("urn:http-event-fields");
+            Assert.That(nodes.Builder.Context.NamespaceUris.GetIndex("urn:remote-event"), Is.EqualTo(-1));
+            BaseObjectTypeState type = nodes.AddEventType("AuthoredHttpEvent", Ua.ObjectTypeIds.BaseEventType);
+            WotBindingPlan plan = registry.Prepare(request).WithProjectedAffordances(
+                [new WotProjectedAffordance(WotAffordanceKind.Event, "telemetry", "/events/telemetry",
+                    type.NodeId.ToString(), nodes.Root.NodeId.ToString())]);
+            WotCompiledForm form = plan.CompiledForms.Single();
+            Assert.That(form.EventSelection!.Clauses, Has.Count.EqualTo(10));
+            Assert.That(form.EventSelection.Clauses[8].Source, Is.EqualTo(WotEventSelectClauseSource.Explicit));
+            Assert.That(form.EventSelection.Clauses[8].BrowsePath,
+                Is.EqualTo("nsu=urn:http-event-fields;Details/nsu=urn:http-event-fields;Target"));
+            var publisher = new RecordingPublisher();
+            var factory = new WotProjectionBindingRuntimeFactory(
+                registry, null, publisher, Mock.Of<IWotProjectionConditionFactory>(MockBehavior.Strict),
+                new WotProjectionBindingRuntimeOptions());
+            await using IAsyncDisposable runtime = await factory.CreateAsync(nodes.Builder, [plan])
+                .ConfigureAwait(false)
+                ?? throw new InvalidOperationException("The authored HTTP event runtime must be present.");
+            IAsyncEnumerator<BaseEventState> events = publisher.Open(nodes.Root.NodeId);
+            await using (events.ConfigureAwait(false))
+            {
+                if (scenario == "valid")
+                {
+                    Assert.That(
+                        await events.MoveNextAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
+                    BaseEventState projected = events.Current;
+                    ushort ns = nodes.Builder.Context.NamespaceUris.GetIndexOrAppend("urn:http-event-fields");
+                    Variant target = projected.GetAttributeValue(
+                        Mock.Of<IFilterContext>(), Ua.ObjectTypeIds.BaseEventType,
+                        [new QualifiedName("Details", ns), new QualifiedName("Target", ns)], Attributes.Value, default);
+                    Variant pressure = projected.GetAttributeValue(
+                        Mock.Of<IFilterContext>(), Ua.ObjectTypeIds.BaseEventType,
+                        [new QualifiedName("Details", ns), new QualifiedName("Pressure", ns)],
+                        Attributes.Value, default);
+                    Assert.That(target.TryGetValue(out NodeId targetNode), Is.True);
+                    Assert.That(NodeId.ToExpandedNodeId(targetNode, nodes.Builder.Context.NamespaceUris),
+                        Is.EqualTo(new ExpandedNodeId("Target", "urn:remote-event")));
+                    Assert.That(pressure.TryGetValue(out ushort value), Is.True);
+                    Assert.That(value, Is.EqualTo(ushort.MaxValue));
+                    Assert.That(projected.EventType!.Value, Is.EqualTo(type.NodeId));
+                    Assert.That(projected.SourceNode!.Value, Is.EqualTo(nodes.Root.NodeId));
+                    Assert.That(projected.SourceName!.Value, Is.EqualTo("remote-device"));
+                    Assert.That(projected.Message!.Value.Text, Is.EqualTo("Scoped fields"));
+                    Assert.That(projected.Time!.Value, Is.EqualTo(new DateTimeUtc(2026, 8, 1, 12, 0, 0)));
+                }
+                else
+                {
+                    ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await events.MoveNextAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false))!;
+                    Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+                }
+            }
+            await runtime.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(sends, Is.EqualTo(1));
+            resolver.Verify(value => value.ResolveThingAsync(
+                "event-type.tm.json", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
+            using HttpResponseMessage probe = await client.GetAsync(new Uri("https://http-payloads.example/probe"))
+                .ConfigureAwait(false);
+            Assert.That(probe.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(sends, Is.EqualTo(2));
+        }
+#endif
+
         private static ValueTask<ServiceResult> CallAsync(EventHarness h, MethodState method, ArrayOf<Variant> inputs)
         {
             return method.CallAsync(h.Nodes.Builder.Context, h.Nodes.Root.NodeId, inputs, [], []);
@@ -501,6 +912,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     .WithConditionInvocation(form.ConditionInvocation);
             }
 
+            public WotCompiledForm SetSelection(string name, WotEventSelection selection)
+            {
+                int index = m_forms.FindIndex(form => form.AffordanceName == name);
+                WotCompiledForm form = m_forms[index];
+                var updated = new WotCompiledForm(
+                    form.Binding, form.AffordanceKind, form.AffordanceName, form.JsonPointer,
+                    form.Operation, form.OpToken, form.Endpoint, form.Addressing, form.OperationInfo,
+                    form.Payload, form.Security, form.IsExecutable, form.TargetMapping, selection, form.SecurityFloor);
+                m_forms[index] = updated;
+                return updated;
+            }
+
             private MethodState AddAction(
                 string eventName, string action, string endpoint, BaseObjectState notifier, bool includeComment)
             {
@@ -575,13 +998,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
             }
 
-            public IAsyncEnumerator<BaseEventState> Open(NodeId notifier)
+            public IAsyncEnumerator<BaseEventState> Open(NodeId notifier, CancellationToken cancellationToken = default)
             {
                 foreach (var entry in m_sources)
                 {
                     if (entry.Key.Notifier == notifier)
                     {
-                        return entry.Value(CancellationToken.None).GetAsyncEnumerator();
+                        return entry.Value(cancellationToken).GetAsyncEnumerator(cancellationToken);
                     }
                 }
                 throw new InvalidOperationException("No notifier was registered.");

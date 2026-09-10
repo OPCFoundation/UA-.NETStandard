@@ -57,6 +57,7 @@ namespace Opc.Ua.WotCon.Bindings
             Bounds = bounds ?? WotBindingBounds.Default;
             EndpointPolicy = endpointPolicy ?? WotEndpointPolicy.Default;
             Telemetry = telemetry ?? AmbientMessageContext.Telemetry;
+            MessageContext = ServiceMessageContext.Create(Telemetry);
         }
 
         /// <summary>
@@ -83,6 +84,22 @@ namespace Opc.Ua.WotCon.Bindings
         /// Gets the telemetry context used for executor diagnostics.
         /// </summary>
         public ITelemetryContext? Telemetry { get; }
+
+        /// <summary>
+        /// Gets the value context and registered factories available to payload decoders.
+        /// </summary>
+        public IServiceMessageContext MessageContext { get; private init; }
+
+        /// <summary>
+        /// Returns an executor context with the host's namespace and type-factory context.
+        /// </summary>
+        public WotExecutorContext WithMessageContext(IServiceMessageContext context)
+        {
+            return new WotExecutorContext(Credentials, Codecs, Bounds, EndpointPolicy, Telemetry)
+            {
+                MessageContext = context ?? throw new ArgumentNullException(nameof(context))
+            };
+        }
     }
 
     /// <summary>
@@ -365,7 +382,8 @@ namespace Opc.Ua.WotCon.Bindings
             {
                 if (result is null)
                 {
-                    throw new ArgumentException("Input results must retain every argument position.", nameof(inputResults));
+                    throw new ArgumentException(
+                        "Input results must retain every argument position.", nameof(inputResults));
                 }
             }
             return new WotInvokeResult(Status, Outputs, Error)

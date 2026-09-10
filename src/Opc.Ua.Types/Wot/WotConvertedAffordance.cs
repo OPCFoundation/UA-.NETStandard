@@ -90,5 +90,10 @@ namespace Opc.Ua.Wot
         /// Gets the authored interaction, including its data schemas and local context.
         /// </summary>
         public JsonElement Affordance { get; }
+
+        /// <summary>
+        /// Gets the payload types resolved while the owning conversion document was live.
+        /// </summary>
+        public WotPayloadSchema? PayloadSchema { get; internal init; }
     }
 }

@@ -36,6 +36,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Bindings.Http
 {
@@ -45,7 +46,7 @@ namespace Opc.Ua.WotCon.Bindings.Http
     /// and payload sizes, cooperative cancellation, HTTP-to-<see cref="StatusCode"/>
     /// mapping and credential-provider-driven authentication.
     /// </summary>
-    internal sealed class HttpWotBindingChannel : IWotBindingChannel
+    internal sealed class HttpWotBindingChannel : IWotContextualBindingChannel
     {
         public HttpWotBindingChannel(
             HttpClient client,
@@ -54,7 +55,8 @@ namespace Opc.Ua.WotCon.Bindings.Http
             ImmutableArray<KeyValuePair<string, string>> defaultHeaders,
             WotCompiledForm form,
             WotExecutorContext context,
-            HttpWotBindingOptions options)
+            HttpWotBindingOptions options,
+            IWotPayloadCodec codec)
         {
             m_client = client;
             m_ownsClient = ownsClient;
@@ -63,7 +65,7 @@ namespace Opc.Ua.WotCon.Bindings.Http
             Form = form;
             m_context = context;
             m_options = options;
-            context.Codecs.TrySelect(form.Payload.ContentType, out m_codec);
+            m_codec = codec;
             m_baseTarget = form.Addressing.Target;
         }
 
@@ -104,17 +106,38 @@ namespace Opc.Ua.WotCon.Bindings.Http
             return new WotWriteResult(status, error);
         }
 
-        public async ValueTask<WotInvokeResult> InvokeAsync(
+        public ValueTask<WotInvokeResult> InvokeAsync(
             IReadOnlyList<Variant> inputs, CancellationToken cancellationToken = default)
         {
-            ReadOnlyMemory<byte>? content = null;
-            if (inputs is { Count: > 0 })
+            if (inputs is null)
             {
-                WotEncodeResult encoded = m_codec.Encode(inputs[0], Form.Payload);
-                if (!encoded.Success)
-                {
-                    return new WotInvokeResult(StatusCodes.BadEncodingError, null, encoded.Error);
-                }
+                throw new ArgumentNullException(nameof(inputs));
+            }
+            var values = new Variant[inputs.Count];
+            for (int index = 0; index < values.Length; index++)
+            {
+                values[index] = inputs[index];
+            }
+            return InvokeAsync(new WotInvokeRequest(values, m_context.MessageContext), cancellationToken);
+        }
+
+        public async ValueTask<WotInvokeResult> InvokeAsync(
+            WotInvokeRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request is null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            WotEncodeResult encoded = EncodeArguments(request);
+            if (!encoded.Success)
+            {
+                return new WotInvokeResult(encoded.Status, null, encoded.Error);
+            }
+            ReadOnlyMemory<byte>? content = null;
+            if (!encoded.Data.IsEmpty || request.Inputs.Count != 0 ||
+                Form.Payload.InputLayout?.Schema.ValueKind == System.Text.Json.JsonValueKind.Object)
+            {
                 content = encoded.Data;
             }
             HttpMethod method = ResolveMethod("POST");
@@ -124,16 +147,12 @@ namespace Opc.Ua.WotCon.Bindings.Http
             {
                 return new WotInvokeResult(status, null, error);
             }
-            if (body.Length == 0)
+            if (m_codec is IWotInteractionPayloadCodec interaction && Form.Payload.OutputLayout is not null)
             {
-                return new WotInvokeResult(StatusCodes.Good, []);
+                return ValidateOutputs(interaction.DecodeArguments(
+                    new ByteString(body), Form.Payload, request.Context, m_context.Bounds));
             }
-            WotDecodeResult decoded = m_codec.Decode(body, Form.Payload);
-            var output = new DataValue(
-                decoded.Success ? decoded.Value : Variant.Null,
-                decoded.Success ? StatusCodes.Good : StatusCodes.BadDecodingError,
-                DateTimeUtc.Now, DateTimeUtc.Now);
-            return new WotInvokeResult(StatusCodes.Good, [output]);
+            return DecodeLegacyArguments(body, request.Context);
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
@@ -146,8 +165,7 @@ namespace Opc.Ua.WotCon.Bindings.Http
             {
                 throw new ArgumentNullException(nameof(onNotification));
             }
-            var subscription = new PollingWotSubscription(
-                Form,
+            return CreateSubscription(
                 async token =>
                 {
                     WotReadResult result = await ReadAsync(token).ConfigureAwait(false);
@@ -156,30 +174,191 @@ namespace Opc.Ua.WotCon.Bindings.Http
                     // unhealthy so the retry policy backs off instead of hammering the asset.
                     onNotification(new WotNotification(result.Value));
                     return result.Success;
-                },
-                m_options.ObserveInterval,
-                // A transient poll fault is reported as a Bad-status notification
-                // so consumers observe the fault without the poll loop faulting.
-                onError: _ => onNotification(new WotNotification(
-                    DataValue.FromStatusCode(StatusCodes.BadCommunicationError))),
-                retryPolicy: m_options.RetryPolicy,
-                telemetry: m_context.Telemetry);
-            return new ValueTask<IWotSubscription>(subscription);
+                }, onNotification, cancellationToken);
         }
 
         public ValueTask<IWotSubscription> SubscribeEventAsync(
             Action<WotNotification> onEvent, CancellationToken cancellationToken = default)
         {
-            return ObserveAsync(onEvent, cancellationToken);
+            if (onEvent is null)
+            {
+                throw new ArgumentNullException(nameof(onEvent));
+            }
+            if (Form.AffordanceKind != WotAffordanceKind.Event || m_codec is not IWotInteractionPayloadCodec codec)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The selected HTTP codec does not support complete event payloads.");
+            }
+            return CreateSubscription(async token =>
+            {
+                (StatusCode status, byte[] body, _) = await SendAsync(ResolveMethod("GET"), null, token)
+                    .ConfigureAwait(false);
+                WotNotification notification = StatusCode.IsGood(status)
+                    ? codec.DecodeEvent(
+                        new ByteString(body), Form.Payload, Form.EventSelection ?? WotEventSelection.Default,
+                        m_context.MessageContext, m_context.Bounds)
+                    : new WotNotification(DataValue.FromStatusCode(status)).WithContext(m_context.MessageContext);
+                token.ThrowIfCancellationRequested();
+                onEvent(notification);
+                return StatusCode.IsGood(notification.Value.StatusCode);
+            }, onEvent, cancellationToken);
         }
 
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
+            PollingWotSubscription[] subscriptions;
+            lock (m_subscriptionsGate)
+            {
+                m_disposed = true;
+                subscriptions = [.. m_subscriptions];
+            }
+            foreach (PollingWotSubscription subscription in subscriptions)
+            {
+                await subscription.DisposeAsync().ConfigureAwait(false);
+            }
             if (m_ownsClient)
             {
                 m_client.Dispose();
             }
-            return default;
+        }
+
+        private WotEncodeResult EncodeArguments(WotInvokeRequest request)
+        {
+            WotMethodArgumentLayout? input = Form.Payload.InputLayout;
+            WotMethodArgumentLayout? output = Form.Payload.OutputLayout;
+            if (input is not null && request.Inputs.Count != input.ArgumentCount)
+            {
+                return WotEncodeResult.Fail(
+                    "The action input count does not match its layout.", StatusCodes.BadInvalidArgument);
+            }
+            if (m_codec is IWotInteractionPayloadCodec codec && input is not null)
+            {
+                return codec.EncodeArguments(request, Form.Payload, m_context.Bounds);
+            }
+            if (request.Inputs.Count > 1 || input?.Kind == WotMethodArgumentLayoutKind.Named ||
+                output?.Kind == WotMethodArgumentLayoutKind.Named ||
+                (request.Inputs.Count == 1 && WotBindingValueMapper.RequiresContext(request.Inputs[0])) ||
+                IsCompoundSchema(input, "input") || IsCompoundSchema(output, "output"))
+            {
+                return WotEncodeResult.Fail(
+                    "The selected legacy codec cannot preserve this action's complete payload and context.",
+                    StatusCodes.BadNotSupported);
+            }
+            return request.Inputs.Count == 0
+                ? WotEncodeResult.Ok(ReadOnlyMemory<byte>.Empty)
+                : m_codec.Encode(request.Inputs[0], Form.Payload);
+        }
+
+        private WotInvokeResult DecodeLegacyArguments(byte[] body, IServiceMessageContext context)
+        {
+            WotMethodArgumentLayout? output = Form.Payload.OutputLayout;
+            if (body.Length == 0 && (output is null || output.ArgumentCount == 0))
+            {
+                return new WotInvokeResult(StatusCodes.Good, []).WithContext(context);
+            }
+            if (output?.ArgumentCount == 0)
+            {
+                return new WotInvokeResult(
+                    StatusCodes.BadDecodingError, null, "The response does not match the declared output contract.");
+            }
+            WotDecodeResult decoded = m_codec.Decode(body, Form.Payload);
+            if (!decoded.Success)
+            {
+                return new WotInvokeResult(StatusCodes.BadDecodingError, null, decoded.Error);
+            }
+            if (WotBindingValueMapper.RequiresContext(decoded.Value))
+            {
+                return new WotInvokeResult(
+                    StatusCodes.BadNotSupported, null, "The legacy codec returned a value without its source context.");
+            }
+            return new WotInvokeResult(StatusCodes.Good,
+                [new DataValue(decoded.Value, StatusCodes.Good, DateTimeUtc.Now, DateTimeUtc.Now)])
+                .WithContext(context);
+        }
+
+        private WotInvokeResult ValidateOutputs(WotInvokeResult result)
+        {
+            if (!result.Success)
+            {
+                return result;
+            }
+            if (Form.Payload.OutputLayout is { } layout && result.Outputs.Count != layout.ArgumentCount)
+            {
+                return new WotInvokeResult(
+                    StatusCodes.BadDecodingError, null, "The codec did not return every declared output argument.");
+            }
+            foreach (DataValue output in result.Outputs)
+            {
+                if (!StatusCode.IsGood(output.StatusCode))
+                {
+                    return new WotInvokeResult(
+                        output.StatusCode, null, "The codec returned an unsuccessful output value.");
+                }
+                if (result.Context is null && WotBindingValueMapper.RequiresContext(output.WrappedValue))
+                {
+                    return new WotInvokeResult(
+                        StatusCodes.BadNotSupported, null, "The codec returned an output without its source context.");
+                }
+            }
+            return result;
+        }
+
+        private bool IsCompoundSchema(WotMethodArgumentLayout? layout, string member)
+        {
+            if (layout?.Schema.ValueKind != System.Text.Json.JsonValueKind.Object)
+            {
+                return false;
+            }
+            if (Form.Payload.Schema?.TryGetTypeBinding("/" + member, out WotPayloadTypeBinding? binding) == true &&
+                (binding.TypeInfo.ValueRank >= 0 || binding.TypeInfo.BuiltInType == BuiltInType.ExtensionObject ||
+                    (binding.TypeInfo.BuiltInType == BuiltInType.Null && !binding.DataTypeId.IsNull)))
+            {
+                return true;
+            }
+            if (!layout.Schema.TryGetProperty("type", out System.Text.Json.JsonElement type))
+            {
+                return false;
+            }
+            if (type.ValueKind == System.Text.Json.JsonValueKind.String)
+            {
+                return type.GetString() is "array" or "object";
+            }
+            if (type.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                foreach (System.Text.Json.JsonElement alternative in type.EnumerateArray())
+                {
+                    if (alternative.ValueKind == System.Text.Json.JsonValueKind.String &&
+                        alternative.GetString() is "array" or "object")
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private ValueTask<IWotSubscription> CreateSubscription(
+            Func<CancellationToken, ValueTask<bool>> poll,
+            Action<WotNotification> callback,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (m_subscriptionsGate)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(HttpWotBindingChannel));
+                }
+                m_subscriptions.RemoveWhere(item => item.IsDisposed && item.Completion.IsCompleted);
+                var subscription = new PollingWotSubscription(
+                    Form, poll, m_options.ObserveInterval, cancellationToken,
+                    onError: exception => callback(new WotNotification(DataValue.FromStatusCode(
+                        exception is ServiceResultException service
+                            ? service.StatusCode : StatusCodes.BadCommunicationError))),
+                    retryPolicy: m_options.RetryPolicy, telemetry: m_context.Telemetry);
+                m_subscriptions.Add(subscription);
+                return new ValueTask<IWotSubscription>(subscription);
+            }
         }
 
         private HttpMethod ResolveMethod(string fallback)
@@ -192,6 +371,27 @@ namespace Opc.Ua.WotCon.Bindings.Http
         private async ValueTask<(StatusCode Status, byte[] Body, string? Error)> SendAsync(
             HttpMethod method, ReadOnlyMemory<byte>? content, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (content is { } payload)
+            {
+                if (payload.Length > m_context.Bounds.MaxPayloadBytes)
+                {
+                    return (StatusCodes.BadEncodingLimitsExceeded, [],
+                        "The HTTP request exceeds the payload byte limit.");
+                }
+                if (!payload.IsEmpty && (method == HttpMethod.Get || method == HttpMethod.Head))
+                {
+                    return (StatusCodes.BadNotSupported, [],
+                        "A body-bearing action cannot discard its input for GET or HEAD.");
+                }
+            }
+            lock (m_subscriptionsGate)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(HttpWotBindingChannel));
+                }
+            }
             await EnsureCredentialAsync(cancellationToken).ConfigureAwait(false);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(m_context.Bounds.DefaultTimeout);
@@ -561,5 +761,8 @@ namespace Opc.Ua.WotCon.Bindings.Http
         private WotCredential? m_credential;
         private readonly Lock m_credentialLock = new();
         private Task? m_credentialTask;
+        private readonly Lock m_subscriptionsGate = new();
+        private readonly HashSet<PollingWotSubscription> m_subscriptions = [];
+        private bool m_disposed;
     }
 }

@@ -420,7 +420,7 @@ namespace Opc.Ua.Wot
             {
                 if (!WotEventSelectClauses.TryParse(
                     authored,
-                    prefix => ResolvePrefix(document, prefix),
+                    prefix => ResolvePrefix(document, prefix, affordance),
                     out ArrayOf<WotEventSelectClause> parsed,
                     out string parseError,
                     out int parseIndex))
@@ -462,6 +462,13 @@ namespace Opc.Ua.Wot
                             at);
                         return [];
                     }
+                    string? resolvedPath = ResolvePayloadBrowsePath(document, authored[ii], clause);
+                    if (resolvedPath is null)
+                    {
+                        AddError(diagnostics,
+                            $"The clause path '{clause.BrowsePath}' has an unbound namespace prefix.", at);
+                        return ArrayOf<WotResolvedEventSelectClause>.Empty;
+                    }
                     explicitClauses.Add(new WotResolvedEventSelectClause(
                         target.TypeDefinitionId,
                         clause.BrowsePath,
@@ -469,7 +476,7 @@ namespace Opc.Ua.Wot
                         clause.TypeDefinitionReference)
                     {
                         ResolvedPathElements = ResolvePathElements(document, authored[ii], clause.PathElements)
-                    });
+                    }.WithPayloadSchema(target.PayloadSchema, resolvedPath));
                 }
             }
 
@@ -542,13 +549,7 @@ namespace Opc.Ua.Wot
                 (WotTypeDeclaration? declaration, string? failure) =
                     await ResolveOccurrenceDeclarationAsync(clause.TypeDefinitionId, cancellationToken)
                         .ConfigureAwait(false);
-                verified.Add(new WotResolvedEventSelectClause(
-                    clause.TypeDefinitionId, clause.BrowsePath, clause.Source, clause.TypeDefinitionReference)
-                {
-                    ResolvedPathElements = clause.ResolvedPathElements,
-                    Declaration = declaration,
-                    DeclarationFailure = failure
-                });
+                verified.Add(clause.WithDeclaration(declaration, failure));
             }
             return verified.ToArrayOf();
         }
@@ -701,6 +702,15 @@ namespace Opc.Ua.Wot
                 string[] qualified = new string[take];
                 Array.Copy(leaf.Elements, elements, take);
                 Array.Copy(leaf.QualifiedElements, qualified, take);
+                var resolvedElements = new string[take];
+                string pointer = string.Empty;
+                for (int index = 0; index < take; index++)
+                {
+                    pointer += "/properties/" + EscapePointerToken(leaf.Members[index]);
+                    resolvedElements[index] = definition.PayloadSchema.TryGetTypeBinding(
+                        pointer, out WotPayloadTypeBinding? binding) && binding.ResolvedBrowseName is { } resolvedName
+                        ? resolvedName : elements[index];
+                }
                 baseline.Add(new WotResolvedEventSelectClause(
                     definition.TypeDefinitionId,
                     WotEventSelectClauses.JoinBrowsePath(elements),
@@ -708,7 +718,7 @@ namespace Opc.Ua.Wot
                     definition.Reference)
                 {
                     ResolvedPathElements = qualified
-                });
+                }.WithPayloadSchema(definition.PayloadSchema, WotEventSelectClauses.JoinBrowsePath(resolvedElements)));
             }
             return true;
         }
@@ -913,7 +923,7 @@ namespace Opc.Ua.Wot
                 {
                     return Validate(
                         reference, carriesAnnotation, typeDefinitionId, hasData, data,
-                        dataDocument, where, diagnostics);
+                        dataDocument, where, diagnostics, scope);
                 }
                 current = chained.GetString() ?? string.Empty;
                 currentDocument = located.Value.Document;
@@ -938,7 +948,8 @@ namespace Opc.Ua.Wot
             JsonElement data,
             WotDocument dataDocument,
             string where,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            ResolutionScope scope)
         {
             if (!carriesAnnotation)
             {
@@ -975,7 +986,14 @@ namespace Opc.Ua.Wot
                     where);
                 return null;
             }
-            return new EventTypeDefinition(reference, typeDefinitionId, data, dataDocument);
+            (WotDocument owner, JsonElement ownedData) = scope.GetPayloadOwner(dataDocument, data);
+            WotPayloadSchema payload = WotNodeSetConverter.CapturePayloadSchema(
+                owner, WotAffordanceKind.Property, ownedData);
+            foreach (WotDiagnostic diagnostic in payload.Diagnostics)
+            {
+                diagnostics.Add(diagnostic);
+            }
+            return new EventTypeDefinition(reference, typeDefinitionId, ownedData, owner, payload);
         }
 
         private async System.Threading.Tasks.ValueTask<WotDocument?> LoadAsync(
@@ -1186,9 +1204,38 @@ namespace Opc.Ua.Wot
             return trimmed;
         }
 
-        private static string? ResolvePrefix(WotDocument document, string prefix)
+        private static string? ResolvePayloadBrowsePath(
+            WotDocument document, JsonElement carryingNode, WotEventSelectClause clause)
         {
-            return document.TryGetContextPrefix(prefix, out string uri) ? uri : null;
+            var elements = new string[clause.PathElements.Count];
+            for (int index = 0; index < elements.Length; index++)
+            {
+                string element = clause.PathElements[index];
+                elements[index] = element;
+                if (element.StartsWith("nsu=", StringComparison.Ordinal) || element.StartsWith('{'))
+                {
+                    continue;
+                }
+                int separator = element.IndexOf(':', 0);
+                if (separator <= 0 || separator + 1 >= element.Length)
+                {
+                    continue;
+                }
+                if (!document.TryGetContextPrefix(element[..separator], out string uri, carryingNode))
+                {
+                    return null;
+                }
+                string name = element[(separator + 1)..];
+                elements[index] = uri == WotVocabulary.OpcUaNamespace
+                    ? name : "nsu=" + CoreUtils.EscapeUri(uri) + ";" + name;
+            }
+            return WotEventSelectClauses.JoinBrowsePath(elements);
+        }
+
+        private static string? ResolvePrefix(
+            WotDocument document, string prefix, JsonElement carryingNode = default)
+        {
+            return document.TryGetContextPrefix(prefix, out string uri, carryingNode) ? uri : null;
         }
 
         private static ArrayOf<string> ResolvePathElements(
@@ -1285,12 +1332,14 @@ namespace Opc.Ua.Wot
                 string reference,
                 string typeDefinitionId,
                 JsonElement data,
-                WotDocument document)
+                WotDocument document,
+                WotPayloadSchema payloadSchema)
             {
                 Reference = reference;
                 TypeDefinitionId = typeDefinitionId;
                 Data = data;
                 Document = document;
+                PayloadSchema = payloadSchema;
             }
 
             public string Reference { get; }
@@ -1300,6 +1349,8 @@ namespace Opc.Ua.Wot
             public JsonElement Data { get; }
 
             public WotDocument Document { get; }
+
+            public WotPayloadSchema PayloadSchema { get; }
         }
 
         /// <summary>
@@ -1375,6 +1426,28 @@ namespace Opc.Ua.Wot
                     : default;
             }
 
+            public (WotDocument Document, JsonElement Schema) GetPayloadOwner(WotDocument referring, JsonElement schema)
+            {
+                if (referring.Owns(schema))
+                {
+                    return (referring, schema);
+                }
+                foreach (WotDocument loaded in m_loaded.Values)
+                {
+                    if (loaded.Owns(schema))
+                    {
+                        return (loaded, schema);
+                    }
+                }
+                // The built-in catalog's detached schemas have only the standard context.
+                if (!m_payloadDocuments.TryGetValue(schema, out WotDocument? owner))
+                {
+                    owner = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(schema.GetRawText()));
+                    m_payloadDocuments.Add(schema, owner);
+                }
+                return (owner, owner.RootElement);
+            }
+
             public void Dispose()
             {
                 foreach (WotDocument opened in m_loaded.Values)
@@ -1382,6 +1455,11 @@ namespace Opc.Ua.Wot
                     opened.Dispose();
                 }
                 m_loaded.Clear();
+                foreach (WotDocument payload in m_payloadDocuments.Values)
+                {
+                    payload.Dispose();
+                }
+                m_payloadDocuments.Clear();
                 m_unresolvable.Clear();
                 m_reported.Clear();
                 m_linkedData.Clear();
@@ -1392,6 +1470,7 @@ namespace Opc.Ua.Wot
             private readonly HashSet<string> m_unresolvable = new(StringComparer.Ordinal);
             private readonly HashSet<string> m_reported = new(StringComparer.Ordinal);
             private readonly Dictionary<string, byte[]> m_linkedData = new(StringComparer.Ordinal);
+            private readonly Dictionary<JsonElement, WotDocument> m_payloadDocuments = [];
         }
 
         private sealed class MemberPathComparer : IEqualityComparer<ArrayOf<string>>

@@ -69,6 +69,12 @@ namespace Opc.Ua.WotCon.Bindings
         public int MaxPayloadBytes { get; set; } = 1024 * 1024;
 
         /// <summary>
+        /// Gets or sets the maximum JSON container depth of an interaction payload.
+        /// The root object or array has depth one; a scalar has depth zero.
+        /// </summary>
+        public int MaxPayloadDepth { get; set; } = 64;
+
+        /// <summary>
         /// Gets or sets the maximum number of compiled security alternatives.
         /// </summary>
         public int MaxSecurityAlternatives { get; set; } = 64;

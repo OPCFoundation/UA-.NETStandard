@@ -28,7 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Text;
+using System.Text.Json;
+using System.Xml.Linq;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
@@ -138,6 +141,137 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(mapped.Count, Is.EqualTo(1));
             Assert.That(mapped[0].NodeId, Is.EqualTo(new ExpandedNodeId(2258)));
             Assert.That(mapped[0].OwnerNodeId, Is.EqualTo(new ExpandedNodeId(2253)));
+        }
+
+        [Test]
+        public void PayloadCaptureRetainsOriginalScopedTypesAndNestedRanksAfterDisposal()
+        {
+            WotPayloadSchema captured;
+            using (WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                """
+                {
+                  "@context":{"native":"urn:wrong-root","model":"urn:payload-fields"},
+                  "actions":{"exchange":{
+                    "input":{
+                      "type":"object","uav:argumentLayout":"named","uav:fieldOrder":["Values","Target"],
+                      "properties":{
+                        "Values":{
+                          "@context":{"native":"http://opcfoundation.org/UA/"},
+                          "type":"array","uav:valueRank":1,"uav:browseName":"model:Values",
+                          "items":{"type":"integer","uav:dataTypeName":"native:UInt16"}
+                        },
+                        "Target":{"type":"string","uav:dataTypeId":"i=17"}
+                      }
+                    }
+                  }}
+                }
+                """)))
+            {
+                JsonElement action = document.Actions["exchange"];
+                captured = WotNodeSetConverter.CapturePayloadSchema(document, WotAffordanceKind.Action, action);
+                Assert.That(WotNodeSetConverter.CapturePayloadSchema(document, WotAffordanceKind.Action, action),
+                    Is.SameAs(captured));
+            }
+
+            Assert.That(captured.Diagnostics, Is.Empty);
+            Assert.That(
+                captured.TryGetTypeBinding("/input/properties/Values", out WotPayloadTypeBinding values), Is.True);
+            Assert.That(values!.DataTypeId, Is.EqualTo(new ExpandedNodeId(5)));
+            Assert.That(values.TypeInfo, Is.EqualTo(TypeInfo.Create(BuiltInType.UInt16, ValueRanks.OneDimension)));
+            Assert.That(values.ResolvedBrowseName, Is.EqualTo("nsu=urn:payload-fields;Values"));
+            Assert.That(captured.TryGetTypeBinding("/input/properties/Values/items", out WotPayloadTypeBinding item),
+                Is.True);
+            Assert.That(item!.DataTypeId, Is.EqualTo(new ExpandedNodeId(5)));
+            Assert.That(item.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.Scalar));
+            Assert.That(
+                captured.TryGetTypeBinding("/input/properties/Target", out WotPayloadTypeBinding target), Is.True);
+            Assert.That(target!.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.NodeId));
+            Assert.That(captured.Definition.GetProperty("input").GetProperty("uav:fieldOrder")[0].GetString(),
+                Is.EqualTo("Values"));
+        }
+
+        [TestCase("input")]
+        [TestCase("output")]
+        public void ConvertedInferredPayloadTypesKeepTheNativeArgumentIdentityAfterDisposal(string member)
+        {
+            WotPayloadSchema captured;
+            UANodeSet nodeSet;
+            using (WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                $$"""
+                {
+                  "@context":{"model":"urn:payload-capture"},
+                  "@type":["tm:ThingModel","uav:objectType"],
+                  "uav:id":"nsu=urn:payload-capture;i=2","uav:browseName":"model:Consumer",
+                  "actions":{
+                    "Exchange":{
+                      "{{member}}":{
+                        "type":"object","uav:dataTypeName":"model:Reading","uav:argumentLayout":"single",
+                        "properties":{
+                          "Value":{"type":"boolean"}
+                        },
+                        "required":["Value"]
+                      }
+                    }
+                  }
+                }
+                """)))
+            {
+                WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+                Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+                nodeSet = result.Value!;
+                ArrayOf<WotConvertedAffordance> converted =
+                    WotNodeSetConverter.ResolveAffordanceNodes(document, nodeSet);
+                Assert.That(converted.Count, Is.EqualTo(1));
+                Assert.That(converted[0].PayloadSchema, Is.Not.Null);
+                captured = converted[0].PayloadSchema!;
+                Assert.That(WotNodeSetConverter.CapturePayloadSchema(
+                    document, WotAffordanceKind.Action, document.Actions["Exchange"]), Is.SameAs(captured));
+            }
+
+            Assert.That(captured.TryGetTypeBinding("/" + member, out WotPayloadTypeBinding payload), Is.True);
+            Assert.That(payload!.DataTypeId,
+                Is.EqualTo(new ExpandedNodeId("DataTypes/Reading", "urn:payload-capture")));
+            Assert.That(payload.TypeInfo, Is.EqualTo(TypeInfo.Create(BuiltInType.ExtensionObject, ValueRanks.Scalar)));
+            UADataType nativeType = nodeSet.Items!.OfType<UADataType>().Single();
+            Assert.That(nativeType.NodeId, Is.EqualTo("ns=1;s=DataTypes/Reading"));
+            Assert.That(nativeType.Definition!.Field![0].Name, Is.EqualTo("Value"));
+            Assert.That(nativeType.Definition.Field[0].DataType, Is.EqualTo("i=1"));
+            UAVariable arguments = nodeSet.Items!.OfType<UAVariable>().Single();
+            XNamespace ua = Namespaces.OpcUaXsd;
+            XElement argument = XElement.Parse(arguments.Value!.OuterXml).Descendants(ua + "Argument").Single();
+            Assert.That(argument.Element(ua + "DataType")!.Element(ua + "Identifier")!.Value,
+                Is.EqualTo(nativeType.NodeId));
+            Assert.That(captured.Definition.GetProperty(member).GetProperty("properties").GetProperty("Value")
+                .GetProperty("type").GetString(), Is.EqualTo("boolean"));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void PayloadCaptureRejectsForeignOrClonedElementsInsteadOfGuessingContext(bool clone)
+        {
+            using WotDocument document = CreateDocument();
+            using WotDocument foreign = CreateDocument();
+            JsonElement schema = clone ? document.Properties["sensor"].Clone() : foreign.Properties["sensor"];
+
+            Assert.That(() => WotNodeSetConverter.CapturePayloadSchema(document, WotAffordanceKind.Property, schema),
+                Throws.ArgumentException.With.Property("ParamName").EqualTo("affordance"));
+        }
+
+        [Test]
+        public void ReplacingAnEventBrowsePathCannotReuseItsPreviousContextResolution()
+        {
+            using WotDocument document = CreateDocument();
+            WotPayloadSchema schema = WotNodeSetConverter.CapturePayloadSchema(
+                document, WotAffordanceKind.Property, document.Properties["sensor"]);
+            WotResolvedEventSelectClause original = new WotResolvedEventSelectClause("i=2041", "old:Value")
+                .WithPayloadSchema(schema, "nsu=urn:old;Value");
+
+            WotResolvedEventSelectClause replacement = original.WithBrowsePath("new:Value");
+
+            Assert.That(replacement.BrowsePath, Is.EqualTo("new:Value"));
+            Assert.That(replacement.ResolvedBrowsePath, Is.Null);
+            Assert.That(replacement.PayloadSchema, Is.SameAs(schema));
+            Assert.That(original.ResolvedBrowsePath, Is.EqualTo("nsu=urn:old;Value"));
         }
 
         private static WotDocument CreateDocument(bool explicitMissingIdentity = false)

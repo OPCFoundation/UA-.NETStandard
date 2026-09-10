@@ -158,6 +158,12 @@ namespace Opc.Ua.WotCon.Bindings
         public WotTargetMappingDescriptor TargetMapping { get; }
 
         /// <summary>
+        /// Gets the payload facts captured before the source document was detached.
+        /// This is also available for declaration-only Thing Models.
+        /// </summary>
+        public Wot.WotPayloadSchema? PayloadSchema { get; internal init; }
+
+        /// <summary>
         /// Gets whether the form declares the supplied case-insensitive <c>op</c>.
         /// </summary>
         public bool HasOperation(string op)
@@ -380,6 +386,7 @@ namespace Opc.Ua.WotCon.Bindings
                     AffordanceElement,
                     TargetMapping)
                 {
+                    PayloadSchema = PayloadSchema,
                     BrowsePathTarget = BrowsePathTarget,
                     BrowsePathError = BrowsePathError,
                     HasBrowsePathCapture = HasBrowsePathCapture

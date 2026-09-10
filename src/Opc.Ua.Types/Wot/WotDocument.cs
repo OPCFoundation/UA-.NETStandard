@@ -30,6 +30,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -305,6 +306,25 @@ namespace Opc.Ua.Wot
             var scopes = new Dictionary<JsonElement, ContextScope?>();
             AddContextScopes(RootElement, null, scopes);
             return scopes;
+        }
+
+        internal bool Owns(JsonElement element)
+        {
+            m_contextScopes ??= CreateContextScopes();
+            return m_contextScopes.ContainsKey(element);
+        }
+
+        internal bool TryGetPayloadSchema(
+            WotAffordanceKind kind,
+            JsonElement affordance,
+            [NotNullWhen(true)] out WotPayloadSchema? schema)
+        {
+            return m_payloadSchemas.TryGetValue((kind, affordance), out schema);
+        }
+
+        internal void SetPayloadSchema(WotAffordanceKind kind, JsonElement affordance, WotPayloadSchema schema)
+        {
+            m_payloadSchemas[(kind, affordance)] = schema;
         }
 
         private static void AddContextScopes(
@@ -1076,6 +1096,8 @@ namespace Opc.Ua.Wot
         private static readonly JsonElement s_unitScopedTerm = CreateUnitScopedTerm();
         private readonly byte[] m_utf8Json;
         private readonly JsonDocument m_document;
+        private readonly Dictionary<(WotAffordanceKind Kind, JsonElement Affordance), WotPayloadSchema>
+            m_payloadSchemas = [];
         private IReadOnlyList<string>? m_typeTokens;
         private IReadOnlyDictionary<string, JsonElement>? m_properties;
         private IReadOnlyDictionary<string, JsonElement>? m_actions;

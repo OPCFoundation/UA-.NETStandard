@@ -151,6 +151,17 @@ namespace Opc.Ua.Wot
         internal string? DeclarationFailure { get; init; }
 
         /// <summary>
+        /// Gets the declaring EventType's data schema and native type facts, captured before resolver disposal.
+        /// </summary>
+        public WotPayloadSchema? PayloadSchema { get; private init; }
+
+        /// <summary>
+        /// Gets the browse path resolved in the context that authored its elements.
+        /// The original <see cref="BrowsePath"/> remains available to source consumers.
+        /// </summary>
+        public string? ResolvedBrowsePath { get; private init; }
+
+        /// <summary>
         /// Gets whether the clause is the empty-path <c>ConditionId</c>
         /// selection, which selects the NodeId Attribute rather than a Value
         /// (WoT Binding Section 6.1).
@@ -238,7 +249,42 @@ namespace Opc.Ua.Wot
         public WotResolvedEventSelectClause WithBrowsePath(string browsePath)
         {
             return new WotResolvedEventSelectClause(
-                TypeDefinitionId, browsePath, Source, TypeDefinitionReference);
+                TypeDefinitionId, browsePath, Source, TypeDefinitionReference)
+            {
+                PayloadSchema = PayloadSchema,
+                ResolvedBrowsePath = browsePath == BrowsePath ? ResolvedBrowsePath : null,
+                ResolvedPathElements = browsePath == BrowsePath ? ResolvedPathElements : default,
+                Declaration = browsePath == BrowsePath ? Declaration : null,
+                DeclarationFailure = browsePath == BrowsePath ? DeclarationFailure : null
+            };
+        }
+
+        /// <summary>
+        /// Returns the clause with its declaring data schema and context-resolved path.
+        /// </summary>
+        public WotResolvedEventSelectClause WithPayloadSchema(
+            WotPayloadSchema schema, string? resolvedBrowsePath = null)
+        {
+            return new WotResolvedEventSelectClause(TypeDefinitionId, BrowsePath, Source, TypeDefinitionReference)
+            {
+                PayloadSchema = schema ?? throw new ArgumentNullException(nameof(schema)),
+                ResolvedBrowsePath = resolvedBrowsePath,
+                ResolvedPathElements = ResolvedPathElements,
+                Declaration = Declaration,
+                DeclarationFailure = DeclarationFailure
+            };
+        }
+
+        internal WotResolvedEventSelectClause WithDeclaration(WotTypeDeclaration? declaration, string? failure)
+        {
+            return new WotResolvedEventSelectClause(TypeDefinitionId, BrowsePath, Source, TypeDefinitionReference)
+            {
+                PayloadSchema = PayloadSchema,
+                ResolvedBrowsePath = ResolvedBrowsePath,
+                ResolvedPathElements = ResolvedPathElements,
+                Declaration = declaration,
+                DeclarationFailure = failure
+            };
         }
 
         /// <inheritdoc/>

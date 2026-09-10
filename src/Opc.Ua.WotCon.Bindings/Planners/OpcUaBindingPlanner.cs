@@ -265,7 +265,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         /// The effective selection, or <c>null</c> when the affordance is not
         /// an event or the authored selection is invalid or unresolved.
         /// </returns>
-        private static WotEventSelection? ResolveEventSelection(
+        internal static WotEventSelection? ResolveEventSelection(
             WotAffordanceForm form,
             WotBindingPlanContext context,
             List<WotBindingDiagnostic> diagnostics)
@@ -408,6 +408,12 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             out string error)
         {
             resolved = null;
+            if (clause.ResolvedBrowsePath is { } captured)
+            {
+                resolved = clause.WithBrowsePath(captured);
+                error = string.Empty;
+                return true;
+            }
             if (clause.BrowsePath.Length == 0)
             {
                 resolved = clause;

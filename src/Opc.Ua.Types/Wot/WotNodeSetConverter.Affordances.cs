@@ -76,6 +76,8 @@ namespace Opc.Ua.Wot
             string rootLocal = LocalName(GetUavString(document, "browseName")) ??
                 SanitizeName(document.Title) ?? "Thing";
             WotReferenceTypeNames references = WotReferenceTypeNames.Build(nodeSet);
+            var payloadDiagnostics = new List<WotDiagnostic>();
+            DataTypeDefinitionContext? payloadTypes = null;
             var mapped = new List<WotConvertedAffordance>();
             Add(document.Properties, WotAffordanceKind.Property, "properties");
             Add(document.Actions, WotAffordanceKind.Action, "actions");
@@ -127,7 +129,17 @@ namespace Opc.Ua.Wot
                     }
                     ExpandedNodeId owner = node is UAInstance { ParentNodeId: { Length: > 0 } parent }
                         ? ReadIdentity(parent) : rootNodeId;
-                    mapped.Add(new WotConvertedAffordance(kind, member.Key, pointer, candidate, owner, schema));
+                    if (!document.TryGetPayloadSchema(kind, schema, out WotPayloadSchema? payload))
+                    {
+                        payloadTypes ??= CreateDataTypeDefinitionContext(
+                            document, nodeSet, [], [], payloadDiagnostics);
+                        payload = CapturePayloadSchema(
+                            document, kind, schema, nodeSet, payloadTypes, new List<WotDiagnostic>(payloadDiagnostics));
+                    }
+                    mapped.Add(new WotConvertedAffordance(kind, member.Key, pointer, candidate, owner, schema)
+                    {
+                        PayloadSchema = payload
+                    });
                 }
             }
 

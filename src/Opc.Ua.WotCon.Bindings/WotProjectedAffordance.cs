@@ -114,6 +114,11 @@ namespace Opc.Ua.WotCon.Bindings
         public JsonElement Definition { get; private init; }
 
         /// <summary>
+        /// Gets the payload types resolved in the original document's scoped context.
+        /// </summary>
+        public Wot.WotPayloadSchema? PayloadSchema { get; private init; }
+
+        /// <summary>
         /// Creates a runtime interaction from a converter-authoritative local mapping.
         /// </summary>
         public static WotProjectedAffordance FromConverted(Wot.WotConvertedAffordance converted)
@@ -130,13 +135,15 @@ namespace Opc.Ua.WotCon.Bindings
                 _ => throw new ArgumentOutOfRangeException(nameof(converted))
             };
             return new WotProjectedAffordance(
-                kind, converted.Name, converted.JsonPointer, converted.NodeId.ToString(), converted.OwnerNodeId.ToString(),
+                kind, converted.Name, converted.JsonPointer,
+                converted.NodeId.ToString(), converted.OwnerNodeId.ToString(),
                 ReadString(converted.Affordance, "uav:conditionAction"),
                 ReadString(converted.Affordance, "uav:actsOn"),
                 ReadString(converted.Affordance, "uav:conditionTypeId") ??
                     (ReadString(converted.Affordance, "uav:conditionType") is null ? null : string.Empty))
             {
-                Definition = converted.Affordance
+                Definition = converted.Affordance,
+                PayloadSchema = converted.PayloadSchema
             };
         }
 
@@ -145,12 +152,14 @@ namespace Opc.Ua.WotCon.Bindings
             return OwnerNodeId.Length != 0 ? this : new WotProjectedAffordance(
                 Kind, Name, JsonPointer, NodeId, nodeId, ConditionAction, ActsOn, ConditionTypeId)
             {
-                Definition = Definition
+                Definition = Definition,
+                PayloadSchema = PayloadSchema
             };
         }
 
-        internal static ArrayOf<WotProjectedAffordance> Extract(JsonElement root)
+        internal static ArrayOf<WotProjectedAffordance> Extract(Wot.WotDocument document)
         {
+            JsonElement root = document.RootElement;
             var declarations = new List<WotProjectedAffordance>();
             string owner = ReadString(root, "uav:id") ?? string.Empty;
             foreach (WotAffordanceKind kind in s_kinds)
@@ -174,6 +183,15 @@ namespace Opc.Ua.WotCon.Bindings
                     {
                         continue;
                     }
+                    Wot.WotPayloadSchema payload = Wot.WotNodeSetConverter.CapturePayloadSchema(
+                        document,
+                        kind switch
+                        {
+                            WotAffordanceKind.Property => Wot.WotAffordanceKind.Property,
+                            WotAffordanceKind.Action => Wot.WotAffordanceKind.Action,
+                            _ => Wot.WotAffordanceKind.Event
+                        },
+                        affordance);
                     declarations.Add(new WotProjectedAffordance(
                         kind,
                         member.Name,
@@ -187,7 +205,8 @@ namespace Opc.Ua.WotCon.Bindings
                         ReadString(affordance, "uav:conditionTypeId") ??
                             (ReadString(affordance, "uav:conditionType") is null ? null : string.Empty))
                     {
-                        Definition = affordance.Clone()
+                        Definition = payload.Definition,
+                        PayloadSchema = payload
                     });
                 }
             }

@@ -11,6 +11,7 @@ This document starts with the bindings that ship today and how to register them,
 - [Bindings that ship today](#bindings-that-ship-today)
   - [Package and assembly layout](#package-and-assembly-layout)
   - [Stable public interfaces](#stable-public-interfaces)
+  - [HTTP action and event payloads](#http-action-and-event-payloads)
   - [Polling, retry and backoff](#polling-retry-and-backoff)
   - [Runtime integration](#runtime-integration)
   - [OPC UA target-mapping binding runtime](#opc-ua-target-mapping-binding-runtime)
@@ -84,6 +85,7 @@ All contracts live in the `Opc.Ua.WotCon.Bindings` namespace.
   * `WotTargetMappingDescriptor` — the protocol-neutral `uav:mapToNodeId` / `uav:mapToType` / `uav:mapByFieldPath` terms authored on a **property affordance** (never on a form), letting a non-OPC-UA source (Modbus, HTTP, …) be projected onto an OPC UA target NodeId or a field of a structured target type. `WotAffordanceForm.TargetMapping` parses it from the owning affordance; `WotProtocolBinderRegistry.Prepare` validates it once for every protocol (property-only, `mapByFieldPath` requires `mapToType`, non-empty values, never authored on a form) and attaches it to every `WotCompiledForm` it produces, so individual planners never parse or duplicate it.
 * **Payload codec selection**
   * `IWotPayloadCodec` / `IWotCodecRegistry` — reflection-free JSON, text and octet-stream codecs; protocol executors may register more.
+  * `IWotInteractionPayloadCodec` — optional complete-action and selected-event capability, with ordered arguments, declared schemas, source message contexts, and payload bounds. Legacy scalar codecs do not need to implement it.
 * **Credential / trust reference lookup (no secrets in TD / registry nodes)**
   * `WotSecurityDefinition` / `WotCredentialReference` — secret-free scheme references parsed from `securityDefinitions`.
   * `IWotCredentialProvider` — resolves a reference into short-lived `WotCredential` material at runtime, out-of-band. No secret ever appears in a Thing Description or on a registry node.
@@ -91,9 +93,113 @@ All contracts live in the `Opc.Ua.WotCon.Bindings` namespace.
   * `IWotBindingExecutor` — `ActivateAsync` opens a per-form `IWotBindingChannel`.
   * `IWotBindingChannel` — `ReadAsync` / `WriteAsync` / `InvokeAsync` / `ObserveAsync` / `SubscribeEventAsync`, returning `WotReadResult` / `WotWriteResult` / `WotInvokeResult` with mapped `StatusCode`s.
   * `IWotPropertyBindingChannel` — optional contextual property capability. `WotReadRequest` carries `IndexRange`, `DataEncoding`, and the caller's message context; `WotWriteRequest` carries a value, its context, and a native index range. Existing channels do not need to implement this interface. `WotReadResult.WithContext` attaches the source context of returned values.
+  * `IWotContextualBindingChannel` — optional invocation capability using `WotInvokeRequest`. The HTTP channel preserves this request's source context rather than interpreting local namespace indexes in an unrelated table.
 * **Registry and structured diagnostics**
   * `IWotBinderRegistry` / `WotProtocolBinderRegistry` — the Prepare / Activate / Deactivate seam the coordinator uses.
   * `WotBindingDiagnostic` — severity + stable code + **RFC 6901 JSON Pointer**.
+
+### HTTP action and event payloads
+
+On .NET 8 and later, the HTTP JSON channel executes the complete compiled action
+contract. `WotPayloadDescriptor.InputLayout` and `OutputLayout` distinguish a
+single value from named positional arguments; a typed Structure remains **one**
+argument and is sent as a JSON object, not flattened arguments or a quoted JSON
+string. Named arguments use `uav:fieldOrder`, never JSON property order:
+
+```json
+{
+  "input": {
+    "type": "object",
+    "uav:argumentLayout": "named",
+    "uav:fieldOrder": ["Minimum", "Maximum"],
+    "properties": {
+      "Maximum": { "type": "integer" },
+      "Minimum": { "type": "integer" }
+    }
+  },
+  "output": {
+    "type": "object",
+    "uav:argumentLayout": "named",
+    "uav:fieldOrder": ["Maximum", "Minimum"],
+    "properties": {
+      "Minimum": { "type": "integer" },
+      "Maximum": { "type": "integer" }
+    }
+  },
+  "forms": [{ "href": "https://device.example/limits", "op": "invokeaction" }]
+}
+```
+
+Inputs `[-7, 42]` produce `{"Minimum":-7,"Maximum":42}`. A response
+`{"Minimum":-8,"Maximum":43}` produces native outputs `[43, -8]`.
+Missing schemas declare zero arguments; an explicitly empty named object remains
+`{}` on the wire, including the response. A declared single null value is not an
+absent contract. Keep the native `uav:valueRank` declaration for arrays (for
+example `1` for a one-dimensional array); an omitted native rank remains scalar.
+Missing, duplicate, extra, malformed, or incorrectly typed output members fail
+the operation instead of returning a Good envelope containing a bad value.
+Encoding and input-count failures are reported before sending. Invocation does
+not implicitly retry or invoke another form.
+
+`WotPayloadDescriptor.Schema` carries a detached `WotPayloadSchema`: the complete
+authored schemas plus native type and BrowseName facts resolved while their
+owning document and scoped contexts are still available. Conversion-resolved
+external and inferred types are retained through `WotConvertedAffordance` and
+`WotProjectedAffordance`. Capture requires original elements of the live owning
+document, not foreign or already-cloned elements whose scoped context is lost.
+Numeric declarations remain abstract Integer/Number
+unless annotated; concrete native widths are not invented in the schema.
+The JSON codec adapts the TD representation to the existing native codecs:
+Int64/UInt64 use JSON numbers when the TD requires numbers, and a string-valued
+LocalizedText schema uses text rather than the UA JSON object envelope.
+
+For namespace-bearing inputs, use the established contextual invocation:
+
+```csharp
+await using IWotBindingChannel channel =
+    await registry.OpenChannelAsync(form, cancellationToken);
+if (channel is not IWotContextualBindingChannel contextual)
+{
+    throw new ServiceResultException(StatusCodes.BadNotSupported);
+}
+
+var request = new WotInvokeRequest(
+    [new Variant(-7L), new Variant(42L)], messageContext);
+WotInvokeResult result = await contextual.InvokeAsync(request, cancellationToken);
+if (!result.Success)
+{
+    throw new ServiceResultException(result.Status, result.Error);
+}
+```
+
+Custom Structure values use registered `IEncodeableFactory` / `IStructure`
+metadata, including nested fields and arrays, without reflection or dynamic
+code generation. An unavailable factory or opaque value that cannot preserve
+its declared meaning fails explicitly. Direct activation can supply
+`WotExecutorContext.WithMessageContext` or
+`WotProtocolBinderRegistry.MessageContext`. DI honors a registered
+`IServiceMessageContext`; the optional `IWotContextualBindingChannelFactory`
+also lets the projected consumer supply its actual materialized namespace and
+type-factory context at activation.
+
+HTTP event polling decodes the event's data object at the response root into
+both `WotNotification.Data` and its selected-field index. All authored or
+implicit-default clauses are populated with typed values and
+`WotNotification.Context`; linked EventType schemas retain their own context,
+not the referring TD's prefixes. This is JSON event polling, not a property
+observation masquerading as an event, and does not add SSE or WebSub framing.
+Malformed event payloads produce observable bad-status notifications.
+
+`WotBindingBounds.MaxPayloadBytes` counts actual UTF-8 payload bytes, including
+JSON syntax. `MaxPayloadDepth` counts the root object/array as depth one and
+scalars as depth zero. HTTP event and property polling share
+`PollingWotSubscription` and its retry policy. Cancellation ends the returned
+subscription, subscription disposal awaits in-flight polling, and channel
+disposal stops its subscriptions while leaving a caller-owned `HttpClient`
+owned by its caller. The subscription is registered before its first callback,
+including when an in-memory transport completes synchronously. Projected event
+sources share a subscription only when the resolved payload and clause type
+contracts agree; matching URLs and field names alone are insufficient.
 
 ### Polling, retry and backoff
 
@@ -750,9 +856,18 @@ Do not create transport connections in the planner, binder constructor, or DI re
 
 ### Payload codecs
 
-The default `WotPayloadCodecRegistry` contains reflection-free JSON, text, and octet-stream codecs. A planner records only the codec id and payload metadata; a channel selects the codec from `WotExecutorContext.Codecs` when it encodes or decodes.
+The default `WotPayloadCodecRegistry` contains reflection-free JSON, text, and octet-stream codecs. A planner records the codec id, payload metadata, and resolved interaction schemas. Executors obtain codecs from `WotExecutorContext.Codecs`; HTTP validates the compiled action/event codec id and retains the selected codec instance at activation.
 
 Custom codecs implement `IWotPayloadCodec` and return `WotEncodeResult` or `WotDecodeResult` rather than throwing for expected malformed input. Register custom codecs ahead of the built-ins with `WotPayloadCodecRegistry.Register`, or provide an `IWotCodecRegistry` through DI. Keep codecs deterministic, bounded, culture-invariant, and free of runtime type discovery.
+
+To support complete actions or events, additionally implement
+`IWotInteractionPayloadCodec`. Its methods own the complete wire representation;
+the HTTP channel does not concatenate scalar codec bytes, bypass a custom codec
+with JSON, or discard arguments and context. Scalar-only codecs retain their
+existing scalar meaning and explicitly reject shapes they cannot represent.
+The original JSON scalar `Encode`/`Decode` entry points remain compatible,
+including legacy raw-text object/array decoding; schema-aware interaction
+methods are separate optional capabilities on that same codec.
 
 ### Credentials and trust
 
@@ -1233,7 +1348,7 @@ The checked-in equivalent is [`WotCustomBinderSampleTests.cs`](../tests/Opc.Ua.W
 
 ### NativeAOT and trimming
 
-Binding code must remain compatible with trimming and NativeAOT. Parse form vocabulary with `JsonElement`; do not use runtime assembly scanning, unbounded reflection, `Type.GetType`, dynamic code generation, or serializer overloads that require runtime metadata. Use source-generated JSON contexts when a protocol needs typed JSON beyond the built-in scalar codec.
+Binding code must remain compatible with trimming and NativeAOT. Parse form vocabulary with `JsonElement`; do not use runtime assembly scanning, unbounded reflection, `Type.GetType`, dynamic code generation, or serializer overloads that require runtime metadata. Reuse the schema-aware JSON interaction codec and registered native type factories for WoT payloads. Use source-generated JSON contexts for unrelated protocol-specific envelopes that need additional typed serialization.
 
 Keep plan objects data-only and immutable. Inject transport factories and credential providers instead of locating services dynamically. Ensure asynchronous cleanup does not depend on finalizers. If a dependency is not annotated as AOT-compatible, add a NativeAOT smoke path that exercises every used feature.
 

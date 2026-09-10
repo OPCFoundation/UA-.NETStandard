@@ -534,12 +534,34 @@ namespace Opc.Ua.WotCon.Bindings
             }
             context.Codecs.TrySelect(form.ContentType, out IWotPayloadCodec codec);
             payload = new WotPayloadDescriptor(contentType, codec.Id);
-            if (form.Kind == WotAffordanceKind.Action && form.AffordanceElement.ValueKind == JsonValueKind.Object)
+            WotProjectedAffordance? local = context.ProjectedAffordances.Find(
+                item => item.Kind == form.Kind && item.JsonPointer == form.AffordancePointer());
+            WotPayloadSchema? resolvedSchema = local?.PayloadSchema ?? form.PayloadSchema;
+            JsonElement definition = resolvedSchema?.Definition ?? form.AffordanceElement;
+            if (resolvedSchema is { } schema)
+            {
+                payload = payload.WithSchema(schema);
+                bool invalid = false;
+                foreach (WotDiagnostic diagnostic in schema.Diagnostics)
+                {
+                    if (diagnostic.Severity == WotDiagnosticSeverity.Error)
+                    {
+                        invalid = true;
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidFieldValue, diagnostic.Message, form.AffordancePointer()));
+                    }
+                }
+                if (invalid)
+                {
+                    return false;
+                }
+            }
+            if (form.Kind == WotAffordanceKind.Action && definition.ValueKind == JsonValueKind.Object)
             {
                 WotConversionResult<WotMethodArgumentLayout> input =
-                    WotNodeSetConverter.GetMethodArgumentLayout(form.AffordanceElement, "input");
+                    WotNodeSetConverter.GetMethodArgumentLayout(definition, "input");
                 WotConversionResult<WotMethodArgumentLayout> output =
-                    WotNodeSetConverter.GetMethodArgumentLayout(form.AffordanceElement, "output");
+                    WotNodeSetConverter.GetMethodArgumentLayout(definition, "output");
                 if (!input.Success || !output.Success)
                 {
                     foreach (WotDiagnostic diagnostic in input.Diagnostics)

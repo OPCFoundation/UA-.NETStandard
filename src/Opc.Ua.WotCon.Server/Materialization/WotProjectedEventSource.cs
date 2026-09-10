@@ -139,8 +139,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 Form.Payload.ContentType == form.Payload.ContentType &&
                 Form.Payload.CodecId == form.Payload.CodecId &&
                 SameMetadata(Form.Payload.Metadata, form.Payload.Metadata) &&
-                (Form.EventSelection ?? WotEventSelection.Default).Clauses.Span.SequenceEqual(
-                    (form.EventSelection ?? WotEventSelection.Default).Clauses.Span);
+                SamePayloadSchema(Form.Payload.Schema, form.Payload.Schema) &&
+                SameSelection(Form.EventSelection ?? WotEventSelection.Default,
+                    form.EventSelection ?? WotEventSelection.Default);
         }
 
         public static bool SameEndpoint(WotCompiledForm left, WotCompiledForm right)
@@ -164,6 +165,48 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             return left.Count == right.Count &&
                 left.All(entry => right.TryGetValue(entry.Key, out string? value) && entry.Value == value);
+        }
+
+        private static bool SameSelection(WotEventSelection left, WotEventSelection right)
+        {
+            if (left.Clauses.Count != right.Clauses.Count)
+            {
+                return false;
+            }
+            for (int index = 0; index < left.Clauses.Count; index++)
+            {
+                Wot.WotResolvedEventSelectClause a = left.Clauses[index];
+                Wot.WotResolvedEventSelectClause b = right.Clauses[index];
+                if (!a.Equals(b) || a.ResolvedBrowsePath != b.ResolvedBrowsePath ||
+                    !SamePayloadSchema(a.PayloadSchema, b.PayloadSchema))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static bool SamePayloadSchema(Wot.WotPayloadSchema? left, Wot.WotPayloadSchema? right)
+        {
+            if (left is null || right is null)
+            {
+                return left is null && right is null;
+            }
+            if (!System.Text.Json.JsonElement.DeepEquals(left.Definition, right.Definition) ||
+                left.TypeBindings.Count != right.TypeBindings.Count)
+            {
+                return false;
+            }
+            foreach (Wot.WotPayloadTypeBinding binding in left.TypeBindings)
+            {
+                if (!right.TryGetTypeBinding(binding.JsonPointer, out Wot.WotPayloadTypeBinding? other) ||
+                    other.DataTypeId != binding.DataTypeId || other.TypeInfo != binding.TypeInfo ||
+                    other.ResolvedBrowseName != binding.ResolvedBrowseName)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private void Dispatch(WotNotification notification)

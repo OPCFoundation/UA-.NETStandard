@@ -84,6 +84,14 @@ namespace Opc.Ua.WotCon.Bindings.Http
             {
                 throw new ArgumentNullException(nameof(context));
             }
+            cancellationToken.ThrowIfCancellationRequested();
+            bool registered = context.Codecs.TrySelect(form.Payload.ContentType, out IWotPayloadCodec codec);
+            if (form.AffordanceKind != WotAffordanceKind.Property &&
+                (!registered || !string.Equals(codec.Id, form.Payload.CodecId, StringComparison.Ordinal)))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The compiled HTTP payload codec is not registered.");
+            }
             ImmutableArray<KeyValuePair<string, string>> defaultHeaders =
                 SnapshotDefaultHeaders(m_options.DefaultHeaders);
             Func<HttpClient>? clientFactory = m_options.ClientFactory;
@@ -111,7 +119,7 @@ namespace Opc.Ua.WotCon.Bindings.Http
                 })
                 : clientFactory!.Invoke();
             IWotBindingChannel channel = new HttpWotBindingChannel(
-                client, ownsClient, manualRedirects: ownsClient, defaultHeaders, form, context, m_options);
+                client, ownsClient, manualRedirects: ownsClient, defaultHeaders, form, context, m_options, codec);
             return new ValueTask<IWotBindingChannel>(channel);
         }
 

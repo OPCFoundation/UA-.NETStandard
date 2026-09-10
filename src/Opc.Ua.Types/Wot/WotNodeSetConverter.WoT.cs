@@ -1678,6 +1678,7 @@ namespace Opc.Ua.Wot
                     rootNodeId, isThingModel,
                     items, rootReferences, propertyNodeIds, externalSchemas, propertyBinding,
                     referenceTypeCatalog, diagnostics, dataTypes);
+                RetainPayloadSchema(document, WotAffordanceKind.Property, property.Value, nodeSet, dataTypes);
             }
 
             // Sections 6.4 and 6.4.1 relate two affordances - the annotated one
@@ -1698,6 +1699,7 @@ namespace Opc.Ua.Wot
                     document, nodeSet, action.Key, action.Value, rootLocal,
                     rootNodeId, items, rootReferences, conditionMethods, resolvedBindings,
                     referenceTypeCatalog, diagnostics, dataTypes);
+                RetainPayloadSchema(document, WotAffordanceKind.Action, action.Value, nodeSet, dataTypes);
             }
 
             foreach (KeyValuePair<string, JsonElement> eventAffordance in document.Events)
@@ -1710,6 +1712,7 @@ namespace Opc.Ua.Wot
                     document, nodeSet, eventAffordance.Key, eventAffordance.Value,
                     rootLocal, items, rootReferences, conditionMethods, diagnostics,
                     eventSelections, dataTypes, resolvedBindings[eventAffordance.Value]);
+                RetainPayloadSchema(document, WotAffordanceKind.Event, eventAffordance.Value, nodeSet, dataTypes);
             }
 
             // Section 5.2.1: every affordance is now a Node, so a member that

@@ -56,10 +56,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotCompiledForm form,
             IWotBindingChannelFactory channelFactory,
             CancellationToken generationToken = default)
+            : this(form, channelFactory, null, generationToken)
+        {
+        }
+
+        public WotBindingChannelSlot(
+            WotCompiledForm form,
+            IWotBindingChannelFactory channelFactory,
+            IServiceMessageContext? context,
+            CancellationToken generationToken)
         {
             m_form = form ?? throw new ArgumentNullException(nameof(form));
             m_channelFactory = channelFactory ?? throw new ArgumentNullException(nameof(channelFactory));
             m_generationToken = generationToken;
+            m_context = context;
         }
 
         /// <summary>
@@ -126,7 +136,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private Task<IWotBindingChannel> OpenAsync()
         {
-            return m_channelFactory.OpenChannelAsync(m_form, m_generationToken).AsTask();
+            return m_context is not null && m_channelFactory is IWotContextualBindingChannelFactory contextual
+                ? contextual.OpenChannelAsync(m_form, m_context, m_generationToken).AsTask()
+                : m_channelFactory.OpenChannelAsync(m_form, m_generationToken).AsTask();
         }
 
         private async ValueTask<IWotBindingChannel> WaitAsync(
@@ -152,6 +164,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly WotCompiledForm m_form;
         private readonly IWotBindingChannelFactory m_channelFactory;
         private readonly CancellationToken m_generationToken;
+        private readonly IServiceMessageContext? m_context;
         private readonly Lock m_gate = new();
         private Task<IWotBindingChannel>? m_channelTask;
         private bool m_disposed;

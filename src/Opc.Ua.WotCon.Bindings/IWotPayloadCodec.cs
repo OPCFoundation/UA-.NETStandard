@@ -41,11 +41,12 @@ namespace Opc.Ua.WotCon.Bindings
     /// </summary>
     public sealed class WotEncodeResult
     {
-        private WotEncodeResult(bool success, ReadOnlyMemory<byte> data, string? error)
+        private WotEncodeResult(bool success, ReadOnlyMemory<byte> data, string? error, StatusCode status)
         {
             Success = success;
             Data = data;
             Error = error;
+            Status = status;
         }
 
         /// <summary>
@@ -64,11 +65,16 @@ namespace Opc.Ua.WotCon.Bindings
         public string? Error { get; }
 
         /// <summary>
+        /// Gets the encoding status, including unsupported shapes and exceeded bounds.
+        /// </summary>
+        public StatusCode Status { get; }
+
+        /// <summary>
         /// Creates a successful encode result.
         /// </summary>
         public static WotEncodeResult Ok(ReadOnlyMemory<byte> data)
         {
-            return new WotEncodeResult(true, data, null);
+            return new WotEncodeResult(true, data, null, StatusCodes.Good);
         }
 
         /// <summary>
@@ -76,7 +82,19 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         public static WotEncodeResult Fail(string error)
         {
-            return new WotEncodeResult(false, ReadOnlyMemory<byte>.Empty, error);
+            return Fail(error, StatusCodes.BadEncodingError);
+        }
+
+        /// <summary>
+        /// Creates a failed encode result with its precise bad status.
+        /// </summary>
+        public static WotEncodeResult Fail(string error, StatusCode status)
+        {
+            if (!StatusCode.IsBad(status))
+            {
+                throw new ArgumentException("An encoding failure requires a bad status.", nameof(status));
+            }
+            return new WotEncodeResult(false, ReadOnlyMemory<byte>.Empty, error, status);
         }
     }
 
@@ -152,6 +170,36 @@ namespace Opc.Ua.WotCon.Bindings
     }
 
     /// <summary>
+    /// Optional codec capability for complete action and selected-event payloads.
+    /// Implementations own the wire representation; a legacy scalar codec is never
+    /// adapted by concatenating its bytes or dropping arguments or source context.
+    /// </summary>
+    public interface IWotInteractionPayloadCodec : IWotPayloadCodec
+    {
+        /// <summary>
+        /// Encodes every native input using the declared action layout.
+        /// </summary>
+        WotEncodeResult EncodeArguments(
+            WotInvokeRequest request, WotPayloadDescriptor payload, WotBindingBounds bounds);
+
+        /// <summary>
+        /// Decodes every declared output in native order, with an explicit operation failure on invalid payloads.
+        /// </summary>
+        WotInvokeResult DecodeArguments(
+            ByteString data, WotPayloadDescriptor payload, IServiceMessageContext context, WotBindingBounds bounds);
+
+        /// <summary>
+        /// Decodes all selected fields into both existing event representations and their source context.
+        /// </summary>
+        WotNotification DecodeEvent(
+            ByteString data,
+            WotPayloadDescriptor payload,
+            WotEventSelection selection,
+            IServiceMessageContext context,
+            WotBindingBounds bounds);
+    }
+
+    /// <summary>
     /// Selects a payload codec for a content type.
     /// </summary>
     public interface IWotCodecRegistry
@@ -218,9 +266,9 @@ namespace Opc.Ua.WotCon.Bindings
     }
 
     /// <summary>
-    /// A reflection-free JSON scalar payload codec (<c>application/json</c>).
+    /// A reflection-free JSON payload codec with compatible legacy scalar entry points.
     /// </summary>
-    public sealed class JsonWotPayloadCodec : IWotPayloadCodec
+    public sealed partial class JsonWotPayloadCodec : IWotInteractionPayloadCodec
     {
         /// <summary>
         /// Gets the shared instance.
@@ -250,11 +298,12 @@ namespace Opc.Ua.WotCon.Bindings
                 using var buffer = new MemoryStream();
                 using (var writer = new Utf8JsonWriter(buffer))
                 {
-                    WriteValue(writer, value.AsBoxedObject());
+                    WriteValue(writer, value);
                 }
                 return WotEncodeResult.Ok(buffer.ToArray());
             }
-            catch (Exception ex) when (ex is JsonException or InvalidOperationException or NotSupportedException)
+            catch (Exception ex) when (ex is JsonException or InvalidOperationException or
+                NotSupportedException or ArgumentException)
             {
                 return WotEncodeResult.Fail(ex.Message);
             }
@@ -301,55 +350,63 @@ namespace Opc.Ua.WotCon.Bindings
             }
         }
 
-        private static void WriteValue(Utf8JsonWriter writer, object? value)
+        private static void WriteValue(Utf8JsonWriter writer, Variant value)
         {
-            switch (value)
+            if (value.IsNull)
             {
-                case null:
-                    writer.WriteNullValue();
-                    break;
-                case bool b:
-                    writer.WriteBooleanValue(b);
-                    break;
-                case string s:
-                    writer.WriteStringValue(s);
-                    break;
-                case sbyte sb:
-                    writer.WriteNumberValue(sb);
-                    break;
-                case byte by:
-                    writer.WriteNumberValue(by);
-                    break;
-                case short sh:
-                    writer.WriteNumberValue(sh);
-                    break;
-                case ushort us:
-                    writer.WriteNumberValue(us);
-                    break;
-                case int i:
-                    writer.WriteNumberValue(i);
-                    break;
-                case uint ui:
-                    writer.WriteNumberValue(ui);
-                    break;
-                case long lo:
-                    writer.WriteNumberValue(lo);
-                    break;
-                case ulong ul:
-                    writer.WriteNumberValue(ul);
-                    break;
-                case float f:
-                    writer.WriteNumberValue(f);
-                    break;
-                case double dou:
-                    writer.WriteNumberValue(dou);
-                    break;
-                case decimal de:
-                    writer.WriteNumberValue(de);
-                    break;
-                default:
-                    writer.WriteStringValue(Convert.ToString(value, CultureInfo.InvariantCulture));
-                    break;
+                writer.WriteNullValue();
+            }
+            else if (value.TryGetValue(out bool boolean))
+            {
+                writer.WriteBooleanValue(boolean);
+            }
+            else if (value.TryGetValue(out string? text))
+            {
+                writer.WriteStringValue(text);
+            }
+            else if (value.TryGetValue(out sbyte signedByte))
+            {
+                writer.WriteNumberValue(signedByte);
+            }
+            else if (value.TryGetValue(out byte unsignedByte))
+            {
+                writer.WriteNumberValue(unsignedByte);
+            }
+            else if (value.TryGetValue(out short int16))
+            {
+                writer.WriteNumberValue(int16);
+            }
+            else if (value.TryGetValue(out ushort uint16))
+            {
+                writer.WriteNumberValue(uint16);
+            }
+            else if (value.TryGetValue(out int int32))
+            {
+                writer.WriteNumberValue(int32);
+            }
+            else if (value.TryGetValue(out uint uint32))
+            {
+                writer.WriteNumberValue(uint32);
+            }
+            else if (value.TryGetValue(out long int64))
+            {
+                writer.WriteNumberValue(int64);
+            }
+            else if (value.TryGetValue(out ulong uint64))
+            {
+                writer.WriteNumberValue(uint64);
+            }
+            else if (value.TryGetValue(out float single))
+            {
+                writer.WriteNumberValue(single);
+            }
+            else if (value.TryGetValue(out double number))
+            {
+                writer.WriteNumberValue(number);
+            }
+            else
+            {
+                writer.WriteStringValue(value.ToString(null, CultureInfo.InvariantCulture));
             }
         }
 
@@ -391,10 +448,9 @@ namespace Opc.Ua.WotCon.Bindings
         /// <inheritdoc/>
         public WotEncodeResult Encode(Variant value, WotPayloadDescriptor payload)
         {
-            object? boxed = value.AsBoxedObject();
-            string text = boxed is null
+            string text = value.IsNull
                 ? string.Empty
-                : Convert.ToString(boxed, CultureInfo.InvariantCulture) ?? string.Empty;
+                : value.ToString(null, CultureInfo.InvariantCulture);
             return WotEncodeResult.Ok(Encoding.UTF8.GetBytes(text));
         }
 
@@ -433,14 +489,9 @@ namespace Opc.Ua.WotCon.Bindings
             {
                 return WotEncodeResult.Ok(byteString.Memory.ToArray());
             }
-            object? boxed = value.AsBoxedObject();
-            if (boxed is byte[] bytes)
-            {
-                return WotEncodeResult.Ok(bytes);
-            }
-            string text = boxed is null
+            string text = value.IsNull
                 ? string.Empty
-                : Convert.ToString(boxed, CultureInfo.InvariantCulture) ?? string.Empty;
+                : value.ToString(null, CultureInfo.InvariantCulture);
             return WotEncodeResult.Ok(Encoding.UTF8.GetBytes(text));
         }
 

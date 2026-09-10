@@ -50,6 +50,7 @@ namespace Opc.Ua.WotCon.Bindings
                 Kind, AffordanceName, Operations, Href, ContentType, Subprotocol, SecuritySchemes,
                 JsonPointer, FormElement, AffordanceElement, TargetMapping)
             {
+                PayloadSchema = PayloadSchema,
                 BrowsePathTarget = target,
                 BrowsePathError = error,
                 HasBrowsePathCapture = true

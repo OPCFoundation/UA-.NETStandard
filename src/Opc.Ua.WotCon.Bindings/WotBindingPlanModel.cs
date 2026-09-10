@@ -368,6 +368,11 @@ namespace Opc.Ua.WotCon.Bindings
         public WotMethodArgumentLayout? OutputLayout { get; private init; }
 
         /// <summary>
+        /// Gets the complete interaction schema and its resolved native type bindings.
+        /// </summary>
+        public WotPayloadSchema? Schema { get; private init; }
+
+        /// <summary>
         /// Returns a payload descriptor carrying the converter-resolved action layouts.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
@@ -378,7 +383,21 @@ namespace Opc.Ua.WotCon.Bindings
             return new WotPayloadDescriptor(ContentType, CodecId, Metadata)
             {
                 InputLayout = input ?? throw new ArgumentNullException(nameof(input)),
-                OutputLayout = output ?? throw new ArgumentNullException(nameof(output))
+                OutputLayout = output ?? throw new ArgumentNullException(nameof(output)),
+                Schema = Schema
+            };
+        }
+
+        /// <summary>
+        /// Returns the descriptor with the captured, context-resolved interaction schema.
+        /// </summary>
+        public WotPayloadDescriptor WithSchema(WotPayloadSchema schema)
+        {
+            return new WotPayloadDescriptor(ContentType, CodecId, Metadata)
+            {
+                InputLayout = InputLayout,
+                OutputLayout = OutputLayout,
+                Schema = schema ?? throw new ArgumentNullException(nameof(schema))
             };
         }
     }

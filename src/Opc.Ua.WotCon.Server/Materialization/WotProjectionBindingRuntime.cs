@@ -428,7 +428,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             if (!m_slots.TryGetValue(form, out WotBindingChannelSlot? slot))
             {
-                slot = new WotBindingChannelSlot(form, m_channelFactory, m_generationToken);
+                slot = new WotBindingChannelSlot(
+                    form, m_channelFactory, m_builder.Context.AsMessageContext(), m_generationToken);
                 m_slots.Add(form, slot);
             }
             return slot;

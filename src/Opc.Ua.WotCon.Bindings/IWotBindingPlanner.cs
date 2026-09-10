@@ -111,6 +111,11 @@ namespace Opc.Ua.WotCon.Bindings
         /// with a field list the document does not state.
         /// </remarks>
         public WotEventSelectionCatalog EventSelections { get; }
+
+        /// <summary>
+        /// Gets the resolved local interactions and their payload-schema facts.
+        /// </summary>
+        public ArrayOf<WotProjectedAffordance> ProjectedAffordances { get; internal init; }
     }
 
     /// <summary>
