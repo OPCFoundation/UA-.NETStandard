@@ -1,0 +1,114 @@
+# Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+# OPC Foundation MIT License 1.00. See LICENSE.txt in the repository root.
+
+trigger: none
+pr: none
+
+parameters:
+  - name: areas
+    type: string
+    default: ''
+    displayName: Comma-separated manifest areas (empty means all)
+  - name: ownershipProfilePath
+    type: string
+    default: ''
+    displayName: Explicit internal ownership profile path (empty builds a public drop)
+  - name: ownershipProfileSecureFile
+    type: string
+    default: ''
+    displayName: Explicit authorized Azure secure-file name for the ownership profile
+  - name: corpusRoot
+    type: string
+    default: ''
+    displayName: Prepared corpus root preserving manifest-relative paths
+  - name: submit
+    type: boolean
+    default: false
+    displayName: Submit using the installed internal OneFuzz task
+  - name: prepareSteps
+    type: stepList
+    default: []
+
+pool:
+  vmImage: ubuntu-24.04
+
+steps:
+  - checkout: self
+    clean: false
+
+  - task: UseDotNet@2
+    displayName: Set up the repository .NET SDK
+    inputs:
+      packageType: sdk
+      version: '10.0.x'
+
+  - ${{ parameters.prepareSteps }}
+
+  - ${{ if ne(parameters.ownershipProfileSecureFile, '') }}:
+      - task: DownloadSecureFile@1
+        name: onefuzzOwnershipProfile
+        displayName: Read the explicitly authorized ownership profile
+        inputs:
+          secureFile: ${{ parameters.ownershipProfileSecureFile }}
+
+  - pwsh: |
+      $ErrorActionPreference = 'Stop'
+      $project = Join-Path $env:BUILD_SOURCESDIRECTORY 'fuzzing/OneFuzz/Opc.Ua.OneFuzz.Validator.Tests/Opc.Ua.OneFuzz.Validator.Tests.csproj'
+      $artifacts = Join-Path $env:AGENT_TEMPDIRECTORY ('onefuzz-contract-' + [guid]::NewGuid().ToString('N'))
+      $results = Join-Path $artifacts 'results'
+      & dotnet test $project -c Release -p:CustomTestTarget=net10.0 -p:UseSharedCompilation=false `
+        -maxcpucount:1 --artifacts-path $artifacts --results-directory $results `
+        --logger 'trx;LogFileName=onefuzz-contract.trx'
+      if ($LASTEXITCODE -ne 0) { throw "OneFuzz contract tests failed: $LASTEXITCODE" }
+      [xml]$trx = Get-Content -LiteralPath (Join-Path $results 'onefuzz-contract.trx') -Raw
+      $counts = $trx.TestRun.ResultSummary.Counters
+      if ([int]$counts.executed -le 0 -or [int]$counts.failed -ne 0 -or [int]$counts.notExecuted -ne 0) {
+        throw 'OneFuzz contracts must execute without failures or skips.'
+      }
+    displayName: Exercise published-library and failing-control contracts
+
+  - pwsh: |
+      $ErrorActionPreference = 'Stop'
+      if ($env:ONEFUZZ_PROFILE_PATH -and $env:ONEFUZZ_PROFILE_SECURE_FILE) {
+        throw 'Choose either an ownership-profile path or a secure file, not both.'
+      }
+      if ($env:ONEFUZZ_SUBMIT -eq 'true' -and -not $env:ONEFUZZ_PROFILE) {
+        throw 'Submission requires an explicitly supplied ownership profile.'
+      }
+      $arguments = @{
+        OutputDirectory = Join-Path $env:BUILD_ARTIFACTSTAGINGDIRECTORY 'onefuzz'
+        WorkDirectory = Join-Path $env:AGENT_TEMPDIRECTORY ('onefuzz-build-' + [guid]::NewGuid().ToString('N'))
+      }
+      if ($env:ONEFUZZ_AREAS) { $arguments.Areas = $env:ONEFUZZ_AREAS -split ',' }
+      if ($env:ONEFUZZ_PROFILE) { $arguments.OwnershipProfile = $env:ONEFUZZ_PROFILE }
+      if ($env:ONEFUZZ_CORPUS_ROOT) { $arguments.CorpusRoot = $env:ONEFUZZ_CORPUS_ROOT }
+      & (Join-Path $env:BUILD_SOURCESDIRECTORY 'fuzzing/Scripts/build-onefuzz.ps1') @arguments
+    displayName: Publish and replay the uninstrumented relocatable drop
+    env:
+      ONEFUZZ_AREAS: ${{ parameters.areas }}
+      ONEFUZZ_PROFILE_PATH: ${{ parameters.ownershipProfilePath }}
+      ONEFUZZ_PROFILE_SECURE_FILE: ${{ parameters.ownershipProfileSecureFile }}
+      ${{ if eq(parameters.ownershipProfileSecureFile, '') }}:
+        ONEFUZZ_PROFILE: ${{ parameters.ownershipProfilePath }}
+      ${{ else }}:
+        ONEFUZZ_PROFILE: $(onefuzzOwnershipProfile.secureFilePath)
+      ONEFUZZ_CORPUS_ROOT: ${{ parameters.corpusRoot }}
+      ONEFUZZ_SUBMIT: ${{ parameters.submit }}
+
+  - task: PublishPipelineArtifact@1
+    displayName: Retain the validated OneFuzz drop
+    inputs:
+      targetPath: $(Build.ArtifactStagingDirectory)/onefuzz
+      artifact: onefuzz-drop
+
+  # The internal owner must install/authorize this task and provision its secret
+  # variables and stack-owned destinations. Public runs never instantiate it.
+  - ${{ if eq(parameters.submit, true) }}:
+      - task: onefuzz-task@0
+        displayName: Submit to the authorized internal OneFuzz service
+        inputs:
+          onefuzzOSes: azurelinux3
+        env:
+          onefuzzDropDirectory: $(Build.ArtifactStagingDirectory)/onefuzz
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+          onefuzzDropPAT: $(onefuzzDropPAT)

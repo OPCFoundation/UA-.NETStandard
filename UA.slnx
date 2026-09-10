@@ -53,15 +53,24 @@
   </Folder>
   <Folder Name="/fuzzing/">
     <File Path="fuzzing/Fuzzing.md" />
+    <File Path="fuzzing/fuzz-targets.json" />
+    <File Path="fuzzing/fuzz-parity.runsettings" />
     <Project Path="fuzzing/Opc.Ua.Certificates.Fuzz/Opc.Ua.Certificates.Fuzz.csproj" />
     <Project Path="fuzzing/Opc.Ua.Certificates.Fuzz.Tests/Opc.Ua.Certificates.Fuzz.Tests.csproj" />
     <Project Path="fuzzing/Opc.Ua.Certificates.Fuzz.Tools/Opc.Ua.Certificates.Fuzz.Tools.csproj" />
     <Project Path="fuzzing/Opc.Ua.Encoders.Fuzz/Opc.Ua.Encoders.Fuzz.csproj" />
     <Project Path="fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Opc.Ua.Encoders.Fuzz.Tests.csproj" />
     <Project Path="fuzzing/Opc.Ua.Encoders.Fuzz.Tools/Opc.Ua.Encoders.Fuzz.Tools.csproj" />
+    <Project Path="fuzzing/Opc.Ua.Fuzzing.Tests/Opc.Ua.Fuzzing.Tests.csproj" />
     <Project Path="fuzzing/Opc.Ua.Network.Fuzz/Opc.Ua.Network.Fuzz.csproj" />
     <Project Path="fuzzing/Opc.Ua.Network.Fuzz.Tests/Opc.Ua.Network.Fuzz.Tests.csproj" />
     <Project Path="fuzzing/Opc.Ua.Network.Fuzz.Tools/Opc.Ua.Network.Fuzz.Tools.csproj" />
+    <Project Path="fuzzing/Opc.Ua.PubSub.Fuzz/Opc.Ua.PubSub.Fuzz.csproj" />
+    <Project Path="fuzzing/Opc.Ua.PubSub.Fuzz.Tests/Opc.Ua.PubSub.Fuzz.Tests.csproj" />
+    <Project Path="fuzzing/Opc.Ua.PubSub.Fuzz.Tools/Opc.Ua.PubSub.Fuzz.Tools.csproj" />
+    <Project Path="fuzzing/OneFuzz/Opc.Ua.OneFuzz.Validator/Opc.Ua.OneFuzz.Validator.csproj" />
+    <Project Path="fuzzing/OneFuzz/Opc.Ua.OneFuzz.Validator.Tests/Opc.Ua.OneFuzz.Validator.Tests.csproj" />
+    <Project Path="fuzzing/OneFuzz/Opc.Ua.OneFuzz.TestTarget/Opc.Ua.OneFuzz.TestTarget.csproj" />
   </Folder>
   <Folder Name="/fuzzing/Common/Fuzz/">
     <File Path="fuzzing/Common/Fuzz/FuzzMethods.cs" />
@@ -69,6 +78,8 @@
   </Folder>
   <Folder Name="/fuzzing/Common/" />
   <Folder Name="/fuzzing/Common/Fuzz.Tests/">
+    <File Path="fuzzing/Common/Fuzz.Tests/FuzzProcessWatchdog.cs" />
+    <File Path="fuzzing/Common/Fuzz.Tests/FuzzReplayProgram.cs" />
     <File Path="fuzzing/Common/Fuzz.Tests/FuzzTargetFunction.cs" />
     <File Path="fuzzing/Common/Fuzz.Tests/FuzzTargetTestsBase.cs" />
     <File Path="fuzzing/Common/Fuzz.Tests/TestAssetUtils.cs" />
@@ -90,11 +101,14 @@
     <File Path="fuzzing/Dictionaries/xml.dict" />
   </Folder>
   <Folder Name="/fuzzing/Scripts/">
+    <File Path="fuzzing/Scripts/build-onefuzz.ps1" />
     <File Path="fuzzing/Scripts/fuzz-afl.ps1" />
     <File Path="fuzzing/Scripts/fuzz-libfuzzer.ps1" />
     <File Path="fuzzing/Scripts/fuzz-menu.ps1" />
     <File Path="fuzzing/Scripts/install.sh" />
     <File Path="fuzzing/Scripts/readme.txt" />
+    <File Path="fuzzing/Scripts/test-fuzzing.ps1" />
+    <File Path="fuzzing/Scripts/validate-fuzz-manifest.ps1" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Opc.Ua.Client.ComplexTypes/Opc.Ua.Client.ComplexTypes.csproj" />

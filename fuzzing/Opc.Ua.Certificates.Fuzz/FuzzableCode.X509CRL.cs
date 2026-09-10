@@ -37,7 +37,7 @@ using Opc.Ua.Security.Certificates;
 namespace Opc.Ua.Fuzzing
 {
     /// <summary>
-    /// Fuzzing code for X509 CRL decoding.
+    /// Fuzzing code for signed CRL decoding and canonical TBS encoding.
     /// </summary>
     public static partial class FuzzableCode
     {
@@ -46,7 +46,7 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         public static void AflfuzzX509CRL(Stream stream)
         {
-            FuzzX509CRLCore(ReadAllBytes(stream));
+            _ = FuzzX509CRLCore(ReadAllBytes(stream));
         }
 
         /// <summary>
@@ -54,10 +54,150 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         public static void LibfuzzX509CRL(ReadOnlySpan<byte> input)
         {
-            FuzzX509CRLCore(input.ToArray());
+            _ = FuzzX509CRLCore(input.ToArray());
         }
 
-        internal static void FuzzX509CRLCore(byte[] input)
+        /// <summary>
+        /// Re-encodes a decoded signed CRL as TBS data.
+        /// </summary>
+        public static void AflfuzzCRLEncoder(Stream stream)
+        {
+            _ = FuzzCRLEncoderCore(ReadAllBytes(stream), roundTrip: false);
+        }
+
+        /// <summary>
+        /// Re-encodes a decoded signed CRL as TBS data.
+        /// </summary>
+        public static void LibfuzzCRLEncoder(ReadOnlySpan<byte> input)
+        {
+            _ = FuzzCRLEncoderCore(input.ToArray(), roundTrip: false);
+        }
+
+        /// <summary>
+        /// Requires byte-exact and field-exact canonical CRL TBS round trips.
+        /// </summary>
+        public static void AflfuzzCRLEncoderIndempotent(Stream stream)
+        {
+            _ = FuzzCRLEncoderCore(ReadAllBytes(stream), roundTrip: true);
+        }
+
+        /// <summary>
+        /// Requires byte-exact and field-exact canonical CRL TBS round trips.
+        /// </summary>
+        public static void LibfuzzCRLEncoderIndempotent(ReadOnlySpan<byte> input)
+        {
+            _ = FuzzCRLEncoderCore(input.ToArray(), roundTrip: true);
+        }
+
+        internal static bool FuzzX509CRLCore(byte[] input)
+        {
+            return DecodeCrlInput(input) != null;
+        }
+
+        internal static bool FuzzCRLEncoderCore(byte[] input, bool roundTrip)
+        {
+            X509CRL crl = DecodeCrlInput(input);
+            if (crl == null)
+            {
+                return false;
+            }
+
+            byte[] algorithmIdentifier = ReadCrlAlgorithmIdentifier(input);
+            byte[] canonical = CrlBuilder.Create(crl).Encode(algorithmIdentifier);
+            AssertCrlAlgorithmIdentifier(algorithmIdentifier, canonical);
+            if (roundTrip)
+            {
+                var decoded = new X509CRL();
+                decoded.DecodeCrl(canonical);
+                AssertCrlFieldsEqual(crl, decoded);
+
+                byte[] reencoded = CrlBuilder.Create(decoded).Encode(algorithmIdentifier);
+                if (!canonical.AsSpan().SequenceEqual(reencoded))
+                {
+                    throw new InvalidOperationException("Canonical CRL TBS bytes changed after re-encoding.");
+                }
+
+                var decodedAgain = new X509CRL();
+                decodedAgain.DecodeCrl(reencoded);
+                AssertCrlFieldsEqual(decoded, decodedAgain);
+            }
+            return true;
+        }
+
+        internal static void AssertCrlAlgorithmIdentifier(ReadOnlySpan<byte> expected, byte[] tbs)
+        {
+            if (!expected.SequenceEqual(ReadCrlTbsAlgorithmIdentifier(tbs)))
+            {
+                throw new InvalidOperationException("Canonical CRL signature algorithm identifier changed.");
+            }
+        }
+
+        internal static void AssertCrlFieldsEqual(IX509CRL expected, IX509CRL actual)
+        {
+            if (!expected.IssuerName.RawData.AsSpan().SequenceEqual(actual.IssuerName.RawData) ||
+                expected.Issuer != actual.Issuer ||
+                expected.HashAlgorithmName != actual.HashAlgorithmName ||
+                expected.ThisUpdate != actual.ThisUpdate ||
+                expected.NextUpdate != actual.NextUpdate ||
+                expected.RevokedCertificates.Count != actual.RevokedCertificates.Count)
+            {
+                throw new InvalidOperationException("Canonical CRL fields changed after re-encoding.");
+            }
+
+            for (int index = 0; index < expected.RevokedCertificates.Count; index++)
+            {
+                RevokedCertificate expectedEntry = expected.RevokedCertificates[index];
+                RevokedCertificate actualEntry = actual.RevokedCertificates[index];
+                if (!expectedEntry.UserCertificate.AsSpan().SequenceEqual(actualEntry.UserCertificate) ||
+                    expectedEntry.SerialNumber != actualEntry.SerialNumber ||
+                    expectedEntry.RevocationDate != actualEntry.RevocationDate)
+                {
+                    throw new InvalidOperationException("Canonical CRL revoked entries changed after re-encoding.");
+                }
+                AssertCrlExtensionsEqual(expectedEntry.CrlEntryExtensions, actualEntry.CrlEntryExtensions);
+            }
+
+            AssertCrlExtensionsEqual(expected.CrlExtensions, actual.CrlExtensions);
+        }
+
+        private static void AssertCrlExtensionsEqual(
+            X509ExtensionCollection expected,
+            X509ExtensionCollection actual)
+        {
+            if (expected.Count != actual.Count)
+            {
+                throw new InvalidOperationException("Canonical CRL extension count changed after re-encoding.");
+            }
+            for (int index = 0; index < expected.Count; index++)
+            {
+                if (expected[index].Oid?.Value != actual[index].Oid?.Value ||
+                    expected[index].Critical != actual[index].Critical ||
+                    !expected[index].RawData.AsSpan().SequenceEqual(actual[index].RawData))
+                {
+                    throw new InvalidOperationException("Canonical CRL extensions changed after re-encoding.");
+                }
+            }
+        }
+
+        private static byte[] ReadCrlAlgorithmIdentifier(byte[] input)
+        {
+            var signature = new X509Signature(input);
+            return ReadCrlTbsAlgorithmIdentifier(signature.Tbs);
+        }
+
+        private static byte[] ReadCrlTbsAlgorithmIdentifier(byte[] input)
+        {
+            var reader = new AsnReader(input, AsnEncodingRules.DER);
+            AsnReader tbs = reader.ReadSequence();
+            reader.ThrowIfNotEmpty();
+            if (tbs.PeekTag() == Asn1Tag.Integer)
+            {
+                _ = tbs.ReadInteger();
+            }
+            return tbs.ReadEncodedValue().ToArray();
+        }
+
+        private static X509CRL DecodeCrlInput(byte[] input)
         {
             try
             {
@@ -82,18 +222,11 @@ namespace Opc.Ua.Fuzzing
                     _ = extension.Format(false);
                 }
                 _ = crl.ToString();
+                return crl;
             }
-            catch (CryptographicException)
+            catch (CryptographicException exception) when (IsExpectedCertificateInputException(exception))
             {
-            }
-            catch (ArgumentException)
-            {
-            }
-            catch (FormatException)
-            {
-            }
-            catch (AsnContentException)
-            {
+                return null;
             }
         }
     }

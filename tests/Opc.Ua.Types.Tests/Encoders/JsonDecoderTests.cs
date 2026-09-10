@@ -552,6 +552,32 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.Null);
         }
 
+        [TestCase(nameof(DiagnosticInfo.SymbolicId))]
+        [TestCase(nameof(DiagnosticInfo.NamespaceUri))]
+        [TestCase(nameof(DiagnosticInfo.Locale))]
+        [TestCase(nameof(DiagnosticInfo.LocalizedText))]
+        public void ReadDiagnosticInfoWithInvalidNegativeStringTableIndexReturnsNull(string fieldName)
+        {
+            using JsonDecoder reader = NewDecoder(Body($$"""{ "{{fieldName}}": -2 }"""));
+            DiagnosticInfo result = reader.ReadDiagnosticInfo(JsonProperties.Value);
+
+            Assert.That(result, Is.Null);
+        }
+
+        [TestCase(nameof(DiagnosticInfo.SymbolicId))]
+        [TestCase(nameof(DiagnosticInfo.NamespaceUri))]
+        [TestCase(nameof(DiagnosticInfo.Locale))]
+        [TestCase(nameof(DiagnosticInfo.LocalizedText))]
+        public void ReadDiagnosticInfoWithInvalidNegativeStringTableIndexThrowsWhenStrict(string fieldName)
+        {
+            using JsonDecoder reader = NewDecoder(Body($$"""{ "{{fieldName}}": -2 }"""), strict: true);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => reader.ReadDiagnosticInfo(JsonProperties.Value));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
         [Test]
         public void ReadDoubleArrayWithBadStringValue()
         {
@@ -767,6 +793,27 @@ namespace Opc.Ua.Types.Tests.Encoders
             using JsonDecoder reader = NewDecoder(Body(json));
             ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
             Assert.That(result, Is.EqualTo(new ExtensionObject(new NodeId(131), json)));
+        }
+
+        [Test]
+        public void ReadExtensionObjectWithOnlyTypeIdPreservesBodylessExtensionObject()
+        {
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaTypeId": "i=1"}"""));
+            ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
+            Assert.That(result, Is.EqualTo(new ExtensionObject(new NodeId(1))));
+        }
+
+        [Test]
+        public void ReadExtensionObjectWithRegisteredTypeIdPreservesEncodeableBody()
+        {
+            using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{"UaTypeId": "i=296"}"""));
+            ExtensionObject result = reader.ReadExtensionObject(JsonProperties.Value);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.TryGetValue(out Argument argument), Is.True);
+                Assert.That(argument, Is.Not.Null);
+            });
         }
 
         [Test]
