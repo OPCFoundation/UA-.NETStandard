@@ -163,7 +163,8 @@ namespace Opc.Ua.Wot
                 foreach (JsonElement schema in ReadDataSchemaOccurrences(owner))
                 {
                     string? name = GetElementString(schema, "uav:dataTypeName");
-                    if (name is null || schema.TryGetProperty("uav:mapToType", out _) ||
+                    if (name is null ||
+                        schema.TryGetProperty("uav:mapToType", out _) ||
                         schema.TryGetProperty("uav:dataTypeId", out _) ||
                         schema.TryGetProperty("uav:dataTypeDefinition", out _))
                     {
@@ -197,6 +198,7 @@ namespace Opc.Ua.Wot
                     }
                 }
             }
+            InitializeDataTypeValidation(context, nodeSet, diagnostics);
             return context;
 
             void AddSource(WotDocument owner, JsonElement definition)
@@ -379,196 +381,9 @@ namespace Opc.Ua.Wot
                 }
             }
             ValidateEncodingIdentities(context, nodeSet, diagnostics);
-            ValidateInheritedFieldPrefixes(context.Definitions, diagnostics);
-            ValidateSubtypeGraph(context.Definitions, diagnostics);
+            ValidateInheritedFieldPrefixes(context, nodeSet, diagnostics);
         }
 
-        /// <summary>
-        /// Checks that the subtype graph is acyclic and kind-compatible.
-        /// </summary>
-        /// <remarks>
-        /// §6.11.2 was tightened by the specification PR: a Structure or Union
-        /// subtypes one of the same Union/non-Union family, and an Enumeration
-        /// subtypes a non-OptionSet Enumeration. A cycle is worse than wrong —
-        /// resolving the inherited prefix or the terminal base would not
-        /// terminate — so it is caught before anything walks the graph.
-        /// </remarks>
-        private static void ValidateSubtypeGraph(
-            Dictionary<string, JsonElement> complete,
-            List<WotDiagnostic> diagnostics)
-        {
-            foreach (KeyValuePair<string, JsonElement> entry in complete)
-            {
-                string name = GetElementString(entry.Value, "uav:dataTypeName") ?? entry.Key;
-                var seen = new HashSet<string>(StringComparer.Ordinal) { entry.Key };
-                string current = entry.Key;
-                JsonElement definition = entry.Value;
-
-                while (TryGetLocalBase(definition, complete, out string? baseId, out JsonElement baseType))
-                {
-                    if (!seen.Add(baseId!))
-                    {
-                        diagnostics.Add(new WotDiagnostic(
-                            WotDiagnosticSeverity.Error,
-                            WotDiagnosticCode.DataTypeDefinitionInvalid,
-                            $"The DataType '{name}' is its own ancestor. §6.11.2 " +
-                            "requires the subtype graph to be acyclic, and a " +
-                            "cycle leaves the inherited fields undefinable.",
-                            new WotLocation(reference: name)));
-                        break;
-                    }
-                    ValidateSubtypeKinds(definition, baseType, name, diagnostics);
-                    current = baseId!;
-                    definition = baseType;
-                }
-                _ = current;
-            }
-        }
-
-        private static bool TryGetLocalBase(
-            JsonElement definition,
-            Dictionary<string, JsonElement> complete,
-            out string? baseId,
-            out JsonElement baseType)
-        {
-            baseId = null;
-            baseType = default;
-            if (!definition.TryGetProperty("uav:dataTypeSubtypeOf", out JsonElement declared) ||
-                declared.ValueKind != JsonValueKind.Object)
-            {
-                return false;
-            }
-            baseId = GetElementString(declared, "@id");
-            return baseId is not null && complete.TryGetValue(baseId, out baseType);
-        }
-
-        private static void ValidateSubtypeKinds(
-            JsonElement definition,
-            JsonElement baseType,
-            string name,
-            List<WotDiagnostic> diagnostics)
-        {
-            string kind = GetElementString(definition, "@type") ?? "uav:StructureDefinition";
-            string baseKind = GetElementString(baseType, "@type") ?? "uav:StructureDefinition";
-            if (!string.Equals(kind, baseKind, StringComparison.Ordinal))
-            {
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Error,
-                    WotDiagnosticCode.DataTypeDefinitionInvalid,
-                    $"The {KindLabel(kind)} '{name}' subtypes the " +
-                    $"{KindLabel(baseKind)} " +
-                    $"'{GetElementString(baseType, "uav:dataTypeName")}'. §6.11.2 " +
-                    "keeps a DataType within its own kind.",
-                    new WotLocation(reference: name)));
-                return;
-            }
-            if (IsEnumerationKind(kind))
-            {
-                if (GetElementBool(baseType, "uav:isOptionSet"))
-                {
-                    diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Error,
-                        WotDiagnosticCode.DataTypeDefinitionInvalid,
-                        $"'{name}' subtypes an OptionSet. §6.11.2 lets an " +
-                        "Enumeration subtype only a non-OptionSet Enumeration, " +
-                        "because an OptionSet's values are bit numbers.",
-                        new WotLocation(reference: name)));
-                }
-                return;
-            }
-            if (IsUnionStructure(definition) != IsUnionStructure(baseType))
-            {
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Error,
-                    WotDiagnosticCode.DataTypeDefinitionInvalid,
-                    $"'{name}' and its base disagree on whether they are Unions. " +
-                    "§6.11.2 keeps a Structure or Union within its own family, " +
-                    "because the two encode a value differently.",
-                    new WotLocation(reference: name)));
-            }
-        }
-
-        private static string KindLabel(string kind)
-        {
-            return kind switch
-            {
-                "uav:EnumDefinition" => "enumeration",
-                "uav:SimpleDataType" => "SimpleDataType",
-                _ => "structure"
-            };
-        }
-
-        /// <summary>
-        /// Checks that a subtype repeats its base's fields, in order, unchanged.
-        /// </summary>
-        /// <remarks>
-        /// §6.11.3 states inherited fields first. That is not a formatting
-        /// preference: the encoding writes the base's fields before the
-        /// subtype's own, so renaming, reordering or dropping one silently
-        /// shifts every field after it and the value decodes as something else.
-        /// </remarks>
-        private static void ValidateInheritedFieldPrefixes(
-            Dictionary<string, JsonElement> complete,
-            List<WotDiagnostic> diagnostics)
-        {
-            foreach (KeyValuePair<string, JsonElement> entry in complete)
-            {
-                if (!entry.Value.TryGetProperty("uav:dataTypeSubtypeOf", out JsonElement baseRef) ||
-                    baseRef.ValueKind != JsonValueKind.Object)
-                {
-                    continue;
-                }
-                string? baseId = GetElementString(baseRef, "@id");
-                if (baseId is null || !complete.TryGetValue(baseId, out JsonElement baseType))
-                {
-                    continue;
-                }
-                string name = GetElementString(entry.Value, "uav:dataTypeName") ?? entry.Key;
-                List<string> inherited = ReadFieldNames(baseType);
-                List<string> declared = ReadFieldNames(entry.Value);
-                if (inherited.Count == 0)
-                {
-                    continue;
-                }
-                if (declared.Count < inherited.Count)
-                {
-                    diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Error,
-                        WotDiagnosticCode.DataTypeDefinitionInvalid,
-                        $"'{name}' states {declared.Count} field(s) but inherits " +
-                        $"{inherited.Count}. §6.11.3 states inherited fields " +
-                        "first, and dropping one shifts every field after it.",
-                        new WotLocation(reference: name)));
-                    continue;
-                }
-                for (int ii = 0; ii < inherited.Count; ii++)
-                {
-                    if (!string.Equals(declared[ii], inherited[ii], StringComparison.Ordinal))
-                    {
-                        diagnostics.Add(new WotDiagnostic(
-                            WotDiagnosticSeverity.Error,
-                            WotDiagnosticCode.DataTypeDefinitionInvalid,
-                            $"'{name}' states '{declared[ii]}' where it inherits " +
-                            $"'{inherited[ii]}'. §6.11.3 requires the inherited " +
-                            "fields first and unchanged, because the encoding " +
-                            "writes them before the subtype's own.",
-                            new WotLocation(reference: name)));
-                        break;
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Reports whether the NodeSet gives this DataType any encoding Object.
-        /// </summary>
-        /// <remarks>
-        /// The link may be written from either end, and real companion models
-        /// write it from the Object: the DI NodeSet, for instance, carries no
-        /// forward Reference on the DataType at all and declares each encoding
-        /// as an Object referring back. Looking only one way concludes that a
-        /// perfectly ordinary Structure has no encodings.
-        /// </remarks>
         /// <summary>
         /// States the identities of the encoding Objects the NodeSet actually
         /// gives this DataType.
@@ -594,7 +409,7 @@ namespace Opc.Ua.Wot
                 return EncodingPresence.None;
             }
             var aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
-            WotReferenceTypeNames referenceTypes = WotReferenceTypeNames.Build(nodeSet);
+            var referenceTypes = WotReferenceTypeNames.Build(nodeSet);
             Dictionary<string, UANode> nodes = BuildIndex(nodeSet);
             EncodingPresence presence = EncodingPresence.None;
             foreach (Reference reference in referenceTypes.GetReferences(dataType))
@@ -606,7 +421,8 @@ namespace Opc.Ua.Wot
                     continue;
                 }
                 if (!nodes.TryGetValue(ResolveArchivedAlias(reference.Value, aliases), out UANode? node) ||
-                    node is not UAObject encoding || string.IsNullOrEmpty(encoding.NodeId))
+                    node is not UAObject encoding ||
+                    string.IsNullOrEmpty(encoding.NodeId))
                 {
                     complete = false;
                     continue;
@@ -658,24 +474,6 @@ namespace Opc.Ua.Wot
         {
             return definition.TryGetProperty("uav:hasDefaultEncoding", out JsonElement declared) &&
                 declared.ValueKind == JsonValueKind.False;
-        }
-
-        private static List<string> ReadFieldNames(JsonElement definition)
-        {
-            var names = new List<string>();
-            if (definition.TryGetProperty("uav:fields", out JsonElement fields) &&
-                fields.ValueKind == JsonValueKind.Array)
-            {
-                foreach (JsonElement field in fields.EnumerateArray())
-                {
-                    string? name = GetElementString(field, "uav:fieldName");
-                    if (name is not null)
-                    {
-                        names.Add(name);
-                    }
-                }
-            }
-            return names;
         }
 
         private static IEnumerable<(WotDocument Document, JsonElement Definition, string Kind)>
@@ -840,7 +638,8 @@ namespace Opc.Ua.Wot
                             }
                         }
                         else if (member.Name == "uav:dataTypeSubtypeOf" &&
-                            member.Value.ValueKind == JsonValueKind.Object && IsReferenceOnlyDefinition(member.Value))
+                            member.Value.ValueKind == JsonValueKind.Object &&
+                            IsReferenceOnlyDefinition(member.Value))
                         {
                             definitions.Add(member.Value);
                         }
@@ -1036,7 +835,7 @@ namespace Opc.Ua.Wot
                     return false;
                 }
                 namespaceUri = CoreUtils.UnescapeUri(name.AsSpan(4, delimiter - 4));
-                local = name.Substring(delimiter + 1);
+                local = name[(delimiter + 1)..];
                 return true;
             }
             int separator = name.IndexOf(':', StringComparison.Ordinal);
@@ -1044,12 +843,12 @@ namespace Opc.Ua.Wot
             {
                 return false;
             }
-            string prefix = name.Substring(0, separator);
+            string prefix = name[..separator];
             if (!TryGetContextNamespace(document, prefix, out namespaceUri, carryingNode))
             {
                 return false;
             }
-            local = name.Substring(separator + 1);
+            local = name[(separator + 1)..];
             return true;
         }
 
@@ -1075,11 +874,12 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            var dataType = root ?? new UADataType
-            {
-                NodeId = identity,
-                BrowseName = browseName
-            };
+            UADataType dataType = root ??
+                new UADataType
+                    {
+                        NodeId = identity,
+                        BrowseName = browseName
+                    };
             dataType.IsAbstract = isAbstract;
             ApplyDataTypeText(dataType, definition, GetDeclaredLocale(document));
 
@@ -1148,8 +948,10 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics,
             out UADataType? root)
         {
-            root = items.Count > 0 && items[0] is UADataType candidate &&
-                candidate.NodeId is { } rootId && AreSameExpandedNodeId(rootId, identity)
+            root = items.Count > 0 &&
+                items[0] is UADataType candidate &&
+                candidate.NodeId is { } rootId &&
+                AreSameExpandedNodeId(rootId, identity)
                 ? candidate
                 : null;
             if (root is not null &&
@@ -1257,7 +1059,7 @@ namespace Opc.Ua.Wot
                 }
                 if (isAbstract
                     ? presence != EncodingPresence.None
-                    : ((presence & EncodingPresence.Binary) != 0) != hasDefault)
+                    : (presence & EncodingPresence.Binary) != 0 != hasDefault)
                 {
                     Report("Binary presence must agree with the permitted DefaultEncodingId state.");
                     return EncodingPresence.None;
@@ -1277,7 +1079,8 @@ namespace Opc.Ua.Wot
             foreach (string term in s_encodingTerms)
             {
                 if (definition.TryGetProperty(term, out _) &&
-                    (presence & PresenceForEncodingTerm(term)) == 0 && !isAbstract)
+                    (presence & PresenceForEncodingTerm(term)) == 0 &&
+                    !isAbstract)
                 {
                     Report($"The identity in {term} selects an encoding omitted by the presence policy.");
                 }
@@ -1316,7 +1119,7 @@ namespace Opc.Ua.Wot
                     document, declared, context, nodeSet, diagnostics, definition);
                 if (resolved is not null)
                 {
-                    ValidateOptionSetBase(definition, kind, resolved, diagnostics);
+                    ValidateOptionSetBase(definition, kind, resolved, context, nodeSet, diagnostics);
                     return resolved;
                 }
             }
@@ -1363,18 +1166,24 @@ namespace Opc.Ua.Wot
             JsonElement definition,
             string kind,
             string resolvedBase,
+            DataTypeDefinitionContext context,
+            UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics)
         {
             if (!IsEnumerationKind(kind) || !GetElementBool(definition, "uav:isOptionSet"))
             {
                 return;
             }
-            if (!s_optionSetBaseWidths.TryGetValue(resolvedBase, out int width))
+            string identity = NormalizeDataTypeValidationIdentity(resolvedBase, nodeSet);
+            bool terminalResolved = TryGetSimpleTerminal(identity, context, out string terminal);
+            BuiltInType builtIn = GetValidationBuiltInType(terminal);
+            string widthIdentity = "i=" + ((int)builtIn).ToString(CultureInfo.InvariantCulture);
+            if (!terminalResolved || !s_optionSetBaseWidths.TryGetValue(widthIdentity, out int width))
             {
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.DataTypeDefinitionInvalid,
-                    $"An OptionSet subtypes '{resolvedBase}'. §6.11.5 requires " +
+                    $"An OptionSet subtypes '{resolvedBase}' with terminal '{terminal}'. §6.11.5 requires " +
                     "the concrete Byte, UInt16, UInt32 or UInt64; an abstract " +
                     "base does not say how many bits exist.",
                     new WotLocation(reference: resolvedBase)));
@@ -1412,7 +1221,8 @@ namespace Opc.Ua.Wot
 
         private static bool IsUnionStructure(JsonElement definition)
         {
-            string? structureType = GetElementString(definition, "uav:structureType");
+            string? structureType = GetElementString(definition, "uav:structureType") ??
+                GetElementString(ReadDataTypeElementSchema(definition), "uav:structureType");
             return structureType is not null &&
                 structureType.StartsWith("Union", StringComparison.Ordinal);
         }
@@ -1479,7 +1289,7 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Builds the Definition attribute from the readable field lists.
         /// </summary>
-        private static Opc.Ua.Export.DataTypeDefinition? BuildDataTypeDefinition(
+        private static Export.DataTypeDefinition? BuildDataTypeDefinition(
             WotDocument document,
             JsonElement definition,
             string kind,
@@ -1488,7 +1298,7 @@ namespace Opc.Ua.Wot
             UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics)
         {
-            var result = new Opc.Ua.Export.DataTypeDefinition
+            var result = new Export.DataTypeDefinition
             {
                 Name = ToNodeSetQualifiedName(document, name, nodeSet, diagnostics, definition)
             };
@@ -1509,14 +1319,14 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Builds the ordered enumeration or OptionSet fields of §6.11.5.
         /// </summary>
-        private static Opc.Ua.Export.DataTypeField[] BuildEnumFields(
+        private static DataTypeField[] BuildEnumFields(
             JsonElement definition,
             bool isOptionSet,
             string typeName,
             string? defaultLocale,
             List<WotDiagnostic> diagnostics)
         {
-            var fields = new List<Opc.Ua.Export.DataTypeField>();
+            var fields = new List<DataTypeField>();
             var values = new Dictionary<int, string>();
             if (!definition.TryGetProperty("uav:enumFields", out JsonElement declared) ||
                 declared.ValueKind != JsonValueKind.Array)
@@ -1564,7 +1374,7 @@ namespace Opc.Ua.Wot
                         new WotLocation(reference: fieldName)));
                     continue;
                 }
-                var entry = new Opc.Ua.Export.DataTypeField
+                var entry = new DataTypeField
                 {
                     Name = fieldName,
                     Value = value
@@ -1578,14 +1388,14 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Builds the ordered structure fields of §6.11.3.
         /// </summary>
-        private static Opc.Ua.Export.DataTypeField[] BuildStructureFields(
+        private static DataTypeField[] BuildStructureFields(
             WotDocument document,
             JsonElement definition,
             DataTypeDefinitionContext context,
             UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics)
         {
-            var fields = new List<Opc.Ua.Export.DataTypeField>();
+            var fields = new List<DataTypeField>();
             if (!definition.TryGetProperty("uav:fields", out JsonElement declared) ||
                 declared.ValueKind != JsonValueKind.Array)
             {
@@ -1603,7 +1413,7 @@ namespace Opc.Ua.Wot
                         "§6.11.3 makes mandatory."));
                     continue;
                 }
-                var entry = new Opc.Ua.Export.DataTypeField
+                var entry = new DataTypeField
                 {
                     Name = fieldName,
                     DataType = ResolveFieldDataType(
@@ -1643,7 +1453,7 @@ namespace Opc.Ua.Wot
         private static void ValidateFieldKind(
             JsonElement definition,
             JsonElement field,
-            Opc.Ua.Export.DataTypeField entry,
+            DataTypeField entry,
             string fieldName,
             List<WotDiagnostic> diagnostics)
         {
@@ -1934,12 +1744,12 @@ namespace Opc.Ua.Wot
             JsonElement definition,
             string? defaultLocale = null)
         {
-            Opc.Ua.Export.LocalizedText[]? title = ReadTitle(definition, defaultLocale);
+            Export.LocalizedText[]? title = ReadTitle(definition, defaultLocale);
             if (title is not null)
             {
                 dataType.DisplayName = title;
             }
-            Opc.Ua.Export.LocalizedText[]? description =
+            Export.LocalizedText[]? description =
                 ReadDescription(definition, defaultLocale);
             if (description is not null)
             {
@@ -1948,16 +1758,16 @@ namespace Opc.Ua.Wot
         }
 
         private static void ApplyFieldText(
-            Opc.Ua.Export.DataTypeField field,
+            DataTypeField field,
             JsonElement declared,
             string? defaultLocale = null)
         {
-            Opc.Ua.Export.LocalizedText[]? title = ReadTitle(declared, defaultLocale);
+            Export.LocalizedText[]? title = ReadTitle(declared, defaultLocale);
             if (title is not null)
             {
                 field.DisplayName = title;
             }
-            Opc.Ua.Export.LocalizedText[]? description =
+            Export.LocalizedText[]? description =
                 ReadDescription(declared, defaultLocale);
             if (description is not null)
             {
@@ -2050,7 +1860,7 @@ namespace Opc.Ua.Wot
             UANodeSet nodeSet,
             string defaultLocale)
         {
-            Opc.Ua.Export.DataTypeDefinition? definition = dataType.Definition;
+            Export.DataTypeDefinition? definition = dataType.Definition;
             bool isEnumeration = definition is not null && HasEnumFields(definition);
 
             writer.WriteStartObject();
@@ -2130,7 +1940,7 @@ namespace Opc.Ua.Wot
         /// the reverse. An OptionSet is an enumeration whose values are bit
         /// numbers, which the flag records rather than the field shape.
         /// </remarks>
-        private static bool HasEnumFields(Opc.Ua.Export.DataTypeDefinition definition)
+        private static bool HasEnumFields(Export.DataTypeDefinition definition)
         {
             if (definition.IsOptionSet)
             {
@@ -2140,7 +1950,7 @@ namespace Opc.Ua.Wot
             {
                 return false;
             }
-            foreach (Opc.Ua.Export.DataTypeField field in definition.Field)
+            foreach (DataTypeField field in definition.Field)
             {
                 if (!string.IsNullOrEmpty(field.DataType) &&
                     !string.Equals(field.DataType, WotVocabulary.BaseDataType, StringComparison.Ordinal))
@@ -2152,7 +1962,7 @@ namespace Opc.Ua.Wot
         }
 
         private static string DefinitionKind(
-            Opc.Ua.Export.DataTypeDefinition? definition,
+            Export.DataTypeDefinition? definition,
             bool isEnumeration)
         {
             if (definition is null)
@@ -2172,13 +1982,13 @@ namespace Opc.Ua.Wot
         /// subtyped-value kind. Reading only optionality would silently demote
         /// a subtyped-value structure to a plain one.
         /// </remarks>
-        private static string StructureTypeName(Opc.Ua.Export.DataTypeDefinition definition)
+        private static string StructureTypeName(Export.DataTypeDefinition definition)
         {
             bool allowsSubtypes = false;
             bool hasOptional = false;
             if (definition.Field is not null)
             {
-                foreach (Opc.Ua.Export.DataTypeField field in definition.Field)
+                foreach (DataTypeField field in definition.Field)
                 {
                     allowsSubtypes |= field.AllowSubTypes;
                     hasOptional |= field.IsOptional;
@@ -2226,14 +2036,14 @@ namespace Opc.Ua.Wot
 
         private static void WriteEnumFields(
             Utf8JsonWriter writer,
-            Opc.Ua.Export.DataTypeDefinition definition,
+            Export.DataTypeDefinition definition,
             string defaultLocale)
         {
             writer.WritePropertyName("uav:enumFields");
             writer.WriteStartArray();
             if (definition.Field is not null)
             {
-                foreach (Opc.Ua.Export.DataTypeField field in definition.Field)
+                foreach (DataTypeField field in definition.Field)
                 {
                     writer.WriteStartObject();
                     writer.WriteString("@type", "uav:EnumField");
@@ -2249,7 +2059,7 @@ namespace Opc.Ua.Wot
 
         private static void WriteStructureFields(
             Utf8JsonWriter writer,
-            Opc.Ua.Export.DataTypeDefinition definition,
+            Export.DataTypeDefinition definition,
             UANodeSet nodeSet,
             string defaultLocale)
         {
@@ -2257,7 +2067,7 @@ namespace Opc.Ua.Wot
             writer.WriteStartArray();
             if (definition.Field is not null)
             {
-                foreach (Opc.Ua.Export.DataTypeField field in definition.Field)
+                foreach (DataTypeField field in definition.Field)
                 {
                     writer.WriteStartObject();
                     writer.WriteString("@type", "uav:StructureField");
@@ -2295,7 +2105,7 @@ namespace Opc.Ua.Wot
             {
                 if (uint.TryParse(
                     part.Trim(),
-                    System.Globalization.NumberStyles.Integer,
+                    NumberStyles.Integer,
                     CultureInfo.InvariantCulture,
                     out uint value))
                 {
@@ -2414,6 +2224,7 @@ namespace Opc.Ua.Wot
                 }
                 items.AddRange(inferred);
             }
+            ValidateAuthoritativeDataSchemas(document, context, nodeSet, diagnostics, options.MaxJsonDepth);
         }
 
         private static void InferDataType(
@@ -2444,28 +2255,27 @@ namespace Opc.Ua.Wot
                 IsAbstract = GetElementBool(schema, "uav:isAbstract")
             };
             ApplyDataTypeText(dataType, schema, GetDeclaredLocale(document));
+            string kind = isEnumeration ? "uav:EnumDefinition" : "uav:StructureDefinition";
             var references = new List<Reference>
             {
                 new()
                 {
                     ReferenceType = "HasSubtype",
                     IsForward = false,
-                    Value = isEnumeration
-                        ? WotVocabulary.Enumeration
-                        : IsUnionStructure(schema) ? WotVocabulary.Union : WotVocabulary.Structure
+                    Value = ResolveBaseDataType(document, schema, kind, context, nodeSet, diagnostics)
                 }
             };
 
             dataType.Definition = isEnumeration
                 ? BuildInferredEnumeration(
-                    dataType.BrowseName!, branches, GetDeclaredLocale(document), diagnostics)
+                    document, elementSchema, dataType.BrowseName!, branches, GetDeclaredLocale(document), diagnostics)
                 : BuildInferredStructure(
-                    document, elementSchema, dataType.BrowseName!, name, context, nodeSet, diagnostics);
+                    document, elementSchema, dataType.BrowseName!, name, context, nodeSet, diagnostics,
+                    union: IsUnionStructure(schema));
             if (dataType.Definition is null)
             {
                 return;
             }
-            string kind = isEnumeration ? "uav:EnumDefinition" : "uav:StructureDefinition";
             bool declared = ExposesDefaultEncoding(schema, name, dataType.IsAbstract, kind, diagnostics);
             EncodingPresence presence = ReadEncodingPresence(
                 schema, name, dataType.IsAbstract, kind, declared, diagnostics);
@@ -2484,7 +2294,8 @@ namespace Opc.Ua.Wot
         private static JsonElement ReadDataTypeElementSchema(JsonElement schema)
         {
             while (GetElementString(schema, "type") == "array" &&
-                schema.TryGetProperty("items", out JsonElement items) && items.ValueKind == JsonValueKind.Object)
+                schema.TryGetProperty("items", out JsonElement items) &&
+                items.ValueKind == JsonValueKind.Object)
             {
                 schema = items;
             }
@@ -2528,6 +2339,7 @@ namespace Opc.Ua.Wot
             {
                 NodeId = identity,
                 BrowseName = ToNodeSetQualifiedName(document, name, nodeSet, diagnostics, schema),
+                IsAbstract = GetElementBool(schema, "uav:isAbstract"),
                 References =
                 [
                     new Reference
@@ -2566,25 +2378,44 @@ namespace Opc.Ua.Wot
             return true;
         }
 
-        private static Opc.Ua.Export.DataTypeDefinition BuildInferredEnumeration(
+        private static Export.DataTypeDefinition BuildInferredEnumeration(
+            WotDocument document,
+            JsonElement schema,
             string browseName,
             JsonElement branches,
             string? defaultLocale,
             List<WotDiagnostic> diagnostics)
         {
-            var fields = new List<Opc.Ua.Export.DataTypeField>();
+            var fields = new List<DataTypeField>();
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            var values = new HashSet<int>();
+            int index = 0;
             foreach (JsonElement branch in branches.EnumerateArray())
             {
-                var field = new Opc.Ua.Export.DataTypeField
+                string? name = GetElementString(branch, "uav:enumName");
+                int? value = GetElementInt32(branch, "const");
+                if (string.IsNullOrEmpty(name) || !names.Add(name) || value is null || !values.Add(value.Value))
                 {
-                    Name = GetElementString(branch, "uav:enumName"),
-                    Value = GetElementInt32(branch, "const") ?? -1
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.DataTypeDefinitionInvalid,
+                        $"The inferred enumeration '{browseName}' requires distinct non-empty names and " +
+                        "distinct Int32 const values for every oneOf branch.",
+                        DataTypeValidationLocation(document, schema,
+                            "oneOf/" + index.ToString(CultureInfo.InvariantCulture), browseName)));
+                    index++;
+                    continue;
+                }
+                var field = new DataTypeField
+                {
+                    Name = name,
+                    Value = value.Value
                 };
                 ApplyFieldText(field, branch, defaultLocale);
                 fields.Add(field);
+                index++;
             }
-            _ = diagnostics;
-            return new Opc.Ua.Export.DataTypeDefinition
+            return new Export.DataTypeDefinition
             {
                 Name = browseName,
                 Field = [.. fields]
@@ -2600,14 +2431,15 @@ namespace Opc.Ua.Wot
         /// the schema shall carry <c>uav:fieldOrder</c>. Without it the
         /// encoding order of the fields is unknowable and inference fails.
         /// </remarks>
-        private static Opc.Ua.Export.DataTypeDefinition? BuildInferredStructure(
+        private static Export.DataTypeDefinition? BuildInferredStructure(
             WotDocument document,
             JsonElement schema,
             string browseName,
             string name,
             DataTypeDefinitionContext context,
             UANodeSet nodeSet,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            bool? union = null)
         {
             if (!schema.TryGetProperty("properties", out JsonElement properties) ||
                 properties.ValueKind != JsonValueKind.Object)
@@ -2619,14 +2451,32 @@ namespace Opc.Ua.Wot
                     new WotLocation(reference: name)));
                 return null;
             }
-            List<string>? order = ReadFieldOrder(schema, properties, name, diagnostics);
+            List<string>? order = ReadFieldOrder(document, schema, properties, name, diagnostics);
             if (order is null)
             {
                 return null;
             }
             HashSet<string> required = ReadRequiredFields(schema);
-            bool isUnion = IsUnionStructure(schema);
-            var fields = new List<Opc.Ua.Export.DataTypeField>();
+            bool isUnion = union ?? IsUnionStructure(schema);
+            if (schema.TryGetProperty("required", out JsonElement requiredMembers))
+            {
+                bool valid = requiredMembers.ValueKind == JsonValueKind.Array &&
+                    requiredMembers.GetArrayLength() == required.Count;
+                foreach (string field in required)
+                {
+                    valid &= properties.TryGetProperty(field, out _);
+                }
+                if (!valid)
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.DataTypeDefinitionInvalid,
+                        $"The required fields of '{name}' must be distinct declared properties.",
+                        DataTypeValidationLocation(document, schema, "required", name)));
+                    return null;
+                }
+            }
+            var fields = new List<DataTypeField>();
             foreach (string fieldName in order)
             {
                 if (!properties.TryGetProperty(fieldName, out JsonElement fieldSchema))
@@ -2645,7 +2495,7 @@ namespace Opc.Ua.Wot
                 {
                     return null;
                 }
-                var field = new Opc.Ua.Export.DataTypeField
+                var field = new DataTypeField
                 {
                     Name = fieldName,
                     DataType = fieldDataType,
@@ -2664,7 +2514,7 @@ namespace Opc.Ua.Wot
                 ApplyFieldText(field, fieldSchema, GetDeclaredLocale(document));
                 fields.Add(field);
             }
-            return new Opc.Ua.Export.DataTypeDefinition
+            return new Export.DataTypeDefinition
             {
                 Name = browseName,
                 IsUnion = isUnion,
@@ -2673,21 +2523,54 @@ namespace Opc.Ua.Wot
         }
 
         private static List<string>? ReadFieldOrder(
+            WotDocument document,
             JsonElement schema,
             JsonElement properties,
             string name,
             List<WotDiagnostic> diagnostics)
         {
             var declared = new List<string>();
-            if (schema.TryGetProperty("uav:fieldOrder", out JsonElement order) &&
-                order.ValueKind == JsonValueKind.Array)
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (JsonProperty property in properties.EnumerateObject())
             {
+                if (!names.Add(property.Name))
+                {
+                    Report($"contains the repeated property '{property.Name}'");
+                    return null;
+                }
+            }
+            if (schema.TryGetProperty("uav:fieldOrder", out JsonElement order))
+            {
+                if (order.ValueKind != JsonValueKind.Array)
+                {
+                    Report("is not an array");
+                    return null;
+                }
+                var seen = new HashSet<string>(StringComparer.Ordinal);
                 foreach (JsonElement entry in order.EnumerateArray())
                 {
-                    if (entry.ValueKind == JsonValueKind.String)
+                    if (entry.ValueKind != JsonValueKind.String ||
+                        entry.GetString() is not { Length: > 0 } fieldName)
                     {
-                        declared.Add(entry.GetString()!);
+                        Report("contains a member that is not a non-empty field name");
+                        return null;
                     }
+                    if (!names.Contains(fieldName))
+                    {
+                        Report($"names '{fieldName}', which the schema does not define");
+                        return null;
+                    }
+                    if (!seen.Add(fieldName))
+                    {
+                        Report($"repeats the property '{fieldName}'");
+                        return null;
+                    }
+                    declared.Add(fieldName);
+                }
+                if (seen.Count != names.Count)
+                {
+                    Report($"omits {names.Count - seen.Count} declared property name(s)");
+                    return null;
                 }
                 return declared;
             }
@@ -2715,6 +2598,15 @@ namespace Opc.Ua.Wot
                 declared.Add(single);
             }
             return declared;
+
+            void Report(string detail)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.DataTypeDefinitionInvalid,
+                    $"The uav:fieldOrder of '{name}' {detail}; it shall list every property exactly once.",
+                    DataTypeValidationLocation(document, schema, "uav:fieldOrder", name)));
+            }
         }
 
         private static HashSet<string> ReadRequiredFields(JsonElement schema)
@@ -2809,6 +2701,12 @@ namespace Opc.Ua.Wot
             public Dictionary<string, (WotDocument Document, UANode Node)> ProducedNodes { get; } =
                 new(StringComparer.Ordinal);
 
+            public Dictionary<string, DataTypeValidationNode> ValidationTypes { get; } =
+                new(StringComparer.Ordinal);
+
+            public Dictionary<string, (bool Valid, string Terminal)> ScalarTerminals { get; } =
+                new(StringComparer.Ordinal);
+
             public bool IsEmissionOwner(WotDocument document, WotDocument definitionOwner)
             {
                 return ReferenceEquals(
@@ -2819,7 +2717,7 @@ namespace Opc.Ua.Wot
             {
                 if (TrySplitCompactName(document, name, out string namespaceUri, out string local, schema))
                 {
-                    var key = (namespaceUri, local);
+                    (string namespaceUri, string local) key = (namespaceUri, local);
                     NamedIdentities[key] =
                         NamedIdentities.TryGetValue(key, out string? existing) && existing != identity
                         ? null

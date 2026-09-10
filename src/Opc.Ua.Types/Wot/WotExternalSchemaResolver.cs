@@ -410,7 +410,7 @@ namespace Opc.Ua.Wot
             using (parsed)
             {
                 string? incompatibility = FindIncompatibility(
-                    parsed.RootElement, canonical, canonicalDataType);
+                    parsed.RootElement, canonical, canonicalDataType, options?.MaxJsonDepth ?? 128);
                 return new WotExternalSchemaResult
                 {
                     Reference = reference,
@@ -436,78 +436,420 @@ namespace Opc.Ua.Wot
         /// Sections 5.4 and 6.11 are compared first, because they are the only
         /// statements that could otherwise be read as redefining the Variable.
         /// </remarks>
-        private static string? FindIncompatibility(
+        internal static string? FindIncompatibility(
             JsonElement external,
             JsonElement canonical,
-            string canonicalDataType)
+            string canonicalDataType,
+            int maxDepth = 128)
         {
+            return FindIncompatibility(external, canonical, canonicalDataType, out _, maxDepth);
+        }
+
+        internal static string? FindIncompatibility(
+            JsonElement external,
+            JsonElement canonical,
+            string canonicalDataType,
+            out string mismatchPointer,
+            int maxDepth = 128)
+        {
+            string? error = ValidateSchemaShape(external, maxDepth, out mismatchPointer);
+            if (error is not null)
+            {
+                return $"At '{mismatchPointer}': the external schema {error}";
+            }
+            error = ValidateSchemaShape(canonical, maxDepth, out mismatchPointer);
+            if (error is not null)
+            {
+                return $"At '{mismatchPointer}': the canonical schema {error}";
+            }
+            return CompareSchema(
+                external, canonical, canonicalDataType, string.Empty, 0, maxDepth, out mismatchPointer);
+        }
+
+        private static string? ValidateSchemaShape(JsonElement root, int maxDepth, out string pointer)
+        {
+            var pending = new Stack<(JsonElement Schema, string Pointer, int Depth)>();
+            pending.Push((root, string.Empty, 0));
+            pointer = string.Empty;
+            while (pending.Count > 0)
+            {
+                (JsonElement schema, string path, int depth) = pending.Pop();
+                pointer = path;
+                if (depth > maxDepth)
+                {
+                    return $"exceeds the semantic depth limit of {maxDepth}.";
+                }
+                if (depth > 0 && schema.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                {
+                    continue;
+                }
+                if (schema.ValueKind != JsonValueKind.Object)
+                {
+                    return "is not a JSON object, so it is not a DataSchema.";
+                }
+                if (schema.TryGetProperty("type", out JsonElement type) && !SameSchemaTypes(type, type))
+                {
+                    pointer = path + "/type";
+                    return "has an invalid type term.";
+                }
+                HashSet<string>? names = null;
+                if (schema.TryGetProperty("properties", out JsonElement properties))
+                {
+                    pointer = path + "/properties";
+                    if (properties.ValueKind != JsonValueKind.Object)
+                    {
+                        return "has a properties member that is not an object.";
+                    }
+                    names = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (JsonProperty member in properties.EnumerateObject())
+                    {
+                        if (!names.Add(member.Name))
+                        {
+                            return $"repeats the property '{member.Name}'.";
+                        }
+                        pending.Push((
+                            member.Value, path + "/properties/" + EscapePointerToken(member.Name), depth + 1));
+                    }
+                }
+                foreach (string term in s_nameSetTerms)
+                {
+                    if (!schema.TryGetProperty(term, out JsonElement values))
+                    {
+                        continue;
+                    }
+                    pointer = path + "/" + term;
+                    if (values.ValueKind != JsonValueKind.Array)
+                    {
+                        return $"has a {term} member that is not an array.";
+                    }
+                    var stated = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (JsonElement value in values.EnumerateArray())
+                    {
+                        if (value.ValueKind != JsonValueKind.String ||
+                            value.GetString() is not { Length: > 0 } name ||
+                            !stated.Add(name) ||
+                            (names is not null && !names.Contains(name)))
+                        {
+                            return $"has a {term} member that does not name distinct declared fields.";
+                        }
+                    }
+                    if (term == "uav:fieldOrder" && names is not null && stated.Count != names.Count)
+                    {
+                        return "has a uav:fieldOrder that omits declared fields.";
+                    }
+                }
+                if (schema.TryGetProperty("enum", out JsonElement enumeration) &&
+                    (enumeration.ValueKind != JsonValueKind.Array ||
+                        enumeration.GetArrayLength() == 0 ||
+                        !SameUnorderedValues(enumeration, enumeration)))
+                {
+                    pointer = path + "/enum";
+                    return "has an enum that is not a non-empty set of distinct values.";
+                }
+                if (schema.TryGetProperty("items", out JsonElement items))
+                {
+                    pending.Push((items, path + "/items", depth + 1));
+                }
+                foreach (string term in s_alternativeTerms)
+                {
+                    if (!schema.TryGetProperty(term, out JsonElement alternatives))
+                    {
+                        continue;
+                    }
+                    pointer = path + "/" + term;
+                    if (alternatives.ValueKind != JsonValueKind.Array || alternatives.GetArrayLength() == 0)
+                    {
+                        return $"has a {term} that is not a non-empty array of schemas.";
+                    }
+                    int index = 0;
+                    foreach (JsonElement alternative in alternatives.EnumerateArray())
+                    {
+                        pending.Push((alternative,
+                            path + "/" + term + "/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            depth + 1));
+                        index++;
+                    }
+                }
+            }
+            pointer = string.Empty;
+            return null;
+        }
+
+        private static string? CompareSchema(
+            JsonElement external,
+            JsonElement canonical,
+            string canonicalDataType,
+            string pointer,
+            int depth,
+            int maxDepth,
+            out string mismatchPointer,
+            bool exact = false)
+        {
+            mismatchPointer = pointer;
+            if (depth > maxDepth)
+            {
+                return $"At '{pointer}': semantic schema comparison exceeds its depth limit of {maxDepth}.";
+            }
+            if (depth > 0 &&
+                external.ValueKind is JsonValueKind.True or JsonValueKind.False &&
+                external.ValueKind == canonical.ValueKind)
+            {
+                mismatchPointer = string.Empty;
+                return null;
+            }
             if (external.ValueKind != JsonValueKind.Object)
             {
-                return "The external schema is not a JSON object, so it is not a DataSchema.";
+                return $"At '{pointer}': the external schema is not a JSON object, so it is not a DataSchema.";
             }
+            if (canonical.ValueKind != JsonValueKind.Object)
+            {
+                return $"At '{pointer}': the canonical schema is not a DataSchema object.";
+            }
+            if (external.TryGetProperty("$ref", out _) || canonical.TryGetProperty("$ref", out _))
+            {
+                mismatchPointer = pointer + "/$ref";
+                return $"At '{pointer}/$ref': an unexpanded schema reference cannot establish semantic compatibility.";
+            }
+            canonicalDataType = canonicalDataType.Length != 0
+                ? canonicalDataType
+                : ReadString(canonical, "uav:mapToType") ?? ReadString(canonical, "uav:dataTypeId") ?? string.Empty;
             foreach (string term in s_dataTypeTerms)
             {
+                mismatchPointer = pointer + "/" + term;
                 if (ReadString(external, term) is { Length: > 0 } stated &&
                     canonicalDataType.Length != 0 &&
-                    !string.Equals(stated, canonicalDataType, StringComparison.Ordinal))
+                    WotNodeSetConverter.NormalizeExpandedNodeId(stated) !=
+                        WotNodeSetConverter.NormalizeExpandedNodeId(canonicalDataType))
                 {
-                    return $"The external schema states {term} '{stated}' but the affordance " +
+                    return $"At '{pointer}/{term}': the external schema states {term} '{stated}' but the affordance " +
                         $"maps to DataType '{canonicalDataType}'.";
                 }
             }
+            bool hasExternalType = external.TryGetProperty("type", out JsonElement externalType);
+            bool hasCanonicalType = canonical.TryGetProperty("type", out JsonElement canonicalType);
+            mismatchPointer = pointer + "/type";
+            if (hasExternalType &&
+                hasCanonicalType &&
+                !SameSchemaTypes(externalType, canonicalType))
+            {
+                return $"At '{pointer}/type': the external schema states type {externalType.GetRawText()}, " +
+                    "which disagrees with " +
+                    $"canonical type {canonicalType.GetRawText()}.";
+            }
+            if (exact && hasExternalType != hasCanonicalType)
+            {
+                return $"At '{pointer}/type': a schema alternative omits its canonical type.";
+            }
             foreach (string term in s_comparedTerms)
             {
-                string? externalValue = ReadString(external, term);
-                string? canonicalValue = ReadString(canonical, term);
-                if (externalValue is not null &&
-                    canonicalValue is not null &&
-                    !string.Equals(externalValue, canonicalValue, StringComparison.Ordinal))
+                mismatchPointer = pointer + "/" + term;
+                bool hasExternal = external.TryGetProperty(term, out JsonElement externalValue);
+                bool hasCanonical = canonical.TryGetProperty(term, out JsonElement canonicalValue);
+                if (hasExternal && hasCanonical && !SameSchemaValue(externalValue, canonicalValue))
                 {
-                    return $"The external schema states {term} '{externalValue}' but the " +
-                        $"canonical DataSchema states '{canonicalValue}'.";
+                    return $"At '{pointer}/{term}': {externalValue.GetRawText()} disagrees with the " +
+                        $"canonical value {canonicalValue.GetRawText()}.";
+                }
+                if (exact && hasExternal != hasCanonical)
+                {
+                    return $"At '{pointer}/{term}': the schema alternatives state different constraints.";
                 }
             }
-            return FindMemberIncompatibility(external, canonical);
+            foreach (string term in s_unorderedTerms)
+            {
+                mismatchPointer = pointer + "/" + term;
+                bool hasExternal = external.TryGetProperty(term, out JsonElement externalValue);
+                bool hasCanonical = canonical.TryGetProperty(term, out JsonElement canonicalValue);
+                if (hasExternal && hasCanonical && !SameUnorderedValues(externalValue, canonicalValue))
+                {
+                    return $"At '{pointer}/{term}': the declared values differ from the canonical set.";
+                }
+                if (exact && hasExternal != hasCanonical)
+                {
+                    return $"At '{pointer}/{term}': a schema alternative omits a canonical constraint.";
+                }
+            }
+            bool hasExternalMembers = external.TryGetProperty("properties", out JsonElement externalMembers);
+            bool hasCanonicalMembers = canonical.TryGetProperty("properties", out JsonElement canonicalMembers);
+            mismatchPointer = pointer + "/properties";
+            if (hasExternalMembers && externalMembers.ValueKind != JsonValueKind.Object)
+            {
+                return $"At '{pointer}/properties': properties is not an object.";
+            }
+            if (hasCanonicalMembers && canonicalMembers.ValueKind != JsonValueKind.Object)
+            {
+                return $"At '{pointer}/properties': canonical properties is not an object.";
+            }
+            if (hasExternalMembers && hasCanonicalMembers && canonicalMembers.ValueKind == JsonValueKind.Object)
+            {
+                foreach (JsonProperty member in canonicalMembers.EnumerateObject())
+                {
+                    string childPointer = pointer + "/properties/" + EscapePointerToken(member.Name);
+                    mismatchPointer = childPointer;
+                    if (!externalMembers.TryGetProperty(member.Name, out JsonElement externalMember))
+                    {
+                        return $"At '{childPointer}': the canonical DataSchema declares the member " +
+                            $"'{member.Name}' and the external schema does not.";
+                    }
+                    string? difference = CompareSchema(
+                        externalMember, member.Value, string.Empty, childPointer, depth + 1, maxDepth,
+                        out mismatchPointer, exact);
+                    if (difference is not null)
+                    {
+                        return difference;
+                    }
+                }
+                if (exact ||
+                    (canonical.TryGetProperty("additionalProperties", out JsonElement additional) &&
+                        additional.ValueKind == JsonValueKind.False))
+                {
+                    foreach (JsonProperty member in externalMembers.EnumerateObject())
+                    {
+                        if (!canonicalMembers.TryGetProperty(member.Name, out _))
+                        {
+                            mismatchPointer = pointer + "/properties/" + EscapePointerToken(member.Name);
+                            return $"At '{pointer}/properties/{EscapePointerToken(member.Name)}': " +
+                                "the external schema adds a field outside the canonical shape.";
+                        }
+                    }
+                }
+            }
+            else if (exact && hasExternalMembers != hasCanonicalMembers)
+            {
+                return $"At '{pointer}/properties': a schema alternative omits its canonical members.";
+            }
+            bool hasExternalItems = external.TryGetProperty("items", out JsonElement externalItems);
+            bool hasCanonicalItems = canonical.TryGetProperty("items", out JsonElement canonicalItems);
+            mismatchPointer = pointer + "/items";
+            if (hasExternalItems && hasCanonicalItems)
+            {
+                string? difference = CompareSchema(
+                    externalItems, canonicalItems, string.Empty, pointer + "/items", depth + 1, maxDepth,
+                    out mismatchPointer, exact);
+                if (difference is not null)
+                {
+                    return difference;
+                }
+            }
+            else if (exact && hasExternalItems != hasCanonicalItems)
+            {
+                return $"At '{pointer}/items': a schema alternative omits its canonical array element schema.";
+            }
+            foreach (string term in s_alternativeTerms)
+            {
+                mismatchPointer = pointer + "/" + term;
+                bool hasExternal = external.TryGetProperty(term, out JsonElement externalAlternatives);
+                bool hasCanonical = canonical.TryGetProperty(term, out JsonElement canonicalAlternatives);
+                if (hasExternal && hasCanonical)
+                {
+                    if (externalAlternatives.ValueKind != JsonValueKind.Array ||
+                        canonicalAlternatives.ValueKind != JsonValueKind.Array ||
+                        externalAlternatives.GetArrayLength() != canonicalAlternatives.GetArrayLength())
+                    {
+                        return $"At '{pointer}/{term}': the schema alternatives differ.";
+                    }
+                    var matched = new HashSet<int>();
+                    foreach (JsonElement candidate in externalAlternatives.EnumerateArray())
+                    {
+                        bool found = false;
+                        int index = 0;
+                        foreach (JsonElement expected in canonicalAlternatives.EnumerateArray())
+                        {
+                            if (!matched.Contains(index) &&
+                                CompareSchema(
+                                    candidate, expected, string.Empty, pointer + "/" + term,
+                                    depth + 1, maxDepth, out mismatchPointer, exact: true) is null)
+                            {
+                                matched.Add(index);
+                                found = true;
+                                break;
+                            }
+                            index++;
+                        }
+                        if (!found)
+                        {
+                            mismatchPointer = pointer + "/" + term;
+                            return $"At '{pointer}/{term}': an alternative differs from every canonical branch.";
+                        }
+                    }
+                }
+                else if (exact && hasExternal != hasCanonical)
+                {
+                    return $"At '{pointer}/{term}': a schema alternative omits a canonical choice.";
+                }
+            }
+            mismatchPointer = string.Empty;
+            return null;
         }
 
-        /// <summary>
-        /// Compares the members of an object DataSchema: every member the
-        /// canonical schema declares has to be declared by the external one and
-        /// with the same json type.
-        /// </summary>
-        private static string? FindMemberIncompatibility(
-            JsonElement external,
-            JsonElement canonical)
+        private static bool SameSchemaTypes(JsonElement first, JsonElement second)
         {
-            if (canonical.ValueKind != JsonValueKind.Object ||
-                !canonical.TryGetProperty("properties", out JsonElement canonicalMembers) ||
-                canonicalMembers.ValueKind != JsonValueKind.Object)
+            var firstTypes = new HashSet<string>(StringComparer.Ordinal);
+            var secondTypes = new HashSet<string>(StringComparer.Ordinal);
+            return ReadTypes(first, firstTypes) && ReadTypes(second, secondTypes) && firstTypes.SetEquals(secondTypes);
+
+            static bool ReadTypes(JsonElement element, HashSet<string> types)
             {
-                return null;
-            }
-            if (!external.TryGetProperty("properties", out JsonElement externalMembers) ||
-                externalMembers.ValueKind != JsonValueKind.Object)
-            {
-                return null;
-            }
-            foreach (JsonProperty member in canonicalMembers.EnumerateObject())
-            {
-                if (!externalMembers.TryGetProperty(member.Name, out JsonElement externalMember))
+                if (element.ValueKind == JsonValueKind.String)
                 {
-                    return $"The canonical DataSchema declares the member '{member.Name}' and " +
-                        "the external schema does not.";
+                    string? name = element.GetString();
+                    if (name is not ("null" or "boolean" or "integer" or "number" or "string" or "object" or "array"))
+                    {
+                        return false;
+                    }
+                    types.Add(name);
+                    return true;
                 }
-                string? externalType = ReadString(externalMember, "type");
-                string? canonicalType = ReadString(member.Value, "type");
-                if (externalType is not null &&
-                    canonicalType is not null &&
-                    !string.Equals(externalType, canonicalType, StringComparison.Ordinal))
+                if (element.ValueKind != JsonValueKind.Array || element.GetArrayLength() == 0)
                 {
-                    return $"The member '{member.Name}' is '{canonicalType}' in the canonical " +
-                        $"DataSchema and '{externalType}' in the external schema.";
+                    return false;
                 }
+                foreach (JsonElement entry in element.EnumerateArray())
+                {
+                    if (entry.ValueKind != JsonValueKind.String || !ReadTypes(entry, types))
+                    {
+                        return false;
+                    }
+                }
+                return types.Count == element.GetArrayLength();
             }
-            return null;
+        }
+
+        private static bool SameUnorderedValues(JsonElement first, JsonElement second)
+        {
+            if (first.ValueKind != JsonValueKind.Array || second.ValueKind != JsonValueKind.Array)
+            {
+                return false;
+            }
+            var remaining = new List<JsonElement>();
+            foreach (JsonElement value in second.EnumerateArray())
+            {
+                if (remaining.Exists(existing => SameSchemaValue(existing, value)))
+                {
+                    return false;
+                }
+                remaining.Add(value);
+            }
+            foreach (JsonElement value in first.EnumerateArray())
+            {
+                int index = remaining.FindIndex(existing => SameSchemaValue(existing, value));
+                if (index < 0)
+                {
+                    return false;
+                }
+                remaining.RemoveAt(index);
+            }
+            return remaining.Count == 0;
+        }
+
+        private static bool SameSchemaValue(JsonElement first, JsonElement second)
+        {
+            return JsonElement.DeepEquals(first, second);
+        }
+
+        private static string EscapePointerToken(string value)
+        {
+            return value.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -545,7 +887,7 @@ namespace Opc.Ua.Wot
                 return true;
             }
             int separator = contentType!.IndexOf(';', StringComparison.Ordinal);
-            string media = (separator < 0 ? contentType : contentType.Substring(0, separator))
+            string media = (separator < 0 ? contentType : contentType[..separator])
                 .Trim();
             foreach (string readable in ReadableContentTypes)
             {
@@ -590,10 +932,34 @@ namespace Opc.Ua.Wot
 
         private static readonly string[] s_comparedTerms =
         [
-            "type",
             "format",
-            "contentEncoding"
+            "contentEncoding",
+            "minimum",
+            "maximum",
+            "exclusiveMinimum",
+            "exclusiveMaximum",
+            "multipleOf",
+            "minLength",
+            "maxLength",
+            "pattern",
+            "minItems",
+            "maxItems",
+            "minProperties",
+            "maxProperties",
+            "uniqueItems",
+            "additionalProperties",
+            "const",
+            "uav:valueRank",
+            "uav:arrayDimensions",
+            "uav:fieldOrder",
+            "uav:enumName"
         ];
+
+        private static readonly string[] s_unorderedTerms = ["required", "enum"];
+
+        private static readonly string[] s_nameSetTerms = ["required", "uav:fieldOrder"];
+
+        private static readonly string[] s_alternativeTerms = ["oneOf", "anyOf", "allOf"];
 
         private readonly IWotSchemaResolver[] m_providers;
     }

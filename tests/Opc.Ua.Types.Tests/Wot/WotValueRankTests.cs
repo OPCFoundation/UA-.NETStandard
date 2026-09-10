@@ -67,7 +67,7 @@ namespace Opc.Ua.Types.Tests.Wot
             JsonObject readable = JsonNode.Parse(document.Utf8Json.Span)!.AsObject();
             readable.Remove("uav:nodes");
             readable.Remove("uav:nodeSet");
-            using WotDocument readableDocument = WotDocument.Parse(WotTestData.Utf8(readable.ToJsonString()));
+            using var readableDocument = WotDocument.Parse(WotTestData.Utf8(readable.ToJsonString()));
             WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ToNodeSetResult(readableDocument);
 
             Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics.Select(d => d.Message)));
@@ -111,8 +111,8 @@ namespace Opc.Ua.Types.Tests.Wot
                     ["items"] = JsonNode.Parse(itemJson)
                 };
             }
-            using WotDocument authored = WotDocument.Parse(WotTestData.Utf8(root.ToJsonString()));
-            using JsonDocument expectedItems = JsonDocument.Parse(itemJson);
+            using var authored = WotDocument.Parse(WotTestData.Utf8(root.ToJsonString()));
+            using var expectedItems = JsonDocument.Parse(itemJson);
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(authored);
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
 
@@ -157,20 +157,24 @@ namespace Opc.Ua.Types.Tests.Wot
                 {
                     Assert.That(exported.TryGetEnvelope(out _), Is.True);
                 }
-                using WotDocument imported = WotDocument.Parse(WotTestData.Utf8(projected.ToJsonString()));
+                using var imported = WotDocument.Parse(WotTestData.Utf8(projected.ToJsonString()));
                 result = WotNodeSetConverter.ToNodeSetResult(imported);
                 Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             }
         }
 
-        [TestCase("{\"type\":\"string\",\"minLength\":2}")]
+        [TestCase(/*lang=json,strict*/ "{\"type\":\"string\",\"minLength\":2}")]
         [TestCase("false")]
         public void ContradictoryOrOpaqueItemsAreNotDiscarded(string itemJson)
         {
             JsonObject root = RankedItemsDocument(2, JsonNode.Parse(itemJson)!);
-            using WotDocument authored = WotDocument.Parse(WotTestData.Utf8(root.ToJsonString()));
+            using var authored = WotDocument.Parse(WotTestData.Utf8(root.ToJsonString()));
             WotConversionResult<UANodeSet> imported = WotNodeSetConverter.ToNodeSetResult(authored);
-            Assert.That(imported.Success, Is.True, string.Join("; ", imported.Diagnostics));
+            bool contradictoryType = itemJson != "false";
+            Assert.That(imported.Success, Is.EqualTo(!contradictoryType), string.Join("; ", imported.Diagnostics));
+            Assert.That(imported.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.ValidationError &&
+                diagnostic.Location?.JsonPointer == "/properties/Matrix/items/type"), Is.EqualTo(contradictoryType));
             byte[] beforeExport = WotTestData.Serialize(imported.Value!);
 
             WotConversionResult<WotDocument> result = WotNodeSetConverter.FromNodeSetResult(imported.Value!);
