@@ -36,6 +36,7 @@ using Opc.Ua.OpenUsd;
 using Opc.Ua.OpenUsd.Server;
 using Opc.Ua.Pumps;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.NodeManager;
 
 namespace Pumps
@@ -94,8 +95,7 @@ namespace Pumps
         /// needles that make each machine read as its own.
         /// </para>
         /// </remarks>
-        private async ValueTask MaterialisePlantAggregationAsync(
-            CancellationToken cancellationToken)
+        private void MaterialisePlantAggregation(INodeManagerBuilder builder)
         {
             if (m_plantStage == null)
             {
@@ -131,15 +131,14 @@ namespace Pumps
                     assetReference: "@pump.usda@</Pump>",
                     componentTypeDefinition: pumpTypeId);
 
-                SystemContext.AssignInstanceChildNodeIds(plantRep);
-                await AddPredefinedNodeAsync(SystemContext, plantRep, cancellationToken)
-                    .ConfigureAwait(false);
+                // Staging assigns the whole subtree its final NodeIds - the same
+                // pass AssignInstanceChildNodeIds used to run here - and leaves
+                // the registration to CreateAddressSpaceAsync.
+                builder.Add(plantRep, deviceSet.NodeId);
 
-                FolderState? registry = m_openUsdRoot?.Representations;
-                if (registry != null)
+                if (m_openUsdRoot?.Representations is FolderState registry)
                 {
-                    registry.AddReference(ReferenceTypeIds.Organizes, false, plantRep.NodeId);
-                    plantRep.AddReference(ReferenceTypeIds.Organizes, true, registry.NodeId);
+                    plantRep.RegisterInDiscovery(registry);
                 }
 
                 m_logger.MaterialisedPlantAggregation(m_twins.Count);
@@ -156,7 +155,12 @@ namespace Pumps
         // connected server simulates and nothing else. A line pump is a static
         // topology entry, not a machine anyone is driving; rendering it put
         // phantom pumps in the twin that no client could account for.
-        private async ValueTask MaterialiseProductionLineAsync(CancellationToken cancellationToken)
+        // The subtree is staged on the builder rather than registered here: the
+        // manager's CreateAddressSpaceAsync registers everything staged during
+        // Configure and runs the reverse-reference pass over it, and staging
+        // mints the NodeIds through the same factory this method used to call
+        // by hand.
+        private void MaterialiseProductionLine(INodeManagerBuilder builder)
         {
             if (m_plantStage == null)
             {
@@ -172,35 +176,18 @@ namespace Pumps
                     return;
                 }
 
-                var line = new BaseObjectState(deviceSet)
-                {
-                    SymbolicName = "ProductionLine",
-                    BrowseName = new QualifiedName("ProductionLine", ns),
-                    DisplayName = new LocalizedText("ProductionLine"),
-                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                    TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType
-                };
-                deviceSet.AddChild(line);
-                line.NodeId = SystemContext.NodeIdFactory.New(SystemContext, line);
+                BaseObjectState line = builder
+                    .AddObject(new QualifiedName("ProductionLine", ns), deviceSet.NodeId)
+                    .Node;
 
-                var pumps = new FolderState(line)
-                {
-                    SymbolicName = "Pumps",
-                    BrowseName = new QualifiedName("Pumps", ns),
-                    DisplayName = new LocalizedText("Pumps"),
-                    ReferenceTypeId = ReferenceTypeIds.Organizes,
-                    TypeDefinitionId = Opc.Ua.ObjectTypeIds.FolderType
-                };
-                line.AddChild(pumps);
-                pumps.NodeId = SystemContext.NodeIdFactory.New(SystemContext, pumps);
+                FolderState pumps = builder
+                    .AddFolder(new QualifiedName("Pumps", ns), line.NodeId)
+                    .Node;
                 m_linePumps = pumps;
 
                 // Two static aggregated entries (1..n baseline).
-                CreateAggregatedPump(pumps, "P-201", ns);
-                CreateAggregatedPump(pumps, "P-202", ns);
-
-                SystemContext.AssignInstanceChildNodeIds(line);
-                await AddPredefinedNodeAsync(SystemContext, line, cancellationToken).ConfigureAwait(false);
+                CreateAggregatedPump(builder, pumps.NodeId, "P-201", ns);
+                CreateAggregatedPump(builder, pumps.NodeId, "P-202", ns);
 
                 // Dynamic composition: emit model-change events on runtime add/remove.
                 ModelChangeEmissionEnabled = true;
@@ -217,18 +204,13 @@ namespace Pumps
 
         // An aggregated line entry: a plain topology Object with no
         // representation, because it is not a machine the server simulates.
-        private void CreateAggregatedPump(NodeState parent, string name, ushort ns)
+        private static void CreateAggregatedPump(
+            INodeManagerBuilder builder, NodeId parentId, string name, ushort ns)
         {
-            var obj = new BaseObjectState(parent)
-            {
-                SymbolicName = name,
-                BrowseName = new QualifiedName(name, ns),
-                DisplayName = new LocalizedText(name),
-                ReferenceTypeId = ReferenceTypeIds.Organizes,
-                TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType
-            };
-            parent.AddChild(obj);
-            obj.NodeId = SystemContext.NodeIdFactory.New(SystemContext, obj);
+            BaseObjectState entry = builder
+                .AddObject(new QualifiedName(name, ns), parentId)
+                .Node;
+            entry.ReferenceTypeId = ReferenceTypeIds.Organizes;
         }
 
         // Dynamic demo (§5.13): repeatedly add a pump (emits a GeneralModelChange),
