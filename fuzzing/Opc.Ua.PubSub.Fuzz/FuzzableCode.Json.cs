@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using Opc.Ua.PubSub.Encoding;
+using PubSubJsonDecoder = Opc.Ua.PubSub.Encoding.Json.JsonDecoder;
 
 namespace Opc.Ua.Fuzzing
 {
@@ -38,23 +38,19 @@ namespace Opc.Ua.Fuzzing
     {
         public static void AflfuzzPubSubJsonDecode(Stream stream)
         {
-            LibfuzzPubSubJsonDecode(ReadCapped(stream));
+            _ = DecodePubSubJson(ReadCapped(stream), NewContext());
         }
 
         public static void LibfuzzPubSubJsonDecode(ReadOnlySpan<byte> input)
         {
-            try
-            {
-                byte[] data = CopyCapped(input);
-                var message = new Opc.Ua.PubSub.Encoding.JsonNetworkMessage();
-                message.Decode(
-                    ServiceMessageContext.CreateEmpty(null!),
-                    data,
-                    new List<DataSetReaderDataType>());
-            }
-            catch (Exception ex) when (IsExpected(ex))
-            {
-            }
+            _ = DecodePubSubJson(CopyCapped(input), NewContext());
+        }
+
+        internal static PubSubNetworkMessage DecodePubSubJson(
+            ReadOnlyMemory<byte> input,
+            PubSubNetworkMessageContext context)
+        {
+            return PubSubJsonDecoder.DecodeCore(input, context);
         }
     }
 }

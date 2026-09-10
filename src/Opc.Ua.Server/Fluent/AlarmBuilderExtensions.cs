@@ -28,9 +28,121 @@
  * ======================================================================*/
 
 using System;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.Fluent
 {
+    /// <summary>
+    /// Undoes everything attaching an alarm changed in the address space.
+    /// </summary>
+    /// <remarks>
+    /// Held by the node manager as a behavior, so release runs in exact reverse order
+    /// with every other behavior and is aggregated with their failures rather than
+    /// being lost.
+    /// </remarks>
+    internal sealed class AlarmRelease : IAsyncDisposable
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AlarmRelease"/> class.
+        /// </summary>
+        /// <param name="alarm">The alarm to release.</param>
+        /// <param name="context">The context to release it in.</param>
+        /// <param name="eventSource">What registering the alarm changed.</param>
+        /// <param name="builder">The builder that owns the alarm.</param>
+        /// <param name="enabledByUs">
+        /// Whether attaching the alarm was what enabled it. False when it arrived
+        /// already enabled, in which case its enable state was never ours to undo.
+        /// </param>
+        public AlarmRelease(
+            ConditionState alarm,
+            ISystemContext context,
+            AlarmEventSourceRegistration eventSource,
+            NodeManagerBuilder builder,
+            bool enabledByUs)
+        {
+            m_alarm = alarm;
+            m_context = context;
+            m_eventSource = eventSource;
+            m_builder = builder;
+            m_enabledByUs = enabledByUs;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (m_released)
+            {
+                return;
+            }
+            m_released = true;
+
+            // A failure here must not cost us the rest of the cleanup, but it must not
+            // vanish either: the engine promises to aggregate release failures, and an
+            // operator otherwise gets no sign that teardown left registration state
+            // behind. It is retained and rethrown once the rest has run.
+            Exception? rootNotifierFailure = null;
+            if (m_eventSource.RootNotifier != null &&
+                m_builder.NodeManager is FluentNodeManagerBase manager)
+            {
+                try
+                {
+                    await manager
+                        .RemoveRootNotifierFromFluentAsync(
+                            m_eventSource.RootNotifier,
+                            System.Threading.CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    rootNotifierFailure = ex;
+                }
+            }
+
+            foreach (BaseObjectState notifier in m_eventSource.PromotedNotifiers)
+            {
+                notifier.EventNotifier = (byte)(notifier.EventNotifier &
+                    unchecked((byte)~EventNotifiers.SubscribeToEvents));
+            }
+
+            // The OnAcknowledge/OnConfirm slots are plain delegates on a node that is
+            // being deleted, so they are left alone: they hold nothing to release, and
+            // the fields are not nullable.
+
+            // Disable only what attaching enabled, and only while it is still enabled.
+            // Both halves matter, and for different reasons.
+            //
+            // The ownership half is parity with everything else this class reverses: the
+            // notifier bits list only nodes whose bit we set, and the root notifier is
+            // claimed only when we inserted it. The enable state was the one thing
+            // reversed unconditionally.
+            //
+            // The still-enabled half guards a case ownership does not cover. A client may
+            // disable the condition at runtime through the Disable method, and that path
+            // refuses a redundant transition — ProcessBeforeEnableDisable answers
+            // BadConditionAlreadyDisabled. SetEnableState is the programmatic path and
+            // makes no such check, so disabling an already-disabled condition would
+            // rewrite EnabledState, clear Retain and stamp a fresh TransitionTime: a
+            // second, spurious disable transition emitted on the way out.
+            if (m_enabledByUs && m_alarm.EnabledState?.Id?.Value == true)
+            {
+                m_alarm.SetEnableState(m_context, enabled: false);
+            }
+
+            if (rootNotifierFailure is not null)
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo
+                    .Capture(rootNotifierFailure)
+                    .Throw();
+            }
+        }
+
+        private readonly ConditionState m_alarm;
+        private readonly ISystemContext m_context;
+        private readonly AlarmEventSourceRegistration m_eventSource;
+        private readonly NodeManagerBuilder m_builder;
+        private readonly bool m_enabledByUs;
+        private bool m_released;
+    }
+
     /// <summary>
     /// Strongly-typed fluent builder for an alarm/condition state
     /// instance. Returned by the <c>CreateLimitAlarm</c> /
@@ -203,7 +315,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(factory));
             }
-            if (parent.Node is not BaseObjectState parentObject)
+            if (parent.Node is not BaseObjectState)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTypeMismatch,
@@ -227,14 +339,22 @@ namespace Opc.Ua.Server.Fluent
                 browseName,
                 displayName: new LocalizedText(symbolicName),
                 assignNodeIds: false);
+
+            // Record whether enabling is ours to undo, before doing it. A freshly
+            // created condition is disabled, so today this is always true; it is captured
+            // rather than assumed so that teardown reverses a state it observed instead
+            // of one it inferred, the same way the notifier chain is recorded below.
+            bool enabledByUs = alarm.EnabledState?.Id?.Value != true;
             alarm.SetEnableState(parent.Builder.Context, enabled: true);
 
             alarm.ReferenceTypeId = ReferenceTypeIds.HasCondition;
             parent.Node.AddChild(alarm);
             InitializeAlarmSource(parent.Node, alarm);
 
-            parentObject.EventNotifier |= EventNotifiers.SubscribeToEvents;
-
+            // The parent's EventNotifier is promoted by RegisterAlarmEventSource below,
+            // which walks the whole notifier chain starting at this very node and
+            // records what it changed so teardown can undo it. Promoting here as well
+            // would set the bit first and leave that record empty.
             parent.Node.AddReference(
                 ReferenceTypeIds.HasEventSource,
                 isInverse: false,
@@ -249,7 +369,30 @@ namespace Opc.Ua.Server.Fluent
             // source as a root notifier so clients subscribing on the
             // Server Object receive the condition events.
             FluentNodeRegistration.RegisterCreatedNode(parent.Builder, alarm);
-            FluentNodeRegistration.RegisterAlarmEventSource(parent.Builder, parent.Node);
+            AlarmEventSourceRegistration eventSource =
+                FluentNodeRegistration.RegisterAlarmEventSource(parent.Builder, parent.Node);
+
+            // Hand release to the behavior mechanism. Everything above mutates the
+            // address space and, until now, nothing undid any of it: an alarm survived
+            // its own node manager's teardown as an enabled condition with a promoted
+            // notifier chain and a root-notifier registration still in place.
+            // Alarms work on any node manager, so a manager that has not opted into the
+            // fluent surface keeps the behavior it always had: it simply gets no
+            // automatic release.
+            NodeManagerBuilder? concrete =
+                FluentNodeManagerBase.TryResolveAttachedBuilder(parent.Builder);
+            concrete?.RegisterNodeAttachment(
+                NodeAttachRegistration.ForNode(
+                    alarm,
+                    static (_, _, _, state) => new ValueTask<IAsyncDisposable?>(
+                        (AlarmRelease)state),
+                    new AlarmRelease(
+                        alarm,
+                        parent.Builder.Context,
+                        eventSource,
+                        concrete,
+                        enabledByUs)));
+
             return alarm;
         }
 

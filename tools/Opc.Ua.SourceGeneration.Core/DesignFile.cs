@@ -106,6 +106,18 @@ namespace Opc.Ua.SourceGeneration
         public bool EmitNodeManagerFactory { get; init; } = true;
 
         /// <summary>
+        /// Whether to emit the public
+        /// <c>(IServerInternal, ApplicationConfiguration)</c> constructor
+        /// on the generated <c>NodeManager</c>. Defaults to <c>true</c>.
+        /// Set to <c>false</c> for managers that need collaborators
+        /// beyond those two arguments; the <c>protected</c> constructor
+        /// taking the namespace URI array is emitted either way. Used by
+        /// the <c>[NodeManager]</c> attribute discovery path
+        /// (<c>GenerateDefaultConstructor</c> named argument).
+        /// </summary>
+        public bool EmitNodeManagerDefaultConstructor { get; init; } = true;
+
+        /// <summary>
         /// Additional namespace URIs (beyond the model namespace) that
         /// the generated <c>NodeManager</c> constructor reports to the
         /// base node manager and the generated factory advertises via

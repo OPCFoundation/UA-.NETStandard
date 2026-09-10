@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Opc.Ua.Certificates.Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
+    <Compile Include="..\Opc.Ua.Certificates.Fuzz\FuzzableCode.Certificates.cs" Link="FuzzableCode.Certificates.cs" />
     <Compile Include="..\Opc.Ua.Certificates.Fuzz\FuzzableCode.X509CRL.cs" Link="FuzzableCode.X509CRL.cs" />
     <Compile Include="..\Opc.Ua.Certificates.Fuzz\FuzzableCode.X509Extensions.cs" Link="FuzzableCode.X509Extensions.cs" />
     <Compile Include="..\Opc.Ua.Certificates.Fuzz\FuzzableCode.PEMReader.cs" Link="FuzzableCode.PEMReader.cs" />
@@ -32,5 +33,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Common\Fuzz\EncodingFidelityException.cs" Link="EncodingFidelityException.cs" />
   </ItemGroup>
 </Project>

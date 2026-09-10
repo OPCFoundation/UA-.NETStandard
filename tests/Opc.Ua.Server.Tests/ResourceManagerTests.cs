@@ -245,5 +245,73 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(/*lang=json,strict*/ "{\"t\":[[\"de-DE\",\"Hallo User\"],[\"en-US\",\"Hello User\"]]}"));
             Assert.That(resultText.Locale, Is.EqualTo("mul"));
         }
+
+        [Test]
+        public void TranslateUsesRegisteredTextAndLocaleInsteadOfFallback()
+        {
+            var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());
+            using var resources = new ResourceManager(configuration);
+            resources.Add("greeting", "de-DE", "Hallo {0}");
+
+            LocalizedText translated = resources.Translate(["de-DE"], "greeting", "Hello {0}", "User");
+
+            Assert.That(translated.Text, Is.EqualTo("Hallo User"));
+            Assert.That(translated.Locale, Is.EqualTo("de-DE"));
+            Assert.That(translated.TranslationInfo.Key, Is.EqualTo("greeting"));
+            Assert.That(translated.TranslationInfo.Text, Is.EqualTo("Hallo {0}"));
+        }
+
+        [TestCase(null)]
+        [TestCase(Opc.Ua.Namespaces.OpcUa)]
+        public void TranslateStandardStatusUsesRegisteredTranslation(string namespaceUri)
+        {
+            var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());
+            using var resources = new ResourceManager(configuration);
+            resources.LoadDefaultText();
+            resources.Add(StatusCodes.BadTimeout, "de-DE", "Zeitlimit abgelaufen");
+            var input = new ServiceResult(
+                StatusCodes.BadTimeout,
+                new System.Xml.XmlQualifiedName("BadTimeout", namespaceUri),
+                LocalizedText.Null);
+
+            ServiceResult translated = resources.Translate(["de-DE"], input);
+
+            Assert.That(translated.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(translated.LocalizedText.Text, Is.EqualTo("Zeitlimit abgelaufen"));
+            Assert.That(translated.LocalizedText.Locale, Is.EqualTo("de-DE"));
+            Assert.That(resources.Translate(["en-US"], input).LocalizedText.Text, Is.EqualTo("BadTimeout"));
+        }
+
+        [Test]
+        public void TranslateStandardStatusWithoutMappingRetainsSymbolicId()
+        {
+            var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());
+            using var resources = new ResourceManager(configuration);
+
+            ServiceResult translated = resources.Translate(["de-DE"], new ServiceResult(StatusCodes.BadTimeout));
+
+            Assert.That(translated.LocalizedText.Text, Is.EqualTo("BadTimeout"));
+            Assert.That(translated.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+        }
+
+        [TestCase("BadTimeout", "urn:custom-errors")]
+        [TestCase("CustomTimeout", Opc.Ua.Namespaces.OpcUa)]
+        public void TranslateCustomSymbolicIdDoesNotUseStandardStatusTranslation(string name, string namespaceUri)
+        {
+            var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());
+            using var resources = new ResourceManager(configuration);
+            resources.LoadDefaultText();
+            resources.Add(StatusCodes.BadTimeout, "de-DE", "Zeitlimit abgelaufen");
+            var input = new ServiceResult(
+                StatusCodes.BadTimeout,
+                new System.Xml.XmlQualifiedName(name, namespaceUri),
+                LocalizedText.Null);
+
+            ServiceResult translated = resources.Translate(["de-DE"], input);
+
+            Assert.That(translated.LocalizedText.Text, Is.EqualTo(name));
+            Assert.That(translated.NamespaceUri, Is.EqualTo(namespaceUri));
+            Assert.That(translated.SymbolicId, Is.EqualTo(name));
+        }
     }
 }

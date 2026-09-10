@@ -66,6 +66,10 @@ namespace Opc.Ua.Fuzzing
                 // Test the fuzz targets with the message.
                 FuzzableCode.LibfuzzBinaryDecoder(message);
                 FuzzableCode.LibfuzzBinaryEncoder(message);
+                FuzzableCode.LibfuzzBinaryEncoderIndempotent(message);
+                FuzzableCode.LibfuzzBinaryDecoderSegmented(message);
+                FuzzableCode.LibfuzzBinaryEncoderSegmented(message);
+                FuzzableCode.LibfuzzBinaryEncoderIndempotentSegmented(message);
                 using (var stream = new MemoryStream(message))
                 {
                     FuzzableCode.AflfuzzBinaryDecoder(stream);
@@ -76,7 +80,11 @@ namespace Opc.Ua.Fuzzing
                 }
                 using (var stream = new MemoryStream(message))
                 {
-                    FuzzableCode.FuzzBinaryDecoderCore(stream, true);
+                    IEncodeable decoded = FuzzableCode.FuzzBinaryDecoderCore(stream, true);
+                    foreach (JsonEncoderOptions options in FuzzableCode.JsonEncodingModes)
+                    {
+                        FuzzableCode.FuzzJsonRoundTripCore(decoded, options);
+                    }
                 }
 
                 string fileName = Path.Combine(
@@ -106,7 +114,11 @@ namespace Opc.Ua.Fuzzing
                 string json = Encoding.UTF8.GetString(message);
                 FuzzableCode.AflfuzzJsonDecoder(json);
                 FuzzableCode.AflfuzzJsonEncoder(json);
-                FuzzableCode.FuzzJsonDecoderCore(json);
+                IEncodeable decoded = FuzzableCode.FuzzJsonDecoderCore(json, true);
+                foreach (JsonEncoderOptions options in FuzzableCode.JsonEncodingModes)
+                {
+                    FuzzableCode.FuzzJsonRoundTripCore(decoded, options);
+                }
 
                 string fileName = Path.Combine(
                     pathTarget,
@@ -142,10 +154,15 @@ namespace Opc.Ua.Fuzzing
                 }
                 using (var stream = new MemoryStream(message))
                 {
-                    FuzzableCode.FuzzXmlDecoderCore(stream);
+                    IEncodeable decoded = FuzzableCode.FuzzXmlDecoderCore(stream, true);
+                    foreach (JsonEncoderOptions options in FuzzableCode.JsonEncodingModes)
+                    {
+                        FuzzableCode.FuzzJsonRoundTripCore(decoded, options);
+                    }
                 }
                 FuzzableCode.LibfuzzXmlDecoder(message);
                 FuzzableCode.LibfuzzXmlEncoder(message);
+                FuzzableCode.LibfuzzXmlEncoderIndempotent(message);
 
                 string fileName = Path.Combine(
                     pathTarget,
@@ -164,17 +181,25 @@ namespace Opc.Ua.Fuzzing
 
         private delegate void BuiltInEncoder(IEncoder encoder);
 
-        private static IEnumerable<MessageEncoder> GetMessageEncoders()
+        internal static IEnumerable<MessageEncoder> GetMessageEncoders()
         {
-            foreach (MessageEncoder messageEncoder in MessageEncoders)
-            {
-                yield return messageEncoder;
-            }
-
+            yield return ReadRequestRich;
+            yield return ReadResponseRich;
+            yield return PublishResponse;
             yield return BrowseRequest;
-            yield return WriteRequest;
+            yield return WriteRequestRich;
             yield return DataTypeNodeMessage;
             yield return VariableNodeMessage;
+        }
+
+        private static void ReadRequestRich(IEncoder encoder)
+        {
+            ReadRequest(encoder);
+        }
+
+        private static void ReadResponseRich(IEncoder encoder)
+        {
+            ReadResponse(encoder);
         }
 
         private static void BrowseRequest(IEncoder encoder)
@@ -200,33 +225,16 @@ namespace Opc.Ua.Fuzzing
             encoder.EncodeMessage(browseRequest);
         }
 
-        private static void WriteRequest(IEncoder encoder)
+        private static void WriteRequestRich(IEncoder encoder)
         {
-            var writeRequest = new WriteRequest
-            {
-                RequestHeader = CreateRequestHeader(),
-                NodesToWrite =
-                [
-                    new WriteValue
-                    {
-                        NodeId = new NodeId(1000, 2),
-                        AttributeId = Attributes.Value,
-                        Value = new DataValue(
-                            Variant.From(new LocalizedText("en-US", "Hello World")),
-                            StatusCodes.Good,
-                            DateTimeUtc.Now)
-                    }
-                ]
-            };
-
-            encoder.EncodeMessage(writeRequest);
+            WriteRequest(encoder);
         }
 
         private static RequestHeader CreateRequestHeader()
         {
             return new RequestHeader
             {
-                Timestamp = DateTime.UtcNow,
+                Timestamp = SeedTimestamp,
                 RequestHandle = 42,
                 AdditionalHeader = new ExtensionObject(new ReadValueId
                 {
@@ -435,7 +443,7 @@ namespace Opc.Ua.Fuzzing
                 new DataValue(
                     Variant.From(new QualifiedName("Temperature", 2)),
                     StatusCodes.Good,
-                    DateTimeUtc.Now)));
+                    SeedTimestamp)));
             yield return ("diagnosticinfo", encoder => encoder.WriteDiagnosticInfo(
                 "Value",
                 new DiagnosticInfo

@@ -241,9 +241,10 @@ your handlers wrapping it.
 ### Inside a fluent node-manager build pipeline
 
 ```csharp
-public sealed class MyNodeManager : FluentNodeManagerBase
+[NodeManager]
+public partial class MyNodeManager
 {
-    protected override void OnConfigure(INodeManagerBuilder builder)
+    partial void Configure(INodeManagerBuilder builder)
     {
         builder
             .Node(BrowsePaths.SoftwareUpdate.Installation)

@@ -62,7 +62,7 @@ namespace Microsoft.Extensions.DependencyInjection
     /// <see cref="IHostedService"/> so the .NET Generic Host owns its
     /// lifetime, logging pipeline and Ctrl+C / SIGTERM handling.
     /// </summary>
-    public static class OpcUaServerBuilderExtensions
+    public static partial class OpcUaServerBuilderExtensions
     {
         /// <summary>
         /// Default <see cref="IConfiguration"/> section name used by the
@@ -1621,6 +1621,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddOpcUa().AddApplicationInstance();
             services.TryAddSingleton<IOpcUaServerFactory, DefaultOpcUaServerFactory>();
             services.TryAddSingleton<HostedNodeManagerLifecycle>();
+            services.TryAddSingleton<OpcUaServerAliasNameStartupTask>();
             services.TryAddSingleton<INodeManagerLifecycle>(services =>
                 services.GetRequiredService<HostedNodeManagerLifecycle>());
             RegisterFallbackAnonymousAuthenticator(services);

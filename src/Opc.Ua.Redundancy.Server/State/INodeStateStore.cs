@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -121,5 +122,54 @@ namespace Opc.Ua.Redundancy.Server
         /// </summary>
         /// <param name="ct">Cancellation token that stops the subscription.</param>
         IAsyncEnumerable<NodeStateChange> SubscribeChangesAsync(CancellationToken ct = default);
+    }
+
+    internal interface INodeStatePartitionStore
+    {
+        ValueTask<bool> IsPartitionInitializedAsync(
+            string partitionId,
+            CancellationToken ct = default);
+
+        ValueTask MarkPartitionInitializedAsync(
+            string partitionId,
+            CancellationToken ct = default);
+    }
+
+    internal interface INodeStateSubscriptionPreparer
+    {
+        void PrepareSubscription();
+    }
+
+    internal interface INodeStateStoreStateProbe
+    {
+        ValueTask<bool> HasStoredStateAsync(
+            Func<NodeId, bool> ownsNode,
+            CancellationToken ct = default);
+    }
+
+    internal interface ISequencedNodeStateStore
+    {
+        IAsyncEnumerable<(IStoredNode Node, ulong Sequence)> EnumerateNodesWithSequenceAsync(
+            CancellationToken ct = default);
+
+        IAsyncEnumerable<(NodeId NodeId, DataValue Value, ulong Sequence)> EnumerateValuesWithSequenceAsync(
+            CancellationToken ct = default);
+    }
+
+    /// <summary>
+    /// Describes whether a node store can establish complete state rather than
+    /// an eventually consistent replica view.
+    /// </summary>
+    internal interface INodeStateStoreReadConsistency
+    {
+        /// <summary>
+        /// Gets whether a completed topology/value scan can establish authoritative absence.
+        /// </summary>
+        bool HasAuthoritativeReads { get; }
+
+        /// <summary>
+        /// Gets whether the backing keyspaces support validated snapshot publication and log trimming.
+        /// </summary>
+        bool SupportsSnapshots { get; }
     }
 }

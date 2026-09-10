@@ -16,6 +16,9 @@
     <InternalsVisibleTo Include="Opc.Ua.Core" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Test.Common" />
+    <InternalsVisibleTo Include="Opc.Ua.Certificates.Fuzz" />
+    <InternalsVisibleTo Include="Opc.Ua.Certificates.Fuzz.Tools" />
+    <InternalsVisibleTo Include="Opc.Ua.Certificates.Fuzz.Tests" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Diagnostics.DiagnosticSource" />

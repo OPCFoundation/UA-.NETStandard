@@ -53,7 +53,6 @@ namespace Opc.Ua.Server
     /// </remarks>
     public class AsyncCustomNodeManager :
         IAsyncNodeManager,
-        INodeIdFactory,
         IDisposable,
         ILocalAddressSpaceSource,
         IPredefinedNodeSubtypeReplacer,
@@ -361,10 +360,11 @@ namespace Opc.Ua.Server
         {
             if (server is INodeIdFactoryProvider { DetectNodeIdCollisions: { } detect })
             {
-                return factory.WithCollisionDetection(detect);
+                factory = factory.WithCollisionDetection(detect);
             }
-
-            return factory;
+            return server is INodeIdFactoryProvider { NodeIdFactory: INodeIdFactoryPolicy policy }
+                ? policy.Apply(factory)
+                : factory;
         }
 
         /// <summary>
@@ -377,11 +377,16 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         ILocalAddressSpace ILocalAddressSpaceSource.CreateLocalAddressSpace()
         {
-            return new PredefinedNodesAddressSpace(
+            if (m_localAddressSpace != null)
+            {
+                return m_localAddressSpace;
+            }
+            var addressSpace = new PredefinedNodesAddressSpace(
                 SystemContext,
                 PredefinedNodes,
                 (node, cancellationToken) => AddPredefinedNodeAsync(SystemContext, node, cancellationToken),
                 (nodeId, cancellationToken) => DeleteNodeAsync(SystemContext, nodeId, cancellationToken));
+            return Interlocked.CompareExchange(ref m_localAddressSpace, addressSpace, null) ?? addressSpace;
         }
 
         /// <summary>
@@ -1294,8 +1299,8 @@ namespace Opc.Ua.Server
         /// This pass assigns an id to every node that still lacks one, pulls
         /// namespace-0 nodes into this manager's namespace, and rebases nodes
         /// whose id collides with a type declaration it owns. Together those
-        /// cover a subtree materialised with <c>NodeState.Create(...,
-        /// assignNodeIds: false)</c>, whose nodes keep their declaration ids.
+        /// cover a subtree materialised with <code>NodeState.Create(...,
+        /// assignNodeIds: false)</code>, whose nodes keep their declaration ids.
         /// Which of the two catches such a node depends on where the
         /// declaration lives:
         /// <list type="bullet">
@@ -1808,6 +1813,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException ex)
             {
+                parentNode?.RemoveChild(instance);
                 return (new ServiceResult(ex), NodeId.Null);
             }
 
@@ -2387,6 +2393,28 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual async ValueTask AddPredefinedNodeAsync(ISystemContext context, NodeState node, CancellationToken cancellationToken = default)
         {
+            int depth = m_registrationDepth.Value;
+            m_registrationDepth.Value = depth + 1;
+            NodeState active;
+            try
+            {
+                active = await AddPredefinedNodeCoreAsync(context, node, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_registrationDepth.Value = depth;
+            }
+            if (depth == 0)
+            {
+                m_localAddressSpace?.NotifyAdded(active);
+            }
+        }
+
+        private async ValueTask<NodeState> AddPredefinedNodeCoreAsync(
+            ISystemContext context,
+            NodeState node,
+            CancellationToken cancellationToken)
+        {
             cancellationToken.ThrowIfCancellationRequested();
 
             PrepareInstanceNodeIdsForRegistration(context, node);
@@ -2430,6 +2458,7 @@ namespace Opc.Ua.Server
                     [activeNode.NodeId],
                     cancellationToken).ConfigureAwait(false);
             }
+            return activeNode;
         }
 
         /// <summary>
@@ -2633,6 +2662,7 @@ namespace Opc.Ua.Server
             }
 
             AddPredefinedNodeSynchronously(SystemContext, node);
+            m_localAddressSpace?.NotifyAdded(node);
         }
 
         private void AddPredefinedNodeSynchronously(ISystemContext context, NodeState node)
@@ -2667,6 +2697,12 @@ namespace Opc.Ua.Server
         /// </summary>
         private void IndexPredefinedNode(NodeState activeNode)
         {
+            if (Server is INodeIdFactoryProvider { NodeIdFactory: INodeIdFactoryPolicy policy })
+            {
+                policy.ValidateRegistration(
+                    SystemContext, activeNode, this is IDiagnosticsNodeManager or ICoreNodeManager);
+            }
+
             // assign a default value to any variable in namespace 0
             if (activeNode is BaseVariableState nodeStateVar &&
                 nodeStateVar.NodeId.NamespaceIndex == 0 &&
@@ -2729,6 +2765,7 @@ namespace Opc.Ua.Server
             await node.ClearChangeMasksAsync(context, false, cancellationToken).ConfigureAwait(false);
             await OnNodeRemovedAsync(node, cancellationToken).ConfigureAwait(false);
 
+            NodeState? retainedParent = (node as BaseInstanceState)?.Parent;
             // remove from the parent.
             if (node is BaseInstanceState instance && instance.Parent != null)
             {
@@ -2777,6 +2814,11 @@ namespace Opc.Ua.Server
                     node.NodeId);
 
                 referencesToRemove.Add(referenceToRemove);
+            }
+            m_localAddressSpace?.NotifyRemoved(node.NodeId);
+            if (retainedParent != null && PredefinedNodes.ContainsKey(retainedParent.NodeId))
+            {
+                m_localAddressSpace?.NotifyAdded(retainedParent);
             }
         }
 
@@ -6476,6 +6518,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gets whether a node is already registered as a root notifier.
+        /// </summary>
+        /// <remarks>
+        /// Used by fluent registration so that teardown removes only a registration it
+        /// actually added. Removing one that was already there would strip the node's
+        /// event callback and notifier reference from whoever does own it.
+        /// </remarks>
+        internal bool IsRootNotifier(NodeId nodeId)
+        {
+            return !nodeId.IsNull && RootNotifiers.TryGetValue(nodeId, out _);
+        }
+
+        /// <summary>
         /// Synchronously registers a root event notifier owned by this node manager.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="notifier"/> is <c>null</c>.</exception>
@@ -9339,6 +9394,8 @@ namespace Opc.Ua.Server
         /// Assigns NodeIds to nodes created at runtime.
         /// </summary>
         private IRebasableNodeIdFactory m_nodeIdFactory;
+        private PredefinedNodesAddressSpace? m_localAddressSpace;
+        private readonly AsyncLocal<int> m_registrationDepth = new();
 
         private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
         private const int kMaxInitialHistoryPages = 100_000;

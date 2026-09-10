@@ -234,6 +234,13 @@ Notes on the shape of that property:
 * Changing a monitored item's where clause with `ModifyMonitoredItems`
   discards the tracking, because it describes the *previous* filter.
   Durable subscriptions carry it across a restart.
+* The trailing event carries a client specific `Retain = false`
+  (Part 9, 5.5.2, Figure 11), whatever the server's own `Retain` says — a
+  trailing event with `Retain = true` would tell the client to keep an
+  alarm it should drop. The override is applied while that one client's
+  event fields are read; the shared event snapshot is untouched, so a
+  client whose filter the condition still passes keeps receiving the
+  server's real value.
 
 ### Alarm groups and first-in-group
 

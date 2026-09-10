@@ -63,16 +63,32 @@ namespace Opc.Ua.Server.Hosting
             SyncFactory = factory ?? throw new ArgumentNullException(nameof(factory));
         }
 
+        internal OpcUaServerNodeManagerRegistration(
+            Func<IServiceProvider, ApplicationConfiguration, ArrayOf<IAsyncNodeManagerFactory>> factories)
+        {
+            m_factories = factories ?? throw new ArgumentNullException(nameof(factories));
+        }
+
         /// <summary>
-        /// The asynchronous factory, if this is an async registration;
-        /// otherwise <c>null</c>.
+        /// The asynchronous factory instance, or <c>null</c> for a synchronous or deferred registration.
         /// </summary>
         public IAsyncNodeManagerFactory? AsyncFactory { get; }
 
         /// <summary>
-        /// The synchronous factory, if this is a sync registration;
-        /// otherwise <c>null</c>.
+        /// The synchronous factory instance, or <c>null</c> for an asynchronous or deferred registration.
         /// </summary>
         public INodeManagerFactory? SyncFactory { get; }
+
+        internal ArrayOf<IAsyncNodeManagerFactory> ResolveAsyncFactories(
+            IServiceProvider services,
+            ApplicationConfiguration configuration)
+        {
+            return m_factories != null
+                ? m_factories(services, configuration)
+                : AsyncFactory is { } factory ? [factory] : [];
+        }
+
+        private readonly Func<IServiceProvider, ApplicationConfiguration, ArrayOf<IAsyncNodeManagerFactory>>?
+            m_factories;
     }
 }

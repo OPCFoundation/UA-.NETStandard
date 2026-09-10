@@ -64,6 +64,12 @@ namespace Opc.Ua
             m_valueRank = (short)valueRank;
         }
 
+        private TypeInfo(TypeInfo value, byte valid)
+        {
+            this = value;
+            m_valid = valid;
+        }
+
         /// <summary>
         /// If the type is unknown.
         /// </summary>
@@ -106,6 +112,11 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The value rank of the type represented by this instance.</value>
         public int ValueRank => m_valueRank;
+
+        /// <summary>
+        /// Indicates split scalar storage in Variant's private copy, never in its public TypeInfo.
+        /// </summary>
+        internal bool HasVariantStorage => (m_valid & 128) != 0;
 
         /// <inheritdoc/>
         public override int GetHashCode()
@@ -220,6 +231,14 @@ namespace Opc.Ua
         public static TypeInfo CreateScalar(BuiltInType builtInType)
         {
             return new TypeInfo(builtInType, ValueRanks.Scalar);
+        }
+
+        /// <summary>
+        /// Tags or restores Variant's private TypeInfo without consuming payload bits or changing its size.
+        /// </summary>
+        internal TypeInfo WithVariantStorage(bool packed)
+        {
+            return new TypeInfo(this, (byte)(packed ? m_valid | 128 : m_valid & 127));
         }
 
         /// <summary>

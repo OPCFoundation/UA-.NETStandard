@@ -41,3 +41,11 @@ samples/WotCon/AggregationClient/Documents/SamplePump.NodeSet2.xml text eol=lf
 # Preserve official NodeSet artifacts byte-for-byte.
 src/Opc.Ua.Positioning/Model/*.csv binary
 src/Opc.Ua.Positioning/Model/*.xml binary
+
+# Fuzz seed corpora, crash/timeout/slow reproducers and the vendored original
+# fork messages are exact byte sequences, not documents. Line-ending translation
+# changes their length and SHA-256, breaks the byte-exact provenance assertions,
+# and makes a corpus exercise different code paths on Windows than on Linux, so
+# git must never normalize them.
+fuzzing/*.Fuzz.Corpus/** binary
+fuzzing/*.Fuzz.Tests/Assets/** binary

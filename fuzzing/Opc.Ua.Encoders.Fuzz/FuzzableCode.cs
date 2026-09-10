@@ -29,6 +29,8 @@
 
 using System;
 using System.IO;
+using System.Text.Json;
+using System.Xml;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
 
@@ -37,7 +39,7 @@ namespace Opc.Ua.Fuzzing
     public static partial class FuzzableCode
     {
         public static ServiceMessageContext MessageContext { get; } =
-            ServiceMessageContext.Create(new FuzzTelemetryContext());
+            CreateMessageContext();
 
         /// <summary>
         /// Print information about the fuzzer target.
@@ -48,6 +50,38 @@ namespace Opc.Ua.Fuzzing
             Console.WriteLine("Fuzzing targets for various aspects of the Binary, Json and Xml encoders.");
         }
 
+        internal static MemoryStream PrepareArraySegmentStream(ReadOnlySpan<byte> input, int segmentSize = 0x40)
+        {
+            if (segmentSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(segmentSize));
+            }
+
+            var buffers = new BufferCollection();
+            while (!input.IsEmpty)
+            {
+                int length = Math.Min(input.Length, segmentSize);
+                buffers.Add(new ArraySegment<byte>(input[..length].ToArray()));
+                input = input[length..];
+            }
+            if (buffers.Count == 0)
+            {
+                buffers.Add(new ArraySegment<byte>(Array.Empty<byte>()));
+            }
+            return new ArraySegmentStream(buffers);
+        }
+
+        internal static ServiceMessageContext CreateMessageContext()
+        {
+            ServiceMessageContext context = ServiceMessageContext.Create(new FuzzTelemetryContext());
+            context.NamespaceUris.Append("urn:opcfoundation:fuzzing:application");
+            context.NamespaceUris.Append("urn:opcfoundation:fuzzing:devices");
+            context.NamespaceUris.Append("urn:opcfoundation:fuzzing:diagnostics");
+            context.NamespaceUris.Append("urn:opcfoundation:fuzzing:types");
+            context.ServerUris.Append("urn:opcfoundation:fuzzing:server");
+            return context;
+        }
+
         /// <summary>
         /// Prepare a seekable memory stream from the input stream.
         /// </summary>
@@ -55,8 +89,7 @@ namespace Opc.Ua.Fuzzing
         {
             const int segmentSize = 0x40;
 
-            // afl-fuzz uses a non seekable stream, causing false positives
-            // use ArraySegmentStream in combination with fuzz target...
+            // AFL stdin is non-seekable; separate buffers also exercise chunk boundaries.
             MemoryStream memoryStream;
             using (var binaryStream = new BinaryReader(stream))
             {
@@ -71,6 +104,22 @@ namespace Opc.Ua.Fuzzing
             }
 
             return memoryStream;
+        }
+
+        private static bool IsExpectedDecodingError(ServiceResultException exception)
+        {
+            if (exception.StatusCode != StatusCodes.BadDecodingError &&
+                exception.StatusCode != StatusCodes.BadEncodingLimitsExceeded)
+            {
+                return false;
+            }
+
+            return exception.InnerException switch
+            {
+                null or EndOfStreamException or XmlException or JsonException or FormatException => true,
+                ServiceResultException inner => IsExpectedDecodingError(inner),
+                _ => false
+            };
         }
 
         private sealed class FuzzTelemetryContext : TelemetryContextBase

@@ -241,7 +241,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 if (!m_pending.TryGetValue(key, out ReassemblyEntry? entry))
                 {
                     if (m_pending.Count >= m_maxConcurrentReassemblies ||
-                        m_pendingBytes + totalSizeInt > m_maxAggregatePendingBytes)
+                        m_pendingBytes > m_maxAggregatePendingBytes - totalSizeInt)
                     {
                         return false;
                     }
@@ -434,8 +434,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 foreach ((int Offset, int Length) in m_chunks)
                 {
-                    int existingEnd = Offset + Length;
-                    int newEnd = offset + length;
+                    long existingEnd = (long)Offset + Length;
+                    long newEnd = (long)offset + length;
                     if (offset < existingEnd && Offset < newEnd)
                     {
                         return true;
@@ -447,7 +447,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             public void MarkReceived(int offset, int length)
             {
                 m_chunks.Add((offset, length));
-                Received += length;
+                Received = checked(Received + length);
             }
         }
     }

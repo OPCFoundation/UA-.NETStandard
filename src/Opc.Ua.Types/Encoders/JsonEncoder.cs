@@ -1063,6 +1063,12 @@ namespace Opc.Ua
                     WriteUInt16(JsonProperties.SourcePicoseconds, value.SourcePicoseconds);
                 }
             }
+            else if (value.SourcePicoseconds != 0)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "Cannot encode DataValue SourcePicoseconds without SourceTimestamp.");
+            }
             if (value.ServerTimestamp != DateTimeUtc.MinValue)
             {
                 WriteDateTime(JsonProperties.ServerTimestamp, value.ServerTimestamp);
@@ -1070,6 +1076,12 @@ namespace Opc.Ua
                 {
                     WriteUInt16(JsonProperties.ServerPicoseconds, value.ServerPicoseconds);
                 }
+            }
+            else if (value.ServerPicoseconds != 0)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "Cannot encode DataValue ServerPicoseconds without ServerTimestamp.");
             }
 
             EndObject();
@@ -1146,21 +1158,22 @@ namespace Opc.Ua
             }
 
             StartObject();
+            // Diagnostic indices default to -1; zero is the first string-table entry.
             if (value.SymbolicId >= 0)
             {
-                WriteInt32(JsonProperties.SymbolicId, value.SymbolicId);
+                m_writer.WriteNumber(JsonProperties.SymbolicId, value.SymbolicId);
             }
             if (value.NamespaceUri >= 0)
             {
-                WriteInt32(JsonProperties.NamespaceUri, value.NamespaceUri);
+                m_writer.WriteNumber(JsonProperties.NamespaceUri, value.NamespaceUri);
             }
             if (value.Locale >= 0)
             {
-                WriteInt32(JsonProperties.Locale, value.Locale);
+                m_writer.WriteNumber(JsonProperties.Locale, value.Locale);
             }
             if (value.LocalizedText >= 0)
             {
-                WriteInt32(JsonProperties.LocalizedText, value.LocalizedText);
+                m_writer.WriteNumber(JsonProperties.LocalizedText, value.LocalizedText);
             }
             if (value.AdditionalInfo != null)
             {
@@ -1176,7 +1189,7 @@ namespace Opc.Ua
                 if (depth < DiagnosticInfo.MaxInnerDepth)
                 {
                     m_writer.WritePropertyName(JsonProperties.InnerDiagnosticInfo);
-                    WriteDiagnosticInfo(value, ++depth);
+                    WriteDiagnosticInfo(value.InnerDiagnosticInfo, ++depth);
                 }
                 else
                 {
@@ -1333,6 +1346,19 @@ namespace Opc.Ua
             ExpandedNodeId typeId = encodeable?.TypeId ?? value.TypeId;
             var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
 
+            // A TypeId whose namespace is not in the local table cannot be written as a JSON
+            // NodeId. That is normal for a client encoding a server type it has not mapped, and
+            // the writers below already omit UaTypeId in that case. It is only unencodable when
+            // there is no body either, because then the envelope would collapse to {} and the
+            // type identity would be lost entirely.
+            if (localTypeId.IsNull && !typeId.IsNull &&
+                value.Encoding == ExtensionObjectEncoding.None && encodeable == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "Cannot encode an ExtensionObject with a TypeId that cannot be represented as a JSON NodeId.");
+            }
+
             StartObject();
 
             if (!m_options.SuppressArtifacts && !localTypeId.IsNull)
@@ -1350,7 +1376,9 @@ namespace Opc.Ua
                     rawJson = rawJson.Trim();
                     if (rawJson.Length > 1 && rawJson[0] == '{' && rawJson[^1] == '}')
                     {
-                        m_writer.WriteRawValue(rawJson[1..^1]);
+                        WriteJsonExtensionObjectBody(
+                            rawJson,
+                            !m_options.SuppressArtifacts && !localTypeId.IsNull);
                     }
                     break;
                 case ExtensionObjectEncoding.Binary:
@@ -1372,6 +1400,37 @@ namespace Opc.Ua
             }
 
             EndObject();
+        }
+
+        private void WriteJsonExtensionObjectBody(string rawJson, bool skipUaTypeId)
+        {
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(rawJson);
+                if (document.RootElement.ValueKind != JsonValueKind.Object)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingError,
+                        "ExtensionObject JSON body must be a JSON object.");
+                }
+
+                foreach (JsonProperty property in document.RootElement.EnumerateObject())
+                {
+                    if (skipUaTypeId && property.Name == JsonProperties.UaTypeId)
+                    {
+                        continue;
+                    }
+
+                    property.WriteTo(m_writer);
+                }
+            }
+            catch (JsonException ex)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    ex,
+                    "ExtensionObject JSON body is not valid JSON.");
+            }
         }
 
         /// <summary>
@@ -1565,13 +1624,38 @@ namespace Opc.Ua
         /// </summary>
         private void WriteQualifiedName(QualifiedName value)
         {
+            if (value.NamespaceIndex != 0 && value.Name == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "Cannot encode a QualifiedName with a NamespaceIndex and a null Name as JSON.");
+            }
             if (value.IsNull)
             {
                 m_writer.WriteNullValue();
                 return;
             }
 
-            WriteString(value.Format(Context, m_options.ForceNamespaceUri));
+            WriteString(FormatQualifiedName(value));
+        }
+
+        private string FormatQualifiedName(QualifiedName value)
+        {
+            if (!string.IsNullOrEmpty(value.Name) || value.NamespaceIndex == 0)
+            {
+                return value.Format(Context, m_options.ForceNamespaceUri);
+            }
+
+            if (m_options.ForceNamespaceUri)
+            {
+                string? namespaceUri = Context.NamespaceUris.GetString(value.NamespaceIndex);
+                if (!string.IsNullOrEmpty(namespaceUri))
+                {
+                    return "nsu=" + CoreUtils.EscapeUri(namespaceUri) + ";";
+                }
+            }
+
+            return value.NamespaceIndex.ToString(CultureInfo.InvariantCulture) + ":";
         }
 
         /// <summary>
@@ -1612,7 +1696,7 @@ namespace Opc.Ua
             if (!value.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
             {
                 WriteUInt32(JsonProperties.Code, value.Code);
-                if (m_options == JsonEncoderOptions.Verbose)
+                if (!m_options.OmitStatusCodeSymbol && !m_options.SuppressArtifacts)
                 {
                     string? symbolicId = value.SymbolicId;
                     if (!string.IsNullOrEmpty(symbolicId))

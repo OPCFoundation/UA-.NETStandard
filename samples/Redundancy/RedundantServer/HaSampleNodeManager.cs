@@ -48,7 +48,10 @@ namespace RedundantServer
     /// </summary>
     public sealed class HaSampleNodeManagerFactory : IAsyncNodeManagerFactory
     {
-        private const string NamespaceUri = "http://opcfoundation.org/UA/Samples/HighAvailability";
+        /// <summary>
+        /// Shared namespace reserved at the same index before every replica's node managers are created.
+        /// </summary>
+        public const string NamespaceUri = "http://opcfoundation.org/UA/Samples/HighAvailability";
         private readonly ILeaderElection m_leaderElection;
         private readonly HaSampleReplicaInfo m_replicaInfo;
         private readonly IDistributedValueCache? m_valueCache;
@@ -156,6 +159,8 @@ namespace RedundantServer
         private readonly CancellationTokenSource m_simulationCts = new();
         private readonly Lock m_updateLock = new();
         private static readonly TimeSpan s_valueFreshness = TimeSpan.FromSeconds(10);
+        private const string kSampleFolderName = "HighAvailability";
+        private FolderState? m_folder;
         private BaseVariableState? m_counter;
         private BaseVariableState? m_activeReplica;
         private BaseObjectState? m_historyEvents;
@@ -192,30 +197,63 @@ namespace RedundantServer
         }
 
         /// <summary>
-        /// Mints the browse name as the identifier.
+        /// Mints the browse name as the identifier, for the handful of nodes
+        /// this sample publishes by name.
         /// </summary>
         /// <remarks>
-        /// The sample's identifiers are part of its contract: the redundant
-        /// client addresses <c>ns=N;s=Counter</c> directly, so a staged node
-        /// keeps its browse name as its identifier rather than taking the
-        /// hashed one the default factory would mint. An identifier a caller
-        /// already chose here is kept, on the same terms as that factory.
+        /// <para>
+        /// Those identifiers are part of the sample's contract - the redundant
+        /// client addresses <c>ns=N;s=Counter</c> directly - so they cannot be
+        /// left to the derived form the default factory mints.
+        /// </para>
+        /// <para>
+        /// Every other node keeps that derived form, and the narrowness
+        /// matters: a browse name is only unique among its siblings, and the
+        /// historian hangs an <c>HA Configuration</c> object off each node it
+        /// historizes, so a blanket rule would hand the Counter's and the
+        /// HistoryEvents' one the same identifier. An identifier a caller
+        /// already chose here is kept, on the default factory's own terms.
+        /// </para>
         /// </remarks>
         public override NodeId New(ISystemContext context, NodeState node)
         {
+            if (node == null)
+            {
+                return base.New(context, node!);
+            }
+
             ushort namespaceIndex = NamespaceIndexes[0];
-            if (node is not null &&
-                !node.NodeId.IsNull &&
+            if (!node.NodeId.IsNull &&
                 (node.NodeId.NamespaceIndex == namespaceIndex ||
                     node is not BaseInstanceState { Parent: not null }))
             {
                 return node.NodeId;
             }
 
-            string? browseName = node?.BrowseName.Name;
-            return string.IsNullOrEmpty(browseName)
-                ? base.New(context, node!)
-                : new NodeId(browseName!, namespaceIndex);
+            return IsPublishedByName(node)
+                ? new NodeId(node.BrowseName.Name!, namespaceIndex)
+                : base.New(context, node);
+        }
+
+        /// <summary>
+        /// Whether <paramref name="node"/> is the sample folder or one of the
+        /// nodes directly beneath it - the ones a client spells out.
+        /// </summary>
+        /// <remarks>
+        /// The folder reaches this before it has been staged, so it has no
+        /// parent yet and is recognised by its browse name instead.
+        /// </remarks>
+        private bool IsPublishedByName(NodeState node)
+        {
+            if (string.IsNullOrEmpty(node.BrowseName.Name))
+            {
+                return false;
+            }
+
+            NodeState? parent = (node as BaseInstanceState)?.Parent;
+            return parent == null
+                ? node.BrowseName.Name == kSampleFolderName
+                : ReferenceEquals(parent, m_folder);
         }
 
         /// <inheritdoc/>
@@ -228,9 +266,13 @@ namespace RedundantServer
             // Unparented, so the staged folder organises itself under the
             // Objects folder; the manager used to add that reference and its
             // externalReferences counterpart by hand.
-            INodeBuilder<FolderState> folder = builder.AddFolder("HighAvailability");
+            INodeBuilder<FolderState> folder = builder.AddFolder(kSampleFolderName);
             folder.Node.DisplayName = new LocalizedText("en", "High Availability");
             NodeId folderId = folder.Node.NodeId;
+
+            // New() names the folder's direct children after their browse
+            // name, so it has to know which node the folder is.
+            m_folder = folder.Node;
 
             m_counter = AddSampleVariable<int>(builder, folderId, "Counter", Variant.From(0));
             if (m_valueCache != null)
@@ -258,6 +300,14 @@ namespace RedundantServer
             m_historyEvents.ReferenceTypeId = ReferenceTypeIds.Organizes;
             m_historyEvents.DisplayName = new LocalizedText("en", "History Events");
             m_historyEvents.EventNotifier = EventNotifiers.SubscribeToEvents;
+
+            // Deliberately not staged: this subtree exists to show what a
+            // factory-assigned identity looks like next to the named ones
+            // above, so it keeps minting through the NodeIdFactory itself
+            // rather than through New. Attaching it once the folder has been
+            // staged leaves those identifiers untouched, and the subtree is
+            // still registered as part of the folder's.
+            AddFactoryAssignedNodes(folder.Node, NamespaceIndexes[0]);
 
             if (m_historian != null)
             {
@@ -288,6 +338,49 @@ namespace RedundantServer
             await CompleteConfigureAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
             await SealConfigurationAsync(builder, cancellationToken).ConfigureAwait(false);
+        }
+
+        private void AddFactoryAssignedNodes(FolderState parent, ushort namespaceIndex)
+        {
+            var generated = new BaseObjectState(parent)
+            {
+                BrowseName = new QualifiedName("FactoryAssigned", namespaceIndex),
+                DisplayName = new LocalizedText("Factory-assigned identities"),
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                TypeDefinitionId = ObjectTypeIds.BaseObjectType
+            };
+            generated.NodeId = NodeIdFactory.New(SystemContext, generated);
+            parent.AddChild(generated);
+            var value = new BaseDataVariableState(generated)
+            {
+                BrowseName = new QualifiedName("Value", namespaceIndex),
+                DisplayName = new LocalizedText("Value"),
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead,
+                Value = Variant.From(12345),
+                StatusCode = StatusCodes.Good
+            };
+            value.NodeId = NodeIdFactory.New(SystemContext, value);
+            generated.AddChild(value);
+            var target = new BaseDataVariableState(generated)
+            {
+                BrowseName = new QualifiedName("Target", namespaceIndex),
+                DisplayName = new LocalizedText("Target"),
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
+                DataType = DataTypeIds.NodeId,
+                ValueRank = ValueRanks.Scalar,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead,
+                Value = Variant.From(value.NodeId),
+                StatusCode = StatusCodes.Good
+            };
+            target.NodeId = NodeIdFactory.New(SystemContext, target);
+            generated.AddChild(target);
         }
 
         /// <inheritdoc/>

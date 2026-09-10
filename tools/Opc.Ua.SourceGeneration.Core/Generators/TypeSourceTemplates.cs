@@ -55,7 +55,9 @@ namespace Opc.Ua.SourceGeneration
                 /// Data type definitions for all [DataType]-annotated types in the {{Tokens.NamespaceUri}} namespace.
                 /// </summary>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+                #if !OPCUA_FUZZING_COVERAGE
                 [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+                #endif
                 {{Tokens.AccessModifier}} static partial class {{Tokens.DataTypeDefinitionsClass}}
                 {
                     {{Tokens.ListOfDataTypeDefinitions}}
@@ -65,7 +67,9 @@ namespace Opc.Ua.SourceGeneration
                 /// Extension methods to add [DataType]-annotated types to an encodeable factory.
                 /// </summary>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+                #if !OPCUA_FUZZING_COVERAGE
                 [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+                #endif
                 {{Tokens.AccessModifier}} static partial class {{Tokens.Namespace}}DataTypeExtensions
                 {
                     /// <summary>
@@ -507,7 +511,9 @@ namespace Opc.Ua.SourceGeneration
             TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EncodeableType<{{Tokens.ClassName}}>
             {
                 /// <summary>
@@ -544,7 +550,9 @@ namespace Opc.Ua.SourceGeneration
             TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EnumeratedType<{{Tokens.ClassName}}>
             {
                 /// <summary>

@@ -295,9 +295,10 @@ A single conceptual switch decides who owns the all-TFM build, the cross-platfor
 
 With the default `actions` the load is split across both systems: GitHub Actions runs the all-TFM builds, the ubuntu test matrix and Native AoT, while Azure Pipelines runs the fast pull-request test legs on the managed pool and hosts the coverage gate. Setting both to `ado` moves that work onto the Managed DevOps Pool as well, and the equivalent GitHub Actions jobs stand down on `master`/`main`.
 
-Three things are deliberately *not* covered by the switch:
+The following are deliberately *not* covered by the switch:
 
 - **macOS** always runs on GitHub-hosted runners, because Managed DevOps Pools provide no macOS image.
+- **Fuzz replay** runs its dedicated GitHub Actions matrix for relevant changes, including corpus and runner changes.
 - **`master378` and `develop/*`** keep running the GitHub Actions jobs regardless of the setting, since Azure Pipelines only builds `master`/`main` from this file.
 - **The `Tests passed` and `Code coverage` stages** always run in Azure Pipelines regardless of the switch, because they roll up whatever did run (see [Required checks and coverage](#required-checks-and-coverage)).
 
@@ -438,3 +439,14 @@ Omit `-BaseRef` to check only the project floor, and `-SummaryPath` to skip the 
 - [Diagnostics](Diagnostics.md) — telemetry context, logging runtime, metrics, audit events, server diagnostics nodes, and packet capture.
 - [Dependency Injection](DependencyInjection.md), [Certificates](Certificates.md) / [Certificate Manager](CertificateManager.md), [NativeAOT](NativeAoT.md), [Migration Guide](MigrationGuide.md), [What's New in 2.0](WhatsNewIn2.0.md).
 - [Fuzz testing](../fuzzing/Fuzzing.md).
+
+Fuzz replay has a dedicated GitHub Actions matrix and a local
+[`fuzzing/Scripts/test-fuzzing.ps1`](../fuzzing/Scripts/test-fuzzing.ps1) entry point.
+It covers the modern framework matrix and applicable .NET Framework 4.8 projects, including
+seed-, dictionary- and script-only changes. Target inventory and fork behavior mappings belong
+in `fuzzing/fuzz-targets.json`, not hardcoded test-count floors. The dedicated
+`fuzz-parity.runsettings` includes generated protocol methods in fuzz-only coverage; it does not
+alter the general coverage policy. Fuzz scripts also set `FuzzCoverage=true` to omit generated
+data-type coverage-exclusion attributes only in those builds; an include filter alone cannot
+override a compiled exclusion attribute. Internal OneFuzz drops must remain uninstrumented locally
+and require owner-supplied configuration and actual worker execution evidence.
