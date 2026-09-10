@@ -84,7 +84,9 @@ the companion
 
 ### Developer tools
 
-- [UaLens](tools/Opc.Ua.Lens/README.md) — NativeAOT-capable desktop engineering workspace for secure connections, monitoring, alarms, structured values, history, administration, PubSub, continuity diagnostics, and guided companion-model tasks. See the [workflow and prerequisite guide](docs/UaLensShowcase.md).
+- [UaLens](tools/Opc.Ua.Lens/README.md) — NativeAOT-capable desktop engineering workspace for secure connections,
+  monitoring, alarms, structured values, history, administration, PubSub, continuity diagnostics, and guided
+  companion-model tasks. See the [workflow and prerequisite guide](docs/UaLens.md#guided-workflows).
 - [OPC UA MCP Server](tools/Opc.Ua.Mcp/README.md) — installable .NET tool and container that exposes OPC UA client operations as MCP tools for LLMs and Copilot. The tools also ship as libraries (`…Opc.Ua.Mcp.Core`, `.PubSub`, `.Diagnostics`, `.PubSub.Diagnostics`) so an application can embed them next to its own MCP tools.
 
 ## 🔧 Migrating from 1.5.378 to 2.0

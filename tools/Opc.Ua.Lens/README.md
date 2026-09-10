@@ -5,8 +5,9 @@ OPC Foundation .NET stack.
 
 Use the persistent connection bar to select a server, security policy and identity.
 Explore the address space, monitor values and events, read history, or open an
-administration or diagnostic tool from the searchable catalog. Advanced controls
-remain available in context without filling the initial workspace.
+administration or diagnostic tool from the searchable catalog. Document actions
+and document or connection settings let you perform advanced operations and
+control their configuration.
 
 ## Run from source
 
@@ -17,9 +18,9 @@ $env:CustomTestTarget = 'net10.0'
 dotnet run --project tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -c Release -f net10.0
 ```
 
-The project targets .NET 8, .NET 9 and .NET 10. It is a tool under `tools`,
-not a sample application. Its assembly remains `UaLens` and its package/tool
-identities remain `OPCFoundation.NetStandard.Opc.Ua.Lens` / `ualens`.
+The project targets .NET 8, .NET 9 and .NET 10. Its source is in `tools\Opc.Ua.Lens`.
+The assembly is `UaLens`, the package is `OPCFoundation.NetStandard.Opc.Ua.Lens`,
+and the tool command is `ualens`.
 
 ## Tools
 
@@ -28,8 +29,8 @@ Other documents provide events, history, file operations, local certificate stor
 GDS discovery/management/push, users/roles, write/call performance workloads, and
 the live-scaling Subscription Bench.
 
-Alarms, Models, Continuity Lab, PubSub and Companion Tasks expose typed stack
-workflows without adding another top-level menu. Capability checks distinguish
+Alarms, Models, Continuity Lab, PubSub and Companion Tasks provide typed stack
+workflows through the tool catalog. Capability checks distinguish
 unavailable, unsupported and unauthorized operations. X.509, issued-token and
 hardware-backed identities use explicitly configured providers; reverse connect
 keeps listener, peer, security and identity requirements visible.
@@ -38,10 +39,8 @@ One primary connection is shared by documents; GDS tools can retain independent
 secondary connections. Local certificate management and discovery are available
 offline. Workspaces preserve safe configuration, not credentials or running jobs.
 
-See the [UaLens guide](../../docs/UaLens.md) for navigation, settings, trust and
-workspace behavior and tool coverage. The
-[guided workflow guide](../../docs/UaLensShowcase.md) describes concrete tasks,
-external prerequisites and intentional limits.
+See the [UaLens guide](../../docs/UaLens.md) for navigation, settings, trust,
+workspace behavior, guided workflows, external prerequisites and intentional limits.
 
 ## Publish and package
 
