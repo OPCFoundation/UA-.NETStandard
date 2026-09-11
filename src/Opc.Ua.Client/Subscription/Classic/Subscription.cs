@@ -1052,6 +1052,20 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Resets the client side state after the owning session was
+        /// re-created in place. The server discards the subscriptions of the
+        /// previous session, so nothing is deleted on the wire; only the local
+        /// ids and the monitored item states are cleared so the subscription
+        /// can be created again on the new session.
+        /// </summary>
+        internal async Task ResetForSessionRecreateAsync()
+        {
+            await ResetPublishTimerAndWorkerStateAsync().ConfigureAwait(false);
+            DeleteSubscription();
+            ChangesCompleted();
+        }
+
+        /// <summary>
         /// Modifies a subscription on the server.
         /// </summary>
         public async Task ModifyAsync(CancellationToken ct = default)

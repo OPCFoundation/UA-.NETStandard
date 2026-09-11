@@ -76,11 +76,14 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(configure));
             }
 
+            // The connect is shared by every caller for this key, so it must
+            // not run under the token of whichever caller happened to be first;
+            // each caller observes its own token while awaiting the result.
             Lazy<Task<ManagedSession>> created = new(
-                () => ConnectAndEvictOnFailureAsync(key, endpoint, configure, ct),
+                () => ConnectAndEvictOnFailureAsync(key, endpoint, configure),
                 LazyThreadSafetyMode.ExecutionAndPublication);
             Lazy<Task<ManagedSession>> lazy = m_sessions.GetOrAdd(key, created);
-            return lazy.Value;
+            return AwaitWithCancellationAsync(lazy.Value, ct);
         }
 
         /// <inheritdoc/>
@@ -96,8 +99,7 @@ namespace Opc.Ua.Client
                 return false;
             }
 
-            ManagedSession session = await lazy.Value.ConfigureAwait(false);
-            await session.CloseAsync(ct).ConfigureAwait(false);
+            await CloseAndDisposeAsync(lazy, ct).ConfigureAwait(false);
             return true;
         }
 
@@ -106,12 +108,42 @@ namespace Opc.Ua.Client
         {
             foreach (string key in m_sessions.Keys)
             {
-                if (m_sessions.TryRemove(key, out Lazy<Task<ManagedSession>>? lazy) &&
-                    lazy.IsValueCreated &&
-                    lazy.Value.Status == TaskStatus.RanToCompletion)
+                if (!m_sessions.TryRemove(key, out Lazy<Task<ManagedSession>>? lazy))
                 {
-                    lazy.Value.GetAwaiter().GetResult().Dispose();
+                    continue;
                 }
+
+                if (!lazy.IsValueCreated)
+                {
+                    continue;
+                }
+
+                Task<ManagedSession> connect = lazy.Value;
+                if (connect.Status == TaskStatus.RanToCompletion)
+                {
+                    connect.GetAwaiter().GetResult().Dispose();
+                    continue;
+                }
+
+                // A connect that is still running (or already failed) must not
+                // be orphaned: dispose the session as soon as it materialises.
+                _ = connect.ContinueWith(
+                    static t =>
+                    {
+                        if (t.Status == TaskStatus.RanToCompletion)
+                        {
+                            t.Result.Dispose();
+                        }
+                        else
+                        {
+                            // Observe the fault so it does not resurface as an
+                            // unobserved task exception.
+                            _ = t.Exception;
+                        }
+                    },
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
             }
         }
 
@@ -120,19 +152,74 @@ namespace Opc.Ua.Client
         {
             foreach (string key in m_sessions.Keys)
             {
-                await RemoveAsync(key).ConfigureAwait(false);
+                if (m_sessions.TryRemove(key, out Lazy<Task<ManagedSession>>? lazy))
+                {
+                    await CloseAndDisposeAsync(lazy, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Closes and disposes a pooled session. A connect that never completed
+        /// leaves nothing to dispose, so its failure is swallowed here - the
+        /// caller that started it already observed the exception.
+        /// </summary>
+        private static async ValueTask CloseAndDisposeAsync(
+            Lazy<Task<ManagedSession>> lazy,
+            CancellationToken ct)
+        {
+            ManagedSession session;
+            try
+            {
+                session = await lazy.Value.ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                return;
+            }
+
+            try
+            {
+                await session.CloseAsync(ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        private static async Task<ManagedSession> AwaitWithCancellationAsync(
+            Task<ManagedSession> task,
+            CancellationToken ct)
+        {
+            if (task.IsCompleted || !ct.CanBeCanceled)
+            {
+                return await task.ConfigureAwait(false);
+            }
+
+            var cancellation = new TaskCompletionSource<ManagedSession>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            using (ct.Register(
+                static state => ((TaskCompletionSource<ManagedSession>)state!).TrySetCanceled(),
+                cancellation))
+            {
+                Task<ManagedSession> completed = await Task
+                    .WhenAny(task, cancellation.Task)
+                    .ConfigureAwait(false);
+                return await completed.ConfigureAwait(false);
             }
         }
 
         private async Task<ManagedSession> ConnectAndEvictOnFailureAsync(
             string key,
             ConfiguredEndpoint endpoint,
-            Action<ManagedSessionBuilder> configure,
-            CancellationToken ct)
+            Action<ManagedSessionBuilder> configure)
         {
             try
             {
-                return await m_factory.ConnectAsync(endpoint, configure, ct)
+                return await m_factory
+                    .ConnectAsync(endpoint, configure, CancellationToken.None)
                     .ConfigureAwait(false);
             }
             catch

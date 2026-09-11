@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -1013,7 +1014,10 @@ namespace Opc.Ua
                     }
                     else if (batchLinksToAdd.Count < operationLimit)
                     {
-                        batchLinksToRemove = linksToRemove[..((int)operationLimit - batchLinksToAdd.Count)];
+                        int removeCount = Math.Min(
+                            linksToRemove.Count,
+                            (int)operationLimit - batchLinksToAdd.Count);
+                        batchLinksToRemove = linksToRemove[..removeCount];
                         linksToRemove = linksToRemove[batchLinksToRemove.Count..];
                     }
                     else

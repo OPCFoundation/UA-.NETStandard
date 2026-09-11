@@ -811,7 +811,7 @@ namespace Opc.Ua.Client
                 opts.NetworkRedundancy,
                 m_reverseConnectManager,
                 opts.ConnectGate,
-                ct).ConfigureAwait(false);
+                ct: ct).ConfigureAwait(false);
 
             if (opts.ModelChangeTracking)
             {

@@ -63,6 +63,14 @@ namespace Opc.Ua.Client
             var errors = new ServiceResult[errorValues.Count];
             for (int ii = 0; ii < variableIds.Count; ii++)
             {
+                if (ServiceResult.IsBad(errorValues[ii]))
+                {
+                    // Report why the read failed rather than masking it as a
+                    // type mismatch against the value the server never sent.
+                    errors[ii] = errorValues[ii];
+                    continue;
+                }
+
                 if (dataValues[ii].WrappedValue.TypeInfo != expectedTypes[ii])
                 {
                     errors[ii] = ServiceResult.Create(

@@ -317,6 +317,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         internal void ApplyTransferState(uint clientHandle, uint serverId)
         {
             ClientHandle = clientHandle;
+            Utils.SetIdentifierToAtLeast(ref GlobalClientHandleUint, clientHandle);
             ServerId = serverId;
         }
 
@@ -354,6 +355,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // skips the create path until a real change arrives.
             m_currentOptions = m_options.CurrentValue;
             ClientHandle = state.ClientHandle;
+            // Raise the global counter past the loaded handle, otherwise a
+            // freshly started process mints handles from 1 again and the first
+            // collision throws out of Dictionary.Add in MonitoredItemManager.
+            Utils.SetIdentifierToAtLeast(ref GlobalClientHandleUint, state.ClientHandle);
             ServerId = state.ServerId;
             // Install the saved desired triggering set as the runtime
             // canonical state. For TransferSubscriptions this restores
@@ -520,9 +525,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 return;
             }
-            queueSize = Math.Max(queueSize, (uint)Math.Ceiling(
-                publishingInterval.TotalMilliseconds / samplingInterval.TotalMilliseconds)) +
-                1;
+            // The samples that can accumulate within one publishing cycle plus
+            // one for the value published at the cycle boundary. The +1 belongs
+            // inside the required size, not on top of the running maximum -
+            // otherwise every Created/Modified notification ratchets the queue
+            // size up by one and the item is modified forever.
+            uint required = (uint)Math.Ceiling(
+                publishingInterval.TotalMilliseconds /
+                samplingInterval.TotalMilliseconds) + 1;
+            queueSize = Math.Max(queueSize, required);
             if (queueSize == options.QueueSize)
             {
                 return;

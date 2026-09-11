@@ -155,6 +155,13 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// How long <see cref="DisposeAsync"/> waits for the clean session
+        /// close to complete before it cancels the worker. Set to
+        /// <see cref="TimeSpan.Zero"/> to tear down immediately.
+        /// </summary>
+        public TimeSpan CloseGracePeriod { get; set; } = TimeSpan.FromSeconds(10);
+
+        /// <summary>
         /// Current connection state.
         /// </summary>
         public ConnectionState State => m_state;
@@ -318,6 +325,27 @@ namespace Opc.Ua.Client
             }
 
             RequestClose();
+            m_trigger.Set();
+
+            // Give the worker a bounded chance to run the clean close (which
+            // sends CloseSession on the wire) before the token that aborts it
+            // is cancelled. Without this the close is almost always torn down
+            // before it ever reaches the channel.
+            if (m_worker != null && CloseGracePeriod > TimeSpan.Zero)
+            {
+                using CancellationTokenSource grace = m_timeProvider
+                    .CreateCancellationTokenSource(CloseGracePeriod);
+                try
+                {
+                    await m_closed.WaitAsync(grace.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    m_logger.ConnectionStateMachineErrorDuringSessionClose(
+                        new TimeoutException(
+                            "Timed out waiting for the session close to complete."));
+                }
+            }
 
             await m_cts.CancelAsync().ConfigureAwait(false);
             m_trigger.Set();

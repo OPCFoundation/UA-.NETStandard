@@ -261,32 +261,40 @@ namespace Opc.Ua.Client.Subscriptions
 
                 List<LogicalSubscription>? logicals;
                 List<IManagedSubscription>? orphans;
+                List<IManagedSubscription> registered;
                 lock (m_subscriptionLock)
                 {
                     logicals = [.. m_logicals];
                     m_logicals.Clear();
-                    // Drop the dispatch registry entries owned by the
-                    // wrappers we are about to dispose so any partition
-                    // not currently bound to a wrapper (transient
-                    // pre-registration window) can still be cleaned up
-                    // below.
-                    var ownedByLogicals = new HashSet<IManagedSubscription>();
-                    foreach (LogicalSubscription wrapper in logicals)
-                    {
-                        foreach (IManagedSubscription partition in wrapper.Partitions)
-                        {
-                            ownedByLogicals.Add(partition);
-                        }
-                    }
-                    orphans = [];
-                    foreach (IManagedSubscription partition in m_subscriptions)
-                    {
-                        if (!ownedByLogicals.Contains(partition))
-                        {
-                            orphans.Add(partition);
-                        }
-                    }
+                    registered = [.. m_subscriptions];
                     m_subscriptions.Clear();
+                }
+
+                // Reading LogicalSubscription.Partitions acquires the
+                // composite's partition lock, which must never be taken while
+                // the registry lock is held: the partition factory runs the
+                // other way round (partition lock -> registry lock) and the
+                // pair would deadlock.
+                //
+                // Drop the dispatch registry entries owned by the wrappers we
+                // are about to dispose so any partition not currently bound to
+                // a wrapper (transient pre-registration window) can still be
+                // cleaned up below.
+                var ownedByLogicals = new HashSet<IManagedSubscription>();
+                foreach (LogicalSubscription wrapper in logicals)
+                {
+                    foreach (IManagedSubscription partition in wrapper.Partitions)
+                    {
+                        ownedByLogicals.Add(partition);
+                    }
+                }
+                orphans = [];
+                foreach (IManagedSubscription partition in registered)
+                {
+                    if (!ownedByLogicals.Contains(partition))
+                    {
+                        orphans.Add(partition);
+                    }
                 }
                 foreach (LogicalSubscription wrapper in logicals)
                 {
@@ -412,6 +420,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             LogicalSubscription? logical = null;
+            LogicalSubscription[] wrappers;
             lock (m_subscriptionLock)
             {
                 // Drop the partition from the dispatch registry by
@@ -430,24 +439,32 @@ namespace Opc.Ua.Client.Subscriptions
                 // orphaned server side subscription.
                 RetireSubscriptionId(subscriptionId);
 
-                // If the removed partition was the primary of any
-                // logical wrapper, the wrapper has no usable
-                // partitions left — drop it from the public registry
-                // so ISubscriptionManager.Items / Count reflect the
-                // deletion. Secondary partitions (added on demand by
-                // the composite collection) do not remove the
-                // wrapper; the wrapper keeps living as long as the
-                // primary is registered.
-                foreach (LogicalSubscription wrapper in m_logicals)
+                wrappers = [.. m_logicals];
+            }
+
+            // If the removed partition was the primary of any logical
+            // wrapper, the wrapper has no usable partitions left — drop it
+            // from the public registry so ISubscriptionManager.Items / Count
+            // reflect the deletion. Secondary partitions (added on demand by
+            // the composite collection) do not remove the wrapper; the
+            // wrapper keeps living as long as the primary is registered.
+            //
+            // Reading Partitions takes the composite's partition lock, so it
+            // has to happen outside the registry lock: the partition factory
+            // acquires the two in the opposite order and the pair would
+            // otherwise deadlock the whole publish pipeline.
+            foreach (LogicalSubscription wrapper in wrappers)
+            {
+                IReadOnlyList<IManagedSubscription> parts = wrapper.Partitions;
+                if (parts.Count > 0 && ReferenceEquals(parts[0], partition))
                 {
-                    IReadOnlyList<IManagedSubscription> parts = wrapper.Partitions;
-                    if (parts.Count > 0 && ReferenceEquals(parts[0], partition))
-                    {
-                        logical = wrapper;
-                        break;
-                    }
+                    logical = wrapper;
+                    break;
                 }
-                if (logical != null)
+            }
+            if (logical != null)
+            {
+                lock (m_subscriptionLock)
                 {
                     m_logicals.Remove(logical);
                 }
