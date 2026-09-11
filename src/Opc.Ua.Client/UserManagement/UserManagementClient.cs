@@ -256,13 +256,14 @@ namespace Opc.Ua.Client.UserManagement
             }
             catch (ServiceResultException ex) when (
                 ex.StatusCode == StatusCodes.BadNotFound ||
-                // An absent optional property surfaces from
-                // TranslateBrowsePathsToNodeIds as BadNoMatch, which is what a
-                // server that simply does not expose it actually returns.
+                // TranslateBrowsePathsToNodeIds answers BadNoMatch when the
+                // relativePath cannot be resolved to a target (Part 4 §5.9.4.4),
+                // which is what a server that does not expose the optional
+                // property actually returns.
                 ex.StatusCode == StatusCodes.BadNoMatch ||
                 ex.StatusCode == StatusCodes.BadNodeIdUnknown)
             {
-                // PasswordRestrictions is Optional per Part 18 §5.2.2.
+                // PasswordRestrictions is Optional per Part 18 §5.2.1.
                 return null;
             }
             return null;

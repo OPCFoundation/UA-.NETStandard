@@ -570,10 +570,12 @@ namespace Opc.Ua.Client
                 if (passCount >= kMaxManagedBrowsePasses &&
                     nodesToBrowseForPass.Count > 0)
                 {
-                    // A server that keeps answering BadNoContinuationPoints /
-                    // BadContinuationPointInvalid would otherwise keep this
-                    // loop running forever. Report the last error for the
-                    // nodes that never completed and return.
+                    // Guard against a non-conforming server. Per Part 4 §7.9 a
+                    // server shall never answer BadNoContinuationPoints when
+                    // continuing a halted operation, so a conforming peer frees
+                    // its quota and the retry succeeds; one that keeps
+                    // returning it would otherwise spin this loop forever.
+                    // Report the last error for the nodes that never completed.
                     m_logger.ManagedBrowsePassPassCountErrorS(
                         passCount,
                         nodesToBrowseForPass.Count,

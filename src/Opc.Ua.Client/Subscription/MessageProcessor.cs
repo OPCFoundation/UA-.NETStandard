@@ -579,10 +579,13 @@ namespace Opc.Ua.Client.Subscriptions
                     Id);
             }
 
-            // Acknowledge even when a handler threw: the dedup gate has already
-            // advanced past this sequence number, so withholding the ack only
-            // makes the server retransmit a message this subscription will
-            // discard as a duplicate.
+            // Acknowledge even when a handler threw. The acknowledgement only
+            // tells the server it may drop the message from its retransmission
+            // queue (Part 4 §5.14.5.2); it is not a claim that the client
+            // processed it. Withholding it does not redeliver anything - the
+            // dedup gate has already advanced, so the message would only be
+            // reachable via an explicit Republish and discarded as a duplicate
+            // - it just pins the entry until the queue overflows.
             if (shouldAcknowledge)
             {
                 try

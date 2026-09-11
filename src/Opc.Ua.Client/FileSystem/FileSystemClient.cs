@@ -595,9 +595,12 @@ namespace Opc.Ua.Client.FileSystem
             }
             finally
             {
-                // A consumer that stops enumerating early (break, Take, an
-                // exception) leaves the server's continuation point allocated
-                // against the session quota until the session ends.
+                // Part 4 §5.9.3.2: a client that does not want the next set of
+                // browse results shall call BrowseNext with
+                // releaseContinuationPoints TRUE. Otherwise the point stays
+                // active until the session is closed (§7.9), so a consumer that
+                // stops enumerating early (break, Take, an exception) would pin
+                // it against the session quota.
                 if (!continuation.IsNull && continuation.Length != 0)
                 {
                     try

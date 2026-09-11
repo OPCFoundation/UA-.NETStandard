@@ -496,8 +496,9 @@ namespace Opc.Ua.Client.AliasNames
             }
             finally
             {
-                // A consumer that stops enumerating early would otherwise leave
-                // the continuation point allocated for the session's lifetime.
+                // Part 4 §5.9.3.2 requires releasing a continuation point the
+                // client stops following; otherwise it stays active until the
+                // session is closed (§7.9).
                 if (!continuationPoint.IsEmpty)
                 {
                     try

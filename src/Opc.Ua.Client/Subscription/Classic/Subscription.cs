@@ -1065,11 +1065,22 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Resets the client side state after the owning session was
-        /// re-created in place. The server discards the subscriptions of the
-        /// previous session, so nothing is deleted on the wire; only the local
-        /// ids and the monitored item states are cleared so the subscription
-        /// can be created again on the new session.
+        /// re-created in place, so the subscription can be created again on the
+        /// new session.
         /// </summary>
+        /// <remarks>
+        /// Nothing is deleted on the wire, and not because the server discarded
+        /// anything: per OPC UA Part 4 §5.7.2.1 a server that terminates a
+        /// session for any reason other than CloseSession(deleteSubscriptions)
+        /// keeps its subscriptions alive until their lifetime expires,
+        /// precisely so they can be reassigned. This client simply cannot
+        /// delete them any more - a subscription service call only counts when
+        /// it is made on the session the subscription is assigned to
+        /// (Part 4 §5.14.1.3), and the previous session's authentication token
+        /// is gone. That is what TransferSubscriptions is for; this path only
+        /// runs when transfer was not requested or did not succeed, and the
+        /// orphaned server-side subscriptions then expire on their own.
+        /// </remarks>
         internal async Task ResetForSessionRecreateAsync()
         {
             await ResetPublishTimerAndWorkerStateAsync().ConfigureAwait(false);

@@ -451,11 +451,14 @@ namespace Opc.Ua.Client.Subscriptions
                         uint oldId = Id;
                         if (oldId != 0)
                         {
-                            // A server that recycles identifiers may already
-                            // have handed this id to a sibling that recreated
-                            // first (typical after a session recreate). Deleting
-                            // it would tear down the sibling's live
-                            // subscription, so only delete an id that still
+                            // Subscription ids are unique for the entire server
+                            // at any instant (Part 4 §5.14.2.2), but they are
+                            // freed for reuse once a subscription is gone. So
+                            // this retired id may already have been handed to a
+                            // sibling that recreated first, and the fact that
+                            // it resolves to a different live subscription
+                            // proves exactly that. Deleting it would tear down
+                            // the sibling, so only delete an id that still
                             // resolves to this subscription.
                             if (AckQueue.OwnsSubscriptionId(this, oldId))
                             {

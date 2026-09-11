@@ -1395,9 +1395,13 @@ namespace Opc.Ua.Client
                 if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
                 {
                     // first try to connect with client certificate NULL.
-                    // The request header still has to be sent: it carries the
-                    // ECDH additional header without which the server returns
-                    // no ephemeral key for ECC user token encryption.
+                    // The request header still has to be sent: the ECDH key is
+                    // requested through its additionalHeader (Part 4 §7.1 /
+                    // §7.15) and without it the server returns no ephemeral key
+                    // for ECC user token encryption. Sending it is safe against
+                    // a server that does not do ECC - Part 4 §7.32 says an
+                    // application that does not understand an additional header
+                    // should ignore it.
                     try
                     {
                         response = await base.CreateSessionAsync(
@@ -3904,9 +3908,11 @@ namespace Opc.Ua.Client
                             continue;
                         }
 
-                        // The server discarded this subscription together with
-                        // the previous session, so drop the stale ids and the
-                        // monitored item state before creating it again.
+                        // Transfer was not requested or did not succeed, so the
+                        // server side subscription is unreachable from the new
+                        // session (Part 4 §5.14.1.3) and is left to expire on
+                        // its own lifetime. Drop the stale ids and the
+                        // monitored item state and create it again.
                         await subscription.ResetForSessionRecreateAsync()
                             .ConfigureAwait(false);
                     }

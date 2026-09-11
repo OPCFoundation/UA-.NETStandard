@@ -1468,9 +1468,11 @@ namespace Opc.Ua
             int count,
             uint operationLimit)
         {
-            // No assertion on count vs operationLimit: SetTriggering batches on
-            // the combined add+remove count, so either individual list may well
-            // be shorter than the limit. This only presets the capacity.
+            // No assertion on count vs operationLimit: MaxMonitoredItemsPerCall
+            // bounds the sum of linksToAdd and linksToRemove for SetTriggering
+            // (Part 5 §6.3.11), so batching can be required while either
+            // individual list is shorter than the limit. This only presets the
+            // capacity.
             results = new List<T>(count);
             diagnosticInfos = new List<DiagnosticInfo>(count);
             stringTable = [];
