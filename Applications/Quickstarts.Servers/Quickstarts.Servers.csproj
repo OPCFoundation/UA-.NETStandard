@@ -15,6 +15,9 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <EmbeddedResource Include="Boiler\Generated\Boiler.PredefinedNodes.uanodes" />
     <EmbeddedResource Include="TestData\Generated\TestData.PredefinedNodes.uanodes" />
     <EmbeddedResource Include="MemoryBuffer\Generated\MemoryBuffer.PredefinedNodes.uanodes" />
