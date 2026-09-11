@@ -102,6 +102,7 @@ namespace Opc.Ua.Client.ModelChange
             ct.ThrowIfCancellationRequested();
 
             bool ownsStart = false;
+            long startedEpoch = 0;
             Task readyTask;
 
             lock (m_stateLock)
@@ -124,6 +125,7 @@ namespace Opc.Ua.Client.ModelChange
                     // StopTrackingAsync (which nulls m_cts) cannot NRE the lambda.
                     CancellationToken pumpToken = m_cts.Token;
                     long epoch = ++m_trackingEpoch;
+                    startedEpoch = epoch;
                     m_startReadyTask = ready.Task;
                     m_pumpTask = Task.Run(
                         () => PumpAsync(ready, epoch, pumpToken),
@@ -144,20 +146,42 @@ namespace Opc.Ua.Client.ModelChange
             {
                 if (ownsStart)
                 {
-                    await StopTrackingAsync(CancellationToken.None).ConfigureAwait(false);
+                    // Only tear down the pump this call started: a failing pump
+                    // clears IsTracking from its own finally, so a concurrent
+                    // caller can have installed a replacement by the time this
+                    // cleanup runs, and stopping unconditionally would cancel
+                    // that replacement instead.
+                    await StopTrackingCoreAsync(startedEpoch, CancellationToken.None)
+                        .ConfigureAwait(false);
                 }
                 throw;
             }
         }
 
         /// <inheritdoc/>
-        public async ValueTask StopTrackingAsync(CancellationToken ct = default)
+        public ValueTask StopTrackingAsync(CancellationToken ct = default)
+        {
+            return StopTrackingCoreAsync(null, ct);
+        }
+
+        /// <summary>
+        /// Stops tracking. When <paramref name="epoch"/> is given the stop
+        /// applies only while that generation is still the current one, so an
+        /// owner cleaning up after its own failed start cannot tear down a
+        /// replacement started in the meantime.
+        /// </summary>
+        private async ValueTask StopTrackingCoreAsync(long? epoch, CancellationToken ct)
         {
             Task? pumpTask;
             CancellationTokenSource? cts;
 
             lock (m_stateLock)
             {
+                if (epoch.HasValue && m_trackingEpoch != epoch.Value)
+                {
+                    return;
+                }
+
                 // Not gated on IsTracking alone: a pump that ended or faulted
                 // on its own already cleared the flag while leaving its token
                 // source and task behind, and returning here would leak them -

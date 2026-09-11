@@ -440,6 +440,7 @@ namespace Opc.Ua.Client
 
             int passCount = 0;
             int passesWithoutProgress = 0;
+            TimeSpan retryDelay = kInitialManagedBrowseRetryDelay;
 
             do
             {
@@ -530,7 +531,15 @@ namespace Opc.Ua.Client
                 // a single node completed and the next pass would repeat this
                 // one exactly.
                 bool progressed = nodesToBrowseForNextPass.Count < nodesToBrowseForPass.Count;
-                passesWithoutProgress = progressed ? 0 : passesWithoutProgress + 1;
+                if (progressed)
+                {
+                    passesWithoutProgress = 0;
+                    retryDelay = kInitialManagedBrowseRetryDelay;
+                }
+                else
+                {
+                    passesWithoutProgress++;
+                }
 
                 resultForPass = referenceDescriptionsForNextPass;
                 nodesToBrowseForPass = nodesToBrowseForNextPass;
@@ -568,8 +577,12 @@ namespace Opc.Ua.Client
 
                 passCount++;
 
-                if (passesWithoutProgress >= kMaxManagedBrowsePassesWithoutProgress &&
-                    nodesToBrowseForPass.Count > 0)
+                if (progressed || nodesToBrowseForPass.Count == 0)
+                {
+                    continue;
+                }
+
+                if (passesWithoutProgress >= kMaxManagedBrowsePassesWithoutProgress)
                 {
                     // Guard against a non-conforming server. Per Part 4 §7.9 a
                     // server shall never answer BadNoContinuationPoints when
@@ -586,6 +599,18 @@ namespace Opc.Ua.Client
                         "continuation point errors that did not resolve; giving up");
                     break;
                 }
+
+                // Nothing completed, so the quota is held elsewhere - most
+                // likely by another browse on this session. Retrying straight
+                // away just burns the budget above without giving that browse
+                // a chance to release anything, so back off before the next
+                // pass. This is what turns the bound into seconds of real
+                // waiting rather than a tight spin.
+                await Task.Delay(retryDelay, ct).ConfigureAwait(false);
+                retryDelay = TimeSpan.FromMilliseconds(
+                    Math.Min(
+                        retryDelay.TotalMilliseconds * 2,
+                        kMaxManagedBrowseRetryDelay.TotalMilliseconds));
             } while (nodesToBrowseForPass.Count > 0);
             return ResultSet.From(result.ConvertAll(l => (ArrayOf<ReferenceDescription>)l), errors);
         }
@@ -912,11 +937,28 @@ namespace Opc.Ua.Client
         /// legitimately completes nothing for several passes in a row while
         /// the other one holds the quota, and cutting it short there returns
         /// a truncated reference list. Any pass that completes a node resets
-        /// the count, so the bound only has to exceed the longest run of
-        /// passes such contention can starve a browse for - keep it far above
-        /// that rather than tightening it.
+        /// the count, and each fruitless pass backs off
+        /// (<see cref="kMaxManagedBrowseRetryDelay"/>), so the bound is worth
+        /// seconds of real waiting rather than a tight spin - keep both far
+        /// above what contention needs rather than tightening them.
         /// </summary>
         private const int kMaxManagedBrowsePassesWithoutProgress = 100;
+
+        /// <summary>
+        /// Delay before the first retry of a managed browse pass that
+        /// completed nothing.
+        /// </summary>
+        private static readonly TimeSpan kInitialManagedBrowseRetryDelay
+            = TimeSpan.FromMilliseconds(5);
+
+        /// <summary>
+        /// Upper bound the fruitless-pass delay backs off to. With
+        /// <see cref="kMaxManagedBrowsePassesWithoutProgress"/> this gives a
+        /// competing browse several seconds to release its continuation
+        /// points before this one reports the nodes it could not finish.
+        /// </summary>
+        private static readonly TimeSpan kMaxManagedBrowseRetryDelay
+            = TimeSpan.FromMilliseconds(50);
 
         private readonly ILogger m_logger;
         private readonly ITelemetryContext? m_telemetry;
