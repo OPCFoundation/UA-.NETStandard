@@ -186,7 +186,7 @@ namespace Pumps
             // predefined instances that Configure(builder) will wire.
             // Mirrors the synchronous fluent Configure(builder) but
             // runs first so the builder has typed nodes available.
-            await ConfigureInstancesAsync(cancellationToken)
+            await ConfigureInstancesAsync(builder, cancellationToken)
                 .ConfigureAwait(false);
 
             // Configuration phase 2 (sync): wire fluent callbacks
@@ -223,6 +223,7 @@ namespace Pumps
         /// directly.
         /// </remarks>
         private async ValueTask ConfigureInstancesAsync(
+            INodeManagerBuilder builder,
             CancellationToken cancellationToken)
         {
             // OpenUSD facility first so the pump representation can reference the stage.
@@ -247,12 +248,12 @@ namespace Pumps
 
             // Plant-level aggregation: composes one full-fidelity pump prim per
             // configured pump, so the rendered scene scales with --pumps N.
-            await MaterialisePlantAggregationAsync(cancellationToken).ConfigureAwait(false);
+            MaterialisePlantAggregation(builder);
 
             // Composition demo: a ProductionLine aggregating 1..n pumps (Many), with a
             // dynamically added/removed pump (model-change events) and a cross-server
             // component (federation). See OpenUsdComposition.cs.
-            await MaterialiseProductionLineAsync(cancellationToken).ConfigureAwait(false);
+            MaterialiseProductionLine(builder);
         }
 
         /// <summary>
