@@ -467,15 +467,20 @@ namespace Opc.Ua.Types.Tests.Wot
         /// <remarks>
         /// The example's event affordance links to the EventType definitions of
         /// example 27, so it converts against the local document context of
-        /// WoT Binding Section 5.1.5 that holds them.
+        /// WoT Binding Section 5.1.5 that holds them. The native type context
+        /// separately verifies the custom query's ancestry and inherited EventId.
         /// </remarks>
         [Test]
         public async Task ConditionExampleConvertsWithoutSection13DiagnosticsAsync()
         {
             using WotDocument document = WotDocument.Parse(ReadExample(ConditionExample));
+            using var context = new WotEventTypeTestContext(
+                "nsu=http://example.com/demo/pump;i=6001",
+                "i=2955",
+                "nsu=http://example.com/demo/pump;HighTemperatureAlarmType");
 
             WotConversionResult<UANodeSet> result = await WotNodeSetConverter
-                .ToNodeSetResultAsync(document, null, new EmbeddedExampleResolver())
+                .ToNodeSetResultAsync(document, null, new EmbeddedExampleResolver(), null, context.Resolver)
                 .ConfigureAwait(false);
 
             Assert.That(
@@ -483,6 +488,22 @@ namespace Opc.Ua.Types.Tests.Wot
                     .Select(d => d.Message),
                 Is.Empty);
             Assert.That(result.Diagnostics.Count(IsSection13Diagnostic), Is.Zero);
+        }
+
+        [Test]
+        public async Task ConditionExampleRequiresAuthoritativeOccurrenceDeclarationContext()
+        {
+            using WotDocument document = WotDocument.Parse(ReadExample(ConditionExample));
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter
+                .ToNodeSetResultAsync(document, null, new EmbeddedExampleResolver())
+                .ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.HasErrors, Is.True);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Severity == WotDiagnosticSeverity.Error &&
+                diagnostic.Code == WotDiagnosticCode.ConditionEventIdMissing), Is.True);
         }
 
         /// <summary>
