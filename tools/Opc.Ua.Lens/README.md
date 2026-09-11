@@ -86,6 +86,14 @@ on a development reference server. Secure connection probes require the
 selector. Headless probes are not a substitute for opening and exercising the
 desktop.
 
+The ordinary test suite also drives real Avalonia windows on Windows and Linux:
+editors, administration dialogs, charts, and document lifetimes share one owned
+dispatcher and use controlled services or temporary certificate stores. These
+tests do not require a running server, access the host PKI, or open native file
+pickers. On Linux, run the test command under `xvfb-run -a`; both CI systems do
+this automatically. Cocoa requires the process main thread, so these
+dispatcher-thread desktop fixtures do not run on macOS; non-desktop tests still do.
+
 The opt-in `StructuredEditorDialogTests` fixture exercises the real Models,
 Write and Call windows with mocked services, without network or certificate-store
 access. Run it on an interactive desktop using:

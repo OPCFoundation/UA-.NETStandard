@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using Opc.Ua;
 
@@ -191,27 +190,37 @@ internal static class VariantParser
             switch (bi)
             {
                 case BuiltInType.Boolean:
-                    return BuildArr<bool>(parts, bool.Parse, out result, out error);
+                    return BuildArr<bool>(parts, bool.Parse, Variant.From, out result, out error);
                 case BuiltInType.SByte:
-                    return BuildArr<sbyte>(parts, s => sbyte.Parse(s, CultureInfo.InvariantCulture), out result, out error);
+                    return BuildArr<sbyte>(parts, s => sbyte.Parse(s, CultureInfo.InvariantCulture),
+                        Variant.From, out result, out error);
                 case BuiltInType.Byte:
-                    return BuildArr<byte>(parts, s => byte.Parse(s, CultureInfo.InvariantCulture), out result, out error);
+                    return BuildArr<byte>(parts, s => byte.Parse(s, CultureInfo.InvariantCulture),
+                        Variant.From, out result, out error);
                 case BuiltInType.Int16:
-                    return BuildArr<short>(parts, s => short.Parse(s, CultureInfo.InvariantCulture), out result, out error);
+                    return BuildArr<short>(parts, s => short.Parse(s, CultureInfo.InvariantCulture),
+                        Variant.From, out result, out error);
                 case BuiltInType.UInt16:
-                    return BuildArr<ushort>(parts, s => ushort.Parse(s, CultureInfo.InvariantCulture), out result, out error);
+                    return BuildArr<ushort>(parts, s => ushort.Parse(s, CultureInfo.InvariantCulture),
+                        Variant.From, out result, out error);
                 case BuiltInType.Int32:
-                    return BuildArr<int>(parts, s => int.Parse(s, CultureInfo.InvariantCulture), out result, out error);
+                    return BuildArr<int>(parts, s => int.Parse(s, CultureInfo.InvariantCulture),
+                        Variant.From, out result, out error);
                 case BuiltInType.UInt32:
-                    return BuildArr<uint>(parts, s => uint.Parse(s, CultureInfo.InvariantCulture), out result, out error);
+                    return BuildArr<uint>(parts, s => uint.Parse(s, CultureInfo.InvariantCulture),
+                        Variant.From, out result, out error);
                 case BuiltInType.Int64:
-                    return BuildArr<long>(parts, s => long.Parse(s, CultureInfo.InvariantCulture), out result, out error);
+                    return BuildArr<long>(parts, s => long.Parse(s, CultureInfo.InvariantCulture),
+                        Variant.From, out result, out error);
                 case BuiltInType.UInt64:
-                    return BuildArr<ulong>(parts, s => ulong.Parse(s, CultureInfo.InvariantCulture), out result, out error);
+                    return BuildArr<ulong>(parts, s => ulong.Parse(s, CultureInfo.InvariantCulture),
+                        Variant.From, out result, out error);
                 case BuiltInType.Float:
-                    return BuildArr<float>(parts, s => float.Parse(s, CultureInfo.InvariantCulture), out result, out error);
+                    return BuildArr<float>(parts, s => float.Parse(s, CultureInfo.InvariantCulture),
+                        Variant.From, out result, out error);
                 case BuiltInType.Double:
-                    return BuildArr<double>(parts, s => double.Parse(s, CultureInfo.InvariantCulture), out result, out error);
+                    return BuildArr<double>(parts, s => double.Parse(s, CultureInfo.InvariantCulture),
+                        Variant.From, out result, out error);
                 case BuiltInType.String:
                 {
                     ArrayOf<string> arr = parts;
@@ -261,7 +270,7 @@ internal static class VariantParser
         }
     }
 
-    private static bool BuildArr<T>(string[] parts, Func<string, T> conv,
+    private static bool BuildArr<T>(string[] parts, Func<string, T> conv, Func<ArrayOf<T>, Variant> createVariant,
         out Variant result, out string? error) where T : struct
     {
         var arr = new T[parts.Length];
@@ -269,28 +278,9 @@ internal static class VariantParser
         {
             arr[i] = conv(parts[i]);
         }
-        // ArrayOf<T> has implicit conversion from T[]; Variant.From has
-        // overloads for every numeric ArrayOf<T>.
-        result = (T[])arr switch
-        {
-            bool[] b => Variant.From((ArrayOf<bool>)b),
-            sbyte[] sb => Variant.From((ArrayOf<sbyte>)sb),
-            byte[] bt => Variant.From((ArrayOf<byte>)bt),
-            short[] sh => Variant.From((ArrayOf<short>)sh),
-            ushort[] us => Variant.From((ArrayOf<ushort>)us),
-            int[] ia => Variant.From((ArrayOf<int>)ia),
-            uint[] ua => Variant.From((ArrayOf<uint>)ua),
-            long[] la => Variant.From((ArrayOf<long>)la),
-            ulong[] ula => Variant.From((ArrayOf<ulong>)ula),
-            float[] fa => Variant.From((ArrayOf<float>)fa),
-            double[] da => Variant.From((ArrayOf<double>)da),
-            _ => Variant.Null
-        };
-        if (result.IsNull)
-        {
-            error = $"Unsupported array element type {typeof(T).Name}.";
-            return false;
-        }
+        // CLR primitive array casts can reinterpret unsigned arrays as signed.
+        // Select the Variant overload statically instead of matching the runtime array type.
+        result = createVariant(arr);
         error = null;
         return true;
     }

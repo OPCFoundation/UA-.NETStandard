@@ -214,10 +214,10 @@ internal sealed partial class PerformanceView : UserControl
         m_p99Line.LabelText = "p99";
         m_p99Line.LabelOppositeAxis = true;
 
+        plot.Axes.Margins(0, 0.1);
         plot.Axes.SetLimitsX(
             Math.Log10(LatencyHistogram.MinMs),
             Math.Log10(LatencyHistogram.MaxMs) + LatencyHistogram.Step);
-        plot.Axes.Margins(0, 0.1);
         m_histogramPlot.Refresh();
     }
 

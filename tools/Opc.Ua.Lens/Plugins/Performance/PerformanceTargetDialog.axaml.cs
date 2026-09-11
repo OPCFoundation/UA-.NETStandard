@@ -73,7 +73,9 @@ internal sealed partial class PerformanceTargetDialog : Window
     private Argument[] m_resolvedArguments = Array.Empty<Argument>();
     private NodeViewModel? m_selected;
 
-    /// <summary>The configured target on OK; null on cancel.</summary>
+    /// <summary>
+    /// The configured target on OK; null on cancel.
+    /// </summary>
     public BenchmarkTarget? Result { get; private set; }
 
     public PerformanceTargetDialog(IPluginWorkspace main, ISession session)
@@ -94,8 +96,22 @@ internal sealed partial class PerformanceTargetDialog : Window
         m_hint = hint;
         InitializeComponent();
 
-        this.RequiredControl<RadioButton>("WriteRadio").IsCheckedChanged += (_, _) => SwitchMode(BenchmarkMode.Write);
-        this.RequiredControl<RadioButton>("CallRadio").IsCheckedChanged += (_, _) => SwitchMode(BenchmarkMode.Call);
+        RadioButton writeRadio = this.RequiredControl<RadioButton>("WriteRadio");
+        RadioButton callRadio = this.RequiredControl<RadioButton>("CallRadio");
+        writeRadio.IsCheckedChanged += (_, _) =>
+        {
+            if (writeRadio.IsChecked == true)
+            {
+                SwitchMode(BenchmarkMode.Write);
+            }
+        };
+        callRadio.IsCheckedChanged += (_, _) =>
+        {
+            if (callRadio.IsChecked == true)
+            {
+                SwitchMode(BenchmarkMode.Call);
+            }
+        };
 
         this.RequiredControl<Button>("OkButton").Click += (_, _) => OnOk();
         this.RequiredControl<Button>("CancelButton").Click += (_, _) => Close(null);
@@ -278,23 +294,13 @@ internal sealed partial class PerformanceTargetDialog : Window
                     CancellationToken.None).ConfigureAwait(true);
                 if (rr.Results.Count > 0 && !StatusCode.IsBad(rr.Results[0].StatusCode))
                 {
-                    object? boxed = rr.Results[0].WrappedValue.AsBoxedObject();
-                    if (boxed is ExtensionObject[] eos)
+                    if (!rr.Results[0].WrappedValue.TryGetValue(
+                        out ArrayOf<Argument> arguments, m_session.MessageContext))
                     {
-                        var list = new List<Argument>(eos.Length);
-                        foreach (ExtensionObject eo in eos)
-                        {
-                            if (eo.TryGetValue<Argument>(out Argument? a) && a is not null)
-                            {
-                                list.Add(a);
-                            }
-                        }
-                        m_resolvedArguments = list.ToArray();
+                        throw new ServiceResultException(
+                            StatusCodes.BadDecodingError, "InputArguments is not an array of decoded Argument values.");
                     }
-                    else if (boxed is Argument[] arr)
-                    {
-                        m_resolvedArguments = arr;
-                    }
+                    m_resolvedArguments = arguments.ToArray() ?? [];
                 }
             }
 

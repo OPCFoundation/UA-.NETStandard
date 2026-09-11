@@ -88,13 +88,19 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
     [NotifyCanExecuteChangedFor(nameof(ToggleEndpointsExcludeCommand))]
     private RoleVm? m_selectedRole;
 
-    /// <summary>Roles loaded from the server (left pane).</summary>
+    /// <summary>
+    /// Roles loaded from the server (left pane).
+    /// </summary>
     public ObservableCollection<RoleVm> Roles { get; } = new();
 
-    /// <summary>True when the host has a live session we can call against.</summary>
-    public bool IsConnected => m_host.Connection.Session is { Connected: true };
+    /// <summary>
+    /// True when the host has a live session we can call against.
+    /// </summary>
+    public bool IsConnected => m_host.Connection.CurrentSession is { Connected: true };
 
-    /// <summary>True when a role row is currently selected.</summary>
+    /// <summary>
+    /// True when a role row is currently selected.
+    /// </summary>
     public bool HasSelectedRole => SelectedRole is not null;
 
     public RoleManagementPlugin(PluginHost host)
@@ -109,8 +115,6 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         // The document owns no fire-and-forget work in its constructor.
         UpdateStatus();
     }
-
-    // ----- IPlugin -----
 
     public PluginKind Kind => PluginKind.RoleManagement;
 
@@ -142,8 +146,6 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
     {
         return ValueTask.CompletedTask;
     }
-
-    // ----- Connection-state plumbing -----
 
     /// <summary>
     /// Refreshes or clears roles when the host connection state changes. The
@@ -186,11 +188,9 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
             "● {0} role(s){1}", Roles.Count, sel);
     }
 
-    // ----- Client helper -----
-
     private bool TryGetClient(out RoleManagementClient? client)
     {
-        if (m_host.Connection.Session is not { Connected: true } session)
+        if (m_host.Connection.CurrentSession is not { Connected: true } session)
         {
             client = null;
             Status = "● Not connected";
@@ -200,9 +200,9 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         return true;
     }
 
-    // ----- Commands -----
-
-    /// <summary>Refresh the role list from the server.</summary>
+    /// <summary>
+    /// Refresh the role list from the server.
+    /// </summary>
     [RelayCommand]
     public async Task RefreshAsync()
     {
@@ -215,18 +215,19 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
             IReadOnlyList<RoleInfo> roles = await client
                 .ListRolesAsync()
                 .ConfigureAwait(true);
-            NodeId? prev = SelectedRole?.RoleId;
+            NodeId prev = SelectedRole?.RoleId ?? NodeId.Null;
+            SelectedRole = null;
             Roles.Clear();
             foreach (RoleInfo info in roles)
             {
                 Roles.Add(new RoleVm(info));
             }
             // Re-select previously selected role by NodeId, if it still exists.
-            if (prev is NodeId prevId)
+            if (!prev.IsNull)
             {
                 foreach (RoleVm vm in Roles)
                 {
-                    if (vm.RoleId.Equals(prevId))
+                    if (vm.RoleId.Equals(prev))
                     {
                         SelectedRole = vm;
                         break;
@@ -242,7 +243,9 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>Prompt the user for a role name + namespace and add it.</summary>
+    /// <summary>
+    /// Prompt the user for a role name + namespace and add it.
+    /// </summary>
     [RelayCommand]
     public async Task AddRoleAsync()
     {
@@ -289,7 +292,9 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>Remove the selected role after a confirmation prompt.</summary>
+    /// <summary>
+    /// Remove the selected role after a confirmation prompt.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(HasSelectedRole))]
     public async Task RemoveRoleAsync(RoleVm? r)
     {
@@ -342,7 +347,9 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>Show <see cref="AddIdentityDialog"/> and add the chosen mapping to the selected role.</summary>
+    /// <summary>
+    /// Show <see cref="AddIdentityDialog"/> and add the chosen mapping to the selected role.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(HasSelectedRole))]
     public async Task AddIdentityAsync()
     {
@@ -390,7 +397,9 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>Remove a specific identity mapping from the selected role.</summary>
+    /// <summary>
+    /// Remove a specific identity mapping from the selected role.
+    /// </summary>
     [RelayCommand]
     public async Task RemoveIdentityAsync(IdentityMappingRuleType? r)
     {
@@ -416,7 +425,9 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>Prompt for an ApplicationUri and add it to the selected role.</summary>
+    /// <summary>
+    /// Prompt for an ApplicationUri and add it to the selected role.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(HasSelectedRole))]
     public async Task AddApplicationAsync()
     {
@@ -464,7 +475,9 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>Remove a specific ApplicationUri from the selected role.</summary>
+    /// <summary>
+    /// Remove a specific ApplicationUri from the selected role.
+    /// </summary>
     [RelayCommand]
     public async Task RemoveApplicationAsync(string? appUri)
     {
@@ -490,7 +503,9 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>Flip the <c>ApplicationsExclude</c> flag on the selected role.</summary>
+    /// <summary>
+    /// Flip the <c>ApplicationsExclude</c> flag on the selected role.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(HasSelectedRole))]
     public async Task ToggleApplicationsExcludeAsync()
     {
@@ -517,7 +532,9 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>Show <see cref="AddEndpointDialog"/> and add the chosen endpoint to the selected role.</summary>
+    /// <summary>
+    /// Show <see cref="AddEndpointDialog"/> and add the chosen endpoint to the selected role.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(HasSelectedRole))]
     public async Task AddEndpointAsync()
     {
@@ -565,7 +582,9 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>Remove a specific endpoint from the selected role.</summary>
+    /// <summary>
+    /// Remove a specific endpoint from the selected role.
+    /// </summary>
     [RelayCommand]
     public async Task RemoveEndpointAsync(EndpointType? ep)
     {
@@ -591,7 +610,9 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>Flip the <c>EndpointsExclude</c> flag on the selected role.</summary>
+    /// <summary>
+    /// Flip the <c>EndpointsExclude</c> flag on the selected role.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(HasSelectedRole))]
     public async Task ToggleEndpointsExcludeAsync()
     {
@@ -618,7 +639,9 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>Set the <c>CustomConfiguration</c> flag from the view-model state.</summary>
+    /// <summary>
+    /// Set the <c>CustomConfiguration</c> flag from the view-model state.
+    /// </summary>
     [RelayCommand]
     public async Task SetCustomConfigurationAsync(bool value)
     {
@@ -643,8 +666,6 @@ internal sealed partial class RoleManagementPlugin : ObservableObject, IPlugin
             Status = $"● SetCustomConfiguration failed: {ex.Message}";
         }
     }
-
-    // ----- Helpers -----
 
     private static async Task RefreshSelectedRoleAsync(RoleManagementClient client, RoleVm role)
     {

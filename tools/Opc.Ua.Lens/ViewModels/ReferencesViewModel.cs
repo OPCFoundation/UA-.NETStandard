@@ -81,7 +81,7 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
         Header = $"{Glyph(nodeClass)} {nodeId}  ({nodeClass})";
         Rows.Clear();
 
-        if (m_connection.Session is not { } session)
+        if (m_connection.CurrentSession is not { } session)
         {
             Rows.Add(new ReferenceRow("·", "(disconnected)", string.Empty, string.Empty, string.Empty));
             return;
@@ -101,7 +101,7 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
                     ResultMask = (uint)BrowseResultMask.All
                 }
             };
-            BrowseResponse resp = await session.BrowseAsync(null, null, 0, descriptions, ct).ConfigureAwait(false);
+            BrowseResponse resp = await session.BrowseAsync(null, null, 0, descriptions, ct).ConfigureAwait(true);
             var refs = new List<ReferenceDescription>();
             ByteString cp = ByteString.Empty;
             if (resp.Results.Count > 0 && !StatusCode.IsBad(resp.Results[0].StatusCode))
@@ -112,7 +112,7 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
             while (cp.Length > 0)
             {
                 ArrayOf<ByteString> cps = new ByteString[] { cp };
-                BrowseNextResponse next = await session.BrowseNextAsync(null, false, cps, ct).ConfigureAwait(false);
+                BrowseNextResponse next = await session.BrowseNextAsync(null, false, cps, ct).ConfigureAwait(true);
                 cp = ByteString.Empty;
                 if (next.Results.Count > 0 && !StatusCode.IsBad(next.Results[0].StatusCode))
                 {
@@ -144,7 +144,8 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
                     idList.Add(new ReadValueId { NodeId = rt, AttributeId = Attributes.BrowseName });
                 }
                 ReadResponse rtRead = await session.ReadAsync(null, 0, TimestampsToReturn.Neither,
-                    new ArrayOf<ReadValueId>(idList.ToArray()), ct).ConfigureAwait(false);
+                    new ArrayOf<ReadValueId>(idList.ToArray()), ct).ConfigureAwait(true);
+                ct.ThrowIfCancellationRequested();
                 int i = 0;
                 foreach (NodeId rt in refTypeIds)
                 {

@@ -62,13 +62,15 @@ internal sealed class ShellPresenter
         MainViewModel viewModel,
         ConnectionController connection,
         ILogger log,
-        Func<ThemePreset, Task> changeThemeAsync)
+        Func<ThemePreset, Task> changeThemeAsync,
+        string? favoritesPath = null)
     {
         m_window = window ?? throw new ArgumentNullException(nameof(window));
         m_vm = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         m_connection = connection ?? throw new ArgumentNullException(nameof(connection));
         m_log = log ?? throw new ArgumentNullException(nameof(log));
         m_changeThemeAsync = changeThemeAsync ?? throw new ArgumentNullException(nameof(changeThemeAsync));
+        m_favoritesPath = favoritesPath;
     }
 
     public void Attach()
@@ -101,7 +103,7 @@ internal sealed class ShellPresenter
         m_connectionTimer.Start();
         m_tabStatusTimer.Start();
 
-        _ = LoadFavoritesAsync();
+        m_favoritesOperation = LoadFavoritesAsync();
     }
 
     public void OnKeyDown(KeyEventArgs e)
@@ -145,6 +147,12 @@ internal sealed class ShellPresenter
         m_vm.Tabs.CollectionChanged -= OnTabsChanged;
         m_vm.Connection.StateChanged -= OnConnectionStateChanged;
         ThemeManager.ThemeChanged -= OnThemeChanged;
+    }
+
+    public async Task StopAsync()
+    {
+        Dispose();
+        await m_favoritesOperation.ConfigureAwait(true);
     }
 
     private bool TryWindowLocalShortcut(string gesture)
@@ -228,7 +236,10 @@ internal sealed class ShellPresenter
         history.Flyout = m_historyFlyout;
         history.Click += (_, _) => RefreshHistoryFlyout();
         m_window.RequiredControl<Button>("FavoriteToggle").Click += async (_, _) =>
-            await ToggleFavoriteAsync().ConfigureAwait(true);
+        {
+            m_favoritesOperation = ToggleFavoriteAsync(m_favoritesOperation);
+            await m_favoritesOperation.ConfigureAwait(true);
+        };
     }
 
     private void WireTabStrip()
@@ -704,7 +715,7 @@ internal sealed class ShellPresenter
     {
         try
         {
-            m_favorites = await FavoritesStore.LoadAsync().ConfigureAwait(true);
+            m_favorites = await FavoritesStore.LoadAsync(path: m_favoritesPath).ConfigureAwait(true);
         }
         catch (Exception error) when (error is System.IO.IOException or UnauthorizedAccessException
             or System.Text.Json.JsonException)
@@ -715,9 +726,10 @@ internal sealed class ShellPresenter
         RebuildWelcomeList();
     }
 
-    private async Task ToggleFavoriteAsync()
+    private async Task ToggleFavoriteAsync(Task previous)
     {
         string url = m_vm.EndpointUrl?.Trim() ?? string.Empty;
+        await previous.ConfigureAwait(true);
         if (!Uri.TryCreate(url, UriKind.Absolute, out _))
         {
             m_vm.ConnectionStatus = "Enter an absolute endpoint URL before saving a favourite.";
@@ -735,7 +747,7 @@ internal sealed class ShellPresenter
         RebuildWelcomeList();
         try
         {
-            await FavoritesStore.SaveAsync(m_favorites).ConfigureAwait(true);
+            await FavoritesStore.SaveAsync(m_favorites, path: m_favoritesPath).ConfigureAwait(true);
         }
         catch (Exception error) when (error is System.IO.IOException or UnauthorizedAccessException
             or System.Text.Json.JsonException)
@@ -935,6 +947,8 @@ internal sealed class ShellPresenter
     private readonly ConnectionController m_connection;
     private readonly ILogger m_log;
     private readonly Func<ThemePreset, Task> m_changeThemeAsync;
+    private readonly string? m_favoritesPath;
+    private Task m_favoritesOperation = Task.CompletedTask;
     private readonly ObservableCollection<string> m_welcomeItems = [];
     private readonly System.Collections.Generic.List<string> m_recent = [];
     private System.Collections.Generic.List<string> m_favorites = [];

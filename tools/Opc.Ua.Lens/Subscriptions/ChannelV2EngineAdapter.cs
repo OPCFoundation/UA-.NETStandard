@@ -56,7 +56,17 @@ namespace UaLens.Subscriptions
             ManagedSession session,
             ITelemetryContext telemetry,
             PublishLogObserver? publishLog = null)
+            : this((ISession)session, telemetry, publishLog)
         {
+        }
+
+        internal ChannelV2EngineAdapter(
+            ISession session,
+            ITelemetryContext telemetry,
+            PublishLogObserver? publishLog = null)
+        {
+            ArgumentNullException.ThrowIfNull(session);
+            ArgumentNullException.ThrowIfNull(telemetry);
             m_session = session;
             m_log = telemetry.CreateLogger("ChannelV2Adapter");
             m_publishLog = publishLog;
@@ -308,7 +318,7 @@ namespace UaLens.Subscriptions
             };
         }
 
-        private readonly ManagedSession m_session;
+        private readonly ISession m_session;
         private readonly ILogger m_log;
         private readonly Channel<NotificationEvent> m_channel;
         private readonly PublishLogObserver? m_publishLog;

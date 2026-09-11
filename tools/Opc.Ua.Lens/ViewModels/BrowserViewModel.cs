@@ -49,22 +49,34 @@ namespace UaLens.ViewModels;
 /// </summary>
 internal enum BrowseViewKind
 {
-    /// <summary>Object instance hierarchy under <c>ObjectsFolder</c> (i=85).</summary>
+    /// <summary>
+    /// Object instance hierarchy under <c>ObjectsFolder</c> (i=85).
+    /// </summary>
     Objects,
 
-    /// <summary>ObjectType hierarchy under <c>ObjectTypesFolder</c> (i=88).</summary>
+    /// <summary>
+    /// ObjectType hierarchy under <c>ObjectTypesFolder</c> (i=88).
+    /// </summary>
     ObjectTypes,
 
-    /// <summary>VariableType hierarchy under <c>VariableTypesFolder</c> (i=89).</summary>
+    /// <summary>
+    /// VariableType hierarchy under <c>VariableTypesFolder</c> (i=89).
+    /// </summary>
     VariableTypes,
 
-    /// <summary>DataType hierarchy under <c>DataTypesFolder</c> (i=90).</summary>
+    /// <summary>
+    /// DataType hierarchy under <c>DataTypesFolder</c> (i=90).
+    /// </summary>
     DataTypes,
 
-    /// <summary>ReferenceType hierarchy under <c>ReferenceTypesFolder</c> (i=91).</summary>
+    /// <summary>
+    /// ReferenceType hierarchy under <c>ReferenceTypesFolder</c> (i=91).
+    /// </summary>
     ReferenceTypes,
 
-    /// <summary>Server-defined views under <c>ViewsFolder</c> (i=87).</summary>
+    /// <summary>
+    /// Server-defined views under <c>ViewsFolder</c> (i=87).
+    /// </summary>
     Views,
 }
 
@@ -120,7 +132,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
     /// tab switches that re-mirror the active adapter) don't wipe the
     /// user's expanded state.
     /// </summary>
-    private object? m_lastSessionRef;
+    private ISession? m_lastSessionRef;
 
     public ObservableCollection<NodeViewModel> Roots { get; } = new();
 
@@ -141,7 +153,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
     /// </summary>
     private void OnConnectionStateChanged()
     {
-        object? cur = m_connection.Session;
+        ISession? cur = m_connection.CurrentSession;
         if (ReferenceEquals(cur, m_lastSessionRef))
         {
             return;
@@ -161,7 +173,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
     internal void Reload()
     {
         Roots.Clear();
-        if (m_connection is { IsConnected: true, Session: { } })
+        if (m_connection is { IsConnected: true, CurrentSession: { } })
         {
             (NodeId rootId, string rootLabel) = GetRootSpec(CurrentViewKind);
             // Children load lazily on expand via LoadChildrenAsync, which
@@ -172,7 +184,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
             // children (Objects / Types / Views, etc.).
             root.IsExpanded = true;
         }
-        m_lastSessionRef = m_connection.Session;
+        m_lastSessionRef = m_connection.CurrentSession;
     }
 
     /// <summary>
@@ -215,7 +227,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
         }
         node.ChildrenLoaded = true;
 
-        if (m_connection.Session is not { } session)
+        if (m_connection.CurrentSession is not { } session)
         {
             return;
         }
@@ -408,7 +420,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
     public async Task<IReadOnlyList<(NodeId NodeId, string DisplayName)>> GetChildVariablesAsync(
         NodeId parent, CancellationToken ct = default)
     {
-        if (m_connection.Session is not { } session || parent.IsNull)
+        if (m_connection.CurrentSession is not { } session || parent.IsNull)
         {
             return Array.Empty<(NodeId, string)>();
         }
@@ -496,7 +508,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
             IReadOnlyList<string> relativePaths,
             CancellationToken ct = default)
     {
-        if (m_connection.Session is not { } session || relativePaths.Count == 0)
+        if (m_connection.CurrentSession is not { } session || relativePaths.Count == 0)
         {
             return Array.Empty<(string, StatusCode, IReadOnlyList<NodeId>)>();
         }
@@ -595,7 +607,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
     /// </summary>
     public async Task<byte?> GetEventNotifierAsync(NodeId nodeId, CancellationToken ct = default)
     {
-        if (m_connection.Session is not { } session)
+        if (m_connection.CurrentSession is not { } session)
         {
             return null;
         }

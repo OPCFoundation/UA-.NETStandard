@@ -30,6 +30,8 @@
 using System;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
@@ -53,6 +55,11 @@ internal sealed partial class MainWindow : Window, IAsyncDisposable
     public static UaLens.Diagnostics.ResourceMonitorHost? PendingResourceMonitor { get; set; }
 
     public MainWindow(MainViewModel viewModel, AppearancePreferences? appearance = null)
+        : this(viewModel, appearance, favoritesPath: null)
+    {
+    }
+
+    internal MainWindow(MainViewModel viewModel, AppearancePreferences? appearance, string? favoritesPath)
     {
         m_vm = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         m_appearance = appearance ?? new AppearancePreferences();
@@ -66,12 +73,12 @@ internal sealed partial class MainWindow : Window, IAsyncDisposable
         ILogger log = m_vm.Telemetry.CreateLogger("Shell");
         m_nodes = new NodeInteractionController(this, m_vm, log);
         m_connection = new ConnectionController(this, m_vm, log);
-        m_shell = new ShellPresenter(this, m_vm, m_connection, log, ChangeThemeAsync);
+        m_shell = new ShellPresenter(this, m_vm, m_connection, log, ChangeThemeAsync, favoritesPath);
         m_nodes.Attach();
         m_connection.Attach();
         m_shell.Attach();
 
-        KeyDown += (_, e) => m_shell.OnKeyDown(e);
+        AddHandler(InputElement.KeyDownEvent, (_, e) => m_shell.OnKeyDown(e), RoutingStrategies.Tunnel);
         Opened += async (_, _) =>
         {
             try
@@ -127,7 +134,7 @@ internal sealed partial class MainWindow : Window, IAsyncDisposable
 
     private async Task DisposeCoreAsync()
     {
-        m_shell.Dispose();
+        await m_shell.StopAsync().ConfigureAwait(true);
         await m_vm.DisposeAsync().ConfigureAwait(true);
     }
 

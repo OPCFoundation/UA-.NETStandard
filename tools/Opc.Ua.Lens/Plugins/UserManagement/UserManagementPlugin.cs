@@ -143,7 +143,7 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
     public async Task OnConnectionStateChangedAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (m_host.Connection.Session is null)
+        if (m_host.Connection.CurrentSession is null)
         {
             Users.Clear();
             SelectedUser = null;
@@ -174,14 +174,14 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
         {
             ArrayOf<UserManagementUser> users = await client
                 .ListUsersAsync(cancellationToken)
-                .ConfigureAwait(false);
+                .ConfigureAwait(true);
 
-            LocalizedText? restrictions = null;
+            LocalizedText restrictions = LocalizedText.Null;
             try
             {
                 restrictions = await client
                     .ReadPasswordRestrictionsAsync(cancellationToken)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(true) ?? LocalizedText.Null;
             }
             catch (Exception ex)
             {
@@ -189,11 +189,11 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
                 m_log.UserReadPasswordRestrictionsSkipped(ex, Title);
             }
 
-            string restrictionsText = restrictions.HasValue && !restrictions.Value.IsNullOrEmpty
-                ? restrictions.Value.Text ?? string.Empty
+            string restrictionsText = !restrictions.IsNullOrEmpty
+                ? restrictions.Text ?? string.Empty
                 : "(server did not expose PasswordRestrictions)";
 
-            Dispatcher.UIThread.Post(() =>
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 Users.Clear();
                 foreach (UserManagementUser u in users)
@@ -208,7 +208,7 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
         catch (Exception ex)
         {
             m_log.UserRefreshFailed(ex, Title);
-            Dispatcher.UIThread.Post(() =>
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 Status = $"● Refresh failed: {ex.Message}";
             });
@@ -243,7 +243,7 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
         {
             await client.AddUserAsync(
                 r.UserName, r.Password, r.Config, r.Description,
-                CancellationToken.None).ConfigureAwait(false);
+                CancellationToken.None).ConfigureAwait(true);
             m_log.UserAddSucceeded(Title, r.UserName);
             await RefreshAsync().ConfigureAwait(true);
             Status = $"● Added user '{r.UserName}'.";
@@ -292,7 +292,7 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
                 newPassword: r.NewPassword,
                 userConfiguration: r.Config,
                 description: r.Description,
-                CancellationToken.None).ConfigureAwait(false);
+                CancellationToken.None).ConfigureAwait(true);
             m_log.UserModifySucceeded(Title, target.UserName);
             await RefreshAsync().ConfigureAwait(true);
             Status = $"● Modified user '{target.UserName}'.";
@@ -340,7 +340,7 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
         try
         {
             await client.RemoveUserAsync(target.UserName, CancellationToken.None)
-                .ConfigureAwait(false);
+                .ConfigureAwait(true);
             m_log.UserRemoveSucceeded(Title, target.UserName);
             await RefreshAsync().ConfigureAwait(true);
             Status = $"● Removed user '{target.UserName}'.";
@@ -398,7 +398,7 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
     /// </summary>
     private UserManagementClient? TryCreateClient()
     {
-        var session = m_host.Connection.Session;
+        var session = m_host.Connection.CurrentSession;
         if (session is null)
         {
             Status = "● Not connected — connect a session first.";

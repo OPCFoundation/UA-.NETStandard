@@ -341,6 +341,10 @@ does not rewrite a completed run's evidence. **Stop** cancels scheduling and wai
 for issued operations to settle before retaining a partial result. Throughput uses
 actual elapsed time, including that drain, rather than the requested duration.
 
+Call targets read the method's typed `InputArguments` metadata, including array
+ranks, and display the signature before acceptance. The latency chart includes
+the complete range from one microsecond through its labeled ten-second overflow bucket.
+
 Open **Compare runs**, select any retained row and choose **Use as baseline**.
 Select another row to compare throughput, completed operations, errors, elapsed
 time and latency. Absolute differences are selected minus baseline; relative

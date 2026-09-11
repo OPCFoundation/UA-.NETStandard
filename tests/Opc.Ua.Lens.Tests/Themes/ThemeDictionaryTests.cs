@@ -27,9 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using NUnit.Framework;
+using UaLens.Tests.Desktop;
 using UaLens.Themes;
 
 namespace UaLens.Tests.Themes
@@ -38,7 +41,23 @@ namespace UaLens.Tests.Themes
     public sealed class ThemeDictionaryTests
     {
         [Test]
-        public void ApplyingChartColorsKeepsDataAndZoom()
+        public Task ApplyingChartColorsKeepsDataAndZoom()
+        {
+            if (Application.Current is not null)
+            {
+                return AvaloniaDesktopTestHost.RunAsync(() =>
+                {
+                    Application.Current.Resources["SurfaceBg"] = Brushes.White;
+                    Application.Current.Resources["TextPrimary"] = Brushes.Black;
+                    AssertChartColors();
+                    return Task.CompletedTask;
+                });
+            }
+            AssertChartColors();
+            return Task.CompletedTask;
+        }
+
+        private static void AssertChartColors()
         {
             using var plot = new ScottPlot.Plot();
             var line = plot.Add.Scatter(new double[] { 0, 1 }, new double[] { 2, 3 });
