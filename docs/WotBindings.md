@@ -440,7 +440,11 @@ What the runtime does with it:
   must resolve the one-element namespace-zero `BaseEventType.EventId` declaration
   (`i=2042`, scalar `ByteString`), including when queried through a companion
   EventType. A vendor `EventId`, a nested lookalike, or a base64 string schema does
-  not establish that declaration.
+  not establish that declaration. Native-backed contexts report the actual
+  declaration even when its declaring type is not the document root and only
+  the owner's forward `HasProperty` reference establishes ownership. A built-in
+  declaration is used only without supplied type context; it never replaces
+  an incompatible native DataType, rank, or owner.
 * A compact path element such as `pump:Temperature` is rewritten to the portable
   `nsu=<NamespaceUri>;Temperature` form using the prefixes the document's `@context`
   binds (`WotBindingPlanContext.NamespacePrefixes`). An unbound prefix fails the form
@@ -1456,6 +1460,13 @@ ArrayDimensions and, for a Method, the declaration it is an instance of —
 instead of becoming a second, differently-reached Node under a name the type has
 already spoken for. Each populated member reports `DeclarationPopulated`.
 
+The shared `WotDocumentDeclarationIndex` also indexes authoritative native types
+and their declarations. `SnapshotWotNodeResolver` exposes those non-root types
+through the same snapshot index used for readable sibling models.
+`WotResolvedNode.DirectSupertypeNodeIds` preserves direct source ancestry
+separately from the nearest-first summary. `uav:includeInherited` controls
+declaration expansion, not whether stated supertype references are checked.
+
 A closure that is only partly known is treated as partly known rather than as
 empty:
 
@@ -1604,6 +1615,12 @@ being pinned. The four standard ConditionTypes resolve without external context:
 `ConditionType`, `AcknowledgeableConditionType`, `AlarmConditionType` and
 `LimitAlarmType`.
 
+Supplied ancestry must be a single coherent chain: conflicting parents are
+rejected in either link order, and a known standard identity does not hide
+contradictory or cyclic references in the supplied context. Canonical exported
+Thing Models annotated with `uav:eventType` resolve as ObjectTypes, just like
+readable `uav:objectType` declarations.
+
 For companion types, use the asynchronous converter with the existing local
 node context. A unique `uav:conditionType` hint can resolve without a pin; a pin
 can settle an otherwise unresolved hint only after its ancestry is verified.
@@ -1636,6 +1653,9 @@ Native and archive restoration retain their authoritative Nodes. Readable
 Condition claims are checked against those actual ObjectTypes and their ancestry,
 not merely against regenerated readable hints. Missing readable `data` or other
 unasserted Condition facts do not demand synthesis of additional native Nodes.
+A pin may name a companion or standard Condition ancestor rather than the
+concrete event type, but it must remain within the Condition portion of that
+ancestry. `BaseEventType` (`i=2041`) is not an eligible Condition pin.
 
 The converter enforces the four Section 13.3/13.4 conformance rules, each
 because breaking it yields a document a consumer can read but cannot act on, and

@@ -906,7 +906,7 @@ namespace Opc.Ua.Wot
                 expected is not null &&
                 WotPortableIdentity.IsPortableNodeId(expected) &&
                 (!hasPin || (pin is not null && (hintedId is null || AreSameExpandedNodeId(pin, hintedId)))) &&
-                ContainsVerifiedEventType(binding, NormalizeExpandedNodeId(expected));
+                ContainsVerifiedConditionType(binding, NormalizeExpandedNodeId(expected));
             if (!matches)
             {
                 diagnostics.Add(new WotDiagnostic(
@@ -934,80 +934,121 @@ namespace Opc.Ua.Wot
                 {
                     return WotTypeBinding.Invalid($"The native ancestry revisits '{current}'.");
                 }
-                index.TryGetValue("id:" + current, out UANode? held);
-                if (held is not null and not UAObjectType)
+                bool isHeld = index.TryGetValue("id:" + current, out UANode? held);
+                if (isHeld && held is not UAObjectType)
                 {
-                    return WotTypeBinding.Invalid($"The native type '{current}' is not an ObjectType.");
+                    return WotTypeBinding.Invalid($"The native type '{current}' is not a unique ObjectType.");
                 }
                 string portable = NormalizeExpandedNodeId(ToPortableNodeId(current, native.NamespaceUris) ?? current);
-                if (TryBindStandardEventType(portable, true, out WotTypeBinding known))
+                bool standard = TryBindStandardEventType(portable, false, out WotTypeBinding known);
+                if (standard && known.Outcome != WotTypeBindingOutcome.Bound)
                 {
-                    if (known.Outcome != WotTypeBindingOutcome.Bound)
-                    {
-                        return known;
-                    }
-                    ancestors.AddRange(known.VerifiedSupertypes);
-                    return WotTypeBinding.Bound(identity, ancestors.ToArrayOf());
+                    return known;
                 }
-                if (depth == WotTypeDeclarations.MaxSupertypeDepth)
+                if (depth == WotTypeDeclarations.MaxSupertypeDepth && !standard)
                 {
                     break;
                 }
-                if (held is not UAObjectType)
+                if (held is null && !standard)
                 {
                     return WotTypeBinding.Unresolved($"The native type '{current}' is not held.");
                 }
-                var parents = new HashSet<string>(StringComparer.Ordinal);
-                foreach (Reference reference in held.References ?? [])
-                {
-                    if (!reference.IsForward &&
-                        ResolveArchivedAlias(reference.ReferenceType, aliases) == WotVocabulary.HasSubtype)
-                    {
-                        parents.Add(ResolveArchivedAlias(reference.Value, aliases));
-                    }
-                }
-                foreach (KeyValuePair<string, UANode?> candidate in index)
-                {
-                    if (!candidate.Key.StartsWith("id:", StringComparison.Ordinal) ||
-                        candidate.Value is not UAObjectType parent)
-                    {
-                        continue;
-                    }
-                    foreach (Reference reference in parent.References ?? [])
-                    {
-                        if (reference.IsForward &&
-                            ResolveArchivedAlias(reference.ReferenceType, aliases) == WotVocabulary.HasSubtype &&
-                            ResolveArchivedAlias(reference.Value, aliases) == current)
-                        {
-                            parents.Add(ResolveArchivedAlias(parent.NodeId, aliases));
-                        }
-                    }
-                }
-                if (parents.Count != 1)
+                HashSet<string> parents = ReadNativeSupertypes(current, held, index, aliases);
+                if (parents.Count > 1 || (parents.Count == 0 && !standard))
                 {
                     return WotTypeBinding.Invalid($"The native type '{current}' has no unique supertype.");
                 }
+                string? next = null;
                 foreach (string parent in parents)
                 {
-                    current = parent;
+                    next = parent;
                 }
+                if (standard)
+                {
+                    string expected = known.VerifiedSupertypes.Count == 0
+                        ? WotVocabulary.BaseObjectType
+                        : known.VerifiedSupertypes[0];
+                    if (next is not null &&
+                        !AreSameExpandedNodeId(ToPortableNodeId(next, native.NamespaceUris) ?? next, expected))
+                    {
+                        return WotTypeBinding.Invalid(
+                            $"The native supertype of standard EventType '{portable}' is not '{expected}'.");
+                    }
+                    if (portable == WotVocabulary.BaseEventType)
+                    {
+                        bool invalidRoot =
+                            index.TryGetValue("id:" + WotVocabulary.BaseObjectType, out UANode? root) &&
+                            root is not UAObjectType;
+                        if (invalidRoot ||
+                            ReadNativeSupertypes(WotVocabulary.BaseObjectType, root, index, aliases).Count != 0)
+                        {
+                            return WotTypeBinding.Invalid("The native BaseObjectType is not an ObjectType root.");
+                        }
+                        return CompleteVerifiedEventBinding(identity, true, ancestors, [], hasTypeContext: true);
+                    }
+                    next = expected;
+                }
+                current = next!;
                 ancestors.Add(NormalizeExpandedNodeId(ToPortableNodeId(current, native.NamespaceUris) ?? current));
             }
             return WotTypeBinding.Invalid(
                 $"The native ancestry exceeds {WotTypeDeclarations.MaxSupertypeDepth} supertypes.");
         }
 
-        private static bool ContainsVerifiedEventType(WotTypeBinding binding, string identity)
+        private static HashSet<string> ReadNativeSupertypes(
+            string identity,
+            UANode? held,
+            Dictionary<string, UANode?> index,
+            INodeSetAliasResolver aliases)
+        {
+            var parents = new HashSet<string>(StringComparer.Ordinal);
+            foreach (Reference reference in held?.References ?? [])
+            {
+                if (!reference.IsForward &&
+                    ResolveArchivedAlias(reference.ReferenceType, aliases) == WotVocabulary.HasSubtype)
+                {
+                    parents.Add(ResolveArchivedAlias(reference.Value, aliases));
+                }
+            }
+            foreach (KeyValuePair<string, UANode?> candidate in index)
+            {
+                if (!candidate.Key.StartsWith("id:", StringComparison.Ordinal) ||
+                    candidate.Value is not UAObjectType parent)
+                {
+                    continue;
+                }
+                foreach (Reference reference in parent.References ?? [])
+                {
+                    if (reference.IsForward &&
+                        ResolveArchivedAlias(reference.ReferenceType, aliases) == WotVocabulary.HasSubtype &&
+                        ResolveArchivedAlias(reference.Value, aliases) == identity)
+                    {
+                        parents.Add(ResolveArchivedAlias(parent.NodeId, aliases));
+                    }
+                }
+            }
+            return parents;
+        }
+
+        private static bool ContainsVerifiedConditionType(WotTypeBinding binding, string identity)
         {
             if (binding.NodeId == identity)
             {
                 return true;
+            }
+            if (binding.NodeId == WotVocabulary.ConditionType)
+            {
+                return false;
             }
             foreach (string ancestor in binding.VerifiedSupertypes)
             {
                 if (ancestor == identity)
                 {
                     return true;
+                }
+                if (ancestor == WotVocabulary.ConditionType)
+                {
+                    break;
                 }
             }
             return false;
@@ -1824,7 +1865,8 @@ namespace Opc.Ua.Wot
             if (local.Outcome == WotTypeBindingOutcome.Bound &&
                 (hint is null || TryResolveConditionTypeName(document, hint, out _, affordance)))
             {
-                return local;
+                return await VerifyEventTypeBindingAsync(local.NodeId!, true, resolver, cancellationToken)
+                    .ConfigureAwait(false);
             }
             ArrayOf<WotResolvedNode> matches = [];
             if (hint is not null &&
@@ -1885,9 +1927,27 @@ namespace Opc.Ua.Wot
                 return WotTypeBinding.Invalid($"'{typeNodeId}' is not a portable type identity.");
             }
             string identity = NormalizeExpandedNodeId(typeNodeId);
+            WotTypeDeclarationSet? declarations = resolver is IWotTypeDeclarationResolver capability
+                ? await capability.ResolveDeclarationsAsync(identity, WotDeclarationScope.Effective, cancellationToken)
+                    .ConfigureAwait(false)
+                : null;
+            cancellationToken.ThrowIfCancellationRequested();
+            if (declarations is not null &&
+                (!declarations.IsComplete ||
+                    !WotPortableIdentity.IsPortableNodeId(declarations.TypeNodeId) ||
+                    !AreSameExpandedNodeId(declarations.TypeNodeId, identity)))
+            {
+                return WotTypeBinding.Invalid(
+                    $"The declarations of EventType '{identity}' are incomplete or identify a different type. " +
+                    declarations.Detail);
+            }
             string current = identity;
             var visited = new HashSet<string>(StringComparer.Ordinal);
             var ancestors = new List<string>();
+            var reportedAncestries = new List<(int Offset, ArrayOf<string> Ancestors)>();
+            bool hasTypeContext = false;
+            bool holdsStandardNamespace = await resolver.HoldsNamespaceAsync(
+                WotVocabulary.OpcUaNamespace, cancellationToken).ConfigureAwait(false);
             for (int depth = 0; depth <= WotTypeDeclarations.MaxSupertypeDepth; depth++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -1895,60 +1955,146 @@ namespace Opc.Ua.Wot
                 {
                     return WotTypeBinding.Invalid($"The EventType ancestry revisits '{current}'.");
                 }
-                if (TryBindStandardEventType(current, requireCondition, out WotTypeBinding known))
+                bool standard = TryBindStandardEventType(current, false, out WotTypeBinding known);
+                if (standard && known.Outcome != WotTypeBindingOutcome.Bound)
                 {
-                    if (known.Outcome != WotTypeBindingOutcome.Bound)
-                    {
-                        return known;
-                    }
-                    ancestors.AddRange(known.VerifiedSupertypes);
-                    return WotTypeBinding.Bound(identity, ancestors.ToArrayOf());
+                    return known;
                 }
-                if (depth == WotTypeDeclarations.MaxSupertypeDepth)
+                if (standard && !holdsStandardNamespace && resolver is not IWotTypeDeclarationResolver)
+                {
+                    ancestors.AddRange(known.VerifiedSupertypes);
+                    return CompleteVerifiedEventBinding(
+                        identity, requireCondition, ancestors, reportedAncestries, hasTypeContext, declarations);
+                }
+                if (depth == WotTypeDeclarations.MaxSupertypeDepth && !standard)
                 {
                     break;
                 }
                 WotResolvedNode? found = await resolver.ResolveByNodeIdAsync(current, cancellationToken)
                     .ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
-                if (found is not { } node)
+                if (found is null && !standard)
                 {
                     return WotTypeBinding.Unresolved($"The EventType ancestor '{current}' could not be resolved.");
                 }
-                if (!WotPortableIdentity.IsPortableNodeId(node.NodeId) ||
-                    !AreSameExpandedNodeId(current, node.NodeId) ||
-                    node.NodeClass != WotExpectedNodeClass.ObjectType)
+                ArrayOf<string> parents = [];
+                if (found is { } node)
                 {
-                    return WotTypeBinding.Invalid(
-                        $"Resolving '{current}' did not return that exact ObjectType identity.");
+                    hasTypeContext = true;
+                    if (!WotPortableIdentity.IsPortableNodeId(node.NodeId) ||
+                        !AreSameExpandedNodeId(current, node.NodeId) ||
+                        node.NodeClass != WotExpectedNodeClass.ObjectType)
+                    {
+                        return WotTypeBinding.Invalid(
+                            $"Resolving '{current}' did not return that exact ObjectType identity.");
+                    }
+                    if (node.SupertypeNodeIds.Count > WotTypeDeclarations.MaxSupertypeDepth)
+                    {
+                        break;
+                    }
+                    var reported = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (string ancestor in node.SupertypeNodeIds)
+                    {
+                        if (!WotPortableIdentity.IsPortableNodeId(ancestor))
+                        {
+                            return WotTypeBinding.Invalid(
+                                $"The EventType ancestor '{ancestor}' is not a portable identity.");
+                        }
+                        string normalized = NormalizeExpandedNodeId(ancestor);
+                        if (visited.Contains(normalized) || !reported.Add(normalized))
+                        {
+                            return WotTypeBinding.Invalid($"The reported EventType ancestry revisits '{normalized}'.");
+                        }
+                    }
+                    reportedAncestries.Add((ancestors.Count, node.SupertypeNodeIds));
+                    if (!node.DirectSupertypeNodeIds.IsNull)
+                    {
+                        if (node.DirectSupertypeNodeIds.Count > 1)
+                        {
+                            return WotTypeBinding.Invalid($"The ObjectType '{current}' has multiple supertypes.");
+                        }
+                        parents = node.DirectSupertypeNodeIds;
+                    }
+                    else if (node.SupertypeNodeIds.Count != 0)
+                    {
+                        parents = [node.SupertypeNodeIds[0]];
+                    }
                 }
-                if (node.SupertypeNodeIds.Count == 0)
+                string? parent = parents.Count == 0 ? null : parents[0];
+                if (parent is not null && !WotPortableIdentity.IsPortableNodeId(parent))
+                {
+                    return WotTypeBinding.Invalid($"The EventType ancestor '{parent}' is not a portable identity.");
+                }
+                if (standard)
+                {
+                    string expected = known.VerifiedSupertypes.Count == 0
+                        ? WotVocabulary.BaseObjectType
+                        : known.VerifiedSupertypes[0];
+                    if (parent is not null && !AreSameExpandedNodeId(parent, expected))
+                    {
+                        return WotTypeBinding.Invalid(
+                            $"The supplied supertype of standard EventType '{current}' is not '{expected}'.");
+                    }
+                    if (current == WotVocabulary.BaseEventType)
+                    {
+                        WotResolvedNode? baseObject = await resolver.ResolveByNodeIdAsync(
+                            WotVocabulary.BaseObjectType, cancellationToken).ConfigureAwait(false);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (baseObject is { } root &&
+                            (!WotPortableIdentity.IsPortableNodeId(root.NodeId) ||
+                                !AreSameExpandedNodeId(root.NodeId, WotVocabulary.BaseObjectType) ||
+                                root.NodeClass != WotExpectedNodeClass.ObjectType ||
+                                root.SupertypeNodeIds.Count != 0 ||
+                                root.DirectSupertypeNodeIds.Count != 0))
+                        {
+                            return WotTypeBinding.Invalid("The supplied BaseObjectType is not an ObjectType root.");
+                        }
+                        return CompleteVerifiedEventBinding(
+                            identity, requireCondition, ancestors, reportedAncestries, hasTypeContext, declarations);
+                    }
+                    parent = expected;
+                }
+                if (parent is null)
                 {
                     return WotTypeBinding.Unresolved($"The ObjectType '{current}' has no verified event ancestry.");
                 }
-                if (node.SupertypeNodeIds.Count > WotTypeDeclarations.MaxSupertypeDepth)
-                {
-                    break;
-                }
-                var reported = new HashSet<string>(StringComparer.Ordinal);
-                foreach (string ancestor in node.SupertypeNodeIds)
-                {
-                    if (!WotPortableIdentity.IsPortableNodeId(ancestor))
-                    {
-                        return WotTypeBinding.Invalid(
-                            $"The EventType ancestor '{ancestor}' is not a portable identity.");
-                    }
-                    string normalized = NormalizeExpandedNodeId(ancestor);
-                    if (visited.Contains(normalized) || !reported.Add(normalized))
-                    {
-                        return WotTypeBinding.Invalid($"The reported EventType ancestry revisits '{normalized}'.");
-                    }
-                }
-                current = NormalizeExpandedNodeId(node.SupertypeNodeIds[0]);
+                current = NormalizeExpandedNodeId(parent);
                 ancestors.Add(current);
             }
             return WotTypeBinding.Invalid(
                 $"The EventType ancestry exceeds {WotTypeDeclarations.MaxSupertypeDepth} supertypes.");
+        }
+
+        private static WotTypeBinding CompleteVerifiedEventBinding(
+            string identity,
+            bool requireCondition,
+            List<string> ancestors,
+            List<(int Offset, ArrayOf<string> Ancestors)> reportedAncestries,
+            bool hasTypeContext,
+            WotTypeDeclarationSet? declarations = null)
+        {
+            if (requireCondition &&
+                identity != WotVocabulary.ConditionType &&
+                !ancestors.Contains(WotVocabulary.ConditionType))
+            {
+                return WotTypeBinding.Invalid($"The ObjectType '{identity}' is not a ConditionType.");
+            }
+            foreach ((int offset, ArrayOf<string> reported) in reportedAncestries)
+            {
+                for (int index = 0; index < reported.Count; index++)
+                {
+                    int position = offset + index;
+                    string expected = position < ancestors.Count
+                        ? ancestors[position]
+                        : position == ancestors.Count ? WotVocabulary.BaseObjectType : string.Empty;
+                    if (NormalizeExpandedNodeId(reported[index]) != expected)
+                    {
+                        return WotTypeBinding.Invalid(
+                            $"The reported EventType ancestry of '{identity}' is not one coherent chain.");
+                    }
+                }
+            }
+            return WotTypeBinding.Bound(identity, ancestors.ToArrayOf(), hasTypeContext, declarations);
         }
 
         private static bool TryBindStandardEventType(

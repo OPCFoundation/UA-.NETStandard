@@ -93,6 +93,14 @@ namespace Opc.Ua.Wot
         public ArrayOf<string> SupertypeNodeIds { get; init; }
 
         /// <summary>
+        /// Gets the directly stated supertypes, resolved to portable identities.
+        /// A null array means the provider does not expose direct references;
+        /// an empty array means the source states none. Declaration summaries
+        /// do not remove these source references.
+        /// </summary>
+        public ArrayOf<string> DirectSupertypeNodeIds { get; init; }
+
+        /// <summary>
         /// Gets the portable DataType identity of a resolved VariableType, when available.
         /// </summary>
         public string? DataTypeNodeId { get; init; }

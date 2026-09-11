@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -103,7 +102,7 @@ namespace Opc.Ua.Wot
                     : match;
                 if (Accepts(expected, current.NodeClass))
                 {
-                    accepted.Add(current with { SupertypeNodeIds = GetSupertypes(current.NodeId) });
+                    accepted.Add(WithAncestry(current));
                 }
             }
             return new ValueTask<ArrayOf<WotResolvedNode>>(accepted.ToArrayOf());
@@ -134,7 +133,7 @@ namespace Opc.Ua.Wot
                     WotNodeSetConverter.NormalizeExpandedNodeId(nodeId), out WotResolvedNode match) &&
                 Accepts(expected, match.NodeClass))
             {
-                return new ValueTask<WotResolvedNode?>(match with { SupertypeNodeIds = GetSupertypes(match.NodeId) });
+                return new ValueTask<WotResolvedNode?>(WithAncestry(match));
             }
             return new ValueTask<WotResolvedNode?>((WotResolvedNode?)null);
         }
@@ -276,16 +275,6 @@ namespace Opc.Ua.Wot
                 return;
             }
             m_declarations.Add(document);
-            string? rootId = ReadString(document.RootElement, "uav:id");
-            if (rootId is not null)
-            {
-                rootId = WotNodeSetConverter.NormalizeExpandedNodeId(rootId);
-                m_supertypes[rootId] = WotNodeSetConverter.ReadSupertypeReferences(document);
-                if (document.Id is { Length: > 0 } documentId)
-                {
-                    m_documentNodeIds[documentId] = rootId;
-                }
-            }
             IndexNode(
                 document.RootElement,
                 ClassOfTokens(document.TypeTokens),
@@ -350,8 +339,9 @@ namespace Opc.Ua.Wot
         /// </remarks>
         private void IndexNativeProjection(WotDocument document)
         {
-            if (!document.TryGetNativeProjection(out JsonElement projection) ||
-                WotNativeProjection.HasUnsupportedProfile(projection))
+            if (!document.TryGetEnvelope(out _) &&
+                (!document.TryGetNativeProjection(out JsonElement projection) ||
+                    WotNativeProjection.HasUnsupportedProfile(projection)))
             {
                 return;
             }
@@ -365,7 +355,6 @@ namespace Opc.Ua.Wot
             {
                 m_namespaces.Add(namespaceUri);
             }
-            var aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
             foreach (UANode node in nodeSet.Items ?? [])
             {
                 if (WotNodeSetConverter.ToPortableNodeId(node.NodeId, nodeSet.NamespaceUris) is not { } portable)
@@ -373,31 +362,11 @@ namespace Opc.Ua.Wot
                     continue;
                 }
                 portable = WotNodeSetConverter.NormalizeExpandedNodeId(portable);
-                WotExpectedNodeClass nodeClass = node switch
-                {
-                    UAObjectType => WotExpectedNodeClass.ObjectType,
-                    UAVariableType => WotExpectedNodeClass.VariableType,
-                    UAReferenceType => WotExpectedNodeClass.ReferenceType,
-                    UADataType => WotExpectedNodeClass.DataType,
-                    _ => WotExpectedNodeClass.Any
-                };
-                var resolved = new WotResolvedNode(portable, nodeClass)
-                {
-                    IsAbstract = node is UAType { IsAbstract: true }
-                };
-                if (node is UAVariableType variableType)
-                {
-                    resolved = resolved with
-                    {
-                        DataTypeNodeId = WotNodeSetConverter.ToPortableDataTypeId(variableType.DataType, nodeSet),
-                        ValueRank = variableType.ValueRank,
-                        ArrayDimensions = ReadNativeDimensions(variableType.ArrayDimensions)
-                    };
-                }
+                WotResolvedNode resolved = WotNodeSetConverter.DescribeNativeType(node, nodeSet);
                 m_byNodeId[portable] = resolved;
-                if (node is UADataType && node.BrowseName is { } dataTypeName)
+                if (node.BrowseName is { } browseName)
                 {
-                    QualifiedName name = QualifiedName.Parse(dataTypeName);
+                    var name = QualifiedName.Parse(browseName);
                     if (name.Name is { Length: > 0 } local)
                     {
                         if (name.NamespaceIndex == 0)
@@ -410,37 +379,7 @@ namespace Opc.Ua.Wot
                         }
                     }
                 }
-                var parents = new List<string>();
-                foreach (Reference reference in node.References ?? [])
-                {
-                    string? type = aliases.TryResolve(reference.ReferenceType ?? string.Empty, out string referenceId)
-                        ? referenceId
-                        : reference.ReferenceType;
-                    string? target = aliases.TryResolve(reference.Value ?? string.Empty, out string targetId)
-                        ? targetId
-                        : reference.Value;
-                    if (!reference.IsForward && type == WotVocabulary.HasSubtype &&
-                        WotNodeSetConverter.ToPortableNodeId(target, nodeSet.NamespaceUris) is { } parent)
-                    {
-                        parents.Add(WotNodeSetConverter.NormalizeExpandedNodeId(parent));
-                    }
-                }
-                m_supertypes[portable] = parents.ToArrayOf();
             }
-        }
-
-        private static ArrayOf<uint> ReadNativeDimensions(string? dimensions)
-        {
-            if (string.IsNullOrEmpty(dimensions))
-            {
-                return ArrayOf<uint>.Empty;
-            }
-            var values = new List<uint>();
-            foreach (string dimension in dimensions.Split(','))
-            {
-                values.Add(uint.Parse(dimension, NumberStyles.Integer, CultureInfo.InvariantCulture));
-            }
-            return values.ToArrayOf();
         }
 
         private void IndexNode(
@@ -496,6 +435,15 @@ namespace Opc.Ua.Wot
             }
         }
 
+        private WotResolvedNode WithAncestry(WotResolvedNode node)
+        {
+            return node with
+            {
+                SupertypeNodeIds = GetSupertypes(node.NodeId),
+                DirectSupertypeNodeIds = m_declarations.GetDirectSupertypes(node.NodeId)
+            };
+        }
+
         private ArrayOf<string> GetSupertypes(string nodeId)
         {
             var found = new List<string>();
@@ -504,15 +452,8 @@ namespace Opc.Ua.Wot
             pending.Enqueue(nodeId);
             while (pending.Count > 0)
             {
-                if (!m_supertypes.TryGetValue(pending.Dequeue(), out ArrayOf<string> parents))
+                foreach (string parent in m_declarations.GetDirectSupertypes(pending.Dequeue()))
                 {
-                    continue;
-                }
-                foreach (string reference in parents)
-                {
-                    string parent = m_documentNodeIds.TryGetValue(reference, out string? documentNodeId)
-                        ? documentNodeId
-                        : WotNodeSetConverter.NormalizeExpandedNodeId(reference);
                     if (!WotPortableIdentity.IsPortableNodeId(parent) || !seen.Add(parent))
                     {
                         continue;
@@ -528,7 +469,8 @@ namespace Opc.Ua.Wot
         {
             for (int i = 0; i < tokens.Count; i++)
             {
-                if (string.Equals(tokens[i], "uav:objectType", StringComparison.Ordinal))
+                if (string.Equals(tokens[i], "uav:objectType", StringComparison.Ordinal) ||
+                    string.Equals(tokens[i], WotVocabulary.EventTypeAnnotation, StringComparison.Ordinal))
                 {
                     return WotExpectedNodeClass.ObjectType;
                 }
@@ -569,7 +511,5 @@ namespace Opc.Ua.Wot
             new(StringComparer.Ordinal);
 
         private readonly HashSet<string> m_namespaces = new(StringComparer.Ordinal);
-        private readonly Dictionary<string, ArrayOf<string>> m_supertypes = new(StringComparer.Ordinal);
-        private readonly Dictionary<string, string> m_documentNodeIds = new(StringComparer.Ordinal);
     }
 }

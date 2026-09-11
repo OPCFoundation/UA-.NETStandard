@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
 {
@@ -74,6 +75,7 @@ namespace Opc.Ua.Wot
             {
                 throw new ArgumentNullException(nameof(document));
             }
+            AddNativeTypes(document);
             foreach (JsonElement definition in WotNodeSetConverter.ReadDataTypeDefinitionOccurrences(
                 document.RootElement))
             {
@@ -118,10 +120,8 @@ namespace Opc.Ua.Wot
                 // ask for a second copy of what it already says. One that
                 // states false, or says nothing, lists only its own.
                 m_types[typeNodeId] = new Entry(
-                    declarations,
-                    WotNodeSetConverter.ReadIncludeInherited(document) == true
-                        ? ArrayOf<string>.Empty
-                        : supertypes);
+                    declarations, supertypes,
+                    IncludesInherited: WotNodeSetConverter.ReadIncludeInherited(document) == true);
             }
             AddAlias(typeNodeId, typeNodeId);
             AddAlias(document.Id, typeNodeId);
@@ -157,10 +157,61 @@ namespace Opc.Ua.Wot
                 return new WotTypeDeclarationSet
                 {
                     TypeNodeId = typeNodeId,
-                    Declarations = entry.Declarations
+                    Declarations = entry.Declarations,
+                    IsComplete = entry.Detail is null,
+                    Detail = entry.Detail
                 };
             }
             return BuildEffective(typeNodeId, entry);
+        }
+
+        /// <summary>
+        /// Gets the direct source ancestry independently of declaration scope.
+        /// A null array means the index does not hold the type.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="typeNodeId"/> is <c>null</c>.
+        /// </exception>
+        public ArrayOf<string> GetDirectSupertypes(string typeNodeId)
+        {
+            if (typeNodeId is null)
+            {
+                throw new ArgumentNullException(nameof(typeNodeId));
+            }
+            if (!m_types.TryGetValue(typeNodeId, out Entry entry))
+            {
+                return default;
+            }
+            var parents = new List<string>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string reference in entry.Supertypes)
+            {
+                string identity = m_aliases.TryGetValue(TrimFragment(reference), out string? aliased)
+                    ? aliased
+                    : WotNodeSetConverter.NormalizeExpandedNodeId(reference);
+                if (seen.Add(identity))
+                {
+                    parents.Add(identity);
+                }
+            }
+            return parents.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Gets the authoritative native types already held by this declaration
+        /// index, including non-root types, for the owning node-resolution adapter.
+        /// </summary>
+        public ArrayOf<(WotResolvedNode Node, WotBrowsePathElement BrowseName)> GetNativeTypes()
+        {
+            var types = new List<(WotResolvedNode Node, WotBrowsePathElement BrowseName)>();
+            foreach (Entry entry in m_types.Values)
+            {
+                if (entry.NativeNode is { } node)
+                {
+                    types.Add((node, entry.NativeBrowseName));
+                }
+            }
+            return types.ToArrayOf();
         }
 
         /// <summary>
@@ -174,7 +225,59 @@ namespace Opc.Ua.Wot
             }
             return m_dataTypes.TryGetValue(graphId, out List<WotDataTypeDefinitionSource>? sources)
                 ? sources.ToArrayOf()
-                : ArrayOf<WotDataTypeDefinitionSource>.Empty;
+                : [];
+        }
+
+        private void AddNativeTypes(WotDocument document)
+        {
+            if (!document.TryGetEnvelope(out _) &&
+                (!document.TryGetNativeProjection(out JsonElement projection) ||
+                    WotNativeProjection.HasUnsupportedProfile(projection)))
+            {
+                return;
+            }
+            WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ReadAuthoritativeTypeContext(document);
+            if (!restored.Success || restored.Value is null)
+            {
+                throw new FormatException(
+                    "The authoritative native type context could not be restored. " +
+                    (restored.Diagnostics.Count == 0 ? string.Empty : restored.Diagnostics[0].Message));
+            }
+            UANodeSet nodeSet = restored.Value;
+            var references = WotReferenceTypeNames.Build(nodeSet);
+            var nodes = new Dictionary<string, UANode>(StringComparer.Ordinal);
+            foreach (UANode node in nodeSet.Items ?? [])
+            {
+                nodes.Add(node.NodeId!, node);
+            }
+            foreach (UANode node in nodes.Values)
+            {
+                if (node is not UAType)
+                {
+                    continue;
+                }
+                WotResolvedNode resolved = WotNodeSetConverter.DescribeNativeType(node, nodeSet);
+                var parents = new List<string>();
+                foreach (Reference reference in references.GetReferences(node))
+                {
+                    if (!reference.IsForward && reference.ReferenceType == WotVocabulary.HasSubtype)
+                    {
+                        parents.Add(WotNodeSetConverter.NormalizeExpandedNodeId(
+                            WotNodeSetConverter.ToPortableNodeId(reference.Value, nodeSet.NamespaceUris)!));
+                    }
+                }
+                ArrayOf<WotTypeDeclaration> declarations = WotNodeSetConverter.DescribeNativeTypeDeclarations(
+                    node, nodeSet, references, nodes, out string? detail);
+                var name = QualifiedName.Parse(node.BrowseName ??
+                    throw new FormatException($"The native type '{resolved.NodeId}' has no BrowseName."));
+                string namespaceUri = name.NamespaceIndex == 0
+                    ? WotVocabulary.OpcUaNamespace
+                    : nodeSet.NamespaceUris![name.NamespaceIndex - 1];
+                m_types.TryAdd(resolved.NodeId, new Entry(
+                    declarations, parents.ToArrayOf(), NativeNode: resolved,
+                    NativeBrowseName: new WotBrowsePathElement(namespaceUri, name.Name!), Detail: detail));
+                AddAlias(resolved.NodeId, resolved.NodeId);
+            }
         }
 
         /// <summary>
@@ -196,15 +299,19 @@ namespace Opc.Ua.Wot
             var byName = new Dictionary<string, WotTypeDeclaration>(StringComparer.Ordinal);
             var supertypes = new List<string>();
             var visited = new HashSet<string>(StringComparer.Ordinal) { typeNodeId };
-            string? detail = null;
+            string? detail = entry.Detail;
 
             Merge(byName, entry.Declarations, inherited: false);
 
             var pending = new Queue<ArrayOf<string>>();
-            pending.Enqueue(entry.Supertypes);
+            pending.Enqueue(entry.IncludesInherited ? [] : entry.Supertypes);
             while (pending.Count > 0)
             {
                 ArrayOf<string> hrefs = pending.Dequeue();
+                if (hrefs.Count > 1)
+                {
+                    detail ??= "The type states multiple supertypes rather than a single inheritance chain.";
+                }
                 foreach (string href in hrefs)
                 {
                     if (!m_aliases.TryGetValue(TrimFragment(href), out string? nextNodeId))
@@ -230,8 +337,9 @@ namespace Opc.Ua.Wot
                     }
                     supertypes.Add(nextNodeId);
                     Entry next = m_types[nextNodeId];
+                    detail ??= next.Detail;
                     Merge(byName, next.Declarations, inherited: true);
-                    pending.Enqueue(next.Supertypes);
+                    pending.Enqueue(next.IncludesInherited ? [] : next.Supertypes);
                 }
             }
             return Build(typeNodeId, byName, supertypes, detail);
@@ -294,16 +402,26 @@ namespace Opc.Ua.Wot
 
         private static string TrimFragment(string href)
         {
+            if (WotPortableIdentity.IsPortableNodeId(href))
+            {
+                return WotNodeSetConverter.NormalizeExpandedNodeId(href);
+            }
             int hash = href.IndexOf('#', StringComparison.Ordinal);
-            return hash < 0 ? href : href.Substring(0, hash);
+            return hash < 0 ? href : href[..hash];
         }
 
         private readonly record struct Entry(
             ArrayOf<WotTypeDeclaration> Declarations,
-            ArrayOf<string> Supertypes);
+            ArrayOf<string> Supertypes,
+            bool IncludesInherited = false,
+            WotResolvedNode? NativeNode = null,
+            WotBrowsePathElement NativeBrowseName = default,
+            string? Detail = null);
 
         private readonly Dictionary<string, Entry> m_types = new(StringComparer.Ordinal);
+
         private readonly Dictionary<string, string> m_aliases = new(StringComparer.Ordinal);
+
         private readonly Dictionary<string, List<WotDataTypeDefinitionSource>> m_dataTypes =
             new(StringComparer.Ordinal);
     }

@@ -75,13 +75,17 @@ namespace Opc.Ua.Wot
             string? nodeId,
             string? detail,
             bool isAmbiguous = false,
-            ArrayOf<string> verifiedSupertypes = default)
+            ArrayOf<string> verifiedSupertypes = default,
+            bool hasTypeContext = false,
+            WotTypeDeclarationSet? declarationSet = null)
         {
             Outcome = outcome;
             NodeId = nodeId;
             Detail = detail;
             IsAmbiguous = isAmbiguous;
             VerifiedSupertypes = verifiedSupertypes.IsNull ? [] : verifiedSupertypes;
+            HasTypeContext = hasTypeContext;
+            DeclarationSet = declarationSet;
         }
 
         /// <summary>
@@ -116,6 +120,18 @@ namespace Opc.Ua.Wot
         public ArrayOf<string> VerifiedSupertypes { get; }
 
         /// <summary>
+        /// Gets whether the event ancestry contains supplied local type facts,
+        /// rather than only the built-in standard hierarchy.
+        /// </summary>
+        public bool HasTypeContext { get; }
+
+        /// <summary>
+        /// Gets the effective declaration evidence read while verifying this
+        /// event binding, so occurrence selection uses that same result.
+        /// </summary>
+        public WotTypeDeclarationSet? DeclarationSet { get; }
+
+        /// <summary>
         /// The document declares no binding.
         /// </summary>
         public static WotTypeBinding None { get; } =
@@ -124,10 +140,15 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// The binding resolved to <paramref name="nodeId"/>.
         /// </summary>
-        public static WotTypeBinding Bound(string nodeId, ArrayOf<string> verifiedSupertypes = default)
+        public static WotTypeBinding Bound(
+            string nodeId,
+            ArrayOf<string> verifiedSupertypes = default,
+            bool hasTypeContext = false,
+            WotTypeDeclarationSet? declarationSet = null)
         {
             return new WotTypeBinding(
-                WotTypeBindingOutcome.Bound, nodeId, null, verifiedSupertypes: verifiedSupertypes);
+                WotTypeBindingOutcome.Bound, nodeId, null,
+                verifiedSupertypes: verifiedSupertypes, hasTypeContext: hasTypeContext, declarationSet: declarationSet);
         }
 
         /// <summary>

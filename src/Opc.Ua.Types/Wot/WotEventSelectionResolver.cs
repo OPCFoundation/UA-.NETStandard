@@ -564,15 +564,12 @@ namespace Opc.Ua.Wot
             {
                 return (null, binding.Detail);
             }
-            WotTypeDeclarationSet? set = m_nodeResolver is IWotTypeDeclarationResolver capability
-                ? await capability.ResolveDeclarationsAsync(identity, WotDeclarationScope.Effective, cancellationToken)
-                    .ConfigureAwait(false)
-                : null;
+            WotTypeDeclarationSet? set = binding.DeclarationSet;
             cancellationToken.ThrowIfCancellationRequested();
             if (set is null)
             {
-                return identity == WotVocabulary.BaseEventType ||
-                    WotVocabulary.TryGetConditionTypeName(identity, out _)
+                return !binding.HasTypeContext &&
+                    (identity == WotVocabulary.BaseEventType || WotVocabulary.TryGetConditionTypeName(identity, out _))
                     ? (WotNodeSetConverter.StandardEventIdDeclaration(identity), null)
                     : (null, $"The local context supplies no declarations for query EventType '{identity}'.");
             }

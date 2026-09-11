@@ -29,7 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text.Json;
+using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
 {
@@ -340,6 +342,118 @@ namespace Opc.Ua.Wot
                 {
                     IsAbstract = GetElementBool(element, "uav:isAbstract")
                 };
+        }
+
+        internal static WotResolvedNode DescribeNativeType(UANode node, UANodeSet nodeSet)
+        {
+            string identity = NormalizeExpandedNodeId(ToPortableNodeId(node.NodeId, nodeSet.NamespaceUris)!);
+            WotExpectedNodeClass nodeClass = node switch
+            {
+                UAObjectType => WotExpectedNodeClass.ObjectType,
+                UAVariableType => WotExpectedNodeClass.VariableType,
+                UAReferenceType => WotExpectedNodeClass.ReferenceType,
+                UADataType => WotExpectedNodeClass.DataType,
+                _ => WotExpectedNodeClass.Any
+            };
+            return new WotResolvedNode(identity, nodeClass)
+            {
+                IsAbstract = node is UAType { IsAbstract: true },
+                DataTypeNodeId = node is UAVariableType variableType
+                    ? ToPortableDataTypeId(variableType.DataType, nodeSet)
+                    : null,
+                ValueRank = node is UAVariableType ranked ? ranked.ValueRank : null,
+                ArrayDimensions = node is UAVariableType dimensioned
+                    ? ReadNativeArrayDimensions(dimensioned.ArrayDimensions)
+                    : []
+            };
+        }
+
+        internal static ArrayOf<WotTypeDeclaration> DescribeNativeTypeDeclarations(
+            UANode type,
+            UANodeSet nodeSet,
+            WotReferenceTypeNames references,
+            Dictionary<string, UANode> nodes,
+            out string? detail)
+        {
+            var declarations = new List<WotTypeDeclaration>();
+            detail = null;
+            string owner = NormalizeExpandedNodeId(ToPortableNodeId(type.NodeId, nodeSet.NamespaceUris)!);
+            foreach (Reference reference in references.GetReferences(type))
+            {
+                if (!reference.IsForward ||
+                    (!references.IsOwnershipReference(reference.ReferenceType) &&
+                        reference.ReferenceType != WotVocabulary.GeneratesEvent))
+                {
+                    continue;
+                }
+                if (reference.Value is null || !nodes.TryGetValue(reference.Value, out UANode? child))
+                {
+                    detail ??= $"The native declaration '{reference.Value}' of '{owner}' is not held.";
+                    continue;
+                }
+                if (child.BrowseName is null)
+                {
+                    detail ??= $"The native declaration '{child.NodeId}' of '{owner}' has no BrowseName.";
+                    continue;
+                }
+                var name = QualifiedName.Parse(child.BrowseName);
+                string namespaceUri = name.NamespaceIndex == 0
+                    ? WotVocabulary.OpcUaNamespace
+                    : nodeSet.NamespaceUris![name.NamespaceIndex - 1];
+                string identity = NormalizeExpandedNodeId(ToPortableNodeId(child.NodeId, nodeSet.NamespaceUris)!);
+                if (!references.TryGetRelation(reference.ReferenceType, true, out string relation, out _))
+                {
+                    detail ??= $"The native declaration relation '{reference.ReferenceType}' is unresolved.";
+                    continue;
+                }
+                declarations.Add(new WotTypeDeclaration
+                {
+                    NamespaceUri = namespaceUri,
+                    BrowseName = name.Name!,
+                    Kind = child switch
+                    {
+                        UAVariable => WotDeclarationKind.Variable,
+                        UAMethod => WotDeclarationKind.Method,
+                        UAObject => WotDeclarationKind.Object,
+                        UAObjectType when reference.ReferenceType == WotVocabulary.GeneratesEvent =>
+                            WotDeclarationKind.Event,
+                        _ => WotDeclarationKind.Unknown
+                    },
+                    DeclaringTypeNodeId = owner,
+                    NodeId = identity,
+                    ReferenceTypeName = LocalName(relation)!,
+                    TypeDefinitionNodeId = child is UAObjectType
+                        ? identity
+                        : TypeDefinitionHref(child, nodeSet) ?? string.Empty,
+                    MethodDeclarationNodeId = child is UAMethod method
+                        ? ToPortableNodeId(method.MethodDeclarationId, nodeSet.NamespaceUris) ?? identity
+                        : string.Empty,
+                    DataType = child is UAVariable variable
+                        ? ToPortableDataTypeId(variable.DataType, nodeSet) ?? string.Empty
+                        : string.Empty,
+                    ValueRank = child is UAVariable ranked ? ranked.ValueRank : ValueRanks.Scalar,
+                    ArrayDimensions = child is UAVariable dimensioned
+                        ? ReadNativeArrayDimensions(dimensioned.ArrayDimensions)
+                        : [],
+                    ModellingRule = WotTypeDeclarations.ToModellingRule(GetBaselineModellingRule(child, nodeSet))
+                });
+            }
+            declarations.Sort(WotTypeDeclarations.Compare);
+            return declarations.ToArrayOf();
+        }
+
+        private static ArrayOf<uint> ReadNativeArrayDimensions(string? dimensions)
+        {
+            if (string.IsNullOrEmpty(dimensions))
+            {
+                return [];
+            }
+            var values = new List<uint>();
+            foreach (string dimension in dimensions.Split(','))
+            {
+                values.Add(uint.Parse(dimension, NumberStyles.Integer, CultureInfo.InvariantCulture));
+            }
+            return values.ToArrayOf();
         }
 
         private const string ModellingRuleTerm = "uav:modellingRule";
