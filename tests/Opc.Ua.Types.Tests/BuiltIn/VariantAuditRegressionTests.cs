@@ -373,11 +373,23 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     positiveZeroFloat.GetHashCode(),
                     Is.EqualTo(negativeZeroFloat.GetHashCode()));
 
+                // .NET Framework's Double.GetHashCode folds the two zeroes
+                // together but hashes the raw bits of a NaN, so a variant has
+                // to canonicalize NaN itself to keep the hash in agreement with
+                // Equals on every target framework.
                 var nan = new Variant(double.NaN);
                 var otherNan = new Variant(BitConverter.Int64BitsToDouble(
                     BitConverter.DoubleToInt64Bits(double.NaN) | 0x1));
                 Assert.That(nan, Is.EqualTo(otherNan));
                 Assert.That(nan.GetHashCode(), Is.EqualTo(otherNan.GetHashCode()));
+
+                var nanFloat = new Variant(float.NaN);
+                var otherNanFloat = new Variant(BitConverter.ToSingle(
+                    BitConverter.GetBytes(
+                        BitConverter.ToInt32(BitConverter.GetBytes(float.NaN), 0) | 0x1),
+                    0));
+                Assert.That(nanFloat, Is.EqualTo(otherNanFloat));
+                Assert.That(nanFloat.GetHashCode(), Is.EqualTo(otherNanFloat.GetHashCode()));
             });
         }
 

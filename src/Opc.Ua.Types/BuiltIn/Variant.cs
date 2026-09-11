@@ -1078,8 +1078,15 @@ namespace Opc.Ua
                     BuiltInType.StatusCode => m_union.Int32,
                     // Float and Double must not hash their raw bits: -0.0 equals
                     // +0.0 and every NaN equals every other NaN under Equals.
-                    BuiltInType.Float => m_union.Float.GetHashCode(),
-                    BuiltInType.Double => m_union.Double.GetHashCode(),
+                    // .NET Framework's own GetHashCode folds the two zeroes
+                    // together but not the NaN payloads, so NaN is canonicalized
+                    // here to keep the hash agreeing with Equals on every target.
+                    BuiltInType.Float => float.IsNaN(m_union.Float)
+                        ? float.NaN.GetHashCode()
+                        : m_union.Float.GetHashCode(),
+                    BuiltInType.Double => double.IsNaN(m_union.Double)
+                        ? double.NaN.GetHashCode()
+                        : m_union.Double.GetHashCode(),
                     BuiltInType.Enumeration => m_union.Int32,
                     BuiltInType.DateTime or
                     BuiltInType.Int64 or
