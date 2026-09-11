@@ -357,7 +357,7 @@ namespace Opc.Ua.Client
                 EndpointUrl = new Uri(Utils.ReplaceLocalhost(endpointUrl.ToString()));
                 OnConnectionWaiting = onConnectionWaiting;
                 ReverseConnectStrategy = ReverseConnectStrategy.Once;
-                Id = Interlocked.Increment(ref s_nextId);
+                Id = Utils.IncrementIdentifier(ref s_nextId);
             }
 
             /// <summary>

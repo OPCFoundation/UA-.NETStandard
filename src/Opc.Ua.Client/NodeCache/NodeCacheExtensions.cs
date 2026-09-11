@@ -266,9 +266,12 @@ namespace Opc.Ua
             foreach (QualifiedName browseName in browsePath.ToList())
             {
                 found = null;
+                // Guards the climb below against a server whose HasSubtype
+                // chain loops back on itself; such a chain never reaches Null.
+                var visited = new HashSet<NodeId>();
                 while (true)
                 {
-                    if (nodeId.IsNull)
+                    if (nodeId.IsNull || !visited.Add(nodeId))
                     {
                         return null;
                     }
@@ -284,8 +287,10 @@ namespace Opc.Ua
                     {
                         if (target.BrowseName == browseName)
                         {
-                            nodeId = ExpandedNodeId.ToNodeId(target.NodeId, cache.NamespaceUris);
-                            if (!nodeId.IsNull)
+                            NodeId targetId = ExpandedNodeId.ToNodeId(
+                                target.NodeId,
+                                cache.NamespaceUris);
+                            if (!targetId.IsNull)
                             {
                                 found = target;
                             }

@@ -136,26 +136,9 @@ namespace Opc.Ua.Client.ModelChange
 
             try
             {
-                if (ct.CanBeCanceled && !readyTask.IsCompleted)
-                {
-                    // The caller's token bounds this wait; the catch below
-                    // stops the pump it started when the wait is abandoned.
-                    var cancelled = new TaskCompletionSource<bool>(
-                        TaskCreationOptions.RunContinuationsAsynchronously);
-                    using (ct.Register(
-                        static s => ((TaskCompletionSource<bool>)s!).TrySetCanceled(),
-                        cancelled))
-                    {
-                        Task completed = await Task
-                            .WhenAny(readyTask, cancelled.Task)
-                            .ConfigureAwait(false);
-                        await completed.ConfigureAwait(false);
-                    }
-                }
-                else
-                {
-                    await readyTask.ConfigureAwait(false);
-                }
+                // The caller's token bounds this wait; the catch below stops
+                // the pump it started when the wait is abandoned.
+                await readyTask.WaitAsync(ct).ConfigureAwait(false);
             }
             catch
             {

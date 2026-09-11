@@ -428,9 +428,6 @@ namespace Opc.Ua.Client
             var resultForPass = new List<List<ReferenceDescription>>(count);
             resultForPass.AddRange(result);
 
-            var errorsForPass = new List<ServiceResult>(count);
-            errorsForPass.AddRange(errors);
-
             // Index into the caller's result/error lists for every entry of the
             // current pass. A retry pass browses a shrunken subset, so its own
             // offsets no longer line up with the caller's lists.
@@ -441,6 +438,7 @@ namespace Opc.Ua.Client
             }
 
             int passCount = 0;
+            int passesWithoutProgress = 0;
 
             do
             {
@@ -464,7 +462,6 @@ namespace Opc.Ua.Client
                 var nodesToBrowseForNextPass = new List<NodeId>();
                 var referenceDescriptionsForNextPass
                     = new List<List<ReferenceDescription>>();
-                var errorsForNextPass = new List<ServiceResult>();
                 var originalIndexForNextPass = new List<int>();
 
                 // loop over the batches
@@ -514,7 +511,6 @@ namespace Opc.Ua.Client
                                     nodesToBrowseForPass[resultOffset]);
                                 referenceDescriptionsForNextPass.Add(
                                     resultForPass[resultOffset]);
-                                errorsForNextPass.Add(errorsForPass[resultOffset]);
                                 originalIndexForNextPass.Add(
                                     originalIndexForPass[resultOffset]);
                             }
@@ -522,7 +518,6 @@ namespace Opc.Ua.Client
 
                         resultForPass[resultOffset].Clear();
                         resultForPass[resultOffset].AddRange(results.Results[ii]);
-                        errorsForPass[resultOffset] = results.Errors[ii];
                         errors[originalIndexForPass[resultOffset]] = results.Errors[ii];
                         resultOffset++;
                     }
@@ -530,8 +525,13 @@ namespace Opc.Ua.Client
                     batchOffset += nodesToBrowseBatchCount;
                 }
 
+                // A pass only ever drops nodes, so an unchanged count means not
+                // a single node completed and the next pass would repeat this
+                // one exactly.
+                bool progressed = nodesToBrowseForNextPass.Count < nodesToBrowseForPass.Count;
+                passesWithoutProgress = progressed ? 0 : passesWithoutProgress + 1;
+
                 resultForPass = referenceDescriptionsForNextPass;
-                errorsForPass = errorsForNextPass;
                 nodesToBrowseForPass = nodesToBrowseForNextPass;
                 originalIndexForPass = originalIndexForNextPass;
 
@@ -567,14 +567,17 @@ namespace Opc.Ua.Client
 
                 passCount++;
 
-                if (passCount >= kMaxManagedBrowsePasses &&
+                if (passesWithoutProgress >= kMaxManagedBrowsePassesWithoutProgress &&
                     nodesToBrowseForPass.Count > 0)
                 {
                     // Guard against a non-conforming server. Per Part 4 §7.9 a
                     // server shall never answer BadNoContinuationPoints when
                     // continuing a halted operation, so a conforming peer frees
-                    // its quota and the retry succeeds; one that keeps
-                    // returning it would otherwise spin this loop forever.
+                    // its quota and every pass completes at least the nodes
+                    // that quota covers; one that keeps returning it for the
+                    // same nodes would otherwise spin this loop forever. A
+                    // large browse that completes only a few nodes per pass
+                    // is progressing and is never cut short here.
                     // Report the last error for the nodes that never completed.
                     m_logger.ManagedBrowsePassPassCountErrorS(
                         passCount,
@@ -900,11 +903,13 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Upper bound on the retry passes of the managed browse. Guards
-        /// against a server that answers every retry with another continuation
-        /// point error.
+        /// Consecutive managed browse passes that may complete no node at all
+        /// before the browse gives up. Guards against a server that answers
+        /// every retry with another continuation point error; a single such
+        /// pass can also be a concurrent browse transiently exhausting the
+        /// quota, hence more than one.
         /// </summary>
-        private const int kMaxManagedBrowsePasses = 32;
+        private const int kMaxManagedBrowsePassesWithoutProgress = 3;
 
         private readonly ILogger m_logger;
         private readonly ITelemetryContext? m_telemetry;

@@ -30,6 +30,7 @@
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -37,6 +38,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.AuditRegressions
 {
@@ -248,6 +250,136 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
                 errors[0].StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied),
                 "masking the read error as BadTypeMismatch hides why the read failed");
+        }
+
+        /// <summary>
+        /// The connection state machine raises StateChanged synchronously on
+        /// its worker, and its disposal waited for the close and then for that
+        /// worker. A handler that disposed the session on the Closed
+        /// transition - as ManagedSession.Dispose does synchronously - therefore
+        /// waited for the very call it was made from, forever.
+        /// </summary>
+        [Test]
+        public async Task StateMachineDisposedFromItsOwnStateChangedHandlerCompletesAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var machine = new ConnectionStateMachine(
+                new ReconnectPolicy(),
+                telemetry.CreateLogger("StateMachine"));
+
+            var disposed = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            machine.StateChanged += (_, e) =>
+            {
+                if (e.NewState != ConnectionState.Closed)
+                {
+                    return;
+                }
+                // Synchronous dispose from inside the callback, the way a
+                // Dispose() on the owning session ends up here.
+                machine.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                disposed.TrySetResult(true);
+            };
+
+            machine.Start();
+            machine.RequestClose();
+
+            Task completed = await Task
+                .WhenAny(disposed.Task, Task.Delay(TimeSpan.FromSeconds(15)))
+                .ConfigureAwait(false);
+            Assert.That(
+                ReferenceEquals(completed, disposed.Task),
+                Is.True,
+                "disposing from the state machine's own callback must not wait for the callback");
+
+            // The disposal the handler started must also complete on its own.
+            await machine.DisposeAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The pool ran the shared connect on no token at all, so once the only
+        /// caller gave up nothing could abort the connect any more, and removing
+        /// the entry (or disposing the pool) waited for the whole initial
+        /// connect retry budget.
+        /// </summary>
+        [Test]
+        public async Task PoolRemovalAbortsAConnectNobodyIsWaitingForAsync()
+        {
+            var factory = new StallingSessionFactory();
+            var pool = new ManagedSessionPool(factory);
+            await using (pool.ConfigureAwait(false))
+            {
+                var endpoint = new ConfiguredEndpoint(
+                    null,
+                    new EndpointDescription
+                    {
+                        EndpointUrl = "opc.tcp://localhost:4840",
+                        SecurityMode = MessageSecurityMode.None,
+                        SecurityPolicyUri = SecurityPolicies.None
+                    },
+                    null);
+
+                using var caller = new CancellationTokenSource();
+                Task<Opc.Ua.Client.ManagedSession> connect = pool.GetOrConnectAsync("k", endpoint, caller.Token);
+                await factory.Started.Task.ConfigureAwait(false);
+                caller.Cancel();
+                Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(), () => connect);
+
+                Task<bool> remove = pool.RemoveAsync("k", CancellationToken.None).AsTask();
+                Task completed = await Task
+                    .WhenAny(remove, Task.Delay(TimeSpan.FromSeconds(10)))
+                    .ConfigureAwait(false);
+                Assert.That(
+                    ReferenceEquals(completed, remove),
+                    Is.True,
+                    "removing the entry must abort the connect instead of waiting it out");
+                Assert.That(await remove.ConfigureAwait(false), Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Factory whose connect only ends when its token is cancelled.
+        /// </summary>
+        private sealed class StallingSessionFactory : IManagedSessionFactory
+        {
+            public TaskCompletionSource<bool> Started { get; } = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public Task<Opc.Ua.Client.ManagedSession> ConnectAsync(
+                ConfiguredEndpoint endpoint,
+                CancellationToken ct = default)
+            {
+                return ConnectAsync(endpoint, _ => { }, ct);
+            }
+
+            public async Task<Opc.Ua.Client.ManagedSession> ConnectAsync(
+                ConfiguredEndpoint endpoint,
+                Action<ManagedSessionBuilder> configure,
+                CancellationToken ct = default)
+            {
+                Started.TrySetResult(true);
+                await Task.Delay(Timeout.InfiniteTimeSpan, ct).ConfigureAwait(false);
+                throw new InvalidOperationException("unreachable");
+            }
+
+            public Task<Opc.Ua.Client.ManagedSession> ConnectReverseAsync(
+                ReverseConnectManager manager,
+                Uri serverUri,
+                ConfiguredEndpoint endpoint,
+                CancellationToken ct = default)
+            {
+                throw new NotSupportedException();
+            }
+
+            public Task<Opc.Ua.Client.ManagedSession> ConnectReverseAsync(
+                ReverseConnectManager manager,
+                Uri serverUri,
+                ConfiguredEndpoint endpoint,
+                Action<ManagedSessionBuilder> configure,
+                CancellationToken ct = default)
+            {
+                throw new NotSupportedException();
+            }
         }
     }
 }

@@ -231,20 +231,28 @@ namespace Opc.Ua.Client
             engineFactory ??= timeProvider == null
                 ? DefaultSubscriptionEngineFactory.Instance
                 : new DefaultSubscriptionEngineFactory(timeProvider);
-            // Only substitute the stock factory. A subclass carries behaviour
-            // the caller deliberately supplied (test doubles, overrides), and
-            // replacing it with a plain DefaultSessionFactory would discard it.
-            if (sessionFactory.GetType() == typeof(DefaultSessionFactory) &&
-                sessionFactory is DefaultSessionFactory dsf &&
+            if (sessionFactory is DefaultSessionFactory dsf &&
                 dsf.SubscriptionEngineFactory is null)
             {
-                sessionFactory = new DefaultSessionFactory(dsf.Telemetry)
+                if (sessionFactory.GetType() == typeof(DefaultSessionFactory))
                 {
-                    ReturnDiagnostics = dsf.ReturnDiagnostics,
-                    SubscriptionEngineFactory = engineFactory,
-                    TimeProvider = timeProvider ?? dsf.TimeProvider,
-                    SecurityPolicyRegistry = dsf.SecurityPolicyRegistry
-                };
+                    sessionFactory = new DefaultSessionFactory(dsf.Telemetry)
+                    {
+                        ReturnDiagnostics = dsf.ReturnDiagnostics,
+                        SubscriptionEngineFactory = engineFactory,
+                        TimeProvider = timeProvider ?? dsf.TimeProvider,
+                        SecurityPolicyRegistry = dsf.SecurityPolicyRegistry
+                    };
+                }
+                else
+                {
+                    // A subclass carries behaviour the caller deliberately
+                    // supplied (test doubles, overrides), and replacing it
+                    // with a plain DefaultSessionFactory would discard it. The
+                    // engine choice still has to be honoured, so set it on
+                    // the instance itself.
+                    dsf.SubscriptionEngineFactory = engineFactory;
+                }
             }
 
             var managed = new ManagedSession(
@@ -342,7 +350,7 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            await AwaitWithCancellationAsync(task, ct).ConfigureAwait(false);
+            await task.WaitAsync(ct).ConfigureAwait(false);
             MarkIdentityRefreshObserved(version);
         }
 
@@ -1275,19 +1283,12 @@ namespace Opc.Ua.Client
                         {
                             m_logger.ManagedSessionManagedChannelFaultedRecreatingSession2(sre);
                         }
-                        IManagedTransportChannel? previousChannel = session.ManagedChannel;
-                        try
-                        {
-                            await session.RecreateInPlaceAsync(
-                                    endpoint: alternateEndpoint,
-                                    budget: budget,
-                                    ct: ct)
-                                .ConfigureAwait(false);
-                        }
-                        finally
-                        {
-                            RebindManagedChannelEvents(session, previousChannel);
-                        }
+                        await RecreateInPlaceAndRebindAsync(
+                                session,
+                                alternateEndpoint,
+                                budget,
+                                ct)
+                            .ConfigureAwait(false);
                     }
                     catch (ServiceResultException sre) when (
                         RequiresSessionRecreate(sre.StatusCode))
@@ -1304,19 +1305,8 @@ namespace Opc.Ua.Client
                         m_logger.ManagedSessionReconnectRejectedStatusRecreatingSession(
                             sre,
                             sre.StatusCode);
-                        IManagedTransportChannel? previousChannel = session.ManagedChannel;
-                        try
-                        {
-                            await session.RecreateInPlaceAsync(
-                                    endpoint: null,
-                                    budget: budget,
-                                    ct: ct)
-                                .ConfigureAwait(false);
-                        }
-                        finally
-                        {
-                            RebindManagedChannelEvents(session, previousChannel);
-                        }
+                        await RecreateInPlaceAndRebindAsync(session, null, budget, ct)
+                            .ConfigureAwait(false);
                     }
                 }
 
@@ -1480,20 +1470,12 @@ namespace Opc.Ua.Client
                     // against the new endpoint and drive subscription
                     // recreate/transfer for both unamanged templates and
                     // the new engine.
-                    IManagedTransportChannel? previousChannel = session.ManagedChannel;
-                    try
-                    {
-                        await session
-                            .RecreateInPlaceAsync(
-                                failoverEndpoint,
-                                budget,
-                                ct)
-                            .ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        RebindManagedChannelEvents(session, previousChannel);
-                    }
+                    await RecreateInPlaceAndRebindAsync(
+                            session,
+                            failoverEndpoint,
+                            budget,
+                            ct)
+                        .ConfigureAwait(false);
                 }
 
                 m_reconnectPolicy.Reset();
@@ -1568,6 +1550,30 @@ namespace Opc.Ua.Client
             catch (Exception ex)
             {
                 m_logger.ManagedSessionSessionCloseFailed(ex);
+            }
+        }
+
+        /// <summary>
+        /// Recreates the session in place and, whatever the outcome, rebinds
+        /// the channel events afterwards. Every in-place recreate has to go
+        /// through here: the recreate swaps the managed channel lease, and the
+        /// rebind is what keeps later channel faults triggering a reconnect.
+        /// </summary>
+        private async Task RecreateInPlaceAndRebindAsync(
+            Session session,
+            ConfiguredEndpoint? endpoint,
+            IRetryBudget budget,
+            CancellationToken ct)
+        {
+            IManagedTransportChannel? previousChannel = session.ManagedChannel;
+            try
+            {
+                await session.RecreateInPlaceAsync(endpoint, budget, ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                RebindManagedChannelEvents(session, previousChannel);
             }
         }
 
@@ -1857,25 +1863,6 @@ namespace Opc.Ua.Client
                 {
                     m_identityRefreshObservedVersion = version;
                 }
-            }
-        }
-
-        private static async Task AwaitWithCancellationAsync(Task task, CancellationToken ct)
-        {
-            if (task.IsCompleted || !ct.CanBeCanceled)
-            {
-                await task.ConfigureAwait(false);
-                return;
-            }
-
-            var cancellation = new TaskCompletionSource<object?>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            using (ct.Register(
-                static state => ((TaskCompletionSource<object?>)state!).TrySetCanceled(),
-                cancellation))
-            {
-                Task completed = await Task.WhenAny(task, cancellation.Task).ConfigureAwait(false);
-                await completed.ConfigureAwait(false);
             }
         }
 

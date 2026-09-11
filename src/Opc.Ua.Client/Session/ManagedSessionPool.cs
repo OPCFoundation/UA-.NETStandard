@@ -79,11 +79,15 @@ namespace Opc.Ua.Client
             // The connect is shared by every caller for this key, so it must
             // not run under the token of whichever caller happened to be first;
             // each caller observes its own token while awaiting the result.
-            Lazy<Task<ManagedSession>> created = new(
-                () => ConnectAndEvictOnFailureAsync(key, endpoint, configure),
-                LazyThreadSafetyMode.ExecutionAndPublication);
-            Lazy<Task<ManagedSession>> lazy = m_sessions.GetOrAdd(key, created);
-            return AwaitWithCancellationAsync(lazy.Value, ct);
+            // The pool keeps its own token so removal and disposal can still
+            // abort a connect nobody is waiting for any more.
+            var created = new Entry(this, key, endpoint, configure);
+            Entry entry = m_sessions.GetOrAdd(key, created);
+            if (!ReferenceEquals(entry, created))
+            {
+                created.Dispose();
+            }
+            return entry.Connect.WaitAsync(ct);
         }
 
         /// <inheritdoc/>
@@ -94,12 +98,12 @@ namespace Opc.Ua.Client
                 throw new ArgumentException("A non-empty key is required.", nameof(key));
             }
 
-            if (!m_sessions.TryRemove(key, out Lazy<Task<ManagedSession>>? lazy))
+            if (!m_sessions.TryRemove(key, out Entry? entry))
             {
                 return false;
             }
 
-            await CloseAndDisposeAsync(lazy, ct).ConfigureAwait(false);
+            await CloseAndDisposeAsync(entry, ct).ConfigureAwait(false);
             return true;
         }
 
@@ -108,25 +112,23 @@ namespace Opc.Ua.Client
         {
             foreach (string key in m_sessions.Keys)
             {
-                if (!m_sessions.TryRemove(key, out Lazy<Task<ManagedSession>>? lazy))
+                if (!m_sessions.TryRemove(key, out Entry? entry))
                 {
                     continue;
                 }
 
-                if (!lazy.IsValueCreated)
-                {
-                    continue;
-                }
-
-                Task<ManagedSession> connect = lazy.Value;
+                Task<ManagedSession> connect = entry.Connect;
                 if (connect.Status == TaskStatus.RanToCompletion)
                 {
+                    entry.Dispose();
                     connect.GetAwaiter().GetResult().Dispose();
                     continue;
                 }
 
                 // A connect that is still running (or already failed) must not
-                // be orphaned: dispose the session as soon as it materialises.
+                // be orphaned: abort it, and dispose the session if it
+                // materialises anyway.
+                entry.Dispose();
                 _ = connect.ContinueWith(
                     static t =>
                     {
@@ -152,27 +154,30 @@ namespace Opc.Ua.Client
         {
             foreach (string key in m_sessions.Keys)
             {
-                if (m_sessions.TryRemove(key, out Lazy<Task<ManagedSession>>? lazy))
+                if (m_sessions.TryRemove(key, out Entry? entry))
                 {
-                    await CloseAndDisposeAsync(lazy, CancellationToken.None)
+                    await CloseAndDisposeAsync(entry, CancellationToken.None)
                         .ConfigureAwait(false);
                 }
             }
         }
 
         /// <summary>
-        /// Closes and disposes a pooled session. A connect that never completed
-        /// leaves nothing to dispose, so its failure is swallowed here - the
-        /// caller that started it already observed the exception.
+        /// Closes and disposes a pooled session. A connect still in flight is
+        /// aborted first; one that never completed leaves nothing to dispose,
+        /// so its failure is swallowed here - the caller that started it
+        /// already observed the exception.
         /// </summary>
         private static async ValueTask CloseAndDisposeAsync(
-            Lazy<Task<ManagedSession>> lazy,
+            Entry entry,
             CancellationToken ct)
         {
+            entry.Dispose();
+
             ManagedSession session;
             try
             {
-                session = await lazy.Value.ConfigureAwait(false);
+                session = await entry.Connect.WaitAsync(ct).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
@@ -189,37 +194,16 @@ namespace Opc.Ua.Client
             }
         }
 
-        private static async Task<ManagedSession> AwaitWithCancellationAsync(
-            Task<ManagedSession> task,
-            CancellationToken ct)
-        {
-            if (task.IsCompleted || !ct.CanBeCanceled)
-            {
-                return await task.ConfigureAwait(false);
-            }
-
-            var cancellation = new TaskCompletionSource<ManagedSession>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            using (ct.Register(
-                static state => ((TaskCompletionSource<ManagedSession>)state!).TrySetCanceled(),
-                cancellation))
-            {
-                Task<ManagedSession> completed = await Task
-                    .WhenAny(task, cancellation.Task)
-                    .ConfigureAwait(false);
-                return await completed.ConfigureAwait(false);
-            }
-        }
-
         private async Task<ManagedSession> ConnectAndEvictOnFailureAsync(
             string key,
             ConfiguredEndpoint endpoint,
-            Action<ManagedSessionBuilder> configure)
+            Action<ManagedSessionBuilder> configure,
+            CancellationToken ct)
         {
             try
             {
                 return await m_factory
-                    .ConnectAsync(endpoint, configure, CancellationToken.None)
+                    .ConnectAsync(endpoint, configure, ct)
                     .ConfigureAwait(false);
             }
             catch
@@ -229,9 +213,62 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <summary>
+        /// A pooled connect together with the token that can abort it. The
+        /// connect starts on first use of <see cref="Connect"/>, so a losing
+        /// entry of the add race never connects at all.
+        /// </summary>
+        private sealed class Entry : IDisposable
+        {
+            public Entry(
+                ManagedSessionPool pool,
+                string key,
+                ConfiguredEndpoint endpoint,
+                Action<ManagedSessionBuilder> configure)
+            {
+                m_connect = new Lazy<Task<ManagedSession>>(
+                    () => pool.ConnectAndEvictOnFailureAsync(
+                        key,
+                        endpoint,
+                        configure,
+                        m_abort.Token),
+                    LazyThreadSafetyMode.ExecutionAndPublication);
+            }
+
+            public Task<ManagedSession> Connect => m_connect.Value;
+
+            /// <summary>
+            /// Aborts a connect still in flight. The token source is only
+            /// released once the connect can no longer observe it; a connect
+            /// that has not started yet finds the token already cancelled
+            /// and fails cleanly instead of tripping over a disposed source.
+            /// </summary>
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+                {
+                    return;
+                }
+                m_abort.Cancel();
+                if (m_connect.IsValueCreated)
+                {
+                    _ = m_connect.Value.ContinueWith(
+                        static (_, s) => ((CancellationTokenSource)s!).Dispose(),
+                        m_abort,
+                        CancellationToken.None,
+                        TaskContinuationOptions.ExecuteSynchronously,
+                        TaskScheduler.Default);
+                }
+            }
+
+            private readonly Lazy<Task<ManagedSession>> m_connect;
+            private readonly CancellationTokenSource m_abort = new();
+            private int m_disposed;
+        }
+
         private readonly IManagedSessionFactory m_factory;
 
-        private readonly ConcurrentDictionary<string, Lazy<Task<ManagedSession>>> m_sessions =
+        private readonly ConcurrentDictionary<string, Entry> m_sessions =
             new(StringComparer.Ordinal);
     }
 }

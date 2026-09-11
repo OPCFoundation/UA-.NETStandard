@@ -144,10 +144,11 @@ namespace Opc.Ua.Client.Subscriptions
         /// "standalone subscription, no grouping".
         /// </para>
         /// <para>
-        /// Wire-format compatibility: the field is encoded as a
-        /// nullable string and serialised after all pre-existing
-        /// fields, so a V1 reader skips it transparently and a V2
-        /// reader pointed at a V1 snapshot sees <c>null</c>.
+        /// Wire-format compatibility: the binary encoding is positional,
+        /// so a reader cannot skip or detect an absent field. Streams are
+        /// versioned by <see cref="SubscriptionManagerSerializer"/> instead,
+        /// and every change to this record's wire shape must bump that
+        /// version and keep a frozen copy of the previous shape.
         /// </para>
         /// </summary>
         [DataTypeField(Order = 30)]
@@ -284,9 +285,12 @@ namespace Opc.Ua.Client.Subscriptions
                 MaxMonitoredItemsPerPartition =
                     options.MaxMonitoredItemsPerPartition ?? 0,
                 MaxPartitionCount = options.MaxPartitionCount,
+                // Timeout.InfiniteTimeSpan (-1 ms) means "never delete an idle
+                // secondary partition" and must survive the round trip;
+                // clamping to 0 would turn it into "delete immediately".
                 SecondaryPartitionIdleTimeoutMs = (int)Math.Min(
                     int.MaxValue,
-                    Math.Max(0, options.SecondaryPartitionIdleTimeout.TotalMilliseconds)),
+                    Math.Max(-1, options.SecondaryPartitionIdleTimeout.TotalMilliseconds)),
                 MonitoredItems = monitoredItems
             };
         }

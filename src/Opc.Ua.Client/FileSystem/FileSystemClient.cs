@@ -595,29 +595,11 @@ namespace Opc.Ua.Client.FileSystem
             }
             finally
             {
-                // Part 4 §5.9.3.2: a client that does not want the next set of
-                // browse results shall call BrowseNext with
-                // releaseContinuationPoints TRUE. Otherwise the point stays
-                // active until the session is closed (§7.9), so a consumer that
-                // stops enumerating early (break, Take, an exception) would pin
-                // it against the session quota.
-                if (!continuation.IsNull && continuation.Length != 0)
-                {
-                    try
-                    {
-                        await Session.BrowseNextAsync(
-                            requestHeader: null,
-                            releaseContinuationPoint: true,
-                            continuation,
-                            default).ConfigureAwait(false);
-                    }
-                    catch (Exception ex) when (ex is not OutOfMemoryException)
-                    {
-                        // Best effort: the session may already be gone, in
-                        // which case the server reclaims the point anyway.
-                        _ = ex;
-                    }
-                }
+                // Part 4 §5.9.3.2: a consumer that stops enumerating early
+                // (break, Take, an exception) must not leave the point pinned
+                // against the session quota.
+                await Session.ReleaseContinuationPointAsync(continuation)
+                    .ConfigureAwait(false);
             }
         }
 

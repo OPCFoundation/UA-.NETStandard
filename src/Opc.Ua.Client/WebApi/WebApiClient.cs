@@ -68,6 +68,13 @@ namespace Opc.Ua.Client.WebApi
         private readonly AuthenticationHeaderValue? m_authorization;
 
         /// <summary>
+        /// Parsed once: the content type never changes after construction and
+        /// SendAsync is the per-service-call path of this transport.
+        /// </summary>
+        private readonly MediaTypeHeaderValue m_contentTypeHeader;
+        private readonly MediaTypeWithQualityHeaderValue m_acceptHeader;
+
+        /// <summary>
         /// Base address applied per request when this instance does not own
         /// the HttpClient; <see langword="null"/> when the client carries it.
         /// </summary>
@@ -119,6 +126,8 @@ namespace Opc.Ua.Client.WebApi
             m_messageContext = m_options.MessageContext
                 ?? ServiceMessageContext.CreateEmpty(new ClientTelemetryContext());
             m_contentType = WebApiMediaType.FormatContentType(m_options.Encoding);
+            m_contentTypeHeader = MediaTypeHeaderValue.Parse(m_contentType);
+            m_acceptHeader = MediaTypeWithQualityHeaderValue.Parse(m_contentType);
 
             if (m_options.BearerToken != null && m_options.BasicCredentials.HasValue)
             {
@@ -148,8 +157,7 @@ namespace Opc.Ua.Client.WebApi
                     m_httpClient.DefaultRequestHeaders.Authorization = m_authorization;
                 }
                 m_httpClient.DefaultRequestHeaders.Accept.Clear();
-                m_httpClient.DefaultRequestHeaders.Accept.Add(
-                    MediaTypeWithQualityHeaderValue.Parse(m_contentType));
+                m_httpClient.DefaultRequestHeaders.Accept.Add(m_acceptHeader);
 
                 if (m_options.RequestTimeout.HasValue)
                 {
@@ -286,7 +294,7 @@ namespace Opc.Ua.Client.WebApi
                 WebApiMediaType.ToEncoderOptions(m_options.Encoding));
 
             using var content = new ByteArrayContent(body);
-            content.Headers.ContentType = MediaTypeHeaderValue.Parse(m_contentType);
+            content.Headers.ContentType = m_contentTypeHeader;
 
             using var requestMessage = new HttpRequestMessage(
                 HttpMethod.Post,
@@ -297,7 +305,7 @@ namespace Opc.Ua.Client.WebApi
                 Content = content
             };
 
-            if (!m_ownsHttpClient)
+            if (!m_configureHttpClient)
             {
                 // The client is shared, so the per-client defaults were not
                 // applied in the constructor. Carry them on the request.
@@ -305,8 +313,7 @@ namespace Opc.Ua.Client.WebApi
                 {
                     requestMessage.Headers.Authorization = m_authorization;
                 }
-                requestMessage.Headers.Accept.Add(
-                    MediaTypeWithQualityHeaderValue.Parse(m_contentType));
+                requestMessage.Headers.Accept.Add(m_acceptHeader);
             }
 
             using CancellationTokenSource? timeoutCts =

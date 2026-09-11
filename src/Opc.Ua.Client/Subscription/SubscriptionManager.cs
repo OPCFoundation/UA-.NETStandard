@@ -392,16 +392,19 @@ namespace Opc.Ua.Client.Subscriptions
             }
             lock (m_subscriptionLock)
             {
+                // The asker itself is still registered under its retired id,
+                // so a match on it proves nothing; only a match on a sibling
+                // does. Hence the full walk rather than a first-hit lookup.
                 foreach (IManagedSubscription registered in m_subscriptions)
                 {
-                    if (registered.Id == subscriptionId)
+                    if (registered.Id == subscriptionId &&
+                        !ReferenceEquals(registered, subscription))
                     {
-                        return ReferenceEquals(registered, subscription);
+                        return false;
                     }
                 }
             }
-            // Not registered under that id any more: nobody else claims it, so
-            // the caller is still the last owner.
+            // No sibling claims the id, so the caller is still the last owner.
             return true;
         }
 
@@ -524,7 +527,7 @@ namespace Opc.Ua.Client.Subscriptions
             if (!snapshot.DisableUnboundedItemMode)
             {
 #pragma warning disable CA2000 // ownership transfers to wrapper.AttachForwardingHandler
-                forwardingHandler = new PartitionForwardingHandler(handler);
+                forwardingHandler = new PartitionForwardingHandler(handler, m_logger);
 #pragma warning restore CA2000
                 effectiveHandler = forwardingHandler;
             }
@@ -887,7 +890,7 @@ namespace Opc.Ua.Client.Subscriptions
             if (!options.DisableUnboundedItemMode)
             {
 #pragma warning disable CA2000 // ownership transfers to wrapper.AttachForwardingHandler
-                forwardingHandler = new PartitionForwardingHandler(handler);
+                forwardingHandler = new PartitionForwardingHandler(handler, m_logger);
 #pragma warning restore CA2000
                 effectiveHandler = forwardingHandler;
             }

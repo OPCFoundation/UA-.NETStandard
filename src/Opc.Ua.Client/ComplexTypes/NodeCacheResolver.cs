@@ -154,12 +154,22 @@ namespace Opc.Ua.Client.ComplexTypes
 
             // find the dictionary for the description.
 #pragma warning disable IDE0008 // Use explicit type
-            var references = await FindReferencesAsync(
-                dataTypeSystem,
-                ReferenceTypeIds.HasComponent,
-                false,
-                ct)
-                .ConfigureAwait(false);
+            var references = ArrayOf<INode>.Empty;
+            try
+            {
+                references = await FindReferencesAsync(
+                    dataTypeSystem,
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    ct)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException sre)
+                when (sre.StatusCode == StatusCodes.BadNodeIdUnknown)
+            {
+                // A server without the type system node at all is the same
+                // case as one exposing it empty: no dictionaries to load.
+            }
 #pragma warning restore IDE0008 // Use explicit type
 
             if (references.Count == 0)

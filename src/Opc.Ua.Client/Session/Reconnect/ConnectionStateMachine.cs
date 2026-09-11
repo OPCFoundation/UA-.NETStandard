@@ -75,6 +75,12 @@ namespace Opc.Ua.Client
         private readonly AsyncManualResetEvent m_closed = new(false);
 
         /// <summary>
+        /// True inside the worker loop and everything it calls, notably the
+        /// synchronously raised <see cref="StateChanged"/> handlers.
+        /// </summary>
+        private readonly AsyncLocal<bool> m_inWorkerFlow = new();
+
+        /// <summary>
         /// Set once the current connect cycle has settled, i.e. the machine
         /// either reached <see cref="ConnectionState.Connected"/> or gave up
         /// (<see cref="ConnectionState.Disconnected"/> after a failed failover,
@@ -327,6 +333,34 @@ namespace Opc.Ua.Client
             RequestClose();
             m_trigger.Set();
 
+            if (m_inWorkerFlow.Value)
+            {
+                // Disposed from a StateChanged handler (or work it spawned):
+                // the worker is the caller, so waiting for the close or for
+                // the worker itself would wait for this very call to return.
+                // Cancel the worker instead and let it finish the teardown once
+                // the handler has returned.
+                await m_cts.CancelAsync().ConfigureAwait(false);
+                m_trigger.Set();
+
+                Task? worker = m_worker;
+                if (worker != null)
+                {
+                    _ = worker.ContinueWith(
+                        static (t, s) => ((ConnectionStateMachine)s!).CompleteDispose(t),
+                        this,
+                        CancellationToken.None,
+                        TaskContinuationOptions.ExecuteSynchronously,
+                        TaskScheduler.Default);
+                }
+                else
+                {
+                    CompleteDispose(null);
+                }
+                GC.SuppressFinalize(this);
+                return;
+            }
+
             // Give the worker a bounded chance to run the clean close (which
             // sends CloseSession on the wire) before the token that aborts it
             // is cancelled. Without this the close is almost always torn down
@@ -362,6 +396,21 @@ namespace Opc.Ua.Client
                 }
             }
 
+            CompleteDispose(null);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Final teardown once the worker can no longer touch the token
+        /// sources. Runs inline on the disposing caller, or as the worker's
+        /// continuation when the machine was disposed from its own flow.
+        /// </summary>
+        /// <param name="worker">The finished worker task, if this runs as
+        /// its continuation; its outcome is observed and discarded.</param>
+        private void CompleteDispose(Task? worker)
+        {
+            _ = worker?.Exception;
+
             m_cts.Dispose();
             m_closeRequested.Dispose();
 
@@ -369,8 +418,6 @@ namespace Opc.Ua.Client
             // close or connect wait does not outlive the machine.
             m_settled.Set();
             m_closed.Set();
-
-            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -405,6 +452,10 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task WorkerLoopAsync(CancellationToken ct)
         {
+            // Flows into every StateChanged handler the loop raises, so
+            // DisposeAsync can tell when it is being called by its own worker.
+            m_inWorkerFlow.Value = true;
+
             m_logger.ConnectionStateMachineWorkerStarted();
 
             try

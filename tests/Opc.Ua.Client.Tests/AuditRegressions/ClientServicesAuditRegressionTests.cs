@@ -296,6 +296,131 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
                 Throws.Nothing);
         }
 
+        /// <summary>
+        /// Surfacing the browse error from the single node fetch made the bulk
+        /// paths inherit it: one node the server refuses to browse failed the
+        /// whole batched GetReferencesAsync and the whole GetNodesAsync it was
+        /// part of, where it previously merely contributed no references.
+        /// </summary>
+        [Test]
+        public async Task BulkNodeCacheReadsTolerateAnUnbrowsableNodeAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            NodeId readable = new("Readable", 2);
+            NodeId denied = new("Denied", 2);
+
+            var context = new Mock<INodeCacheContext>();
+            context.SetupGet(c => c.NamespaceUris).Returns(new NamespaceTable());
+            context.SetupGet(c => c.ServerUris).Returns(new StringTable());
+            context
+                .Setup(c => c.FetchReferencesAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((RequestHeader _, NodeId id, CancellationToken _) =>
+                    id == denied
+                        ? throw new ServiceResultException(StatusCodes.BadUserAccessDenied)
+                        : new[] { Reference(id.IdentifierAsString + "Target") }.ToArrayOf());
+            context
+                .Setup(c => c.FetchNodesAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((RequestHeader _, ArrayOf<NodeId> ids, bool _, CancellationToken _)
+                    => new ResultSet<Node>
+                    {
+                        Results = ids
+                            .ConvertAll(id => new Node { NodeId = id, NodeClass = NodeClass.Object })
+                            .ToList(),
+                        Errors = ids.ConvertAll(_ => ServiceResult.Good).ToList()
+                    });
+
+            using var nodeCache = new NodeCache(context.Object, telemetry);
+
+            ArrayOf<INode> nodes = await nodeCache
+                .GetNodesAsync(new[] { readable, denied }.ToArrayOf(), default)
+                .ConfigureAwait(false);
+            ArrayOf<INode> targets = await nodeCache
+                .GetReferencesAsync(
+                    new[] { readable, denied }.ToArrayOf(),
+                    new[] { ReferenceTypeIds.HasComponent }.ToArrayOf(),
+                    false,
+                    false,
+                    default)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    nodes.Count,
+                    Is.EqualTo(2),
+                    "a node the server reads but refuses to browse is still a node");
+                Assert.That(targets.Count, Is.EqualTo(1));
+                Assert.That(
+                    targets[0].NodeId.IdentifierAsString,
+                    Is.EqualTo("ReadableTarget"),
+                    "the browsable input's references must still be returned");
+            });
+        }
+
+        /// <summary>
+        /// The browse path walker climbs supertypes when a name is not found,
+        /// and that climb had no cycle guard: against a server whose HasSubtype
+        /// chain loops back on itself it never reached Null and spun forever.
+        /// </summary>
+        [Test]
+        public async Task BrowsePathSupertypeClimbTerminatesOnACycleAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            NodeId a = new("A", 2);
+            NodeId b = new("B", 2);
+
+            const int maxAnswers = 1000;
+            int answers = 0;
+
+            var context = new Mock<INodeCacheContext>();
+            context.SetupGet(c => c.NamespaceUris).Returns(new NamespaceTable());
+            context.SetupGet(c => c.ServerUris).Returns(new StringTable());
+            context
+                .Setup(c => c.FetchReferencesAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((RequestHeader _, NodeId id, CancellationToken _) =>
+                {
+                    if (Interlocked.Increment(ref answers) > maxAnswers)
+                    {
+                        return ArrayOf.Empty<ReferenceDescription>();
+                    }
+                    // Only inverse HasSubtype references, and they loop: the
+                    // browse name is never found at any level.
+                    return new[] { InverseSubtypeOf(id == a ? b : a) }.ToArrayOf();
+                });
+
+            using var nodeCache = new NodeCache(context.Object, telemetry);
+
+            // The bound is the assertion: after the first lap every lookup is a
+            // cache hit, so an unguarded climb spins without ever calling the
+            // mock again.
+            Task<INode> walk = nodeCache
+                .GetNodeWithBrowsePathAsync(
+                    a,
+                    new[] { new QualifiedName("Missing", 2) }.ToArrayOf(),
+                    default)
+                .AsTask();
+            Task completed = await Task
+                .WhenAny(walk, Task.Delay(TimeSpan.FromSeconds(10)))
+                .ConfigureAwait(false);
+            Assert.That(
+                ReferenceEquals(completed, walk),
+                Is.True,
+                "the supertype climb must terminate on a cyclic hierarchy");
+            Assert.That(await walk.ConfigureAwait(false), Is.Null);
+        }
+
         private static ReferenceDescription Reference(string identifier)
         {
             return new ReferenceDescription

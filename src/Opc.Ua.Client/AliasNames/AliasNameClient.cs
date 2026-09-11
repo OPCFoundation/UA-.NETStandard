@@ -497,24 +497,9 @@ namespace Opc.Ua.Client.AliasNames
             finally
             {
                 // Part 4 §5.9.3.2 requires releasing a continuation point the
-                // client stops following; otherwise it stays active until the
-                // session is closed (§7.9).
-                if (!continuationPoint.IsEmpty)
-                {
-                    try
-                    {
-                        await Session.BrowseNextAsync(
-                            requestHeader: null,
-                            releaseContinuationPoint: true,
-                            continuationPoint,
-                            default).ConfigureAwait(false);
-                    }
-                    catch (Exception ex) when (ex is not OutOfMemoryException)
-                    {
-                        // Best effort: the server reclaims it with the session.
-                        _ = ex;
-                    }
-                }
+                // client stops following.
+                await Session.ReleaseContinuationPointAsync(continuationPoint)
+                    .ConfigureAwait(false);
             }
         }
 

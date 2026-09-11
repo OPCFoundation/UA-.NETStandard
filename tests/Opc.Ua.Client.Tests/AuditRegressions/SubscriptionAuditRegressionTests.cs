@@ -32,6 +32,7 @@
 #pragma warning disable CA2007
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -439,6 +440,236 @@ namespace Opc.Ua.Client.Subscriptions
                     restored.SecondaryPartitionIdleTimeout,
                     Is.EqualTo(TimeSpan.FromSeconds(42)));
             });
+        }
+
+        /// <summary>
+        /// The snapshot clamped the secondary partition idle timeout to zero,
+        /// which turned Timeout.InfiniteTimeSpan ("never delete an idle
+        /// secondary partition") into TimeSpan.Zero ("delete it immediately")
+        /// on every save and load.
+        /// </summary>
+        [Test]
+        public void SubscriptionSnapshotKeepsTheInfiniteIdleTimeout()
+        {
+            var options = new SubscriptionOptions
+            {
+                SecondaryPartitionIdleTimeout = Timeout.InfiniteTimeSpan
+            };
+
+            SubscriptionStateSnapshot snapshot = SubscriptionStateSnapshot
+                .AsOptions(options, 5, default, default);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshot.SecondaryPartitionIdleTimeoutMs, Is.EqualTo(-1));
+                Assert.That(
+                    snapshot.ToOptions().SecondaryPartitionIdleTimeout,
+                    Is.EqualTo(Timeout.InfiniteTimeSpan));
+            });
+        }
+
+        /// <summary>
+        /// The partition options were appended to the snapshot as positional
+        /// binary fields with nothing to tell a reader they are absent, so a
+        /// stream saved before they existed decoded them from the bytes of the
+        /// following snapshot and ran off the end of the stream. The stream
+        /// now carries a format version and the first format is read with a
+        /// frozen copy of its shape.
+        /// </summary>
+        [Test]
+        public async Task SubscriptionStateStreamOfTheFirstFormatStillLoadsAsync()
+        {
+            ServiceMessageContext messageContext = ServiceMessageContext.Create(m_telemetry);
+
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(stream, messageContext, true))
+            {
+                // Exactly what the first format wrote: the URI tables, the
+                // count and the snapshots as they were shaped at the time.
+                encoder.WriteStringArray(null, messageContext.NamespaceUris.ToArrayOf());
+                encoder.WriteStringArray(null, messageContext.ServerUris.ToArrayOf());
+                encoder.WriteInt32(null, 2);
+                for (int i = 0; i < 2; i++)
+                {
+                    encoder.WriteEncodeable(null, new SubscriptionStateSnapshotV0
+                    {
+                        ServerId = 0,
+                        AvailableSequenceNumbers = default,
+                        PublishingIntervalMs = 1234 + i,
+                        PublishingEnabled = true,
+                        MonitoredItems = default
+                    });
+                }
+            }
+            stream.Position = 0;
+
+            var session = new FakeSubscriptionManagerContext
+            {
+                CreateSubscriptionFactory = (_, _, _) => new FakeManagedSubscription
+                {
+                    MonitoredItems = new Mock<IMonitoredItemCollection>().Object
+                }
+            };
+            var manager = new SubscriptionManager(
+                session,
+                m_telemetry.LoggerFactory,
+                DiagnosticsMasks.None);
+            await using (manager.ConfigureAwait(false))
+            {
+                IReadOnlyList<ISubscription> restored = await SubscriptionManagerSerializer
+                    .LoadAsync(
+                        manager,
+                        stream,
+                        messageContext,
+                        _ => new Mock<ISubscriptionNotificationHandler>().Object,
+                        false,
+                        default)
+                    .ConfigureAwait(false);
+
+                Assert.That(restored, Has.Count.EqualTo(2));
+                SubscriptionOptions first = session.CreateSubscriptionCalls[0].Options.CurrentValue;
+                SubscriptionOptions second = session.CreateSubscriptionCalls[1].Options.CurrentValue;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        first.PublishingInterval,
+                        Is.EqualTo(TimeSpan.FromMilliseconds(1234)));
+                    Assert.That(
+                        second.PublishingInterval,
+                        Is.EqualTo(TimeSpan.FromMilliseconds(1235)),
+                        "the second snapshot must not be read from the middle of the first");
+                    Assert.That(
+                        first.MaxPartitionCount,
+                        Is.EqualTo(new SubscriptionOptions().MaxPartitionCount),
+                        "fields the first format did not carry take the option defaults");
+                });
+            }
+        }
+
+        /// <summary>
+        /// The current format must still load after the version marker was
+        /// put in front of the snapshot count: what SaveAsync writes reads
+        /// back, and a versioned stream carries the partition options.
+        /// </summary>
+        [Test]
+        public async Task SubscriptionStateStreamOfTheCurrentFormatCarriesTheVersionAsync()
+        {
+            ServiceMessageContext messageContext = ServiceMessageContext.Create(m_telemetry);
+
+            var session = new FakeSubscriptionManagerContext
+            {
+                CreateSubscriptionFactory = (_, _, _) => new FakeManagedSubscription
+                {
+                    MonitoredItems = new Mock<IMonitoredItemCollection>().Object
+                }
+            };
+            var manager = new SubscriptionManager(
+                session,
+                m_telemetry.LoggerFactory,
+                DiagnosticsMasks.None);
+            await using (manager.ConfigureAwait(false))
+            {
+                // An empty save still writes the version marker; it must read
+                // back as "nothing to restore", not as a snapshot count.
+                using var empty = new MemoryStream();
+                await SubscriptionManagerSerializer
+                    .SaveAsync(manager, empty, messageContext, null, default)
+                    .ConfigureAwait(false);
+                empty.Position = 0;
+                IReadOnlyList<ISubscription> none = await SubscriptionManagerSerializer
+                    .LoadAsync(
+                        manager,
+                        empty,
+                        messageContext,
+                        _ => new Mock<ISubscriptionNotificationHandler>().Object,
+                        false,
+                        default)
+                    .ConfigureAwait(false);
+                Assert.That(none, Is.Empty);
+
+                using var stream = new MemoryStream();
+                using (var encoder = new BinaryEncoder(stream, messageContext, true))
+                {
+                    encoder.WriteStringArray(null, messageContext.NamespaceUris.ToArrayOf());
+                    encoder.WriteStringArray(null, messageContext.ServerUris.ToArrayOf());
+                    encoder.WriteInt32(null, -SubscriptionManagerSerializer.kFormatVersion);
+                    encoder.WriteInt32(null, 1);
+                    encoder.WriteEncodeable(null, SubscriptionStateSnapshot.AsOptions(
+                        new SubscriptionOptions { MaxPartitionCount = 9 },
+                        0,
+                        default,
+                        default));
+                }
+                stream.Position = 0;
+
+                IReadOnlyList<ISubscription> restored = await SubscriptionManagerSerializer
+                    .LoadAsync(
+                        manager,
+                        stream,
+                        messageContext,
+                        _ => new Mock<ISubscriptionNotificationHandler>().Object,
+                        false,
+                        default)
+                    .ConfigureAwait(false);
+
+                Assert.That(restored, Has.Count.EqualTo(1));
+                Assert.That(
+                    session.CreateSubscriptionCalls[^1].Options.CurrentValue.MaxPartitionCount,
+                    Is.EqualTo(9u),
+                    "a versioned stream carries the partition options");
+            }
+        }
+
+        /// <summary>
+        /// The id ownership check stopped at the first registered subscription
+        /// carrying the id. In the very case it guards - the asker still holds
+        /// its retired id while a sibling was handed the same id by the
+        /// server - both match, so the answer depended on the registry's
+        /// enumeration order and the delete could still hit the sibling.
+        /// </summary>
+        [Test]
+        public async Task SubscriptionIdHeldByASiblingIsNeverOwnedAsync()
+        {
+            var session = new FakeSubscriptionManagerContext();
+            var first = new FakeManagedSubscription
+            {
+                Id = 7,
+                MonitoredItems = new Mock<IMonitoredItemCollection>().Object
+            };
+            var second = new FakeManagedSubscription
+            {
+                Id = 7,
+                MonitoredItems = new Mock<IMonitoredItemCollection>().Object
+            };
+            OptionsMonitor<SubscriptionOptions> firstOptions =
+                OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> secondOptions =
+                OptionsFactory.Create<SubscriptionOptions>();
+            session.CreateSubscriptionFactory = (_, options, _) =>
+                ReferenceEquals(options, firstOptions) ? first : second;
+
+            var manager = new SubscriptionManager(
+                session,
+                m_telemetry.LoggerFactory,
+                DiagnosticsMasks.None);
+            await using (manager.ConfigureAwait(false))
+            {
+                manager.Add(new Mock<ISubscriptionNotificationHandler>().Object, firstOptions);
+                manager.Add(new Mock<ISubscriptionNotificationHandler>().Object, secondOptions);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        manager.OwnsSubscriptionId(first, 7),
+                        Is.False,
+                        "the id is held by a sibling, whichever order the registry yields");
+                    Assert.That(manager.OwnsSubscriptionId(second, 7), Is.False);
+                    Assert.That(
+                        manager.OwnsSubscriptionId(first, 8),
+                        Is.True,
+                        "an id nobody else holds is still the asker's to delete");
+                });
+            }
         }
 
         /// <summary>

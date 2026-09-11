@@ -31,6 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -80,9 +82,12 @@ namespace Opc.Ua.Client.Subscriptions
         /// <see cref="LogicalSubscription"/> and the partition that
         /// references this handler at construction time.
         /// </summary>
-        public PartitionForwardingHandler(ISubscriptionNotificationHandler userHandler)
+        public PartitionForwardingHandler(
+            ISubscriptionNotificationHandler userHandler,
+            ILogger? logger = null)
         {
             m_userHandler = userHandler ?? throw new ArgumentNullException(nameof(userHandler));
+            m_logger = logger ?? NullLogger.Instance;
         }
 
         /// <summary>
@@ -116,20 +121,56 @@ namespace Opc.Ua.Client.Subscriptions
             // Replay the state changes the partition raised before the wrapper
             // existed (notably the initial Opened, which the partition's state
             // manager fires from inside its own constructor). Fire-and-forget,
-            // matching how the partition raises them.
+            // matching how the partition raises them. The gate is taken here,
+            // before anything live can queue behind it, so a state change the
+            // partition raises right after the bind cannot overtake the
+            // replayed ones; if it is busy the replay simply queues like any
+            // other dispatch.
             if (replay.Count != 0)
             {
-                _ = ReplayStateChangesAsync(replay);
+                bool serialised = m_serialise.Wait(0);
+                _ = ReplayStateChangesAsync(logical, replay, serialised);
             }
         }
 
         private async Task ReplayStateChangesAsync(
-            List<(ISubscription Source, SubscriptionState State, PublishState Mask)> replay)
+            ISubscription logical,
+            List<(ISubscription Source, SubscriptionState State, PublishState Mask)> replay,
+            bool serialised)
         {
-            foreach ((ISubscription source, SubscriptionState state, PublishState mask) in replay)
+            try
             {
-                await OnSubscriptionStateChangedAsync(source, state, mask)
-                    .ConfigureAwait(false);
+                foreach ((ISubscription source, SubscriptionState state, PublishState mask)
+                    in replay)
+                {
+                    try
+                    {
+                        if (serialised)
+                        {
+                            await DispatchStateChangeAsync(logical, source, state, mask, default)
+                                .ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await OnSubscriptionStateChangedAsync(source, state, mask)
+                                .ConfigureAwait(false);
+                        }
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        // Nobody awaits the replay: a throwing user handler
+                        // would otherwise surface as an unobserved task
+                        // exception.
+                        m_logger.PartitionForwardingReplayHandlerThrew(ex, state);
+                    }
+                }
+            }
+            finally
+            {
+                if (serialised)
+                {
+                    ReleaseSerialise();
+                }
             }
         }
 
@@ -221,15 +262,32 @@ namespace Opc.Ua.Client.Subscriptions
             await m_serialise.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                publishStateMask = AggregatePublishState(
-                    subscription, state, publishStateMask);
-                await m_userHandler.OnSubscriptionStateChangedAsync(logical,
-                    state, publishStateMask, ct).ConfigureAwait(false);
+                await DispatchStateChangeAsync(logical, subscription, state, publishStateMask, ct)
+                    .ConfigureAwait(false);
             }
             finally
             {
                 ReleaseSerialise();
             }
+        }
+
+        /// <summary>
+        /// Hands a state change to the user handler. The caller holds the
+        /// serialisation gate.
+        /// </summary>
+        private ValueTask DispatchStateChangeAsync(
+            ISubscription logical,
+            ISubscription subscription,
+            SubscriptionState state,
+            PublishState publishStateMask,
+            CancellationToken ct)
+        {
+            publishStateMask = AggregatePublishState(subscription, state, publishStateMask);
+            return m_userHandler.OnSubscriptionStateChangedAsync(
+                logical,
+                state,
+                publishStateMask,
+                ct);
         }
 
         private PublishState AggregatePublishState(ISubscription subscription,
@@ -289,6 +347,7 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         private readonly ISubscriptionNotificationHandler m_userHandler;
+        private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_serialise = new(1, 1);
         private readonly HashSet<ISubscription> m_stoppedSubscriptions = [];
         private readonly Lock m_bindLock = new();
@@ -301,5 +360,19 @@ namespace Opc.Ua.Client.Subscriptions
             PublishState Mask)> m_pendingStateChanges = [];
         private ISubscription? m_logical;
         private volatile bool m_disposed;
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PartitionForwardingHandler"/>.
+    /// </summary>
+    internal static partial class PartitionForwardingHandlerLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 36, Level = LogLevel.Error,
+            Message = "The subscription state handler threw while the buffered " +
+                "{State} state change was replayed after binding the logical subscription.")]
+        public static partial void PartitionForwardingReplayHandlerThrew(
+            this ILogger logger,
+            Exception exception,
+            SubscriptionState state);
     }
 }

@@ -2354,20 +2354,17 @@ namespace Opc.Ua.Client
                 Task.CurrentId,
                 Session?.SessionId);
 
+            // The whole worker flow is the dispatch context: nothing between
+            // messages reads the flag, and the async method builder restores
+            // the caller's context, so set it once instead of allocating a
+            // new ExecutionContext twice per message.
+            m_dispatchContext.Value = true;
             try
             {
                 while (!ct.IsCancellationRequested && !m_disposed)
                 {
                     await m_messageWorkerEvent.WaitAsync(ct).ConfigureAwait(false);
-                    m_dispatchContext.Value = true;
-                    try
-                    {
-                        await OnMessageReceivedAsync(ct).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        m_dispatchContext.Value = false;
-                    }
+                    await OnMessageReceivedAsync(ct).ConfigureAwait(false);
                 }
             }
             catch (ObjectDisposedException)

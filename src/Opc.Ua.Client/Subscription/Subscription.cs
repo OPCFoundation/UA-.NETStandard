@@ -464,14 +464,16 @@ namespace Opc.Ua.Client.Subscriptions
                             {
                                 await DeleteForRecreateAsync(oldId, token)
                                     .ConfigureAwait(false);
+                                AckQueue.DropPendingForSubscription(oldId);
                             }
                             else
                             {
+                                // The pending acknowledgements under that id
+                                // now belong to the sibling; leave them.
                                 Logger.SubscriptionSkippedDeleteOfReusedId(Id, oldId);
                                 StopKeepAliveTimer();
                                 OnSubscriptionDeleteCompleted();
                             }
-                            AckQueue.DropPendingForSubscription(oldId);
                         }
                     },
                     async token =>
@@ -929,7 +931,7 @@ namespace Opc.Ua.Client.Subscriptions
                     // fire-and-forget dispatch would otherwise surface on the
                     // finalizer thread.
                     _ = dispatch.ContinueWith(
-                        (t, s) => Logger
+                        static (t, s) => ((Subscription)s!).Logger
                             .SubscriptionOnSubscriptionStateChangedAsyncHandlerThrew(
                                 t.Exception,
                                 (Subscription)s!),

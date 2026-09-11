@@ -154,6 +154,63 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
         }
 
         /// <summary>
+        /// The give-up guard above was a fixed pass count, which also cut short
+        /// a large browse against a conforming server: with a small
+        /// continuation point quota only a few nodes complete per pass, so a
+        /// browse of many nodes legitimately needs more passes than the cap.
+        /// Here one node completes per pass and every node must still finish.
+        /// </summary>
+        [Test]
+        public async Task ManagedBrowseKeepsGoingWhileNodesCompleteAsync()
+        {
+            using SessionMock session = SessionMock.Create();
+
+            // The server answers the first node of every request and has no
+            // continuation point left for the rest.
+            session.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<BrowseRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((IServiceRequest request, CancellationToken _) =>
+                {
+                    var browse = (BrowseRequest)request;
+                    var results = new List<BrowseResult>(browse.NodesToBrowse.Count);
+                    for (int i = 0; i < browse.NodesToBrowse.Count; i++)
+                    {
+                        results.Add(i == 0
+                            ? GoodResult("target")
+                            : BadResult(StatusCodes.BadNoContinuationPoints));
+                    }
+                    return new ValueTask<IServiceResponse>(new BrowseResponse
+                    {
+                        Results = results.ToArrayOf(),
+                        DiagnosticInfos = []
+                    });
+                });
+
+            const int nodeCount = 40;
+            var nodes = new List<NodeId>(nodeCount);
+            for (int i = 0; i < nodeCount; i++)
+            {
+                nodes.Add(new NodeId("N" + i, 2));
+            }
+
+            var browser = new Browser(session);
+            ResultSet<ArrayOf<ReferenceDescription>> results = await browser
+                .BrowseAsync(nodes.ToArrayOf())
+                .ConfigureAwait(false);
+
+            for (int i = 0; i < nodeCount; i++)
+            {
+                Assert.That(
+                    ServiceResult.IsGood(results.Errors[i]),
+                    Is.True,
+                    $"node {i} completed on a later pass and must not be reported " +
+                    "as failed by a pass-count cap");
+            }
+        }
+
+        /// <summary>
         /// FetchReferencesAsync(NodeId) returned the empty result set of a
         /// failed browse, so the node cache stored "this node has no
         /// references" for a node the server merely refused to browse.
