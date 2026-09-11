@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Opc.Ua.Client.FileSystem
 {
@@ -37,7 +38,8 @@ namespace Opc.Ua.Client.FileSystem
     /// <c>(parent NodeId, browse name) → child NodeId</c> entries used
     /// by the <c>FileSystemClient</c> to avoid repeated
     /// <c>TranslateBrowsePathsToNodeIds</c> round-trips for the same
-    /// path. Not thread-safe — callers must synchronise access.
+    /// path. Thread-safe: the <c>FileSystemClient</c> mutates it from
+    /// concurrent operations, so every member takes an internal lock.
     /// </summary>
     /// <remarks>
     /// A capacity of zero disables caching. The cache is best-effort:
@@ -75,14 +77,17 @@ namespace Opc.Ua.Client.FileSystem
                 return null;
             }
             var key = new Key(parent, name);
-            if (!m_map.TryGetValue(key, out LinkedListNode<Entry>? node))
+            lock (m_lock)
             {
-                return null;
+                if (!m_map.TryGetValue(key, out LinkedListNode<Entry>? node))
+                {
+                    return null;
+                }
+                // Move to front (MRU position).
+                m_lru.Remove(node);
+                m_lru.AddFirst(node);
+                return node.Value.Child;
             }
-            // Move to front (MRU position).
-            m_lru.Remove(node);
-            m_lru.AddFirst(node);
-            return node.Value.Child;
         }
 
         /// <summary>
@@ -101,25 +106,28 @@ namespace Opc.Ua.Client.FileSystem
             }
 
             var key = new Key(parent, name);
-            if (m_map.TryGetValue(key, out LinkedListNode<Entry>? existing))
+            lock (m_lock)
             {
-                m_lru.Remove(existing);
-                existing.Value = new Entry(key, child);
-                m_lru.AddFirst(existing);
-                return;
-            }
-
-            var node = new LinkedListNode<Entry>(new Entry(key, child));
-            m_lru.AddFirst(node);
-            m_map[key] = node;
-
-            if (m_map.Count > m_capacity)
-            {
-                LinkedListNode<Entry>? lru = m_lru.Last;
-                if (lru != null)
+                if (m_map.TryGetValue(key, out LinkedListNode<Entry>? existing))
                 {
-                    m_lru.RemoveLast();
-                    m_map.Remove(lru.Value.Key);
+                    m_lru.Remove(existing);
+                    existing.Value = new Entry(key, child);
+                    m_lru.AddFirst(existing);
+                    return;
+                }
+
+                var node = new LinkedListNode<Entry>(new Entry(key, child));
+                m_lru.AddFirst(node);
+                m_map[key] = node;
+
+                if (m_map.Count > m_capacity)
+                {
+                    LinkedListNode<Entry>? lru = m_lru.Last;
+                    if (lru != null)
+                    {
+                        m_lru.RemoveLast();
+                        m_map.Remove(lru.Value.Key);
+                    }
                 }
             }
         }
@@ -137,10 +145,13 @@ namespace Opc.Ua.Client.FileSystem
                 return;
             }
             var key = new Key(parent, name);
-            if (m_map.TryGetValue(key, out LinkedListNode<Entry>? node))
+            lock (m_lock)
             {
-                m_lru.Remove(node);
-                m_map.Remove(key);
+                if (m_map.TryGetValue(key, out LinkedListNode<Entry>? node))
+                {
+                    m_lru.Remove(node);
+                    m_map.Remove(key);
+                }
             }
         }
 
@@ -157,25 +168,28 @@ namespace Opc.Ua.Client.FileSystem
             {
                 return;
             }
-            // Collect first; mutating during iteration is unsafe.
-            List<Key>? toRemove = null;
-            foreach (Key key in m_map.Keys)
+            lock (m_lock)
             {
-                if (key.Parent.Equals(parent))
+                // Collect first; mutating during iteration is unsafe.
+                List<Key>? toRemove = null;
+                foreach (Key key in m_map.Keys)
                 {
-                    (toRemove ??= []).Add(key);
+                    if (key.Parent.Equals(parent))
+                    {
+                        (toRemove ??= []).Add(key);
+                    }
                 }
-            }
-            if (toRemove == null)
-            {
-                return;
-            }
-            foreach (Key key in toRemove)
-            {
-                if (m_map.TryGetValue(key, out LinkedListNode<Entry>? node))
+                if (toRemove == null)
                 {
-                    m_lru.Remove(node);
-                    m_map.Remove(key);
+                    return;
+                }
+                foreach (Key key in toRemove)
+                {
+                    if (m_map.TryGetValue(key, out LinkedListNode<Entry>? node))
+                    {
+                        m_lru.Remove(node);
+                        m_map.Remove(key);
+                    }
                 }
             }
         }
@@ -185,15 +199,28 @@ namespace Opc.Ua.Client.FileSystem
         /// </summary>
         public void Clear()
         {
-            m_map?.Clear();
-            m_lru?.Clear();
+            lock (m_lock)
+            {
+                m_map?.Clear();
+                m_lru?.Clear();
+            }
         }
 
         /// <summary>
         /// Number of entries currently cached.
         /// </summary>
-        public int Count => m_map?.Count ?? 0;
+        public int Count
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_map?.Count ?? 0;
+                }
+            }
+        }
 
+        private readonly Lock m_lock = new();
         private readonly int m_capacity;
         private readonly Dictionary<Key, LinkedListNode<Entry>>? m_map;
         private readonly LinkedList<Entry>? m_lru;

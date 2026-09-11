@@ -502,8 +502,11 @@ namespace Opc.Ua.Client.WebApi
                     ? baseAddress.AbsoluteUri
                     : OpcUaHttpClientDefaults.ClientName;
                 HttpClient httpClient = m_httpClientFactory!.CreateClient(clientName);
-                httpClient.BaseAddress = NormalizeHttpUrl(baseAddress);
-                return new WebApiClient(httpClient, options);
+                // Do not write onto the factory's client: it is pooled and
+                // shared, and BaseAddress/Timeout/DefaultRequestHeaders all
+                // throw once it has sent its first request. The client applies
+                // the base address per request instead.
+                return new WebApiClient(httpClient, NormalizeHttpUrl(baseAddress), options);
             }
 
             return WebApiClient.Create(baseAddress, options);

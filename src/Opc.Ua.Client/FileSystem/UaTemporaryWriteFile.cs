@@ -96,23 +96,33 @@ namespace Opc.Ua.Client.FileSystem
                 return m_completionStateMachine;
             }
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
+            bool committed = false;
             try
             {
                 if (m_terminated)
                 {
                     return m_completionStateMachine;
                 }
-                m_terminated = true;
-                m_completionStateMachine = await m_transferProxy
+                // Mark the file terminated only once the server accepted the
+                // commit. Doing it up front turns a failed commit into a file
+                // that can neither be committed again nor closed, because both
+                // paths short-circuit on the flag.
+                NodeId completionStateMachine = await m_transferProxy
                     .CloseAndCommitAsync(m_handle, ct)
                     .ConfigureAwait(false);
+                m_completionStateMachine = completionStateMachine;
+                m_terminated = true;
+                committed = true;
                 m_inner.MarkDisposedWithoutClosing();
-                return m_completionStateMachine;
+                return completionStateMachine;
             }
             finally
             {
                 m_lock.Release();
-                m_lock.Dispose();
+                if (committed)
+                {
+                    m_lock.Dispose();
+                }
             }
         }
 

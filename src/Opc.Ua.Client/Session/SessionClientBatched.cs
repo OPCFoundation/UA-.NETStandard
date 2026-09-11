@@ -1468,7 +1468,9 @@ namespace Opc.Ua
             int count,
             uint operationLimit)
         {
-            Debug.Assert(count > operationLimit);
+            // No assertion on count vs operationLimit: SetTriggering batches on
+            // the combined add+remove count, so either individual list may well
+            // be shorter than the limit. This only presets the capacity.
             results = new List<T>(count);
             diagnosticInfos = new List<DiagnosticInfo>(count);
             stringTable = [];

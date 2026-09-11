@@ -254,7 +254,13 @@ namespace Opc.Ua.Client.UserManagement
                     return lt;
                 }
             }
-            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNotFound)
+            catch (ServiceResultException ex) when (
+                ex.StatusCode == StatusCodes.BadNotFound ||
+                // An absent optional property surfaces from
+                // TranslateBrowsePathsToNodeIds as BadNoMatch, which is what a
+                // server that simply does not expose it actually returns.
+                ex.StatusCode == StatusCodes.BadNoMatch ||
+                ex.StatusCode == StatusCodes.BadNodeIdUnknown)
             {
                 // PasswordRestrictions is Optional per Part 18 §5.2.2.
                 return null;

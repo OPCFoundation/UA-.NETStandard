@@ -1158,6 +1158,16 @@ namespace Opc.Ua.Client
                     }
                     m_nodes.AddOrUpdate(remainingIds[index], nodes[index]);
                 }
+                else
+                {
+                    // The placeholder that goes into the result carries
+                    // NodeClass Unspecified and no attributes. It is not
+                    // cached, but without this it is indistinguishable from a
+                    // node the server genuinely described that way.
+                    m_logger.NodeReadFailedPlaceholderReturned(
+                        remainingIds[index],
+                        readErrors[index].StatusCode);
+                }
                 while (result[resultMissingIndex] != null)
                 {
                     resultMissingIndex++;
@@ -1306,6 +1316,14 @@ namespace Opc.Ua.Client
         public static partial void CycleDetectedInTypeHierarchy(
             this ILogger logger,
             NodeId nodeId);
+
+        [LoggerMessage(EventId = ClientEventIds.NodeCache + 4, Level = LogLevel.Warning,
+            Message = "Reading node {NodeId} failed with {StatusCode}; a placeholder " +
+                "node with NodeClass Unspecified is returned for it.")]
+        public static partial void NodeReadFailedPlaceholderReturned(
+            this ILogger logger,
+            NodeId nodeId,
+            StatusCode statusCode);
     }
 
 }

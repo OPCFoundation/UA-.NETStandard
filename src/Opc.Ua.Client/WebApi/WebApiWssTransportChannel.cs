@@ -450,7 +450,13 @@ namespace Opc.Ua.Client.WebApi
                     endOfMessage: true,
                     ct).ConfigureAwait(false);
 
-                responseBytes = await ReceiveMessageAsync(ws, quotas.MaxBufferSize, ct)
+                // MaxBufferSize bounds a single transport chunk, not the whole
+                // message; capping the response by it rejects every legitimate
+                // response above 64 KiB.
+                int maxResponseSize = quotas.MaxMessageSize > 0
+                    ? quotas.MaxMessageSize
+                    : quotas.MaxBufferSize;
+                responseBytes = await ReceiveMessageAsync(ws, maxResponseSize, ct)
                     .ConfigureAwait(false);
             }
             finally

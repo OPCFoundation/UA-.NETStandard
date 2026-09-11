@@ -557,38 +557,64 @@ namespace Opc.Ua.Client.FileSystem
                 (uint)NodeClass.Object,
                 ct).ConfigureAwait(false);
 
-            while (true)
+            try
             {
-                // Materialise to an array first — ReadOnlySpan<T>.Enumerator
-                // (returned by ArrayOf<T>.GetEnumerator) cannot cross an
-                // async iterator's `yield return` boundary.
-                var snapshot = new ReferenceDescription[references.Count];
-                for (int i = 0; i < references.Count; i++)
+                while (true)
                 {
-                    snapshot[i] = references[i];
-                }
-                foreach (ReferenceDescription reference in snapshot)
-                {
-                    UaFileSystemInfo? info = TryClassifyChild(
-                        directory,
-                        reference,
-                        typeTree,
-                        includeFiles,
-                        includeDirectories);
-                    if (info != null)
+                    // Materialise to an array first — ReadOnlySpan<T>.Enumerator
+                    // (returned by ArrayOf<T>.GetEnumerator) cannot cross an
+                    // async iterator's `yield return` boundary.
+                    var snapshot = new ReferenceDescription[references.Count];
+                    for (int i = 0; i < references.Count; i++)
                     {
-                        yield return info;
+                        snapshot[i] = references[i];
+                    }
+                    foreach (ReferenceDescription reference in snapshot)
+                    {
+                        UaFileSystemInfo? info = TryClassifyChild(
+                            directory,
+                            reference,
+                            typeTree,
+                            includeFiles,
+                            includeDirectories);
+                        if (info != null)
+                        {
+                            yield return info;
+                        }
+                    }
+                    if (continuation.IsNull || continuation.Length == 0)
+                    {
+                        yield break;
+                    }
+                    (_, continuation, references) = await Session.BrowseNextAsync(
+                        requestHeader: null,
+                        releaseContinuationPoint: false,
+                        continuation,
+                        ct).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                // A consumer that stops enumerating early (break, Take, an
+                // exception) leaves the server's continuation point allocated
+                // against the session quota until the session ends.
+                if (!continuation.IsNull && continuation.Length != 0)
+                {
+                    try
+                    {
+                        await Session.BrowseNextAsync(
+                            requestHeader: null,
+                            releaseContinuationPoint: true,
+                            continuation,
+                            default).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        // Best effort: the session may already be gone, in
+                        // which case the server reclaims the point anyway.
+                        _ = ex;
                     }
                 }
-                if (continuation.IsNull || continuation.Length == 0)
-                {
-                    yield break;
-                }
-                (_, continuation, references) = await Session.BrowseNextAsync(
-                    requestHeader: null,
-                    releaseContinuationPoint: false,
-                    continuation,
-                    ct).ConfigureAwait(false);
             }
         }
 

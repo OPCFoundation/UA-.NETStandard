@@ -445,35 +445,10 @@ namespace Opc.Ua.Client.AliasNames
                 throw new ServiceResultException(br.StatusCode);
             }
 
-            foreach (ReferenceDescription r in SnapshotReferences(br.References))
-            {
-                if (!r.TypeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
-                {
-                    continue;
-                }
-                var localId = ExpandedNodeId.ToNodeId(
-                    r.NodeId, Session.NamespaceUris);
-                if (localId.IsNull)
-                {
-                    continue;
-                }
-                yield return new AliasNameSubCategoryInfo(
-                    localId,
-                    r.BrowseName,
-                    r.DisplayName);
-            }
-
             ByteString continuationPoint = br.ContinuationPoint;
-            while (!continuationPoint.IsEmpty)
+            try
             {
-                (_, continuationPoint, ArrayOf<ReferenceDescription> nextReferences) =
-                    await Session.BrowseNextAsync(
-                        requestHeader: null,
-                        releaseContinuationPoint: false,
-                        continuationPoint,
-                        ct).ConfigureAwait(false);
-
-                foreach (ReferenceDescription r in SnapshotReferences(nextReferences))
+                foreach (ReferenceDescription r in SnapshotReferences(br.References))
                 {
                     if (!r.TypeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
                     {
@@ -489,6 +464,55 @@ namespace Opc.Ua.Client.AliasNames
                         localId,
                         r.BrowseName,
                         r.DisplayName);
+                }
+
+                while (!continuationPoint.IsEmpty)
+                {
+                    (_, continuationPoint, ArrayOf<ReferenceDescription> nextReferences) =
+                        await Session.BrowseNextAsync(
+                            requestHeader: null,
+                            releaseContinuationPoint: false,
+                            continuationPoint,
+                            ct).ConfigureAwait(false);
+
+                    foreach (ReferenceDescription r in SnapshotReferences(nextReferences))
+                    {
+                        if (!r.TypeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
+                        {
+                            continue;
+                        }
+                        var localId = ExpandedNodeId.ToNodeId(
+                            r.NodeId, Session.NamespaceUris);
+                        if (localId.IsNull)
+                        {
+                            continue;
+                        }
+                        yield return new AliasNameSubCategoryInfo(
+                            localId,
+                            r.BrowseName,
+                            r.DisplayName);
+                    }
+                }
+            }
+            finally
+            {
+                // A consumer that stops enumerating early would otherwise leave
+                // the continuation point allocated for the session's lifetime.
+                if (!continuationPoint.IsEmpty)
+                {
+                    try
+                    {
+                        await Session.BrowseNextAsync(
+                            requestHeader: null,
+                            releaseContinuationPoint: true,
+                            continuationPoint,
+                            default).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        // Best effort: the server reclaims it with the session.
+                        _ = ex;
+                    }
                 }
             }
         }

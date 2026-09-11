@@ -357,7 +357,18 @@ namespace Opc.Ua.Client
                 EndpointUrl = new Uri(Utils.ReplaceLocalhost(endpointUrl.ToString()));
                 OnConnectionWaiting = onConnectionWaiting;
                 ReverseConnectStrategy = ReverseConnectStrategy.Once;
+                Id = Interlocked.Increment(ref s_nextId);
             }
+
+            /// <summary>
+            /// Process-wide unique identifier handed out to callers instead of
+            /// <see cref="object.GetHashCode"/>: hash codes are not unique, so
+            /// unregistering could remove a different waiter that happened to
+            /// hash the same.
+            /// </summary>
+            public readonly int Id;
+
+            private static int s_nextId;
 
             public readonly string? ServerUri;
             public readonly Uri EndpointUrl;
@@ -1967,45 +1978,59 @@ namespace Opc.Ua.Client
             int hashCode = RegisterWaitConnection(endpointUrl, serverUri, tcs);
             try
             {
-                await Task.WhenAny([tcs.Task, ListenForCancelAsync(ct)]).ConfigureAwait(false);
-
-                if (!tcs.Task.IsCompleted || tcs.Task.IsCanceled)
+                // Complete the wait through token registrations that are
+                // disposed with the wait. The previous Task.Delay(-1, ct) race
+                // left one cancellation registration per call alive for the
+                // lifetime of a long-lived caller token, and its cancellation
+                // never reached the completion source at all.
+                CancellationTokenSource? timeoutCts = null;
+                CancellationTokenRegistration timeoutRegistration = default;
+                CancellationTokenRegistration cancelRegistration = default;
+                try
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadTimeout,
-                        "Waiting for the reverse connection timed out.");
-                }
+                    if (!ct.CanBeCanceled)
+                    {
+                        // No caller token: bound the wait by the configured
+                        // timeout, as before.
+                        int waitTimeout = m_configuration?.WaitTimeout ?? DefaultWaitTimeout;
+                        if (waitTimeout <= 0)
+                        {
+                            waitTimeout = DefaultWaitTimeout;
+                        }
+                        timeoutCts = m_timeProvider.CreateCancellationTokenSource(
+                            TimeSpan.FromMilliseconds(waitTimeout));
+                        timeoutRegistration = timeoutCts.Token.Register(
+                            static state =>
+                                ((TaskCompletionSource<ITransportWaitingConnection>)state!)
+                                    .TrySetException(new ServiceResultException(
+                                        StatusCodes.BadTimeout,
+                                        "Waiting for the reverse connection timed out.")),
+                            tcs);
+                    }
+                    else
+                    {
+                        cancelRegistration = ct.Register(
+                            static state =>
+                                ((TaskCompletionSource<ITransportWaitingConnection>)state!)
+                                    .TrySetCanceled(),
+                            tcs);
+                    }
 
-                // A matched connection sets the result; a committed
-                // Stop/Dispose faults this wait with BadInvalidState. Either is
-                // surfaced to the caller here.
-                return await tcs.Task.ConfigureAwait(false);
+                    // A matched connection sets the result; a committed
+                    // Stop/Dispose faults this wait with BadInvalidState. Either
+                    // is surfaced to the caller here.
+                    return await tcs.Task.ConfigureAwait(false);
+                }
+                finally
+                {
+                    cancelRegistration.Dispose();
+                    timeoutRegistration.Dispose();
+                    timeoutCts?.Dispose();
+                }
             }
             finally
             {
                 UnregisterWait(hashCode, tcs);
-            }
-
-            async Task ListenForCancelAsync(CancellationToken ct)
-            {
-                if (ct == default)
-                {
-                    int waitTimeout = m_configuration?.WaitTimeout ?? 20000;
-                    if (waitTimeout <= 0)
-                    {
-                        waitTimeout = DefaultWaitTimeout;
-                    }
-                    await Task.Delay(waitTimeout, ct).ConfigureAwait(false);
-                }
-                else
-                {
-                    await Task.Delay(-1, ct).ContinueWith(
-                        _ => { },
-                        ct,
-                        TaskContinuationOptions.None,
-                        TaskScheduler.Default).ConfigureAwait(false);
-                }
-                tcs.TrySetCanceled(ct);
             }
         }
 
@@ -2041,7 +2066,7 @@ namespace Opc.Ua.Client
                 m_activeWaits.Add(tcs);
                 CancelAndRenewTokenSource();
             }
-            return registration.GetHashCode();
+            return registration.Id;
         }
 
         /// <summary>
@@ -2060,7 +2085,7 @@ namespace Opc.Ua.Client
                 Registration? toRemove = null;
                 foreach (Registration registration in m_registrations)
                 {
-                    if (registration.GetHashCode() == hashCode)
+                    if (registration.Id == hashCode)
                     {
                         toRemove = registration;
                         break;
@@ -2195,7 +2220,7 @@ namespace Opc.Ua.Client
                 m_registrations.Add(registration);
                 CancelAndRenewTokenSource();
             }
-            return registration.GetHashCode();
+            return registration.Id;
         }
 
         /// <summary>
@@ -2277,7 +2302,7 @@ namespace Opc.Ua.Client
                 Registration? toRemove = null;
                 foreach (Registration registration in m_registrations)
                 {
-                    if (registration.GetHashCode() == hashCode)
+                    if (registration.Id == hashCode)
                     {
                         toRemove = registration;
                         break;

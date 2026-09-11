@@ -120,9 +120,51 @@ namespace Opc.Ua.Client.AliasNames.Refresh
                 DiscardOldest = true,
                 MonitoringMode = MonitoringMode.Reporting
             };
-            item.Notification += OnNotification;
-            subscription.AddItem(item);
-            await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
+            try
+            {
+                item.Notification += OnNotification;
+                subscription.AddItem(item);
+                await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Do not leave a half-built subscription behind: the caller
+                // retries StartAsync on every resolve, and each failed attempt
+                // would otherwise add another subscription to the session.
+                item.Notification -= OnNotification;
+                try
+                {
+                    subscription.RemoveItem(item);
+                }
+                catch (Exception cleanupException)
+                    when (cleanupException is not OutOfMemoryException)
+                {
+                    // Best-effort cleanup.
+                }
+                if (ownsSubscription)
+                {
+                    try
+                    {
+                        // Cleanup must run to completion even when the caller's
+                        // token is what aborted the start.
+                        await client.Session
+                            .RemoveSubscriptionAsync(subscription, CancellationToken.None)
+                            .ConfigureAwait(false);
+                        await subscription.DeleteAsync(silent: true, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception cleanupException)
+                        when (cleanupException is not OutOfMemoryException)
+                    {
+                        // Best-effort cleanup; the session may already be gone.
+                    }
+                    finally
+                    {
+                        subscription.Dispose();
+                    }
+                }
+                throw;
+            }
 
             m_subscription = subscription;
             m_item = item;

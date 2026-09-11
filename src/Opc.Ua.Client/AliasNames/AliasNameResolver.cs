@@ -135,6 +135,11 @@ namespace Opc.Ua.Client.AliasNames
         /// </summary>
         public async Task RefreshAsync(CancellationToken ct = default)
         {
+            // Capture the invalidation generation before the fetch: an
+            // Invalidate that lands while it is in flight must not be undone by
+            // marking the (already stale) result as loaded.
+            long generation = Interlocked.Read(ref m_invalidationGeneration);
+
             var forward = new Dictionary<string, ExpandedNodeId[]>(StringComparer.Ordinal);
             var serverUris = new Dictionary<string, string?[]>(StringComparer.Ordinal);
             var reverse = new Dictionary<ExpandedNodeId, string>();
@@ -179,7 +184,10 @@ namespace Opc.Ua.Client.AliasNames
                 m_forward = forward;
                 m_serverUris = serverUris;
                 m_reverse = reverse;
-                Volatile.Write(ref m_loaded, 1);
+                if (Interlocked.Read(ref m_invalidationGeneration) == generation)
+                {
+                    Volatile.Write(ref m_loaded, 1);
+                }
             }
             finally
             {
@@ -290,6 +298,10 @@ namespace Opc.Ua.Client.AliasNames
         /// </summary>
         public void Invalidate()
         {
+            // Bump first: a refresh that is already fetching compares the
+            // generation before it marks the cache loaded, so its stale result
+            // can no longer swallow this invalidation.
+            Interlocked.Increment(ref m_invalidationGeneration);
             Volatile.Write(ref m_loaded, 0);
         }
 
@@ -413,6 +425,13 @@ namespace Opc.Ua.Client.AliasNames
 
         private Dictionary<ExpandedNodeId, string> m_reverse = [];
         private int m_loaded;
+
+        /// <summary>
+        /// Incremented by every <see cref="Invalidate"/> so an in-flight
+        /// <see cref="RefreshAsync"/> can tell whether its result is still
+        /// current when it completes.
+        /// </summary>
+        private long m_invalidationGeneration;
         private int m_strategyStarted;
     }
 }
