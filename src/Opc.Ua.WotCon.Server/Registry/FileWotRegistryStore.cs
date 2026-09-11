@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -40,7 +39,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Win32.SafeHandles;
 using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.WotCon.Server.Registry
@@ -2136,52 +2134,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private void SyncDirectory(string path, DirectorySyncPhase phase)
         {
             m_directorySyncFailureInjector?.Invoke(phase);
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                using SafeFileHandle handle = CreateFileW(
-                    path,
-                    GenericWrite,
-                    FileShareRead | FileShareWrite | FileShareDelete,
-                    IntPtr.Zero,
-                    OpenExisting,
-                    FileFlagBackupSemantics,
-                    IntPtr.Zero);
-                if (handle.IsInvalid)
-                {
-                    int error = Marshal.GetLastWin32Error();
-                    throw new IOException(
-                        $"Unable to open WoT registry directory '{path}' for a " +
-                        $"durability flush.",
-                        new Win32Exception(error));
-                }
-                if (!FlushFileBuffers(handle))
-                {
-                    int error = Marshal.GetLastWin32Error();
-                    throw new IOException(
-                        $"Unable to durably synchronize WoT registry directory '{path}'.",
-                        new Win32Exception(error));
-                }
-                return;
-            }
-
-            byte[] utf8Path = System.Text.Encoding.UTF8.GetBytes(path + "\0");
-            using SafeUnixDirectoryHandle directory =
-                OpenUnixDirectory(utf8Path, OpenReadOnly);
-            if (directory.IsInvalid)
-            {
-                int error = Marshal.GetLastWin32Error();
-                throw new IOException(
-                    $"Unable to open WoT registry directory '{path}' for a " +
-                    $"durability flush.",
-                    new Win32Exception(error));
-            }
-            if (Fsync(directory) != 0)
-            {
-                int error = Marshal.GetLastWin32Error();
-                throw new IOException(
-                    $"Unable to durably synchronize WoT registry directory '{path}'.",
-                    new Win32Exception(error));
-            }
+            DirectoryDurability.Flush(path);
         }
 
         private static async ValueTask<byte[]> ReadAllBytesAsync(
@@ -2248,58 +2201,6 @@ namespace Opc.Ua.WotCon.Server.Registry
                 return NodeId.Null;
             }
         }
-
-        [DllImport(
-            "kernel32.dll",
-            EntryPoint = "CreateFileW",
-            ExactSpelling = true,
-            CharSet = CharSet.Unicode,
-            SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        private static extern SafeFileHandle CreateFileW(
-            string fileName,
-            uint desiredAccess,
-            uint shareMode,
-            IntPtr securityAttributes,
-            uint creationDisposition,
-            uint flagsAndAttributes,
-            IntPtr templateFile);
-
-        [DllImport(
-            "kernel32.dll",
-            EntryPoint = "FlushFileBuffers",
-            ExactSpelling = true,
-            SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool FlushFileBuffers(SafeFileHandle file);
-
-        [DllImport(
-            "libc",
-            EntryPoint = "open",
-            ExactSpelling = true,
-            CallingConvention = CallingConvention.Cdecl,
-            SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-        private static extern SafeUnixDirectoryHandle OpenUnixDirectory(
-            [In] byte[] path,
-            int flags);
-
-        [DllImport(
-            "libc",
-            EntryPoint = "fsync",
-            CallingConvention = CallingConvention.Cdecl,
-            SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-        private static extern int Fsync(SafeUnixDirectoryHandle file);
-
-        [DllImport(
-            "libc",
-            EntryPoint = "close",
-            CallingConvention = CallingConvention.Cdecl,
-            SetLastError = true)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-        private static extern int CloseUnix(IntPtr file);
 
         /// <summary>
         /// Identifies the file-system durability barrier reached while committing a manifest.
@@ -2391,19 +2292,6 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Interlocked.Exchange(ref m_stream, null)?.Dispose();
             }
             private FileStream? m_stream;
-        }
-
-        private sealed class SafeUnixDirectoryHandle : SafeHandleMinusOneIsInvalid
-        {
-            private SafeUnixDirectoryHandle()
-                : base(ownsHandle: true)
-            {
-            }
-
-            protected override bool ReleaseHandle()
-            {
-                return CloseUnix(handle) == 0;
-            }
         }
 
         private sealed class LoadedGeneration
@@ -2560,13 +2448,6 @@ namespace Opc.Ua.WotCon.Server.Registry
         private const int OldestSupportedSchemaVersion = 3;
         private const int Sha256HexLength = 64;
         private const int BlobVerifyChunkSize = 64 * 1024;
-        private const int OpenReadOnly = 0;
-        private const uint GenericWrite = 0x40000000;
-        private const uint FileShareRead = 0x00000001;
-        private const uint FileShareWrite = 0x00000002;
-        private const uint FileShareDelete = 0x00000004;
-        private const uint OpenExisting = 3;
-        private const uint FileFlagBackupSemantics = 0x02000000;
         private static readonly TimeSpan s_lockRetryDelay = TimeSpan.FromMilliseconds(25);
         private static readonly StringComparer s_fileSystemPathComparer =
             RuntimeInformation.IsOSPlatform(OSPlatform.Windows)

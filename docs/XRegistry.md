@@ -12,6 +12,11 @@ everything else. The PubSub Schema Registry and WoT Connectivity registry are co
 specializations: PubSub resources are schema documents, while WoT resources are Thing Description /
 Thing Model documents.
 
+The [xRegistry OPC UA / HTTP bridge](XRegistryBridge.md) builds on this substrate
+to provide write-through gateways and durable bidirectional reconciliation.
+Its experimental transaction extension is opt-in; existing native registration
+and clean-FileType-Close behavior remains unchanged.
+
 ## Packages
 
 | Package | Depends on | Contains |
