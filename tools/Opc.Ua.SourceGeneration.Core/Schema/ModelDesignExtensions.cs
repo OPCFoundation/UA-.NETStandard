@@ -802,91 +802,156 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         public static string GetPropertyName(this Parameter field)
         {
+            return GetGeneratedName(field, s_propertyNames, BuildPropertyNames);
+        }
+
+        /// <summary>
+        /// Looks a field's generated name up in the map computed once for its
+        /// whole structure. Deciding one field at a time cannot work: three
+        /// authored names that sanitize alike ("A-", "A?", "A!" all give "A_")
+        /// each see only the others' pre-disambiguation names, so the second and
+        /// third both pick the same replacement.
+        /// </summary>
+        private static string GetGeneratedName(
+            Parameter field,
+            ConditionalWeakTable<DataTypeDesign, string[]> cache,
+            ConditionalWeakTable<DataTypeDesign, string[]>.CreateValueCallback build)
+        {
             if (string.IsNullOrEmpty(field?.Name))
             {
                 return string.Empty;
             }
-
-            string name = field.Name.ToCSharpIdentifierPreserveCase();
-            string bare = name.TrimStart('@');
-
-            // A member may not carry the name of its enclosing type, and the
-            // templates already occupy a fixed set of member names.
-            bool isReserved(string candidate)
+            if (field.Parent is not DataTypeDesign dataType || dataType.Fields == null)
             {
-                return s_reservedDataTypeMembers.Contains(candidate) ||
-                    string.Equals(
-                        candidate,
-                        (field.Parent as DataTypeDesign)?.SymbolicName?.Name,
-                        StringComparison.Ordinal);
+                return field.Name.ToCSharpIdentifierPreserveCase();
             }
 
-            if (!isReserved(bare) && !CollidesWithEarlierSibling(field, bare))
+            int index = IndexOfField(dataType.Fields, field);
+            if (index < 0)
             {
-                return name;
+                return field.Name.ToCSharpIdentifierPreserveCase();
             }
+            return cache.GetValue(dataType, build)[index];
+        }
 
-            return Disambiguate(field, bare, isReserved);
+        private static int IndexOfField(Parameter[] fields, Parameter field)
+        {
+            for (int ii = 0; ii < fields.Length; ii++)
+            {
+                if (ReferenceEquals(fields[ii], field))
+                {
+                    return ii;
+                }
+            }
+            return -1;
         }
 
         /// <summary>
-        /// True when the identifier is already taken inside the generated class.
-        /// That is any earlier sibling's property name - authored names that
-        /// differ only in characters the sanitizer drops ("Value Id" and
-        /// "ValueId") map onto one member - and, for every sibling, the backing
-        /// field the property is stored in: a field "Value" is stored in
-        /// "m_value", so a sibling literally named "m_value" would declare a
-        /// property of the same name. The first field declared keeps the plain
-        /// name so the result does not depend on which field is asked first.
+        /// Assigns every field of a structure its generated property name in one
+        /// pass, in declaration order, so each name is unique within the class.
+        /// A name is taken by an earlier property, by the backing field of an
+        /// earlier property, by a member the templates declare, by the enclosing
+        /// type's own name, or by an inherited property.
         /// </summary>
-        private static bool CollidesWithEarlierSibling(Parameter field, string bare)
+        private static string[] BuildPropertyNames(DataTypeDesign dataType)
         {
-            if (s_reservedDataTypeFields.Contains(bare))
+            Parameter[] fields = dataType.Fields;
+            var names = new string[fields.Length];
+
+            var taken = new HashSet<string>(StringComparer.Ordinal);
+            taken.UnionWith(s_reservedDataTypeMembers);
+            taken.UnionWith(s_reservedDataTypeFields);
+            if (!string.IsNullOrEmpty(dataType.SymbolicName?.Name))
             {
-                return true;
+                // A member may not carry the name of its enclosing type.
+                taken.Add(dataType.SymbolicName.Name);
             }
 
-            bool earlier = true;
-            foreach (Parameter sibling in (field.Parent as DataTypeDesign)?.Fields ?? [])
+            // Inherited properties, keyed by generated name. A derived field
+            // that carries the *same* authored name as an inherited one is a
+            // deliberate redeclaration (the generator emits it as an override),
+            // so only a different wire name landing on the same identifier is a
+            // collision - that would be CS0108 on the generated class.
+            Dictionary<string, string> inherited = CollectInheritedPropertyNames(dataType);
+
+            for (int ii = 0; ii < fields.Length; ii++)
             {
-                if (ReferenceEquals(sibling, field))
+                Parameter field = fields[ii];
+                if (string.IsNullOrEmpty(field?.Name))
                 {
-                    // Later siblings can still collide through their backing
-                    // field, which does not depend on declaration order.
-                    earlier = false;
-                    continue;
-                }
-                if (string.IsNullOrEmpty(sibling?.Name))
-                {
+                    names[ii] = string.Empty;
                     continue;
                 }
 
-                // The sibling's names *before* disambiguation. Asking for its
-                // final ones would recurse back into this check through
-                // GetChildFieldName, and an over-approximation here only costs
-                // an unnecessary rename, never a collision.
-                string siblingBare = SanitizeFieldName(sibling.Name);
-
-                if (string.Equals(
-                    ToBackingFieldName(siblingBare), bare, StringComparison.Ordinal))
+                string candidate = SanitizeFieldName(field.Name);
+                string suffixed = candidate + "Field";
+                while (IsTaken(taken, inherited, candidate, field.Name))
                 {
-                    // This property would be named after the sibling's field.
-                    return true;
+                    candidate = suffixed;
+                    suffixed += "_";
                 }
-                if (earlier &&
-                    (string.Equals(siblingBare, bare, StringComparison.Ordinal) ||
-                        string.Equals(
-                            ToBackingFieldName(siblingBare),
-                            ToBackingFieldName(bare),
-                            StringComparison.Ordinal)))
+
+                taken.Add(candidate);
+                // Reserve the backing field the property is stored in, so two
+                // properties cannot share one ("Value" and "value" both map to
+                // "m_value", and a field literally named "m_value" would take
+                // the name of another field's store).
+                taken.Add(ToBackingFieldName(candidate));
+
+                // Re-apply the keyword escape: the replacement may no longer be
+                // one, and the original may still be.
+                names[ii] = candidate.ToCSharpIdentifierPreserveCase();
+            }
+
+            return names;
+        }
+
+        private static bool IsTaken(
+            HashSet<string> taken,
+            Dictionary<string, string> inherited,
+            string candidate,
+            string authoredName)
+        {
+            return taken.Contains(candidate) ||
+                taken.Contains(ToBackingFieldName(candidate)) ||
+                (inherited.TryGetValue(candidate, out string inheritedFrom) &&
+                    !string.Equals(inheritedFrom, authoredName, StringComparison.Ordinal));
+        }
+
+        /// <summary>
+        /// The generated property names of every field inherited through the
+        /// base type chain, mapped to the authored name each came from.
+        /// </summary>
+        private static Dictionary<string, string> CollectInheritedPropertyNames(
+            DataTypeDesign dataType)
+        {
+            var result = new Dictionary<string, string>(StringComparer.Ordinal);
+            var visited = new HashSet<XmlQualifiedName>();
+
+            for (var baseType = dataType.BaseTypeNode as DataTypeDesign;
+                baseType?.Fields != null;
+                baseType = baseType.BaseTypeNode as DataTypeDesign)
+            {
+                if (baseType.SymbolicId != null && !visited.Add(baseType.SymbolicId))
                 {
-                    // Same property name, or two property names that differ only
-                    // where the backing field mapping does not ("Value" and
-                    // "value" both store into "m_value").
-                    return true;
+                    // A cyclic base chain is reported elsewhere; do not hang.
+                    break;
+                }
+                foreach (Parameter field in baseType.Fields)
+                {
+                    if (string.IsNullOrEmpty(field?.Name))
+                    {
+                        continue;
+                    }
+                    string name = field.GetPropertyName().TrimStart('@');
+                    if (!result.ContainsKey(name))
+                    {
+                        result[name] = field.Name;
+                    }
                 }
             }
-            return false;
+
+            return result;
         }
 
         private static string SanitizeFieldName(string name)
@@ -898,6 +963,11 @@ namespace Opc.Ua.Schema.Model
         {
             return propertyName.ToSafeSymbolName(true, "m_");
         }
+
+        private static readonly ConditionalWeakTable<DataTypeDesign, string[]>
+            s_propertyNames = new();
+        private static readonly ConditionalWeakTable<DataTypeDesign, string[]>
+            s_fieldsEnumMemberNames = new();
 
         /// <summary>
         /// Backing fields the data type templates declare themselves, which a
@@ -914,66 +984,46 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         public static string GetFieldsEnumMemberName(this Parameter field)
         {
-            if (string.IsNullOrEmpty(field?.Name))
-            {
-                return string.Empty;
-            }
-
-            string name = field.Name.ToCSharpIdentifierPreserveCase();
-            string bare = name.TrimStart('@');
-
-            static bool isReserved(string candidate)
-            {
-                return string.Equals(candidate, "None", StringComparison.Ordinal);
-            }
-
-            if (!isReserved(bare) && !CollidesWithEarlierSibling(field, bare))
-            {
-                return name;
-            }
-
-            return Disambiguate(field, bare, isReserved);
+            return GetGeneratedName(
+                field, s_fieldsEnumMemberNames, BuildFieldsEnumMemberNames);
         }
 
         /// <summary>
-        /// Appends "Field" - and then underscores - to a colliding name until it
-        /// is neither taken by a sibling field of the same structure nor itself
-        /// reserved. Siblings are compared on the identifier they generate as,
-        /// not on their authored name: "Encode Field" and "Encode" both want the
-        /// member "EncodeField", and comparing raw names would hand it out twice.
+        /// Assigns every field its member name in the generated
+        /// <c>{ClassName}Fields</c> enumeration, in one pass for the same reason
+        /// as the property names. The enumeration is its own scope, so the only
+        /// name taken up front is <c>None</c>.
         /// </summary>
-        private static string Disambiguate(
-            Parameter field,
-            string bare,
-            Func<string, bool> isReserved)
+        private static string[] BuildFieldsEnumMemberNames(DataTypeDesign dataType)
         {
-            var taken = new HashSet<string>(StringComparer.Ordinal);
-            foreach (Parameter sibling in (field.Parent as DataTypeDesign)?.Fields ?? [])
+            Parameter[] fields = dataType.Fields;
+            var names = new string[fields.Length];
+            var taken = new HashSet<string>(StringComparer.Ordinal) { "None" };
+
+            for (int ii = 0; ii < fields.Length; ii++)
             {
-                if (sibling == null ||
-                    ReferenceEquals(sibling, field) ||
-                    string.IsNullOrEmpty(sibling.Name))
+                Parameter field = fields[ii];
+                if (string.IsNullOrEmpty(field?.Name))
                 {
+                    names[ii] = string.Empty;
                     continue;
                 }
-                string siblingBare = SanitizeFieldName(sibling.Name);
-                taken.Add(sibling.Name);
-                taken.Add(siblingBare);
-                // The property shares the class with every sibling's backing
-                // field, so the replacement name must clear those too. Uses the
-                // pre-disambiguation name for the same reason as the collision
-                // check: asking for the final one would recurse.
-                taken.Add(ToBackingFieldName(siblingBare));
-            }
-            taken.UnionWith(s_reservedDataTypeFields);
 
-            string candidate = bare + "Field";
-            while (taken.Contains(candidate) || isReserved(candidate))
-            {
-                candidate += "_";
+                string candidate = SanitizeFieldName(field.Name);
+                string suffixed = candidate + "Field";
+                while (taken.Contains(candidate))
+                {
+                    candidate = suffixed;
+                    suffixed += "_";
+                }
+
+                taken.Add(candidate);
+                names[ii] = candidate.ToCSharpIdentifierPreserveCase();
             }
-            return candidate;
+
+            return names;
         }
+
 
         private static readonly HashSet<string> s_reservedDataTypeMembers =
             new(StringComparer.Ordinal)

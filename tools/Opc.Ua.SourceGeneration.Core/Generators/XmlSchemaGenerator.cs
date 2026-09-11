@@ -265,7 +265,9 @@ namespace Opc.Ua.SourceGeneration
                     m_context.ModelDesign.Namespaces));
             }
 
-            context.Template.AddReplacement(Tokens.TypeName, dataType.SymbolicName.Name);
+            context.Template.AddReplacement(
+                Tokens.TypeName,
+                dataType.SymbolicName.Name.AsXmlAttributeValue());
 
             if (dataType.BasicDataType == BasicDataType.Enumeration && dataType.IsOptionSet)
             {
@@ -314,6 +316,11 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
+            // The authored field name lands in XSD attributes, so it has to be
+            // escaped - a BrowseName may legally contain '&', '<' or a quote,
+            // which would otherwise make the emitted schema non-well-formed.
+            string fieldName = field.Name.AsXmlAttributeValue();
+
             BasicDataType basicType = dataType.BasicDataType;
 
             if (basicType == BasicDataType.Enumeration)
@@ -327,13 +334,13 @@ namespace Opc.Ua.SourceGeneration
                 {
                     context.Out.WriteLine(
                         "<xs:enumeration value=\"{0}\" />",
-                        field.Name);
+                        fieldName);
                     return null;
                 }
 
                 context.Out.WriteLine(
                     "<xs:enumeration value=\"{0}_{1}\" />",
-                    field.Name,
+                    fieldName,
                     field.Identifier);
                 return null;
             }
@@ -343,7 +350,7 @@ namespace Opc.Ua.SourceGeneration
             if (basicType == BasicDataType.XmlElement &&
                 field.ValueRank == ValueRank.Scalar)
             {
-                context.Out.WriteLine("<xs:element name=\"{0}\" minOccurs=\"0\" nillable=\"true\">", field.Name);
+                context.Out.WriteLine("<xs:element name=\"{0}\" minOccurs=\"0\" nillable=\"true\">", fieldName);
                 context.Out.WriteLine("  <xs:complexType>");
                 context.Out.WriteLine("    <xs:sequence>");
                 context.Out.WriteLine("      <xs:any minOccurs=\"0\" processContents=\"lax\" />");
@@ -367,7 +374,7 @@ namespace Opc.Ua.SourceGeneration
 
                 context.Out.WriteLine(
                     "<xs:element name=\"{0}\" type=\"{1}\" minOccurs=\"0\" nillable=\"true\" />",
-                    field.Name,
+                    fieldName,
                     fieldDataType);
             }
             else
@@ -385,7 +392,7 @@ namespace Opc.Ua.SourceGeneration
                     case BasicDataType.DataValue:
                         context.Out.WriteLine(
                                 "<xs:element name=\"{0}\" type=\"{1}\" minOccurs=\"0\" nillable=\"true\" />",
-                                field.Name,
+                                fieldName,
                                 field.DataTypeNode.GetXmlDataType(
                                     field.ValueRank,
                                     m_context.ModelDesign.TargetNamespace.Value,
@@ -395,7 +402,7 @@ namespace Opc.Ua.SourceGeneration
                     case BasicDataType.StatusCode:
                         context.Out.WriteLine(
                                 "<xs:element name=\"{0}\" type=\"{1}\" minOccurs=\"0\" />",
-                                field.Name,
+                                fieldName,
                                 field.DataTypeNode.GetXmlDataType(
                                     field.ValueRank,
                                     m_context.ModelDesign.TargetNamespace.Value,
@@ -414,12 +421,12 @@ namespace Opc.Ua.SourceGeneration
 
                         context.Out.WriteLine(
                             "<xs:element name=\"{0}\" type=\"{1}\" minOccurs=\"0\" nillable=\"true\" />",
-                            field.Name,
+                            fieldName,
                             fieldDataType);
                         break;
                     default:
                         context.Out.WriteLine("<xs:element name=\"{0}\" type=\"{1}\" minOccurs=\"0\" />",
-                                field.Name,
+                                fieldName,
                                 field.DataTypeNode.GetXmlDataType(
                                     field.ValueRank,
                                     m_context.ModelDesign.TargetNamespace.Value,
@@ -482,7 +489,9 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
-            context.Template.AddReplacement(Tokens.TypeName, dataType.SymbolicName.Name);
+            context.Template.AddReplacement(
+                Tokens.TypeName,
+                dataType.SymbolicName.Name.AsXmlAttributeValue());
             context.Template.AddReplacement(
                 Tokens.Nillable,
                 !dataType.BasicDataType.IsXmlNillable() ?

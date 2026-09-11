@@ -1272,9 +1272,17 @@ namespace Opc.Ua.Schema.Model
             // declared after its subtype in the same design file has to be
             // validated first. Index the file's own nodes and walk the base
             // chain ahead of each node rather than relying on declaration order.
+            // Index under both names a BaseType reference can spell, matching
+            // the import pre-pass: a type whose SymbolicId differs from its
+            // SymbolicName is reachable under either, and indexing only one of
+            // them let the two passes disagree about what a base type is.
             var bySymbolicId = new Dictionary<XmlQualifiedName, NodeDesign>();
             foreach (NodeDesign node in dictionary.Items)
             {
+                if (!IsNull(node.SymbolicName))
+                {
+                    bySymbolicId[node.SymbolicName] = node;
+                }
                 if (!IsNull(node.SymbolicId))
                 {
                     bySymbolicId[node.SymbolicId] = node;

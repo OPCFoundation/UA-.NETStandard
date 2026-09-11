@@ -13279,8 +13279,14 @@ namespace Opc.Ua.Schema.Model.Tests
             colliding.Parent = dataType;
             sibling.Parent = dataType;
 
-            Assert.That(colliding.GetPropertyName(), Is.EqualTo("TypeIdField_"));
-            Assert.That(sibling.GetPropertyName(), Is.EqualTo("TypeIdField"));
+            // Declaration order decides: the reserved "TypeId" is renamed first
+            // and takes "TypeIdField", so the sibling that was already spelled
+            // that way has to move.
+            Assert.That(colliding.GetPropertyName(), Is.EqualTo("TypeIdField"));
+            Assert.That(sibling.GetPropertyName(), Is.EqualTo("TypeIdFieldField"));
+            Assert.That(
+                colliding.GetPropertyName(),
+                Is.Not.EqualTo(sibling.GetPropertyName()));
         }
 
         /// <summary>
@@ -13304,8 +13310,14 @@ namespace Opc.Ua.Schema.Model.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(sibling.GetPropertyName(), Is.EqualTo("EncodeField"));
-                Assert.That(colliding.GetPropertyName(), Is.EqualTo("EncodeField_"));
+                // Names are handed out in declaration order: "Encode" is
+                // reserved so it takes "EncodeField" first, and "Encode Field"
+                // - which sanitizes onto the same name - has to move.
+                Assert.That(colliding.GetPropertyName(), Is.EqualTo("EncodeField"));
+                Assert.That(sibling.GetPropertyName(), Is.EqualTo("EncodeFieldField"));
+                Assert.That(
+                    colliding.GetPropertyName(),
+                    Is.Not.EqualTo(sibling.GetPropertyName()));
             });
         }
 
@@ -13462,6 +13474,119 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.That(
                 first.GetChildFieldName(),
                 Is.Not.EqualTo(second.GetChildFieldName()));
+        }
+
+        /// <summary>
+        /// Regression: deciding one field at a time only ever saw the siblings'
+        /// pre-disambiguation names, so with three authored names that sanitize
+        /// alike the first kept the plain name and the other two both picked the
+        /// same replacement (CS0102). The mapping is computed for the whole
+        /// field list in one pass.
+        /// </summary>
+        [Test]
+        public void GetPropertyName_ThreeSiblingsThatSanitizeAlike_AreAllUnique()
+        {
+            var first = new Parameter { Name = "A-" };
+            var second = new Parameter { Name = "A?" };
+            var third = new Parameter { Name = "A!" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [first, second, third]
+            };
+            foreach (Parameter field in dataType.Fields)
+            {
+                field.Parent = dataType;
+            }
+
+            string[] names =
+            [
+                first.GetPropertyName(),
+                second.GetPropertyName(),
+                third.GetPropertyName()
+            ];
+
+            Assert.That(names, Is.Unique);
+            Assert.That(
+                new[]
+                {
+                    first.GetFieldsEnumMemberName(),
+                    second.GetFieldsEnumMemberName(),
+                    third.GetFieldsEnumMemberName()
+                },
+                Is.Unique);
+            Assert.That(
+                new[]
+                {
+                    first.GetChildFieldName(),
+                    second.GetChildFieldName(),
+                    third.GetChildFieldName()
+                },
+                Is.Unique);
+        }
+
+        /// <summary>
+        /// Regression: the check only looked at fields declared on the type, so
+        /// a derived field could sanitize onto an inherited property's name and
+        /// the generated class redeclared it without new/override (CS0108).
+        /// </summary>
+        [Test]
+        public void GetPropertyName_CollidingWithAnInheritedProperty_IsMadeUnique()
+        {
+            var baseField = new Parameter { Name = "Value Id" };
+            var baseType = new DataTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("BaseType", "http://test.org/UA/"),
+                SymbolicName = new XmlQualifiedName("BaseType", "http://test.org/UA/"),
+                Fields = [baseField]
+            };
+            baseField.Parent = baseType;
+
+            var derivedField = new Parameter { Name = "ValueId" };
+            var derived = new DataTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("Derived", "http://test.org/UA/"),
+                SymbolicName = new XmlQualifiedName("Derived", "http://test.org/UA/"),
+                BaseTypeNode = baseType,
+                Fields = [derivedField]
+            };
+            derivedField.Parent = derived;
+
+            Assert.That(baseField.GetPropertyName(), Is.EqualTo("ValueId"));
+            Assert.That(
+                derivedField.GetPropertyName(),
+                Is.Not.EqualTo("ValueId"),
+                "redeclaring the inherited name without override is CS0108");
+        }
+
+        /// <summary>
+        /// A derived field carrying the *same* wire name as an inherited one is
+        /// a deliberate redeclaration - the generator emits it as an override
+        /// (HistoryUpdateDetails.NodeId) - so it has to keep the name.
+        /// </summary>
+        [Test]
+        public void GetPropertyName_RedeclaringAnInheritedFieldKeepsTheName()
+        {
+            var baseField = new Parameter { Name = "NodeId" };
+            var baseType = new DataTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("BaseType", "http://test.org/UA/"),
+                SymbolicName = new XmlQualifiedName("BaseType", "http://test.org/UA/"),
+                Fields = [baseField]
+            };
+            baseField.Parent = baseType;
+
+            var derivedField = new Parameter { Name = "NodeId" };
+            var derived = new DataTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("Derived", "http://test.org/UA/"),
+                SymbolicName = new XmlQualifiedName("Derived", "http://test.org/UA/"),
+                BaseTypeNode = baseType,
+                Fields = [derivedField]
+            };
+            derivedField.Parent = derived;
+
+            Assert.That(derivedField.GetPropertyName(), Is.EqualTo("NodeId"));
         }
 
         /// <summary>
