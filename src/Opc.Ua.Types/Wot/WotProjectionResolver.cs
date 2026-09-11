@@ -208,6 +208,11 @@ namespace Opc.Ua.Wot
                         cancellationToken).ConfigureAwait(false);
                 }
 
+                if (!ValidateSourceIdentities(sources, diagnostics))
+                {
+                    return null;
+                }
+
                 JsonArray? mergedContext = MergeContext(
                     projectionDocument, sources, diagnostics);
                 JsonObject securityDefinitions =
@@ -259,6 +264,12 @@ namespace Opc.Ua.Wot
                     return null;
                 }
 
+                CloseAffordanceDependencies(selection, diagnostics, cancellationToken);
+                if (CountErrors(diagnostics) > errorsAtEntry)
+                {
+                    return null;
+                }
+
                 JsonObject root = AssembleRoot(
                     projectionDocument, projection.ResultKind, mergedContext, securityDefinitions, selection);
                 return Serialize(root);
@@ -270,6 +281,33 @@ namespace Opc.Ua.Wot
                     openDocuments[ii].Dispose();
                 }
             }
+        }
+
+        private static bool ValidateSourceIdentities(ResolvedSource?[] sources, List<WotDiagnostic> diagnostics)
+        {
+            var seen = new Dictionary<string, WotDocument>(StringComparer.Ordinal);
+            foreach (ResolvedSource? source in sources)
+            {
+                if (source is null)
+                {
+                    continue;
+                }
+                if (!seen.TryGetValue(source.DocumentHref, out WotDocument? previous))
+                {
+                    seen.Add(source.DocumentHref, source.Document);
+                    continue;
+                }
+                if (!WotJsonCanonicalizer.TryCanonicalize(previous.RootElement, out string first, out string error) ||
+                    !WotJsonCanonicalizer.TryCanonicalize(source.Document.RootElement, out string second, out error) ||
+                    !string.Equals(first, second, StringComparison.Ordinal))
+                {
+                    AddError(diagnostics, WotDiagnosticCode.ProjectionSourceUnresolved,
+                        "One source location supplied conflicting or incomparable documents during projection. " + error,
+                        source.DocumentHref);
+                    return false;
+                }
+            }
+            return true;
         }
 
         private async ValueTask<ResolvedSource?> ResolveSourceAsync(
@@ -739,8 +777,10 @@ namespace Opc.Ua.Wot
                 QualifyProjectionSecurity(target);
             }
             CarryAnchor(target, source.Document);
-            target["uav:resolvedFrom"] = source.DocumentHref + "#" + pointer;
-            selection.Add(reference.AffordanceKind, reference.Name, target);
+            CarryProvenance(target, source, definition, pointer, diagnostics);
+            selection.Add(
+                reference.AffordanceKind, reference.Name, target, source,
+                UnescapeAffordanceName(pointer[prefix.Length..]), definition);
         }
 
         private static void SelectBulk(
@@ -806,10 +846,135 @@ namespace Opc.Ua.Wot
                     target.Remove("security");
                 }
                 CarryAnchor(target, source.Document);
-                target["uav:resolvedFrom"] =
-                    BuildBulkProvenance(source.DocumentHref, kind, name);
-                selection.Add(kind, viewName, target);
+                CarryProvenance(target, source, definition,
+                    "/" + MapName(kind) + "/" + EscapePointer(name), diagnostics);
+                selection.Add(kind, viewName, target, source, name, definition);
             }
+        }
+
+        private void CloseAffordanceDependencies(
+            Selection selection, List<WotDiagnostic> diagnostics, CancellationToken cancellationToken)
+        {
+            if (selection.Members.Count > m_options.MaxNodeCount)
+            {
+                AddError(diagnostics, WotDiagnosticCode.TraversalBudgetExhausted,
+                    $"The projection exceeds the configured maximum of {m_options.MaxNodeCount} affordances.");
+                return;
+            }
+            for (int index = 0; index < selection.Members.Count; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ResolvedAffordance member = selection.Members[index];
+                if (member.Kind == WotAffordanceKind.Property &&
+                    member.Definition.TryGetProperty(WotNodeSetConverter.UnitPropertyTerm, out JsonElement unit))
+                {
+                    int errors = CountErrors(diagnostics);
+                    WotNodeSetConverter.ValidateUnitProperty(
+                        member.Source.Document, member.Definition, member.SourceName, member.Pointer, diagnostics);
+                    if (CountErrors(diagnostics) != errors)
+                    {
+                        continue;
+                    }
+                    string pointer = unit.GetString()!;
+                    string name = UnescapeAffordanceName(pointer["/properties/".Length..]);
+                    ResolvedAffordance? dependency = CarrySupportingAffordance(
+                        member.Source, WotAffordanceKind.Property, name,
+                        member.Source.Document.Properties[name], selection, diagnostics);
+                    if (dependency is not null)
+                    {
+                        member.Value[WotNodeSetConverter.UnitPropertyTerm] =
+                            "/properties/" + EscapePointer(dependency.Name);
+                    }
+                }
+                if (member.Kind == WotAffordanceKind.Action &&
+                    member.Definition.TryGetProperty(WotNodeSetConverter.ActsOnTerm, out JsonElement actsOn))
+                {
+                    string? name = actsOn.ValueKind == JsonValueKind.String ? actsOn.GetString() : null;
+                    if (string.IsNullOrEmpty(name) ||
+                        !member.Source.Document.Events.TryGetValue(name!, out JsonElement target) ||
+                        target.ValueKind != JsonValueKind.Object ||
+                        !target.TryGetProperty(WotNodeSetConverter.ConditionTypeTerm, out JsonElement condition) ||
+                        condition.ValueKind != JsonValueKind.String ||
+                        string.IsNullOrEmpty(condition.GetString()))
+                    {
+                        AddError(
+                            diagnostics, WotDiagnosticCode.InvalidConditionTarget,
+                            "A carried uav:actsOn must name an event with uav:conditionType in its original source.",
+                            member.Source.DocumentHref + "#" + member.Pointer);
+                        continue;
+                    }
+                    ResolvedAffordance? dependency = CarrySupportingAffordance(
+                        member.Source, WotAffordanceKind.Event, name!, target, selection, diagnostics);
+                    if (dependency is not null)
+                    {
+                        member.Value[WotNodeSetConverter.ActsOnTerm] = dependency.Name;
+                    }
+                }
+            }
+        }
+
+        private ResolvedAffordance? CarrySupportingAffordance(
+            ResolvedSource source,
+            WotAffordanceKind kind,
+            string name,
+            JsonElement definition,
+            Selection selection,
+            List<WotDiagnostic> diagnostics)
+        {
+            string pointer = "/" + MapName(kind) + "/" + EscapePointer(name);
+            if (selection.TryLocate(source, pointer, out ResolvedAffordance? selected))
+            {
+                return selected;
+            }
+            if (selection.Members.Count >= m_options.MaxNodeCount)
+            {
+                AddError(diagnostics, WotDiagnosticCode.TraversalBudgetExhausted,
+                    "The projection dependency closure exceeds the configured maximum of " +
+                    $"{m_options.MaxNodeCount} affordances.", source.DocumentHref + "#" + pointer);
+                return null;
+            }
+
+            string outputName = selection.AllocateSupportName(kind, source, name, pointer);
+            JsonObject value = CloneObject(definition);
+            if (source.Source.Routing == WotProjectionRouting.Source)
+            {
+                TransformForms(value, source, selection);
+            }
+            else
+            {
+                value.Remove("forms");
+                value.Remove("security");
+            }
+            CarryAnchor(value, source.Document);
+            CarryProvenance(value, source, definition, pointer, diagnostics);
+            return selection.Add(kind, outputName, value, source, name, definition);
+        }
+
+        private static void CarryProvenance(
+            JsonObject value,
+            ResolvedSource source,
+            JsonElement definition,
+            string pointer,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!definition.TryGetProperty("uav:resolvedFrom", out JsonElement provenance))
+            {
+                value["uav:resolvedFrom"] = source.DocumentHref + "#" + pointer;
+                return;
+            }
+            if (provenance.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(provenance.GetString()))
+            {
+                AddError(diagnostics, WotDiagnosticCode.ProjectionSourceUnresolved,
+                    "Carried uav:resolvedFrom provenance must be a non-empty reference.",
+                    source.DocumentHref + "#" + pointer);
+                return;
+            }
+            value["uav:resolvedFrom"] = ResolveHref(source.DocumentHref, provenance.GetString()!);
+        }
+
+        private static string UnescapeAffordanceName(string token)
+        {
+            return token.Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -1971,14 +2136,6 @@ namespace Opc.Ua.Wot
             builder.Length = 0;
         }
 
-        private static string BuildBulkProvenance(
-            string href,
-            WotAffordanceKind kind,
-            string name)
-        {
-            return href + "#/" + MapName(kind) + "/" + EscapePointer(name);
-        }
-
         private static string MapName(WotAffordanceKind kind)
         {
             return kind switch
@@ -2279,9 +2436,19 @@ namespace Opc.Ua.Wot
 
         private sealed class ResolvedAffordance
         {
+            public WotAffordanceKind Kind { get; init; }
+
             public string Name { get; init; } = string.Empty;
 
             public JsonObject Value { get; init; } = null!;
+
+            public ResolvedSource Source { get; init; } = null!;
+
+            public string SourceName { get; init; } = string.Empty;
+
+            public string Pointer { get; init; } = string.Empty;
+
+            public JsonElement Definition { get; init; }
         }
 
         private sealed class Selection
@@ -2297,6 +2464,8 @@ namespace Opc.Ua.Wot
 
             public List<ResolvedAffordance> Events { get; } = [];
 
+            public List<ResolvedAffordance> Members { get; } = [];
+
             public JsonObject SecurityDefinitions { get; }
 
             public HashSet<string> SecurityAdded { get; } =
@@ -2307,9 +2476,45 @@ namespace Opc.Ua.Wot
                 return Taken(kind).Add(name);
             }
 
-            public void Add(WotAffordanceKind kind, string name, JsonObject value)
+            public ResolvedAffordance Add(
+                WotAffordanceKind kind, string name, JsonObject value,
+                ResolvedSource source, string sourceName, JsonElement definition)
             {
-                List(kind).Add(new ResolvedAffordance { Name = name, Value = value });
+                var member = new ResolvedAffordance
+                {
+                    Kind = kind,
+                    Name = name,
+                    Value = value,
+                    Source = source,
+                    SourceName = sourceName,
+                    Pointer = "/" + MapName(kind) + "/" + EscapePointer(sourceName),
+                    Definition = definition
+                };
+                List(kind).Add(member);
+                Members.Add(member);
+                m_locations.TryAdd((source.DocumentHref, member.Pointer), member);
+                return member;
+            }
+
+            public bool TryLocate(ResolvedSource source, string pointer, out ResolvedAffordance? member)
+            {
+                return m_locations.TryGetValue((source.DocumentHref, pointer), out member);
+            }
+
+            public string AllocateSupportName(
+                WotAffordanceKind kind, ResolvedSource source, string name, string pointer)
+            {
+                if (Claim(kind, name))
+                {
+                    return name;
+                }
+                string stem = "q:d:" + EncodeSecurityName(source.Source.SourceName) + ":" + EncodeSecurityName(pointer);
+                string candidate = stem;
+                for (int suffix = 1; !Claim(kind, candidate); suffix++)
+                {
+                    candidate = stem + ":" + suffix.ToString(CultureInfo.InvariantCulture);
+                }
+                return candidate;
             }
 
             private List<ResolvedAffordance> List(WotAffordanceKind kind)
@@ -2340,6 +2545,8 @@ namespace Opc.Ua.Wot
 
             private readonly HashSet<string> m_takenEvents =
                 new(StringComparer.Ordinal);
+
+            private readonly Dictionary<(string DocumentHref, string Pointer), ResolvedAffordance> m_locations = [];
         }
 
         private readonly IWotThingResolver m_thingResolver;

@@ -1117,6 +1117,25 @@ affordance maps, nested DataSchemas, action inputs and event payload schemas
 are not affordance selections. RFC 6901 escaping retains names containing `/`
 or `~`; it does not permit a selection to cross affordance kinds.
 
+Selections retain their source location and canonical definition pointer.
+The resolver carries the sibling string property named by `uav:unitProperty`
+and the Condition event named by an action's `uav:actsOn`, reusing a dependency's
+selected output name when it is already present. Selecting that event does not
+add the source's other actions. Invalid dependencies fail the resolution rather
+than leaving a pointer to an unrelated or missing member.
+
+A supporting affordance keeps its source name when free. On a collision it uses
+`q:d:<B64u(sourceName)>:<B64u(sourcePointer)>`, followed by the first unused
+positive `:1`, `:2`, and so on when that spelling is already occupied.
+Authored selections are not overwritten. Selected and supporting affordances
+count against `MaxNodeCount`. Literal values and opaque metadata are not searched
+for reference lookalikes.
+
+Original `uav:resolvedFrom` provenance survives selection and support carriage;
+relative provenance is resolved at the original containing document location,
+not its runtime endpoint base. Conflicting document contents fetched under the
+same source location in a plan cannot be used interchangeably.
+
 An enumerated selection may annotate the affordance it names, but Section 12.5
 closes the set of members it may annotate with. Permitted beside `tm:ref` are
 `title`, `titles`, `description`, `descriptions`, additional `@type` values,

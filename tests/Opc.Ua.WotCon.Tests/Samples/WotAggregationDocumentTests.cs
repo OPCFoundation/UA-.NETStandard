@@ -34,6 +34,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using NUnit.Framework;
@@ -1357,20 +1358,47 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(result.Success, Is.True, fileName);
             using WotDocument view = result.Value!;
             JsonElement map = view.RootElement.GetProperty(mapName);
-            Assert.That(PropertyNames(map), Is.EquivalentTo(expectedMembers), fileName);
             Assert.That(TypeNames(view.RootElement), Does.Not.Contain("uav:projection"), fileName);
             string pumpName = fileName[..fileName.IndexOf('.', StringComparison.Ordinal)];
             ArrayOf<SampleDocument> sources = ReadPumpDocuments();
+            var units = new Dictionary<string, Affordance>(StringComparer.Ordinal);
+            if (mapName == "properties")
+            {
+                List<Affordance> declarations = [.. ReadAffordances(sources, mapName)];
+                foreach (string name in expectedMembers)
+                {
+                    string localPath = s_propertyBindings.Single(binding => binding.Name == name).LocalPath;
+                    Affordance declaration = FindAffordance(sources, mapName, LocalNodeId(pumpName, localPath));
+                    if (declaration.Value.TryGetProperty("uav:unitProperty", out JsonElement pointer))
+                    {
+                        Affordance unit = declarations.Single(candidate =>
+                            candidate.ResourceId == declaration.ResourceId && candidate.Pointer == pointer.GetString());
+                        units[unit.Name] = unit;
+                    }
+                }
+            }
+            Assert.That(PropertyNames(map), Is.EquivalentTo(expectedMembers.Concat(units.Keys).Distinct()), fileName);
             foreach (JsonProperty member in map.EnumerateObject())
             {
+                if (Array.IndexOf(expectedMembers, member.Name) < 0)
+                {
+                    Affordance unit = units[member.Name];
+                    Assert.That(member.Value.GetProperty("type").GetString(), Is.EqualTo("string"), member.Name);
+                    Assert.That(member.Value.GetProperty("uav:id").GetString(),
+                        Is.EqualTo(unit.Value.GetProperty("uav:id").GetString()), member.Name);
+                    Assert.That(member.Value.GetProperty("uav:resolvedFrom").GetString(),
+                        Is.EqualTo(unit.ResourceId + "#" + unit.Pointer), member.Name);
+                    Assert.That(JsonNode.DeepEquals(
+                        JsonNode.Parse(member.Value.GetProperty("uav:engineeringUnits").GetRawText()),
+                        JsonNode.Parse(unit.Value.GetProperty("uav:engineeringUnits").GetRawText())), Is.True, member.Name);
+                    continue;
+                }
                 string localPath = mapName == "properties"
                     ? s_propertyBindings.Single(binding => binding.Name == member.Name).LocalPath
                     : member.Name;
                 string localId = LocalNodeId(pumpName, localPath);
                 Affordance declaration = FindAffordance(sources, mapName, localId);
-                string reference = fileName == $"{pumpName}.Members.td.json"
-                    ? declaration.ResourceId + "#" + declaration.Pointer
-                    : $"{pumpName.ToLowerInvariant()}-members#/{mapName}/{EscapePointer(member.Name)}";
+                string reference = declaration.ResourceId + "#" + declaration.Pointer;
                 Assert.That(
                     member.Value.GetProperty("uav:resolvedFrom").GetString(),
                     Is.EqualTo(reference),
