@@ -129,8 +129,11 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 ["./self.jsonld"] = Projection("./self.jsonld")
             };
-            var resolver = new WotProjectionResolver(new MapResolver(documents));
-            using WotDocument manifest = WotDocument.Parse(
+            var resolver = new WotProjectionResolver(new MapResolver(documents), new WotNodeSetConverterOptions
+            {
+                ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
+            });
+            using var manifest = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(Projection("./self.jsonld")));
 
             WotConversionResult<WotDocument> result = await resolver
@@ -234,10 +237,14 @@ namespace Opc.Ua.Types.Tests.Wot
             var documents = new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["./source.jsonld"] = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                    sourceBody + "}"
+                    sourceBody +
+                    "}"
             };
-            var resolver = new WotProjectionResolver(new MapResolver(documents));
-            using WotDocument manifest = WotDocument.Parse(
+            var resolver = new WotProjectionResolver(new MapResolver(documents), new WotNodeSetConverterOptions
+            {
+                ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
+            });
+            using var manifest = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(Projection("./source.jsonld")));
 
             WotConversionResult<WotDocument> result = await resolver
@@ -262,7 +269,8 @@ namespace Opc.Ua.Types.Tests.Wot
             for (int ii = 0; ii < sources; ii++)
             {
                 string href = "./source-" +
-                    ii.ToString(CultureInfo.InvariantCulture) + ".jsonld";
+                    ii.ToString(CultureInfo.InvariantCulture) +
+                    ".jsonld";
                 hrefs.Add(href);
                 documents[href] = Source("Source" + ii.ToString(CultureInfo.InvariantCulture));
             }
@@ -270,10 +278,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 new MapResolver(documents),
                 new WotNodeSetConverterOptions
                 {
+                    ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11,
                     MaxResolverDocuments = maxDocuments,
                     MaxResolverDocumentBytes = maxDocumentBytes
                 });
-            using WotDocument manifest = WotDocument.Parse(
+            using var manifest = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(Projection([.. hrefs])));
             return await resolver.ResolveAsync(manifest).ConfigureAwait(false);
         }
@@ -289,17 +298,23 @@ namespace Opc.Ua.Types.Tests.Wot
             for (int ii = 0; ii < depth; ii++)
             {
                 string href = "./organized-" +
-                    ii.ToString(CultureInfo.InvariantCulture) + ".jsonld";
+                    ii.ToString(CultureInfo.InvariantCulture) +
+                    ".jsonld";
                 string? next = ii + 1 < depth
                     ? "./organized-" +
-                        (ii + 1).ToString(CultureInfo.InvariantCulture) + ".jsonld"
+                        (ii + 1).ToString(CultureInfo.InvariantCulture) +
+                        ".jsonld"
                     : null;
                 documents[href] = Organized(next);
             }
             var resolver = new WotProjectionResolver(
                 new MapResolver(documents),
-                new WotNodeSetConverterOptions { MaxResolverDocuments = maxDocuments });
-            using WotDocument manifest = WotDocument.Parse(
+                new WotNodeSetConverterOptions
+                {
+                    ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11,
+                    MaxResolverDocuments = maxDocuments
+                });
+            using var manifest = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(
                     Projection(["./source.jsonld"], "./organized-0.jsonld")));
             return await resolver.ResolveAsync(manifest).ConfigureAwait(false);
@@ -308,7 +323,9 @@ namespace Opc.Ua.Types.Tests.Wot
         private static string Source(string title)
         {
             return "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "\"@type\":\"Thing\",\"title\":\"" + title + "\"," +
+                "\"@type\":\"Thing\",\"title\":\"" +
+                title +
+                "\"," +
                 "\"security\":\"nosec_sc\"," +
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
                 "\"properties\":{\"value\":{\"type\":\"number\"}}}";
@@ -324,7 +341,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"@type\":\"Thing\",\"title\":\"Organized\"," +
                 "\"security\":\"nosec_sc\"," +
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}" +
-                links + "}";
+                links +
+                "}";
         }
 
         private static string Projection(string href)
@@ -359,7 +377,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"security\":\"nosec_sc\"," +
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
                 "\"uav:scenario\":\"http://example.com/scenario/Limits\"," +
-                "\"uav:projects\":[" + sources + "]" + links + "}";
+                "\"uav:projects\":[" +
+                sources +
+                "]" +
+                links +
+                "}";
         }
 
         private sealed class MapResolver(Dictionary<string, string> map) : IWotThingResolver

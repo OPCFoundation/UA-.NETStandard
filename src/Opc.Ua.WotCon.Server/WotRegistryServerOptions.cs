@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.XRegistry.Server;
@@ -75,6 +76,12 @@ namespace Opc.Ua.WotCon.Server
         /// (rather than materializing degraded nodes).
         /// </summary>
         public bool StrictBindings { get; set; }
+
+        /// <summary>
+        /// Gets or sets explicitly permitted legacy projection-plan syntax.
+        /// Ordinary TD-only uploads never use this compatibility mode.
+        /// </summary>
+        public WotProjectionCompatibilityMode ProjectionCompatibilityMode { get; set; }
 
         /// <summary>
         /// Gets or sets how a superseded projection generation is retired after

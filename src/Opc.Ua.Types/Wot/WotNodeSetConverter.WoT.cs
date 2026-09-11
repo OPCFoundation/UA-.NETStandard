@@ -195,6 +195,10 @@ namespace Opc.Ua.Wot
             }
             var diagnostics = new List<WotDiagnostic>();
             WotThingCatalog? thingCatalog = null;
+            if (RejectUnresolvedProjectionPlan(document, diagnostics))
+            {
+                return new WotConversionResult<UANodeSet>(null, diagnostics);
+            }
             WotThingCatalog? parentCatalog = null;
             WotReferenceTypeCatalog? referenceTypeCatalog = null;
             WotEventSelectionCatalog? eventSelections = null;
@@ -1023,6 +1027,11 @@ namespace Opc.Ua.Wot
             options ??= new WotNodeSetConverterOptions();
             options.Validate();
 
+            if (RejectUnresolvedProjectionPlan(document, diagnostics))
+            {
+                return null;
+            }
+
             // Exactly one resolution context is created per top-level
             // conversion, seeded from the converter options, and threaded
             // through every context/schema/thing/link resolution below. It
@@ -1271,6 +1280,19 @@ namespace Opc.Ua.Wot
                     location));
             }
             return nodeSet;
+        }
+
+        private static bool RejectUnresolvedProjectionPlan(WotDocument document, List<WotDiagnostic> diagnostics)
+        {
+            if (!WotProjection.IsProjection(document))
+            {
+                return false;
+            }
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.ProjectionManifestInvalid,
+                "Projection plans must be resolved with WotProjectionResolver before ordinary TD/TM conversion."));
+            return true;
         }
 
         private static UANodeSet? ValidateNativeConsistency(
@@ -2315,10 +2337,10 @@ namespace Opc.Ua.Wot
                             diagnostics,
                             action),
                 MethodDeclarationId = declaration,
-                ParentNodeId = rootNodeId
+                ParentNodeId = rootNodeId,
+                DisplayName = ReadTitle(document, action),
+                Description = ReadDescription(document, action)
             };
-            method.DisplayName = ReadTitle(document, action);
-            method.Description = ReadDescription(document, action);
 
             string owner = ReadComponentOfParent(action, nodeSet, diagnostics) ?? rootNodeId;
             if (isConditionMethod &&
@@ -2400,20 +2422,20 @@ namespace Opc.Ua.Wot
                         nodeSet,
                         diagnostics,
                         eventAffordance),
-                IsAbstract = false
+                IsAbstract = false,
+                DisplayName = ReadTitle(document, eventAffordance),
+                Description = ReadDescription(document, eventAffordance),
+                References =
+                [
+                    new Reference
+                    {
+                        ReferenceType = "HasSubtype",
+                        IsForward = false,
+                        Value = ResolveConditionSupertype(
+                            document, eventAffordance, key, nodeSet, diagnostics)
+                    }
+                ]
             };
-            eventType.DisplayName = ReadTitle(document, eventAffordance);
-            eventType.Description = ReadDescription(document, eventAffordance);
-            eventType.References =
-            [
-                new Reference
-                {
-                    ReferenceType = "HasSubtype",
-                    IsForward = false,
-                    Value = ResolveConditionSupertype(
-                        document, eventAffordance, key, nodeSet, diagnostics)
-                }
-            ];
 
             items.Add(eventType);
 
@@ -3203,14 +3225,6 @@ namespace Opc.Ua.Wot
             JsonElement carryingNode = default)
         {
             return document.TryGetContextPrefix(prefix, out namespaceUri, carryingNode);
-        }
-
-        private static bool TryGetContextNamespace(
-            JsonElement context,
-            string prefix,
-            out string namespaceUri)
-        {
-            return WotDocument.TryGetContextPrefix(context, prefix, out namespaceUri);
         }
 
         private static void SynthesizeComponentArrays(

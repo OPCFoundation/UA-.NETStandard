@@ -104,7 +104,7 @@ namespace Opc.Ua.WotCon.Tests
                 m_projectionHost,
                 documentConverter: m_converter);
             var factory = new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator);
-            Opc.Ua.Server.NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+            Ua.Server.NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
                 .AddAsync(factory, callerContext: null)
                 .ConfigureAwait(false);
             m_nodeManager = (WotRegistryNodeManager)registration.NodeManager;
@@ -461,10 +461,7 @@ namespace Opc.Ua.WotCon.Tests
 
                 await m_session.CloseAsync().ConfigureAwait(false);
                 byte[]? downloaded = null;
-                Assert.That(async () =>
-                {
-                    downloaded = await survivor.Proxy.DownloadAllAsync().ConfigureAwait(false);
-                }, Throws.Nothing);
+                Assert.That(async () => downloaded = await survivor.Proxy.DownloadAllAsync().ConfigureAwait(false), Throws.Nothing);
                 Assert.That(downloaded, Is.EqualTo(original));
                 if (logical)
                 {
@@ -720,11 +717,8 @@ namespace Opc.Ua.WotCon.Tests
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            await Assert.ThatAsync(async () =>
-            {
-                await m_nodeManager.SessionClosingAsync(
-                    null!, m_session.SessionId, deleteSubscriptions: true, cancellation.Token).ConfigureAwait(false);
-            }, Throws.Nothing).ConfigureAwait(false);
+            await Assert.ThatAsync(async () => await m_nodeManager.SessionClosingAsync(
+                    null!, m_session.SessionId, deleteSubscriptions: true, cancellation.Token).ConfigureAwait(false), Throws.Nothing).ConfigureAwait(false);
             byte[] downloaded = await logical.Proxy.DownloadAllAsync().ConfigureAwait(false);
 
             Assert.That(downloaded, Is.EqualTo(original));
@@ -1387,6 +1381,65 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(outcome, Is.Not.Null);
         }
 
+        [TestCase(WoTDocumentKindEnum.ThingDescription)]
+        [TestCase(WoTDocumentKindEnum.ThingModel)]
+        public async Task FullRegistryFileUploadStoresAnExplicitProjectionAsAPlan(WoTDocumentKindEnum kind)
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = kind == WoTDocumentKindEnum.ThingModel
+                ? await client.CreateThingModelGroupAsync().ConfigureAwait(false)
+                : await client.CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            (WotRegistryResourceClient resource, _) = await group.CreateResourceAsync("plan", "v1")
+                .ConfigureAwait(false);
+            string resultKind = kind == WoTDocumentKindEnum.ThingModel ? "ThingModel" : "ThingDescription";
+            string json = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "\"@type\":\"uav:projection\",\"uav:projectionKind\":\"" +
+                resultKind +
+                "\"," +
+                "\"id\":\"urn:uploaded:plan\",\"title\":\"Plan\",\"uav:scenario\":\"urn:scenario\"," +
+                "\"uav:projects\":[{\"uav:sourceName\":\"source\",\"href\":\"urn:source\"," +
+                "\"type\":\"application/td+json\",\"uav:selectAll\":true}]}";
+            var content = ByteString.From(Encoding.UTF8.GetBytes(json));
+
+            await resource.Proxy.UploadAsync(content).ConfigureAwait(false);
+
+            WotResource stored = m_registry.Current.FindResource(group.GroupId, "plan")!;
+            WotResourceVersion version = stored.FindVersion("v1")!;
+            Assert.That(stored.Kind, Is.EqualTo(kind));
+            Assert.That(version.Format, Is.EqualTo(Wot.WotProjection.Format));
+            Assert.That(version.ContentType, Is.EqualTo(Wot.WotProjection.ContentType));
+            ByteString downloaded = await resource.DownloadAsync().ConfigureAwait(false);
+            Assert.That(downloaded, Is.EqualTo(content));
+            WoTValidationOutcomeDataType validation = await resource.ValidateAsync().ConfigureAwait(false);
+            Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+        }
+
+        [Test]
+        public async Task FullRegistryFileUploadDoesNotImplicitlySelectLegacyPlanProcessing()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client.CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            (WotRegistryResourceClient resource, _) = await group.CreateResourceAsync("draft-plan", "v1")
+                .ConfigureAwait(false);
+            var content = ByteString.From(Encoding.UTF8.GetBytes(/*lang=json,strict*/ """
+                {
+                  "@context":"https://www.w3.org/2022/wot/td/v1.1","@type":["Thing","uav:projection"],
+                  "id":"urn:draft-plan","title":"Plan","uav:scenario":"urn:scenario",
+                  "uav:projects":[
+                    {"uav:sourceName":"source","href":"urn:source","type":"application/td+json","uav:selectAll":true}
+                  ]
+                }
+                """));
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await resource.Proxy.UploadAsync(content).ConfigureAwait(false))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            WotResourceVersion version = m_registry.Current.FindResource(group.GroupId, "draft-plan")!.FindVersion("v1")!;
+            Assert.That(version.HasContent, Is.False);
+            Assert.That(version.Digest.IsEmpty, Is.True);
+        }
+
         [Test]
         public async Task ValidateOnConcreteNonDefaultVersionTargetsThatVersion()
         {
@@ -1509,8 +1562,7 @@ namespace Opc.Ua.WotCon.Tests
         {
             WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
             WotRegistryGroupClient group;
-            WotRegistryResourceClient resource;
-            (group, resource) = await CreateGroupAndResourceAsync(client)
+            (group, _) = await CreateGroupAndResourceAsync(client)
                 .ConfigureAwait(false);
 
             // MetaLabels lives on the logical Resource node, not the Version
@@ -1984,8 +2036,14 @@ namespace Opc.Ua.WotCon.Tests
             string padding = new('x', 300);
             return
                 "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "\"@type\":\"uav:object\",\"id\":\"urn:" + id + "\",\"title\":\"" + id + "\"," +
-                "\"description\":\"" + padding + "\"}";
+                "\"@type\":\"uav:object\",\"id\":\"urn:" +
+                id +
+                "\",\"title\":\"" +
+                id +
+                "\"," +
+                "\"description\":\"" +
+                padding +
+                "\"}";
         }
 
         private static string MakeThingDescriptionStringV2(string id)
@@ -1993,8 +2051,14 @@ namespace Opc.Ua.WotCon.Tests
             string padding = new('y', 300);
             return
                 "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "\"@type\":\"uav:object\",\"id\":\"urn:" + id + "\",\"title\":\"" + id + "-v2\"," +
-                "\"description\":\"" + padding + "\"}";
+                "\"@type\":\"uav:object\",\"id\":\"urn:" +
+                id +
+                "\",\"title\":\"" +
+                id +
+                "-v2\"," +
+                "\"description\":\"" +
+                padding +
+                "\"}";
         }
 
         private static byte[] ThingDescriptionWithMetadata(
@@ -2004,8 +2068,14 @@ namespace Opc.Ua.WotCon.Tests
         {
             return Encoding.UTF8.GetBytes(
                 "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "\"@type\":\"uav:object\",\"id\":\"" + id + "\"," +
-                "\"title\":\"" + title + "\",\"base\":\"" + baseUri + "\"}");
+                "\"@type\":\"uav:object\",\"id\":\"" +
+                id +
+                "\"," +
+                "\"title\":\"" +
+                title +
+                "\",\"base\":\"" +
+                baseUri +
+                "\"}");
         }
 
         private static byte[] ThingModelWithMetadata(
@@ -2015,9 +2085,14 @@ namespace Opc.Ua.WotCon.Tests
         {
             return Encoding.UTF8.GetBytes(
                 "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "\"@type\":\"tm:ThingModel\",\"id\":\"" + id + "\"," +
-                "\"title\":\"" + title + "\",\"version\":{\"model\":\"" +
-                modelVersion + "\"}}");
+                "\"@type\":\"tm:ThingModel\",\"id\":\"" +
+                id +
+                "\"," +
+                "\"title\":\"" +
+                title +
+                "\",\"version\":{\"model\":\"" +
+                modelVersion +
+                "\"}}");
         }
 
         /// <summary>

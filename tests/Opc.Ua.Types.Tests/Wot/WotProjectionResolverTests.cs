@@ -758,7 +758,10 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 dictionary[map[ii].Href] = map[ii].Json;
             }
-            return new WotProjectionResolver(new MapResolver(dictionary));
+            return new WotProjectionResolver(new MapResolver(dictionary), new WotNodeSetConverterOptions
+            {
+                ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
+            });
         }
 
         private static JsonElement Property(WotDocument view, string name)

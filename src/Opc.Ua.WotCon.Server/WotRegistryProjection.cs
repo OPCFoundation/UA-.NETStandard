@@ -57,14 +57,8 @@ namespace Opc.Ua.WotCon.Server
                 manager.SystemContext,
                 manager.Server.NamespaceUris,
                 m_modelNs,
-                async (node, ct) =>
-                {
-                    await manager.AddPredefinedNodeAsync(node, ct).ConfigureAwait(false);
-                },
-                async (nodeId, ct) =>
-                {
-                    await manager.DeleteNodeAsync(manager.SystemContext, nodeId, ct).ConfigureAwait(false);
-                },
+                async (node, ct) => await manager.AddPredefinedNodeAsync(node, ct).ConfigureAwait(false),
+                async (nodeId, ct) => await manager.DeleteNodeAsync(manager.SystemContext, nodeId, ct).ConfigureAwait(false),
                 manager.CheckManagementAccess,
                 options.XRegistryEvents);
             m_strategy = registry is IWotVersionedRegistryService
@@ -230,7 +224,6 @@ namespace Opc.Ua.WotCon.Server
             WotResource resource,
             WotResourceVersion? version)
         {
-
             XRegistryProjectionEngine.SetValue(node.DocumentKind, resource.Kind);
             XRegistryProjectionEngine.SetValue(node.Enabled, resource.Enabled);
             XRegistryProjectionEngine.SetValue(node.LoadState, resource.LoadState);
@@ -239,10 +232,7 @@ namespace Opc.Ua.WotCon.Server
             XRegistryProjectionEngine.SetValue(node.IsDefault, version is not null &&
                 string.Equals(version.VersionId, resource.DefaultVersionId, StringComparison.Ordinal));
             XRegistryProjectionEngine.SetValue(node.ContentDigest, version is null ? ByteString.Empty : version.Digest);
-            if (node.ValidationOutcome is not null)
-            {
-                node.ValidationOutcome.Value = version?.Validation!;
-            }
+            node.ValidationOutcome?.Value = version?.Validation!;
             XRegistryProjectionEngine.SetValue(node.MaterializedNodeCount, (uint)resource.MaterializedNodeCount);
             XRegistryProjectionEngine.SetValue(node.RootNodeId, resource.RootNodeId);
             XRegistryProjectionEngine.SetValue(node.RefreshGeneration, resource.RefreshGeneration);
@@ -297,11 +287,6 @@ namespace Opc.Ua.WotCon.Server
                 : !string.IsNullOrWhiteSpace(fallback)
                     ? fallback!
                     : string.Empty;
-        }
-
-        private WotResourceFileManager CreateResourceFile(WoTDocumentState node, WotResource resource)
-        {
-            return CreateResourceFile(node, resource, resource.DefaultVersion);
         }
 
         private WotResourceFileManager CreateResourceFile(
@@ -448,6 +433,7 @@ namespace Opc.Ua.WotCon.Server
                 ExpectedVersionDigestHex = baselineContentKey,
                 ExpectedVersionIncarnation = baselineVersionIncarnation,
                 Kind = kind,
+                DetectProjectionFormat = true,
                 Content = ByteString.From(content),
                 ContentType = kind == WoTDocumentKindEnum.ThingModel
                     ? "application/tm+json"
@@ -560,7 +546,7 @@ namespace Opc.Ua.WotCon.Server
             public XRegistryProjectionEventSnapshot CreateEventSnapshot(
                 WotRegistrySnapshot snapshot)
             {
-                ImmutableArray<XRegistryProjectionEventGroup> groups = snapshot.Groups.Values
+                var groups = snapshot.Groups.Values
                     .OrderBy(group => group.GroupId, StringComparer.Ordinal)
                     .Select(CreateEventGroup)
                     .ToImmutableArray();
@@ -579,10 +565,9 @@ namespace Opc.Ua.WotCon.Server
                     checked((uint)group.Epoch),
                     group.Labels,
                     false,
-                    group.Resources.Values
+                    [.. group.Resources.Values
                         .OrderBy(resource => resource.ResourceId, StringComparer.Ordinal)
-                        .Select(CreateEventResource)
-                        .ToImmutableArray())
+                        .Select(CreateEventResource)])
                 {
                     SourceNodeId = m_projection.GroupNodeId(group.GroupId),
                     SourceName = group.Name
@@ -601,9 +586,7 @@ namespace Opc.Ua.WotCon.Server
                     resource.MetaLabels,
                     false,
                     resource.DefaultVersionId,
-                    resource.Versions
-                        .Select(version => CreateEventVersion(resource, version))
-                        .ToImmutableArray())
+                    [.. resource.Versions.Select(version => CreateEventVersion(resource, version))])
                 {
                     SourceNodeId = defaultVersion is null
                         ? NodeId.Null
@@ -1180,6 +1163,7 @@ namespace Opc.Ua.WotCon.Server
             public ImmutableSortedDictionary<string, string> MetaLabels => Resource.MetaLabels;
             public DateTime MetaCreatedAt => Resource.MetaCreatedAt;
             public DateTime MetaModifiedAt => Resource.MetaModifiedAt;
+
             public bool IsDefaultVersion => string.Equals(
                 Resource.DefaultVersionId,
                 Version.VersionId,

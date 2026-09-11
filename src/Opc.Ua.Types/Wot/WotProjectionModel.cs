@@ -32,6 +32,22 @@ using System.Text.Json;
 namespace Opc.Ua.Wot
 {
     /// <summary>
+    /// Selects explicitly supported legacy projection-plan processing.
+    /// </summary>
+    public enum WotProjectionCompatibilityMode
+    {
+        /// <summary>
+        /// Admit only current plans with an explicit result kind.
+        /// </summary>
+        None,
+
+        /// <summary>
+        /// Process DraftProjection1.1 documents whose old TD or TM marker identifies the result kind.
+        /// </summary>
+        DraftProjection11
+    }
+
+    /// <summary>
     /// The endpoint a consumer of a projected affordance talks to.
     /// </summary>
     /// <remarks>

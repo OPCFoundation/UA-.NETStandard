@@ -46,6 +46,11 @@ namespace Opc.Ua.Wot
     public sealed class WotProjection
     {
         /// <summary>
+        /// Gets the declared kind of the resolved document.
+        /// </summary>
+        public WotDocumentKind ResultKind { get; private set; }
+
+        /// <summary>
         /// Gets the machine-readable purpose the view serves.
         /// </summary>
         /// <remarks>
@@ -97,14 +102,31 @@ namespace Opc.Ua.Wot
             {
                 throw new ArgumentNullException(nameof(document));
             }
-            foreach (string token in document.TypeTokens)
+            return document.RootElement.ValueKind == JsonValueKind.Object &&
+                document.RootElement.TryGetProperty("@type", out JsonElement type) &&
+                IsProjectionType(type);
+        }
+
+        /// <summary>
+        /// Determines whether a JSON <c>@type</c> value carries the projection role.
+        /// </summary>
+        /// <param name="type">The string or array from the document's <c>@type</c> member.</param>
+        /// <returns><c>true</c> when the value contains <c>uav:projection</c>.</returns>
+        public static bool IsProjectionType(JsonElement type)
+        {
+            if (type.ValueKind == JsonValueKind.String)
             {
-                if (string.Equals(
-                    token,
-                    WotVocabulary.ProjectionAnnotation,
-                    StringComparison.Ordinal))
+                return string.Equals(type.GetString(), WotVocabulary.ProjectionAnnotation, StringComparison.Ordinal);
+            }
+            if (type.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement token in type.EnumerateArray())
                 {
-                    return true;
+                    if (token.ValueKind == JsonValueKind.String &&
+                        string.Equals(token.GetString(), WotVocabulary.ProjectionAnnotation, StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
                 }
             }
             return false;
@@ -128,6 +150,32 @@ namespace Opc.Ua.Wot
             WotDocument document,
             List<WotDiagnostic> diagnostics)
         {
+            return Parse(document, diagnostics, WotProjectionCompatibilityMode.None);
+        }
+
+        /// <summary>
+        /// Reads a projection plan with an explicitly selected compatibility mode.
+        /// </summary>
+        /// <param name="document">The projection document.</param>
+        /// <param name="diagnostics">Receives plan validation diagnostics.</param>
+        /// <param name="compatibilityMode">
+        /// The permitted legacy plan syntax. Selecting compatibility does not relax current-plan validation.
+        /// </param>
+        /// <returns>
+        /// The parsed plan, or <c>null</c> if the document has no projection role. Callers must reject
+        /// error diagnostics before resolving or materializing the plan.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="document"/> or <paramref name="diagnostics"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="compatibilityMode"/> is not a defined mode.
+        /// </exception>
+        public static WotProjection? Parse(
+            WotDocument document,
+            List<WotDiagnostic> diagnostics,
+            WotProjectionCompatibilityMode compatibilityMode)
+        {
             if (document is null)
             {
                 throw new ArgumentNullException(nameof(document));
@@ -136,6 +184,11 @@ namespace Opc.Ua.Wot
             {
                 throw new ArgumentNullException(nameof(diagnostics));
             }
+            if (compatibilityMode is not (
+                WotProjectionCompatibilityMode.None or WotProjectionCompatibilityMode.DraftProjection11))
+            {
+                throw new ArgumentOutOfRangeException(nameof(compatibilityMode));
+            }
             if (!IsProjection(document))
             {
                 return null;
@@ -143,11 +196,88 @@ namespace Opc.Ua.Wot
 
             return new WotProjection
             {
+                ResultKind = ReadResultKind(document, compatibilityMode, diagnostics),
                 Scenario = ReadScenario(document, diagnostics),
                 Sources = ReadSources(document, diagnostics),
                 References = ReadReferences(document, diagnostics),
                 OrganizingLinks = ReadOrganizingLinks(document)
             };
+        }
+
+        private static WotDocumentKind ReadResultKind(
+            WotDocument document, WotProjectionCompatibilityMode compatibilityMode, List<WotDiagnostic> diagnostics)
+        {
+            var tokens = new List<string>();
+            if (!document.RootElement.TryGetProperty("@type", out JsonElement types) ||
+                !TryAppendTypeTokens(types, tokens))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error, WotDiagnosticCode.ProjectionManifestInvalid,
+                    "A projection plan's @type must be a non-empty string or an array of non-empty strings.",
+                    new WotLocation(reference: "@type")));
+                return WotDocumentKind.Unknown;
+            }
+            foreach (string token in tokens)
+            {
+                if (WotNodeSetConverter.IsNodeClassAnnotation(token))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error, WotDiagnosticCode.ProjectionManifestInvalid,
+                        "A projection plan must not claim another OPC UA NodeClass role.",
+                        new WotLocation(reference: "@type")));
+                    return WotDocumentKind.Unknown;
+                }
+            }
+            if (!document.TryGetUav("projectionKind", out JsonElement kind))
+            {
+                if (compatibilityMode == WotProjectionCompatibilityMode.DraftProjection11)
+                {
+                    bool td = false;
+                    bool tm = false;
+                    foreach (string token in tokens)
+                    {
+                        td |= token == "Thing";
+                        tm |= token == "tm:ThingModel";
+                    }
+                    if (td != tm)
+                    {
+                        return tm ? WotDocumentKind.ThingModel : WotDocumentKind.ThingDescription;
+                    }
+                }
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error, WotDiagnosticCode.ProjectionManifestInvalid,
+                    "A projection plan requires uav:projectionKind; DraftProjection1.1 requires " +
+                    "explicit compatibility processing and exactly one old TD or TM marker.",
+                    new WotLocation(reference: "uav:projectionKind")));
+                return WotDocumentKind.Unknown;
+            }
+            WotDocumentKind result = kind.ValueKind == JsonValueKind.String
+                ? kind.GetString() switch
+                {
+                    "ThingDescription" => WotDocumentKind.ThingDescription,
+                    "ThingModel" => WotDocumentKind.ThingModel,
+                    _ => WotDocumentKind.Unknown
+                }
+                : WotDocumentKind.Unknown;
+            if (result == WotDocumentKind.Unknown)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error, WotDiagnosticCode.ProjectionManifestInvalid,
+                    "uav:projectionKind must be ThingDescription or ThingModel.",
+                    new WotLocation(reference: "uav:projectionKind")));
+            }
+            foreach (string token in tokens)
+            {
+                if (token is "Thing" or "tm:ThingModel")
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error, WotDiagnosticCode.ProjectionManifestInvalid,
+                        "A projection plan must not claim an already resolved TD, TM, or OPC UA NodeClass role.",
+                        new WotLocation(reference: "@type")));
+                    break;
+                }
+            }
+            return result;
         }
 
         private static string ReadScenario(
@@ -243,13 +373,14 @@ namespace Opc.Ua.Wot
                 return null;
             }
             if (!string.Equals(mediaType, ThingDescriptionMediaType, StringComparison.Ordinal) &&
-                !string.Equals(mediaType, ThingModelMediaType, StringComparison.Ordinal))
+                !string.Equals(mediaType, ThingModelMediaType, StringComparison.Ordinal) &&
+                !string.Equals(mediaType, ContentType, StringComparison.Ordinal))
             {
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.ProjectionManifestInvalid,
                     $"The source type '{mediaType}' shall be " +
-                    $"'{ThingDescriptionMediaType}' or '{ThingModelMediaType}'.",
+                    $"'{ThingDescriptionMediaType}', '{ThingModelMediaType}', or '{ContentType}'.",
                     new WotLocation(reference: sourceName)));
                 return null;
             }
@@ -698,6 +829,17 @@ namespace Opc.Ua.Wot
             }
             return true;
         }
+
+        /// <summary>
+        /// The registry Format identifier for a current projection plan.
+        /// </summary>
+        public const string Format = "WoT-Projection/1.2";
+
+        /// <summary>
+        /// The registry ContentType and source-manifest media type for a current projection plan.
+        /// </summary>
+        public const string ContentType =
+            "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"";
 
         private const string ThingDescriptionMediaType = "application/td+json";
         private const string ThingModelMediaType = "application/tm+json";

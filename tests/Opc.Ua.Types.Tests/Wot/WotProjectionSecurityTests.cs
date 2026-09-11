@@ -338,7 +338,8 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             return new JsonObject
             {
-                ["@type"] = new JsonArray("Thing", "uav:projection"),
+                ["@type"] = new JsonArray("uav:projection"),
+                ["uav:projectionKind"] = "ThingDescription",
                 ["title"] = "Security origins",
                 ["uav:scenario"] = "urn:scenario:security"
             };

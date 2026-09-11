@@ -1010,10 +1010,10 @@ a ReferenceType — the two constructs the model already has.
 
 ### 12.4 Projection documents and the View NodeClass
 
-A **projection document** is a Thing Description or Thing Model that declares,
-rather than defines, its affordances. It names source documents and states which
-of their affordances a view is assembled from, so it carries references and
-annotations only and has nothing that can drift from its sources.
+A **projection document** is a `WoT-Projection/1.2` plan, not an already
+resolved Thing Description or Thing Model. It names source documents and
+states which of their affordances a view is assembled from. Its selectors
+are references and annotations, not executable InteractionAffordances.
 
 This completes the NodeClass binding. Seven OPC UA NodeClasses bind to a WoT
 construct that defines something; `View` is the eighth and the only one whose
@@ -1025,12 +1025,64 @@ A projection is marked by `uav:projection` in its `@type` and declares:
 
 | Term | Meaning |
 |---|---|
+| `uav:projectionKind` | required resolved result kind: `ThingDescription` or `ThingModel` |
 | `uav:scenario` | absolute IRI naming the purpose the view serves |
 | `uav:projects` | non-empty manifest of the documents it projects |
 | `uav:sourceName` | alias for a source, unique in the manifest |
 | `uav:routing` | `source` (default) or `projection` |
 | `uav:sourceDigest` | `sha-256:<hex>` pinning a source revision |
 | `uav:namePrefix` | prefix applied to bulk-selected names |
+
+The current plan root carries `uav:projection`, without `Thing`,
+`tm:ThingModel`, or an OPC UA NodeClass annotation. `WotProjection.ResultKind`
+provides its declared output kind; the View builder uses that value rather
+than classifying the unresolved root as an ordinary TD/TM. Resolution removes
+`uav:projection` and `uav:projectionKind` and supplies the ordinary result's
+`Thing` or `tm:ThingModel` marker.
+
+Use `WotProjection.Format` and `WotProjection.ContentType` for its registry
+metadata: `WoT-Projection/1.2` and
+`application/ld+json; profile="http://opcfoundation.org/UA/WoT-Binding/v1.2/projection"`.
+A source manifest accepts `application/td+json`, `application/tm+json`, or
+that projection media type for a nested plan. Its media type must describe
+the fetched source role; enabling compatibility does not disguise a modern
+plan as an ordinary TD or TM.
+
+Direct `WotRegistryService.UpsertResourceAsync` calls require the corresponding
+Format, ContentType and stored result kind. `DetectProjectionFormat`, when
+explicitly selected on an upsert request, classifies an authored projection role
+before applying plan admission. The Full-registry FileType adapter uses that
+mode, so the existing generated upload clients can store current plans without
+claiming the bytes are ordinary TD/TM documents. It never enables legacy syntax.
+The TD-only asset-upload and endpoint-generation paths reject unresolved plans,
+as does ordinary NodeSet conversion. Restored plans are revalidated before any
+runtime closure is published.
+
+`WotProjection.Parse`, `WotProjectionResolver`, and `WotProjectionViewBuilder`
+default to current-plan processing. Draft plans combining `uav:projection`
+with an old `Thing` or `tm:ThingModel` marker require explicit compatibility:
+
+```csharp
+var options = new WotNodeSetConverterOptions
+{
+    ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
+};
+var resolver = new WotProjectionResolver(thingResolver, options);
+```
+
+For standalone parsing, use the `WotProjection.Parse` overload with that
+compatibility mode. Exactly one old TD/TM marker must determine the result
+kind. An invalid explicit `uav:projectionKind` is not a request for legacy
+processing, and compatibility does not rewrite the original document bytes.
+
+Hosted deployments select compatibility through
+`WotRegistryServerOptions.ProjectionCompatibilityMode`; it reaches both registry
+admission and View materialization. Direct registry construction also has an
+explicit compatibility overload. Compatibility and format metadata participate
+in refresh fingerprints. Changing a Version's Format or ContentType invalidates
+its format validation and selected runtime admission even if its bytes did not
+change. A validation result cannot be attached to a replacement Version or to
+different format metadata.
 
 Source `href` values are resolved against the owning projection's effective
 base for retrieval. Nested projections retain their own retrieved location and

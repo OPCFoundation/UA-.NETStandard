@@ -35,6 +35,8 @@ using NUnit.Framework;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using WotNodeSetConverterOptions = Opc.Ua.Wot.WotNodeSetConverterOptions;
+using WotProjectionCompatibilityMode = Opc.Ua.Wot.WotProjectionCompatibilityMode;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
@@ -96,10 +98,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task TmBeforeTdCreatesSingleClosureTmOrderedFirst()
         {
-            await RegisterTm("tm-a", TestMaterialization.Tm("urn:tm-a"));
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", extendsHrefs: "urn:tm-a"));
+            await RegisterTm("tm-a", TestMaterialization.Tm("urn:tm-a")).ConfigureAwait(false);
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", extendsHrefs: "urn:tm-a")).ConfigureAwait(false);
 
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             Assert.That(m_host.AddCount, Is.EqualTo(1),
                 "A shared closure must project as one runtime NodeManager.");
@@ -131,9 +133,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 WotRegistryGroups.ThingDescriptions,
                 "placeholder",
                 "v1",
-                WoTDocumentKindEnum.ThingDescription);
+                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
 
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -151,9 +153,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task TdBeforeTmFailsThenSucceedsAfterTmRegistration()
         {
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", extendsHrefs: "urn:tm-a"));
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", extendsHrefs: "urn:tm-a")).ConfigureAwait(false);
 
-            WotRefreshResult first = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult first = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             Assert.That(m_host.AddCount, Is.Zero,
                 "A Thing Description with a missing model dependency must not project.");
@@ -166,8 +168,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     .LoadState,
                 Is.EqualTo(WoTLoadStateEnum.Failed));
 
-            await RegisterTm("tm-a", TestMaterialization.Tm("urn:tm-a"));
-            WotRefreshResult second = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await RegisterTm("tm-a", TestMaterialization.Tm("urn:tm-a")).ConfigureAwait(false);
+            WotRefreshResult second = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             Assert.That(m_host.AddCount, Is.EqualTo(1),
                 "Registering the missing model must let the closure project.");
@@ -188,9 +190,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "td-a",
                 TestMaterialization.Td(
                     "urn:td-a",
-                    extendsHrefs: "https://example.invalid/models/pump.tm.jsonld"));
+                    extendsHrefs: "https://example.invalid/models/pump.tm.jsonld")).ConfigureAwait(false);
 
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             Assert.That(m_host.AddCount, Is.Zero);
             WoTResourceLoadResultDataType tdResult =
@@ -202,11 +204,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task UnchangedRefreshPreservesRegistrationNoModelEvent()
         {
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
             Assert.That(m_host.AddCount, Is.EqualTo(1));
 
-            WotRefreshResult second = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult second = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             Assert.That(m_host.AddCount, Is.EqualTo(1), "No new add on an unchanged refresh.");
             Assert.That(m_host.ShadowCount, Is.Zero, "No shadow reload on an unchanged refresh.");
@@ -217,14 +219,42 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.EqualTo(WoTOutcomeEnum.Unchanged));
         }
 
+        [TestCase(WotProjectionCompatibilityMode.None, WotProjectionCompatibilityMode.DraftProjection11)]
+        [TestCase(WotProjectionCompatibilityMode.DraftProjection11, WotProjectionCompatibilityMode.None)]
+        public async Task ChangingProjectionCompatibilityReprocessesOtherwiseUnchangedInput(
+            WotProjectionCompatibilityMode initial, WotProjectionCompatibilityMode changed)
+        {
+            var options = new WotNodeSetConverterOptions { ProjectionCompatibilityMode = initial };
+            m_coordinator.Dispose();
+            m_coordinator = new WotMaterializationCoordinator(
+                m_registry, m_host, converterOptions: options, documentConverter: m_converter);
+            await RegisterTd("td-mode", TestMaterialization.Td("urn:td-mode")).ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            WotRefreshResult stable = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            Assert.That(stable.Results.Single().Outcome, Is.EqualTo(WoTOutcomeEnum.Unchanged));
+            Assert.That(m_host.AddCount, Is.EqualTo(1));
+            Assert.That(m_host.ShadowCount, Is.Zero);
+
+            options.ProjectionCompatibilityMode = changed;
+            WotRefreshResult reapplied =
+                await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+
+            Assert.That(reapplied.Results.Single().Outcome, Is.Not.EqualTo(WoTOutcomeEnum.Unchanged));
+            Assert.That(m_host.AddCount, Is.EqualTo(1));
+            Assert.That(m_host.ShadowCount, Is.EqualTo(1));
+            WotRefreshResult unchanged = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            Assert.That(unchanged.Results.Single().Outcome, Is.EqualTo(WoTOutcomeEnum.Unchanged));
+            Assert.That(m_host.ShadowCount, Is.EqualTo(1));
+        }
+
         [Test]
         public async Task InvalidVersionFailureRetainsPreviousActiveProjection()
         {
             var events = new List<WotMaterializationEventArgs>();
             m_coordinator.Event += (_, e) => events.Add(e);
 
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v1"));
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v1")).ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
             WotResource afterFirst =
                 m_registry.Current.FindResource(WotRegistryGroups.ThingDescriptions, "td-a")!;
             string activeBefore = afterFirst.ActiveVersionId!;
@@ -232,8 +262,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             // A new version whose conversion fails.
             m_converter.MarkInvalid("td-a");
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v2"));
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v2")).ConfigureAwait(false);
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             Assert.That(m_host.RemoveCount, Is.Zero,
                 "A failed refresh must retain the previous active projection.");
@@ -253,12 +283,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task VersionSwitchUsesShadowReload()
         {
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v1"));
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v1")).ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
             Assert.That(m_host.AddCount, Is.EqualTo(1));
 
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v2"));
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v2")).ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             Assert.That(m_host.AddCount, Is.EqualTo(1), "A version switch must not re-add.");
             Assert.That(m_host.ShadowCount, Is.EqualTo(1),
@@ -271,10 +301,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var events = new List<WotMaterializationEventArgs>();
             m_coordinator.Event += (_, e) => events.Add(e);
 
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
             m_converter.MarkProjectionInvalid("td-a");
 
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             WoTResourceLoadResultDataType tdResult =
                 result.Results.Single(r => r.ResourceId == "td-a");
@@ -297,11 +327,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task VersionSwitchUsesImmediateReloadWhenConfigured()
         {
             m_coordinator.RetirementPolicy = WotProjectionRetirementPolicy.Immediate;
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v1"));
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v1")).ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v2"));
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v2")).ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             Assert.That(m_host.ShadowCount, Is.Zero);
             Assert.That(m_host.ImmediateCount, Is.EqualTo(1),
@@ -311,19 +341,19 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task VersionSwitchCleanupWarningTracksCommittedReplacement()
         {
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v1"));
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v1")).ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             m_host.NextReloadWarning = "Prior-generation cleanup is pending.";
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v2"));
-            WotRefreshResult switched = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v2")).ConfigureAwait(false);
+            WotRefreshResult switched = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             WoTResourceLoadResultDataType result =
                 switched.Results.Single(r => r.ResourceId == "td-a");
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Warning));
             Assert.That(result.Message, Does.Contain("cleanup is pending"));
 
-            WotRefreshResult unchanged = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult unchanged = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
             Assert.That(m_host.ShadowCount, Is.EqualTo(1),
                 "The committed replacement handle must remain tracked after a cleanup warning.");
             Assert.That(
@@ -334,12 +364,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task DeleteRetiresProjection()
         {
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
             Assert.That(m_host.AddCount, Is.EqualTo(1));
 
-            await m_registry.DeleteResourceAsync(WotRegistryGroups.ThingDescriptions, "td-a");
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await m_registry.DeleteResourceAsync(WotRegistryGroups.ThingDescriptions, "td-a").ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             Assert.That(m_host.RemoveCount, Is.EqualTo(1),
                 "A deleted resource's projection must be retired.");
@@ -348,11 +378,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task IndependentClosuresPartialSuccess()
         {
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
-            await RegisterTd("td-b", TestMaterialization.Td("urn:td-b"));
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
+            await RegisterTd("td-b", TestMaterialization.Td("urn:td-b")).ConfigureAwait(false);
             m_converter.MarkInvalid("td-b");
 
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             Assert.That(m_host.AddCount, Is.EqualTo(1),
                 "Only the projectable closure commits.");
@@ -372,12 +402,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task RefreshExpectedGenerationMismatchIsRejected()
         {
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
 
             WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest
             {
                 ExpectedGeneration = 99999
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(result.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
             Assert.That(m_host.AddCount, Is.Zero);
@@ -386,12 +416,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task DryRunDoesNotCommit()
         {
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
 
             WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest
             {
                 Options = new WoTRefreshOptionsDataType { DryRun = true }
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(m_host.AddCount, Is.Zero, "A dry run must not project.");
             Assert.That(result.NewGeneration, Is.Zero);
@@ -407,16 +437,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, m_host, binders, documentConverter: m_converter);
 
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
+            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
             Assert.That(m_host.AddCount, Is.EqualTo(1));
             Assert.That(binders.ActivatedPlans, Has.Count.EqualTo(1));
 
-            await m_registry.DeleteResourceAsync(WotRegistryGroups.ThingDescriptions, "td-a");
+            await m_registry.DeleteResourceAsync(WotRegistryGroups.ThingDescriptions, "td-a").ConfigureAwait(false);
             WotRefreshResult dryRun = await m_coordinator.RefreshAsync(new WotRefreshRequest
             {
                 Options = new WoTRefreshOptionsDataType { DryRun = true }
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(m_host.RemoveCount, Is.Zero, "A dry-run retirement must not remove the projection.");
             Assert.That(binders.DeactivatedPlans, Is.Empty,
@@ -428,7 +458,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(retired.LoadState, Is.EqualTo(WoTLoadStateEnum.Unloaded));
             Assert.That(retired.Message, Does.Contain("would be retired"));
 
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             Assert.That(m_host.RemoveCount, Is.EqualTo(1),
                 "The committed retirement must still find the tracked closure after the dry run.");
@@ -438,8 +468,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task DryRunsDoNotAdvanceExpectedGeneration()
         {
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
-            WotRefreshResult committed = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
+            WotRefreshResult committed = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
             uint expectedGeneration = committed.NewGeneration;
             Assert.That(expectedGeneration, Is.EqualTo(m_coordinator.Generation));
 
@@ -448,7 +478,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 WotRefreshResult dryRun = await m_coordinator.RefreshAsync(new WotRefreshRequest
                 {
                     Options = new WoTRefreshOptionsDataType { DryRun = true }
-                });
+                }).ConfigureAwait(false);
 
                 Assert.That(dryRun.NewGeneration, Is.Zero);
                 Assert.That(m_coordinator.Generation, Is.EqualTo(expectedGeneration));
@@ -457,7 +487,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRefreshResult afterDryRuns = await m_coordinator.RefreshAsync(new WotRefreshRequest
             {
                 ExpectedGeneration = expectedGeneration
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(afterDryRuns.Summary.Outcome, Is.Not.EqualTo(WoTOutcomeEnum.Rejected));
             Assert.That(m_coordinator.Generation, Is.EqualTo(expectedGeneration + 1));
@@ -467,12 +497,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task DetailedResultsCarryNodeCountAndDigest()
         {
             m_converter.SetNodeCount("td-a", 7);
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
 
             WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest
             {
                 RequestId = "req-1"
-            });
+            }).ConfigureAwait(false);
 
             WoTResourceLoadResultDataType td = result.Results.Single(r => r.ResourceId == "td-a");
             Assert.That(td.MaterializedNodeCount, Is.EqualTo(7u));
@@ -490,9 +520,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             string modelUri = $"urn:wot:{WotRegistryGroups.ThingDescriptions}/td-a";
             namespaces.Append(modelUri);
             m_coordinator.ServerNamespaceUris = namespaces;
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
 
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             WoTResourceLoadResultDataType td = result.Results.Single(r => r.ResourceId == "td-a");
             Assert.That(td.RootNodeId.IsNull, Is.False,
@@ -507,9 +537,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task RootNodeIdIsNullWhenNamespaceCannotBeResolved()
         {
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
 
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             WoTResourceLoadResultDataType td = result.Results.Single(r => r.ResourceId == "td-a");
             Assert.That(td.RootNodeId.IsNull, Is.True,
@@ -525,9 +555,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var events = new List<WotMaterializationEventArgs>();
             m_coordinator.Event += (_, e) => events.Add(e);
             m_converter.MarkInvalid("td-a");
-            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
+            await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
 
-            await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             WotMaterializationEventArgs failure = events.Single(
                 e => e.Kind == WotMaterializationEventKind.ValidationFailure);
@@ -551,9 +581,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             await m_registry.TryCreateResourceAsync(
                 WotRegistryGroups.ThingDescriptions, "empty",
-                WoTDocumentKindEnum.ThingDescription);
+                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
 
-            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             Assert.That(m_host.AddCount, Is.Zero,
                 "A content-less placeholder resource must not project.");

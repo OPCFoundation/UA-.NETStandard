@@ -124,7 +124,7 @@ namespace Opc.Ua.Wot
                 return new WotConversionResult<WotDocument>(null, diagnostics);
             }
 
-            var projection = WotProjection.Parse(document, diagnostics);
+            var projection = WotProjection.Parse(document, diagnostics, m_options.ProjectionCompatibilityMode);
             if (projection is null || HasErrors(diagnostics))
             {
                 return new WotConversionResult<WotDocument>(null, diagnostics);
@@ -260,7 +260,7 @@ namespace Opc.Ua.Wot
                 }
 
                 JsonObject root = AssembleRoot(
-                    projectionDocument, mergedContext, securityDefinitions, selection);
+                    projectionDocument, projection.ResultKind, mergedContext, securityDefinitions, selection);
                 return Serialize(root);
             }
             finally
@@ -365,6 +365,15 @@ namespace Opc.Ua.Wot
                 return null;
             }
             openDocuments.Add(document);
+            if (!MatchesSourceMediaType(source, document))
+            {
+                AddError(
+                    diagnostics,
+                    WotDiagnosticCode.ProjectionManifestInvalid,
+                    $"The declared media type '{source.MediaType}' does not match projection source '{source.SourceName}'.",
+                    href);
+                return null;
+            }
             if (!ValidateSecurityDefinitions(document, context.Options.MaxDepth, diagnostics))
             {
                 return null;
@@ -394,8 +403,7 @@ namespace Opc.Ua.Wot
                 try
                 {
                     int errorsBeforeParse = CountErrors(diagnostics);
-                    var nested =
-                        WotProjection.Parse(document, diagnostics);
+                    var nested = WotProjection.Parse(document, diagnostics, m_options.ProjectionCompatibilityMode);
                     if (nested is null || CountErrors(diagnostics) != errorsBeforeParse)
                     {
                         return null;
@@ -451,6 +459,24 @@ namespace Opc.Ua.Wot
                 DocumentHref = href,
                 BaseHref = EffectiveBase(document, href)
             };
+        }
+
+        private bool MatchesSourceMediaType(WotProjectionManifestSource source, WotDocument document)
+        {
+            string ordinaryMediaType = document.Kind == WotDocumentKind.ThingModel
+                ? "application/tm+json"
+                : "application/td+json";
+            if (!WotProjection.IsProjection(document))
+            {
+                return string.Equals(source.MediaType, ordinaryMediaType, StringComparison.Ordinal);
+            }
+            if (string.Equals(source.MediaType, WotProjection.ContentType, StringComparison.Ordinal))
+            {
+                return true;
+            }
+            return m_options.ProjectionCompatibilityMode == WotProjectionCompatibilityMode.DraftProjection11 &&
+                !document.TryGetUav("projectionKind", out _) &&
+                string.Equals(source.MediaType, ordinaryMediaType, StringComparison.Ordinal);
         }
 
         private async ValueTask CheckOrganizingAcyclicAsync(
@@ -1168,6 +1194,7 @@ namespace Opc.Ua.Wot
 
         private static JsonObject AssembleRoot(
             WotDocument projectionDocument,
+            WotDocumentKind resultKind,
             JsonArray? mergedContext,
             JsonObject securityDefinitions,
             Selection selection)
@@ -1185,9 +1212,10 @@ namespace Opc.Ua.Wot
                         }
                         break;
                     case "@type":
-                        root["@type"] = BuildTypeArray(member.Value);
+                        root["@type"] = BuildTypeArray(member.Value, resultKind);
                         break;
                     case "uav:projects":
+                    case "uav:projectionKind":
                     case "properties":
                     case "actions":
                     case "events":
@@ -1609,7 +1637,7 @@ namespace Opc.Ua.Wot
             return array;
         }
 
-        private static JsonArray BuildTypeArray(JsonElement types)
+        private static JsonArray BuildTypeArray(JsonElement types, WotDocumentKind resultKind)
         {
             var array = new JsonArray();
             foreach (string token in ElementTokens(types))
@@ -1618,6 +1646,24 @@ namespace Opc.Ua.Wot
                         token, WotVocabulary.ProjectionAnnotation, StringComparison.Ordinal))
                 {
                     array.Add(JsonValue.Create(token));
+                }
+            }
+            string? resultType = resultKind switch
+            {
+                WotDocumentKind.ThingDescription => "Thing",
+                WotDocumentKind.ThingModel => "tm:ThingModel",
+                _ => null
+            };
+            if (resultType is not null)
+            {
+                bool present = false;
+                foreach (string token in ElementTokens(types))
+                {
+                    present |= token == resultType;
+                }
+                if (!present)
+                {
+                    array.Add(resultType);
                 }
             }
             return array;

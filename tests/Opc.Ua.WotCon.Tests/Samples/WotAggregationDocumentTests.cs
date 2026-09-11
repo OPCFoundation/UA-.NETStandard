@@ -155,6 +155,43 @@ namespace Opc.Ua.WotCon.Tests.Samples
         }
 
         [Test]
+        public void PumpAssetProjectionDocumentsDeclareCurrentPlanHeaders()
+        {
+            ArrayOf<SampleDocument> projections =
+                WotAggregationDocumentGenerator.GenerateAssetProjectionDocuments(ReadPumpDocuments());
+            Assert.That(projections.Count, Is.EqualTo(s_assetProjectionDocuments.Length));
+            foreach (SampleDocument sample in projections)
+            {
+                using var document = WotDocument.Parse(sample.Json.Memory);
+                var diagnostics = new List<WotDiagnostic>();
+                WotProjection plan = WotProjection.Parse(document, diagnostics)!;
+                Assert.That(plan, Is.Not.Null, sample.Path);
+                Assert.That(diagnostics, Is.Empty, sample.Path);
+                Assert.That(plan.ResultKind, Is.EqualTo(WotDocumentKind.ThingDescription), sample.Path);
+                Assert.That(document.TypeTokens, Does.Not.Contain("Thing").And.Not.Contain("tm:ThingModel"), sample.Path);
+                if (!sample.Path.Contains(".Members.", StringComparison.Ordinal))
+                {
+                    Assert.That(plan.Sources.ToList().Select(source => source.MediaType),
+                        Is.All.EqualTo(WotProjection.ContentType), sample.Path);
+                }
+            }
+        }
+
+        [Test]
+        [Explicit("Rewrites only the checked-in projection plans from the retained source documents.")]
+        public async Task WriteAssetProjectionDocuments()
+        {
+            ArrayOf<SampleDocument> projections =
+                WotAggregationDocumentGenerator.GenerateAssetProjectionDocuments(ReadPumpDocuments());
+            for (int index = 0; index < projections.Count; index++)
+            {
+                SampleDocument document = projections[index];
+                await WotAggregationDocumentGenerator.WriteBytesAsync(
+                    DocumentPath(document.Path), document.Json).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task ManifestDocumentsMatchCompleteAsyncRegeneration()
         {
             ArrayOf<SampleDocument> checkedIn = ReadManifestDocuments();

@@ -66,7 +66,8 @@ namespace Opc.Ua.Types.Tests.Wot
             string reference = sourceId + "#" + pointer;
             var projection = new JsonObject
             {
-                ["@type"] = new JsonArray("Thing", "uav:projection"),
+                ["@type"] = new JsonArray("uav:projection"),
+                ["uav:projectionKind"] = "ThingDescription",
                 ["title"] = "Selection view",
                 ["uav:scenario"] = "urn:scenario:selection",
                 ["uav:projects"] = new JsonArray(new JsonObject

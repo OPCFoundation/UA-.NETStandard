@@ -100,6 +100,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// the detailed result.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ObjectDisposedException"></exception>
         public async ValueTask<WotRefreshResult> RefreshAsync(
             WotRefreshRequest request,
             CancellationToken cancellationToken = default)
@@ -554,14 +555,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var projections = new List<WotResourceProjection>();
             IReadOnlyList<WotResource> members = MembersOf(closure);
             IReadOnlyList<WotResource> activeMembers =
-                members.Where(member => member.Enabled).ToList();
+                [.. members.Where(member => member.Enabled)];
             m_closures.TryGetValue(closure.Key, out ClosureState? tracked);
             var activeXids = new HashSet<string>(
                 activeMembers.Select(member => member.Xid),
                 StringComparer.Ordinal);
-            int retiredMembers = tracked is null
-                ? 0
-                : tracked.Members.Count(member => !activeXids.Contains(member.Xid));
+            int retiredMembers = (tracked?.Members.Count(member => !activeXids.Contains(member.Xid))) ?? 0;
             if (!dryRun && tracked is not null && retiredMembers > 0)
             {
                 await RetireInactiveArtifactsAsync(
@@ -592,7 +591,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             // Project in topological (dependency-first) order.
             members = closure.OrderedResources;
-            activeMembers = members.Where(member => member.Enabled).ToList();
+            activeMembers = [.. members.Where(member => member.Enabled)];
 
             byte[] aggregateDigest = ComputeAggregateDigest(members);
 
@@ -631,9 +630,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 if (version is null)
                 {
                     const string reason = "Resource has no default version.";
-                    IReadOnlyList<WotResource> affectedMembers =
-                        member.Enabled ? [member] : activeMembers;
-                    foreach (WotResource affected in affectedMembers)
+                    foreach (WotResource affected in member.Enabled ? [member] : activeMembers)
                     {
                         results.Add(FailResult(
                             affected,
@@ -657,7 +654,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ByteString memberContent = await ReadCachedContentAsync(
                         contentCache, version, cancellationToken)
                     .ConfigureAwait(false);
-                if (IsProjectionResource(memberContent))
+                (bool projectionPlan, string? projectionError) = GetProjectionAdmission(member, version, memberContent);
+                if (projectionPlan && projectionError is null)
                 {
                     if (member.Enabled)
                     {
@@ -668,8 +666,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
                 (UANodeSet? nodeSet, ExpandedNodeId root, string? conversionError, WoTPhaseEnum failurePhase,
                     ArrayOf<WotProjectedAffordance> affordances) =
-                    await TryConvertAsync(member, snapshot, contentCache, cancellationToken)
-                        .ConfigureAwait(false);
+                    projectionError is not null
+                        ? (null, default, projectionError, WoTPhaseEnum.FormatValidation, [])
+                        : await TryConvertAsync(member, snapshot, contentCache, cancellationToken)
+                            .ConfigureAwait(false);
                 if (nodeSet is not null && m_nodeSetContributors.Length > 0)
                 {
                     // Contributors run after conversion and before any variable is created, which
@@ -684,9 +684,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 if (nodeSet is null)
                 {
-                    IReadOnlyList<WotResource> affectedMembers =
-                        member.Enabled ? [member] : activeMembers;
-                    foreach (WotResource affected in affectedMembers)
+                    foreach (WotResource affected in member.Enabled ? [member] : activeMembers)
                     {
                         results.Add(FailResult(
                             affected,
@@ -807,17 +805,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             retiredMembers);
                     }
                     degraded = true;
-                    string bindingReason = member.ResourceId + ": unsupported forms for " + string.Join(
-                        ", ", plan.UnsupportedForms.Select(form => form.AffordanceName).Distinct().Take(3));
+                    string bindingReason = member.ResourceId +
+                        ": unsupported forms for " +
+                        string.Join(
+                            ", ", plan.UnsupportedForms.Select(form => form.AffordanceName).Distinct().Take(3));
                     degradationReasons.Add(bindingReason);
                     RaiseBindingFailure(member, bindingReason);
                 }
                 else if (!isDeclaration && plan.HasNonExecutableForms)
                 {
                     degraded = true;
-                    degradationReasons.Add(member.ResourceId + ": no executor for " + string.Join(
-                        ", ", plan.CompiledForms.Where(form => !form.IsExecutable)
-                            .Select(form => form.AffordanceName).Distinct().Take(3)));
+                    degradationReasons.Add(member.ResourceId +
+                        ": no executor for " +
+                        string.Join(
+                            ", ", plan.CompiledForms.Where(form => !form.IsExecutable)
+                                .Select(form => form.AffordanceName).Distinct().Take(3)));
                 }
             }
 
@@ -840,7 +842,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             member.Xid, out int c) ? c : 0),
                         ContentDigest = DigestOf(member),
                         Message = "Dry run; no projection committed. Candidate generation " +
-                            generation.ToString(CultureInfo.InvariantCulture) + "."
+                            generation.ToString(CultureInfo.InvariantCulture) +
+                            "."
                     });
                 }
                 return new ClosureOutcome(
@@ -1128,22 +1131,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <summary>
-        /// Determines whether a stored resource version is a projection document
-        /// (WoT Binding Section 12): a Thing Description or Thing Model that
-        /// carries the <c>uav:projection</c> marker and therefore materializes as
-        /// a View rather than as affordance Nodes.
+        /// Classifies a stored plan and rechecks its admission before publishing
+        /// any part of its materialization closure.
         /// </summary>
-        private bool IsProjectionResource(ByteString content)
+        private (bool IsProjection, string? Error) GetProjectionAdmission(
+            WotResource resource, WotResourceVersion version, ByteString content)
         {
-            WotDocument? document = TryParseDocument(content);
+            using WotDocument? document = TryParseDocument(content);
             if (document is null)
             {
-                return false;
+                return (false, WotProjectionAdmission.UsesProjectionFormat(version.Format, version.ContentType)
+                    ? "The stored projection plan is not a well-formed JSON document within the configured bounds."
+                    : null);
             }
-            using (document)
-            {
-                return WotProjection.IsProjection(document);
-            }
+            return (WotProjection.IsProjection(document), WotProjectionAdmission.GetError(
+                document, resource.Kind, version.Format, version.ContentType, m_converterOptions.ProjectionCompatibilityMode));
         }
 
         private WotDocument? TryParseDocument(ByteString content)
@@ -1396,17 +1398,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return viewHandle.Message.Length != 0
                     ? viewHandle.Message
                     : "Materialized projection View organizing " +
-                        organizedCount.ToString(CultureInfo.InvariantCulture) + " Node(s).";
+                        organizedCount.ToString(CultureInfo.InvariantCulture) +
+                        " Node(s).";
             }
 
             string summary = organizedCount == 0
                 ? "Materialized projection View organizing 0 Node(s); omitted all " +
-                    selectedCount.ToString(CultureInfo.InvariantCulture) + " selected member(s)."
+                    selectedCount.ToString(CultureInfo.InvariantCulture) +
+                    " selected member(s)."
                 : "Materialized projection View organizing " +
-                    organizedCount.ToString(CultureInfo.InvariantCulture) + " of " +
+                    organizedCount.ToString(CultureInfo.InvariantCulture) +
+                    " of " +
                     selectedCount.ToString(CultureInfo.InvariantCulture) +
                     " selected member(s); omitted " +
-                    omittedCount.ToString(CultureInfo.InvariantCulture) + ".";
+                    omittedCount.ToString(CultureInfo.InvariantCulture) +
+                    ".";
             return viewHandle.Message.Length == 0 ? summary : summary + " " + viewHandle.Message;
         }
 
@@ -1493,7 +1499,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     writer.Write(member.Xid);
                     writer.Write(member.Enabled);
+                    writer.Write((int)member.Kind);
                     writer.Write(member.DefaultVersionId ?? string.Empty);
+                    writer.Write(member.DefaultVersion?.Format ?? string.Empty);
+                    writer.Write(member.DefaultVersion?.ContentType ?? string.Empty);
                     ByteString digest = member.DefaultVersion is null
                         ? ByteString.Empty
                         : member.DefaultVersion.Digest;
@@ -1501,6 +1510,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     writer.Write(digest.Span.ToArray());
                 }
                 writer.Write(m_converterOptions.MaxJsonDepth);
+                writer.Write((int)m_converterOptions.ProjectionCompatibilityMode);
                 writer.Write(BinderVersion);
             }
             buffer.Position = 0;
@@ -1545,16 +1555,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 detail = detail[..1024] + "...";
             }
-            return "Projected with degraded bindings: " + detail +
+            return "Projected with degraded bindings: " +
+                detail +
                 (reasons.Count > 3 ? "; see BindingFailure events for additional resources." : string.Empty);
         }
 
         private ImmutableArray<WotProjectionSource> CoalesceProjectionSources(
             List<(string Name, UANodeSet Nodes, ByteString Content)> converted)
         {
-            var result = ImmutableArray.CreateBuilder<WotProjectionSource>();
-            foreach (var group in converted.GroupBy(source => string.Join(
-                "\u001f", OwnedModelUris(source.Nodes).OrderBy(uri => uri, StringComparer.Ordinal))))
+            ImmutableArray<WotProjectionSource>.Builder result = ImmutableArray.CreateBuilder<WotProjectionSource>();
+            foreach (IGrouping<string, (string Name, UANodeSet Nodes, ByteString Content)> group in
+                converted.GroupBy(source => string.Join(
+                    "\u001f", OwnedModelUris(source.Nodes).OrderBy(uri => uri, StringComparer.Ordinal))))
             {
                 var partitions = group.ToList();
                 (string name, UANodeSet first, _) = partitions[0];
@@ -1566,10 +1578,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 var entries = new List<WotDocumentSetEntry>();
                 try
                 {
-                    foreach (var partition in partitions)
+                    foreach ((string partitionName, UANodeSet _, ByteString partitionContent) in partitions)
                     {
                         entries.Add(new WotDocumentSetEntry(
-                            partition.Name, WotDocument.Parse(partition.Content.Memory, m_converterOptions)));
+                            partitionName, WotDocument.Parse(partitionContent.Memory, m_converterOptions)));
                     }
                     using var documents = new WotDocumentSet(name, entries.ToArrayOf());
                     entries.Clear();
@@ -1783,7 +1795,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             int maxBytes = m_converterOptions.MaxResolverDocumentBytes;
             var buffer = new MemoryStream();
-            var chunk = new byte[81920];
+            byte[] chunk = new byte[81920];
             bool keepBuffer = false;
             try
             {
@@ -2005,7 +2017,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 MaterializedNodeCount = 0,
                 ContentDigest = member.ContentDigest,
                 Message = "Dry run; projection would be retired at candidate generation " +
-                    generation.ToString(CultureInfo.InvariantCulture) + "."
+                    generation.ToString(CultureInfo.InvariantCulture) +
+                    "."
             };
         }
 
@@ -2202,10 +2215,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly IWotNodeSetResolver? m_nodeSetResolver;
         private readonly WotNodeSetConverterOptions m_converterOptions;
         private readonly SemaphoreSlim m_mutex = new(1, 1);
-        private readonly System.Threading.Lock m_lifetimeLock = new();
+        private readonly Lock m_lifetimeLock = new();
 
         private readonly Dictionary<string, ClosureState> m_closures =
             new(StringComparer.Ordinal);
+
         private readonly HashSet<string> m_projectionNamespaceUris =
             new(StringComparer.Ordinal);
 

@@ -123,6 +123,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// <summary>
         /// Discards the open handles owned by a closing session without committing pending writes.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public void CloseSession(NodeId sessionId)
         {
             if (sessionId.IsNull)
@@ -422,14 +423,14 @@ namespace Opc.Ua.WotCon.Server.Assets
                 // "title" mandatory, so either one identifies the document.
                 try
                 {
-                    using WotDocument probe = WotDocument.Parse(content);
+                    using var probe = WotDocument.Parse(content);
                     if (probe.RootElement.ValueKind != JsonValueKind.Object ||
                         !HasIdentifyingMember(probe.RootElement))
                     {
                         m_logger.UploadedDocumentIsNotAThingDescription();
                         return ServiceResult.Create(StatusCodes.BadDecodingError,
                             "The uploaded document is not a Thing Description: it must be " +
-                            "a JSON object carrying a 'name' or 'title'.");
+                            "a JSON object carrying a 'name' or 'title', not an unresolved projection plan.");
                     }
                 }
                 catch (Exception ex) when (ex is FormatException or JsonException)
@@ -578,8 +579,10 @@ namespace Opc.Ua.WotCon.Server.Assets
         private readonly WoTAssetFileState m_file;
         private readonly int m_maxHandles;
         private readonly int m_maxSize;
+
         private readonly Func<ThingDescription, ByteString, CancellationToken, ValueTask<ServiceResult>>
             m_onCloseAndUpdate;
+
         private readonly ILogger m_logger;
         private readonly Action<ISystemContext, string>? m_enforceAccess;
         private readonly Lock m_gate = new();
