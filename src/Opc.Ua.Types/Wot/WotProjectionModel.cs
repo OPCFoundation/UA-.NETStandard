@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Text.Json;
 
 namespace Opc.Ua.Wot
@@ -121,13 +120,14 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <remarks>
         /// Used for provenance and to qualify copied security scheme names as
-        /// <c>&lt;sourceName&gt;_&lt;scheme name&gt;</c>.
+        /// <c>q:s:&lt;base64url(sourceName)&gt;:&lt;base64url(schemeName)&gt;</c>,
+        /// using unpadded base64url of the exact UTF-8 names.
         /// </remarks>
         public string SourceName { get; init; } = string.Empty;
 
         /// <summary>
-        /// Gets the source document URI as authored, resolved against the
-        /// projection document's base.
+        /// Gets the source document URI as authored. Resolution retains this
+        /// spelling while resolving retrieval against the projection's base.
         /// </summary>
         public string Href { get; init; } = string.Empty;
 

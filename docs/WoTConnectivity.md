@@ -1032,6 +1032,14 @@ A projection is marked by `uav:projection` in its `@type` and declares:
 | `uav:sourceDigest` | `sha-256:<hex>` pinning a source revision |
 | `uav:namePrefix` | prefix applied to bulk-selected names |
 
+Source `href` values are resolved against the owning projection's effective
+base for retrieval. Nested projections retain their own retrieved location and
+resolve their authored base against it; source forms are not moved under the
+outer projection's base. `WotProjectionManifestSource.Href` retains the authored
+spelling, while generated `uav:resolvedFrom` uses the resolved source location.
+Relative organizing-graph links are resolved at each owning document, including
+cycle checks.
+
 Selection has three forms. An enumerated `tm:ref` names one affordance and is the
 only form that can annotate it; `uav:selectAll` takes every affordance of a
 source; and `uav:select` filters on affordance kind, semantic identifier and type
@@ -1049,6 +1057,13 @@ Malformed controls produce an error rather than an unconstrained selection.
 Every member of `properties`, `actions` and `events` carries `tm:ref`. A member
 without one is defining an affordance, which is the one thing a projection
 document must not do.
+
+An enumerated reference identifies a direct affordance in the matching source
+map: a projected property selects `/properties/<name>`, an action selects
+`/actions/<name>`, and an event selects `/events/<name>`. Document roots,
+affordance maps, nested DataSchemas, action inputs and event payload schemas
+are not affordance selections. RFC 6901 escaping retains names containing `/`
+or `~`; it does not permit a selection to cross affordance kinds.
 
 An enumerated selection may annotate the affordance it names, but Section 12.5
 closes the set of members it may annotate with. Permitted beside `tm:ref` are
@@ -1068,6 +1083,21 @@ resolution time where the routing is known, and the view does not resolve. It is
 not dropped: a dropped form is one the author wrote and the consumer silently
 did not use, which reads at run time as the source endpoint answering a request
 the document appeared to address elsewhere.
+
+Copied authentication definitions keep their source ownership. With `B64u`
+denoting unpadded base64url of exact UTF-8 bytes, a source scheme is named
+`q:s:<B64u(sourceName)>:<B64u(schemeName)>`; a projection-owned scheme is named
+`q:p:<B64u(schemeName)>`. Root, affordance and form requirements and known combo
+references follow the corresponding mapping. An authored host name cannot
+impersonate a generated source name, and underscores in two source/name pairs
+cannot collapse their authentication requirements.
+
+Required security definitions must be present, and combo dependencies must be
+acyclic within the configured resolver depth. Contradictory duplicate
+definitions fail rather than replacing another authentication scheme.
+Consistent repeats may share a definition. Unrelated vendor metadata is retained,
+not rewritten by matching strings. Consumers must follow the emitted names
+rather than assuming the older underscore-concatenated spelling.
 
 Selections are applied in the total order of Section 12.4, and the **first**
 selection of a name wins: by the position of the source in `uav:projects`;

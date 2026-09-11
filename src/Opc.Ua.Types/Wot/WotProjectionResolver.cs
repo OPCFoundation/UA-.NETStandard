@@ -137,6 +137,7 @@ namespace Opc.Ua.Wot
             byte[]? bytes = await ResolveViewAsync(
                 document,
                 projection,
+                null,
                 resolving,
                 context,
                 diagnostics,
@@ -144,6 +145,7 @@ namespace Opc.Ua.Wot
 
             await CheckOrganizingAcyclicAsync(
                 projection,
+                EffectiveBase(document, null),
                 context,
                 diagnostics,
                 cancellationToken).ConfigureAwait(false);
@@ -176,6 +178,7 @@ namespace Opc.Ua.Wot
         private async ValueTask<byte[]?> ResolveViewAsync(
             WotDocument projectionDocument,
             WotProjection projection,
+            string? documentLocation,
             HashSet<string> resolving,
             WotResolutionContext context,
             List<WotDiagnostic> diagnostics,
@@ -185,6 +188,11 @@ namespace Opc.Ua.Wot
             var openDocuments = new List<WotDocument>();
             try
             {
+                if (!ValidateSecurityDefinitions(projectionDocument, context.Options.MaxDepth, diagnostics))
+                {
+                    return null;
+                }
+                string projectionBase = EffectiveBase(projectionDocument, documentLocation);
                 int count = projection.Sources.Count;
                 var sources = new ResolvedSource?[count];
                 for (int ii = 0; ii < count; ii++)
@@ -192,6 +200,7 @@ namespace Opc.Ua.Wot
                     cancellationToken.ThrowIfCancellationRequested();
                     sources[ii] = await ResolveSourceAsync(
                         projection.Sources[ii],
+                        ResolveHref(projectionBase, projection.Sources[ii].Href),
                         resolving,
                         context,
                         diagnostics,
@@ -265,14 +274,13 @@ namespace Opc.Ua.Wot
 
         private async ValueTask<ResolvedSource?> ResolveSourceAsync(
             WotProjectionManifestSource source,
+            string href,
             HashSet<string> resolving,
             WotResolutionContext context,
             List<WotDiagnostic> diagnostics,
             List<WotDocument> openDocuments,
             CancellationToken cancellationToken)
         {
-            string href = source.Href;
-
             // Every source counts against the conversion's own bounds, not only
             // the nested-projection ones. An ordinary source is still a document
             // this resolver fetched, and a manifest naming ten thousand of them
@@ -291,7 +299,7 @@ namespace Opc.Ua.Wot
             try
             {
                 return await ResolveSourceBoundedAsync(
-                    source, resolving, context, diagnostics, openDocuments, cancellationToken)
+                    source, href, resolving, context, diagnostics, openDocuments, cancellationToken)
                     .ConfigureAwait(false);
             }
             finally
@@ -302,13 +310,13 @@ namespace Opc.Ua.Wot
 
         private async ValueTask<ResolvedSource?> ResolveSourceBoundedAsync(
             WotProjectionManifestSource source,
+            string href,
             HashSet<string> resolving,
             WotResolutionContext context,
             List<WotDiagnostic> diagnostics,
             List<WotDocument> openDocuments,
             CancellationToken cancellationToken)
         {
-            string href = source.Href;
             WotResolverResult result = await m_thingResolver.ResolveThingAsync(
                 href, context, cancellationToken).ConfigureAwait(false);
             if (!result.Found)
@@ -357,6 +365,10 @@ namespace Opc.Ua.Wot
                 return null;
             }
             openDocuments.Add(document);
+            if (!ValidateSecurityDefinitions(document, context.Options.MaxDepth, diagnostics))
+            {
+                return null;
+            }
 
             if (WotProjection.IsProjection(document))
             {
@@ -391,6 +403,7 @@ namespace Opc.Ua.Wot
                     byte[]? nestedBytes = await ResolveViewAsync(
                         document,
                         nested,
+                        href,
                         resolving,
                         context,
                         diagnostics,
@@ -421,7 +434,8 @@ namespace Opc.Ua.Wot
                     {
                         Source = source,
                         Document = resolvedView,
-                        BaseHref = ReadBase(resolvedView) ?? href
+                        DocumentHref = href,
+                        BaseHref = EffectiveBase(resolvedView, href)
                     };
                 }
                 finally
@@ -434,12 +448,14 @@ namespace Opc.Ua.Wot
             {
                 Source = source,
                 Document = document,
-                BaseHref = ReadBase(document) ?? href
+                DocumentHref = href,
+                BaseHref = EffectiveBase(document, href)
             };
         }
 
         private async ValueTask CheckOrganizingAcyclicAsync(
             WotProjection projection,
+            string baseHref,
             WotResolutionContext context,
             List<WotDiagnostic> diagnostics,
             CancellationToken cancellationToken)
@@ -455,7 +471,7 @@ namespace Opc.Ua.Wot
             for (int ii = 0; ii < projection.OrganizingLinks.Count; ii++)
             {
                 await WalkOrganizesAsync(
-                    projection.OrganizingLinks[ii].Href,
+                    ResolveHref(baseHref, projection.OrganizingLinks[ii].Href),
                     path,
                     completed,
                     budget,
@@ -527,7 +543,7 @@ namespace Opc.Ua.Wot
                     foreach (string next in ReadOrganizesHrefs(organized))
                     {
                         await WalkOrganizesAsync(
-                            next,
+                            ResolveHref(EffectiveBase(organized, href), next),
                             path,
                             completed,
                             budget,
@@ -633,15 +649,18 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics)
         {
             string pointer = SplitPointer(reference.Reference);
-            if (!WotDocument.TryEvaluatePointer(
+            string prefix = "/" + MapName(reference.AffordanceKind) + "/";
+            if (!pointer.StartsWith(prefix, StringComparison.Ordinal) ||
+                pointer.IndexOf('/', prefix.Length) >= 0 ||
+                !WotDocument.TryEvaluatePointer(
                     source.Document.RootElement, pointer, out JsonElement definition) ||
                 definition.ValueKind != JsonValueKind.Object)
             {
                 AddError(
                     diagnostics,
                     WotDiagnosticCode.ProjectionSourceUnresolved,
-                    $"The reference '{reference.Reference}' does not resolve to an " +
-                    "affordance definition.",
+                    $"The reference '{reference.Reference}' must identify a direct " +
+                    $"'{MapName(reference.AffordanceKind)}' affordance of its source document.",
                     reference.Reference);
                 return;
             }
@@ -689,8 +708,12 @@ namespace Opc.Ua.Wot
             {
                 TransformForms(target, source, selection);
             }
+            else
+            {
+                QualifyProjectionSecurity(target);
+            }
             CarryAnchor(target, source.Document);
-            target["uav:resolvedFrom"] = reference.Reference;
+            target["uav:resolvedFrom"] = source.DocumentHref + "#" + pointer;
             selection.Add(reference.AffordanceKind, reference.Name, target);
         }
 
@@ -758,7 +781,7 @@ namespace Opc.Ua.Wot
                 }
                 CarryAnchor(target, source.Document);
                 target["uav:resolvedFrom"] =
-                    BuildBulkProvenance(source.Source.Href, kind, name);
+                    BuildBulkProvenance(source.DocumentHref, kind, name);
                 selection.Add(kind, viewName, target);
             }
         }
@@ -881,7 +904,7 @@ namespace Opc.Ua.Wot
         }
 
         private static void CopySecurityClosure(
-            string sourceName,
+            string? sourceName,
             IReadOnlyDictionary<string, JsonElement> sourceDefinitions,
             List<string> schemeNames,
             JsonObject securityDefinitions,
@@ -899,7 +922,7 @@ namespace Opc.Ua.Wot
         }
 
         private static void CopyScheme(
-            string sourceName,
+            string? sourceName,
             string schemeName,
             IReadOnlyDictionary<string, JsonElement> sourceDefinitions,
             JsonObject securityDefinitions,
@@ -917,7 +940,10 @@ namespace Opc.Ua.Wot
             }
             JsonObject copy = CloneObject(definition);
             var children = new List<string>();
-            for (int ii = 0; ii < s_comboKeys.Length; ii++)
+            bool combo = definition.TryGetProperty("scheme", out JsonElement scheme) &&
+                scheme.ValueKind == JsonValueKind.String &&
+                scheme.GetString() == "combo";
+            for (int ii = 0; combo && ii < s_comboKeys.Length; ii++)
             {
                 if (copy.TryGetPropertyValue(s_comboKeys[ii], out JsonNode? node) &&
                     node is JsonArray references)
@@ -1183,6 +1209,7 @@ namespace Opc.Ua.Wot
             AddAffordanceMap(root, "properties", selection.Properties);
             AddAffordanceMap(root, "actions", selection.Actions);
             AddAffordanceMap(root, "events", selection.Events);
+            QualifyProjectionSecurity(root);
             return root;
         }
 
@@ -1346,15 +1373,210 @@ namespace Opc.Ua.Wot
             }
         }
 
+        private static bool ValidateSecurityDefinitions(
+            WotDocument document, int maxDepth, List<WotDiagnostic> diagnostics)
+        {
+            var seen = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+            if (document.RootElement.TryGetProperty("securityDefinitions", out JsonElement definitions))
+            {
+                if (definitions.ValueKind != JsonValueKind.Object)
+                {
+                    return Invalid("securityDefinitions must be an object.");
+                }
+                foreach (JsonProperty definition in definitions.EnumerateObject())
+                {
+                    if (definition.Value.ValueKind != JsonValueKind.Object)
+                    {
+                        return Invalid($"Security definition '{definition.Name}' must be an object.");
+                    }
+                    if (seen.TryGetValue(definition.Name, out JsonElement previous))
+                    {
+                        if (!WotJsonCanonicalizer.TryCanonicalize(previous, out string first, out string error) ||
+                            !WotJsonCanonicalizer.TryCanonicalize(definition.Value, out string second, out error) ||
+                            !string.Equals(first, second, StringComparison.Ordinal))
+                        {
+                            return Invalid(
+                                $"Security definition '{definition.Name}' has contradictory " +
+                                "or incomparable duplicates. " +
+                                error);
+                        }
+                    }
+                    else
+                    {
+                        seen.Add(definition.Name, definition.Value);
+                    }
+                }
+            }
+            var active = new HashSet<string>(StringComparer.Ordinal);
+            var complete = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (string name in seen.Keys)
+            {
+                if (!Visit(name, 0))
+                {
+                    return false;
+                }
+            }
+            if (!ValidateOwner(document.RootElement))
+            {
+                return false;
+            }
+            foreach ((WotAffordanceKind _, string _, JsonElement definition) in EnumerateAffordances(document))
+            {
+                if (!ValidateOwner(definition))
+                {
+                    return false;
+                }
+            }
+            return true;
+
+            bool Visit(string name, int depth)
+            {
+                if (complete.TryGetValue(name, out int height))
+                {
+                    return height <= maxDepth - depth ||
+                        Invalid($"The security definition graph at '{name}' exceeds the depth bound.");
+                }
+                if (!seen.TryGetValue(name, out JsonElement definition))
+                {
+                    return Invalid($"The required security definition '{name}' is not declared by its source.");
+                }
+                if (depth >= maxDepth || !active.Add(name))
+                {
+                    return Invalid($"The security definition graph at '{name}' is cyclic or exceeds the depth bound.");
+                }
+                try
+                {
+                    height = 1;
+                    if (definition.TryGetProperty("scheme", out JsonElement scheme) &&
+                        scheme.ValueKind == JsonValueKind.String &&
+                        scheme.GetString() == "combo")
+                    {
+                        foreach (string key in s_comboKeys)
+                        {
+                            if (definition.TryGetProperty(key, out JsonElement names))
+                            {
+                                if (names.ValueKind != JsonValueKind.Array)
+                                {
+                                    return Invalid($"Combo security '{key}' must be an array of scheme names.");
+                                }
+                                if (!ValidateNames(names, depth + 1))
+                                {
+                                    return false;
+                                }
+                                foreach (string child in ElementTokens(names))
+                                {
+                                    height = Math.Max(height, complete[child] + 1);
+                                }
+                            }
+                        }
+                    }
+                    complete.Add(name, height);
+                    return true;
+                }
+                finally
+                {
+                    active.Remove(name);
+                }
+            }
+
+            bool ValidateNames(JsonElement names, int depth)
+            {
+                if (names.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(names.GetString()))
+                {
+                    return Visit(names.GetString()!, depth);
+                }
+                if (names.ValueKind != JsonValueKind.Array || names.GetArrayLength() == 0)
+                {
+                    return Invalid("Security requirements must name at least one declared scheme.");
+                }
+                foreach (JsonElement item in names.EnumerateArray())
+                {
+                    if (item.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(item.GetString()))
+                    {
+                        return Invalid("Every security requirement must be a non-empty scheme name.");
+                    }
+                    if (!Visit(item.GetString()!, depth))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            bool ValidateOwner(JsonElement owner)
+            {
+                if (owner.ValueKind != JsonValueKind.Object)
+                {
+                    return true;
+                }
+                if (owner.TryGetProperty("security", out JsonElement security) && !ValidateNames(security, 0))
+                {
+                    return false;
+                }
+                if (owner.TryGetProperty("forms", out JsonElement forms) && forms.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (JsonElement form in forms.EnumerateArray())
+                    {
+                        if (form.ValueKind == JsonValueKind.Object &&
+                            form.TryGetProperty("security", out security) &&
+                            !ValidateNames(security, 0))
+                        {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+
+            bool Invalid(string message)
+            {
+                AddError(diagnostics, WotDiagnosticCode.ValidationError, message, "securityDefinitions");
+                return false;
+            }
+        }
+
         private static JsonObject SeedSecurityDefinitions(WotDocument document)
         {
-            if (document.RootElement.TryGetProperty(
-                    "securityDefinitions", out JsonElement definitions) &&
-                definitions.ValueKind == JsonValueKind.Object)
+            var definitions = new JsonObject();
+            var added = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string name in document.SecurityDefinitions.Keys)
             {
-                return CloneObject(definitions);
+                CopyScheme(null, name, document.SecurityDefinitions, definitions, added);
             }
-            return [];
+            return definitions;
+        }
+
+        private static void QualifyProjectionSecurity(JsonObject target)
+        {
+            QualifyMember(target);
+            if (target["forms"] is JsonArray forms)
+            {
+                foreach (JsonNode? form in forms)
+                {
+                    if (form is JsonObject value)
+                    {
+                        QualifyMember(value);
+                    }
+                }
+            }
+
+            static void QualifyMember(JsonObject value)
+            {
+                if (value["security"] is JsonValue scalar && scalar.TryGetValue(out string? name))
+                {
+                    value["security"] = Qualify(null, name!);
+                }
+                else if (value["security"] is JsonArray names)
+                {
+                    for (int index = 0; index < names.Count; index++)
+                    {
+                        if (names[index] is JsonValue item && item.TryGetValue(out string? entry))
+                        {
+                            names[index] = Qualify(null, entry!);
+                        }
+                    }
+                }
+            }
         }
 
         private static JsonNode UnionTypes(JsonNode? existing, JsonElement additional)
@@ -1751,9 +1973,19 @@ namespace Opc.Ua.Wot
             return name[..length].ToUpperInvariant() + name[length..];
         }
 
-        private static string Qualify(string sourceName, string schemeName)
+        private static string Qualify(string? sourceName, string schemeName)
         {
-            return sourceName + "_" + schemeName;
+            return sourceName is null
+                ? "q:p:" + EncodeSecurityName(schemeName)
+                : "q:s:" + EncodeSecurityName(sourceName) + ":" + EncodeSecurityName(schemeName);
+        }
+
+        private static string EncodeSecurityName(string name)
+        {
+            return Convert.ToBase64String(Encoding.UTF8.GetBytes(name))
+                .TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
         }
 
         private static int FindSourceIndex(
@@ -1794,6 +2026,18 @@ namespace Opc.Ua.Wot
                 value.ValueKind == JsonValueKind.String
                 ? value.GetString()
                 : null;
+        }
+
+        private static string EffectiveBase(WotDocument document, string? location)
+        {
+            string? declared = ReadBase(document);
+            if (string.IsNullOrEmpty(declared))
+            {
+                return location ?? string.Empty;
+            }
+            return string.IsNullOrEmpty(location)
+                ? declared!
+                : ResolveHref(location!, declared!);
         }
 
         private static JsonNode? CloneNode(JsonElement element)
@@ -1981,6 +2225,8 @@ namespace Opc.Ua.Wot
             public WotProjectionManifestSource Source { get; init; } = null!;
 
             public WotDocument Document { get; init; } = null!;
+
+            public string DocumentHref { get; init; } = string.Empty;
 
             public string BaseHref { get; init; } = string.Empty;
         }
