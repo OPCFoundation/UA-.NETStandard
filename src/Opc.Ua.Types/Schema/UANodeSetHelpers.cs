@@ -1273,33 +1273,7 @@ namespace Opc.Ua.Export
         /// </summary>
         private XmlEncoder CreateEncoder(ISystemContext context)
         {
-            IServiceMessageContext messageContext = context.AsMessageContext();
-
-            var encoder = new XmlEncoder(messageContext);
-
-            var namespaceUris = new NamespaceTable();
-
-            if (NamespaceUris != null)
-            {
-                for (int ii = 0; ii < NamespaceUris.Length; ii++)
-                {
-                    namespaceUris.GetIndexOrAppend(NamespaceUris[ii]);
-                }
-            }
-
-            var serverUris = new StringTable();
-
-            if (ServerUris != null)
-            {
-                for (int ii = 0; ii < ServerUris.Length; ii++)
-                {
-                    serverUris.GetIndexOrAppend(ServerUris[ii]);
-                }
-            }
-
-            encoder.SetMappingTables(namespaceUris, serverUris);
-
-            return encoder;
+            return CreateEncoder(context.AsMessageContext());
         }
 
         /// <summary>
@@ -1317,33 +1291,7 @@ namespace Opc.Ua.Export
         /// </remarks>
         private XmlDecoder CreateDecoder(ISystemContext context, System.Xml.XmlElement source)
         {
-            IServiceMessageContext messageContext = context.AsMessageContext();
-
-            var decoder = new XmlDecoder(WrapAsVariant(source), messageContext);
-
-            var namespaceUris = new NamespaceTable();
-
-            if (NamespaceUris != null)
-            {
-                for (int ii = 0; ii < NamespaceUris.Length; ii++)
-                {
-                    namespaceUris.GetIndexOrAppend(NamespaceUris[ii]);
-                }
-            }
-
-            var serverUris = new StringTable();
-
-            if (ServerUris != null)
-            {
-                for (int ii = 0; ii < ServerUris.Length; ii++)
-                {
-                    serverUris.GetIndexOrAppend(ServerUris[ii]);
-                }
-            }
-
-            decoder.SetMappingTables(namespaceUris, serverUris);
-
-            return decoder;
+            return CreateDecoder(context.AsMessageContext(), source);
         }
 
         /// <summary>

@@ -307,6 +307,7 @@ namespace Opc.Ua.Wot
             cancellationToken.ThrowIfCancellationRequested();
             WotNodeSetConverterOptions resolved = options ?? new WotNodeSetConverterOptions();
             resolved.Validate();
+            resolved = resolved.ForPartitionReconstruction();
             var diagnostics = new List<WotDiagnostic>();
             using (var stream = new System.IO.MemoryStream())
             {
@@ -736,14 +737,13 @@ namespace Opc.Ua.Wot
         /// document and merging the results.
         /// </summary>
         /// <remarks>
-        /// Every document of a set is written from one source NodeSet, so all of
-        /// them carry the same <c>@context</c> namespace table and their NodeIds
-        /// already agree on namespace index. The merge is therefore a union
-        /// keyed on NodeId and needs no index remapping. Each nested document's
-        /// root Object is placed under its parent by the ordinary
-        /// <c>uav:componentOf</c> resolution of §7.3, which reads the parent
-        /// document's <c>uav:id</c> through the resolver this method supplies
-        /// over the set itself.
+        /// The default reconstructs partitions of one exported NodeSet with a
+        /// common namespace table. Explicit IndependentReadableModels import
+        /// normalizes readable inputs into a deterministic namespace URI union;
+        /// it never relaxes native/archive authority or retries a failed header.
+        /// Each document is resolved under its own authored context, and nested
+        /// Objects retain their parent through ordinary <c>uav:componentOf</c>
+        /// resolution over the set.
         /// </remarks>
         /// <param name="documents">The document set to convert.</param>
         /// <param name="options">The bounded conversion options, or <c>null</c>.</param>
@@ -773,24 +773,37 @@ namespace Opc.Ua.Wot
             WotNodeSetConverterOptions resolved = options ?? new WotNodeSetConverterOptions();
             resolved.Validate();
 
-            if (documents.Entries.Count == 1)
+            List<WotDiagnostic> diagnostics = CreateDocumentSetDiagnostics(resolved);
+            WotResolutionContext? resolution = ValidateDocumentSetInputs(
+                documents, resolved, diagnostics, cancellationToken);
+            if (HasErrors(diagnostics))
             {
-                return await ToNodeSetResultAsync(
+                return new WotConversionResult<UANodeSet>(null, diagnostics);
+            }
+            if (documents.Entries.Count == 1 &&
+                resolved.DocumentSetMode == WotDocumentSetMode.PartitionReconstruction)
+            {
+                WotConversionResult<UANodeSet> single = await ToNodeSetResultAsync(
                     documents.Entries[0].Document, resolved, new DocumentSetThingResolver(documents),
-                    resolutionContext: null,
+                    resolution,
                     ComposeSetLocalContext(documents, nodeResolver), cancellationToken).ConfigureAwait(false);
+                diagnostics.AddRange(single.Diagnostics);
+                ValidateDocumentSetOutput(single.Value, documents.RootHref, resolved, diagnostics, cancellationToken);
+                return new WotConversionResult<UANodeSet>(HasErrors(diagnostics) ? null : single.Value, diagnostics);
             }
 
-            var diagnostics = new List<WotDiagnostic>();
             List<WotConversionResult<UANodeSet>> results = await ReadDocumentSetPartsAsync(
-                documents, resolved, nodeResolver, cancellationToken).ConfigureAwait(false);
+                documents, resolved, nodeResolver, cancellationToken, resolution).ConfigureAwait(false);
             foreach (WotConversionResult<UANodeSet> part in results)
             {
                 diagnostics.AddRange(part.Diagnostics);
             }
-            List<UANodeSet> partitions = FilterDocumentSetParts(documents, results, resolved, diagnostics);
-            UANodeSet merged = MergeDocumentSetParts(documents, partitions, resolved, diagnostics);
+            ValidateDocumentSetNodeCount(documents, results, resolved, diagnostics);
+            List<UANodeSet> partitions = FilterDocumentSetParts(
+                documents, results, resolved, diagnostics, cancellationToken);
+            UANodeSet merged = MergeDocumentSetParts(documents, partitions, resolved, diagnostics, cancellationToken);
             ValidateDocumentSetPreservedFacts(documents, partitions, merged, resolved, diagnostics);
+            ValidateDocumentSetOutput(merged, documents.RootHref, resolved, diagnostics, cancellationToken);
             return new WotConversionResult<UANodeSet>(
                 HasErrors(diagnostics) ? null : merged, diagnostics);
         }

@@ -176,6 +176,15 @@ measurements used for preserved JSON values.
 
 ### Verified linked document sets
 
+Document-set import defaults to `WotDocumentSetMode.PartitionReconstruction`.
+The explicit `IndependentReadableModels` option additionally supports readable
+models authored with different namespace tables, using a deterministic URI
+union and semantic identity/value rebasing on both `ToNodeSetAsync` and
+`MergeNodeSetPartitions`. It never retries a failed reconstruction and does not
+relax authoritative headers or ownership. See
+[independent readable-model import](WoTIndependentModels.md) for opt-in examples,
+codec contexts, bounds and registry configuration.
+
 `WotNodeSetConverter.FromNodeSetDocumentsAsync` exports a linked set and
 reconstructs it before returning success. Each document root owns a disjoint
 partition of the source. Methods, their argument Properties, and nested
@@ -195,6 +204,7 @@ can regroup. Reference direction and order, definition-field and argument order,
 attributes, values, and metadata remain compared. The synchronous
 `FromNodeSetDocuments` API produces the readable candidate; use the asynchronous
 API when verified reconstruction is required.
+The import-mode option does not change this export verification algorithm.
 
 `MergeNodeSetPartitions` applies the same bounded ownership and header rules
 to already converted partitions without modifying its inputs. The registry

@@ -78,8 +78,8 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Merges already converted partitions of one linked model using the
-        /// same ownership and header rules as document-set conversion.
+        /// Merges converted NodeSets using the selected document-set mode,
+        /// with the same ownership, authority and bounds as document conversion.
         /// The input NodeSets are not modified.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
@@ -89,6 +89,22 @@ namespace Opc.Ua.Wot
             WotDocumentSet documents,
             ArrayOf<UANodeSet> partitions,
             WotNodeSetConverterOptions? options = null)
+        {
+            return MergeNodeSetPartitions(documents, partitions, options, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Merges converted partitions with cancellation, retaining the selected
+        /// document-set mode and never modifying the input NodeSets.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="OperationCanceledException"></exception>
+        public static WotConversionResult<UANodeSet> MergeNodeSetPartitions(
+            WotDocumentSet documents,
+            ArrayOf<UANodeSet> partitions,
+            WotNodeSetConverterOptions? options,
+            CancellationToken cancellationToken)
         {
             if (documents is null)
             {
@@ -100,12 +116,19 @@ namespace Opc.Ua.Wot
             }
             options ??= new WotNodeSetConverterOptions();
             options.Validate();
-            var diagnostics = new List<WotDiagnostic>();
+            List<WotDiagnostic> diagnostics = CreateDocumentSetDiagnostics(options);
+            ValidateDocumentSetInputs(documents, options, diagnostics, cancellationToken);
+            if (HasErrors(diagnostics))
+            {
+                return new WotConversionResult<UANodeSet>(null, diagnostics);
+            }
             var copies = new List<WotConversionResult<UANodeSet>>(partitions.Count);
             long totalNodes = 0;
             long totalBytes = 0;
-            foreach (UANodeSet partition in partitions)
+            for (int index = 0; index < partitions.Count; index++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+                UANodeSet partition = partitions[index];
                 if (partition is null)
                 {
                     throw new ArgumentException("A converted partition is null.", nameof(partitions));
@@ -113,29 +136,28 @@ namespace Opc.Ua.Wot
                 totalNodes += partition.Items?.Length ?? 0;
                 if (totalNodes > options.MaxNodeCount)
                 {
-                    diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Error, WotDiagnosticCode.NodeCountExceeded,
-                        "The combined partitions exceed the configured Node count."));
+                    ReportDocumentSetLimit(
+                        diagnostics, WotDiagnosticCode.NodeCountExceeded, documents.Entries[index].Href,
+                        "The combined partitions exceed the configured Node count.");
                     return new WotConversionResult<UANodeSet>(null, diagnostics);
                 }
-                using var xml = new MemoryStream();
-                partition.Write(xml);
-                totalBytes += xml.Length;
-                if (xml.Length > options.MaxNodeSetSize || totalBytes > options.MaxResolverTotalBytes)
+                using var xml = new DocumentSetBuffer(
+                    Math.Min(options.MaxNodeSetSize, options.MaxResolverTotalBytes - totalBytes), cancellationToken);
+                if (!WriteDocumentSetXml(
+                    partition, xml, documents.Entries[index].Href, options, diagnostics, cancellationToken))
                 {
-                    diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Error, WotDiagnosticCode.NodeSetTooLarge,
-                        "The converted partitions exceed the configured byte bound."));
                     return new WotConversionResult<UANodeSet>(null, diagnostics);
                 }
-                xml.Position = 0;
+                totalBytes += xml.Length;
                 copies.Add(new WotConversionResult<UANodeSet>(
                     UANodeSet.Read(xml) ?? throw new InvalidOperationException("A converted partition is invalid."),
                     []));
             }
-            List<UANodeSet> filtered = FilterDocumentSetParts(documents, copies, options, diagnostics);
-            UANodeSet merged = MergeDocumentSetParts(documents, filtered, options, diagnostics);
+            List<UANodeSet> filtered =
+                FilterDocumentSetParts(documents, copies, options, diagnostics, cancellationToken);
+            UANodeSet merged = MergeDocumentSetParts(documents, filtered, options, diagnostics, cancellationToken);
             ValidateDocumentSetPreservedFacts(documents, filtered, merged, options, diagnostics);
+            ValidateDocumentSetOutput(merged, documents.RootHref, options, diagnostics, cancellationToken);
             return new WotConversionResult<UANodeSet>(HasErrors(diagnostics) ? null : merged, diagnostics);
         }
 
@@ -313,8 +335,9 @@ namespace Opc.Ua.Wot
             }
             List<WotConversionResult<UANodeSet>> reconstructions = await ReadDocumentSetPartsAsync(
                 readable, options, nodeResolver, cancellationToken).ConfigureAwait(false);
-            List<UANodeSet> parts = FilterDocumentSetParts(readable, reconstructions, options, []);
-            UANodeSet merged = MergeDocumentSetParts(readable, parts, options, []);
+            List<UANodeSet> parts = FilterDocumentSetParts(
+                readable, reconstructions, options, [], cancellationToken);
+            UANodeSet merged = MergeDocumentSetParts(readable, parts, options, [], cancellationToken);
             bool preserveHeader = !NodeSetComparer.CompareEquivalent(
                 CopyDocumentSetHeader(source),
                 CopyDocumentSetHeader(merged),
@@ -511,7 +534,8 @@ namespace Opc.Ua.Wot
             WotDocumentSet documents,
             WotNodeSetConverterOptions options,
             IWotNodeResolver? nodeResolver,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            WotResolutionContext? resolution = null)
         {
             var resolver = new DocumentSetThingResolver(documents) { DeferPreservedFactValidation = true };
             IWotNodeResolver context = ComposeSetLocalContext(documents, nodeResolver);
@@ -520,6 +544,7 @@ namespace Opc.Ua.Wot
             UANodeSet? archiveHeader = null;
             foreach (WotDocumentSetEntry entry in documents.Entries)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 UANodeSet? part = null;
                 var ignored = new List<WotDiagnostic>();
                 if (entry.Document.TryGetEnvelope(out JsonElement envelope))
@@ -546,7 +571,7 @@ namespace Opc.Ua.Wot
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 results.Add(await ToNodeSetResultAsync(
-                    documents.Entries[index].Document, options, resolver, null, context,
+                    documents.Entries[index].Document, options, resolver, resolution, context,
                     cancellationToken).ConfigureAwait(false));
             }
             return results;
@@ -583,15 +608,29 @@ namespace Opc.Ua.Wot
             WotDocumentSet documents,
             List<WotConversionResult<UANodeSet>> results,
             WotNodeSetConverterOptions options,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            CancellationToken cancellationToken = default)
         {
-            var parts = new List<UANodeSet>();
+            var parts = new List<UANodeSet>(results.Count);
+            foreach (WotConversionResult<UANodeSet> result in results)
+            {
+                parts.Add(result.Value ?? new UANodeSet());
+            }
+            bool independent = ImportsIndependentReadableModels(documents, options);
+            if (independent)
+            {
+                NormalizeIndependentModelParts(documents, parts, options, diagnostics, cancellationToken);
+                if (HasErrors(diagnostics))
+                {
+                    return parts;
+                }
+            }
             var owners = new Dictionary<string, int>(StringComparer.Ordinal);
             var nativeNodes = new HashSet<string>(StringComparer.Ordinal);
             for (int index = 0; index < documents.Entries.Count; index++)
             {
-                UANodeSet part = results[index].Value ?? new UANodeSet();
-                parts.Add(part);
+                cancellationToken.ThrowIfCancellationRequested();
+                UANodeSet part = parts[index];
                 string? root = GetUavString(documents.Entries[index].Document, "id");
                 if (root is not null)
                 {
@@ -617,8 +656,10 @@ namespace Opc.Ua.Wot
             }
             for (int index = 0; index < parts.Count; index++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 UANodeSet part = parts[index];
-                if (TakesRestorePath(documents.Entries[index].Document))
+                // Independent context copies must reach the semantic conflict check.
+                if (independent || TakesRestorePath(documents.Entries[index].Document))
                 {
                     continue;
                 }
@@ -626,6 +667,7 @@ namespace Opc.Ua.Wot
                 var nodes = new Dictionary<string, UANode>(StringComparer.Ordinal);
                 foreach (UANode node in part.Items ?? [])
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     nodes[ResolveArchivedAlias(node.NodeId, aliases)] = node;
                 }
                 var owned = new List<UANode>();
@@ -728,11 +770,22 @@ namespace Opc.Ua.Wot
             WotDocumentSet documents,
             List<UANodeSet> parts,
             WotNodeSetConverterOptions options,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (HasErrors(diagnostics))
+            {
+                return new UANodeSet();
+            }
+            if (ImportsIndependentReadableModels(documents, options))
+            {
+                return MergeIndependentModelParts(documents, parts, options, diagnostics, cancellationToken);
+            }
             int headerIndex = 0;
             for (int index = 0; index < parts.Count; index++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (TakesRestorePath(documents.Entries[index].Document))
                 {
                     headerIndex = index;
@@ -770,6 +823,7 @@ namespace Opc.Ua.Wot
                 INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(part, WotNodeSetAliases.Instance);
                 foreach (UANode node in part.Items ?? [])
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (!seen.Add(node.NodeId ?? string.Empty))
                     {
                         diagnostics.Add(new WotDiagnostic(

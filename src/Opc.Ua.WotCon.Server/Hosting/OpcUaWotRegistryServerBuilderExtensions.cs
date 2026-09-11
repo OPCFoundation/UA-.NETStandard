@@ -184,13 +184,20 @@ namespace Microsoft.Extensions.DependencyInjection
                 var converterOptions = new WotNodeSetConverterOptions
                 {
                     MaxJsonDocumentSize = options.Bounds.MaxDocumentBytes,
-                    MaxResolverDocumentBytes = options.Bounds.MaxDocumentBytes
+                    MaxResolverDocumentBytes = options.Bounds.MaxDocumentBytes,
+                    DocumentSetMode = options.DocumentSetMode,
+                    ValueEncodingContext = sp.GetService<IServiceMessageContext>()
                 };
-                return new WotMaterializationCoordinator(
+                converterOptions.Validate();
+                return converterOptions;
+            });
+
+            services.TryAddSingleton(sp =>
+                new WotMaterializationCoordinator(
                     sp.GetRequiredService<IWotRegistryService>(),
                     sp.GetRequiredService<IWotProjectionHost>(),
                     sp.GetRequiredService<IWotBinderRegistry>(),
-                    converterOptions,
+                    sp.GetRequiredService<WotNodeSetConverterOptions>(),
                     // Both seams are optional: a deployment that registers neither gets exactly
                     // the previous behaviour. Registering an IWotDocumentConverter replaces the
                     // Thing Description to NodeSet conversion; registering IWotNodeSetContributor
@@ -199,8 +206,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetService<IWotDocumentConverter>(),
                     sp.GetServices<IWotNodeSetContributor>(),
                     sp.GetService<IWotNodeSetResolver>(),
-                    sp.GetService<IWotViewProjectionHost>());
-            });
+                    sp.GetService<IWotViewProjectionHost>()));
 
             services.TryAddSingleton(sp =>
                 new WotRegistryNodeManagerFactory(

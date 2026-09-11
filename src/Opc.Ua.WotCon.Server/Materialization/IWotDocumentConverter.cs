@@ -178,6 +178,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             IEnumerable<IWotSchemaResolver>? schemaProviders = null)
         {
             m_options = options ?? new WotNodeSetConverterOptions();
+            m_options.Validate();
             m_addressSpace = addressSpace;
             m_schemaResolver = new WotExternalSchemaResolver(
                 schemaProviders is null ? [] : [.. schemaProviders]);

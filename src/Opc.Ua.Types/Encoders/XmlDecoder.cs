@@ -290,6 +290,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public IServiceMessageContext Context { get; }
 
+        /// <summary>
+        /// Requires semantic decoding without opaque bodies, undeclared indexes
+        /// or discarded fields when a caller will re-encode the value.
+        /// </summary>
+        internal bool RequireCompleteValue { get; set; }
+
         /// <inheritdoc/>
         public void PushNamespace(string namespaceUri)
         {
@@ -672,6 +678,11 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true) && MoveToElement(null!))
             {
+                if (RequireCompleteValue)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported, "An opaque XmlElement cannot be namespace-rebased.");
+                }
                 var document = new XmlDocument();
                 System.Xml.XmlElement value = document.CreateElement(
                     m_reader.Prefix,
@@ -726,6 +737,7 @@ namespace Opc.Ua
 
                 EndField(fieldName);
 
+                ValidateNamespaceMapping(value.NamespaceIndex);
                 if (m_namespaceMappings != null &&
                     m_namespaceMappings.Length > value.NamespaceIndex)
                 {
@@ -764,6 +776,17 @@ namespace Opc.Ua
 
                 EndField(fieldName);
 
+                if (string.IsNullOrEmpty(value.NamespaceUri))
+                {
+                    ValidateNamespaceMapping(value.NamespaceIndex);
+                }
+                if (RequireCompleteValue && value.ServerIndex != 0 &&
+                    (m_serverMappings is null || value.ServerIndex >= m_serverMappings.Length ||
+                        m_serverMappings[value.ServerIndex] == ushort.MaxValue))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError, "An ExpandedNodeId uses an undeclared server index.");
+                }
                 if (m_namespaceMappings != null &&
                     m_namespaceMappings.Length > value.NamespaceIndex &&
                     !value.IsNull)
@@ -852,6 +875,7 @@ namespace Opc.Ua
                 PopNamespace();
                 EndField(fieldName);
 
+                ValidateNamespaceMapping(namespaceIndex);
                 if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
                 {
                     namespaceIndex = m_namespaceMappings[namespaceIndex];
@@ -922,7 +946,7 @@ namespace Opc.Ua
                         {
                             value = ReadVariantValue();
                         }
-                        catch (Exception ex) when (ex is not ServiceResultException)
+                        catch (Exception ex) when (ex is not ServiceResultException && !RequireCompleteValue)
                         {
                             m_logger.ErrorReadingVariant(ex);
                             value = new Variant(StatusCodes.BadDecodingError);
@@ -2290,6 +2314,11 @@ namespace Opc.Ua
             // check for binary encoded body.
             if (m_reader.LocalName == "ByteString" && m_reader.NamespaceURI == Namespaces.OpcUaXsd)
             {
+                if (RequireCompleteValue)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported, "An opaque binary ExtensionObject cannot be namespace-rebased.");
+                }
                 PushNamespace(Namespaces.OpcUaXsd);
                 ByteString bytes = ReadByteString("ByteString");
                 PopNamespace();
@@ -2331,6 +2360,13 @@ namespace Opc.Ua
                         GetXmlEncodingIdOrTypeId(encodeable),
                         encodeable);
                 }
+            }
+
+            if (RequireCompleteValue)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    $"No semantic XML codec is registered for ExtensionObject '{typeId}'.");
             }
 
             try
@@ -2600,6 +2636,12 @@ namespace Opc.Ua
                                 typeof(T).FullName ?? string.Empty);
                         }
 
+                        if (RequireCompleteValue)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadDecodingError,
+                                $"The registered codec did not consume field '{m_reader.LocalName}'.");
+                        }
                         m_reader.Skip();
                         m_reader.MoveToContent();
                     }
@@ -2729,6 +2771,10 @@ namespace Opc.Ua
                 // check for empty or nil element.
                 if (m_reader.HasAttributes)
                 {
+                    if (RequireCompleteValue)
+                    {
+                        ValidateValueAttributes();
+                    }
                     string? nilValue = m_reader.GetAttribute("nil", Namespaces.XmlSchemaInstance);
 
                     if (!string.IsNullOrEmpty(nilValue) &&
@@ -2804,6 +2850,36 @@ namespace Opc.Ua
                         fieldName!,
                         xe.Message);
                 }
+            }
+        }
+
+        private void ValidateNamespaceMapping(ushort index)
+        {
+            if (RequireCompleteValue &&
+                (m_namespaceMappings is null || index >= m_namespaceMappings.Length ||
+                    m_namespaceMappings[index] == ushort.MaxValue))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError, $"Namespace index {index} is not declared by its source.");
+            }
+        }
+
+        private void ValidateValueAttributes()
+        {
+            if (m_reader.MoveToFirstAttribute())
+            {
+                do
+                {
+                    if (m_reader.NamespaceURI != "http://www.w3.org/2000/xmlns/" &&
+                        !(m_reader.NamespaceURI == Namespaces.XmlSchemaInstance && m_reader.LocalName == "nil"))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadDecodingError,
+                            $"The XML value attribute '{m_reader.Name}' is not understood by the codec.");
+                    }
+                }
+                while (m_reader.MoveToNextAttribute());
+                m_reader.MoveToElement();
             }
         }
 

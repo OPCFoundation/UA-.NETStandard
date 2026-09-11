@@ -76,6 +76,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_host = projectionHost ?? throw new ArgumentNullException(nameof(projectionHost));
             m_binders = binderRegistry ?? NullWotBinderRegistry.Instance;
             m_converterOptions = converterOptions ?? new WotNodeSetConverterOptions();
+            m_converterOptions.Validate();
             m_converter = documentConverter
                 ?? new WotNodeSetDocumentConverter(m_converterOptions);
             m_nodeSetContributors = nodeSetContributors is null
@@ -108,6 +109,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 throw new ArgumentNullException(nameof(request));
             }
+            m_converterOptions.Validate();
 
             if (!TryBeginOperation(allowDisposed: false))
             {
@@ -744,7 +746,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             try
             {
-                sources.AddRange(CoalesceProjectionSources(convertedSources));
+                sources.AddRange(CoalesceProjectionSources(convertedSources, cancellationToken));
             }
             catch (ServiceResultException exception)
             {
@@ -1501,6 +1503,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     writer.Write(digest.Span.ToArray());
                 }
                 writer.Write(m_converterOptions.MaxJsonDepth);
+                writer.Write((int)m_converterOptions.DocumentSetMode);
                 writer.Write(BinderVersion);
             }
             buffer.Position = 0;
@@ -1550,7 +1553,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private ImmutableArray<WotProjectionSource> CoalesceProjectionSources(
-            List<(string Name, UANodeSet Nodes, ByteString Content)> converted)
+            List<(string Name, UANodeSet Nodes, ByteString Content)> converted,
+            CancellationToken cancellationToken)
         {
             var result = ImmutableArray.CreateBuilder<WotProjectionSource>();
             foreach (var group in converted.GroupBy(source => string.Join(
@@ -1558,7 +1562,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 var partitions = group.ToList();
                 (string name, UANodeSet first, _) = partitions[0];
-                if (partitions.Count == 1)
+                if (partitions.Count == 1 &&
+                    m_converterOptions.DocumentSetMode == WotDocumentSetMode.PartitionReconstruction)
                 {
                     result.Add(new WotProjectionSource(name, OwnedModelUris(first), SerializeNodeSet(first)));
                     continue;
@@ -1574,7 +1579,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     using var documents = new WotDocumentSet(name, entries.ToArrayOf());
                     entries.Clear();
                     WotConversionResult<UANodeSet> merged = WotNodeSetConverter.MergeNodeSetPartitions(
-                        documents, partitions.Select(partition => partition.Nodes).ToArrayOf(), m_converterOptions);
+                        documents, partitions.Select(partition => partition.Nodes).ToArrayOf(),
+                        m_converterOptions, cancellationToken);
                     if (!merged.Success || merged.Value is null)
                     {
                         throw new ServiceResultException(
