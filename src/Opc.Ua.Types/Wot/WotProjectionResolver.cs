@@ -57,7 +57,7 @@ namespace Opc.Ua.Wot
     /// selected affordances, and every resolved affordance records its origin in
     /// <c>uav:resolvedFrom</c>.
     /// </remarks>
-    public sealed class WotProjectionResolver
+    public sealed partial class WotProjectionResolver
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="WotProjectionResolver"/>
@@ -270,8 +270,27 @@ namespace Opc.Ua.Wot
                     return null;
                 }
 
+                if (!ValidateReusableSchemaDefinitions(projectionDocument, diagnostics))
+                {
+                    return null;
+                }
+                foreach (ResolvedSource? source in sources)
+                {
+                    if (source is not null && !ValidateReusableSchemaDefinitions(source.Document, diagnostics))
+                    {
+                        return null;
+                    }
+                }
+
                 JsonObject root = AssembleRoot(
                     projectionDocument, projection.ResultKind, mergedContext, securityDefinitions, selection);
+                var referencesClosure = new SchemaReferenceClosure(
+                    root, projectionDocument, documentLocation, selection, m_options, diagnostics);
+                referencesClosure.Close(cancellationToken);
+                if (CountErrors(diagnostics) > errorsAtEntry)
+                {
+                    return null;
+                }
                 return Serialize(root);
             }
             finally
@@ -1378,6 +1397,14 @@ namespace Opc.Ua.Wot
                         break;
                     case "@type":
                         root["@type"] = BuildTypeArray(member.Value, resultKind);
+                        break;
+                    case "schemaDefinitions":
+                        var schemas = new JsonObject();
+                        foreach (JsonProperty schema in member.Value.EnumerateObject())
+                        {
+                            schemas[schema.Name] = CloneNode(schema.Value);
+                        }
+                        root["schemaDefinitions"] = schemas;
                         break;
                     case "uav:projects":
                     case "uav:projectionKind":

@@ -1136,6 +1136,21 @@ relative provenance is resolved at the original containing document location,
 not its runtime endpoint base. Conflicting document contents fetched under the
 same source location in a plan cannot be used interchangeably.
 
+Referenced reusable schemas are carried into `schemaDefinitions` without
+overwriting the projection owner's definitions. Local references to selected
+DataSchemas follow their selected output names, and recursive schemas reuse
+the same output definition. Reusable schemas count with affordances against
+`MaxNodeCount`. Missing or malformed known references fail rather than leaving
+a successful document with dangling local pointers.
+
+Known schema references (`$ref`, a source definition's `tm:ref`, and
+`uav:externalSchema`) retain their original document location. Relative external
+references become origin-relative absolute references where that location is
+absolute; this step does not fetch external schemas. Named
+`additionalResponses[].schema` dependencies use the actual form owner's
+definitions, so a host form cannot silently select a same-named source schema,
+or vice versa.
+
 An enumerated selection may annotate the affordance it names, but Section 12.5
 closes the set of members it may annotate with. Permitted beside `tm:ref` are
 `title`, `titles`, `description`, `descriptions`, additional `@type` values,
