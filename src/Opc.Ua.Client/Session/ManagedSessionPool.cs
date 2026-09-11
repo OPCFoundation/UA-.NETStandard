@@ -117,6 +117,14 @@ namespace Opc.Ua.Client
                     continue;
                 }
 
+                if (!entry.IsConnectStarted)
+                {
+                    // Nothing ever connected under this key, and reading
+                    // Connect would start one only to abort it again.
+                    entry.Dispose();
+                    continue;
+                }
+
                 Task<ManagedSession> connect = entry.Connect;
                 if (connect.Status == TaskStatus.RanToCompletion)
                 {
@@ -172,12 +180,21 @@ namespace Opc.Ua.Client
             Entry entry,
             CancellationToken ct)
         {
+            bool started = entry.IsConnectStarted;
             entry.Dispose();
+            if (!started)
+            {
+                return;
+            }
 
             ManagedSession session;
             try
             {
-                session = await entry.Connect.WaitAsync(ct).ConfigureAwait(false);
+                // Deliberately not the caller's token: the abort above already
+                // bounds this wait, and abandoning it would strand a session
+                // that did connect - the pool has already forgotten the key,
+                // so nothing else would ever close it.
+                session = await entry.Connect.ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
@@ -226,22 +243,33 @@ namespace Opc.Ua.Client
                 ConfiguredEndpoint endpoint,
                 Action<ManagedSessionBuilder> configure)
             {
+                // Capture the token here rather than reading it from the
+                // source inside the factory: Dispose may release the source
+                // before a racing caller starts the connect, and a captured
+                // token of an already cancelled source stays usable.
+                CancellationToken abort = m_abort.Token;
                 m_connect = new Lazy<Task<ManagedSession>>(
                     () => pool.ConnectAndEvictOnFailureAsync(
                         key,
                         endpoint,
                         configure,
-                        m_abort.Token),
+                        abort),
                     LazyThreadSafetyMode.ExecutionAndPublication);
             }
+
+            /// <summary>
+            /// Whether the connect has been started. Reading
+            /// <see cref="Connect"/> starts it, so a caller that only wants
+            /// to tear the entry down has to ask first.
+            /// </summary>
+            public bool IsConnectStarted => m_connect.IsValueCreated;
 
             public Task<ManagedSession> Connect => m_connect.Value;
 
             /// <summary>
-            /// Aborts a connect still in flight. The token source is only
-            /// released once the connect can no longer observe it; a connect
-            /// that has not started yet finds the token already cancelled
-            /// and fails cleanly instead of tripping over a disposed source.
+            /// Aborts a connect still in flight. The token source is released
+            /// once the connect can no longer observe it, or right away when
+            /// no connect was ever started.
             /// </summary>
             public void Dispose()
             {
@@ -258,6 +286,10 @@ namespace Opc.Ua.Client
                         CancellationToken.None,
                         TaskContinuationOptions.ExecuteSynchronously,
                         TaskScheduler.Default);
+                }
+                else
+                {
+                    m_abort.Dispose();
                 }
             }
 

@@ -546,8 +546,11 @@ namespace Opc.Ua.Client
             {
                 return await GetOrAddReferencesAsync(nodeId, ct).ConfigureAwait(false);
             }
-            catch (ServiceResultException sre)
+            catch (ServiceResultException sre) when (!ct.IsCancellationRequested)
             {
+                // A cancelled operation is not "this node has no references":
+                // swallowing it would hand the caller a silently incomplete
+                // result, so only a genuine per-node failure is absorbed.
                 m_logger.ReferencesUnavailableForNode(nodeId, sre.StatusCode);
                 return ArrayOf<ReferenceDescription>.Empty;
             }
