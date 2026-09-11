@@ -152,6 +152,16 @@ unless annotated; concrete native widths are not invented in the schema.
 The JSON codec adapts the TD representation to the existing native codecs:
 Int64/UInt64 use JSON numbers when the TD requires numbers, and a string-valued
 LocalizedText schema uses text rather than the UA JSON object envelope.
+Finite JSON numbers must fit their native Float/Double representation; overflow
+is an explicit decoding failure, including inside arrays and Structures.
+Explicit UA IEEE special-value strings remain available when the DataSchema
+admits them. Numeric `minimum`/`maximum` comparisons retain the JSON numbers'
+significant digits and magnitude rather than narrowing them to Decimal or Double.
+The shared `WotJsonNumberComparer` uses decimal digits and exponent positions,
+without allocating powers of ten. A nonzero number whose decimal exponent is
+outside Int32 is an explicit unsupported comparison, not a satisfied constraint.
+Positive message-context `MaxArrayLength` limits also apply to the outer array
+of a Structure-array payload, before native allocation or element decoding.
 
 For namespace-bearing inputs, use the established contextual invocation:
 
@@ -200,6 +210,10 @@ owned by its caller. The subscription is registered before its first callback,
 including when an in-memory transport completes synchronously. Projected event
 sources share a subscription only when the resolved payload and clause type
 contracts agree; matching URLs and field names alone are insufficient.
+Shared acquisition has a source-owned lifetime: cancelling one projected
+listener does not stop another listener's poll. Removing the last listener or
+disposing the source/runtime cancels and drains that acquisition. Direct HTTP
+subscriptions still follow their own cancellation tokens.
 
 ### Polling, retry and backoff
 
@@ -868,6 +882,13 @@ existing scalar meaning and explicitly reject shapes they cannot represent.
 The original JSON scalar `Encode`/`Decode` entry points remain compatible,
 including legacy raw-text object/array decoding; schema-aware interaction
 methods are separate optional capabilities on that same codec.
+Successful HTTP action outputs and selected event values are checked against
+the compiled native DataType, ValueRank and Structure ancestry using the native
+type/factory infrastructure. Namespace and server indexes must resolve in the
+returned value context; merely supplying a context is insufficient. A mismatch
+fails with no partial action outputs or selected event fields. Custom codecs
+still own their non-JSON wire representation, and valid values retain their
+statuses, timestamps and diagnostic context without a replacement decode.
 
 ### Credentials and trust
 

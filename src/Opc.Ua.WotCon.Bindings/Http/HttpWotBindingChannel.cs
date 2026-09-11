@@ -135,7 +135,8 @@ namespace Opc.Ua.WotCon.Bindings.Http
                 return new WotInvokeResult(encoded.Status, null, encoded.Error);
             }
             ReadOnlyMemory<byte>? content = null;
-            if (!encoded.Data.IsEmpty || request.Inputs.Count != 0 ||
+            if (!encoded.Data.IsEmpty ||
+                request.Inputs.Count != 0 ||
                 Form.Payload.InputLayout?.Schema.ValueKind == System.Text.Json.JsonValueKind.Object)
             {
                 content = encoded.Data;
@@ -150,9 +151,9 @@ namespace Opc.Ua.WotCon.Bindings.Http
             if (m_codec is IWotInteractionPayloadCodec interaction && Form.Payload.OutputLayout is not null)
             {
                 return ValidateOutputs(interaction.DecodeArguments(
-                    new ByteString(body), Form.Payload, request.Context, m_context.Bounds));
+                    new ByteString(body), Form.Payload, request.Context, m_context.Bounds), request.Context);
             }
-            return DecodeLegacyArguments(body, request.Context);
+            return ValidateOutputs(DecodeLegacyArguments(body, request.Context), request.Context);
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
@@ -194,9 +195,9 @@ namespace Opc.Ua.WotCon.Bindings.Http
                 (StatusCode status, byte[] body, _) = await SendAsync(ResolveMethod("GET"), null, token)
                     .ConfigureAwait(false);
                 WotNotification notification = StatusCode.IsGood(status)
-                    ? codec.DecodeEvent(
+                    ? ValidateEvent(codec.DecodeEvent(
                         new ByteString(body), Form.Payload, Form.EventSelection ?? WotEventSelection.Default,
-                        m_context.MessageContext, m_context.Bounds)
+                        m_context.MessageContext, m_context.Bounds))
                     : new WotNotification(DataValue.FromStatusCode(status)).WithContext(m_context.MessageContext);
                 token.ThrowIfCancellationRequested();
                 onEvent(notification);
@@ -276,31 +277,132 @@ namespace Opc.Ua.WotCon.Bindings.Http
                 .WithContext(context);
         }
 
-        private WotInvokeResult ValidateOutputs(WotInvokeResult result)
+        private WotInvokeResult ValidateOutputs(WotInvokeResult result, IServiceMessageContext requestContext)
         {
             if (!result.Success)
             {
                 return result;
             }
-            if (Form.Payload.OutputLayout is { } layout && result.Outputs.Count != layout.ArgumentCount)
+            WotMethodArgumentLayout? layout = Form.Payload.OutputLayout;
+            if (layout is not null && result.Outputs.Count != layout.ArgumentCount)
             {
                 return new WotInvokeResult(
                     StatusCodes.BadDecodingError, null, "The codec did not return every declared output argument.");
             }
-            foreach (DataValue output in result.Outputs)
+            try
             {
-                if (!StatusCode.IsGood(output.StatusCode))
+                WotPayloadSchema? schema = layout is null ? null : Form.Payload.GetActionSchema();
+                var validator = new WotPayloadValueValidator(result.Context ?? requestContext);
+                for (int index = 0; index < result.Outputs.Count; index++)
                 {
-                    return new WotInvokeResult(
-                        output.StatusCode, null, "The codec returned an unsuccessful output value.");
-                }
-                if (result.Context is null && WotBindingValueMapper.RequiresContext(output.WrappedValue))
-                {
-                    return new WotInvokeResult(
-                        StatusCodes.BadNotSupported, null, "The codec returned an output without its source context.");
+                    DataValue output = result.Outputs[index];
+                    if (!StatusCode.IsGood(output.StatusCode))
+                    {
+                        return new WotInvokeResult(
+                            output.StatusCode, null, "The codec returned an unsuccessful output value.");
+                    }
+                    if (result.Context is null && WotBindingValueMapper.RequiresContext(output.WrappedValue))
+                    {
+                        return new WotInvokeResult(
+                            StatusCodes.BadNotSupported, null,
+                            "The codec returned an output without its source context.");
+                    }
+                    if (layout is not null)
+                    {
+                        System.Text.Json.JsonElement argument = layout.GetArgumentSchema(index);
+                        if (argument.TryGetProperty("type", out System.Text.Json.JsonElement kind) &&
+                            kind.ValueKind == System.Text.Json.JsonValueKind.String &&
+                            kind.ValueEquals("null"))
+                        {
+                            if (!output.WrappedValue.IsNull)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadTypeMismatch, "The codec did not return the declared null value.");
+                            }
+                            continue;
+                        }
+                        string pointer = layout.Kind == WotMethodArgumentLayoutKind.Named
+                            ? "/output/properties/" + WotAffordanceForm.EscapePointerToken(layout.FieldOrder[index])
+                            : "/output";
+                        if (schema is null || !schema.TryGetTypeBinding(pointer, out WotPayloadTypeBinding? binding))
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadNotSupported, "The native output contract is unresolved.");
+                        }
+                        validator.Validate(output.WrappedValue, binding.DataTypeId, binding.TypeInfo);
+                    }
                 }
             }
+            catch (ServiceResultException exception)
+            {
+                return new WotInvokeResult(exception.StatusCode, null, exception.Message);
+            }
             return result;
+        }
+
+        private WotNotification ValidateEvent(WotNotification notification)
+        {
+            if (!StatusCode.IsGood(notification.Value.StatusCode))
+            {
+                return notification;
+            }
+            IServiceMessageContext context = notification.Context ?? m_context.MessageContext;
+            try
+            {
+                WotEventSelection selection = Form.EventSelection ?? WotEventSelection.Default;
+                ArrayOf<ArrayOf<string>> paths = WotEventSelectClauses.GetMaterializedMemberPaths(selection.Clauses);
+                var validator = new WotPayloadValueValidator(context);
+                for (int index = 0; index < selection.Clauses.Count; index++)
+                {
+                    WotResolvedEventSelectClause clause = selection.Clauses[index];
+                    string key = clause.IsConditionIdSelection
+                        ? WotEventSelectClauses.ConditionIdFieldName : clause.BrowsePath;
+                    if (!notification.Data.TryGetValue(paths[index], out DataValue field) ||
+                        !notification.EventFields.TryGetValue(key, out DataValue selected) ||
+                        field.WrappedValue != selected.WrappedValue ||
+                        field.StatusCode.Code != selected.StatusCode.Code ||
+                        field.SourceTimestamp != selected.SourceTimestamp ||
+                        field.ServerTimestamp != selected.ServerTimestamp)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadDecodingError, "The codec did not return consistent selected event fields.");
+                    }
+                    if (!StatusCode.IsGood(field.StatusCode))
+                    {
+                        throw new ServiceResultException(field.StatusCode, "The codec returned an unsuccessful field.");
+                    }
+                    if (notification.Context is null && WotBindingValueMapper.RequiresContext(field.WrappedValue))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNotSupported,
+                            "The codec returned an event field without its source context.");
+                    }
+                    BuiltInType standard = WotPayloadDescriptor.GetStandardEventFieldType(clause);
+                    if (standard != BuiltInType.Null)
+                    {
+                        validator.Validate(field.WrappedValue, new ExpandedNodeId((uint)standard),
+                            TypeInfo.CreateScalar(standard));
+                        continue;
+                    }
+                    WotPayloadSchema? schema = clause.PayloadSchema ?? Form.Payload.Schema;
+                    string pointer = clause.PayloadSchema is null ? "/data" : string.Empty;
+                    foreach (string member in paths[index])
+                    {
+                        pointer += "/properties/" + WotAffordanceForm.EscapePointerToken(member);
+                    }
+                    if (schema is null || !schema.TryGetTypeBinding(pointer, out WotPayloadTypeBinding? binding))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNotSupported, "The native selected event contract is unresolved.");
+                    }
+                    validator.Validate(field.WrappedValue, binding.DataTypeId, binding.TypeInfo);
+                }
+                return notification;
+            }
+            catch (ServiceResultException exception)
+            {
+                return new WotNotification(DataValue.FromStatusCode(exception.StatusCode)).WithContext(context);
+            }
         }
 
         private bool IsCompoundSchema(WotMethodArgumentLayout? layout, string member)

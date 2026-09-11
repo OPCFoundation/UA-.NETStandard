@@ -63,7 +63,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             long id = 0;
             try
             {
-                await m_subscriptionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                using var admission = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken, m_lifetime.Token);
+                await m_subscriptionGate.WaitAsync(admission.Token).ConfigureAwait(false);
                 acquired = true;
                 if (Volatile.Read(ref m_disposed))
                 {
@@ -76,17 +78,30 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 if (m_subscription is null)
                 {
-                    IWotBindingChannel channel = await m_slot.GetAsync(cancellationToken).ConfigureAwait(false);
-                    m_subscription = await channel.SubscribeEventAsync(Dispatch, cancellationToken)
-                        .ConfigureAwait(false);
+                    IWotBindingChannel channel = await m_slot.GetAsync(admission.Token).ConfigureAwait(false);
+                    var acquisition = CancellationTokenSource.CreateLinkedTokenSource(m_lifetime.Token);
+                    m_acquisitionCancellation = acquisition;
+                    // The first listener owns admission, not the installed shared subscription.
+                    using (admission.Token.Register(acquisition.Cancel))
+                    {
+                        m_subscription = await channel.SubscribeEventAsync(Dispatch, acquisition.Token)
+                            .ConfigureAwait(false);
+                    }
                 }
+                admission.Token.ThrowIfCancellationRequested();
                 return new ListenerLease(this, id);
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
+                bool last;
                 lock (m_listenersGate)
                 {
                     m_listeners.Remove(id);
+                    last = m_listeners.Count == 0;
+                }
+                if (acquired && last)
+                {
+                    await StopSubscriptionAsync().ConfigureAwait(false);
                 }
                 throw;
             }
@@ -113,19 +128,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 m_listeners.Clear();
                 operations = m_operationCount == 0 ? Task.CompletedTask : m_operationsDrained!.Task;
             }
-            await operations.ConfigureAwait(false);
             try
             {
-                IWotSubscription? subscription = m_subscription;
-                m_subscription = null;
-                if (subscription is not null)
-                {
-                    await subscription.DisposeAsync().ConfigureAwait(false);
-                }
+                await m_lifetime.CancelAsync().ConfigureAwait(false);
             }
             finally
             {
-                m_subscriptionGate.Dispose();
+                try
+                {
+                    await operations.ConfigureAwait(false);
+                    await StopSubscriptionAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    m_subscriptionGate.Dispose();
+                    m_lifetime.Dispose();
+                }
             }
         }
 
@@ -237,16 +255,44 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     m_listeners.Remove(id);
                     last = m_listeners.Count == 0;
                 }
-                if (last && m_subscription is { } subscription)
+                if (last)
                 {
-                    m_subscription = null;
-                    await subscription.DisposeAsync().ConfigureAwait(false);
+                    await StopSubscriptionAsync().ConfigureAwait(false);
                 }
             }
             finally
             {
                 m_subscriptionGate.Release();
                 EndOperation();
+            }
+        }
+
+        private async ValueTask StopSubscriptionAsync()
+        {
+            IWotSubscription? subscription = m_subscription;
+            CancellationTokenSource? cancellation = m_acquisitionCancellation;
+            m_subscription = null;
+            m_acquisitionCancellation = null;
+            try
+            {
+                if (cancellation is not null)
+                {
+                    await cancellation.CancelAsync().ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                try
+                {
+                    if (subscription is not null)
+                    {
+                        await subscription.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    cancellation?.Dispose();
+                }
             }
         }
 
@@ -289,10 +335,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private readonly WotBindingChannelSlot m_slot;
+        private readonly CancellationTokenSource m_lifetime = new();
         private readonly SemaphoreSlim m_subscriptionGate = new(1, 1);
         private readonly Lock m_listenersGate = new();
         private readonly Dictionary<long, Action<WotNotification>> m_listeners = [];
         private IWotSubscription? m_subscription;
+        private CancellationTokenSource? m_acquisitionCancellation;
         private long m_nextListener;
         private int m_operationCount;
         private TaskCompletionSource<bool>? m_operationsDrained;

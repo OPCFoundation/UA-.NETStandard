@@ -145,6 +145,11 @@ namespace Opc.Ua.WotCon.Bindings
             return decoder.ReadVariant("Value");
         }
 
+        internal static void ValidateContext(in Variant value, IServiceMessageContext context)
+        {
+            ValidateReferences(value, context, context, allowGrowth: false, 0);
+        }
+
         private static void ValidateReferences(
             in Variant value,
             IServiceMessageContext context,
@@ -271,7 +276,7 @@ namespace Opc.Ua.WotCon.Bindings
             }
         }
 
-        private static ArrayOf<Variant> Elements(in Variant value)
+        internal static ArrayOf<Variant> Elements(in Variant value)
         {
             if (value.TryGetValue(out ArrayOf<NodeId> nodes))
             {

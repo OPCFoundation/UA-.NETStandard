@@ -75,7 +75,7 @@ namespace Opc.Ua.WotCon.Bindings
                     }
                     else
                     {
-                        WotPayloadSchema schema = GetActionSchema(payload);
+                        WotPayloadSchema schema = payload.GetActionSchema();
                         bool named = layout.Kind == WotMethodArgumentLayoutKind.Named;
                         if (named)
                         {
@@ -104,8 +104,10 @@ namespace Opc.Ua.WotCon.Bindings
             {
                 StatusCode status = exception.StatusCode;
                 return WotEncodeResult.Fail(exception.Message,
-                    status == StatusCodes.BadEncodingLimitsExceeded || status == StatusCodes.BadNotSupported ||
-                    status == StatusCodes.BadInvalidArgument || status == StatusCodes.BadNodeIdInvalid
+                    status == StatusCodes.BadEncodingLimitsExceeded ||
+                    status == StatusCodes.BadNotSupported ||
+                    status == StatusCodes.BadInvalidArgument ||
+                    status == StatusCodes.BadNodeIdInvalid
                         ? status : StatusCodes.BadEncodingError);
             }
             catch (Exception exception) when (IsPayloadException(exception))
@@ -154,7 +156,7 @@ namespace Opc.Ua.WotCon.Bindings
                 {
                     RequireMembers(root, layout.FieldOrder);
                 }
-                WotPayloadSchema schema = GetActionSchema(payload);
+                WotPayloadSchema schema = payload.GetActionSchema();
                 var valueContext = new ServiceMessageContext(context, context.Telemetry);
                 var outputs = new DataValue[layout.ArgumentCount];
                 DateTimeUtc now = DateTimeUtc.Now;
@@ -255,36 +257,9 @@ namespace Opc.Ua.WotCon.Bindings
 
         private static WotMethodArgumentLayout RequireLayout(WotMethodArgumentLayout? layout)
         {
-            return layout ?? throw new ServiceResultException(
-                StatusCodes.BadNotSupported, "The codec requires the action's resolved argument layouts.");
-        }
-
-        private static WotPayloadSchema GetActionSchema(WotPayloadDescriptor payload)
-        {
-            if (payload.Schema is { } captured)
-            {
-                return captured;
-            }
-            using var buffer = new MemoryStream();
-            using (var writer = new Utf8JsonWriter(buffer))
-            {
-                writer.WriteStartObject();
-                WriteSchema("input", payload.InputLayout);
-                WriteSchema("output", payload.OutputLayout);
-                writer.WriteEndObject();
-
-                void WriteSchema(string name, WotMethodArgumentLayout? layout)
-                {
-                    if (layout?.Schema.ValueKind == JsonValueKind.Object)
-                    {
-                        writer.WritePropertyName(name);
-                        layout.Schema.WriteTo(writer);
-                    }
-                }
-            }
-            using var document = WotDocument.Parse(buffer.ToArray());
-            return WotNodeSetConverter.CapturePayloadSchema(
-                document, Wot.WotAffordanceKind.Action, document.RootElement);
+            return layout ??
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The codec requires the action's resolved argument layouts.");
         }
 
         private static ValueContract ArgumentContract(
@@ -324,20 +299,7 @@ namespace Opc.Ua.WotCon.Bindings
             {
                 pointer += "/properties/" + WotAffordanceForm.EscapePointerToken(member);
             }
-            BuiltInType type = clause.IsConditionIdSelection ? BuiltInType.NodeId : BuiltInType.Null;
-            if (clause.TypeDefinitionId == WotEventSelectClauses.BaseEventTypeId && clause.PathElements.Count == 1)
-            {
-                type = clause.PathElements[0] switch
-                {
-                    "EventId" => BuiltInType.ByteString,
-                    "EventType" or "SourceNode" => BuiltInType.NodeId,
-                    "SourceName" => BuiltInType.String,
-                    "Time" or "ReceiveTime" => BuiltInType.DateTime,
-                    "Message" => BuiltInType.LocalizedText,
-                    "Severity" => BuiltInType.UInt16,
-                    _ => type
-                };
-            }
+            BuiltInType type = WotPayloadDescriptor.GetStandardEventFieldType(clause);
             return ResolveContract(schema, pointer, capturedSchema, context, TypeInfo.Create(type, ValueRanks.Scalar),
                 preferFallback: type != BuiltInType.Null);
         }

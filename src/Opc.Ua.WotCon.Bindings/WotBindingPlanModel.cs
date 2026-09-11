@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Immutable;
+using System.IO;
 using System.Text.Json;
 using Opc.Ua.Wot;
 
@@ -399,6 +400,52 @@ namespace Opc.Ua.WotCon.Bindings
                 OutputLayout = OutputLayout,
                 Schema = schema ?? throw new ArgumentNullException(nameof(schema))
             };
+        }
+
+        internal WotPayloadSchema GetActionSchema()
+        {
+            if (Schema is { } captured)
+            {
+                return captured;
+            }
+            using var buffer = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(buffer))
+            {
+                writer.WriteStartObject();
+                WriteSchema("input", InputLayout);
+                WriteSchema("output", OutputLayout);
+                writer.WriteEndObject();
+
+                void WriteSchema(string name, WotMethodArgumentLayout? layout)
+                {
+                    if (layout?.Schema.ValueKind == JsonValueKind.Object)
+                    {
+                        writer.WritePropertyName(name);
+                        layout.Schema.WriteTo(writer);
+                    }
+                }
+            }
+            using var document = WotDocument.Parse(buffer.ToArray());
+            return WotNodeSetConverter.CapturePayloadSchema(
+                document, Wot.WotAffordanceKind.Action, document.RootElement);
+        }
+
+        internal static BuiltInType GetStandardEventFieldType(WotResolvedEventSelectClause clause)
+        {
+            if (clause.TypeDefinitionId == WotEventSelectClauses.BaseEventTypeId && clause.PathElements.Count == 1)
+            {
+                return clause.PathElements[0] switch
+                {
+                    "EventId" => BuiltInType.ByteString,
+                    "EventType" or "SourceNode" => BuiltInType.NodeId,
+                    "SourceName" => BuiltInType.String,
+                    "Time" or "ReceiveTime" => BuiltInType.DateTime,
+                    "Message" => BuiltInType.LocalizedText,
+                    "Severity" => BuiltInType.UInt16,
+                    _ => BuiltInType.Null
+                };
+            }
+            return clause.IsConditionIdSelection ? BuiltInType.NodeId : BuiltInType.Null;
         }
     }
 

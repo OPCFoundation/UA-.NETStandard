@@ -47,7 +47,7 @@ using Structure = Opc.Ua.Encoders.Structure;
 namespace Opc.Ua.WotCon.Bindings.Tests
 {
     [TestFixture]
-    public sealed class HttpWotPayloadContractTests
+    public sealed partial class HttpWotPayloadContractTests
     {
         [TestCase("{")]
         [TestCase("")]
@@ -1143,7 +1143,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             ServiceMessageContext context,
             string name,
             ArrayOf<StructureField> fields,
-            Dictionary<string, BuiltInType> fieldTypes)
+            Dictionary<string, BuiltInType> fieldTypes,
+            NodeId baseDataType = default)
         {
             ushort ns = context.NamespaceUris.GetIndexOrAppend(PayloadNamespace);
             var structure = new Structure(
@@ -1153,7 +1154,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 new ExpandedNodeId(name + ".Xml", PayloadNamespace),
                 new StructureDefinition
                 {
-                    BaseDataType = Ua.DataTypeIds.Structure,
+                    BaseDataType = baseDataType.IsNull ? Ua.DataTypeIds.Structure : baseDataType,
                     DefaultEncodingId = new NodeId(name + ".Binary", ns),
                     StructureType = StructureType.Structure,
                     Fields = fields

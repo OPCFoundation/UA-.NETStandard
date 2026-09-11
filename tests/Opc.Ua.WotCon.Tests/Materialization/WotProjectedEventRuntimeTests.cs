@@ -52,7 +52,7 @@ using WotAffordanceKind = Opc.Ua.WotCon.Bindings.WotAffordanceKind;
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
     [TestFixture]
-    public sealed class WotProjectedEventRuntimeTests
+    public sealed partial class WotProjectedEventRuntimeTests
     {
         [Test]
         public async Task SharedSourceReportsDistinctConditionsAndRoutesAcknowledgeAndConfirm()
@@ -1000,11 +1000,19 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             public IAsyncEnumerator<BaseEventState> Open(NodeId notifier, CancellationToken cancellationToken = default)
             {
-                foreach (var entry in m_sources)
+                return OpenStream(notifier, cancellationToken).GetAsyncEnumerator(cancellationToken);
+            }
+
+            public IAsyncEnumerable<BaseEventState> OpenStream(
+                NodeId notifier, CancellationToken cancellationToken = default)
+            {
+                foreach (KeyValuePair<
+                    (INodeManagerBuilder Builder, NodeId Notifier),
+                    Func<CancellationToken, IAsyncEnumerable<BaseEventState>>> entry in m_sources)
                 {
                     if (entry.Key.Notifier == notifier)
                     {
-                        return entry.Value(cancellationToken).GetAsyncEnumerator(cancellationToken);
+                        return entry.Value(cancellationToken);
                     }
                 }
                 throw new InvalidOperationException("No notifier was registered.");

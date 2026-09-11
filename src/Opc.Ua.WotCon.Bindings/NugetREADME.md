@@ -20,6 +20,12 @@ bounded polling. Resolved schemas and namespace/type-factory contexts survive
 planning and projected-consumer activation. Custom codecs can opt into
 `IWotInteractionPayloadCodec`; existing scalar codecs and channels keep their
 original interfaces.
+Decoded values must match the compiled native type/rank and resolve their
+namespace indexes in the returned context. Numeric bounds are compared without
+Decimal/Double rounding; finite floating-point overflow and oversized native
+Structure arrays fail explicitly. Shared projected event acquisition outlives
+an individual listener's cancellation and stops when the last listener leaves
+or the runtime is disposed.
 
 ## Target frameworks
 

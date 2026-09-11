@@ -149,7 +149,9 @@ namespace Opc.Ua.WotCon.Bindings
                 {
                     throw InvalidPayload("An array argument requires a JSON array.");
                 }
-                var values = new ExtensionObject[value.GetArrayLength()];
+                int length = value.GetArrayLength();
+                CheckArrayLength(length, context);
+                var values = new ExtensionObject[length];
                 int index = 0;
                 ValueContract elementContract = ElementContract(contract, context);
                 foreach (JsonElement element in value.EnumerateArray())
@@ -183,9 +185,11 @@ namespace Opc.Ua.WotCon.Bindings
                 Variant decoded = new(new ExtensionObject(result));
                 return WotBindingValueMapper.Translate(decoded, context, context);
             }
-            TypeInfo type = TypeInfo.Create(
+            var type = TypeInfo.Create(
                 contract.TypeInfo.BuiltInType, array ? Math.Max(1, contract.TypeInfo.ValueRank) : ValueRanks.Scalar);
-            return decoder.ReadVariantValue("Value", type);
+            Variant resultValue = decoder.ReadVariantValue("Value", type);
+            WotBindingValueMapper.ValidateContext(resultValue, context);
+            return resultValue;
         }
 
         private static void AdaptValue(
@@ -210,11 +214,7 @@ namespace Opc.Ua.WotCon.Bindings
                 {
                     throw InvalidPayload("The declared array requires a JSON array.");
                 }
-                if (context.MaxArrayLength > 0 && value.GetArrayLength() > context.MaxArrayLength)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadEncodingLimitsExceeded, "The array limit was exceeded.");
-                }
+                CheckArrayLength(value.GetArrayLength(), context);
                 writer.WriteStartArray();
                 ValueContract elementContract = ElementContract(contract, context);
                 foreach (JsonElement element in value.EnumerateArray())
@@ -233,8 +233,10 @@ namespace Opc.Ua.WotCon.Bindings
             {
                 // Core accepts numeric strings, but only after the TD schema has checked
                 // the wire kind. Normalizing an integral exponent also preserves integer TD values.
-                if (IsInteger(contract.TypeInfo.BuiltInType) && value.ValueKind == JsonValueKind.Number &&
-                    value.TryGetDecimal(out decimal integer) && decimal.Truncate(integer) == integer)
+                if (IsInteger(contract.TypeInfo.BuiltInType) &&
+                    value.ValueKind == JsonValueKind.Number &&
+                    value.TryGetDecimal(out decimal integer) &&
+                    decimal.Truncate(integer) == integer)
                 {
                     if (contract.TypeInfo.BuiltInType is BuiltInType.Int64 or BuiltInType.UInt64)
                     {
@@ -246,17 +248,27 @@ namespace Opc.Ua.WotCon.Bindings
                     }
                     return;
                 }
+                if (value.ValueKind == JsonValueKind.Number &&
+                    ((contract.TypeInfo.BuiltInType == BuiltInType.Float &&
+                        (!value.TryGetSingle(out float single) || float.IsInfinity(single))) ||
+                        (contract.TypeInfo.BuiltInType == BuiltInType.Double &&
+                            (!value.TryGetDouble(out double number) || double.IsInfinity(number)))))
+                {
+                    throw InvalidPayload("The JSON number exceeds the declared native floating-point range.");
+                }
                 value.WriteTo(writer);
                 return;
             }
             string? jsonType = ReadSchemaString(contract.Schema, "type");
             if (contract.TypeInfo.BuiltInType == BuiltInType.LocalizedText &&
-                jsonType is null or "string" && value.ValueKind == JsonValueKind.Object)
+                jsonType is null or "string" &&
+                value.ValueKind == JsonValueKind.Object)
             {
                 writer.WriteStringValue(value.TryGetProperty("Text", out JsonElement text) ? text.GetString() : null);
                 return;
             }
-            if (value.ValueKind == JsonValueKind.String && jsonType != "string" &&
+            if (value.ValueKind == JsonValueKind.String &&
+                jsonType != "string" &&
                 contract.TypeInfo.BuiltInType is >= BuiltInType.SByte and <= BuiltInType.Double)
             {
                 string text = value.GetString()!;
@@ -408,12 +420,12 @@ namespace Opc.Ua.WotCon.Bindings
             {
                 throw InvalidPayload("The value does not match the schema's constant.");
             }
-            if (value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out decimal number))
+            if (value.ValueKind == JsonValueKind.Number)
             {
                 if ((schema.TryGetProperty("minimum", out JsonElement minimum) &&
-                        minimum.TryGetDecimal(out decimal lower) && number < lower) ||
+                    CompareNumbers(value, minimum) < 0) ||
                     (schema.TryGetProperty("maximum", out JsonElement maximum) &&
-                        maximum.TryGetDecimal(out decimal upper) && number > upper))
+                        CompareNumbers(value, maximum) > 0))
                 {
                     throw InvalidPayload("The number is outside its DataSchema bounds.");
                 }
@@ -429,6 +441,24 @@ namespace Opc.Ua.WotCon.Bindings
                         throw InvalidPayload("The value omitted a required DataSchema member.");
                     }
                 }
+            }
+        }
+
+        private static int CompareNumbers(JsonElement value, JsonElement bound)
+        {
+            if (!WotJsonNumberComparer.TryCompare(value, bound, out int comparison, out string error))
+            {
+                throw InvalidPayload(error);
+            }
+            return comparison;
+        }
+
+        private static void CheckArrayLength(int length, IServiceMessageContext context)
+        {
+            if (context.MaxArrayLength > 0 && length > context.MaxArrayLength)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadEncodingLimitsExceeded, "The array limit was exceeded.");
             }
         }
 

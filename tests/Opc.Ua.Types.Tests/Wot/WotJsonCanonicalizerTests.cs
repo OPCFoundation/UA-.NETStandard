@@ -160,6 +160,48 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(error, Does.Contain("interoperable domain"));
         }
 
+        [TestCase("1e100", "1000", 1)]
+        [TestCase("-1e100", "-1000", -1)]
+        [TestCase("1e100", "10.00e99", 0)]
+        [TestCase("1e-100", "2e-100", -1)]
+        [TestCase("-2e-100", "-1e-100", -1)]
+        [TestCase("-0e100", "0.00", 0)]
+        [TestCase("0e99999999999999999999999", "-0", 0)]
+        [TestCase("-0", "-1e-100", 1)]
+        [TestCase("18446744073709551615", "18446744073709551614", 1)]
+        [TestCase("1.00000000000000000001e100", "1.00000000000000000002e100", -1)]
+        [TestCase("1e2147483647", "1e100", 1)]
+        [TestCase("1e-2147483648", "1e-100", -1)]
+        public void JsonNumbersCompareWithoutRoundingOrExpandingExponents(string left, string right, int expected)
+        {
+            using var first = JsonDocument.Parse(left);
+            using var second = JsonDocument.Parse(right);
+
+            Assert.That(WotJsonNumberComparer.TryCompare(
+                first.RootElement, second.RootElement, out int comparison, out string error), Is.True, error);
+            Assert.That(System.Math.Sign(comparison), Is.EqualTo(expected));
+            Assert.That(WotJsonNumberComparer.TryCompare(
+                second.RootElement, first.RootElement, out int reverse, out error), Is.True, error);
+            Assert.That(System.Math.Sign(reverse), Is.EqualTo(-expected));
+        }
+
+        [TestCase("1e999999999999999999999999")]
+        [TestCase("1e-999999999999999999999999")]
+        [TestCase("\"1\"")]
+        [TestCase("null")]
+        public void UnsupportedJsonNumericComparisonsAreExplicit(string right)
+        {
+            using var first = JsonDocument.Parse("1e100");
+            using var second = JsonDocument.Parse(right);
+
+            Assert.That(WotJsonNumberComparer.TryCompare(
+                first.RootElement, second.RootElement, out _, out string error), Is.False);
+            Assert.That(error, Is.Not.Empty);
+            Assert.That(WotJsonNumberComparer.TryCompare(
+                second.RootElement, first.RootElement, out _, out error), Is.False);
+            Assert.That(error, Is.Not.Empty);
+        }
+
         [Test]
         public void TwoSpellingsOfOneValueAreEqualAndTwoValuesAreNot()
         {
