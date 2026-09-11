@@ -468,11 +468,14 @@ namespace Opc.Ua.Client
             {
                 return true;
             }
-            // Iterative and depth bounded: a server answering HasSubtype with
-            // a cycle would otherwise recurse until the stack overflows. A
-            // depth counter rather than a visited set keeps this allocation
-            // free, which matters because the filter calls it per reference.
+            // Iterative with cycle detection: a server answering HasSubtype
+            // with a cycle would otherwise recurse until the stack overflows.
+            // The visited set is only allocated once the walk goes deeper than
+            // any real hierarchy does, because the filter calls this per
+            // reference; past that point only a repeated NodeId ends the walk,
+            // so a legitimately deep custom hierarchy is never cut short.
             int depth = 0;
+            HashSet<NodeId>? visited = null;
             NodeId current = subTypeId;
             while (!current.IsNull)
             {
@@ -492,7 +495,8 @@ namespace Opc.Ua.Client
                 {
                     return true;
                 }
-                if (++depth > kMaxTypeHierarchyDepth)
+                if (++depth > kTypeHierarchyDepthBeforeCycleTracking &&
+                    !(visited ??= [subTypeId]).Add(current))
                 {
                     m_logger.CycleDetectedInTypeHierarchy(subTypeId);
                     return false;
@@ -1312,10 +1316,12 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Deeper than any real type hierarchy; walking past it means the
-        /// server answered HasSubtype with a loop.
+        /// Levels the synchronous type-of walk climbs before it starts
+        /// tracking visited nodes. Deeper than any real type hierarchy, so
+        /// the common case stays allocation free; it is not a bound on the
+        /// walk, only on where exact cycle detection starts.
         /// </summary>
-        private const int kMaxTypeHierarchyDepth = 64;
+        private const int kTypeHierarchyDepthBeforeCycleTracking = 64;
 
         private readonly IAsyncCache<NodeId, INode> m_nodes;
         private readonly IAsyncCache<NodeId, ArrayOf<ReferenceDescription>> m_refs;

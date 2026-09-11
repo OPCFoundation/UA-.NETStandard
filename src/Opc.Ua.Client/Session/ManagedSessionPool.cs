@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -213,6 +214,7 @@ namespace Opc.Ua.Client
 
         private async Task<ManagedSession> ConnectAndEvictOnFailureAsync(
             string key,
+            Entry entry,
             ConfiguredEndpoint endpoint,
             Action<ManagedSessionBuilder> configure,
             CancellationToken ct)
@@ -225,7 +227,12 @@ namespace Opc.Ua.Client
             }
             catch
             {
-                m_sessions.TryRemove(key, out _);
+                // Evict this entry, not whatever sits under the key now: a
+                // removal plus a fresh GetOrConnectAsync can install a healthy
+                // replacement before this connect observes its cancellation,
+                // and removing by key alone would throw that one away.
+                ((ICollection<KeyValuePair<string, Entry>>)m_sessions)
+                    .Remove(new KeyValuePair<string, Entry>(key, entry));
                 throw;
             }
         }
@@ -251,6 +258,7 @@ namespace Opc.Ua.Client
                 m_connect = new Lazy<Task<ManagedSession>>(
                     () => pool.ConnectAndEvictOnFailureAsync(
                         key,
+                        this,
                         endpoint,
                         configure,
                         abort),

@@ -338,12 +338,90 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
         }
 
         /// <summary>
+        /// A connect that fails evicted its pool entry by key alone, so a
+        /// replacement installed under the same key while the old connect was
+        /// still unwinding was thrown away with it - leaving the pool without
+        /// the session its caller is waiting for.
+        /// </summary>
+        [Test]
+        public async Task FailedConnectDoesNotEvictItsReplacementAsync()
+        {
+            var factory = new StallingSessionFactory
+            {
+                // Hold the first connect inside its cancellation handling so
+                // the replacement is installed before it evicts.
+                HoldFirstFailure = true
+            };
+            var pool = new ManagedSessionPool(factory);
+            await using (pool.ConfigureAwait(false))
+            {
+                var endpoint = new ConfiguredEndpoint(
+                    null,
+                    new EndpointDescription
+                    {
+                        EndpointUrl = "opc.tcp://localhost:4840",
+                        SecurityMode = MessageSecurityMode.None,
+                        SecurityPolicyUri = SecurityPolicies.None
+                    },
+                    null);
+
+                Task<Opc.Ua.Client.ManagedSession> first = pool.GetOrConnectAsync(
+                    "k", endpoint, CancellationToken.None);
+                await factory.Started.Task.ConfigureAwait(false);
+
+                // Abort the first connect; it now waits before it unwinds.
+                Task<bool> remove = pool.RemoveAsync("k", CancellationToken.None).AsTask();
+
+                // The replacement lands under the same key while the old
+                // connect is still on its way out.
+                Task<Opc.Ua.Client.ManagedSession> second = pool.GetOrConnectAsync(
+                    "k", endpoint, CancellationToken.None);
+                Assert.That(factory.ConnectCount, Is.EqualTo(2));
+
+                // Let the first connect finish unwinding; awaiting its faulted
+                // task guarantees its eviction has already run.
+                factory.ReleaseFirstFailure();
+                Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(), () => first);
+                await remove.ConfigureAwait(false);
+
+                // The replacement must still be the pool's entry for the key.
+                Task<Opc.Ua.Client.ManagedSession> third = pool.GetOrConnectAsync(
+                    "k", endpoint, CancellationToken.None);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        factory.ConnectCount,
+                        Is.EqualTo(2),
+                        "the healthy replacement must not have been evicted");
+                    Assert.That(
+                        ReferenceEquals(third, second),
+                        Is.True,
+                        "the later caller must join the replacement's connect");
+                    Assert.That(second.IsCompleted, Is.False);
+                });
+            }
+        }
+
+        /// <summary>
         /// Factory whose connect only ends when its token is cancelled.
         /// </summary>
         private sealed class StallingSessionFactory : IManagedSessionFactory
         {
             public TaskCompletionSource<bool> Started { get; } = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Makes the first connect wait inside its cancellation handling
+            /// until <see cref="ReleaseFirstFailure"/> is called.
+            /// </summary>
+            public bool HoldFirstFailure { get; init; }
+
+            public int ConnectCount => Volatile.Read(ref m_connectCount);
+
+            public void ReleaseFirstFailure()
+            {
+                m_firstFailureGate.TrySetResult(true);
+            }
 
             public Task<Opc.Ua.Client.ManagedSession> ConnectAsync(
                 ConfiguredEndpoint endpoint,
@@ -357,10 +435,26 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
                 Action<ManagedSessionBuilder> configure,
                 CancellationToken ct = default)
             {
+                bool isFirst = Interlocked.Increment(ref m_connectCount) == 1;
                 Started.TrySetResult(true);
-                await Task.Delay(Timeout.InfiniteTimeSpan, ct).ConfigureAwait(false);
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    if (isFirst && HoldFirstFailure)
+                    {
+                        await m_firstFailureGate.Task.ConfigureAwait(false);
+                    }
+                    throw;
+                }
                 throw new InvalidOperationException("unreachable");
             }
+
+            private readonly TaskCompletionSource<bool> m_firstFailureGate = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            private int m_connectCount;
 
             public Task<Opc.Ua.Client.ManagedSession> ConnectReverseAsync(
                 ReverseConnectManager manager,

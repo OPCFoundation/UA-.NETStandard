@@ -452,10 +452,13 @@ namespace Opc.Ua.Client.WebApi
 
                 // MaxBufferSize bounds a single transport chunk, not the whole
                 // message; capping the response by it rejects every legitimate
-                // response above 64 KiB.
+                // response above 64 KiB. MaxMessageSize <= 0 disables the cap
+                // altogether - the convention the Web API codec already
+                // follows - so falling back to MaxBufferSize there would
+                // reinstate exactly the limit this avoids.
                 int maxResponseSize = quotas.MaxMessageSize > 0
                     ? quotas.MaxMessageSize
-                    : quotas.MaxBufferSize;
+                    : int.MaxValue;
                 responseBytes = await ReceiveMessageAsync(ws, maxResponseSize, ct)
                     .ConfigureAwait(false);
             }
@@ -512,7 +515,7 @@ namespace Opc.Ua.Client.WebApi
 
         private static async Task<byte[]> ReceiveMessageAsync(
             WebSocket ws,
-            int maxBufferSize,
+            int maxMessageSize,
             CancellationToken ct)
         {
             using var buffer = new MemoryStream();
@@ -529,12 +532,12 @@ namespace Opc.Ua.Client.WebApi
                         "WebSocket closed by server while awaiting response.");
                 }
                 buffer.Write(receiveBuffer, 0, result.Count);
-                if (buffer.Length > maxBufferSize)
+                if (buffer.Length > maxMessageSize)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingLimitsExceeded,
-                        "Response exceeded MaxBufferSize {0}.",
-                        maxBufferSize);
+                        "Response exceeded MaxMessageSize {0}.",
+                        maxMessageSize);
                 }
                 if (result.EndOfMessage)
                 {

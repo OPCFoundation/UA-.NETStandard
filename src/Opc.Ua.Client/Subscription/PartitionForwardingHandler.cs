@@ -255,10 +255,12 @@ namespace Opc.Ua.Client.Subscriptions
                         return;
                     }
                 }
-                bound = m_logical;
+                // Non-null: the only path out of the lock without returning
+                // above is the one where m_logical was already published.
+                bound = m_logical!;
             }
 
-            ISubscription logical = bound ?? subscription;
+            ISubscription logical = bound;
             await m_serialise.WaitAsync(ct).ConfigureAwait(false);
             try
             {

@@ -96,7 +96,6 @@ namespace Opc.Ua.Client.FileSystem
                 return m_completionStateMachine;
             }
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
-            bool committed = false;
             try
             {
                 if (m_terminated)
@@ -112,17 +111,12 @@ namespace Opc.Ua.Client.FileSystem
                     .ConfigureAwait(false);
                 m_completionStateMachine = completionStateMachine;
                 m_terminated = true;
-                committed = true;
                 m_inner.MarkDisposedWithoutClosing();
                 return completionStateMachine;
             }
             finally
             {
                 m_lock.Release();
-                if (committed)
-                {
-                    m_lock.Dispose();
-                }
             }
         }
 
@@ -182,7 +176,6 @@ namespace Opc.Ua.Client.FileSystem
             finally
             {
                 m_lock.Release();
-                m_lock.Dispose();
             }
         }
 
@@ -218,7 +211,17 @@ namespace Opc.Ua.Client.FileSystem
         private readonly UaFileStream m_inner;
 #pragma warning restore CA2213
         private readonly uint m_handle;
+        // CA2213: the gate outlives every terminal call by design. A commit or
+        // dispose that passed the m_terminated check and is already waiting is
+        // released by the winner and then runs its own finally; disposing the
+        // semaphore as part of terminating would turn that Release into an
+        // ObjectDisposedException and break the idempotence this class
+        // promises for concurrent commit/dispose. SemaphoreSlim holds no
+        // unmanaged resource unless AvailableWaitHandle is used, which it is
+        // not here, so leaving it to the GC is safe.
+#pragma warning disable CA2213
         private readonly SemaphoreSlim m_lock = new(1, 1);
+#pragma warning restore CA2213
         private NodeId m_completionStateMachine = NodeId.Null;
         private bool m_terminated;
 

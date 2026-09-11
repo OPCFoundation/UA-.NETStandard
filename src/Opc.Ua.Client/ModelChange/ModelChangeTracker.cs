@@ -158,7 +158,11 @@ namespace Opc.Ua.Client.ModelChange
 
             lock (m_stateLock)
             {
-                if (!IsTracking)
+                // Not gated on IsTracking alone: a pump that ended or faulted
+                // on its own already cleared the flag while leaving its token
+                // source and task behind, and returning here would leak them -
+                // the next StartTrackingAsync would overwrite the fields.
+                if (!IsTracking && m_cts == null && m_pumpTask == null)
                 {
                     return;
                 }

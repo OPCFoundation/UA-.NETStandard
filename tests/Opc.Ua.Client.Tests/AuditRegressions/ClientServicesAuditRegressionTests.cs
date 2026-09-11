@@ -421,6 +421,89 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
             Assert.That(await walk.ConfigureAwait(false), Is.Null);
         }
 
+        /// <summary>
+        /// The synchronous type-of walk used by the reference filter stops
+        /// tracking nothing and counting levels only up to a depth no real
+        /// hierarchy reaches; past that it must detect an actual repeated
+        /// node rather than call a deep-but-finite chain a cycle.
+        /// </summary>
+        [Test]
+        public async Task DeepTypeHierarchyIsNotMistakenForACycleAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            // Far deeper than the level at which cycle tracking starts.
+            const int depth = 200;
+            NodeId RefType(int level) => new("RefType" + level, 2);
+
+            NodeId source = new("Source", 2);
+            NodeId root = RefType(depth);
+
+            var context = new Mock<INodeCacheContext>();
+            context.SetupGet(c => c.NamespaceUris).Returns(new NamespaceTable());
+            context.SetupGet(c => c.ServerUris).Returns(new StringTable());
+            context
+                .Setup(c => c.FetchReferencesAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((RequestHeader _, NodeId id, CancellationToken _) =>
+                {
+                    if (id == source)
+                    {
+                        // One reference, typed with the deepest subtype.
+                        return new[]
+                        {
+                            new ReferenceDescription
+                            {
+                                NodeId = new ExpandedNodeId(new NodeId("Target", 2)),
+                                BrowseName = new QualifiedName("Target", 2),
+                                ReferenceTypeId = RefType(0),
+                                IsForward = true
+                            }
+                        }.ToArrayOf();
+                    }
+                    // RefType(n) is a subtype of RefType(n + 1) up to the root.
+                    string identifier = id.IdentifierAsString;
+                    if (identifier.StartsWith("RefType", StringComparison.Ordinal) &&
+                        int.TryParse(
+                            identifier["RefType".Length..],
+                            System.Globalization.NumberStyles.Integer,
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            out int level) &&
+                        level < depth)
+                    {
+                        return new[] { InverseSubtypeOf(RefType(level + 1)) }.ToArrayOf();
+                    }
+                    return ArrayOf.Empty<ReferenceDescription>();
+                });
+            context
+                .Setup(c => c.FetchNodesAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((RequestHeader _, ArrayOf<NodeId> ids, bool _, CancellationToken _)
+                    => new ResultSet<Node>
+                    {
+                        Results = ids
+                            .ConvertAll(id => new Node { NodeId = id, NodeClass = NodeClass.Object })
+                            .ToList(),
+                        Errors = ids.ConvertAll(_ => ServiceResult.Good).ToList()
+                    });
+
+            using var nodeCache = new NodeCache(context.Object, telemetry);
+
+            ArrayOf<INode> targets = await nodeCache
+                .GetReferencesAsync(source, root, false, true, default)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                targets.Count,
+                Is.EqualTo(1),
+                "a hierarchy that is deep but acyclic must still resolve");
+        }
+
         private static ReferenceDescription Reference(string identifier)
         {
             return new ReferenceDescription

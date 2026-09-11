@@ -2373,7 +2373,10 @@ namespace Opc.Ua.Client
                         else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
                         {
                             // The subscription already belongs to this session,
-                            // so it is live and must not be recreated.
+                            // so it is live and must not be recreated. It also
+                            // counts as taken over, so a throw further down the
+                            // loop cannot sweep it into notTransferred.
+                            transferred.Add(subscriptions[ii]);
                             m_logger.SubscriptionIdSubscriptionIdAlreadyMemberSession(
                                 subscriptionIds[ii],
                                 SessionId);
