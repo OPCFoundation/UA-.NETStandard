@@ -69,9 +69,8 @@ internal static partial class CertificateManagerLog
     public static partial void CertViewDetailsFailed(this ILogger logger, Exception exception, string title);
 
     [LoggerMessage(EventId = UaLensEventIds.CertificateManagerBase + 7, Level = LogLevel.Warning,
-        Message = "Certificate Manager tab {Title} Move({Target}) failed.")]
-    public static partial void CertMoveFailed(
-        this ILogger logger, Exception exception, string title, CertStoreRole target);
+        Message = "Certificate Manager tab {Title} Move failed.")]
+    public static partial void CertMoveFailed(this ILogger logger, Exception exception, string title);
 
     [LoggerMessage(EventId = UaLensEventIds.CertificateManagerBase + 8, Level = LogLevel.Warning,
         Message = "Certificate Manager tab {Title} Delete failed.")]

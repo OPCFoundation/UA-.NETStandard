@@ -105,15 +105,21 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
     [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
     private CertItemRow? m_selectedCertificate;
 
-    /// <summary>True when a certificate row is currently selected. Drives
+    /// <summary>
+    /// True when a certificate row is currently selected. Drives
     /// the CanExecute state of all per-certificate commands so menu items
-    /// and toolbar buttons grey out automatically when nothing is picked.</summary>
+    /// and toolbar buttons grey out automatically when nothing is picked.
+    /// </summary>
     public bool HasSelectedCertificate => SelectedCertificate is not null;
 
-    /// <summary>Stores rendered in the left-hand TreeView.</summary>
+    /// <summary>
+    /// Stores rendered in the left-hand TreeView.
+    /// </summary>
     public ObservableCollection<CertStoreNode> Stores { get; } = new();
 
-    /// <summary>Certificates in the currently-selected store.</summary>
+    /// <summary>
+    /// Certificates in the currently-selected store.
+    /// </summary>
     public ObservableCollection<CertItemRow> Certificates { get; } = new();
 
     public CertificateManagerPlugin(PluginHost host)
@@ -127,8 +133,6 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         // in OnConnectionStateChangedAsync, which the workspace delivers on open
         // even while disconnected. No fire-and-forget work runs in the constructor.
     }
-
-    // ----- IPlugin -----
 
     public PluginKind Kind => PluginKind.CertificateManager;
 
@@ -184,14 +188,10 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         await LoadStoresAsync(cancellationToken).ConfigureAwait(true);
     }
 
-    // ----- Property-changed hooks -----
-
     partial void OnSelectedStoreChanged(CertStoreNode? value)
     {
         _ = ReloadSelectedStoreAsync();
     }
-
-    // ----- Store-tree loading -----
 
     private async Task LoadStoresAsync(CancellationToken cancellationToken = default)
     {
@@ -249,8 +249,6 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
             Status = $"● Load stores failed: {ex.Message}";
         }
     }
-
-    // ----- Cert-list loading -----
 
     private async Task ReloadSelectedStoreAsync()
     {
@@ -366,8 +364,6 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         return null;
     }
 
-    // ----- Toolbar commands -----
-
     [RelayCommand]
     public async Task RefreshAsync()
     {
@@ -460,8 +456,6 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         }
     }
 
-    // ----- Per-certificate context-menu actions -----
-
     /// <summary>
     /// Render a self-contained details view for the selected certificate
     /// in a modal popup.  The detail rendering is built inline here
@@ -488,15 +482,21 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         }
     }
 
-    /// <summary>Move the selected certificate to the TrustedPeer store.</summary>
+    /// <summary>
+    /// Move the selected certificate to the TrustedPeer store.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(HasSelectedCertificate))]
     public Task TrustToPeerAsync() => MoveSelectedAsync(CertStoreRole.TrustedPeer);
 
-    /// <summary>Move the selected certificate to the TrustedIssuer store.</summary>
+    /// <summary>
+    /// Move the selected certificate to the TrustedIssuer store.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(HasSelectedCertificate))]
     public Task TrustToIssuerAsync() => MoveSelectedAsync(CertStoreRole.TrustedIssuer);
 
-    /// <summary>Move the selected certificate to the Rejected store.</summary>
+    /// <summary>
+    /// Move the selected certificate to the Rejected store.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(HasSelectedCertificate))]
     public Task RejectAsync() => MoveSelectedAsync(CertStoreRole.Rejected);
 
@@ -536,11 +536,13 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         catch (Exception ex)
         {
             Status = $"● Move to {dst.DisplayName} failed: {ex.Message}";
-            m_log.CertMoveFailed(ex, Title, target);
+            m_log.CertMoveFailed(ex, Title);
         }
     }
 
-    /// <summary>Delete the selected certificate from the currently-selected store.</summary>
+    /// <summary>
+    /// Delete the selected certificate from the currently-selected store.
+    /// </summary>
     [RelayCommand(CanExecute = nameof(HasSelectedCertificate))]
     public async Task DeleteAsync()
     {
@@ -673,8 +675,6 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
             m_log.CertImportFailed(ex, Title);
         }
     }
-
-    // ----- Helpers -----
 
     private static Window? GetOwnerWindow()
     {
