@@ -579,6 +579,28 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             yield return Case<CancelRequest, CancelResponse>(
                 "Cancel",
                 m => m.CancelAsync(null, 0, default).AsTask());
+
+            // The data channel Services are marked [Experimental("DataChannels")]
+            // so consumers opt in deliberately. This fixture asserts that every
+            // Service on the managed session reaches the inner one, and that
+            // obligation applies to an experimental Service as much as a stable
+            // one, so the opt-in is scoped to these three cases rather than
+            // switched on for the whole project.
+#pragma warning disable DataChannels
+            yield return Case<OpenDataChannelRequest, OpenDataChannelResponse>(
+                "OpenDataChannel",
+                m => m.OpenDataChannelAsync(null,
+                    new NodeId(1u), 0, 0,
+                    new DataChannelParametersDataType(), default).AsTask());
+            yield return Case<ModifyDataChannelRequest, ModifyDataChannelResponse>(
+                "ModifyDataChannel",
+                m => m.ModifyDataChannelAsync(null, 1,
+                    new DataChannelParametersDataType(), default).AsTask());
+            yield return Case<CloseDataChannelRequest, CloseDataChannelResponse>(
+                "CloseDataChannel",
+                m => m.CloseDataChannelAsync(null, 1,
+                    StatusCodes.Good, false, default).AsTask());
+#pragma warning restore DataChannels
         }
 
         private static TestCaseData Case<TRequest, TResponse>(

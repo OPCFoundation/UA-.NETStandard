@@ -287,20 +287,22 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadCertificateTimeInvalid));
         }
 
-        [Test]
-        public void InitializeServiceHostsThrowsForUnregisteredScheme()
+        [TestCase("opc.https://localhost:62540/TestServer", "AddHttpsTransport")]
+        [TestCase("opc.quic://localhost:62540/TestServer", "AddQuicTransport")]
+        public void InitializeServiceHostsThrowsForUnregisteredScheme(
+            string endpointUrl,
+            string registrationMethod)
         {
             using TestableStandardServer server = CreateServer();
-            ApplicationConfiguration configuration = CreateConfiguration(
-                "opc.https://localhost:62540/TestServer");
+            ApplicationConfiguration configuration = CreateConfiguration(endpointUrl);
             var registry = new DefaultTransportBindingRegistry();
 
             InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await server.InitializeAndDiscardServiceHostsAsync(configuration, registry)
                     .ConfigureAwait(false))!;
 
-            Assert.That(ex.Message, Does.Contain("opc.https"));
-            Assert.That(ex.Message, Does.Contain("AddHttpsTransport"));
+            Assert.That(ex.Message, Does.Contain(new Uri(endpointUrl).Scheme));
+            Assert.That(ex.Message, Does.Contain(registrationMethod));
         }
 
         [Test]

@@ -29,6 +29,7 @@ Here is a list of available documentation for different topics:
 * Pluggable [Identity Providers](IdentityProviders.md) — interfaces (`IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`) plus the OPC 10000-6 §6.5.2.2 `IssuerEndpointUrl` JSON parser for OAuth2 / OIDC / Entra / JWT flows.
 * Support for [ECC Certificates](EccProfiles.md).
 * Working with [ComplexTypes](ComplexTypes.md) - Custom structures and enumerations.
+* [Data Channels](DataChannels.md) - **Experimental.** Inline streaming of opaque bytes over a SecureChannel: the `STR` frame, per-channel flow control and scheduling, and the `OpenDataChannel` / `ModifyDataChannel` / `CloseDataChannel` Service Set. The engine is part of `Opc.Ua.Core` and carried by the UASC channel itself; `opc.quic` ships separately as `OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic`. Identifiers are provisional and the errata is not endorsed by the OPC Foundation.
 * Client-based [NodeSet Export](NodeSetExport.md) - Export server address space to NodeSet2 XML.
 * Source generated [DataTypes] - How to annotate POCO classes and let the source generator generate the `IEncodeable` implementation.
 * Runtime [Schema Generation](SchemaGeneration.md) - Produce XSD, OPC Binary (BSD) and JSON Schema (Part 6 Annex C, compact + verbose) for generated encodeable types and dynamically added complex types via the injectable `ISchemaProvider`; schemas are built as object models in code (trimmable, NativeAOT compatible).

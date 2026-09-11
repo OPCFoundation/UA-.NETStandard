@@ -47,10 +47,16 @@ namespace Opc.Ua
                 get
                 {
                     if (!string.IsNullOrEmpty(endpointDescription.EndpointUrl) &&
-                        endpointDescription.EndpointUrl!.StartsWith(
+                        (endpointDescription.EndpointUrl!.StartsWith(
                             Utils.UriSchemeOpcTcp,
-                            StringComparison.Ordinal))
+                            StringComparison.Ordinal) ||
+                         endpointDescription.EndpointUrl!.StartsWith(
+                            Utils.UriSchemeOpcQuic,
+                            StringComparison.Ordinal)))
                     {
+                        // opc.quic carries OPC UA Binary exactly as
+                        // opc.tcp does; only the framing below the
+                        // MessageChunk differs.
                         return BinaryEncodingSupport.Required;
                     }
 

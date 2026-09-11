@@ -126,6 +126,17 @@ namespace Opc.Ua
             = "http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary";
 
         /// <summary>
+        /// Communicates with QUIC, UA Security and UA Binary.
+        /// </summary>
+        /// <remarks>
+        /// Experimental. Defined by the OPC UA Data Channels errata,
+        /// Part 6 clause 7. The uri is provisional, pending registration
+        /// by the OPC Foundation.
+        /// </remarks>
+        public const string UaQuicTransport
+            = "http://opcfoundation.org/UA-Profile/Transport/quic-uasc-uabinary";
+
+        /// <summary>
         /// Communicates with UA TCP over secure Websockets, UA Security and UA Binary.
         /// </summary>
         public const string UaWssTransport

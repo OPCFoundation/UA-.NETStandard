@@ -1424,12 +1424,15 @@ namespace Opc.Ua.Bindings
                             if (serverChannel != channel)
                             {
                                 serverChannel.SendResponse(requestId, response);
+                                NotifyResponseDispatched(context);
                                 return;
                             }
                         }
                         // if we could not find a new channel, just log the error
                         throw;
                     }
+
+                    NotifyResponseDispatched(context);
                 }
             }
             catch (Exception e)
@@ -1478,6 +1481,20 @@ namespace Opc.Ua.Bindings
                 // response by the channel's wire-encode path.
                 (request as IPooledEncodeable)?.Reuse();
                 (response as IPooledEncodeable)?.Reuse();
+            }
+        }
+
+        private void NotifyResponseDispatched(SecureChannelContext context)
+        {
+            try
+            {
+                context.ResponseDispatched?.Invoke();
+            }
+            catch (Exception e)
+            {
+                // A callback that throws must not fault the request loop; the
+                // response itself has already been handed to the transport.
+                m_logger.TcpTransportResponseDispatchedCallbackFailed(e);
             }
         }
 
@@ -1786,6 +1803,13 @@ namespace Opc.Ua.Bindings
         public static partial void TcpTransportLog30(
             this ILogger logger,
             int count);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 31, Level = LogLevel.Error,
+            Message = "TCPLISTENER - A response-dispatched callback threw. " +
+                "The response itself has already been written.")]
+        public static partial void TcpTransportResponseDispatchedCallbackFailed(
+            this ILogger logger,
+            global::System.Exception? exception);
     }
 
 }
