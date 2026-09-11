@@ -224,9 +224,16 @@ namespace Opc.Ua.SourceGeneration
                         {
                             ModelUri = !string.IsNullOrEmpty(options.ModelUri) ?
                                 options.ModelUri : model.ModelUri,
-                            Version = !string.IsNullOrEmpty(options.Version) ?
-                                options.Version :
-                                model.PublicationDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                            // The NodeSet's own <Model Version="..."> before the
+                            // publication date: a file that declares a version
+                            // was being compared by date, so "1.05.9" and
+                            // "1.05.10" were ordered by when they were published
+                            // rather than by which version is newer.
+                            Version = FirstNonEmpty(
+                                options.Version,
+                                model.Version,
+                                model.PublicationDate.ToString(
+                                    "yyyy-MM-dd", CultureInfo.InvariantCulture)),
                             Name = !string.IsNullOrEmpty(options.Name) ?
                                 options.Name : name,
                             Prefix = !string.IsNullOrEmpty(options.Prefix) ?
@@ -435,6 +442,21 @@ namespace Opc.Ua.SourceGeneration
             }
             return DateTime.Compare(
                 GetPublicationDate(left), GetPublicationDate(right));
+        }
+
+        /// <summary>
+        /// The first of the candidates that carries a value.
+        /// </summary>
+        private static string FirstNonEmpty(params string[] candidates)
+        {
+            foreach (string candidate in candidates)
+            {
+                if (!string.IsNullOrEmpty(candidate))
+                {
+                    return candidate;
+                }
+            }
+            return string.Empty;
         }
 
         private static DateTime GetPublicationDate(NodesetFile nodeset)

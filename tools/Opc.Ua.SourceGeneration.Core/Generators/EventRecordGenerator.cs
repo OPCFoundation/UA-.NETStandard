@@ -583,6 +583,14 @@ namespace Opc.Ua.SourceGeneration
                 IsTypedXRegistrySourceUrl(declaringType, fieldName));
             if (rank == ValueRank.Array)
             {
+                // XmlElement keeps its element nullability: GetXmlElementArray
+                // cannot produce a non-null element for every slot, so the
+                // declared element type has to admit null.
+                if (string.Equals(
+                    baseType, "global::System.Xml.XmlElement?", StringComparison.Ordinal))
+                {
+                    return "global::System.Xml.XmlElement?[]?";
+                }
                 return CoreUtils.Format("{0}[]?", StripNullable(baseType));
             }
             return baseType;
@@ -640,8 +648,12 @@ namespace Opc.Ua.SourceGeneration
                 // type's own .IsNull instead of wrapping in Nullable<T>.
                 case "ByteString":
                     return "global::Opc.Ua.ByteString";
+                // Nullable, unlike its INullable-implementing siblings below:
+                // XmlElement has no null value of its own, so the reader hands
+                // back null for an absent or null field and the declared
+                // property has to say so.
                 case "XmlElement":
-                    return "global::System.Xml.XmlElement";
+                    return "global::System.Xml.XmlElement?";
                 case "NodeId":
                     return "global::Opc.Ua.NodeId";
                 case "ExpandedNodeId":
@@ -713,7 +725,7 @@ namespace Opc.Ua.SourceGeneration
                     return "GetNullableGuid";
                 case "string?":
                     return "GetString";
-                case "global::System.Xml.XmlElement":
+                case "global::System.Xml.XmlElement?":
                     return "GetXmlElement";
                 case "global::Opc.Ua.ByteString":
                     return "GetByteString";
@@ -757,7 +769,7 @@ namespace Opc.Ua.SourceGeneration
                     return "GetGuidArray";
                 case "string[]?":
                     return "GetStringArray";
-                case "global::System.Xml.XmlElement[]?":
+                case "global::System.Xml.XmlElement?[]?":
                     return "GetXmlElementArray";
                 case "global::Opc.Ua.ByteString[]?":
                     return "GetByteStringArray";

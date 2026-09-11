@@ -129,6 +129,56 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Regression: the NodeSet's own &lt;Model Version="..."&gt; was never read -
+        /// Info.Version came from the item metadata or fell straight through to
+        /// the publication date. Two ordinary AdditionalFiles declaring 1.05.9
+        /// and 1.05.10 were therefore selected by publication date instead of by
+        /// version.
+        /// </summary>
+        [Test]
+        public void DeclaredModelVersionIsUsedWhenTheItemMetadataHasNone()
+        {
+            const string older = "memory://a-older.NodeSet2.xml";
+            const string newer = "memory://b-newer.NodeSet2.xml";
+
+            // The 1.05.9 file is published later, so a date comparison would
+            // pick it; the declared versions say otherwise.
+            m_fileSystem.Add(
+                older,
+                Encoding.UTF8.GetBytes(NodeSet("1.05.9", "2026-09-01T00:00:00Z")));
+            m_fileSystem.Add(
+                newer,
+                Encoding.UTF8.GetBytes(NodeSet("1.05.10", "2026-01-01T00:00:00Z")));
+
+            // No options.Version - the version has to come from <Models>.
+            NodesetFileCollection collection = Create((older, null), (newer, null));
+
+            Assert.That(
+                collection.Files[ModelUri],
+                Is.EqualTo(newer),
+                "1.05.10 is newer than 1.05.9 regardless of publication date");
+        }
+
+        /// <summary>
+        /// Item metadata still wins over the NodeSet's own declaration.
+        /// </summary>
+        [Test]
+        public void ItemMetadataVersionOverridesTheDeclaredModelVersion()
+        {
+            const string first = "memory://first.NodeSet2.xml";
+            const string second = "memory://second.NodeSet2.xml";
+
+            m_fileSystem.Add(first, Encoding.UTF8.GetBytes(NodeSet("9.0.0")));
+            m_fileSystem.Add(second, Encoding.UTF8.GetBytes(NodeSet("1.0.0")));
+
+            // The metadata reverses what the files declare.
+            NodesetFileCollection collection = Create(
+                (first, "1.0.0"), (second, "9.0.0"));
+
+            Assert.That(collection.Files[ModelUri], Is.EqualTo(second));
+        }
+
+        /// <summary>
         /// Regression: the ISO-date guard only fired when both sides were dates,
         /// so a version-less NodeSet (whose version is its publication date) was
         /// run through the version parser against a real version. "2021-04-15"

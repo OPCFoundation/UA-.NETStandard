@@ -783,11 +783,14 @@ namespace Opc.Ua.Schema.Model
             {
                 return string.Empty;
             }
-            // Deliberately the authored name, not GetPropertyName: this produces
-            // a lower-camel name ("m_fieldNames"), so it cannot collide with the
-            // templates' own PascalCase m_ members ("m_FieldNames"), and callers
-            // pin the exact mapping of the authored characters.
-            return field.Name.ToSafeSymbolName(true, "m_");
+            // Derived from the property name, which is sanitized and already
+            // disambiguated against its siblings. Mapping the authored name
+            // directly is lossy in a way the property mapping is not: "Value Id"
+            // and "ValueId" both collapse onto "m_valueId" (CS0102, even though
+            // their properties differ), and characters that are legal in a
+            // BrowseName but not in an identifier survive into the field name -
+            // "$Value" became "m_$Value", which does not compile at all.
+            return field.GetPropertyName().TrimStart('@').ToSafeSymbolName(true, "m_");
         }
 
         /// <summary>
@@ -857,20 +860,43 @@ namespace Opc.Ua.Schema.Model
                 {
                     continue;
                 }
-                if (string.Equals(sibling.GetChildFieldName(), bare, StringComparison.Ordinal))
+
+                // The sibling's names *before* disambiguation. Asking for its
+                // final ones would recurse back into this check through
+                // GetChildFieldName, and an over-approximation here only costs
+                // an unnecessary rename, never a collision.
+                string siblingBare = SanitizeFieldName(sibling.Name);
+
+                if (string.Equals(
+                    ToBackingFieldName(siblingBare), bare, StringComparison.Ordinal))
                 {
+                    // This property would be named after the sibling's field.
                     return true;
                 }
                 if (earlier &&
-                    string.Equals(
-                        sibling.Name.ToCSharpIdentifierPreserveCase().TrimStart('@'),
-                        bare,
-                        StringComparison.Ordinal))
+                    (string.Equals(siblingBare, bare, StringComparison.Ordinal) ||
+                        string.Equals(
+                            ToBackingFieldName(siblingBare),
+                            ToBackingFieldName(bare),
+                            StringComparison.Ordinal)))
                 {
+                    // Same property name, or two property names that differ only
+                    // where the backing field mapping does not ("Value" and
+                    // "value" both store into "m_value").
                     return true;
                 }
             }
             return false;
+        }
+
+        private static string SanitizeFieldName(string name)
+        {
+            return name.ToCSharpIdentifierPreserveCase().TrimStart('@');
+        }
+
+        private static string ToBackingFieldName(string propertyName)
+        {
+            return propertyName.ToSafeSymbolName(true, "m_");
         }
 
         /// <summary>
@@ -930,11 +956,14 @@ namespace Opc.Ua.Schema.Model
                 {
                     continue;
                 }
+                string siblingBare = SanitizeFieldName(sibling.Name);
                 taken.Add(sibling.Name);
-                taken.Add(sibling.Name.ToCSharpIdentifierPreserveCase().TrimStart('@'));
+                taken.Add(siblingBare);
                 // The property shares the class with every sibling's backing
-                // field, so the replacement name must clear those too.
-                taken.Add(sibling.GetChildFieldName());
+                // field, so the replacement name must clear those too. Uses the
+                // pre-disambiguation name for the same reason as the collision
+                // check: asking for the final one would recurse.
+                taken.Add(ToBackingFieldName(siblingBare));
             }
             taken.UnionWith(s_reservedDataTypeFields);
 

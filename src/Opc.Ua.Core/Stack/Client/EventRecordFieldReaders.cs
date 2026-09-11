@@ -728,9 +728,51 @@ namespace Opc.Ua
             {
                 return default;
             }
-            return fields[index].TryGetValue(out int value)
-                ? (T)Enum.ToObject(typeof(T), value)
-                : default;
+            return TryGetEnum(fields[index], out T value) ? value : default;
+        }
+
+        /// <summary>
+        /// Reads one enumeration value. A plain enumeration is transferred as
+        /// Int32, but an OptionSet's generated enum takes its underlying type
+        /// from the OptionSet's base type, so it can arrive as any of the
+        /// integer widths.
+        /// </summary>
+        /// <typeparam name="T">The generated enumeration type.</typeparam>
+        private static bool TryGetEnum<T>(Variant field, out T value)
+            where T : struct, Enum
+        {
+            switch (field.TypeInfo.BuiltInType)
+            {
+                case BuiltInType.SByte when field.TryGetValue(out sbyte v):
+                    value = (T)Enum.ToObject(typeof(T), v);
+                    return true;
+                case BuiltInType.Byte when field.TryGetValue(out byte v):
+                    value = (T)Enum.ToObject(typeof(T), v);
+                    return true;
+                case BuiltInType.Int16 when field.TryGetValue(out short v):
+                    value = (T)Enum.ToObject(typeof(T), v);
+                    return true;
+                case BuiltInType.UInt16 when field.TryGetValue(out ushort v):
+                    value = (T)Enum.ToObject(typeof(T), v);
+                    return true;
+                case BuiltInType.UInt32 when field.TryGetValue(out uint v):
+                    value = (T)Enum.ToObject(typeof(T), v);
+                    return true;
+                case BuiltInType.Int64 when field.TryGetValue(out long v):
+                    value = (T)Enum.ToObject(typeof(T), v);
+                    return true;
+                case BuiltInType.UInt64 when field.TryGetValue(out ulong v):
+                    value = (T)Enum.ToObject(typeof(T), v);
+                    return true;
+                default:
+                    if (field.TryGetValue(out int int32))
+                    {
+                        value = (T)Enum.ToObject(typeof(T), int32);
+                        return true;
+                    }
+                    value = default;
+                    return false;
+            }
         }
 
         /// <summary>
@@ -744,14 +786,18 @@ namespace Opc.Ua
             {
                 return null;
             }
-            if (!fields[index].TryGetValue(out ArrayOf<int> values))
+            // Same width problem as the scalar reader: an OptionSet's enum can
+            // be backed by any integer type, so go through the Variant wrapper
+            // rather than assuming ArrayOf<int>.
+            Variant[]? elements = GetVariantArray(fields, index);
+            if (elements == null)
             {
                 return null;
             }
-            var result = new T[values.Count];
+            var result = new T[elements.Length];
             for (int ii = 0; ii < result.Length; ii++)
             {
-                result[ii] = (T)Enum.ToObject(typeof(T), values[ii]);
+                result[ii] = TryGetEnum(elements[ii], out T value) ? value : default;
             }
             return result;
         }

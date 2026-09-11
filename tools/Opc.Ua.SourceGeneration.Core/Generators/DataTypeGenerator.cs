@@ -785,10 +785,10 @@ namespace Opc.Ua.SourceGeneration
 
             if (context.Token == Tokens.ListOfSwitchFieldNames)
             {
-                // The wire name, kept verbatim.
-                context.Out.Write('"');
-                context.Out.Write(field.Name);
-                context.Out.Write('"');
+                // The wire name, escaped into a C# literal. The decoded value is
+                // unchanged; a name containing a quote or a backslash would
+                // otherwise not compile.
+                context.Out.Write(field.Name.AsStringLiteral());
             }
             else
             {
@@ -815,10 +815,8 @@ namespace Opc.Ua.SourceGeneration
             {
                 if (context.Token == Tokens.ListOfEncodingMaskFieldNames)
                 {
-                    // The wire name, kept verbatim.
-                    context.Out.Write('"');
-                    context.Out.Write(field.Name);
-                    context.Out.Write('"');
+                    // The wire name, escaped into a C# literal.
+                    context.Out.Write(field.Name.AsStringLiteral());
                 }
                 else
                 {
@@ -868,7 +866,10 @@ namespace Opc.Ua.SourceGeneration
             }
 
             string functionName = field.DataTypeNode.BasicDataType.ToString();
-            string fieldName = isUnion ? $"fieldName ?? \"{field.Name}\"" : $"\"{field.Name}\"";
+            // Escaped, not interpolated raw: the wire name is authored data and
+            // a quote or backslash in it would break the emitted literal.
+            string wireName = field.Name.AsStringLiteral();
+            string fieldName = isUnion ? $"fieldName ?? {wireName}" : wireName;
             string valueName = field.GetPropertyName();
 
             if (field.ValueRank == ValueRank.OneOrMoreDimensions &&
@@ -1042,7 +1043,9 @@ namespace Opc.Ua.SourceGeneration
             }
 
             string valueName = field.GetPropertyName();
-            string fieldName = isUnion ? $"fieldName ?? \"{field.Name}\"" : $"\"{field.Name}\"";
+            // Escaped, not interpolated raw - see the encoder sibling.
+            string wireName = field.Name.AsStringLiteral();
+            string fieldName = isUnion ? $"fieldName ?? {wireName}" : wireName;
 
             if (field.ValueRank == ValueRank.OneOrMoreDimensions &&
                 field.DataTypeNode.SupportsMatrixOf())

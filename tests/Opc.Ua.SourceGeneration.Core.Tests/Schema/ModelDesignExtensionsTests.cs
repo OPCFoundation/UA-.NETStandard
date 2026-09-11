@@ -5793,7 +5793,9 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase("Z", "m_z")]
         [TestCase("a", "m_a")]
         [TestCase("z", "m_z")]
-        [TestCase("0", "m_0")]
+        // A name that is only a digit gets the sanitizer's leading underscore
+        // before the "m_" prefix is applied.
+        [TestCase("0", "m__0")]
         [TestCase("_", "m__")]
         public void GetChildFieldName_SingleCharacterName_ReturnsCorrectFieldName(string name, string expected)
         {
@@ -5845,12 +5847,15 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
-        /// Tests that GetChildFieldName handles names with special characters correctly.
+        /// Tests that GetChildFieldName handles names with special characters
+        /// correctly. A BrowseName may contain characters that are not legal in
+        /// a C# identifier, and the backing field has to be one: these used to
+        /// come out as "m_$Value" / "m_name-With-Dash", which do not compile.
         /// </summary>
         [TestCase("_Property", "m__Property")]
-        [TestCase("$Value", "m_$Value")]
-        [TestCase("Name-With-Dash", "m_name-With-Dash")]
-        [TestCase("Name.With.Dot", "m_name.With.Dot")]
+        [TestCase("$Value", "m__Value")]
+        [TestCase("Name-With-Dash", "m_name_With_Dash")]
+        [TestCase("Name.With.Dot", "m_name_With_Dot")]
         public void GetChildFieldName_SpecialCharacters_ReturnsCorrectFieldName(string name, string expected)
         {
             // Arrange
@@ -5868,8 +5873,10 @@ namespace Opc.Ua.Schema.Model.Tests
         /// </summary>
         [TestCase("Property123", "m_property123")]
         [TestCase("Property1", "m_property1")]
-        [TestCase("1Property", "m_1Property")]
-        [TestCase("123", "m_123")]
+        // An identifier may not start with a digit, so the sanitizer prefixes
+        // one - "m_1Property" and "m_123" did not compile.
+        [TestCase("1Property", "m__1Property")]
+        [TestCase("123", "m__123")]
         public void GetChildFieldName_NamesWithNumbers_ReturnsCorrectFieldName(string name, string expected)
         {
             // Arrange
@@ -13409,6 +13416,52 @@ namespace Opc.Ua.Schema.Model.Tests
             field.Parent = dataType;
 
             Assert.That(field.GetPropertyName(), Is.Not.EqualTo(fieldName));
+        }
+
+        /// <summary>
+        /// Regression: disambiguating the properties was not enough. The backing
+        /// field mapping is lossier than the property mapping, so "Value Id" and
+        /// "ValueId" both landed on "m_valueId" and the generated class declared
+        /// the field twice (CS0102) even though the properties differed.
+        /// </summary>
+        [Test]
+        public void GetChildFieldName_SiblingsThatSanitizeAlike_AreMadeUnique()
+        {
+            var first = new Parameter { Name = "Value Id" };
+            var second = new Parameter { Name = "ValueId" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [first, second]
+            };
+            first.Parent = dataType;
+            second.Parent = dataType;
+
+            Assert.That(
+                first.GetChildFieldName(),
+                Is.Not.EqualTo(second.GetChildFieldName()));
+        }
+
+        /// <summary>
+        /// Two properties that differ only in the case of their first letter
+        /// would share one backing field, since the mapping lower-cases it.
+        /// </summary>
+        [Test]
+        public void GetChildFieldName_SiblingsDifferingOnlyByCase_AreMadeUnique()
+        {
+            var first = new Parameter { Name = "Value" };
+            var second = new Parameter { Name = "value" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [first, second]
+            };
+            first.Parent = dataType;
+            second.Parent = dataType;
+
+            Assert.That(
+                first.GetChildFieldName(),
+                Is.Not.EqualTo(second.GetChildFieldName()));
         }
 
         /// <summary>

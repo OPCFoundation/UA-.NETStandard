@@ -656,12 +656,78 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             });
         }
 
+        /// <summary>
+        /// An OptionSet's generated enum takes its underlying type from the
+        /// OptionSet's base type, so the value can arrive as any integer width.
+        /// Reading only Int32 lost every non-Int32 OptionSet field, which came
+        /// back as the enum's default.
+        /// </summary>
+        [Test]
+        public void EnumReadersAcceptEveryIntegerWidth()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    EventRecordFieldReaders.GetEnum<ByteFlags>(
+                        [Variant.From((byte)3)], 0),
+                    Is.EqualTo(ByteFlags.First | ByteFlags.Second));
+                Assert.That(
+                    EventRecordFieldReaders.GetEnum<UShortFlags>(
+                        [Variant.From((ushort)2)], 0),
+                    Is.EqualTo(UShortFlags.Second));
+                Assert.That(
+                    EventRecordFieldReaders.GetEnum<UIntFlags>([Variant.From(2u)], 0),
+                    Is.EqualTo(UIntFlags.Second));
+                Assert.That(
+                    EventRecordFieldReaders.GetEnum<ULongFlags>(
+                        [Variant.From(0x1_0000_0000UL)], 0),
+                    Is.EqualTo(ULongFlags.High),
+                    "a 64 bit OptionSet can set a bit above 31");
+
+                Assert.That(
+                    EventRecordFieldReaders.GetEnumArray<ByteFlags>(
+                        [Variant.From(s_byteValues.ToArrayOf())], 0),
+                    Is.EqualTo(new[] { ByteFlags.First, ByteFlags.Second }));
+            });
+        }
+
         private enum TestEnum
         {
             None = 0,
             First = 1,
             Second = 2
         }
+
+        [Flags]
+        private enum ByteFlags : byte
+        {
+            None = 0,
+            First = 1,
+            Second = 2
+        }
+
+        [Flags]
+        private enum UShortFlags : ushort
+        {
+            None = 0,
+            Second = 2
+        }
+
+        [Flags]
+        private enum UIntFlags : uint
+        {
+            None = 0,
+            Second = 2
+        }
+
+        [Flags]
+        private enum ULongFlags : ulong
+        {
+            None = 0,
+            High = 0x1_0000_0000
+        }
+
+        private static readonly byte[] s_byteValues = [1, 2];
 
         private static readonly float[] s_floats = [1.5f, 2.5f];
         private static readonly int[] s_enumValues = [1, 2];
