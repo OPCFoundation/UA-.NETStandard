@@ -76,6 +76,7 @@ namespace Opc.Ua.PubSub.Connections
         private readonly IPubSubDiagnostics m_diagnostics;
         private readonly IPubSubActivationCoordinator m_activationCoordinator;
         private readonly IPubSubWriterCheckpointStore m_writerCheckpointStore;
+        private readonly ISchemaLifecycleObserver? m_schemaObserver;
         private readonly UadpSecurityWrapper? m_securityWrapper;
         private readonly UadpSecurityWrapOptions m_securityWrapOptions;
         private readonly MessageSecurityMode m_requiredSecurityMode;
@@ -176,6 +177,7 @@ namespace Opc.Ua.PubSub.Connections
         /// </param>
         /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
         /// <param name="writerCheckpointStore">Optional writer SequenceNumber checkpoint store.</param>
+        /// <param name="schemaObserver">Optional observer notified when the encoder produces a new per-DataSet schema (drives the schema lifecycle).</param>
         public PubSubConnection(
             PubSubConnectionDataType configuration,
             IPubSubTransportFactory transportFactory,
@@ -193,7 +195,8 @@ namespace Opc.Ua.PubSub.Connections
             MessageSecurityMode requiredSecurityMode = MessageSecurityMode.None,
             IPubSubScheduler? scheduler = null,
             IPubSubActivationCoordinator? activationCoordinator = null,
-            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null,
+            ISchemaLifecycleObserver? schemaObserver = null)
         {
             if (configuration is null)
             {
@@ -235,6 +238,7 @@ namespace Opc.Ua.PubSub.Connections
             m_diagnostics = diagnostics;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
             m_writerCheckpointStore = writerCheckpointStore ?? NullPubSubWriterCheckpointStore.Instance;
+            m_schemaObserver = schemaObserver;
             m_telemetry = telemetry;
             m_timeProvider = timeProvider;
             m_scheduler = scheduler ?? new PubSubScheduler(telemetry, timeProvider);
@@ -2315,6 +2319,20 @@ namespace Opc.Ua.PubSub.Connections
                     networkMessage,
                     context,
                     cancellationToken).ConfigureAwait(false);
+            }
+
+            // Drive the schema lifecycle: when the encoder produced a not-yet-announced per-DataSet
+            // schema, notify the observer so it can advance the DataSet ConfigurationVersion and,
+            // optionally, register the schema (Avro Part 6 §6.4 / Part 14 §8.4.5, §8.4.8).
+            if (m_schemaObserver is not null && encoder is INotifyingSchemaEncoder notifyingEncoder)
+            {
+                IReadOnlyList<SchemaChangeNotification> changes = notifyingEncoder.LastSchemaChanges;
+                for (int i = 0; i < changes.Count; i++)
+                {
+                    await m_schemaObserver
+                        .OnSchemaProducedAsync(changes[i], cancellationToken)
+                        .ConfigureAwait(false);
+                }
             }
 
             if (m_maxNetworkMessageSize > 0 &&

@@ -79,6 +79,7 @@ namespace Opc.Ua.PubSub.Application
         private readonly IPubSubScheduler m_scheduler;
         private readonly IPubSubActivationCoordinator m_activationCoordinator;
         private readonly IPubSubWriterCheckpointStore m_writerCheckpointStore;
+        private readonly ISchemaLifecycleObserver? m_schemaObserver;
         private readonly TimeProvider m_timeProvider;
 
         private readonly IReadOnlyDictionary<string, IPublishedDataSetSource>?
@@ -231,6 +232,7 @@ namespace Opc.Ua.PubSub.Application
         /// <param name="runtimeStateStore">Optional external runtime-state store.</param>
         /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
         /// <param name="writerCheckpointStore">Optional writer SequenceNumber checkpoint store.</param>
+        /// <param name="schemaObserver">Optional observer notified when the encoder produces a new per-DataSet schema (drives the schema lifecycle).</param>
         public PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -251,7 +253,8 @@ namespace Opc.Ua.PubSub.Application
             IPubSubConfigurationStore? configurationStore = null,
             IPubSubRuntimeStateStore? runtimeStateStore = null,
             IPubSubActivationCoordinator? activationCoordinator = null,
-            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null,
+            ISchemaLifecycleObserver? schemaObserver = null)
             : this(
                 snapshot,
                 transportFactories,
@@ -272,7 +275,8 @@ namespace Opc.Ua.PubSub.Application
                 dataSetSourceProvider,
                 dataSetSinkProvider,
                 activationCoordinator,
-                writerCheckpointStore)
+                writerCheckpointStore,
+                schemaObserver)
         {
         }
 
@@ -296,7 +300,8 @@ namespace Opc.Ua.PubSub.Application
             IDataSetSourceProvider? dataSetSourceProvider = null,
             IDataSetSinkProvider? dataSetSinkProvider = null,
             IPubSubActivationCoordinator? activationCoordinator = null,
-            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null,
+            ISchemaLifecycleObserver? schemaObserver = null)
         {
             if (snapshot is null)
             {
@@ -345,6 +350,7 @@ namespace Opc.Ua.PubSub.Application
             m_scheduler = scheduler;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
             m_writerCheckpointStore = writerCheckpointStore ?? NullPubSubWriterCheckpointStore.Instance;
+            m_schemaObserver = schemaObserver;
             m_timeProvider = timeProvider;
             m_publishedDataSetSources = publishedDataSetSources;
             m_subscribedDataSetSinks = subscribedDataSetSinks;
@@ -563,7 +569,8 @@ namespace Opc.Ua.PubSub.Application
                 requiredSecurityMode,
                 m_scheduler,
                 m_activationCoordinator,
-                m_writerCheckpointStore);
+                m_writerCheckpointStore,
+                m_schemaObserver);
             lock (m_gate)
             {
                 for (int i = 0; i < m_actionHandlers.Count; i++)

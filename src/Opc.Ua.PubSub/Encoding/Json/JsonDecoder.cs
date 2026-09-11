@@ -60,6 +60,20 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <inheritdoc/>
         public string TransportProfileUri => Profiles.PubSubMqttJsonTransport;
 
+        /// <summary>
+        /// Gets the SchemaId cache used by the decoder.
+        /// </summary>
+        public SchemaCache SchemaCache => m_schemaCache ??= new SchemaCache();
+
+        /// <summary>
+        /// Ingests a JSON schema announcement into the decoder cache.
+        /// </summary>
+        /// <param name="announcement">The schema announcement to ingest.</param>
+        public void Ingest(JsonSchemaAnnouncement announcement)
+        {
+            SchemaCache.Add(announcement);
+        }
+
         /// <inheritdoc/>
         public ValueTask<PubSubNetworkMessage?> TryDecodeAsync(
             ReadOnlyMemory<byte> frame,
@@ -1444,5 +1458,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
             return null;
         }
+
+        private SchemaCache? m_schemaCache;
     }
 }
