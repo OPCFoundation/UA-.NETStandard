@@ -33,6 +33,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Xml;
+using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Types;
 
@@ -542,15 +543,20 @@ namespace Opc.Ua
             if (BeginField(fieldName, value.IsEmpty, true, isArrayElement))
             {
                 // WriteRaw bypasses every check the writer would otherwise make,
-                // so validate the body first. Writing unparsable (or injected)
-                // markup would produce a document no decoder can read.
-                if (!value.IsValid)
+                // so parse the body first. Writing unparsable (or injected)
+                // markup would produce a document no decoder can read, and an
+                // XML declaration - which parses fine but may only appear at the
+                // start of a document - would be injected into the middle of
+                // this one. Writing the parsed element back drops the prolog and
+                // guarantees a single well formed root.
+                XElement? body = value.AsXElement();
+                if (body == null)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingError,
                         "XmlElement body is not well formed XML.");
                 }
-                m_writer.WriteRaw(value.OuterXml ?? string.Empty);
+                m_writer.WriteRaw(body.ToString(SaveOptions.DisableFormatting));
                 EndField(fieldName);
             }
         }

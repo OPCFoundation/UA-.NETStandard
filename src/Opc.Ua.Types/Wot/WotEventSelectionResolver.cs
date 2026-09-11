@@ -731,7 +731,13 @@ namespace Opc.Ua.Wot
             System.Threading.CancellationToken cancellationToken)
         {
             List<WotDiagnostic> diagnostics = scope.Diagnostics;
-            var seen = new HashSet<string>(StringComparer.Ordinal);
+
+            // The same raw reference text resolves to different definitions
+            // under different @context mappings, so the chain is only revisiting
+            // a definition when both the text and the document it is read in
+            // repeat. Keying on the text alone rejected "x:Type" in document A
+            // followed by "x:Type" in document B as cyclic.
+            var seen = new HashSet<(WotDocument, string)>();
             string current = reference;
             bool carriesAnnotation = false;
             bool sawAnnotation = false;
@@ -747,8 +753,9 @@ namespace Opc.Ua.Wot
 
             for (int depth = 0; depth < maxDepth; depth++)
             {
+                WotDocument resolvedIn = context;
                 ResolvedDefinition located = await ResolveReferenceTargetAsync(
-                        context, current, where, scope, cancellationToken)
+                        resolvedIn, current, where, scope, cancellationToken)
                     .ConfigureAwait(false);
                 if (!located.Found)
                 {
@@ -756,7 +763,7 @@ namespace Opc.Ua.Wot
                 }
                 JsonElement definition = located.Definition;
                 context = located.Owner ?? context;
-                if (!seen.Add(current))
+                if (!seen.Add((resolvedIn, current)))
                 {
                     AddError(
                         diagnostics,

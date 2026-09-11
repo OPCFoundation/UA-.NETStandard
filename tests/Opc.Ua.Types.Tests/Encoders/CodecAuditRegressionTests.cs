@@ -32,6 +32,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Xml;
+using System.Xml.Linq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -439,6 +440,32 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Assert.That(
                     XmlElement.From("<not well formed").GetHashCode(),
                     Is.EqualTo(XmlElement.From("<not well formed").GetHashCode()));
+            });
+        }
+
+        [Test]
+        public void XmlDeclarationIsNotInjectedIntoTheFieldElement()
+        {
+            // An XmlElement whose body starts with an XML declaration parses
+            // fine, so the validation accepted it, but WriteRaw then put the
+            // declaration in the middle of the document - where it is illegal -
+            // and produced XML no decoder can read.
+            ServiceMessageContext context = CreateContext();
+
+            using var encoder = new XmlEncoder(context);
+            encoder.PushNamespace(kNs);
+            encoder.WriteXmlElement(
+                "Body",
+                XmlElement.From("<?xml version=\"1.0\" encoding=\"utf-8\"?><a x=\"1\" />"));
+            string xml = encoder.CloseAndReturnText();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(xml, Does.Not.Contain("<?xml version=\"1.0\" encoding=\"utf-8\"?><a"));
+                Assert.That(xml, Does.Contain("<a x=\"1\""));
+
+                // and the result is parseable, which is the point of the check.
+                Assert.DoesNotThrow(() => XDocument.Parse(xml));
             });
         }
 

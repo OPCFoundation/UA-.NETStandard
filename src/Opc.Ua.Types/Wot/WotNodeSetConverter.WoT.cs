@@ -1458,7 +1458,12 @@ namespace Opc.Ua.Wot
                         nodeSet,
                         diagnostics),
                 ParentNodeId = rootNodeId,
-                DataType = MapJsonSchemaToDataType(document, schema, nodeSet, diagnostics),
+                DataType = MapJsonSchemaToDataType(
+                    document,
+                    schema,
+                    nodeSet,
+                    diagnostics,
+                    inferMissingDataType: true),
                 AccessLevel = MapAccessLevel(schema)
             };
 
@@ -1583,10 +1588,6 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Adds the forward component reference from the owning Variable, so the
-        /// child hangs where the document says rather than being orphaned.
-        /// </summary>
-        /// <summary>
         /// Adds the forward component Reference for every inverse component
         /// Reference whose owner could not be found when the child was
         /// materialized, because the document declares the owner later.
@@ -1619,13 +1620,19 @@ namespace Opc.Ua.Wot
                         continue;
                     }
 
+                    // The forward reference has to match the inverse one's type,
+                    // not merely be some component reference to the same child.
+                    // A forward HasComponent does not satisfy an inverse
+                    // HasProperty, and treating it as satisfied left that
+                    // relation stated in one direction only.
                     bool present = false;
                     foreach (Reference existing in owner.References ?? [])
                     {
                         if (existing.IsForward &&
                             string.Equals(
                                 existing.Value, node.NodeId, StringComparison.Ordinal) &&
-                            IsComponentReference(existing.ReferenceType))
+                            IsSameComponentReferenceType(
+                                existing.ReferenceType, reference.ReferenceType))
                         {
                             present = true;
                             break;
@@ -4281,11 +4288,23 @@ namespace Opc.Ua.Wot
         /// portable <c>nsu=</c> form into the <c>ns=&lt;index&gt;</c> form a
         /// NodeSet2 <c>DataType</c> attribute is allowed to carry.
         /// </remarks>
+        /// <param name="document">The document the schema is read in.</param>
+        /// <param name="schema">The DataSchema to map.</param>
+        /// <param name="nodeSet">The NodeSet being built.</param>
+        /// <param name="diagnostics">Where to report a disagreement.</param>
+        /// <param name="inferMissingDataType">Whether a <c>uav:dataTypeName</c>
+        /// that no definition claims may be returned as an inferred identity.
+        /// Only a property schema may: SynthesizeInferredDataTypes walks
+        /// <see cref="WotDocument.Properties"/> and materializes the UADataType
+        /// for those alone, so returning an inferred identity for an action
+        /// argument or an event field would type it against a Node that is
+        /// never written.</param>
         private static string MapJsonSchemaToDataType(
             WotDocument document,
             JsonElement schema,
             UANodeSet nodeSet,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            bool inferMissingDataType = false)
         {
             string? mapped = GetElementString(schema, "uav:mapToType") is { } definitive
                 ? ToNodeSetNodeId(definitive, nodeSet, diagnostics)
@@ -4306,7 +4325,9 @@ namespace Opc.Ua.Wot
             return mapped ??
                 defined ??
                 annotated ??
-                InferredDataTypeIdentity(document, schema, nodeSet) ??
+                (inferMissingDataType
+                    ? InferredDataTypeIdentity(document, schema, nodeSet)
+                    : null) ??
                 WotVocabulary.MapJsonTypeToDataType(
                     GetElementString(schema, "type"),
                     GetElementString(schema, "contentEncoding"),

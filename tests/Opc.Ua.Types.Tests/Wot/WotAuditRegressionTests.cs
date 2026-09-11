@@ -308,10 +308,15 @@ namespace Opc.Ua.Types.Tests.Wot
                 "uav", "Member", WotVocabulary.VocabularyNamespace);
             member.SetAttribute("Pointer", pointer);
             member.SetAttribute("Encoding", WotVocabulary.Base64Encoding);
+            // SHA256.HashData is .NET 5 and later only.
+            byte[] hash;
+            using (var sha256 = System.Security.Cryptography.SHA256.Create())
+            {
+                hash = sha256.ComputeHash(bytes);
+            }
             member.SetAttribute(
                 "Sha256",
-                CoreUtils.ToHexString(
-                    System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant());
+                CoreUtils.ToHexString(hash).ToLowerInvariant());
             member.InnerText = Convert.ToBase64String(bytes);
             root.AppendChild(member);
             return root;

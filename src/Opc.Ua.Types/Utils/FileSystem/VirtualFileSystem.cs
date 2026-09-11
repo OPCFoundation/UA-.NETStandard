@@ -643,6 +643,15 @@ namespace Opc.Ua
                 public override void SetLength(long value)
                 {
                     ThrowIfDisposed();
+
+                    // An explicit length request counts as written even when it
+                    // asks for the length the file already has, otherwise the
+                    // truncation on dispose throws those bytes away again.
+                    if (CanWrite && value >= 0)
+                    {
+                        m_highWaterMark = Math.Max(m_highWaterMark, value);
+                    }
+
                     if (m_file.Length == value)
                     {
                         return;

@@ -142,9 +142,19 @@ namespace System
                 return target.Replace(oldValue, newValue);
             }
 
-            if (string.IsNullOrEmpty(oldValue))
+            // The framework overload throws for these, and so does the ordinal
+            // branch above through string.Replace. Returning the target instead
+            // would make the contract depend on the target framework and on the
+            // comparison the caller asked for.
+            if (oldValue == null)
             {
-                return target;
+                throw new ArgumentNullException(nameof(oldValue));
+            }
+            if (oldValue.Length == 0)
+            {
+                throw new ArgumentException(
+                    "String cannot be of zero length.",
+                    nameof(oldValue));
             }
 
             // Honour the comparison instead of always replacing ordinally.

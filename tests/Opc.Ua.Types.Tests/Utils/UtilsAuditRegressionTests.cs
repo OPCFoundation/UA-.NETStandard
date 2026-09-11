@@ -101,6 +101,25 @@ namespace Opc.Ua.Types.Tests.Utils
         }
 
         [Test]
+        public void ReplaceThrowsForAnInvalidOldValueUnderEveryComparison()
+        {
+            // The non-ordinal path returned the target instead of throwing, so
+            // the polyfill's contract differed from the framework overload and
+            // from its own ordinal branch.
+            Assert.Multiple(() =>
+            {
+                Assert.Throws<ArgumentNullException>(
+                    () => "abc".Replace(null!, "x", StringComparison.CurrentCulture));
+                Assert.Throws<ArgumentException>(
+                    () => "abc".Replace(string.Empty, "x", StringComparison.CurrentCulture));
+                Assert.Throws<ArgumentNullException>(
+                    () => "abc".Replace(null!, "x", StringComparison.OrdinalIgnoreCase));
+                Assert.Throws<ArgumentException>(
+                    () => "abc".Replace(string.Empty, "x", StringComparison.OrdinalIgnoreCase));
+            });
+        }
+
+        [Test]
         public void MatchAcceptsAPatternEndingInASingleCharacterWildcard()
         {
             // The unmatched-trailing-character guard was placed before the '?'
@@ -159,8 +178,13 @@ namespace Opc.Ua.Types.Tests.Utils
                 byte[] buffer = new byte[8];
                 int read = stream.Read(buffer, 0, buffer.Length);
 
+                // A range indexer over an array needs RuntimeHelpers.GetSubArray,
+                // which .NET Framework does not have.
+                byte[] head = new byte[6];
+                Array.Copy(buffer, head, head.Length);
+
                 Assert.That(read, Is.EqualTo(6));
-                Assert.That(buffer[..6], Is.EqualTo(new byte[] { 1, 2, 9, 4, 5, 6 }));
+                Assert.That(head, Is.EqualTo(new byte[] { 1, 2, 9, 4, 5, 6 }));
             }
         }
 
@@ -177,6 +201,29 @@ namespace Opc.Ua.Types.Tests.Utils
             }
 
             Assert.That(fileSystem.GetLength(path), Is.EqualTo(2));
+        }
+
+        [Test]
+        public void VirtualFileSystemHonoursSetLengthToTheCurrentLength()
+        {
+            // SetLength returned early when asked for the length the file
+            // already had, so the high water mark stayed at zero and the
+            // truncation on dispose emptied the file despite the explicit
+            // length request.
+            var fileSystem = new VirtualFileSystem();
+            const string path = "audit/unchanged.bin";
+
+            using (Stream stream = fileSystem.OpenWrite(path))
+            {
+                stream.Write([1, 2, 3, 4, 5, 6], 0, 6);
+            }
+
+            using (Stream stream = fileSystem.OpenWrite(path))
+            {
+                stream.SetLength(6);
+            }
+
+            Assert.That(fileSystem.GetLength(path), Is.EqualTo(6));
         }
 
         [Test]

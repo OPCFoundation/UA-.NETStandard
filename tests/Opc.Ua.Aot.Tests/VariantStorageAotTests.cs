@@ -170,10 +170,15 @@ namespace Opc.Ua.Aot.Tests
             {
                 Variant andResult = Variant.From(-1L) & input;
                 Variant orResult = Variant.From(0L) | input;
-                await Assert.That(andResult.TryGetValue(out long andValue)).IsTrue();
-                await Assert.That(orResult.TryGetValue(out long orValue)).IsTrue();
-                await Assert.That(andValue).IsEqualTo(0L);
-                await Assert.That(orValue).IsEqualTo(0L);
+
+                // An operand that does not resolve to an integer makes the
+                // result null (OPC 10000-4 7.7.3), rather than a zero that is
+                // indistinguishable from a real result. Either way the packed
+                // payload's raw bits never reach the operator.
+                await Assert.That(andResult.IsNull).IsTrue();
+                await Assert.That(orResult.IsNull).IsTrue();
+                await Assert.That(andResult.TryGetValue(out long _)).IsFalse();
+                await Assert.That(orResult.TryGetValue(out long _)).IsFalse();
                 await Assert.That((Variant.From(true) & input).GetBoolean()).IsFalse();
                 await Assert.That((Variant.From(false) | input).GetBoolean()).IsFalse();
             }
